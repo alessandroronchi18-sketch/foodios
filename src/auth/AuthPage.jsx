@@ -52,6 +52,7 @@ export default function AuthPage({ onSignIn, onSignUp }) {
     citta: '',
     email: '',
     password: '',
+    codice_invito: '',
   })
 
   async function handleLogin(e) {
@@ -81,6 +82,7 @@ export default function AuthPage({ onSignIn, onSignUp }) {
         nome_attivita: reg.nome_attivita,
         tipo_attivita: reg.tipo_attivita.toLowerCase().replace(' / ', '_').replace('/', '_'),
         citta: reg.citta,
+        ...(reg.codice_invito.trim() && { codice_invito: reg.codice_invito.trim() }),
       })
       setSuccesso(true)
     } catch (err) {
@@ -273,6 +275,10 @@ export default function AuthPage({ onSignIn, onSignUp }) {
 
                   <Field label="Password (min. 8 caratteri)">
                     <input type="password" required minLength={8} value={reg.password} onChange={setR('password')} style={INPUT_STYLE} placeholder="••••••••" autoComplete="new-password" />
+                  </Field>
+
+                  <Field label="Codice invito (opzionale)">
+                    <input type="text" value={reg.codice_invito} onChange={setR('codice_invito')} style={INPUT_STYLE} placeholder="Lascia vuoto se non ce l'hai" />
                   </Field>
 
                   <button

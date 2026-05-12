@@ -6516,17 +6516,19 @@ export default function Dashboard({
 
   return (
     <ErrorBoundary>
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',system-ui,sans-serif",color:C.text,display:"flex"}}>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',system-ui,sans-serif",color:C.text,display:"flex",paddingTop:isTrialAttivo&&auth?.org?.trial_ends_at?38:0}}>
       {/* ── Trial Banner ── */}
-      {isTrialAttivo && auth?.org?.trial_ends_at && (
-        <div style={{background:"#FEF9C3",borderBottom:"1px solid #FDE68A",
-                     padding:"10px 24px",fontSize:12,textAlign:"center",
-                     position:"sticky",top:0,zIndex:100}}>
-          🎁 Prova gratuita attiva — scade il {new Date(auth.org.trial_ends_at).toLocaleDateString('it-IT')}
-          &nbsp;·&nbsp; Hai domande? Scrivici a{' '}
-          <a href="mailto:support@foodios.it" style={{color:"#92400E"}}>support@foodios.it</a>
-        </div>
-      )}
+      {isTrialAttivo && auth?.org?.trial_ends_at && (()=>{
+        const giorniRim = Math.max(0, Math.ceil((new Date(auth.org.trial_ends_at) - new Date()) / 86400000));
+        return (
+          <div style={{background:"#FFFBEB",borderBottom:"1px solid #FDE68A",
+                       padding:"9px 24px",fontSize:12,fontWeight:500,textAlign:"center",
+                       position:"fixed",top:0,left:0,right:0,zIndex:200,color:"#92400E"}}>
+            🎁 Trial gratuito — <strong>{giorniRim} giorni rimanenti</strong>
+            &nbsp;·&nbsp; Domande? <a href="mailto:support@foodios.it" style={{color:"#C0392B",fontWeight:700}}>support@foodios.it</a>
+          </div>
+        );
+      })()}
       <style>{`*{box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.4);border-radius:10px}::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.7)}`}</style>
 
       {toast&&(
@@ -6655,7 +6657,12 @@ export default function Dashboard({
             </div>
           ))}
         </div>
-        <div style={{padding:"12px 10px 22px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",gap:5}}>
+        <div style={{padding:"12px 10px 20px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",gap:5}}>
+          {auth?.user?.email&&(
+            <div style={{fontSize:10,color:"rgba(148,163,184,0.45)",padding:"0 4px 4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"center"}}>
+              {auth.user.email}
+            </div>
+          )}
           <label style={{display:"block",padding:"9px 12px",background:"rgba(255,255,255,0.03)",border:"1px dashed rgba(255,255,255,0.1)",borderRadius:10,cursor:"pointer",fontSize:ricettario?10:11,fontWeight:500,color:ricettario?"rgba(148,163,184,0.35)":"rgba(203,213,225,0.65)",textAlign:"center",transition:"all 0.15s"}}>
             {loading?"⏳ Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
             <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
