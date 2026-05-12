@@ -106,9 +106,9 @@ export function useAuth() {
 
   const now = new Date()
   const trialEnd = org?.trial_ends_at ? new Date(org.trial_ends_at) : null
-  const isTrialAttivo  = org && !org.approvato && trialEnd && trialEnd > now
-  const isTrialScaduto = org && !org.approvato && trialEnd && trialEnd <= now
   const isPagante      = org?.approvato === true
+  const isTrialAttivo  = org && trialEnd && trialEnd > now   // indipendente da approvato
+  const isTrialScaduto = org && !isPagante && (!trialEnd || trialEnd <= now)
   const isAdmin        = user?.email === import.meta.env.VITE_ADMIN_EMAIL
 
   return {
