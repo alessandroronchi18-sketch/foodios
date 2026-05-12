@@ -6719,91 +6719,132 @@ export default function Dashboard({
 
       {/* SIDEBAR */}
       {(()=>{
-        // Dot indicator helpers
-        const hasRic = !!ricettario && Object.keys(ricettario.ricette||{}).length > 0;
-        const hasMag = Object.keys(magazzino||{}).length > 0;
-        const hasGior = (giornaliero||[]).length > 0;
-        const hasChius = (chiusure||[]).length > 0;
-        const hasPL = hasRic;
+        // ── data indicators ──────────────────────────────────────────────────
+        const hasRic     = !!ricettario && Object.keys(ricettario.ricette||{}).length > 0;
+        const hasMag     = Object.keys(magazzino||{}).length > 0;
+        const hasGior    = (giornaliero||[]).length > 0;
+        const hasChius   = (chiusure||[]).length > 0;
         const criticeMag = Object.values(magazzino||{}).filter(m=>m.giacenza_g===0||(m.soglia_g>0&&m.giacenza_g<=m.soglia_g)).length;
         const azioniAperte = (actions||[]).filter(a=>a.stato!=="chiusa").length;
 
-        const Dot = ({has, alert}) => (
-          <span style={{width:6,height:6,borderRadius:"50%",flexShrink:0,
-            background: alert ? C.red : has ? "#22C55E" : "rgba(148,163,184,0.25)",
-            boxShadow: alert ? `0 0 4px ${C.red}` : "none"}} />
+        // ── warm-dark sidebar palette ────────────────────────────────────────
+        const S = {
+          divider:  "rgba(255,255,255,0.05)",
+          section:  "rgba(200,130,110,0.5)",
+          inactive: "rgba(215,170,155,0.55)",
+          active:   "#FCA5A5",
+          activeBg: "rgba(192,57,43,0.18)",
+        };
+
+        // ── inline SVG renderer (Lucide style 24-grid) ───────────────────────
+        const ic = (paths) => (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
+            style={{flexShrink:0}} dangerouslySetInnerHTML={{__html:paths}} />
         );
 
-        const NAV_VIEWS = ["home","ricettario","semilavorati","nuova-ricetta","foodcost","simulatore","pl","produzione","giornaliero","storico","magazzino","cassa","chiusura","ai","azioni","impostazioni"];
+        const ICONS = {
+          home:       '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+          book:       '<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>',
+          layers:     '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+          pencil:     '<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+          trendUp:    '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+          barChart:   '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+          clipboard:  '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="11" y2="16"/>',
+          activity:   '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+          pkg:        '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+          creditCard: '<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>',
+          sparkles:   '<path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>',
+          settings:   '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
+          logOut:     '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+        };
 
-        const navItem = (id, icon, label, hasDot, alertDot, badge) => {
+        const Dot = ({has, alert}) => (
+          <span style={{width:5,height:5,borderRadius:"50%",flexShrink:0,
+            background: alert ? C.red : has ? "#22C55E" : "rgba(255,255,255,0.1)",
+            boxShadow: alert ? `0 0 5px ${C.red}` : "none"}} />
+        );
+
+        const navItem = (id, iconKey, label, hasDot, alertDot, badge) => {
           const active = view === id;
           return (
             <button key={id} onClick={()=>setView(id)}
-              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
-                background:active?"rgba(192,57,43,0.15)":"transparent",
-                color:active?"#FDA4AF":"rgba(203,213,225,0.6)",
+              style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
+                background:active?S.activeBg:"transparent",
+                color:active?S.active:S.inactive,
                 fontWeight:active?600:400,fontSize:12,marginBottom:1,
-                display:"flex",alignItems:"center",gap:8,transition:"background 0.15s,color 0.15s",
-                borderLeft:active?"3px solid #C0392B":"3px solid transparent",
-                paddingLeft:active?"10px":"12px"}}>
-              <span style={{fontSize:14,width:18,textAlign:"center",flexShrink:0}}>{icon}</span>
+                display:"flex",alignItems:"center",gap:8,transition:"background 0.12s,color 0.12s",
+                borderLeft:active?"2px solid #C0392B":"2px solid transparent",
+                paddingLeft:active?"9px":"10px"}}>
+              {ic(ICONS[iconKey])}
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
               <Dot has={hasDot} alert={alertDot} />
-              {badge>0&&<span style={{background:C.red,color:C.white,borderRadius:10,fontSize:8,fontWeight:900,padding:"1px 5px",marginLeft:2}}>{badge}</span>}
+              {badge>0&&<span style={{background:C.red,color:C.white,borderRadius:10,fontSize:8,fontWeight:900,padding:"1px 5px"}}>{badge}</span>}
             </button>
           );
         };
 
+        const sec = (txt) => (
+          <div style={{marginTop:14,marginBottom:2,padding:"0 10px",fontSize:9,fontWeight:700,
+            letterSpacing:"0.09em",textTransform:"uppercase",color:S.section}}>
+            {txt}
+          </div>
+        );
+
         return (
-          <div style={{width:248,background:C.bgSide,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:50,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.04)"}}>
-            {/* Logo */}
-            <div style={{padding:"18px 14px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:32,height:32,background:"linear-gradient(135deg,#C0392B,#E74C3C)",borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🍰</div>
-                <div style={{minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:700,color:"#F1F5F9",letterSpacing:"-0.01em",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{nomeAttivita||"FoodOS"}</div>
-                  <div style={{fontSize:9,color:"rgba(148,163,184,0.55)",marginTop:1}}>Food Cost OS</div>
-                </div>
+          <div style={{width:248,background:C.bgSide,display:"flex",flexDirection:"column",position:"fixed",
+            top:0,left:0,bottom:0,zIndex:50,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.04)"}}>
+
+            {/* ── Logo ── */}
+            <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+              <div style={{fontSize:18,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.5px",lineHeight:1.1,marginBottom:5}}>
+                FoodOS
+              </div>
+              <div style={{fontSize:12,fontWeight:600,color:"#C0392B",letterSpacing:"0.01em",
+                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                {nomeAttivita || "La tua pasticceria"}
               </div>
             </div>
 
-            {/* Nav */}
-            <div style={{flex:1,overflowY:"auto",padding:"10px 8px"}}>
-              {navItem("home","🏠","Dashboard",true,false,0)}
+            {/* ── Nav ── */}
+            <div style={{flex:1,overflowY:"auto",padding:"8px 8px"}}>
+              {navItem("home","home","Dashboard",true,false,0)}
 
-              <div style={{marginTop:14,marginBottom:3,padding:"0 10px",fontSize:9,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(100,116,139,0.6)"}}>Ricette</div>
-              {navItem("ricettario","📖","Ricettario",hasRic,false,0)}
-              {navItem("semilavorati","🧁","Semilavorati",hasRic,false,0)}
-              {navItem("nuova-ricetta","✏️","Nuova / Modifica",false,false,0)}
+              {sec("Ricette")}
+              {navItem("ricettario","book","Ricettario",hasRic,false,0)}
+              {navItem("semilavorati","layers","Semilavorati",hasRic,false,0)}
+              {navItem("nuova-ricetta","pencil","Nuova / Modifica",false,false,0)}
 
-              <div style={{marginTop:14,marginBottom:3,padding:"0 10px",fontSize:9,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(100,116,139,0.6)"}}>Analisi</div>
-              {navItem("simulatore","💰","Food Cost",hasRic,false,0)}
-              {navItem("pl","📊","P&L",hasPL,false,0)}
+              {sec("Analisi")}
+              {navItem("simulatore","trendUp","Food Cost",hasRic,false,0)}
+              {navItem("pl","barChart","P&L",hasRic,false,0)}
 
-              <div style={{marginTop:14,marginBottom:3,padding:"0 10px",fontSize:9,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(100,116,139,0.6)"}}>Operazioni</div>
-              {navItem("giornaliero","🏭","Produzione",hasGior,false,0)}
-              {navItem("storico","📈","Storico produzione",hasGior,false,0)}
-              {navItem("magazzino","🏪","Magazzino",hasMag,criticeMag>0,criticeMag)}
-              {navItem("chiusura","💳","Cassa",hasChius,false,0)}
+              {sec("Operazioni")}
+              {navItem("giornaliero","clipboard","Produzione",hasGior,false,0)}
+              {navItem("storico","activity","Storico produzione",hasGior,false,0)}
+              {navItem("magazzino","pkg","Magazzino",hasMag,criticeMag>0,criticeMag)}
+              {navItem("chiusura","creditCard","Cassa",hasChius,false,0)}
 
-              <div style={{marginTop:14,marginBottom:3,padding:"0 10px",fontSize:9,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(100,116,139,0.6)"}}>Altro</div>
-              {navItem("azioni","🤖","AI Assistant",false,false,azioniAperte)}
-              {navItem("impostazioni","⚙️","Impostazioni",false,false,0)}
+              {sec("Altro")}
+              {navItem("azioni","sparkles","AI Assistant",false,false,azioniAperte)}
+              {navItem("impostazioni","settings","Impostazioni",false,false,0)}
 
               {/* Mesi archiviati */}
               {sortedMesi.length>0&&(
                 <>
-                  <div style={{marginTop:18,marginBottom:4,padding:"0 10px",fontSize:8,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.15)"}}>📅 Archiviati</div>
+                  <div style={{marginTop:18,marginBottom:3,padding:"0 10px",fontSize:8,fontWeight:700,
+                    letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.13)"}}>
+                    Archiviati
+                  </div>
                   {sortedMesi.map(k=>(
                     <div key={k} style={{marginBottom:2}}>
                       <div style={{display:"flex",alignItems:"center",gap:3}}>
                         <button onClick={()=>setView(k)}
-                          style={{flex:1,padding:"7px 10px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
-                            background:view===k?"rgba(192,57,43,0.15)":"transparent",
-                            color:view===k?"#FDA4AF":"rgba(148,163,184,0.4)",
-                            fontWeight:view===k?600:400,fontSize:11,transition:"all 0.15s",
-                            borderLeft:view===k?"3px solid #C0392B":"3px solid transparent"}}>
+                          style={{flex:1,padding:"7px 10px",borderRadius:6,border:"none",cursor:"pointer",textAlign:"left",
+                            background:view===k?S.activeBg:"transparent",
+                            color:view===k?S.active:"rgba(175,120,105,0.45)",
+                            fontWeight:view===k?600:400,fontSize:11,transition:"all 0.12s",
+                            borderLeft:view===k?"2px solid #C0392B":"2px solid transparent",paddingLeft:view===k?"9px":"10px"}}>
                           {produzione[k]?.label}
                         </button>
                         <button onClick={()=>setConfDel(confDel===k?null:k)}
@@ -6823,22 +6864,28 @@ export default function Dashboard({
               )}
             </div>
 
-            {/* Footer */}
-            <div style={{padding:"10px 8px 16px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",gap:5}}>
+            {/* ── Footer ── */}
+            <div style={{padding:"10px 8px 16px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",flexDirection:"column",gap:5}}>
               {auth?.user?.email&&(
-                <div style={{fontSize:9,color:"rgba(148,163,184,0.4)",padding:"0 4px 4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"center"}}>
+                <div style={{fontSize:9,color:"rgba(190,130,115,0.4)",padding:"0 4px 4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"center"}}>
                   {auth.user.email}
                 </div>
               )}
-              <label style={{display:"block",padding:"8px 10px",background:"rgba(255,255,255,0.03)",border:"1px dashed rgba(255,255,255,0.1)",borderRadius:9,cursor:"pointer",fontSize:ricettario?9:11,fontWeight:500,color:ricettario?"rgba(148,163,184,0.3)":"rgba(203,213,225,0.65)",textAlign:"center",transition:"all 0.15s"}}>
-                {loading?"⏳ Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
+              <label style={{display:"block",padding:"8px 10px",background:"rgba(255,255,255,0.025)",
+                border:"1px dashed rgba(255,255,255,0.08)",borderRadius:8,cursor:"pointer",
+                fontSize:ricettario?9:11,fontWeight:500,textAlign:"center",transition:"all 0.15s",
+                color:ricettario?"rgba(160,100,85,0.5)":"rgba(215,170,155,0.7)"}}>
+                {loading?"Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
                 <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
               </label>
               <button onClick={()=>onSignOut&&onSignOut()}
-                style={{width:"100%",padding:"9px",background:"rgba(192,57,43,0.7)",border:"none",borderRadius:8,color:C.white,fontSize:12,fontWeight:700,cursor:"pointer",transition:"background 0.15s"}}
+                style={{width:"100%",padding:"9px 10px",background:"rgba(192,57,43,0.65)",border:"none",
+                  borderRadius:7,color:"rgba(255,255,255,0.9)",fontSize:12,fontWeight:600,cursor:"pointer",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"background 0.15s"}}
                 onMouseEnter={e=>e.currentTarget.style.background="#C0392B"}
-                onMouseLeave={e=>e.currentTarget.style.background="rgba(192,57,43,0.7)"}>
-                🚪 Esci
+                onMouseLeave={e=>e.currentTarget.style.background="rgba(192,57,43,0.65)"}>
+                {ic(ICONS.logOut)}
+                Esci
               </button>
             </div>
           </div>
