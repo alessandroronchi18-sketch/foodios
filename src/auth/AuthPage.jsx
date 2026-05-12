@@ -166,6 +166,96 @@ function PasswordStrength({ password }) {
   )
 }
 
+// ─── RESET PASSWORD PAGE (usata da App.jsx quando arriva il link recovery) ────
+export function ResetPasswordPage({ onDone }) {
+  const [pwd, setPwd]         = useState('')
+  const [conf, setConf]       = useState('')
+  const [loading, setLoading] = useState(false)
+  const [errore, setErrore]   = useState('')
+  const [successo, setSuccesso] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setErrore('')
+    if (!Object.values(checkPwd(pwd)).every(Boolean)) {
+      setErrore('La password non soddisfa tutti i requisiti di sicurezza'); return
+    }
+    if (pwd !== conf) { setErrore('Le password non coincidono'); return }
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pwd })
+      if (error) throw error
+      setSuccesso(true)
+      setTimeout(async () => { await supabase.auth.signOut(); onDone() }, 2000)
+    } catch (err) {
+      setErrore(err.message || 'Errore nell\'aggiornamento della password')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div style={{
+      minHeight: '100vh', background: 'linear-gradient(135deg,#F8FAFC 0%,#F1F5F9 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px',
+      fontFamily: "'Inter', system-ui, sans-serif",
+    }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{
+            width: 48, height: 48, background: 'linear-gradient(135deg,#C0392B,#E74C3C)',
+            borderRadius: 14, display: 'inline-flex', alignItems: 'center',
+            justifyContent: 'center', fontSize: 24, marginBottom: 12,
+            boxShadow: '0 6px 20px rgba(192,57,43,0.25)',
+          }}>🍰</div>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
+            Imposta nuova password
+          </h1>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#94A3B8' }}>
+            Scegli una password sicura per il tuo account
+          </p>
+        </div>
+        <div style={S.card}>
+          <div style={{ padding: '24px 28px 28px' }}>
+            {errore && <div style={S.error}>⚠️ {errore}</div>}
+            {successo ? (
+              <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                <div style={{ fontSize: 44, marginBottom: 14 }}>✅</div>
+                <h3 style={{ color: '#0F172A', margin: '0 0 10px', fontWeight: 700 }}>Password aggiornata!</h3>
+                <p style={{ color: '#475569', fontSize: 14, lineHeight: 1.7, margin: 0 }}>
+                  Tra un momento verrai reindirizzato al login…
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit}>
+                <p style={{ fontSize: 13, color: '#475569', marginTop: 0, marginBottom: 20, lineHeight: 1.6 }}>
+                  Scegli una nuova password sicura per il tuo account.
+                </p>
+                <Field label="Nuova password">
+                  <input type="password" required value={pwd}
+                    onChange={e => setPwd(e.target.value)}
+                    style={S.input} placeholder="••••••••" autoComplete="new-password" />
+                  <PasswordStrength password={pwd} />
+                </Field>
+                <Field label="Conferma password">
+                  <input type="password" required value={conf}
+                    onChange={e => setConf(e.target.value)}
+                    style={{ ...S.input, borderColor: conf && pwd !== conf ? '#EF4444' : '#E2E8F0' }}
+                    placeholder="••••••••" autoComplete="new-password" />
+                  {conf && pwd !== conf && (
+                    <div style={{ fontSize: 11, color: '#EF4444', marginTop: 4 }}>Le password non coincidono</div>
+                  )}
+                </Field>
+                <button type="submit" disabled={loading} style={S.btn(loading)}>
+                  {loading ? 'Aggiornamento…' : 'Salva nuova password →'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── COMPONENTE PRINCIPALE ────────────────────────────────────────────────────
 const TIPI_ATTIVITA = ['Pasticceria','Bar / Caffè','Gelateria','Ristorante','Pizzeria','Panetteria','Altro']
 

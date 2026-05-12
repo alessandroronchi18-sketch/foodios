@@ -1,11 +1,11 @@
 // FoodOS v1
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from './auth/useAuth'
-import AuthPage from './auth/AuthPage'
+import AuthPage, { ResetPasswordPage } from './auth/AuthPage'
 import Dashboard from './Dashboard'
 import AdminPage from './admin/AdminPage'
 import OnboardingWizard from './onboarding/OnboardingWizard'
-import { useState } from 'react'
+import { supabase } from './lib/supabase'
 
 function SplashScreen() {
   return (
@@ -87,7 +87,18 @@ function TrialScadutoPage({ org }) {
 
 export default function App() {
   const auth = useAuth()
-  const [onboardingVisto, setOnboardingVisto] = useState(null) // null = non ancora controllato
+  const [onboardingVisto, setOnboardingVisto] = useState(null)
+  const [showResetPassword, setShowResetPassword] = useState(false)
+
+  // Intercetta PASSWORD_RECOVERY prima di qualsiasi altra logica di routing
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowResetPassword(true)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   // Controlla localStorage quando l'orgId è disponibile
   useState(() => {
@@ -100,6 +111,11 @@ export default function App() {
   function completaOnboarding() {
     if (auth.orgId) localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1')
     setOnboardingVisto(true)
+  }
+
+  // Reset password — intercetta PRIMA del check auth.loading/auth.user
+  if (showResetPassword) {
+    return <ResetPasswordPage onDone={() => setShowResetPassword(false)} />
   }
 
   if (auth.loading) return <SplashScreen />
