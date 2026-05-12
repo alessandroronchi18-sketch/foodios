@@ -6614,26 +6614,24 @@ export default function Dashboard({
             <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleImportPrezzi(e.target.files)}/>
           </label>
         </div>
-        {onSignOut && (
+        <div style={{padding:"0 12px 20px", marginTop:"auto"}}>
           <button
-            onClick={onSignOut}
+            onClick={() => onSignOut && onSignOut()}
             style={{
-              display:'block',
-              width:'calc(100% - 20px)',
-              margin:'8px 10px 16px',
-              padding:'10px 0',
-              background:'rgba(255,255,255,0.05)',
-              border:'1px solid rgba(255,255,255,0.1)',
+              width:"100%",
+              padding:"10px",
+              background:"#C0392B",
+              border:"none",
               borderRadius:8,
-              color:'rgba(255,255,255,0.5)',
-              fontSize:12,
-              cursor:'pointer',
-              textAlign:'center'
+              color:"#fff",
+              fontSize:13,
+              fontWeight:700,
+              cursor:"pointer"
             }}
           >
-            🚪 Esci dall'account
+            🚪 Esci
           </button>
-        )}
+        </div>
       </div>
 
       {/* CONTENT */}
