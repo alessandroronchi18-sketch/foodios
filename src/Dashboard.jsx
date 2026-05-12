@@ -10,6 +10,13 @@ import SedeSelector from './components/SedeSelector'
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
 
+// Module-level storage context — updated by Dashboard on every render so that
+// view components defined at module scope can call ssave/sload without prop-drilling.
+let _ctx_orgId = null;
+let _ctx_sedeId = null;
+function ssave(key, val) { return _ssave(key, val, _ctx_orgId, _ctx_sedeId); }
+function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
+
 // ─── SORTABLE TABLE HOOK ──────────────────────────────────────────────────────
 function useSortable(defaultKey, defaultDir="desc") {
   const [sortKey, setSortKey] = useState(defaultKey);
@@ -6226,6 +6233,249 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
 }
 
 
+// ─── DASHBOARD HOME VIEW ──────────────────────────────────────────────────────
+function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView }) {
+  const now = new Date();
+  const today = now.toISOString().slice(0,10);
+
+  // KPI del giorno
+  const sessioneOggi = (giornaliero||[]).filter(s => s.data === today);
+  const prodottiOggi = sessioneOggi.reduce((acc, s) => acc + (s.prodotti||[]).reduce((a,p) => a + p.stampi, 0), 0);
+
+  const ricette = Object.values(ricettario?.ricette||{})
+    .filter(r => getR(r.nome,r).tipo !== "interno" && getR(r.nome,r).tipo !== "semilavorato");
+
+  const ricaviStimati = sessioneOggi.reduce((total, sess) => {
+    return total + (sess.prodotti||[]).reduce((a, p) => {
+      const reg = getR(p.nome, ricettario?.ricette?.[p.nome]);
+      return a + reg.unita * reg.prezzo * p.stampi;
+    }, 0);
+  }, 0);
+
+  const ingCosti = ricettario?.ingredienti_costi || {};
+  const fcMedio = ricette.length === 0 ? 0 : (() => {
+    let tot = 0, count = 0;
+    for (const ric of ricette) {
+      const reg = getR(ric.nome, ric);
+      if (reg.unita === 0 || reg.prezzo === 0) continue;
+      const { tot: fc } = calcolaFC(ric, ingCosti, ricettario);
+      const ricavo = reg.unita * reg.prezzo;
+      if (ricavo > 0) { tot += fc / ricavo; count++; }
+    }
+    return count > 0 ? tot / count : 0;
+  })();
+
+  // Magazzino critici
+  const critici = Object.values(magazzino||{}).filter(m => m.giacenza_g === 0 || (m.soglia_g > 0 && m.giacenza_g <= m.soglia_g));
+
+  // Ultime 3 ricette modificate (per ordine in ricettario)
+  const ultimeRicette = Object.values(ricettario?.ricette||{}).slice(-3).reverse();
+
+  // Azioni AI aperte
+  const azioniAperte = (actions||[]).filter(a => a.stato !== "chiusa");
+
+  const kpiStyle = { background:"#FFF", borderRadius:14, padding:"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)", flex:1, minWidth:0 };
+  const labelStyle = { fontSize:11, fontWeight:600, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:6 };
+  const valStyle = { fontSize:28, fontWeight:900, color:C.text, lineHeight:1 };
+  const subStyle = { fontSize:12, color:C.textMid, marginTop:4 };
+
+  return (
+    <div style={{ maxWidth:960, margin:"0 auto" }}>
+      <div style={{ marginBottom:28 }}>
+        <div style={{ fontSize:22, fontWeight:800, color:C.text, marginBottom:4 }}>
+          Buongiorno 👋
+        </div>
+        <div style={{ fontSize:13, color:C.textSoft }}>
+          {now.toLocaleDateString("it-IT", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
+        </div>
+      </div>
+
+      {/* KPI row */}
+      <div style={{ display:"flex", gap:16, marginBottom:24, flexWrap:"wrap" }}>
+        <div style={kpiStyle}>
+          <div style={labelStyle}>Ricavi stimati oggi</div>
+          <div style={valStyle}>{fmt(ricaviStimati)}</div>
+          <div style={subStyle}>{prodottiOggi} stampi prodotti</div>
+        </div>
+        <div style={kpiStyle}>
+          <div style={labelStyle}>Food cost medio</div>
+          <div style={valStyle}>{(fcMedio*100).toFixed(1)}%</div>
+          <div style={subStyle}>{ricette.length} ricette analizzate</div>
+        </div>
+        <div style={kpiStyle}>
+          <div style={labelStyle}>Azioni AI aperte</div>
+          <div style={{...valStyle, color: azioniAperte.length>0 ? C.red : C.green}}>{azioniAperte.length}</div>
+          <div style={subStyle}>{(actions||[]).length} azioni totali</div>
+        </div>
+        <div style={kpiStyle}>
+          <div style={labelStyle}>Magazzino critici</div>
+          <div style={{...valStyle, color: critici.length>0 ? C.red : C.green}}>{critici.length}</div>
+          <div style={subStyle}>ingredienti esauriti/sotto soglia</div>
+        </div>
+      </div>
+
+      {/* Avviso magazzino */}
+      {critici.length > 0 && (
+        <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:12, padding:"14px 18px", marginBottom:20, display:"flex", alignItems:"center", gap:12 }}>
+          <span style={{ fontSize:20 }}>⚠️</span>
+          <div style={{ flex:1 }}>
+            <div style={{ fontWeight:700, fontSize:13, color:"#C0392B", marginBottom:2 }}>
+              {critici.length} ingredienti sotto soglia o esauriti
+            </div>
+            <div style={{ fontSize:12, color:"#9C7B76" }}>
+              {critici.slice(0,3).map(m=>m.nome||"?").join(", ")}{critici.length>3?` e altri ${critici.length-3}`:""}
+            </div>
+          </div>
+          <button onClick={()=>setView("magazzino")}
+            style={{ padding:"8px 14px", background:C.red, color:C.white, border:"none", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+            Vedi magazzino
+          </button>
+        </div>
+      )}
+
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+        {/* Ultime ricette */}
+        <div style={{ background:"#FFF", borderRadius:14, padding:"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div style={{ fontWeight:700, fontSize:14, color:C.text, marginBottom:16 }}>📖 Ultime ricette</div>
+          {ultimeRicette.length === 0
+            ? <div style={{ fontSize:12, color:C.textSoft }}>Nessuna ricetta caricata — importa il tuo Excel</div>
+            : ultimeRicette.map(r => {
+                const reg = getR(r.nome, r);
+                const { tot: fc } = calcolaFC(r, ingCosti, ricettario);
+                return (
+                  <div key={r.nome} onClick={()=>setView("ricettario")}
+                    style={{ padding:"10px 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer", display:"flex", alignItems:"center", gap:10 }}
+                    onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
+                    onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight:600, fontSize:13, color:C.text }}>{r.nome}</div>
+                      <div style={{ fontSize:11, color:C.textSoft, marginTop:2 }}>
+                        {reg.unita} {reg.tipo} × {fmt(reg.prezzo)} · FC: {fmt(fc)}
+                      </div>
+                    </div>
+                    <span style={{ fontSize:11, color:C.textSoft }}>›</span>
+                  </div>
+                );
+              })
+          }
+          <button onClick={()=>setView("ricettario")}
+            style={{ marginTop:14, width:"100%", padding:"9px", background:C.bg, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12, fontWeight:600, color:C.textMid, cursor:"pointer" }}>
+            Vai al Ricettario →
+          </button>
+        </div>
+
+        {/* Shortcut rapidi */}
+        <div style={{ background:"#FFF", borderRadius:14, padding:"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)" }}>
+          <div style={{ fontWeight:700, fontSize:14, color:C.text, marginBottom:16 }}>⚡ Accesso rapido</div>
+          {[
+            { icon:"🏭", label:"Produzione oggi", sub:"Registra la produzione giornaliera", view:"giornaliero" },
+            { icon:"💳", label:"Chiusura cassa", sub:"Chiudi la giornata di cassa", view:"chiusura" },
+            { icon:"💰", label:"Simulatore prezzi", sub:"Analizza margini e food cost", view:"simulatore" },
+            { icon:"🏪", label:"Magazzino", sub:"Controlla le giacenze", view:"magazzino" },
+          ].map(s => (
+            <div key={s.view} onClick={()=>setView(s.view)}
+              style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom:`1px solid ${C.border}`, cursor:"pointer" }}
+              onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
+              onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+              <span style={{ fontSize:20, width:28, textAlign:"center" }}>{s.icon}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:600, fontSize:13, color:C.text }}>{s.label}</div>
+                <div style={{ fontSize:11, color:C.textSoft }}>{s.sub}</div>
+              </div>
+              <span style={{ fontSize:11, color:C.textSoft }}>›</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── IMPOSTAZIONI VIEW ────────────────────────────────────────────────────────
+function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, onImportPrezzi, notify }) {
+  const [nomeMod, setNomeMod] = useState(nomeAttivita || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSalvaNome = async () => {
+    if (!nomeMod.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ nome_attivita: nomeMod.trim() })
+        .eq("id", orgId);
+      if (error) throw error;
+      notify("✓ Nome attività aggiornato — ricarica la pagina per vederlo nel menu");
+    } catch (e) {
+      notify("⚠ Errore: " + e.message, false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const card = { background:"#FFF", borderRadius:14, padding:"24px 28px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)", marginBottom:20 };
+  const label = { fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8, display:"block" };
+  const input = { width:"100%", padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, fontWeight:500, color:C.text, background:"#FAFAFA", outline:"none" };
+
+  return (
+    <div style={{ maxWidth:640 }}>
+      <div style={{ fontSize:22, fontWeight:800, color:C.text, marginBottom:24 }}>⚙️ Impostazioni</div>
+
+      {/* Info attività */}
+      <div style={card}>
+        <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:18 }}>Attività</div>
+        <div style={{ marginBottom:16 }}>
+          <label style={label}>Nome attività</label>
+          <div style={{ display:"flex", gap:8 }}>
+            <input value={nomeMod} onChange={e=>setNomeMod(e.target.value)} style={{...input, flex:1}} placeholder="Es. Pasticceria Rossi" />
+            <button onClick={handleSalvaNome} disabled={saving || nomeMod === nomeAttivita}
+              style={{ padding:"10px 18px", background:C.red, color:C.white, border:"none", borderRadius:9, fontSize:13, fontWeight:700, cursor:"pointer", opacity: (saving || nomeMod===nomeAttivita)?0.5:1 }}>
+              {saving ? "…" : "Salva"}
+            </button>
+          </div>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          <div>
+            <label style={label}>Tipo attività</label>
+            <div style={{ padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, color:C.textMid, background:"#F8FAFC", textTransform:"capitalize" }}>
+              {tipoAttivita || "—"}
+            </div>
+          </div>
+          <div>
+            <label style={label}>Piano</label>
+            <div style={{ padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, color:C.textMid, background:"#F8FAFC", textTransform:"capitalize" }}>
+              {piano || "trial"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Import prezzi */}
+      <div style={card}>
+        <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>💶 Prezzi ingredienti</div>
+        <div style={{ fontSize:12, color:C.textSoft, marginBottom:14, lineHeight:1.6 }}>
+          Importa un file Excel (.xlsx) con i prezzi degli ingredienti. Il file deve avere una colonna con il nome dell'ingrediente e una con il prezzo per kg o per g.
+        </div>
+        <label style={{ display:"inline-block", padding:"10px 18px", background:"#FFFBEB", border:"1px dashed #FDE68A", borderRadius:9, cursor:"pointer", fontSize:12, fontWeight:600, color:"#92400E" }}>
+          📂 Importa prezzi .xlsx / .xls / .csv
+          <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&onImportPrezzi(e.target.files)} />
+        </label>
+      </div>
+
+      {/* Account */}
+      <div style={card}>
+        <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>Account</div>
+        <div style={{ fontSize:13, color:C.textMid }}>
+          <strong>Email:</strong> {auth?.user?.email || "—"}
+        </div>
+        <div style={{ fontSize:12, color:C.textSoft, marginTop:6 }}>
+          Per cambiare email o password contatta <a href="mailto:support@foodios.it" style={{color:C.red}}>support@foodios.it</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── APP ──────────────────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { err: null }; }
@@ -6246,9 +6496,9 @@ export default function Dashboard({
   auth, orgId, sedeId, sedi, sedeAttiva, onSetSedeAttiva,
   nomeAttivita, tipoAttivita, piano, isTrialAttivo, onSignOut
 }) {
-  // Inject orgId/sedeId into storage functions
-  const sload = (key) => _sload(key, orgId, sedeId)
-  const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
+  // Sync module-level storage context with current org/sede
+  _ctx_orgId = orgId;
+  _ctx_sedeId = sedeId;
 
   const [ricettario,setRic]=useState(null);
   const [produzione,setProd]=useState({});
@@ -6258,7 +6508,7 @@ export default function Dashboard({
   const [giornaliero,setGiornaliero]=useState([]);
   const [chiusure,setChiusure]=useState([]);
   const [esclusi,setEsclusi]=useState(new Set());
-  const [view,setView]=useState("ricettario");
+  const [view,setView]=useState("home");
   const [ready,setReady]=useState(false);
   const [loading,setLoading]=useState(false);
   const [showMese,setShowMese]=useState(false);
@@ -6481,168 +6731,146 @@ export default function Dashboard({
       {showMese&&<NuovoMeseModal onCrea={handleNuovoMese} onClose={()=>setShowMese(false)}/>}
 
       {/* SIDEBAR */}
-      <div style={{width:248,background:C.bgSide,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:50,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.04)"}}>
-        <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:34,height:34,background:"linear-gradient(135deg,#C0392B,#E74C3C)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>🍰</div>
-            <div style={{minWidth:0}}>
-              <div style={{fontSize:14,fontWeight:700,color:"#F1F5F9",letterSpacing:"-0.01em",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{nomeAttivita || "FoodOS"}</div>
-              <div style={{fontSize:10,color:"rgba(148,163,184,0.65)",marginTop:1}}>Food Cost OS</div>
-            </div>
-          </div>
-        </div>
-        <div style={{flex:1,overflowY:"auto",padding:"12px 10px"}}>
-          {/* ── Ricette ── */}
-          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
-            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:4}}>📖 Ricette</div>
-          {[["ricettario","Ricettario"],["semilavorati","🧁 Semilavorati"],["nuova-ricetta","Nuova / Modifica"]].map(([id,lbl])=>(
+      {(()=>{
+        // Dot indicator helpers
+        const hasRic = !!ricettario && Object.keys(ricettario.ricette||{}).length > 0;
+        const hasMag = Object.keys(magazzino||{}).length > 0;
+        const hasGior = (giornaliero||[]).length > 0;
+        const hasChius = (chiusure||[]).length > 0;
+        const hasPL = hasRic;
+        const criticeMag = Object.values(magazzino||{}).filter(m=>m.giacenza_g===0||(m.soglia_g>0&&m.giacenza_g<=m.soglia_g)).length;
+        const azioniAperte = (actions||[]).filter(a=>a.stato!=="chiusa").length;
+
+        const Dot = ({has, alert}) => (
+          <span style={{width:6,height:6,borderRadius:"50%",flexShrink:0,
+            background: alert ? C.red : has ? "#22C55E" : "rgba(148,163,184,0.25)",
+            boxShadow: alert ? `0 0 4px ${C.red}` : "none"}} />
+        );
+
+        const NAV_VIEWS = ["home","ricettario","semilavorati","nuova-ricetta","foodcost","simulatore","pl","produzione","giornaliero","storico","magazzino","cassa","chiusura","ai","azioni","impostazioni"];
+
+        const navItem = (id, icon, label, hasDot, alertDot, badge) => {
+          const active = view === id;
+          return (
             <button key={id} onClick={()=>setView(id)}
               style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
-                background:view===id?"rgba(192,57,43,0.15)":"transparent",
-                color:view===id?"#FDA4AF":"rgba(203,213,225,0.6)",
-                fontWeight:view===id?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
-                borderLeft:view===id?"3px solid #C0392B":"3px solid transparent",paddingLeft:view===id?"10px":"12px"}}>
-              {lbl}
+                background:active?"rgba(192,57,43,0.15)":"transparent",
+                color:active?"#FDA4AF":"rgba(203,213,225,0.6)",
+                fontWeight:active?600:400,fontSize:12,marginBottom:1,
+                display:"flex",alignItems:"center",gap:8,transition:"background 0.15s,color 0.15s",
+                borderLeft:active?"3px solid #C0392B":"3px solid transparent",
+                paddingLeft:active?"10px":"12px"}}>
+              <span style={{fontSize:14,width:18,textAlign:"center",flexShrink:0}}>{icon}</span>
+              <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
+              <Dot has={hasDot} alert={alertDot} />
+              {badge>0&&<span style={{background:C.red,color:C.white,borderRadius:10,fontSize:8,fontWeight:900,padding:"1px 5px",marginLeft:2}}>{badge}</span>}
             </button>
-          ))}
+          );
+        };
 
-          {/* ── Analisi ── */}
-          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
-            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:14}}>📊 Analisi</div>
-          {[["pl","P&L — Profit & Loss"],["simulatore","Simulatore Prezzi"]].map(([id,lbl])=>(
-            <button key={id} onClick={()=>setView(id)}
-              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
-                background:view===id?"rgba(192,57,43,0.15)":"transparent",
-                color:view===id?"#FDA4AF":"rgba(203,213,225,0.6)",
-                fontWeight:view===id?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
-                borderLeft:view===id?"3px solid #C0392B":"3px solid transparent",paddingLeft:view===id?"10px":"12px"}}>
-              {lbl}
-            </button>
-          ))}
-
-          {/* ── Operazioni giornaliere ── */}
-          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
-            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:14}}>🍳 Operazioni</div>
-          {[
-            ["giornaliero","Produzione giornaliera"],
-            ["chiusura","Chiusura cassa"],
-          ].map(([id,lbl])=>(
-            <button key={id} onClick={()=>setView(id)}
-              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
-                background:view===id?"rgba(192,57,43,0.15)":"transparent",
-                color:view===id?"#FDA4AF":"rgba(203,213,225,0.6)",
-                fontWeight:view===id?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
-                borderLeft:view===id?"3px solid #C0392B":"3px solid transparent",paddingLeft:view===id?"10px":"12px"}}>
-              {lbl}
-            </button>
-          ))}
-
-          {/* ── Storico & Magazzino ── */}
-          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
-            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:14}}>📦 Gestione</div>
-          {[["storico","Storico produzione"],["magazzino","Magazzino"]].map(([id,lbl])=>(
-            <button key={id} onClick={()=>setView(id)}
-              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
-                background:view===id?"rgba(192,57,43,0.15)":"transparent",
-                color:view===id?"#FDA4AF":"rgba(203,213,225,0.6)",
-                fontWeight:view===id?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
-                borderLeft:view===id?"3px solid #C0392B":"3px solid transparent",paddingLeft:view===id?"10px":"12px"}}>
-              <span style={{flex:1}}>{lbl}</span>
-              {id==="magazzino"&&(()=>{
-                const critici=Object.values(magazzino||{}).filter(m=>{
-                  const fabb=calcolaFabbisognoSettimana(ricettario,giornaliero);
-                  const k=m.nome?.toLowerCase().trim()||"";
-                  const consumoG=(fabb[k]||0)/7;
-                  const giorni=consumoG>0?m.giacenza_g/consumoG:null;
-                  return m.giacenza_g===0||(m.soglia_g>0&&m.giacenza_g<=m.soglia_g)||(giorni!==null&&giorni<3);
-                }).length;
-                return critici>0?<span style={{background:C.red,color:C.white,borderRadius:10,fontSize:8,fontWeight:900,padding:"1px 6px"}}>{critici}</span>:null;
-              })()}
-            </button>
-          ))}
-
-          {/* ── Azioni AI ── */}
-          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
-            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:14}}>✅ AI</div>
-          <button onClick={()=>setView("azioni")}
-            style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
-              background:view==="azioni"?"rgba(192,57,43,0.15)":"transparent",
-              color:view==="azioni"?"#FDA4AF":"rgba(203,213,225,0.6)",
-              fontWeight:view==="azioni"?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
-              borderLeft:view==="azioni"?"3px solid #C0392B":"3px solid transparent",paddingLeft:view==="azioni"?"10px":"12px"}}>
-            <span style={{flex:1}}>Azioni AI</span>
-            {actions.filter(a=>a.stato!=="chiusa").length>0&&(
-              <span style={{background:C.red,color:C.white,borderRadius:10,fontSize:8,fontWeight:900,padding:"1px 6px"}}>
-                {actions.filter(a=>a.stato!=="chiusa").length}
-              </span>
-            )}
-          </button>
-
-          {/* Divisore mesi */}
-          {sortedMesi.length>0&&<div style={{marginTop:18,marginBottom:7,paddingLeft:4,fontSize:8,letterSpacing:"0.12em",textTransform:"uppercase",color:"rgba(255,255,255,0.18)"}}>📅 Mesi archiviati</div>}
-          {sortedMesi.map(k=>(
-            <div key={k} style={{marginBottom:3}}>
-              <div style={{display:"flex",alignItems:"center",gap:3}}>
-                <button onClick={()=>setView(k)}
-                  style={{flex:1,padding:"8px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",background:view===k?"rgba(192,57,43,0.15)":"transparent",color:view===k?"#FDA4AF":"rgba(148,163,184,0.5)",fontWeight:view===k?600:400,fontSize:11,transition:"all 0.15s",borderLeft:view===k?"3px solid #C0392B":"3px solid transparent"}}>
-                  {produzione[k]?.label}
-                </button>
-                <button onClick={()=>setConfDel(confDel===k?null:k)}
-                  style={{padding:"4px 7px",borderRadius:5,border:"none",cursor:"pointer",background:confDel===k?"rgba(192,57,43,0.25)":"transparent",color:"rgba(255,255,255,0.2)",fontSize:10}}>✕</button>
-              </div>
-              {confDel===k&&(
-                <div style={{margin:"4px 4px",padding:"8px 10px",background:"rgba(192,57,43,0.1)",borderRadius:7,display:"flex",gap:6}}>
-                  <button onClick={()=>handleDel(k)} style={{flex:1,padding:"5px",background:C.red,color:C.white,border:"none",borderRadius:5,fontSize:9,fontWeight:800,cursor:"pointer"}}>Elimina</button>
-                  <button onClick={()=>setConfDel(null)} style={{flex:1,padding:"5px",background:"transparent",color:"rgba(255,255,255,0.35)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,fontSize:9,cursor:"pointer"}}>No</button>
+        return (
+          <div style={{width:248,background:C.bgSide,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:50,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.04)"}}>
+            {/* Logo */}
+            <div style={{padding:"18px 14px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:32,height:32,background:"linear-gradient(135deg,#C0392B,#E74C3C)",borderRadius:9,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🍰</div>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#F1F5F9",letterSpacing:"-0.01em",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{nomeAttivita||"FoodOS"}</div>
+                  <div style={{fontSize:9,color:"rgba(148,163,184,0.55)",marginTop:1}}>Food Cost OS</div>
                 </div>
+              </div>
+            </div>
+
+            {/* Nav */}
+            <div style={{flex:1,overflowY:"auto",padding:"10px 8px"}}>
+              {navItem("home","🏠","Dashboard",true,false,0)}
+
+              <div style={{marginTop:14,marginBottom:3,padding:"0 10px",fontSize:9,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(100,116,139,0.6)"}}>Ricette</div>
+              {navItem("ricettario","📖","Ricettario",hasRic,false,0)}
+              {navItem("semilavorati","🧁","Semilavorati",hasRic,false,0)}
+              {navItem("nuova-ricetta","✏️","Nuova / Modifica",false,false,0)}
+
+              <div style={{marginTop:14,marginBottom:3,padding:"0 10px",fontSize:9,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(100,116,139,0.6)"}}>Analisi</div>
+              {navItem("simulatore","💰","Food Cost",hasRic,false,0)}
+              {navItem("pl","📊","P&L",hasPL,false,0)}
+
+              <div style={{marginTop:14,marginBottom:3,padding:"0 10px",fontSize:9,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(100,116,139,0.6)"}}>Operazioni</div>
+              {navItem("giornaliero","🏭","Produzione",hasGior,false,0)}
+              {navItem("storico","📈","Storico produzione",hasGior,false,0)}
+              {navItem("magazzino","🏪","Magazzino",hasMag,criticeMag>0,criticeMag)}
+              {navItem("chiusura","💳","Cassa",hasChius,false,0)}
+
+              <div style={{marginTop:14,marginBottom:3,padding:"0 10px",fontSize:9,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(100,116,139,0.6)"}}>Altro</div>
+              {navItem("azioni","🤖","AI Assistant",false,false,azioniAperte)}
+              {navItem("impostazioni","⚙️","Impostazioni",false,false,0)}
+
+              {/* Mesi archiviati */}
+              {sortedMesi.length>0&&(
+                <>
+                  <div style={{marginTop:18,marginBottom:4,padding:"0 10px",fontSize:8,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.15)"}}>📅 Archiviati</div>
+                  {sortedMesi.map(k=>(
+                    <div key={k} style={{marginBottom:2}}>
+                      <div style={{display:"flex",alignItems:"center",gap:3}}>
+                        <button onClick={()=>setView(k)}
+                          style={{flex:1,padding:"7px 10px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
+                            background:view===k?"rgba(192,57,43,0.15)":"transparent",
+                            color:view===k?"#FDA4AF":"rgba(148,163,184,0.4)",
+                            fontWeight:view===k?600:400,fontSize:11,transition:"all 0.15s",
+                            borderLeft:view===k?"3px solid #C0392B":"3px solid transparent"}}>
+                          {produzione[k]?.label}
+                        </button>
+                        <button onClick={()=>setConfDel(confDel===k?null:k)}
+                          style={{padding:"4px 6px",borderRadius:5,border:"none",cursor:"pointer",
+                            background:confDel===k?"rgba(192,57,43,0.25)":"transparent",
+                            color:"rgba(255,255,255,0.18)",fontSize:10}}>✕</button>
+                      </div>
+                      {confDel===k&&(
+                        <div style={{margin:"3px 4px",padding:"7px 10px",background:"rgba(192,57,43,0.1)",borderRadius:7,display:"flex",gap:6}}>
+                          <button onClick={()=>handleDel(k)} style={{flex:1,padding:"5px",background:C.red,color:C.white,border:"none",borderRadius:5,fontSize:9,fontWeight:800,cursor:"pointer"}}>Elimina</button>
+                          <button onClick={()=>setConfDel(null)} style={{flex:1,padding:"5px",background:"transparent",color:"rgba(255,255,255,0.35)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,fontSize:9,cursor:"pointer"}}>No</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
               )}
             </div>
-          ))}
-        </div>
-        <div style={{padding:"12px 10px 20px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",gap:5}}>
-          {auth?.user?.email&&(
-            <div style={{fontSize:10,color:"rgba(148,163,184,0.45)",padding:"0 4px 4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"center"}}>
-              {auth.user.email}
+
+            {/* Footer */}
+            <div style={{padding:"10px 8px 16px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",gap:5}}>
+              {auth?.user?.email&&(
+                <div style={{fontSize:9,color:"rgba(148,163,184,0.4)",padding:"0 4px 4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"center"}}>
+                  {auth.user.email}
+                </div>
+              )}
+              <label style={{display:"block",padding:"8px 10px",background:"rgba(255,255,255,0.03)",border:"1px dashed rgba(255,255,255,0.1)",borderRadius:9,cursor:"pointer",fontSize:ricettario?9:11,fontWeight:500,color:ricettario?"rgba(148,163,184,0.3)":"rgba(203,213,225,0.65)",textAlign:"center",transition:"all 0.15s"}}>
+                {loading?"⏳ Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
+                <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
+              </label>
+              <button onClick={()=>onSignOut&&onSignOut()}
+                style={{width:"100%",padding:"9px",background:"rgba(192,57,43,0.7)",border:"none",borderRadius:8,color:C.white,fontSize:12,fontWeight:700,cursor:"pointer",transition:"background 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.background="#C0392B"}
+                onMouseLeave={e=>e.currentTarget.style.background="rgba(192,57,43,0.7)"}>
+                🚪 Esci
+              </button>
             </div>
-          )}
-          <label style={{display:"block",padding:"9px 12px",background:"rgba(255,255,255,0.03)",border:"1px dashed rgba(255,255,255,0.1)",borderRadius:10,cursor:"pointer",fontSize:ricettario?10:11,fontWeight:500,color:ricettario?"rgba(148,163,184,0.35)":"rgba(203,213,225,0.65)",textAlign:"center",transition:"all 0.15s"}}>
-            {loading?"⏳ Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
-            <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
-          </label>
-          <label style={{display:"block",padding:"8px 12px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(217,119,6,0.3)",borderRadius:10,cursor:"pointer",fontSize:10,fontWeight:500,color:"rgba(251,191,36,0.65)",textAlign:"center",transition:"all 0.15s"}}>
-            💶 Importa prezzi .xlsx
-            <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleImportPrezzi(e.target.files)}/>
-          </label>
-        </div>
-        <div style={{padding:"0 12px 20px", marginTop:"auto"}}>
-          <button
-            onClick={() => onSignOut && onSignOut()}
-            style={{
-              width:"100%",
-              padding:"10px",
-              background:"#C0392B",
-              border:"none",
-              borderRadius:8,
-              color:"#fff",
-              fontSize:13,
-              fontWeight:700,
-              cursor:"pointer"
-            }}
-          >
-            🚪 Esci
-          </button>
-        </div>
-      </div>
+          </div>
+        );
+      })()}
 
       {/* CONTENT */}
       <div style={{marginLeft:248,flex:1,padding:"36px 48px 100px",overflowX:"auto",minHeight:"100vh"}}>
-        {!ricettario&&(
+        {/* Home dashboard */}
+        {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView}/>}
+
+        {/* Ricettario — mostra upload se non ancora caricato */}
+        {view==="ricettario"&&!ricettario&&(
           <div style={{maxWidth:500,margin:"80px auto",textAlign:"center"}}>
-            <div style={{fontSize:52,marginBottom:18}}>🍰</div>
-            <h1 style={{margin:"0 0 10px",fontSize:30,fontWeight:900,color:C.text}}>{nomeAttivita}</h1>
-            <p style={{color:C.textSoft,marginBottom:32,fontSize:13,lineHeight:1.75}}>Carica il ricettario Excel per vedere subito l'analisi completa di food cost, ricavi e margini per ogni torta e biscotto.</p>
+            <div style={{fontSize:52,marginBottom:18}}>📖</div>
+            <h2 style={{margin:"0 0 10px",fontSize:24,fontWeight:900,color:C.text}}>Carica il ricettario</h2>
+            <p style={{color:C.textSoft,marginBottom:32,fontSize:13,lineHeight:1.75}}>Importa il tuo file Excel con le ricette per vedere subito food cost, margini e ricavi per ogni prodotto.</p>
             <label style={{display:"inline-block",padding:"14px 32px",background:C.red,color:C.white,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:13,boxShadow:"0 4px 16px rgba(192,57,43,0.3)"}}>
-              📂 Carica DEFINITIVO_TORTE_MARTINA.xlsx
+              📂 Carica .xlsx ricettario
               <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
             </label>
           </div>
@@ -6657,7 +6885,8 @@ export default function Dashboard({
         {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR}/>}
         {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
-        {currentMese&&!["ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura"].includes(view)&&(
+        {view==="impostazioni"&&<ImpostazioniView auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} onImportPrezzi={handleImportPrezzi} notify={notify}/>}
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
       </div>
