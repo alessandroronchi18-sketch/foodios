@@ -83,7 +83,10 @@ export function useAuth() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: meta }
+      options: {
+        data: meta,
+        emailRedirectTo: 'https://foodios-rose.vercel.app',
+      }
     })
     if (error) throw new Error(tradurciErrore(error.message))
   }
