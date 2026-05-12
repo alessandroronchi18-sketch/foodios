@@ -1,5 +1,84 @@
 import React, { useState } from 'react'
 
+async function downloadTemplate() {
+  const XLSX = await new Promise((resolve, reject) => {
+    if (window.XLSX) return resolve(window.XLSX)
+    const s = document.createElement('script')
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+    s.onload = () => resolve(window.XLSX)
+    s.onerror = reject
+    document.head.appendChild(s)
+  })
+
+  const wb = XLSX.utils.book_new()
+
+  // Formato atteso da parseRicettario:
+  // Row 0: [label, NomeRicetta, "", "", "", totImpasto]
+  // Row 1: [label, numStampi]
+  // Row 2: [label, "", "", "", "", foodCost1]
+  // Rows 3-6: intestazioni/vuote
+  // Row 7+: [nome_ingrediente, qty_g, costoPerG, costo1stampo]
+
+  const ricette = [
+    {
+      nome: 'Torta Margherita',
+      stampi: 1, impasto: 500, foodCost: 3.20,
+      ing: [
+        ['Uova',          200, 0.003, 0.60],
+        ['Zucchero',      150, 0.00098, 0.15],
+        ['Farina 00',     120, 0.00088, 0.11],
+        ['Burro',          80, 0.0058, 0.46],
+        ['Lievito per dolci', 8, 0.0075, 0.06],
+        ['Scorza di limone', 5, 0.0032, 0.02],
+      ],
+    },
+    {
+      nome: 'Crostata Marmellata',
+      stampi: 1, impasto: 420, foodCost: 2.80,
+      ing: [
+        ['Farina 00',     250, 0.00088, 0.22],
+        ['Burro',         125, 0.0058, 0.73],
+        ['Zucchero a velo', 90, 0.00145, 0.13],
+        ['Uova',           50, 0.003, 0.15],
+        ['Marmellata',    150, 0.004, 0.60],
+        ['Sale fino',       1, 0.0004, 0.00],
+      ],
+    },
+    {
+      nome: 'Tiramisù',
+      stampi: 1, impasto: 800, foodCost: 5.60,
+      ing: [
+        ['Mascarpone',    500, 0.0062, 3.10],
+        ['Tuorli',        100, 0.0062, 0.62],
+        ['Zucchero',      100, 0.00098, 0.10],
+        ['Panna fresca',  200, 0.0034, 0.68],
+        ['Savoiardi',     150, 0.005, 0.75],
+        ['Caffè espresso', 200, 0.014, 0.28],
+        ['Rum',            30, 0.012, 0.36],
+        ['Cacao amaro in polvere', 20, 0.0095, 0.19],
+      ],
+    },
+  ]
+
+  ricette.forEach(({ nome, stampi, impasto, foodCost, ing }) => {
+    const rows = [
+      ['Ricetta', nome, '', '', '', impasto],
+      ['Stampi', stampi, '', '', '', ''],
+      ['Food cost 1 stampo (€)', '', '', '', '', foodCost],
+      [],
+      ['INGREDIENTE', 'Quantità (g)', '€/g', 'Costo stampo (€)', '', ''],
+      [],
+      [],
+      ...ing.map(([n, q, cg, cs]) => [n, q, cg, cs]),
+    ]
+    const ws = XLSX.utils.aoa_to_sheet(rows)
+    ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 16 }]
+    XLSX.utils.book_append_sheet(wb, ws, nome)
+  })
+
+  XLSX.writeFile(wb, 'template_ricettario_foodOS.xlsx')
+}
+
 export default function OnboardingWizard({ nomeAttivita, onComplete, onSkip }) {
   const [step, setStep] = useState(1)
   const [fileCaricato, setFileCaricato] = useState(false)
@@ -127,10 +206,10 @@ export default function OnboardingWizard({ nomeAttivita, onComplete, onSkip }) {
               <span style={{ color: '#9C7B76', fontSize: 13 }}>·</span>
               <a
                 href="#"
-                onClick={e => e.preventDefault()}
+                onClick={e => { e.preventDefault(); downloadTemplate() }}
                 style={{ color: '#C0392B', fontSize: 13, textDecoration: 'none' }}
               >
-                Scarica il template Excel
+                📥 Scarica template Excel
               </a>
             </div>
           </div>

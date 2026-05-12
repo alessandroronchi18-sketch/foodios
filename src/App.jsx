@@ -86,7 +86,20 @@ function TrialScadutoPage({ org }) {
 
 export default function App() {
   const auth = useAuth()
-  const [onboardingDone, setOnboardingDone] = useState(false)
+  const [onboardingVisto, setOnboardingVisto] = useState(null) // null = non ancora controllato
+
+  // Controlla localStorage quando l'orgId è disponibile
+  useState(() => {
+    if (auth.orgId && onboardingVisto === null) {
+      const visto = !!localStorage.getItem(`onboarding_seen_${auth.orgId}`)
+      setOnboardingVisto(visto)
+    }
+  })
+
+  function completaOnboarding() {
+    if (auth.orgId) localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1')
+    setOnboardingVisto(true)
+  }
 
   if (auth.loading) return <SplashScreen />
 
@@ -100,6 +113,17 @@ export default function App() {
 
   // Trial scaduto
   if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} />
+
+  // Onboarding al primo accesso
+  if (auth.orgId && onboardingVisto === false) {
+    return (
+      <OnboardingWizard
+        nomeAttivita={auth.org?.nome}
+        onComplete={completaOnboarding}
+        onSkip={completaOnboarding}
+      />
+    )
+  }
 
   // Dashboard
   return (
