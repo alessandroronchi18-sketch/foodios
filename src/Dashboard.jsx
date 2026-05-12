@@ -6660,10 +6660,6 @@ export default function Dashboard({
             {loading?"⏳ Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
             <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
           </label>
-          <label style={{display:"block",padding:"8px 12px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(217,119,6,0.3)",borderRadius:10,cursor:"pointer",fontSize:10,fontWeight:500,color:"rgba(251,191,36,0.65)",textAlign:"center",transition:"all 0.15s"}}>
-            💶 Importa prezzi .xlsx
-            <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleImportPrezzi(e.target.files)}/>
-          </label>
           {onSignOut&&(
             <button onClick={onSignOut} style={{display:"block",width:"100%",padding:"8px 0",
               background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",
@@ -6674,6 +6670,10 @@ export default function Dashboard({
               ← Esci dall'account
             </button>
           )}
+          <label style={{display:"block",padding:"8px 12px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(217,119,6,0.3)",borderRadius:10,cursor:"pointer",fontSize:10,fontWeight:500,color:"rgba(251,191,36,0.65)",textAlign:"center",transition:"all 0.15s"}}>
+            💶 Importa prezzi .xlsx
+            <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleImportPrezzi(e.target.files)}/>
+          </label>
         </div>
       </div>
 
