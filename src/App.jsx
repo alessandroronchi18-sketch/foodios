@@ -1,3 +1,4 @@
+// FoodOS v1
 import React from 'react'
 import { useAuth } from './auth/useAuth'
 import AuthPage from './auth/AuthPage'
