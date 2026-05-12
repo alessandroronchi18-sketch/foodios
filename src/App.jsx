@@ -10,15 +10,23 @@ function SplashScreen() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#FDFAF7',
+      background: '#F8FAFC',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       flexDirection: 'column',
-      gap: 16,
+      gap: 14,
+      fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-      <div style={{ fontSize: 48 }}>🍰</div>
-      <div style={{ fontSize: 14, color: '#9C7B76' }}>Caricamento…</div>
+      <div style={{
+        width: 52, height: 52,
+        background: 'linear-gradient(135deg, #C0392B, #E74C3C)',
+        borderRadius: 14,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 26,
+        boxShadow: '0 8px 24px rgba(192,57,43,0.25)',
+      }}>🍰</div>
+      <div style={{ fontSize: 14, color: '#94A3B8', fontWeight: 500 }}>Caricamento…</div>
     </div>
   )
 }
@@ -27,7 +35,7 @@ function TrialScadutoPage({ org }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#FDFAF7',
+      background: '#F8FAFC',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -44,7 +52,7 @@ function TrialScadutoPage({ org }) {
         <div style={{
           background: '#FFF',
           border: '2px solid #C0392B',
-          borderRadius: 12,
+          borderRadius: 16,
           padding: 24,
           marginBottom: 24,
         }}>

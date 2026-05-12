@@ -6,22 +6,23 @@ const TIPI_ATTIVITA = [
 
 const INPUT_STYLE = {
   width: '100%',
-  padding: '12px 14px',
-  border: '1px solid #E8DDD8',
-  borderRadius: 8,
-  fontSize: 15,
-  background: '#FFF',
-  color: '#1C0A0A',
+  padding: '11px 14px',
+  border: '1px solid #E2E8F0',
+  borderRadius: 10,
+  fontSize: 14,
+  background: '#F8FAFC',
+  color: '#0F172A',
   outline: 'none',
-  transition: 'border-color 0.2s',
+  transition: 'border-color 0.2s, background 0.2s',
 }
 
 const LABEL_STYLE = {
   display: 'block',
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: 600,
-  color: '#6B4C44',
+  color: '#475569',
   marginBottom: 6,
+  letterSpacing: '0.01em',
 }
 
 function Field({ label, children }) {
@@ -96,7 +97,7 @@ export default function AuthPage({ onSignIn, onSignUp }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#FDFAF7',
+      background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -116,10 +117,11 @@ export default function AuthPage({ onSignIn, onSignUp }) {
 
         {/* Card */}
         <div style={{
-          background: '#FFF',
-          borderRadius: 16,
-          boxShadow: '0 4px 24px rgba(28,10,10,0.08)',
+          background: '#FFFFFF',
+          borderRadius: 20,
+          boxShadow: '0 8px 40px rgba(15,23,42,0.10)',
           overflow: 'hidden',
+          border: '1px solid #E2E8F0',
         }}>
           {/* Tab switcher */}
           <div style={{ display: 'flex', borderBottom: '1px solid #E8DDD8' }}>
@@ -196,9 +198,9 @@ export default function AuthPage({ onSignIn, onSignUp }) {
                     background: loading ? '#E8DDD8' : '#C0392B',
                     color: '#FFF',
                     border: 'none',
-                    borderRadius: 10,
+                    borderRadius: 12,
                     fontSize: 15,
-                    fontWeight: 800,
+                    fontWeight: 700,
                     cursor: loading ? 'not-allowed' : 'pointer',
                     marginTop: 8,
                     transition: 'background 0.15s',
@@ -282,9 +284,9 @@ export default function AuthPage({ onSignIn, onSignUp }) {
                       background: loading ? '#E8DDD8' : '#C0392B',
                       color: '#FFF',
                       border: 'none',
-                      borderRadius: 10,
+                      borderRadius: 12,
                       fontSize: 15,
-                      fontWeight: 800,
+                      fontWeight: 700,
                       cursor: loading ? 'not-allowed' : 'pointer',
                       marginTop: 8,
                       transition: 'background 0.15s',

@@ -33,10 +33,10 @@ function useSortable(defaultKey, defaultDir="desc") {
 function SortTH({ k, children, right, active, dir, onToggle }) {
   return (
     <th onClick={()=>onToggle(k)}
-      style={{padding:"10px 14px",textAlign:right?"right":"left",fontSize:8,fontWeight:700,
-        letterSpacing:"0.07em",textTransform:"uppercase",whiteSpace:"nowrap",
-        color:active?"#C0392B":"#9C7B76",borderBottom:"1px solid #E8DDD8",
-        background:active?"#FEF0EE":"transparent",cursor:"pointer",userSelect:"none",
+      style={{padding:"10px 16px",textAlign:right?"right":"left",fontSize:10,fontWeight:600,
+        letterSpacing:"0.05em",textTransform:"uppercase",whiteSpace:"nowrap",
+        color:active?"#C0392B":"#94A3B8",borderBottom:"1px solid #E2E8F0",
+        background:active?"#FEF2F2":"transparent",cursor:"pointer",userSelect:"none",
         transition:"background 0.15s"}}>
       {children}{active?(dir==="desc"?" ▼":" ▲"):""}
     </th>
@@ -1016,12 +1016,12 @@ Niente markdown, niente testo fuori dal JSON.`;
 
 // ─── DESIGN ───────────────────────────────────────────────────────────────────
 const C = {
-  bg:"#FDFAF7", bgCard:"#FFFFFF", bgSide:"#1C0A0A",
-  border:"#E8DDD8", borderStr:"#D4C4BE",
-  red:"#C0392B", redDark:"#922B21", redLight:"#FDECEA",
-  green:"#1B7A3E", greenLight:"#EAF5EE",
-  amber:"#B45309", amberLight:"#FEF3C7",
-  text:"#1A0A08", textMid:"#5C3D38", textSoft:"#9C7B76",
+  bg:"#F8FAFC", bgCard:"#FFFFFF", bgSide:"#0F172A",
+  border:"#E2E8F0", borderStr:"#CBD5E1",
+  red:"#C0392B", redDark:"#922B21", redLight:"#FEF2F2",
+  green:"#16A34A", greenLight:"#F0FDF4",
+  amber:"#D97706", amberLight:"#FFFBEB",
+  text:"#0F172A", textMid:"#475569", textSoft:"#94A3B8",
   white:"#FFFFFF",
 };
 const fmt  = v => `€ ${Number(v).toFixed(2)}`;
@@ -1041,7 +1041,7 @@ const ChartTip = ({active,payload,label}) => {
 
 function Badge({label,color="green"}) {
   const s={green:{bg:C.greenLight,c:C.green},red:{bg:C.redLight,c:C.red},amber:{bg:C.amberLight,c:C.amber},gray:{bg:"#F3F3F3",c:"#888"}}[color]||{bg:"#F3F3F3",c:"#888"};
-  return <span style={{background:s.bg,color:s.c,fontSize:8,fontWeight:700,padding:"2px 7px",borderRadius:10,letterSpacing:"0.06em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{label}</span>;
+  return <span style={{background:s.bg,color:s.c,fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:12,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{label}</span>;
 }
 const margBadge = pct => {
   if (pct===null||pct===undefined) return null;
@@ -6516,7 +6516,7 @@ export default function Dashboard({
 
   return (
     <ErrorBoundary>
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",color:C.text,display:"flex"}}>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',system-ui,sans-serif",color:C.text,display:"flex"}}>
       {/* ── Trial Banner ── */}
       {isTrialAttivo && auth?.org?.trial_ends_at && (
         <div style={{background:"#FEF9C3",borderBottom:"1px solid #FDE68A",
@@ -6527,7 +6527,7 @@ export default function Dashboard({
           <a href="mailto:support@foodios.it" style={{color:"#92400E"}}>support@foodios.it</a>
         </div>
       )}
-      <style>{`*{box-sizing:border-box}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:${C.borderStr};border-radius:2px}`}</style>
+      <style>{`*{box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.4);border-radius:10px}::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.7)}`}</style>
 
       {toast&&(
         <div style={{position:"fixed",top:16,right:16,zIndex:999,background:toast.ok?C.green:C.red,color:C.white,padding:"10px 20px",borderRadius:9,fontSize:12,fontWeight:700,boxShadow:"0 4px 20px rgba(0,0,0,0.2)"}}>
@@ -6537,64 +6537,72 @@ export default function Dashboard({
       {showMese&&<NuovoMeseModal onCrea={handleNuovoMese} onClose={()=>setShowMese(false)}/>}
 
       {/* SIDEBAR */}
-      <div style={{width:224,background:C.bgSide,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:50,flexShrink:0}}>
-        <div style={{padding:"24px 20px 18px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontSize:9,letterSpacing:"0.22em",textTransform:"uppercase",color:"rgba(220,90,90,0.8)",marginBottom:5}}>🍰 Pasticceria</div>
-          <div style={{fontSize:20,fontWeight:900,color:"#FFF5F5",letterSpacing:"-0.02em"}}>{nomeAttivita || "FoodOS"}</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.28)",marginTop:2}}>Analytics & Food Cost</div>
+      <div style={{width:248,background:C.bgSide,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:50,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.04)"}}>
+        <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:34,height:34,background:"linear-gradient(135deg,#C0392B,#E74C3C)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>🍰</div>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:700,color:"#F1F5F9",letterSpacing:"-0.01em",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{nomeAttivita || "FoodOS"}</div>
+              <div style={{fontSize:10,color:"rgba(148,163,184,0.65)",marginTop:1}}>Food Cost OS</div>
+            </div>
+          </div>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"12px 10px"}}>
           {/* ── Ricette ── */}
-          <div style={{fontSize:8,fontWeight:800,letterSpacing:"0.14em",textTransform:"uppercase",
-            color:"rgba(220,140,120,0.75)",padding:"0 6px",marginBottom:6,marginTop:4}}>📖 Ricette</div>
+          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
+            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:4}}>📖 Ricette</div>
           {[["ricettario","Ricettario"],["semilavorati","🧁 Semilavorati"],["nuova-ricetta","Nuova / Modifica"]].map(([id,lbl])=>(
             <button key={id} onClick={()=>setView(id)}
-              style={{width:"100%",padding:"8px 12px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
-                background:view===id?"rgba(192,57,43,0.25)":"transparent",
-                color:view===id?"#FFAAAA":"rgba(255,255,255,0.45)",
-                fontWeight:view===id?700:400,fontSize:11,marginBottom:2,display:"flex",alignItems:"center",gap:9,transition:"all 0.1s"}}>
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
+                background:view===id?"rgba(192,57,43,0.15)":"transparent",
+                color:view===id?"#FDA4AF":"rgba(203,213,225,0.6)",
+                fontWeight:view===id?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
+                borderLeft:view===id?"3px solid #C0392B":"3px solid transparent",paddingLeft:view===id?"10px":"12px"}}>
               {lbl}
             </button>
           ))}
 
           {/* ── Analisi ── */}
-          <div style={{fontSize:8,fontWeight:800,letterSpacing:"0.14em",textTransform:"uppercase",
-            color:"rgba(220,140,120,0.75)",padding:"0 6px",marginBottom:6,marginTop:14}}>📊 Analisi</div>
+          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
+            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:14}}>📊 Analisi</div>
           {[["pl","P&L — Profit & Loss"],["simulatore","Simulatore Prezzi"]].map(([id,lbl])=>(
             <button key={id} onClick={()=>setView(id)}
-              style={{width:"100%",padding:"8px 12px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
-                background:view===id?"rgba(192,57,43,0.25)":"transparent",
-                color:view===id?"#FFAAAA":"rgba(255,255,255,0.45)",
-                fontWeight:view===id?700:400,fontSize:11,marginBottom:2,display:"flex",alignItems:"center",gap:9,transition:"all 0.1s"}}>
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
+                background:view===id?"rgba(192,57,43,0.15)":"transparent",
+                color:view===id?"#FDA4AF":"rgba(203,213,225,0.6)",
+                fontWeight:view===id?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
+                borderLeft:view===id?"3px solid #C0392B":"3px solid transparent",paddingLeft:view===id?"10px":"12px"}}>
               {lbl}
             </button>
           ))}
 
           {/* ── Operazioni giornaliere ── */}
-          <div style={{fontSize:8,fontWeight:800,letterSpacing:"0.14em",textTransform:"uppercase",
-            color:"rgba(220,140,120,0.75)",padding:"0 6px",marginBottom:6,marginTop:14}}>🍳 Operazioni</div>
+          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
+            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:14}}>🍳 Operazioni</div>
           {[
             ["giornaliero","Produzione giornaliera"],
             ["chiusura","Chiusura cassa"],
           ].map(([id,lbl])=>(
             <button key={id} onClick={()=>setView(id)}
-              style={{width:"100%",padding:"8px 12px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
-                background:view===id?"rgba(192,57,43,0.25)":"transparent",
-                color:view===id?"#FFAAAA":"rgba(255,255,255,0.45)",
-                fontWeight:view===id?700:400,fontSize:11,marginBottom:2,display:"flex",alignItems:"center",gap:9,transition:"all 0.1s"}}>
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
+                background:view===id?"rgba(192,57,43,0.15)":"transparent",
+                color:view===id?"#FDA4AF":"rgba(203,213,225,0.6)",
+                fontWeight:view===id?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
+                borderLeft:view===id?"3px solid #C0392B":"3px solid transparent",paddingLeft:view===id?"10px":"12px"}}>
               {lbl}
             </button>
           ))}
 
           {/* ── Storico & Magazzino ── */}
-          <div style={{fontSize:8,fontWeight:800,letterSpacing:"0.14em",textTransform:"uppercase",
-            color:"rgba(220,140,120,0.75)",padding:"0 6px",marginBottom:6,marginTop:14}}>📦 Gestione</div>
+          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
+            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:14}}>📦 Gestione</div>
           {[["storico","Storico produzione"],["magazzino","Magazzino"]].map(([id,lbl])=>(
             <button key={id} onClick={()=>setView(id)}
-              style={{width:"100%",padding:"8px 12px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
-                background:view===id?"rgba(192,57,43,0.25)":"transparent",
-                color:view===id?"#FFAAAA":"rgba(255,255,255,0.45)",
-                fontWeight:view===id?700:400,fontSize:11,marginBottom:2,display:"flex",alignItems:"center",gap:9,transition:"all 0.1s"}}>
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
+                background:view===id?"rgba(192,57,43,0.15)":"transparent",
+                color:view===id?"#FDA4AF":"rgba(203,213,225,0.6)",
+                fontWeight:view===id?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
+                borderLeft:view===id?"3px solid #C0392B":"3px solid transparent",paddingLeft:view===id?"10px":"12px"}}>
               <span style={{flex:1}}>{lbl}</span>
               {id==="magazzino"&&(()=>{
                 const critici=Object.values(magazzino||{}).filter(m=>{
@@ -6610,13 +6618,14 @@ export default function Dashboard({
           ))}
 
           {/* ── Azioni AI ── */}
-          <div style={{fontSize:8,fontWeight:800,letterSpacing:"0.14em",textTransform:"uppercase",
-            color:"rgba(220,140,120,0.75)",padding:"0 6px",marginBottom:6,marginTop:14}}>✅ AI</div>
+          <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",
+            color:"rgba(100,116,139,0.7)",padding:"0 8px",marginBottom:4,marginTop:14}}>✅ AI</div>
           <button onClick={()=>setView("azioni")}
-            style={{width:"100%",padding:"8px 12px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
-              background:view==="azioni"?"rgba(192,57,43,0.25)":"transparent",
-              color:view==="azioni"?"#FFAAAA":"rgba(255,255,255,0.45)",
-              fontWeight:view==="azioni"?700:400,fontSize:11,marginBottom:2,display:"flex",alignItems:"center",gap:9,transition:"all 0.1s"}}>
+            style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",
+              background:view==="azioni"?"rgba(192,57,43,0.15)":"transparent",
+              color:view==="azioni"?"#FDA4AF":"rgba(203,213,225,0.6)",
+              fontWeight:view==="azioni"?600:400,fontSize:12,marginBottom:1,display:"flex",alignItems:"center",gap:8,transition:"all 0.15s",
+              borderLeft:view==="azioni"?"3px solid #C0392B":"3px solid transparent",paddingLeft:view==="azioni"?"10px":"12px"}}>
             <span style={{flex:1}}>Azioni AI</span>
             {actions.filter(a=>a.stato!=="chiusa").length>0&&(
               <span style={{background:C.red,color:C.white,borderRadius:10,fontSize:8,fontWeight:900,padding:"1px 6px"}}>
@@ -6631,7 +6640,7 @@ export default function Dashboard({
             <div key={k} style={{marginBottom:3}}>
               <div style={{display:"flex",alignItems:"center",gap:3}}>
                 <button onClick={()=>setView(k)}
-                  style={{flex:1,padding:"8px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",background:view===k?"rgba(192,57,43,0.22)":"transparent",color:view===k?"#FFAAAA":"rgba(255,255,255,0.38)",fontWeight:view===k?700:400,fontSize:11,transition:"all 0.1s"}}>
+                  style={{flex:1,padding:"8px 12px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",background:view===k?"rgba(192,57,43,0.15)":"transparent",color:view===k?"#FDA4AF":"rgba(148,163,184,0.5)",fontWeight:view===k?600:400,fontSize:11,transition:"all 0.15s",borderLeft:view===k?"3px solid #C0392B":"3px solid transparent"}}>
                   {produzione[k]?.label}
                 </button>
                 <button onClick={()=>setConfDel(confDel===k?null:k)}
@@ -6647,19 +6656,29 @@ export default function Dashboard({
           ))}
         </div>
         <div style={{padding:"12px 10px 22px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",gap:5}}>
-          <label style={{display:"block",padding:"8px 12px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(255,255,255,0.09)",borderRadius:8,cursor:"pointer",fontSize:ricettario?9:10,fontWeight:600,color:ricettario?"rgba(255,255,255,0.22)":"rgba(255,255,255,0.42)",textAlign:"center",letterSpacing:"0.03em"}}>
+          <label style={{display:"block",padding:"9px 12px",background:"rgba(255,255,255,0.03)",border:"1px dashed rgba(255,255,255,0.1)",borderRadius:10,cursor:"pointer",fontSize:ricettario?10:11,fontWeight:500,color:ricettario?"rgba(148,163,184,0.35)":"rgba(203,213,225,0.65)",textAlign:"center",transition:"all 0.15s"}}>
             {loading?"⏳ Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
             <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
           </label>
-          <label style={{display:"block",padding:"7px 10px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(255,255,255,0.07)",borderRadius:8,cursor:"pointer",fontSize:9,fontWeight:600,color:"rgba(220,170,80,0.7)",textAlign:"center",letterSpacing:"0.03em"}}>
+          <label style={{display:"block",padding:"8px 12px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(217,119,6,0.3)",borderRadius:10,cursor:"pointer",fontSize:10,fontWeight:500,color:"rgba(251,191,36,0.65)",textAlign:"center",transition:"all 0.15s"}}>
             💶 Importa prezzi .xlsx
             <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleImportPrezzi(e.target.files)}/>
           </label>
+          {onSignOut&&(
+            <button onClick={onSignOut} style={{display:"block",width:"100%",padding:"8px 0",
+              background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",
+              borderRadius:8,color:"rgba(148,163,184,0.55)",fontSize:11,cursor:"pointer",
+              textAlign:"center",letterSpacing:"0.04em",transition:"background 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(192,57,43,0.18)"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"}>
+              ← Esci dall'account
+            </button>
+          )}
         </div>
       </div>
 
       {/* CONTENT */}
-      <div style={{marginLeft:224,flex:1,padding:"40px 44px 100px",overflowX:"auto"}}>
+      <div style={{marginLeft:248,flex:1,padding:"36px 48px 100px",overflowX:"auto",minHeight:"100vh"}}>
         {!ricettario&&(
           <div style={{maxWidth:500,margin:"80px auto",textAlign:"center"}}>
             <div style={{fontSize:52,marginBottom:18}}>🍰</div>
