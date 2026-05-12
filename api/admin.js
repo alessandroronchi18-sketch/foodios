@@ -43,19 +43,29 @@ export default async function handler(req) {
 
   // GET — lista clienti
   if (req.method === 'GET') {
-    const { data, error } = await supabase
-      .from('admin_overview')
-      .select('*')
-      .order('registrata_il', { ascending: false })
+    const [overviewRes, usersRes] = await Promise.all([
+      supabase.from('admin_overview').select('*').order('registrata_il', { ascending: false }),
+      supabase.auth.admin.listUsers({ perPage: 1000 }),
+    ])
 
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
+    if (overviewRes.error) {
+      return new Response(JSON.stringify({ error: overviewRes.error.message }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    return new Response(JSON.stringify({ clienti: data || [] }), {
+    const authMap = {}
+    for (const u of usersRes.data?.users || []) {
+      authMap[u.email] = u.last_sign_in_at || null
+    }
+
+    const clienti = (overviewRes.data || []).map(c => ({
+      ...c,
+      ultimo_accesso: authMap[c.email] || null,
+    }))
+
+    return new Response(JSON.stringify({ clienti }), {
       headers: { 'Content-Type': 'application/json' },
     })
   }

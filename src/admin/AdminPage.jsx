@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [errore, setErrore] = useState('')
   const [actionLoading, setActionLoading] = useState({})
+  const [filtro, setFiltro] = useState('tutti')
 
   useEffect(() => { fetchClienti() }, [])
 
@@ -68,6 +69,13 @@ export default function AdminPage() {
     scaduti: clienti.filter(c => !c.org_approvata && c.trial_ends_at && new Date(c.trial_ends_at) <= now).length,
   }
 
+  const clientiFiltrati = clienti.filter(c => {
+    if (filtro === 'trial')   return !c.org_approvata && c.trial_ends_at && new Date(c.trial_ends_at) > now
+    if (filtro === 'paganti') return c.org_approvata
+    if (filtro === 'scaduti') return !c.org_approvata && c.trial_ends_at && new Date(c.trial_ends_at) <= now
+    return true
+  })
+
   return (
     <div style={{ minHeight: '100vh', background: '#FDFAF7', fontFamily: 'system-ui, sans-serif' }}>
       {/* Header */}
@@ -105,8 +113,17 @@ export default function AdminPage() {
 
         {/* Tabella */}
         <div style={{ background: '#FFF', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8DDD8', fontWeight: 700, fontSize: 14, color: '#1C0A0A' }}>
-            Clienti registrati
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8DDD8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: '#1C0A0A' }}>Clienti registrati</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[['tutti','Tutti'], ['trial','Trial'], ['paganti','Paganti'], ['scaduti','Scaduti']].map(([id, lbl]) => (
+                <button key={id} onClick={() => setFiltro(id)} style={{
+                  padding: '4px 12px', border: 'none', borderRadius: 99, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                  background: filtro === id ? '#1C0A0A' : '#F3F0EE',
+                  color: filtro === id ? '#FFF' : '#6B4C44',
+                }}>{lbl}</button>
+              ))}
+            </div>
           </div>
 
           {loading ? (
@@ -118,7 +135,7 @@ export default function AdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: '#FAF5F3' }}>
-                    {['Attività', 'Tipo', 'Email', 'Registrata il', 'Piano', 'Stato', 'Azioni'].map(h => (
+                    {['Attività', 'Tipo', 'Email', 'Registrata il', 'Ultimo accesso', 'Piano', 'Stato', 'Azioni'].map(h => (
                       <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#9C7B76', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #E8DDD8' }}>
                         {h}
                       </th>
@@ -126,8 +143,8 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {clienti.map((c, i) => (
-                    <tr key={c.org_id} style={{ borderBottom: i < clienti.length - 1 ? '1px solid #E8DDD8' : 'none', background: i % 2 === 0 ? '#FFF' : '#FDFAF7' }}>
+                  {clientiFiltrati.map((c, i) => (
+                    <tr key={c.org_id} style={{ borderBottom: i < clientiFiltrati.length - 1 ? '1px solid #E8DDD8' : 'none', background: i % 2 === 0 ? '#FFF' : '#FDFAF7' }}>
                       <td style={{ padding: '12px 14px', fontWeight: 600, color: '#1C0A0A' }}>
                         {c.nome_attivita}
                         {c.nome_completo && <div style={{ fontSize: 11, color: '#9C7B76', fontWeight: 400 }}>{c.nome_completo}</div>}
@@ -135,6 +152,7 @@ export default function AdminPage() {
                       <td style={{ padding: '12px 14px', color: '#6B4C44', textTransform: 'capitalize' }}>{c.tipo}</td>
                       <td style={{ padding: '12px 14px', color: '#6B4C44' }}>{c.email}</td>
                       <td style={{ padding: '12px 14px', color: '#6B4C44' }}>{formatData(c.registrata_il)}</td>
+                      <td style={{ padding: '12px 14px', color: '#6B4C44' }}>{c.ultimo_accesso ? formatData(c.ultimo_accesso) : <span style={{ color: '#CCC' }}>—</span>}</td>
                       <td style={{ padding: '12px 14px' }}>
                         <select
                           value={c.piano}
