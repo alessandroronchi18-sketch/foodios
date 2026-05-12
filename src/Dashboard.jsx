@@ -6527,7 +6527,7 @@ export default function Dashboard({
           }
         }
       }
-      if(prod){setProd(prod);const ks=Object.keys(prod).sort();if(ks.length)setView(ks.at(-1));}
+      if(prod){setProd(prod);}
       if(act)   setAct(act);
       if(mag)   setMagazzino(mag);
       if(logrif)setLogRif(logrif);
