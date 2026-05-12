@@ -6660,21 +6660,31 @@ export default function Dashboard({
             {loading?"⏳ Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
             <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
           </label>
-          {onSignOut&&(
-            <button onClick={onSignOut} style={{display:"block",width:"100%",padding:"8px 0",
-              background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",
-              borderRadius:8,color:"rgba(148,163,184,0.55)",fontSize:11,cursor:"pointer",
-              textAlign:"center",letterSpacing:"0.04em",transition:"background 0.15s"}}
-              onMouseEnter={e=>e.currentTarget.style.background="rgba(192,57,43,0.18)"}
-              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"}>
-              ← Esci dall'account
-            </button>
-          )}
           <label style={{display:"block",padding:"8px 12px",background:"rgba(255,255,255,0.02)",border:"1px dashed rgba(217,119,6,0.3)",borderRadius:10,cursor:"pointer",fontSize:10,fontWeight:500,color:"rgba(251,191,36,0.65)",textAlign:"center",transition:"all 0.15s"}}>
             💶 Importa prezzi .xlsx
             <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleImportPrezzi(e.target.files)}/>
           </label>
         </div>
+        {onSignOut && (
+          <button
+            onClick={onSignOut}
+            style={{
+              display:'block',
+              width:'calc(100% - 20px)',
+              margin:'8px 10px 16px',
+              padding:'10px 0',
+              background:'rgba(255,255,255,0.05)',
+              border:'1px solid rgba(255,255,255,0.1)',
+              borderRadius:8,
+              color:'rgba(255,255,255,0.5)',
+              fontSize:12,
+              cursor:'pointer',
+              textAlign:'center'
+            }}
+          >
+            🚪 Esci dall'account
+          </button>
+        )}
       </div>
 
       {/* CONTENT */}
