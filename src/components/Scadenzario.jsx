@@ -155,6 +155,7 @@ export default function Scadenzario({ orgId, sedeId }) {
   }, [orgId])
 
   async function loadFatture() {
+    if (!orgId) { setLoading(false); return }
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -304,7 +305,13 @@ export default function Scadenzario({ orgId, sedeId }) {
   const primaryBtn = { padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }
   const ghostBtn = { padding: '7px 13px', background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: C.textMid }
 
-  if (!orgId) return <div style={{ padding: 40, color: C.textSoft }}>Accesso non disponibile.</div>
+  if (!orgId) return (
+    <div style={{ padding: 48, textAlign: 'center', color: C.textSoft }}>
+      <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: C.textMid, marginBottom: 6 }}>Organizzazione non trovata</div>
+      <div style={{ fontSize: 12 }}>Ricarica la pagina o effettua di nuovo il login.</div>
+    </div>
+  )
 
   return (
     <div style={{ maxWidth: 1100 }}>
