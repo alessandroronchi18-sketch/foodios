@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/ai.js": { "maxDuration": 30 },
+    "api/admin.js": { "maxDuration": 15 },
+    "api/send-email.js": { "maxDuration": 10 }
+  }
+}
