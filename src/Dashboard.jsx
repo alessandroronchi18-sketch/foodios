@@ -965,7 +965,7 @@ Niente markdown, niente testo fuori dal JSON.`;
 
 // ─── DESIGN ───────────────────────────────────────────────────────────────────
 const C = {
-  bg:"#F8FAFC", bgCard:"#FFFFFF", bgSide:"#0F172A",
+  bg:"#F8FAFC", bgCard:"#FFFFFF", bgSide:"#1A0A0A",
   border:"#E2E8F0", borderStr:"#CBD5E1",
   red:"#C0392B", redDark:"#922B21", redLight:"#FEF2F2",
   green:"#16A34A", greenLight:"#F0FDF4",
@@ -3251,19 +3251,6 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
           </label>
         )}
       </div>
-
-      {/* Logout */}
-      {onSignOut && (
-        <button onClick={onSignOut} style={{
-          display:'block', width:'calc(100% - 20px)', margin:'8px 10px 4px',
-          padding:'8px 0', background:'rgba(255,255,255,0.05)',
-          border:'1px solid rgba(255,255,255,0.08)', borderRadius:6,
-          color:'rgba(255,255,255,0.45)', fontSize:11, cursor:'pointer',
-          textAlign:'center', letterSpacing:'0.04em'
-        }}>
-          Esci dall'account
-        </button>
-      )}
 
       {/* Alert banner */}
       {(critici.length>0||attenzione.length>0) && (
