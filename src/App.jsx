@@ -160,6 +160,9 @@ export default function App() {
   // Admin — fallback se VITE_ADMIN_EMAIL non è configurato in Vercel
   if (auth.isAdmin || (!auth.orgId && !auth.org && auth.user?.email === 'alessandroar@maradeiboschi.com')) return <AdminPage />
 
+  // Profilo ancora in caricamento (race condition post-login)
+  if (!auth.orgId) return <SplashScreen />
+
   // Trial scaduto
   if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} />
 
