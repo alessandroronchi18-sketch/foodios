@@ -14,6 +14,7 @@ import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGeneric
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importCassa'
 import useIsMobile from './lib/useIsMobile'
 import { useOnlineStatus } from './lib/useOnlineStatus'
+import { useNotifiche } from './lib/useNotifiche'
 import ImpostazioniSedi from './components/ImpostazioniSedi'
 import ConfrontoSedi from './components/ConfrontoSedi'
 import EsportaDati from './components/EsportaDati'
@@ -2140,10 +2141,10 @@ function PLView({ricettario, onUpdateRegola}) {
       <div style={{marginBottom:32}}>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
           <div>
-            <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>{nomeAttivita}</div>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>P&L</div>
             <h1 style={{margin:"0 0 8px",fontSize:30,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Profit & Loss</h1>
           </div>
-          <button onClick={()=>exportPLMensile({ricavi:rows.map(r=>({categoria:r.nome,quantita:r.reg.unita,ricavo:r.ricavo})),costi:rows.map(r=>({categoria:r.nome,costo:r.fc,perc:r.fcPct}))},null,null,nomeAttivita)}
+          <button onClick={()=>exportPLMensile({ricavi:rows.map(r=>({categoria:r.nome,quantita:r.reg.unita,ricavo:r.ricavo})),costi:rows.map(r=>({categoria:r.nome,costo:r.fc,perc:r.fcPct}))},null,null,null)}
             style={{marginTop:8,padding:"8px 14px",borderRadius:8,border:"1px solid #E8DDD8",background:"#FFF",fontSize:12,fontWeight:700,color:"#6B4C44",cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
             📄 Esporta PDF
           </button>
@@ -3769,7 +3770,7 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
               const {tot:fcR}=r?calcolaFC(r,ingCosti,ricettario):{tot:0};
               return qty>0?[{nome,quantita:qty,unita:'stampi',costo:fcR,categoria:r?.categoria||'Altro'}]:[];
             });
-            exportProduzione(items,sess?.data,nomeAttivita);
+            exportProduzione(items,sess?.data,null);
           }}
             style={{marginTop:8,padding:"8px 14px",borderRadius:8,border:"1px solid #E8DDD8",background:"#FFF",fontSize:12,fontWeight:700,color:"#6B4C44",cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
             📄 Esporta PDF
