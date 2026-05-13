@@ -2061,6 +2061,7 @@ function SensTable({ rows, euro, pct }) {
 
 // ─── P&L VIEW ─────────────────────────────────────────────────────────────────
 function PLView({ricettario, onUpdateRegola}) {
+  const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const ricette  = Object.values(ricettario?.ricette||{}).filter(r=>isRicettaValida(r.nome) && getR(r.nome, r).tipo!=="interno" && getR(r.nome,r).tipo!=="semilavorato");
 
@@ -2150,7 +2151,7 @@ function PLView({ricettario, onUpdateRegola}) {
       </div>
 
       {/* ── KPI STRIP ───────────────────────────────────────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:36}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(6,1fr)",gap:10,marginBottom:36}}>
         {[
           {ico:"📦",lbl:"Prodotti",val:rows.length,sub:"nel listino",hi:true},
           {ico:"💰",lbl:"Ricavo/stampo",val:euro(totRicavo),sub:"somma tutti i prodotti",color:C.green},
@@ -2197,7 +2198,7 @@ function PLView({ricettario, onUpdateRegola}) {
           <div style={{fontSize:11,color:C.textSoft,marginTop:2}}>Visualizzazioni comparate tra tutti i prodotti</div>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:28}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:20,marginBottom:28}}>
         {/* Grafico 1: margine % a barre orizzontali — più leggibile del bar verticale */}
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
           <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:16}}>Margine % per prodotto</div>
@@ -3126,6 +3127,7 @@ function calcolaFabbisognoSettimana(ricettario, giornaliero) {
 }
 
 function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif, giornaliero, notify, esclusi=new Set(), setEsclusi, onImportPrezzi, onImportPrezziOCR }) {
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState("giacenze");
   const [deleteIngConf, setDeleteIngConf] = useState(null); // key ingrediente da eliminare
   const [deleteIngPin,  setDeleteIngPin]  = useState("");
@@ -3301,11 +3303,11 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
       )}
 
       {/* KPI */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:28}}>
-        <KPI icon="📦" label="Ingredienti monitorati" value={righe.length} highlight/>
-        <KPI icon="🚨" label="Critici / esauriti"     value={critici.length}    color={critici.length>0?C.red:C.green} sub={critici.length>0?"riordino urgente":"tutto ok"}/>
-        <KPI icon="⚠️" label="In esaurimento"         value={attenzione.length} color={attenzione.length>0?C.amber:C.green} sub={attenzione.length>0?"scorta < 7 giorni":"scorte sufficienti"}/>
-        <KPI icon="✅" label="Scorte sufficienti"     value={righe.filter(r=>r.stato==="ok").length} color={C.green}/>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:28}}>
+        <KPI icon="📦" label="Ingredienti" value={righe.length} highlight/>
+        <KPI icon="🚨" label="Critici"     value={critici.length}    color={critici.length>0?C.red:C.green} sub={critici.length>0?"riordino urgente":"tutto ok"}/>
+        <KPI icon="⚠️" label="In esaurimento" value={attenzione.length} color={attenzione.length>0?C.amber:C.green} sub={attenzione.length>0?"< 7 giorni":"ok"}/>
+        <KPI icon="✅" label="Sufficienti"  value={righe.filter(r=>r.stato==="ok").length} color={C.green}/>
       </div>
 
       {/* Tab */}
@@ -3340,7 +3342,8 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
             </div>
           )}
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+            <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:600}}>
               <thead>
                 <tr style={{background:"#F8F4F2"}}>
                   <SortTH k="nome" active={magKey==="nome"} dir={magDir} onToggle={magToggle} style={{padding:"10px 14px",textAlign:"left"}}>Ingrediente</SortTH>
@@ -3420,6 +3423,7 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
           <div style={{marginTop:10,fontSize:10,color:C.textSoft,lineHeight:1.7}}>
             💡 <b>Fabbisogno settimanale</b> calcolato dalla media delle ultime 7 sessioni di produzione. Imposta la soglia alert per ricevere avvisi personalizzati.
@@ -3625,6 +3629,7 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
 // giornaliero: [{ id, data, prodotti:[{nome,stampi}], note }]
 
 function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify }) {
+  const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const ricette  = Object.values(ricettario?.ricette||{}).filter(r=>isRicettaValida(r.nome)&&getR(r.nome,r).tipo!=="interno"&&getR(r.nome,r).tipo!=="semilavorato");
 
@@ -3794,7 +3799,7 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
             setQtaMap(nuovaMap);
             notify(`📷 Importati ${(res.prodotti||[]).length} prodotti — controlla i valori`);
           }}/>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:24}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 340px",gap:24}}>
           {/* Form sinistra */}
           <div>
             <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
@@ -3807,7 +3812,8 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
                 </div>
               </div>
               {/* Tabella torte */}
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:420}}>
                 <thead>
                   <tr style={{background:"#F8F4F2"}}>
                     {["Prodotto","FC/stampo","Prodotti oggi","Vendibili oggi"].map((h,i)=>(
@@ -3862,6 +3868,7 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
                   })}
                 </tbody>
               </table>
+              </div>
               <div style={{padding:"14px 20px",borderTop:`1px solid ${C.border}`}}>
                 <div style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Note sessione</div>
                 <input type="text" value={sessNote} onChange={e=>setSessNote(e.target.value)} placeholder="es. produzione weekend, teglia extra…"
@@ -6521,15 +6528,15 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
   // Azioni AI aperte
   const azioniAperte = (actions||[]).filter(a => a.stato !== "chiusa");
 
-  const kpiStyle = { background:"#FFF", borderRadius:14, padding:"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)", flex:1, minWidth:0 };
-  const labelStyle = { fontSize:11, fontWeight:600, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:6 };
-  const valStyle = { fontSize:28, fontWeight:900, color:C.text, lineHeight:1 };
-  const subStyle = { fontSize:12, color:C.textMid, marginTop:4 };
+  const kpiStyle = { background:"#FFF", borderRadius:14, padding: isMobile?"14px 16px":"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)", minWidth:0 };
+  const labelStyle = { fontSize: isMobile?9:11, fontWeight:600, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:6 };
+  const valStyle = { fontSize: isMobile?22:28, fontWeight:900, color:C.text, lineHeight:1 };
+  const subStyle = { fontSize: isMobile?10:12, color:C.textMid, marginTop:4 };
 
   return (
     <div style={{ maxWidth:960, margin:"0 auto" }}>
-      <div style={{ marginBottom:28 }}>
-        <div style={{ fontSize:22, fontWeight:800, color:C.text, marginBottom:4 }}>
+      <div style={{ marginBottom:isMobile?18:28 }}>
+        <div style={{ fontSize: isMobile?18:22, fontWeight:800, color:C.text, marginBottom:4 }}>
           Buongiorno 👋
         </div>
         <div style={{ fontSize:13, color:C.textSoft }}>
@@ -6537,27 +6544,27 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
         </div>
       </div>
 
-      {/* KPI row */}
-      <div style={{ display:"flex", gap:16, marginBottom:24, flexWrap:"wrap" }}>
+      {/* KPI grid — 2x2 su mobile, 4 colonne su desktop */}
+      <div style={{ display:"grid", gridTemplateColumns: isMobile?"repeat(2,1fr)":"repeat(4,1fr)", gap: isMobile?10:16, marginBottom:24 }}>
         <div style={kpiStyle}>
-          <div style={labelStyle}>Ricavi stimati oggi</div>
+          <div style={labelStyle}>{isMobile?"Ricavi oggi":"Ricavi stimati oggi"}</div>
           <div style={valStyle}>{fmt(ricaviStimati)}</div>
-          <div style={subStyle}>{prodottiOggi} stampi prodotti</div>
+          <div style={subStyle}>{prodottiOggi} stampi</div>
         </div>
         <div style={kpiStyle}>
-          <div style={labelStyle}>Food cost medio</div>
+          <div style={labelStyle}>{isMobile?"Food cost":"Food cost medio"}</div>
           <div style={valStyle}>{(fcMedio*100).toFixed(1)}%</div>
-          <div style={subStyle}>{ricette.length} ricette analizzate</div>
+          <div style={subStyle}>{ricette.length} ricette</div>
         </div>
         <div style={kpiStyle}>
-          <div style={labelStyle}>Azioni AI aperte</div>
+          <div style={labelStyle}>{isMobile?"Azioni AI":"Azioni AI aperte"}</div>
           <div style={{...valStyle, color: azioniAperte.length>0 ? C.red : C.green}}>{azioniAperte.length}</div>
-          <div style={subStyle}>{(actions||[]).length} azioni totali</div>
+          <div style={subStyle}>{(actions||[]).length} totali</div>
         </div>
         <div style={kpiStyle}>
-          <div style={labelStyle}>Magazzino critici</div>
+          <div style={labelStyle}>{isMobile?"Magazzino":"Magazzino critici"}</div>
           <div style={{...valStyle, color: critici.length>0 ? C.red : C.green}}>{critici.length}</div>
-          <div style={subStyle}>ingredienti esauriti/sotto soglia</div>
+          <div style={subStyle}>sotto soglia</div>
         </div>
       </div>
 
@@ -7354,7 +7361,7 @@ export default function Dashboard({
       {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');}} onVediTutte={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');setView('changelog');}}/>}
 
       {/* CONTENT */}
-      <div style={{marginLeft:isMobile?0:248,flex:1,padding:isMobile?"20px 16px 80px":"36px 48px 100px",overflowX:"auto",minHeight:"100vh",boxSizing:"border-box"}}>
+      <div style={{marginLeft:isMobile?0:248,flex:1,padding:isMobile?"16px 12px 80px":"36px 48px 100px",overflowX:"auto",minHeight:"100vh",boxSizing:"border-box"}}>
         {/* Mobile header bar */}
         {isMobile&&(
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,
@@ -7379,8 +7386,8 @@ export default function Dashboard({
                 borderRadius:"50%",width:14,height:14,fontSize:8,fontWeight:900,
                 display:"flex",alignItems:"center",justifyContent:"center"}}>{nonLette}</span>}
             </button>
-            <div style={{fontSize:11,fontWeight:600,color:"#C0392B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:120}}>
-              {nomeAttivita||"La tua attività"}
+            <div style={{fontSize:10,fontWeight:500,color:C.textMid,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:120}}>
+              {nomeAttivita||""}
             </div>
           </div>
         )}
