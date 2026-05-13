@@ -3,22 +3,32 @@
 // Receives real-time sales data from Zucchetti Infinity/Kassa enterprise tier
 // Headers: x-zucchetti-secret, x-organization-id
 
-import { createClient } from '@supabase/supabase-js'
-
 export const config = { runtime: 'edge' }
 
+import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
+import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
+import { sanitizeStrict, validateUUID } from './lib/validate.js'
+
+async function getSupabase() {
+  const { createClient } = await import('@supabase/supabase-js')
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+}
+
 export default async function handler(request) {
+  if (request.method === 'OPTIONS') return handleOptions(request)
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) },
     })
   }
 
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
+  const ip = getClientIP(request)
+  const supabase = await getSupabase()
+
+  // Rate limit: 60 req/min per IP (webhook may batch)
+  const rl = await checkRateLimit(supabase, `webhook-zucchetti:${ip}`, 60, 60)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
   // Verify webhook secret
   const secret = request.headers.get('x-zucchetti-secret') || request.headers.get('authorization')?.replace('Bearer ', '')
@@ -40,9 +50,10 @@ export default async function handler(request) {
     })
   }
 
-  const orgId = request.headers.get('x-organization-id') || body.organization_id
-  if (!orgId) {
-    return new Response(JSON.stringify({ error: 'x-organization-id header obbligatorio' }), {
+  const rawOrgId = request.headers.get('x-organization-id') || body.organization_id
+  const orgId = sanitizeStrict(rawOrgId || '', 36)
+  if (!orgId || !validateUUID(orgId)) {
+    return new Response(JSON.stringify({ error: 'x-organization-id non valido' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     })
@@ -50,24 +61,25 @@ export default async function handler(request) {
 
   try {
     const vendite = Array.isArray(body.vendite) ? body.vendite : [body]
+    // Cap payload size
+    const batch = vendite.slice(0, 500)
     let records = 0
 
-    for (const v of vendite) {
-      const data = v.data || v.date || new Date().toISOString().slice(0, 10)
+    for (const v of batch) {
+      const data = sanitizeStrict(v.data || v.date || '', 10) || new Date().toISOString().slice(0, 10)
       const dataKey = `chiusura_${data}`
 
       const totale = parseFloat(v.totale || v.total || v.importo || 0)
-      if (!totale) continue
+      if (!totale || totale < 0 || totale > 1_000_000) continue
 
       const nuovaChiusura = {
         totale,
-        metodo_pagamento: v.metodo_pagamento || v.payment_method || 'contante',
-        reparto: v.reparto || v.department || null,
+        metodo_pagamento: sanitizeStrict(v.metodo_pagamento || v.payment_method || 'contante', 50),
+        reparto: v.reparto ? sanitizeStrict(v.reparto, 100) : null,
         note: 'Zucchetti webhook',
         source: 'zucchetti_webhook',
       }
 
-      // Merge with existing chiusura for that day if present
       const { data: existing } = await supabase
         .from('user_data')
         .select('id, data_value')
@@ -99,7 +111,7 @@ export default async function handler(request) {
 
     return new Response(JSON.stringify({ ok: true, records_importati: records }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) },
     })
   } catch (e) {
     await supabase.from('sync_log').insert({

@@ -270,6 +270,14 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPwd, setLoginPwd]     = useState('')
 
+  // Brute force protection
+  const [loginAttempts, setLoginAttempts] = useState(() => {
+    try { return parseInt(localStorage.getItem('foodios-login-attempts') || '0', 10) } catch { return 0 }
+  })
+  const [lockoutUntil, setLockoutUntil] = useState(() => {
+    try { return parseInt(localStorage.getItem('foodios-lockout-until') || '0', 10) } catch { return 0 }
+  })
+
   // RESET REQUEST
   const [resetEmail, setResetEmail] = useState('')
 
@@ -301,11 +309,49 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
   function clear() { setErrore(''); setMsg('') }
 
   // ── HANDLERS ────────────────────────────────────────────────────────────────
+  function getLockoutMessage(until) {
+    const secs = Math.ceil((until - Date.now()) / 1000)
+    if (secs <= 0) return ''
+    if (secs < 120) return `Troppi tentativi. Riprova tra ${secs} secondi.`
+    return `Troppi tentativi. Riprova tra ${Math.ceil(secs / 60)} minuti.`
+  }
+
   async function handleLogin(e) {
-    e.preventDefault(); clear(); setLoading(true)
-    try { await onSignIn(loginEmail, loginPwd) }
-    catch (err) { setErrore(err.message) }
-    finally { setLoading(false) }
+    e.preventDefault(); clear()
+
+    const now = Date.now()
+    if (lockoutUntil > now) {
+      setErrore(getLockoutMessage(lockoutUntil))
+      return
+    }
+
+    setLoading(true)
+    try {
+      await onSignIn(loginEmail, loginPwd)
+      // Success — reset counters
+      setLoginAttempts(0)
+      setLockoutUntil(0)
+      localStorage.removeItem('foodios-login-attempts')
+      localStorage.removeItem('foodios-lockout-until')
+    } catch (err) {
+      const next = loginAttempts + 1
+      setLoginAttempts(next)
+      localStorage.setItem('foodios-login-attempts', String(next))
+
+      let blockMs = 0
+      if (next >= 10) blockMs = 60 * 60 * 1000      // 1 hour
+      else if (next >= 5) blockMs = 15 * 60 * 1000  // 15 min
+      else if (next >= 3) blockMs = 60 * 1000        // 1 min
+
+      if (blockMs > 0) {
+        const until = Date.now() + blockMs
+        setLockoutUntil(until)
+        localStorage.setItem('foodios-lockout-until', String(until))
+        setErrore(getLockoutMessage(until))
+      } else {
+        setErrore(err.message)
+      }
+    } finally { setLoading(false) }
   }
 
   async function handleResetRequest(e) {
@@ -433,7 +479,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
                     Password dimenticata?
                   </button>
                 </div>
-                <button type="submit" disabled={loading} style={S.btn(loading)}>
+                <button type="submit" disabled={loading || lockoutUntil > Date.now()} style={S.btn(loading || lockoutUntil > Date.now())}>
                   {loading ? 'Accesso in corso…' : 'Accedi →'}
                 </button>
               </form>
