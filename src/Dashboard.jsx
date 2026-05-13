@@ -13,6 +13,10 @@ import Integrazioni from './components/Integrazioni'
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from './lib/importDelivery'
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importCassa'
 import useIsMobile from './lib/useIsMobile'
+import { useOnlineStatus } from './lib/useOnlineStatus'
+import ImpostazioniSedi from './components/ImpostazioniSedi'
+import ConfrontoSedi from './components/ConfrontoSedi'
+import EsportaDati from './components/EsportaDati'
 import { exportRicettaPDF, exportPLMensile, exportProduzione } from './lib/exportPDF'
 
 // React hooks are imported above — no need for global destructuring
@@ -5721,10 +5725,167 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   return (
     <div style={{maxWidth:1100}}>
       <div style={{marginBottom:24}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Fine giornata</div>
-        <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Chiusura</h1>
-        <p style={{margin:0,fontSize:12,color:C.textSoft,maxWidth:600}}>Carica lo scontrino di fine giornata: Claude legge i dati di vendita, li confronta con la produzione e salva tutto nello storico.</p>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+          <div>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Fine giornata</div>
+            <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Chiusura</h1>
+            <p style={{margin:0,fontSize:12,color:C.textSoft,maxWidth:600}}>Carica lo scontrino di fine giornata: Claude legge i dati di vendita, li confronta con la produzione e salva tutto nello storico.</p>
+          </div>
+          <div style={{display:"flex",gap:8,flexShrink:0,marginTop:4}}>
+            <button onClick={()=>{setImportModal('delivery');setImportPreview(null);}}
+              style={{padding:"8px 14px",background:"#FFF8EE",border:"1px solid rgba(217,119,6,0.25)",borderRadius:9,fontSize:11,fontWeight:700,color:C.amber,cursor:"pointer",whiteSpace:"nowrap"}}>
+              🛵 Importa da delivery
+            </button>
+            <button onClick={()=>{setImportModal('cassa');setImportPreview(null);}}
+              style={{padding:"8px 14px",background:"#F0F7FF",border:"1px solid rgba(147,197,253,0.4)",borderRadius:9,fontSize:11,fontWeight:700,color:"#2563EB",cursor:"pointer",whiteSpace:"nowrap"}}>
+              🖥 Importa da sistema cassa
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* ── Modal import delivery ── */}
+      {importModal==="delivery"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{background:C.white,borderRadius:16,padding:"24px",maxWidth:540,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,0.18)",overflowY:"auto",maxHeight:"90vh"}}>
+            <div style={{fontSize:16,fontWeight:900,color:C.text,marginBottom:4}}>🛵 Importa da piattaforma delivery</div>
+            <div style={{fontSize:11,color:C.textSoft,marginBottom:18}}>Seleziona la piattaforma e carica il file export CSV/Excel.</div>
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:10,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Piattaforma</div>
+              <select value={importPiattaforma} onChange={e=>{setImportPiattaforma(e.target.value);setImportPreview(null);}}
+                style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text}}>
+                <option value="deliveroo">Deliveroo (CSV)</option>
+                <option value="justeat">JustEat (CSV)</option>
+                <option value="glovo">Glovo / Foodinho (Excel)</option>
+                <option value="generico">Formato generico (CSV)</option>
+              </select>
+            </div>
+            <label style={{display:"block",padding:"12px",background:"#F8F4F2",border:`1px dashed ${C.borderStr}`,borderRadius:10,textAlign:"center",cursor:"pointer",fontSize:12,fontWeight:700,color:C.textMid,marginBottom:14}}>
+              📂 {importLoading?"Lettura file…":"Carica file export"}
+              <input ref={importFileRef} type="file" accept=".csv,.xlsx,.xls" style={{display:"none"}} onChange={handleImportDeliveryFile}/>
+            </label>
+            {importPreview?.tipo==="aggregated"&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.green,marginBottom:8}}>✓ {importPreview.righe.length} giorni rilevati</div>
+                <div style={{maxHeight:180,overflowY:"auto",borderRadius:8,border:`1px solid ${C.border}`}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}>
+                    <thead><tr style={{background:"#F8F4F2"}}>
+                      {["Data","Importo","Commissione","Netto","Ordini"].map(h=>(
+                        <th key={h} style={{padding:"6px 10px",textAlign:h==="Data"?"left":"right",fontWeight:700,color:C.textSoft}}>{h}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody>{importPreview.righe.map((r,i)=>(
+                      <tr key={i} style={{borderTop:`1px solid ${C.border}`,background:i%2?"#FDFAF7":C.white}}>
+                        <td style={{padding:"5px 10px",fontWeight:700,color:C.text}}>{r.data}</td>
+                        <td style={{padding:"5px 10px",textAlign:"right",color:C.green}}>€{(r.importo||0).toFixed(2)}</td>
+                        <td style={{padding:"5px 10px",textAlign:"right",color:C.red}}>€{(r.commissione||0).toFixed(2)}</td>
+                        <td style={{padding:"5px 10px",textAlign:"right",fontWeight:700}}>€{(r.netto||0).toFixed(2)}</td>
+                        <td style={{padding:"5px 10px",textAlign:"right",color:C.textSoft}}>{r.ordini}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {importPreview?.tipo==="generic"&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.amber,marginBottom:8}}>📋 Mappa le colonne</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+                  {[["Data","data"],["Importo","importo"],["Commissione (opz.)","comm"]].map(([label,key])=>(
+                    <div key={key}>
+                      <div style={{fontSize:9,fontWeight:700,color:C.textSoft,marginBottom:4}}>{label}</div>
+                      <select value={importGenericMapping[key]||""} onChange={e=>setImportGenericMapping(m=>({...m,[key]:e.target.value}))}
+                        style={{width:"100%",padding:"6px 8px",borderRadius:6,border:`1px solid ${C.borderStr}`,fontSize:11}}>
+                        <option value="">—</option>
+                        {(importPreview.headers||[]).map(h=><option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontSize:10,color:C.textSoft,marginBottom:6}}>Preview prime 5 righe:</div>
+                <div style={{maxHeight:100,overflowY:"auto",background:"#F8F4F2",borderRadius:8,padding:"8px",fontSize:9,fontFamily:"monospace"}}>
+                  {(importPreview.preview||[]).map((r,i)=>(
+                    <div key={i} style={{marginBottom:2,color:C.textMid}}>{Object.entries(r).slice(0,5).map(([k,v])=>`${k}:${v}`).join(" | ")}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{display:"flex",gap:10,marginTop:8}}>
+              {importPreview&&(
+                <button onClick={handleConfirmDelivery}
+                  style={{flex:1,padding:"10px",background:C.green,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer"}}>
+                  ✓ Importa in Cassa
+                </button>
+              )}
+              <button onClick={()=>{setImportModal(null);setImportPreview(null);}}
+                style={{padding:"10px 16px",background:"transparent",color:C.textSoft,border:`1px solid ${C.border}`,borderRadius:9,fontSize:12,cursor:"pointer"}}>
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal import cassa ── */}
+      {importModal==="cassa"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{background:C.white,borderRadius:16,padding:"24px",maxWidth:540,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,0.18)",overflowY:"auto",maxHeight:"90vh"}}>
+            <div style={{fontSize:16,fontWeight:900,color:C.text,marginBottom:4}}>🖥 Importa da sistema cassa</div>
+            <div style={{fontSize:11,color:C.textSoft,marginBottom:18}}>Seleziona il sistema e carica il file export (CSV o XML).</div>
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:10,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Sistema cassa</div>
+              <select value={importSistema} onChange={e=>{setImportSistema(e.target.value);setImportPreview(null);}}
+                style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text}}>
+                <option value="cassaincloud">Cassa in Cloud (CSV)</option>
+                <option value="sumup">SumUp (CSV)</option>
+                <option value="zucchetti">Zucchetti Infinity/Kassa (CSV o XML)</option>
+                <option value="lightspeed">Lightspeed (CSV)</option>
+                <option value="square">Square (CSV)</option>
+                <option value="fattura_xml">Fattura Elettronica SDI (XML)</option>
+              </select>
+            </div>
+            <label style={{display:"block",padding:"12px",background:"#F8F4F2",border:`1px dashed ${C.borderStr}`,borderRadius:10,textAlign:"center",cursor:"pointer",fontSize:12,fontWeight:700,color:C.textMid,marginBottom:14}}>
+              📂 {importLoading?"Lettura file…":"Carica file export"}
+              <input type="file" accept=".csv,.xml,.xlsx" style={{display:"none"}} onChange={handleImportCassaFile}/>
+            </label>
+            {importPreview?.tipo==="aggregated"&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.green,marginBottom:8}}>✓ {importPreview.righe.length} record rilevati</div>
+                <div style={{maxHeight:180,overflowY:"auto",borderRadius:8,border:`1px solid ${C.border}`}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}>
+                    <thead><tr style={{background:"#F8F4F2"}}>
+                      {["Data","Importo","IVA","Righe","Fonte"].map(h=>(
+                        <th key={h} style={{padding:"6px 10px",textAlign:h==="Data"||h==="Fonte"?"left":"right",fontWeight:700,color:C.textSoft}}>{h}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody>{importPreview.righe.map((r,i)=>(
+                      <tr key={i} style={{borderTop:`1px solid ${C.border}`,background:i%2?"#FDFAF7":C.white}}>
+                        <td style={{padding:"5px 10px",fontWeight:700,color:C.text}}>{r.data}</td>
+                        <td style={{padding:"5px 10px",textAlign:"right",color:C.green}}>€{(r.importo||0).toFixed(2)}</td>
+                        <td style={{padding:"5px 10px",textAlign:"right",color:C.textSoft}}>€{(r.iva||0).toFixed(2)}</td>
+                        <td style={{padding:"5px 10px",textAlign:"right"}}>{r.righe||1}</td>
+                        <td style={{padding:"5px 10px",color:C.textMid,fontSize:9}}>{r.fonte}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            <div style={{display:"flex",gap:10,marginTop:8}}>
+              {importPreview&&(
+                <button onClick={handleConfirmCassa}
+                  style={{flex:1,padding:"10px",background:C.green,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer"}}>
+                  ✓ Importa in Cassa
+                </button>
+              )}
+              <button onClick={()=>{setImportModal(null);setImportPreview(null);}}
+                style={{padding:"10px 16px",background:"transparent",color:C.textSoft,border:`1px solid ${C.border}`,borderRadius:9,fontSize:12,cursor:"pointer"}}>
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Selettore data + stato sessione */}
       <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 20px",marginBottom:20,display:"flex",alignItems:"center",gap:20,flexWrap:"wrap",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
@@ -6478,9 +6639,33 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
 }
 
 // ─── IMPOSTAZIONI VIEW ────────────────────────────────────────────────────────
-function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, onImportPrezzi, notify }) {
+function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, onImportPrezzi, notify, onChangelogOpen }) {
   const [nomeMod, setNomeMod] = useState(nomeAttivita || "");
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState("generale");
+  const [reports, setReports] = useState([]);
+  const [emailReport, setEmailReport] = useState(true);
+  const [loadingReports, setLoadingReports] = useState(false);
+
+  useEffect(()=>{
+    if(!orgId) return;
+    setLoadingReports(true);
+    supabase.storage.from("reports").list(orgId,{ limit:12, sortBy:{ column:"created_at", order:"desc" } })
+      .then(({ data })=>{ setReports(data||[]); setLoadingReports(false); });
+    supabase.from("user_data").select("data_value")
+      .eq("organization_id", orgId).eq("data_key","report-settings-v1").is("sede_id",null).single()
+      .then(({ data })=>{ if(data?.data_value?.emailReport===false) setEmailReport(false); });
+  },[orgId]);
+
+  const handleToggleEmail = async (val) => {
+    setEmailReport(val);
+    await supabase.from("user_data").upsert({
+      organization_id: orgId, sede_id: null,
+      data_key: "report-settings-v1",
+      data_value: { emailReport: val },
+    },{ onConflict:"organization_id,sede_id,data_key" });
+    notify(val ? "✓ Riceverai i report mensili via email" : "✓ Email report mensili disattivata");
+  };
 
   const handleSalvaNome = async () => {
     if (!nomeMod.trim()) return;
@@ -6503,64 +6688,151 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, onIm
   const label = { fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8, display:"block" };
   const input = { width:"100%", padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, fontWeight:500, color:C.text, background:"#FAFAFA", outline:"none" };
 
-  return (
-    <div style={{ maxWidth:640 }}>
-      <div style={{ fontSize:22, fontWeight:800, color:C.text, marginBottom:24 }}>⚙️ Impostazioni</div>
+  const TABS = [
+    ["generale", "⚙️ Generale"],
+    ["sedi", "🏪 Sedi"],
+    ["dati", "💾 Dati"],
+  ];
 
-      {/* Info attività */}
-      <div style={card}>
-        <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:18 }}>Attività</div>
-        <div style={{ marginBottom:16 }}>
-          <label style={label}>Nome attività</label>
-          <div style={{ display:"flex", gap:8 }}>
-            <input value={nomeMod} onChange={e=>setNomeMod(e.target.value)} style={{...input, flex:1}} placeholder="Es. Pasticceria Rossi" />
-            <button onClick={handleSalvaNome} disabled={saving || nomeMod === nomeAttivita}
-              style={{ padding:"10px 18px", background:C.red, color:C.white, border:"none", borderRadius:9, fontSize:13, fontWeight:700, cursor:"pointer", opacity: (saving || nomeMod===nomeAttivita)?0.5:1 }}>
-              {saving ? "…" : "Salva"}
+  return (
+    <div style={{ maxWidth:700 }}>
+      <div style={{ marginBottom:6 }}>
+        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:C.red, marginBottom:6 }}>Configurazione</div>
+        <h1 style={{ margin:"0 0 8px", fontSize:28, fontWeight:900, color:C.text, letterSpacing:"-0.03em" }}>Impostazioni</h1>
+      </div>
+
+      {/* Tab nav */}
+      <div style={{ display:"flex", gap:4, marginBottom:28, borderBottom:`2px solid ${C.border}` }}>
+        {TABS.map(([id,lbl]) => (
+          <button key={id} onClick={()=>setTab(id)}
+            style={{ padding:"8px 18px", border:"none", background:"transparent", cursor:"pointer",
+              fontSize:11, fontWeight:700, color:tab===id?C.red:C.textSoft,
+              borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",
+              marginBottom:-2, transition:"all 0.12s" }}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {/* ── TAB: Generale ── */}
+      {tab === "generale" && (
+        <div>
+          {/* Info attività */}
+          <div style={card}>
+            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:18 }}>Attività</div>
+            <div style={{ marginBottom:16 }}>
+              <label style={label}>Nome attività</label>
+              <div style={{ display:"flex", gap:8 }}>
+                <input value={nomeMod} onChange={e=>setNomeMod(e.target.value)} style={{...input, flex:1}} placeholder="Es. Pasticceria Rossi" />
+                <button onClick={handleSalvaNome} disabled={saving || nomeMod === nomeAttivita}
+                  style={{ padding:"10px 18px", background:C.red, color:C.white, border:"none", borderRadius:9, fontSize:13, fontWeight:700, cursor:"pointer", opacity: (saving || nomeMod===nomeAttivita)?0.5:1 }}>
+                  {saving ? "…" : "Salva"}
+                </button>
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              <div>
+                <label style={label}>Tipo attività</label>
+                <div style={{ padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, color:C.textMid, background:"#F8FAFC", textTransform:"capitalize" }}>
+                  {tipoAttivita || "—"}
+                </div>
+              </div>
+              <div>
+                <label style={label}>Piano</label>
+                <div style={{ padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, color:C.textMid, background:"#F8FAFC", textTransform:"capitalize" }}>
+                  {piano || "trial"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Import prezzi */}
+          <div style={card}>
+            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>💶 Prezzi ingredienti</div>
+            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14, lineHeight:1.6 }}>
+              Importa un file Excel (.xlsx) con i prezzi degli ingredienti. Il file deve avere una colonna con il nome dell'ingrediente e una con il prezzo per kg o per g.
+            </div>
+            <label style={{ display:"inline-block", padding:"10px 18px", background:"#FFFBEB", border:"1px dashed #FDE68A", borderRadius:9, cursor:"pointer", fontSize:12, fontWeight:600, color:"#92400E" }}>
+              📂 Importa prezzi .xlsx / .xls / .csv
+              <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&onImportPrezzi(e.target.files)} />
+            </label>
+          </div>
+
+          {/* Referral */}
+          <ReferralPanel auth={auth} />
+
+          {/* Account */}
+          <div style={card}>
+            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>Account</div>
+            <div style={{ fontSize:13, color:C.textMid }}>
+              <strong>Email:</strong> {auth?.user?.email || "—"}
+            </div>
+            <div style={{ fontSize:12, color:C.textSoft, marginTop:6 }}>
+              Per cambiare email o password contatta <a href="mailto:support@foodios.it" style={{color:C.red}}>support@foodios.it</a>
+            </div>
+          </div>
+
+          {/* Report mensili */}
+          <div style={card}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+              <div style={{ fontWeight:700, fontSize:15, color:C.text }}>📊 Report mensili</div>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ fontSize:12, color:C.textSoft }}>Ricevi via email</span>
+                <button onClick={()=>handleToggleEmail(!emailReport)}
+                  style={{ width:40, height:22, borderRadius:11, border:"none", cursor:"pointer", position:"relative",
+                    background:emailReport?C.red:"#CBD5E1", transition:"background 0.2s" }}>
+                  <span style={{ position:"absolute", top:3, left:emailReport?20:3, width:16, height:16,
+                    borderRadius:"50%", background:"#FFF", transition:"left 0.2s" }}/>
+                </button>
+              </div>
+            </div>
+            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14, lineHeight:1.6 }}>
+              Ogni 1° del mese ricevi un PDF con i KPI del mese precedente. Generato automaticamente da FoodOS.
+            </div>
+            {loadingReports ? (
+              <div style={{ fontSize:12, color:C.textSoft }}>Caricamento…</div>
+            ) : reports.length === 0 ? (
+              <div style={{ fontSize:12, color:C.textSoft, fontStyle:"italic" }}>Nessun report ancora. Il primo verrà generato il 1° del prossimo mese.</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {reports.map(r=>{
+                  const { data: urlData } = supabase.storage.from("reports").getPublicUrl(`${orgId}/${r.name}`);
+                  return (
+                    <div key={r.name} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px",
+                      background:"#F8FAFC", borderRadius:8, border:`1px solid ${C.border}` }}>
+                      <span style={{ fontSize:18 }}>📄</span>
+                      <span style={{ flex:1, fontSize:12, fontWeight:500, color:C.text }}>{r.name.replace(".pdf","")}</span>
+                      <a href={urlData?.publicUrl} download target="_blank" rel="noreferrer"
+                        style={{ fontSize:11, fontWeight:700, color:C.red, textDecoration:"none" }}>Scarica ↓</a>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Novità & Changelog */}
+          <div style={card}>
+            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>📋 Novità & Changelog</div>
+            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14 }}>Tutte le funzionalità e gli aggiornamenti di FoodOS.</div>
+            <button onClick={onChangelogOpen}
+              style={{ padding:"10px 18px", background:C.redLight, color:C.red,
+                border:"none", borderRadius:9, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+              Vedi changelog →
             </button>
           </div>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-          <div>
-            <label style={label}>Tipo attività</label>
-            <div style={{ padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, color:C.textMid, background:"#F8FAFC", textTransform:"capitalize" }}>
-              {tipoAttivita || "—"}
-            </div>
-          </div>
-          <div>
-            <label style={label}>Piano</label>
-            <div style={{ padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, color:C.textMid, background:"#F8FAFC", textTransform:"capitalize" }}>
-              {piano || "trial"}
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
 
-      {/* Import prezzi */}
-      <div style={card}>
-        <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>💶 Prezzi ingredienti</div>
-        <div style={{ fontSize:12, color:C.textSoft, marginBottom:14, lineHeight:1.6 }}>
-          Importa un file Excel (.xlsx) con i prezzi degli ingredienti. Il file deve avere una colonna con il nome dell'ingrediente e una con il prezzo per kg o per g.
-        </div>
-        <label style={{ display:"inline-block", padding:"10px 18px", background:"#FFFBEB", border:"1px dashed #FDE68A", borderRadius:9, cursor:"pointer", fontSize:12, fontWeight:600, color:"#92400E" }}>
-          📂 Importa prezzi .xlsx / .xls / .csv
-          <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&onImportPrezzi(e.target.files)} />
-        </label>
-      </div>
+      {/* ── TAB: Sedi ── */}
+      {tab === "sedi" && (
+        <ImpostazioniSedi orgId={orgId} piano={piano} />
+      )}
 
-      {/* Referral */}
-      <ReferralPanel auth={auth} />
-
-      {/* Account */}
-      <div style={card}>
-        <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>Account</div>
-        <div style={{ fontSize:13, color:C.textMid }}>
-          <strong>Email:</strong> {auth?.user?.email || "—"}
-        </div>
-        <div style={{ fontSize:12, color:C.textSoft, marginTop:6 }}>
-          Per cambiare email o password contatta <a href="mailto:support@foodios.it" style={{color:C.red}}>support@foodios.it</a>
-        </div>
-      </div>
+      {/* ── TAB: Dati ── */}
+      {tab === "dati" && (
+        <EsportaDati orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} />
+      )}
     </div>
   );
 }
@@ -6590,7 +6862,10 @@ export default function Dashboard({
   _ctx_sedeId = sedeId;
 
   const isMobile = useIsMobile();
+  const isOnline = useOnlineStatus();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [offlineCacheDate, setOfflineCacheDate] = useState(null);
 
   const [ricettario,setRic]=useState(null);
   const [produzione,setProd]=useState({});
@@ -6606,13 +6881,36 @@ export default function Dashboard({
   const [showMese,setShowMese]=useState(false);
   const [confDel,setConfDel]=useState(null);
   const [toast,setToast]=useState(null);
+  const [showNotifiche, setShowNotifiche] = useState(false);
+  const [showNovita, setShowNovita] = useState(false);
+  const { notifiche, nonLette, segnaLetta, segnaTutte } = useNotifiche(orgId);
 
   const notify=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
 
+  const _RIC_CACHE_KEY = `ric_cache_${orgId}`;
+
   useEffect(()=>{
-    Promise.all([sload(SK_RIC),sload(SK_PROD),sload(SK_ACT),sload(SK_MAG),sload("pasticceria-logrif-v1"),sload(SK_GIOR),sload(SK_CHIUS),sload(SK_EXCL)]).then(([ric,prod,act,mag,logrif,gior,chius,excl])=>{
+    // Carica subito dal cache locale come fallback
+    if (orgId) {
+      try {
+        const cached = localStorage.getItem(_RIC_CACHE_KEY);
+        if (cached) {
+          const { data, savedAt } = JSON.parse(cached);
+          if (data) { setRic(data); setOfflineCacheDate(savedAt); }
+        }
+      } catch {}
+    }
+
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
+    Promise.race([
+      Promise.all([sload(SK_RIC),sload(SK_PROD),sload(SK_ACT),sload(SK_MAG),sload("pasticceria-logrif-v1"),sload(SK_GIOR),sload(SK_CHIUS),sload(SK_EXCL)]),
+      timeout
+    ]).then(([ric,prod,act,mag,logrif,gior,chius,excl])=>{
+      setOfflineMode(false);
       if(ric){
         setRic(ric);
+        // Salva ricettario in cache locale
+        try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: ric, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
         for(const r of Object.values(ric.ricette||{})){
           if(r.unita!=null && !REGOLE[r.nome]){
             REGOLE[r.nome]={ unita:r.unita, prezzo:r.prezzo, tipo:r.tipo||"fetta" };
@@ -6653,8 +6951,21 @@ export default function Dashboard({
         }
       }
       setReady(true);
+    }).catch(err => {
+      // Timeout o errore connessione: usa dati dalla cache locale
+      if (err.message === 'timeout' || err.message?.includes('network') || err.message?.includes('fetch')) {
+        setOfflineMode(true);
+      }
+      setReady(true);
     });
   },[]);
+
+  useEffect(()=>{
+    if(!ready) return;
+    const ULTIMA = CHANGELOG[0]?.versione;
+    const vista = localStorage.getItem('foodios-changelog-vista');
+    if(vista !== ULTIMA) setShowNovita(true);
+  },[ready]);
 
   const handleFile=useCallback(async files=>{
     setLoading(true);
@@ -6682,6 +6993,7 @@ export default function Dashboard({
     if(merged){
       setRic(merged);
       await ssave(SK_RIC, merged);
+      try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
       notify(`✓ ${totFile > 1 ? totFile+" file caricati —" : "Ricettario caricato —"} ${Object.keys(merged.ricette).length} ricette totali`);
       setView("ricettario");
     }
@@ -6923,10 +7235,14 @@ export default function Dashboard({
               </div>
             </div>
 
+            {/* ── SedeSelector ── */}
+            <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />
+
             {/* ── Nav ── */}
             <div style={{flex:1,overflowY:"auto",padding:"8px 8px"}}>
               {navItem("home","home","Dashboard",true,false,0)}
               {navItem("calendario","calendar","Calendario",false,false,0)}
+              {sedi&&sedi.filter(s=>s.attiva!==false).length>1&&navItem("confronto-sedi","barChart","Confronto Sedi",false,false,0)}
 
               {sec("Ricette")}
               {navItem("ricettario","book","Ricettario",hasRic,false,0)}
@@ -7002,7 +7318,20 @@ export default function Dashboard({
                 <a href="/privacy" style={{fontSize:10,color:"rgba(190,130,115,0.45)",textDecoration:"none"}} target="_blank">Privacy</a>
                 <span style={{fontSize:10,color:"rgba(190,130,115,0.2)"}}>·</span>
                 <a href="/termini" style={{fontSize:10,color:"rgba(190,130,115,0.45)",textDecoration:"none"}} target="_blank">Termini</a>
+                <span style={{fontSize:10,color:"rgba(190,130,115,0.2)"}}>·</span>
+                <button onClick={()=>setView("changelog")} style={{fontSize:10,color:"rgba(190,130,115,0.45)",background:"none",border:"none",cursor:"pointer",padding:0}}>Novità</button>
               </div>
+              <button onClick={()=>setShowNotifiche(o=>!o)}
+                style={{width:"100%",padding:"8px 10px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",
+                  borderRadius:7,color:"rgba(215,170,155,0.7)",fontSize:12,fontWeight:500,cursor:"pointer",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 01-3.46 0"/>
+                </svg>
+                Notifiche
+                {nonLette>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,fontSize:9,fontWeight:800,padding:"1px 6px"}}>{nonLette}</span>}
+              </button>
               <button onClick={()=>onSignOut&&onSignOut()}
                 style={{width:"100%",padding:"9px 10px",background:"rgba(192,57,43,0.65)",border:"none",
                   borderRadius:7,color:"rgba(255,255,255,0.9)",fontSize:12,fontWeight:600,cursor:"pointer",
@@ -7018,6 +7347,12 @@ export default function Dashboard({
         );
       })()}
 
+      {/* Notifications panel */}
+      {showNotifiche&&<NotifichePanel notifiche={notifiche} nonLette={nonLette} onSegnaLetta={segnaLetta} onSegnaTutte={segnaTutte} onClose={()=>setShowNotifiche(false)}/>}
+
+      {/* Novità modal */}
+      {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');}} onVediTutte={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');setView('changelog');}}/>}
+
       {/* CONTENT */}
       <div style={{marginLeft:isMobile?0:248,flex:1,padding:isMobile?"20px 16px 80px":"36px 48px 100px",overflowX:"auto",minHeight:"100vh",boxSizing:"border-box"}}>
         {/* Mobile header bar */}
@@ -7032,9 +7367,33 @@ export default function Dashboard({
                 dangerouslySetInnerHTML={{__html:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'}} />
             </button>
             <div style={{flex:1,fontSize:15,fontWeight:700,color:C.text}}>FoodOS</div>
+            <button onClick={()=>setShowNotifiche(o=>!o)}
+              style={{position:"relative",border:"none",background:"transparent",cursor:"pointer",
+                padding:4,display:"flex",alignItems:"center",justifyContent:"center",color:C.text}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 01-3.46 0"/>
+              </svg>
+              {nonLette>0&&<span style={{position:"absolute",top:0,right:0,background:C.red,color:"#fff",
+                borderRadius:"50%",width:14,height:14,fontSize:8,fontWeight:900,
+                display:"flex",alignItems:"center",justifyContent:"center"}}>{nonLette}</span>}
+            </button>
             <div style={{fontSize:11,fontWeight:600,color:"#C0392B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:120}}>
               {nomeAttivita||"La tua attività"}
             </div>
+          </div>
+        )}
+
+        {/* Banner offline */}
+        {!isOnline&&(
+          <div style={{marginBottom:16,padding:"10px 16px",background:"#C0392B",color:"#FFF",borderRadius:10,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+            ⚠️ Connessione assente — i dati potrebbero non essere aggiornati
+          </div>
+        )}
+        {offlineMode&&isOnline&&offlineCacheDate&&(
+          <div style={{marginBottom:16,padding:"10px 16px",background:"#FFFBEB",border:"1px solid #FDE68A",color:"#92400E",borderRadius:10,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+            ⚠️ Dati offline — ultimo aggiornamento {offlineCacheDate}
           </div>
         )}
 
@@ -7063,11 +7422,13 @@ export default function Dashboard({
         {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR}/>}
         {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
-        {view==="impostazioni"&&<ImpostazioniView auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} onImportPrezzi={handleImportPrezzi} notify={notify}/>}
+        {view==="impostazioni"&&<ImpostazioniView auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
+        {view==="confronto-sedi"&&<ConfrontoSedi orgId={orgId} sedi={sedi}/>}
         {view==="integrazioni"&&<Integrazioni orgId={orgId} notify={notify}/>}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId}/>}
+        {view==="changelog"&&<ChangelogView/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","integrazioni","scadenzario","calendario"].includes(view)&&(
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","integrazioni","scadenzario","calendario","changelog"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
       </div>
