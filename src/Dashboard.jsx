@@ -7,6 +7,8 @@ import { sload as _sload, ssave as _ssave } from './lib/storage'
 import { supabase } from './lib/supabase'
 import SedeSelector from './components/SedeSelector'
 import Scadenzario from './components/Scadenzario'
+import CalendarioOperativo from './components/CalendarioOperativo'
+import useIsMobile from './lib/useIsMobile'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -6223,6 +6225,7 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
 
 // ─── DASHBOARD HOME VIEW ──────────────────────────────────────────────────────
 function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView }) {
+  const isMobile = useIsMobile();
   const now = new Date();
   const today = now.toISOString().slice(0,10);
 
@@ -6321,7 +6324,7 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
         </div>
       )}
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+      <div style={{ display:"grid", gridTemplateColumns:isMobile?"1fr":"1fr 1fr", gap:20 }}>
         {/* Ultime ricette */}
         <div style={{ background:"#FFF", borderRadius:14, padding:"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)" }}>
           <div style={{ fontWeight:700, fontSize:14, color:C.text, marginBottom:16 }}>📖 Ultime ricette</div>
@@ -6487,6 +6490,9 @@ export default function Dashboard({
   // Sync module-level storage context with current org/sede
   _ctx_orgId = orgId;
   _ctx_sedeId = sedeId;
+
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [ricettario,setRic]=useState(null);
   const [produzione,setProd]=useState({});
@@ -6759,6 +6765,9 @@ export default function Dashboard({
           sparkles:   '<path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>',
           settings:   '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
           logOut:     '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+          calendar:   '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+          menu:       '<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>',
+          x:          '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
         };
 
         const Dot = ({has, alert}) => (
@@ -6770,7 +6779,7 @@ export default function Dashboard({
         const navItem = (id, iconKey, label, hasDot, alertDot, badge) => {
           const active = view === id;
           return (
-            <button key={id} onClick={()=>setView(id)}
+            <button key={id} onClick={()=>{setView(id);if(isMobile)setSidebarOpen(false);}}
               style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
                 background:active?S.activeBg:"transparent",
                 color:active?S.active:S.inactive,
@@ -6794,8 +6803,16 @@ export default function Dashboard({
         );
 
         return (
+          <>
+          {/* Mobile overlay backdrop */}
+          {isMobile&&sidebarOpen&&(
+            <div onClick={()=>setSidebarOpen(false)}
+              style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
+          )}
           <div style={{width:248,background:C.bgSide,display:"flex",flexDirection:"column",position:"fixed",
-            top:0,left:0,bottom:0,zIndex:50,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.04)"}}>
+            top:0,left:0,bottom:0,zIndex:50,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.04)",
+            transform: isMobile&&!sidebarOpen ? "translateX(-100%)" : "translateX(0)",
+            transition:"transform 0.22s ease"}}>
 
             {/* ── Logo ── */}
             <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
@@ -6811,6 +6828,7 @@ export default function Dashboard({
             {/* ── Nav ── */}
             <div style={{flex:1,overflowY:"auto",padding:"8px 8px"}}>
               {navItem("home","home","Dashboard",true,false,0)}
+              {navItem("calendario","calendar","Calendario",false,false,0)}
 
               {sec("Ricette")}
               {navItem("ricettario","book","Ricettario",hasRic,false,0)}
@@ -6892,11 +6910,30 @@ export default function Dashboard({
               </button>
             </div>
           </div>
+          </>
         );
       })()}
 
       {/* CONTENT */}
-      <div style={{marginLeft:248,flex:1,padding:"36px 48px 100px",overflowX:"auto",minHeight:"100vh"}}>
+      <div style={{marginLeft:isMobile?0:248,flex:1,padding:isMobile?"20px 16px 80px":"36px 48px 100px",overflowX:"auto",minHeight:"100vh",boxSizing:"border-box"}}>
+        {/* Mobile header bar */}
+        {isMobile&&(
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,
+            background:"#FFF",borderRadius:12,padding:"10px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+            <button onClick={()=>setSidebarOpen(o=>!o)}
+              style={{border:"none",background:"transparent",cursor:"pointer",padding:4,
+                color:C.text,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                dangerouslySetInnerHTML={{__html:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'}} />
+            </button>
+            <div style={{flex:1,fontSize:15,fontWeight:700,color:C.text}}>FoodOS</div>
+            <div style={{fontSize:11,fontWeight:600,color:"#C0392B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:120}}>
+              {nomeAttivita||"La tua attività"}
+            </div>
+          </div>
+        )}
+
         {/* Home dashboard */}
         {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView}/>}
 
@@ -6924,7 +6961,8 @@ export default function Dashboard({
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
         {view==="impostazioni"&&<ImpostazioniView auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} onImportPrezzi={handleImportPrezzi} notify={notify}/>}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","scadenzario"].includes(view)&&(
+        {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","scadenzario","calendario"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
       </div>
