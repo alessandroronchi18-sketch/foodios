@@ -1955,7 +1955,8 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
         </div>
       </div>
       <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:28,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+        <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:700}}>
           <thead>
             <tr style={{background:"#F8F4F2"}}>
               <SortTH k="nome" active={sortKey==="nome"} dir={sortDir} onToggle={toggleSort}><Tip text="Nome del prodotto. Clicca per ordinare alfabeticamente." width={200}><span style={{borderBottom:"1px dashed rgba(155,120,115,0.4)",cursor:"help"}}>Prodotto</span></Tip></SortTH>
@@ -2000,6 +2001,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
             </tr>
           </tfoot>
         </table>
+        </div>
       </div>
     </>
   );
@@ -2024,7 +2026,8 @@ function SensTable({ rows, euro, pct }) {
         </div>
       </div>
       <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:28,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+        <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:580}}>
           <thead>
             <tr style={{background:"#F8F4F2"}}>
               <SortTH k="nome" active={sortKey==="nome"} dir={sortDir} onToggle={toggleSort}><Tip text="Nome del prodotto. Clicca per ordinare." width={200}><span style={{borderBottom:"1px dashed rgba(155,120,115,0.4)",cursor:"help"}}>Prodotto</span></Tip></SortTH>
@@ -2054,6 +2057,7 @@ function SensTable({ rows, euro, pct }) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </>
   );
