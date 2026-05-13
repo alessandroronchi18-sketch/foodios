@@ -1315,7 +1315,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
 }
 
 // ─── RICETTARIO VIEW ──────────────────────────────────────────────────────────
-function RicettarioView({ricettario, onUpdateRegola}) {
+function RicettarioView({ricettario, onUpdateRegola, onUpload}) {
   const ingCosti     = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const ricette      = useMemo(()=>Object.values(ricettario?.ricette||{})
     .filter(r=>isRicettaValida(r.nome) && getR(r.nome,r).tipo!=="interno" && getR(r.nome,r).tipo!=="semilavorato"),
@@ -1331,8 +1331,16 @@ function RicettarioView({ricettario, onUpdateRegola}) {
         <p style={{margin:0,fontSize:12,color:C.textSoft,lineHeight:1.7,maxWidth:600}}>
           Distinta ingredienti, composizione food cost e conto economico per stampo. Clicca su una ricetta per espandere il dettaglio.
         </p>
-        <div style={{marginTop:8,display:"inline-flex",alignItems:"center",gap:6,padding:"5px 10px",background:C.amberLight,borderRadius:6,fontSize:10,color:C.amber,fontWeight:600}}>
-          💡 Per prezzi reali vai in <strong>Magazzino → Importa prezzi .xlsx</strong> o usa il pulsante in basso nella sidebar
+        <div style={{marginTop:12,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"5px 10px",background:C.amberLight,borderRadius:6,fontSize:10,color:C.amber,fontWeight:600}}>
+            💡 Per prezzi reali vai in <strong>Magazzino → Importa prezzi .xlsx</strong>
+          </div>
+          {onUpload&&(
+            <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:C.white,border:`1px solid ${C.border}`,borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,color:C.textMid}}>
+              ↻ Aggiorna ricettario
+              <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&onUpload(Array.from(e.target.files))}/>
+            </label>
+          )}
         </div>
       </div>
 
@@ -7330,13 +7338,7 @@ export default function Dashboard({
                   {auth.user.email}
                 </div>
               )}
-              <label style={{display:"block",padding:"8px 10px",background:"rgba(255,255,255,0.025)",
-                border:"1px dashed rgba(255,255,255,0.08)",borderRadius:8,cursor:"pointer",
-                fontSize:ricettario?9:11,fontWeight:500,textAlign:"center",transition:"all 0.15s",
-                color:ricettario?"rgba(160,100,85,0.5)":"rgba(215,170,155,0.7)"}}>
-                {loading?"Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
-                <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
-              </label>
+
               <div style={{display:"flex",justifyContent:"center",gap:12,padding:"0 4px 4px"}}>
                 <a href="/privacy" style={{fontSize:10,color:"rgba(190,130,115,0.45)",textDecoration:"none"}} target="_blank">Privacy</a>
                 <span style={{fontSize:10,color:"rgba(190,130,115,0.2)"}}>·</span>
@@ -7435,7 +7437,7 @@ export default function Dashboard({
             </label>
           </div>
         )}
-        {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola}/>}
+        {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)}/>}
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify}/>}
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} onUpdateRegola={handleUpdateRegola}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero}/>}
