@@ -151,6 +151,7 @@ export default function App() {
     return (
       <OnboardingWizard
         nomeAttivita={auth.org?.nome}
+        orgId={auth.orgId}
         onComplete={completaOnboarding}
         onSkip={completaOnboarding}
       />
