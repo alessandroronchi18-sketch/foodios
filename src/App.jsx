@@ -7,6 +7,7 @@ import AdminPage from './admin/AdminPage'
 import OnboardingWizard from './onboarding/OnboardingWizard'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TerminiServizio from './pages/TerminiServizio'
+import LandingPage from './pages/LandingPage'
 import { supabase } from './lib/supabase'
 
 function SplashScreen() {
@@ -88,8 +89,15 @@ function TrialScadutoPage({ org }) {
 }
 
 export default function App() {
+  const [path, setPath] = useState(window.location.pathname)
+
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname)
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
   // Static pages — no auth needed
-  const path = window.location.pathname
   if (path === '/privacy') return <PrivacyPolicy />
   if (path === '/termini') return <TerminiServizio />
 
@@ -98,6 +106,7 @@ export default function App() {
   if (referralMatch) {
     localStorage.setItem('referral_code_pendente', referralMatch[1].toUpperCase())
     window.history.replaceState(null, '', '/')
+    setPath('/')
   }
 
   const auth = useAuth()
@@ -134,10 +143,18 @@ export default function App() {
 
   if (auth.loading) return <SplashScreen />
 
-  // Non loggato — passa codice referral pre-compilato se presente
+  // Non loggato
   if (!auth.user) {
     const initialReferralCode = localStorage.getItem('referral_code_pendente') || ''
-    return <AuthPage onSignIn={auth.signIn} onSignUp={auth.signUp} initialReferralCode={initialReferralCode} />
+    if (path === '/login' || path === '/register') {
+      return <AuthPage onSignIn={auth.signIn} onSignUp={auth.signUp} initialReferralCode={initialReferralCode} />
+    }
+    return (
+      <LandingPage
+        onLogin={() => { window.history.pushState(null, '', '/login'); window.dispatchEvent(new PopStateEvent('popstate')) }}
+        onRegister={() => { window.history.pushState(null, '', '/register'); window.dispatchEvent(new PopStateEvent('popstate')) }}
+      />
+    )
   }
 
   // Admin — fallback se VITE_ADMIN_EMAIL non è configurato in Vercel
