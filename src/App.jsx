@@ -5,6 +5,8 @@ import AuthPage, { ResetPasswordPage } from './auth/AuthPage'
 import Dashboard from './Dashboard'
 import AdminPage from './admin/AdminPage'
 import OnboardingWizard from './onboarding/OnboardingWizard'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TerminiServizio from './pages/TerminiServizio'
 import { supabase } from './lib/supabase'
 
 function SplashScreen() {
@@ -86,6 +88,11 @@ function TrialScadutoPage({ org }) {
 }
 
 export default function App() {
+  // Static pages — no auth needed
+  const path = window.location.pathname
+  if (path === '/privacy') return <PrivacyPolicy />
+  if (path === '/termini') return <TerminiServizio />
+
   const auth = useAuth()
   const [onboardingVisto, setOnboardingVisto] = useState(null)
   const [showResetPassword, setShowResetPassword] = useState(false)

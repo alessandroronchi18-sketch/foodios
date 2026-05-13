@@ -6899,6 +6899,11 @@ export default function Dashboard({
                 {loading?"Caricamento…":ricettario?"↻ Aggiorna ricettario":"📂 Carica ricettario .xlsx"}
                 <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
               </label>
+              <div style={{display:"flex",justifyContent:"center",gap:12,padding:"0 4px 4px"}}>
+                <a href="/privacy" style={{fontSize:10,color:"rgba(190,130,115,0.45)",textDecoration:"none"}} target="_blank">Privacy</a>
+                <span style={{fontSize:10,color:"rgba(190,130,115,0.2)"}}>·</span>
+                <a href="/termini" style={{fontSize:10,color:"rgba(190,130,115,0.45)",textDecoration:"none"}} target="_blank">Termini</a>
+              </div>
               <button onClick={()=>onSignOut&&onSignOut()}
                 style={{width:"100%",padding:"9px 10px",background:"rgba(192,57,43,0.65)",border:"none",
                   borderRadius:7,color:"rgba(255,255,255,0.9)",fontSize:12,fontWeight:600,cursor:"pointer",
