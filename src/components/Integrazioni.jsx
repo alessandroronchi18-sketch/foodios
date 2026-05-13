@@ -1,343 +1,514 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import React, { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
+import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
+import { parseZucchettiInfinity, parseZucchettiKassa } from '../lib/importZucchetti'
 
 const C = {
-  bg:       '#FBF7F4',
-  bgCard:   '#FFFFFF',
-  text:     '#1C0A0A',
-  textSoft: '#9B7B6E',
-  textMid:  '#6B4A3E',
-  red:      '#C0392B',
-  redLight: '#FEF2F2',
-  green:    '#16A34A',
-  greenLight:'#F0FDF4',
-  amber:    '#D97706',
-  border:   '#E8DDD8',
-  borderStr:'#D4C5BE',
-  white:    '#FFFFFF',
-};
+  red: '#C0392B', redLight: '#FEF2F2',
+  green: '#16A34A', greenLight: '#F0FDF4',
+  amber: '#D97706', amberLight: '#FFFBEB',
+  blue: '#2563EB', blueLight: '#EFF6FF',
+  text: '#0F172A', textMid: '#475569', textSoft: '#94A3B8',
+  border: '#E2E8F0', bg: '#F8FAFC', white: '#FFFFFF',
+}
 
-const DELIVERY = [
-  {
-    id: 'deliveroo',
-    nome: 'Deliveroo',
-    desc: 'Import CSV ricavi giornalieri',
-    logo: '🛵',
-    tipo: 'delivery',
-    apiDisponibile: false,
-  },
-  {
-    id: 'justeat',
-    nome: 'JustEat',
-    desc: 'Import CSV ordini e commissioni',
-    logo: '🍔',
-    tipo: 'delivery',
-    apiDisponibile: false,
-  },
-  {
-    id: 'glovo',
-    nome: 'Glovo / Foodinho',
-    desc: 'Import Excel report vendite',
-    logo: '💛',
-    tipo: 'delivery',
-    apiDisponibile: false,
-  },
-  {
-    id: 'uber_eats',
-    nome: 'Uber Eats',
-    desc: 'Import CSV rendiconto settimanale',
-    logo: '⬛',
-    tipo: 'delivery',
-    apiDisponibile: false,
-  },
-];
+const fmtTs = ts => {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+    ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+}
 
-const CASSA = [
+const INTEGRAZIONI_CFG = [
   {
-    id: 'cassaincloud',
-    nome: 'Cassa in Cloud',
-    desc: 'Import CSV + sync automatica via API',
-    logo: '☁️',
-    tipo: 'cassa',
-    apiDisponibile: true,
+    id: 'fattura_elettronica_xml',
+    nome: 'Fattura Elettronica SDI',
+    icona: '📄',
+    categoria: 'Fatturazione',
+    descrizione: 'Importa file XML dalle fatture elettroniche italiane (formato FatturaPA) ricevute dallo SDI.',
+    istruzioni: [
+      'Accedi al portale SDI o al tuo provider di fatturazione (es. Aruba, Fatture in Cloud)',
+      'Scarica le fatture passive in formato XML o P7M',
+      'Carica il file qui sotto — supporta sia fatture singole che lotti',
+    ],
+    tipoFile: '.xml,.p7m',
+    tipoLabel: 'XML / P7M',
+    multiplo: true,
   },
   {
-    id: 'sumup',
-    nome: 'SumUp',
-    desc: 'Import CSV + connessione OAuth2',
-    logo: '🟦',
-    tipo: 'cassa',
-    apiDisponibile: true,
+    id: 'fattura_smart',
+    nome: 'TeamSystem FatturaSMART',
+    icona: '📊',
+    categoria: 'Fatturazione',
+    descrizione: 'Importa l\'export Excel dal gestionale TeamSystem FatturaSMART (fatture passive).',
+    istruzioni: [
+      'In TeamSystem: Contabilità › Fatture passive',
+      'Filtra per periodo desiderato',
+      'Clicca "Esporta Excel" — il file avrà colonne Numero, Fornitore, Totale, ecc.',
+    ],
+    tipoFile: '.xlsx,.xls',
+    tipoLabel: 'Excel (.xlsx)',
+    multiplo: false,
   },
   {
-    id: 'zucchetti',
-    nome: 'Zucchetti (Infinity/Kassa)',
-    desc: 'Import CSV o XML export',
-    logo: '🔷',
-    tipo: 'cassa',
-    apiDisponibile: false,
+    id: 'zucchetti_infinity',
+    nome: 'Zucchetti Infinity',
+    icona: '🔵',
+    categoria: 'Contabilità',
+    descrizione: 'Importa i movimenti contabili da Zucchetti Infinity (estratto conto CSV).',
+    istruzioni: [
+      'In Zucchetti Infinity: Contabilità › Estratti conto › Export',
+      'Seleziona periodo e formato CSV',
+      'Colonne richieste: Data, Causale, Dare, Avere, Saldo, Descrizione',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
+    tipo: 'movimenti',
   },
   {
-    id: 'lightspeed',
-    nome: 'Lightspeed',
-    desc: 'Import CSV transazioni',
-    logo: '⚡',
-    tipo: 'cassa',
-    apiDisponibile: false,
+    id: 'zucchetti_kassa',
+    nome: 'Zucchetti Kassa',
+    icona: '🏪',
+    categoria: 'Cassa',
+    descrizione: 'Importa le vendite giornaliere da Zucchetti Kassa (cassa negozio).',
+    istruzioni: [
+      'In Zucchetti Kassa: Report › Export giornaliero',
+      'Esporta in formato CSV o seleziona "Export standard"',
+      'Colonne richieste: Data, Ora, Reparto, Importo, IVA, Metodo pagamento',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
+    tipo: 'kassa',
   },
   {
-    id: 'square',
-    nome: 'Square',
-    desc: 'Import CSV pagamenti',
-    logo: '⬜',
-    tipo: 'cassa',
-    apiDisponibile: false,
+    id: 'zucchetti_webhook',
+    nome: 'Zucchetti Webhook (Enterprise)',
+    icona: '⚡',
+    categoria: 'Cassa',
+    descrizione: 'Ricezione dati in real-time da Zucchetti Infinity/Kassa Enterprise tramite webhook POST.',
+    istruzioni: [
+      'Disponibile solo con licenza Zucchetti Enterprise',
+      'Configura l\'URL webhook nel pannello Zucchetti: Impostazioni › Integrazioni › Webhook',
+      'Inserisci l\'URL e il secret qui sotto — i dati arriveranno automaticamente',
+    ],
+    tipo: 'webhook',
   },
-  {
-    id: 'fattura_xml',
-    nome: 'Fattura Elettronica (SDI)',
-    desc: 'Import XML fatture per Scadenzario',
-    logo: '📄',
-    tipo: 'cassa',
-    apiDisponibile: false,
-  },
-];
+]
 
-export default function Integrazioni({ orgId, notify }) {
-  const [integrazioni, setIntegrazioni] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [configurando, setConfigurando] = useState(null); // id integrazione in config
-  const [apiKey, setApiKey] = useState('');
-  const [saving, setSaving] = useState(false);
+function StatoBadge({ stato, errore, lastSync }) {
+  if (!lastSync) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.textSoft }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#CBD5E1', display: 'inline-block' }} />
+        Non configurata
+      </span>
+    )
+  }
+  if (stato === 'errore') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.amber }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.amber, display: 'inline-block' }} />
+        Errore — {errore ? errore.slice(0, 60) : 'vedi log'}
+      </span>
+    )
+  }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.green }}>
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.green, display: 'inline-block' }} />
+      Connessa — ultimo sync: {fmtTs(lastSync)}
+    </span>
+  )
+}
 
-  useEffect(() => {
-    if (!orgId) return;
-    caricaIntegrazioni();
-  }, [orgId]);
+function LogTable({ logs }) {
+  if (!logs?.length) return (
+    <div style={{ fontSize: 11, color: C.textSoft, padding: '10px 0' }}>Nessun log disponibile.</div>
+  )
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+      <thead>
+        <tr style={{ background: '#FAF8F7' }}>
+          {['Data/Ora', 'Stato', 'Records', 'Errore'].map(h => (
+            <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700, color: C.textSoft,
+              textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 9,
+              borderBottom: `1px solid ${C.border}` }}>{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {logs.map((l, i) => (
+          <tr key={l.id || i} style={{ borderBottom: `1px solid ${C.border}` }}>
+            <td style={{ padding: '6px 10px', color: C.textMid, whiteSpace: 'nowrap' }}>{fmtTs(l.created_at)}</td>
+            <td style={{ padding: '6px 10px' }}>
+              <span style={{
+                background: l.stato === 'ok' ? C.greenLight : l.stato === 'errore' ? C.redLight : C.amberLight,
+                color: l.stato === 'ok' ? C.green : l.stato === 'errore' ? C.red : C.amber,
+                padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700,
+              }}>
+                {l.stato === 'ok' ? '✓ OK' : l.stato === 'errore' ? '✕ Errore' : l.stato}
+              </span>
+            </td>
+            <td style={{ padding: '6px 10px', color: C.text, fontWeight: 600 }}>
+              {l.records_importati ?? '—'}
+            </td>
+            <td style={{ padding: '6px 10px', color: C.red, fontSize: 10, maxWidth: 200,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {l.errore || '—'}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
 
-  async function caricaIntegrazioni() {
-    setLoading(true);
+export default function Integrazioni({ orgId }) {
+  const [logs, setLogs] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [importLoading, setImportLoading] = useState(null)
+  const [expanded, setExpanded] = useState(null)
+  const [toast, setToast] = useState(null)
+  const [risultato, setRisultato] = useState(null)
+
+  const notify = (msg, ok = true) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  const logSync = useCallback(async (integrazione, stato, records, errore) => {
+    if (!orgId) return
+    try {
+      await supabase.from('sync_log').insert({
+        organization_id: orgId,
+        integrazione,
+        stato,
+        records_importati: records || 0,
+        errore: errore || null,
+      })
+    } catch { /* non-critical */ }
+  }, [orgId])
+
+  const loadLogs = useCallback(async () => {
+    if (!orgId) { setLoading(false); return }
+    setLoading(true)
     try {
       const { data, error } = await supabase
-        .from('integrazioni')
+        .from('sync_log')
         .select('*')
-        .eq('organization_id', orgId);
-      if (!error && data) setIntegrazioni(data);
-    } catch (e) {
-      console.error('Errore caricamento integrazioni', e);
-    }
-    setLoading(false);
-  }
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(100)
+      if (error) throw error
 
-  function statoIntegrazione(id) {
-    return integrazioni.find(i => i.tipo === id) || null;
-  }
-
-  async function salvaConfigurazione(tipo, config) {
-    setSaving(true);
-    try {
-      const esistente = statoIntegrazione(tipo);
-      if (esistente) {
-        await supabase.from('integrazioni').update({ config, attiva: true }).eq('id', esistente.id);
-      } else {
-        await supabase.from('integrazioni').insert({ organization_id: orgId, tipo, config, attiva: true });
+      // Group by integrazione, last 10 each
+      const grouped = {}
+      for (const row of (data || [])) {
+        if (!grouped[row.integrazione]) grouped[row.integrazione] = []
+        if (grouped[row.integrazione].length < 10) grouped[row.integrazione].push(row)
       }
-      await caricaIntegrazioni();
-      notify && notify(`✓ Integrazione ${tipo} configurata`);
-      setConfigurando(null);
-      setApiKey('');
+      setLogs(grouped)
     } catch (e) {
-      notify && notify(`⚠ Errore: ${e.message}`);
+      // sync_log table might not exist yet — show banner only
+      setLogs({})
+    } finally {
+      setLoading(false)
     }
-    setSaving(false);
+  }, [orgId])
+
+  useEffect(() => { loadLogs() }, [loadLogs])
+
+  const getLastLog = (id) => logs[id]?.[0] || null
+
+  async function handleImport(cfg, files) {
+    if (!files?.length || !orgId) return
+    setImportLoading(cfg.id)
+    setRisultato(null)
+    let imported = 0
+    let lastErr = null
+
+    for (const file of Array.from(files)) {
+      try {
+        if (cfg.id === 'fattura_elettronica_xml') {
+          const text = await file.text()
+          const records = parseFatturaXML(text)
+          const toInsert = records.map(r => ({ ...r, organization_id: orgId }))
+          for (let i = 0; i < toInsert.length; i += 100) {
+            const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
+            if (error) throw error
+          }
+          imported += records.length
+
+        } else if (cfg.id === 'fattura_smart') {
+          const records = await parseFatturaSMART(file)
+          const toInsert = records.map(r => ({ ...r, organization_id: orgId }))
+          for (let i = 0; i < toInsert.length; i += 100) {
+            const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
+            if (error) throw error
+          }
+          imported += records.length
+
+        } else if (cfg.id === 'zucchetti_infinity') {
+          const text = await file.text()
+          const movimenti = parseZucchettiInfinity(text)
+          const dataKey = `zucchetti_infinity_${new Date().toISOString().slice(0, 10)}`
+          await supabase.from('user_data').upsert({
+            organization_id: orgId,
+            data_key: dataKey,
+            data_value: { movimenti, importato_il: new Date().toISOString() },
+          }, { onConflict: 'organization_id,data_key' })
+          imported += movimenti.length
+          setRisultato({ tipo: 'movimenti', movimenti, cfgId: cfg.id })
+
+        } else if (cfg.id === 'zucchetti_kassa') {
+          const text = await file.text()
+          const { vendite, chiusure_giornaliere } = parseZucchettiKassa(text)
+          for (const ch of chiusure_giornaliere) {
+            await supabase.from('user_data').upsert({
+              organization_id: orgId,
+              data_key: `chiusura_${ch.data}`,
+              data_value: { ...ch, source: 'zucchetti_kassa' },
+            }, { onConflict: 'organization_id,data_key' })
+          }
+          imported += vendite.length
+          setRisultato({ tipo: 'kassa', chiusure: chiusure_giornaliere, cfgId: cfg.id })
+        }
+
+        await logSync(cfg.id, 'ok', imported, null)
+      } catch (e) {
+        lastErr = e.message
+        await logSync(cfg.id, 'errore', 0, e.message)
+        notify('Errore: ' + e.message, false)
+      }
+    }
+
+    await loadLogs()
+    setImportLoading(null)
+    if (!lastErr && imported > 0) {
+      notify(`✓ ${imported} record importati correttamente`)
+    }
   }
 
-  async function disattivaIntegrazione(tipo) {
-    const est = statoIntegrazione(tipo);
-    if (!est) return;
-    await supabase.from('integrazioni').update({ attiva: false }).eq('id', est.id);
-    await caricaIntegrazioni();
-    notify && notify(`Integrazione ${tipo} disattivata`);
+  const btnStyle = (primary) => ({
+    padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+    border: primary ? 'none' : `1px solid ${C.border}`,
+    background: primary ? C.red : C.white, color: primary ? C.white : C.textMid,
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+  })
+
+  const card = {
+    background: C.white, borderRadius: 12,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 12,
+    overflow: 'hidden',
   }
 
-  function Card({ item }) {
-    const stato = statoIntegrazione(item.id);
-    const connessa = stato?.attiva === true;
-    const inConfig = configurando === item.id;
-
-    return (
-      <div style={{
-        background: C.bgCard,
-        border: `1px solid ${connessa ? C.green + '40' : C.border}`,
-        borderRadius: 14,
-        padding: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        boxShadow: connessa ? `0 0 0 2px ${C.green}20` : '0 1px 4px rgba(0,0,0,0.04)',
-        transition: 'box-shadow 0.2s',
-      }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 28, lineHeight: 1 }}>{item.logo}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{item.nome}</div>
-            <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{item.desc}</div>
-          </div>
-          <div style={{
-            padding: '3px 10px',
-            borderRadius: 20,
-            fontSize: 10,
-            fontWeight: 700,
-            background: connessa ? C.greenLight : '#F5F0EE',
-            color: connessa ? C.green : C.textSoft,
-            border: `1px solid ${connessa ? C.green + '30' : C.border}`,
-          }}>
-            {connessa ? '● Connessa' : '○ Non connessa'}
-          </div>
-        </div>
-
-        {/* Badge API */}
-        {item.apiDisponibile && (
-          <div style={{ fontSize: 9, fontWeight: 700, color: C.amber, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            ⚡ Sync automatica disponibile
-          </div>
-        )}
-
-        {/* Form configurazione */}
-        {inConfig && item.apiDisponibile && (
-          <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '14px', marginTop: 4 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 8 }}>
-              Chiave API {item.nome}
-            </div>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={e => setApiKey(e.target.value)}
-              placeholder="Incolla qui la tua API key..."
-              style={{
-                width: '100%', padding: '8px 12px', borderRadius: 7, fontSize: 12,
-                border: `1px solid ${C.borderStr}`, color: C.text, marginBottom: 10,
-                boxSizing: 'border-box',
-              }}
-            />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => salvaConfigurazione(item.id, { api_key: apiKey })}
-                disabled={!apiKey.trim() || saving}
-                style={{
-                  flex: 1, padding: '8px', background: C.red, color: '#FFF',
-                  border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 11, cursor: 'pointer',
-                  opacity: apiKey.trim() ? 1 : 0.5,
-                }}>
-                {saving ? 'Salvataggio…' : '💾 Salva'}
-              </button>
-              <button
-                onClick={() => { setConfigurando(null); setApiKey(''); }}
-                style={{
-                  padding: '8px 14px', background: 'transparent', color: C.textSoft,
-                  border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 11, cursor: 'pointer',
-                }}>
-                Annulla
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Ultima sync */}
-        {stato?.ultimo_sync && (
-          <div style={{ fontSize: 10, color: C.textSoft }}>
-            Ultimo sync: {new Date(stato.ultimo_sync).toLocaleString('it-IT')}
-          </div>
-        )}
-
-        {/* Azioni */}
-        {!inConfig && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            {item.apiDisponibile && (
-              <button
-                onClick={() => setConfigurando(connessa ? null : item.id)}
-                style={{
-                  flex: 1, padding: '8px 12px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                  fontSize: 11, fontWeight: 700,
-                  background: connessa ? '#F0FDF4' : C.red,
-                  color: connessa ? C.green : '#FFF',
-                }}>
-                {connessa ? '✓ Configurata' : '⚙ Configura API'}
-              </button>
-            )}
-            {!item.apiDisponibile && (
-              <div style={{
-                flex: 1, padding: '8px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600,
-                color: C.textSoft, background: '#F5F0EE', textAlign: 'center',
-              }}>
-                Solo import file
-              </div>
-            )}
-            {connessa && (
-              <button
-                onClick={() => disattivaIntegrazione(item.id)}
-                style={{
-                  padding: '8px 12px', borderRadius: 7, border: `1px solid ${C.border}`,
-                  background: 'transparent', color: C.textSoft, fontSize: 11, cursor: 'pointer',
-                }}>
-                Disattiva
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const Section = ({ title, icon, items }) => (
-    <div style={{ marginBottom: 36 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>
-        {icon} {title}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-        {items.map(item => <Card key={item.id} item={item} />)}
-      </div>
+  if (!orgId) return (
+    <div style={{ padding: 48, textAlign: 'center', color: C.textSoft }}>
+      <div style={{ fontSize: 32, marginBottom: 8 }}>🔒</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: C.textMid }}>Login richiesto</div>
     </div>
-  );
+  )
+
+  const categorie = [...new Set(INTEGRAZIONI_CFG.map(c => c.categoria))]
 
   return (
-    <div style={{ maxWidth: 1100 }}>
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>
-          Connessioni
+    <div style={{ maxWidth: 900 }}>
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 999,
+          background: toast.ok ? C.green : C.red, color: C.white,
+          padding: '10px 20px', borderRadius: 9, fontSize: 12, fontWeight: 700,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
+          {toast.msg}
         </div>
-        <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 900, color: C.text, letterSpacing: '-0.03em' }}>
-          Integrazioni
-        </h1>
-        <p style={{ margin: 0, fontSize: 12, color: C.textSoft, maxWidth: 600 }}>
-          Collega FoodOS alle piattaforme delivery e ai sistemi cassa per importare automaticamente ricavi e movimenti.
-        </p>
-      </div>
-
-      {/* Info box */}
-      <div style={{
-        background: '#FFF8EE', border: `1px solid ${C.amber}30`, borderRadius: 12,
-        padding: '14px 20px', marginBottom: 28, display: 'flex', gap: 12, alignItems: 'flex-start',
-      }}>
-        <span style={{ fontSize: 18 }}>💡</span>
-        <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.7 }}>
-          <b>Import manuale:</b> vai in <b>Cassa</b> e usa i pulsanti "Importa da delivery" o "Importa da sistema cassa" per caricare i file export.<br />
-          <b>Sync automatica:</b> configura qui l'API key — FoodOS scaricherà i dati ogni notte alle 02:00.
-        </div>
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: C.textSoft, fontSize: 13 }}>
-          Caricamento integrazioni…
-        </div>
-      ) : (
-        <>
-          <Section title="Piattaforme Delivery" icon="🛵" items={DELIVERY} />
-          <Section title="Sistemi Cassa" icon="🖥" items={CASSA} />
-        </>
       )}
+
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>Integrazioni</div>
+        <div style={{ fontSize: 13, color: C.textSoft, marginTop: 3 }}>
+          Connetti FoodOS ai tuoi software di contabilità e fatturazione
+        </div>
+      </div>
+
+      {/* SQL migration reminder */}
+      <div style={{ background: C.blueLight, border: `1px solid #BFDBFE`, borderRadius: 10,
+        padding: '12px 16px', marginBottom: 20, fontSize: 12 }}>
+        <div style={{ fontWeight: 700, color: C.blue, marginBottom: 3 }}>
+          ℹ️ Setup richiesto (una volta sola)
+        </div>
+        <div style={{ color: '#1D4ED8', lineHeight: 1.5 }}>
+          Esegui lo script <code style={{ background: 'rgba(37,99,235,0.1)', padding: '1px 4px', borderRadius: 3 }}>supabase_sync_log.sql</code> in
+          {' '}<a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: C.blue }}>Supabase SQL Editor</a>{' '}
+          per abilitare il log dei sync.
+        </div>
+      </div>
+
+      {categorie.map(cat => (
+        <div key={cat} style={{ marginBottom: 28 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase',
+            letterSpacing: '0.1em', marginBottom: 10 }}>{cat}</div>
+
+          {INTEGRAZIONI_CFG.filter(c => c.categoria === cat).map(cfg => {
+            const lastLog = getLastLog(cfg.id)
+            const intLogs = logs[cfg.id] || []
+            const isExp = expanded === cfg.id
+            const isLoading = importLoading === cfg.id
+
+            return (
+              <div key={cfg.id} style={card}>
+                {/* Card header — clickable */}
+                <div
+                  onClick={() => setExpanded(isExp ? null : cfg.id)}
+                  style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14,
+                    cursor: 'pointer', userSelect: 'none' }}>
+                  <div style={{ fontSize: 22, flexShrink: 0 }}>{cfg.icona}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{cfg.nome}</div>
+                    <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{cfg.descrizione}</div>
+                    <div style={{ marginTop: 6 }}>
+                      <StatoBadge
+                        stato={lastLog?.stato}
+                        errore={lastLog?.errore}
+                        lastSync={lastLog?.created_at}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 18, color: C.textSoft, flexShrink: 0,
+                    transform: isExp ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</div>
+                </div>
+
+                {/* Expanded panel */}
+                {isExp && (
+                  <div style={{ borderTop: `1px solid ${C.border}`, padding: '16px 20px' }}>
+                    {/* How-to */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.textMid, marginBottom: 6,
+                        textTransform: 'uppercase', letterSpacing: '0.05em' }}>Come si usa</div>
+                      <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {cfg.istruzioni.map((step, i) => (
+                          <li key={i} style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55 }}>{step}</li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    {/* Webhook info */}
+                    {cfg.tipo === 'webhook' ? (
+                      <div style={{ background: C.bg, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: C.textMid, marginBottom: 10 }}>
+                          Configurazione Zucchetti Enterprise
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div>
+                            <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>URL WEBHOOK</div>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                              <code style={{ flex: 1, fontSize: 11, background: C.white, border: `1px solid ${C.border}`,
+                                borderRadius: 6, padding: '7px 10px', color: C.text, display: 'block', wordBreak: 'break-all',
+                                minWidth: 0 }}>
+                                {window.location.origin}/api/webhook-zucchetti
+                              </code>
+                              <button
+                                onClick={() => navigator.clipboard?.writeText(window.location.origin + '/api/webhook-zucchetti')
+                                  .then(() => notify('URL copiato negli appunti'))}
+                                style={{ ...btnStyle(false), flexShrink: 0 }}>
+                                📋 Copia
+                              </button>
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>HEADERS RICHIESTI</div>
+                            <code style={{ fontSize: 10, background: C.white, border: `1px solid ${C.border}`,
+                              borderRadius: 6, padding: '9px 12px', color: C.textMid, display: 'block', lineHeight: 2 }}>
+                              x-organization-id: {orgId}<br />
+                              x-zucchetti-secret: {'<ZUCCHETTI_WEBHOOK_SECRET da Vercel env>'}<br />
+                              Content-Type: application/json
+                            </code>
+                          </div>
+                          <div style={{ fontSize: 11, color: C.amber, padding: '8px 10px', background: C.amberLight,
+                            borderRadius: 6 }}>
+                            ⚠️ Imposta <code>ZUCCHETTI_WEBHOOK_SECRET</code> nelle variabili d'ambiente Vercel per proteggere l'endpoint.
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* File upload area */
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+                        <label style={{ ...btnStyle(true), cursor: 'pointer' }}>
+                          {isLoading ? '⏳ Importazione…' : `📂 Importa ${cfg.tipoLabel}`}
+                          <input
+                            type="file"
+                            accept={cfg.tipoFile}
+                            multiple={!!cfg.multiplo}
+                            style={{ display: 'none' }}
+                            disabled={!!isLoading}
+                            onChange={e => e.target.files?.length && handleImport(cfg, e.target.files)}
+                          />
+                        </label>
+                        {lastLog?.stato === 'ok' && (
+                          <span style={{ fontSize: 11, color: C.green }}>
+                            ✓ Ultimo: {lastLog.records_importati} record — {fmtTs(lastLog.created_at)}
+                          </span>
+                        )}
+                        {lastLog?.stato === 'errore' && (
+                          <span style={{ fontSize: 11, color: C.red }}>
+                            ✕ {lastLog.errore?.slice(0, 80)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Import result preview */}
+                    {risultato?.cfgId === cfg.id && (
+                      <div style={{ background: C.greenLight, border: `1px solid #BBF7D0`,
+                        borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
+                        {risultato.tipo === 'movimenti' && (
+                          <>
+                            <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 6 }}>
+                              ✓ {risultato.movimenti.length} movimenti importati da Zucchetti Infinity
+                            </div>
+                            <div style={{ display: 'flex', gap: 20, fontSize: 11, color: C.green }}>
+                              <span>Uscite: €{risultato.movimenti.filter(m => m.tipo === 'uscita')
+                                .reduce((s, m) => s + m.importo, 0)
+                                .toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                              <span>Entrate: €{risultato.movimenti.filter(m => m.tipo === 'entrata')
+                                .reduce((s, m) => s + m.importo, 0)
+                                .toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </>
+                        )}
+                        {risultato.tipo === 'kassa' && (
+                          <>
+                            <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 6 }}>
+                              ✓ {risultato.chiusure.length} giorni importati da Zucchetti Kassa
+                            </div>
+                            <div style={{ fontSize: 11, color: C.green }}>
+                              Totale: €{risultato.chiusure.reduce((s, c) => s + c.totale, 0)
+                                .toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Sync log */}
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.textMid, marginBottom: 8,
+                        textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Ultimi sync{intLogs.length > 0 ? ` (${intLogs.length})` : ''}
+                      </div>
+                      {loading
+                        ? <div style={{ fontSize: 11, color: C.textSoft }}>Caricamento…</div>
+                        : <LogTable logs={intLogs} />
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ))}
     </div>
-  );
+  )
 }
