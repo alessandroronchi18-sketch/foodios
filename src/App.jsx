@@ -93,6 +93,13 @@ export default function App() {
   if (path === '/privacy') return <PrivacyPolicy />
   if (path === '/termini') return <TerminiServizio />
 
+  // Intercetta /r/CODICE — salva codice in localStorage e pulisce l'URL
+  const referralMatch = path.match(/^\/r\/([A-Za-z0-9]+)$/)
+  if (referralMatch) {
+    localStorage.setItem('referral_code_pendente', referralMatch[1].toUpperCase())
+    window.history.replaceState(null, '', '/')
+  }
+
   const auth = useAuth()
   const [onboardingVisto, setOnboardingVisto] = useState(null)
   const [showResetPassword, setShowResetPassword] = useState(false)
@@ -127,9 +134,10 @@ export default function App() {
 
   if (auth.loading) return <SplashScreen />
 
-  // Non loggato
+  // Non loggato — passa codice referral pre-compilato se presente
   if (!auth.user) {
-    return <AuthPage onSignIn={auth.signIn} onSignUp={auth.signUp} />
+    const initialReferralCode = localStorage.getItem('referral_code_pendente') || ''
+    return <AuthPage onSignIn={auth.signIn} onSignUp={auth.signUp} initialReferralCode={initialReferralCode} />
   }
 
   // Admin — fallback se VITE_ADMIN_EMAIL non è configurato in Vercel

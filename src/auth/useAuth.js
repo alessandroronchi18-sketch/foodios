@@ -12,14 +12,14 @@ export function useAuth() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (session?.user) loadProfile(session.user.id)
+      if (session?.user) loadProfile(session.user.id, session.user)
       else setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        loadProfile(session.user.id)
+        loadProfile(session.user.id, session.user)
       } else {
         setProfile(null)
         setOrg(null)
@@ -32,7 +32,7 @@ export function useAuth() {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function loadProfile(userId) {
+  async function loadProfile(userId, userObj) {
     setLoading(true)
     try {
       const { data: prof, error: profErr } = await supabase
@@ -59,6 +59,28 @@ export function useAuth() {
                          || (sediData || [])[0]
                          || null
         setSedeAttivaState(defaultSede)
+
+        // Applica codice referral se presente e non ancora usato
+        if (orgData && !orgData.referral_code_usato) {
+          const codice = localStorage.getItem('referral_code_pendente')
+            || userObj?.user_metadata?.codice_invito
+          if (codice) {
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
+            if (token) {
+              fetch('/api/referral', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codice }),
+              }).then(r => r.json()).then(data => {
+                if (data.success) {
+                  localStorage.removeItem('referral_code_pendente')
+                  setOrg(prev => ({ ...prev, referral_code_usato: codice }))
+                }
+              }).catch(console.error)
+            }
+          }
+        }
       }
     } catch (err) {
       console.error('loadProfile error:', err)

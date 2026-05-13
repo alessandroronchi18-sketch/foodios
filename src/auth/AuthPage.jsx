@@ -259,9 +259,9 @@ export function ResetPasswordPage({ onDone }) {
 // ─── COMPONENTE PRINCIPALE ────────────────────────────────────────────────────
 const TIPI_ATTIVITA = ['Pasticceria','Bar / Caffè','Gelateria','Ristorante','Pizzeria','Panetteria','Altro']
 
-export default function AuthPage({ onSignIn, onSignUp }) {
+export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' }) {
   // 'login' | 'registrati' | 'reset-request' | 'reset-password'
-  const [mode, setMode] = useState('login')
+  const [mode, setMode] = useState(initialReferralCode ? 'registrati' : 'login')
   const [loading, setLoading] = useState(false)
   const [errore, setErrore] = useState('')
   const [msg, setMsg] = useState('')
@@ -281,7 +281,7 @@ export default function AuthPage({ onSignIn, onSignUp }) {
   const [reg, setReg] = useState({
     nome: '', cognome: '', nome_attivita: '',
     tipo_attivita: 'Pasticceria', citta: '',
-    email: '', password: '', codice_invito: '',
+    email: '', password: '', codice_invito: initialReferralCode,
   })
   const [successo, setSuccesso] = useState(false)
 

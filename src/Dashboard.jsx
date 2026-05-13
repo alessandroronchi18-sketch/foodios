@@ -8,6 +8,7 @@ import { supabase } from './lib/supabase'
 import SedeSelector from './components/SedeSelector'
 import Scadenzario from './components/Scadenzario'
 import CalendarioOperativo from './components/CalendarioOperativo'
+import ReferralPanel from './components/ReferralPanel'
 import useIsMobile from './lib/useIsMobile'
 
 // React hooks are imported above — no need for global destructuring
@@ -6452,6 +6453,9 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, onIm
           <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&onImportPrezzi(e.target.files)} />
         </label>
       </div>
+
+      {/* Referral */}
+      <ReferralPanel auth={auth} />
 
       {/* Account */}
       <div style={card}>
