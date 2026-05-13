@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
 
 const C = {
   red: '#C0392B', redLight: '#FEF2F2',
@@ -42,52 +43,9 @@ function normalizeStato(v) {
   return 'da_pagare'
 }
 
+// parseFattureExcel delegates to parseFatturaSMART from lib (TeamSystem format)
 async function parseFattureExcel(file) {
-  const XLSX = await loadXLSX()
-  const ab = await file.arrayBuffer()
-  const wb = XLSX.read(ab, { type: 'array', cellDates: false })
-  const ws = wb.Sheets[wb.SheetNames[0]]
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
-
-  let headerIdx = -1
-  for (let i = 0; i < Math.min(rows.length, 15); i++) {
-    if (rows[i].some(c => String(c).trim() === 'Fornitore')) { headerIdx = i; break }
-  }
-  if (headerIdx === -1) throw new Error('Intestazione "Fornitore" non trovata nel file')
-
-  const headers = rows[headerIdx].map(h => String(h).trim())
-  const idx = {}
-  headers.forEach((h, i) => { idx[h] = i })
-
-  const fatture = []
-  for (let i = headerIdx + 1; i < rows.length; i++) {
-    const row = rows[i]
-    const fornitore = String(row[idx['Fornitore']] ?? '').trim()
-    if (!fornitore) continue
-
-    const numRif  = String(row[idx['Numero Rif.']] ?? row[idx['Numero Rif']] ?? '').trim()
-    const numBase = String(row[idx['Numero']] ?? '').trim()
-    const suf     = String(row[idx['Suffisso']] ?? '').trim()
-    const numero_rif = numRif || (numBase ? `${numBase}${suf ? '/'+suf : ''}` : '')
-
-    const totale     = parseFloat(String(row[idx['Totale']]     ?? '0').replace(',', '.')) || 0
-    const imponibile = parseFloat(String(row[idx['Imponibile']] ?? '0').replace(',', '.')) || 0
-    const imposta    = parseFloat(String(row[idx['Imposta']]    ?? '0').replace(',', '.')) || 0
-
-    if (totale === 0 && !fornitore) continue
-
-    fatture.push({
-      numero_rif,
-      data_fattura: parseExcelDate(row[idx['Data']], XLSX),
-      data_rif:     parseExcelDate(row[idx['Data Rif.']] ?? row[idx['Data Rif']], XLSX),
-      fornitore,
-      imponibile,
-      imposta,
-      totale,
-      stato: normalizeStato(row[idx['Stato']]),
-    })
-  }
-  return fatture
+  return parseFatturaSMART(file)
 }
 
 function computeStato(f) {
@@ -192,6 +150,57 @@ export default function Scadenzario({ orgId, sedeId }) {
     }
     if (imported > 0) {
       notify(`✓ ${imported} fatture importate`)
+      await loadFatture()
+    }
+    setImportLoading(false)
+  }
+
+  async function handleImportXML(files) {
+    if (!orgId) return
+    setImportLoading(true)
+    let imported = 0
+    for (const file of Array.from(files || [])) {
+      try {
+        const text = await file.text()
+        const records = parseFatturaXML(text)
+        if (!records.length) { notify('Nessuna fattura trovata nel file XML', false); continue }
+        const toInsert = records.map(r => ({ ...r, organization_id: orgId, sede_id: sedeId || null }))
+        for (let i = 0; i < toInsert.length; i += 100) {
+          const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
+          if (error) throw error
+        }
+        imported += records.length
+      } catch (e) {
+        notify('Errore import XML ' + file.name + ': ' + e.message, false)
+      }
+    }
+    if (imported > 0) {
+      notify(`✓ ${imported} fatture XML importate`)
+      await loadFatture()
+    }
+    setImportLoading(false)
+  }
+
+  async function handleImportSMART(files) {
+    if (!orgId) return
+    setImportLoading(true)
+    let imported = 0
+    for (const file of Array.from(files || [])) {
+      try {
+        const records = await parseFatturaSMART(file)
+        if (!records.length) { notify('Nessuna fattura trovata nel file FatturaSMART', false); continue }
+        const toInsert = records.map(r => ({ ...r, organization_id: orgId, sede_id: sedeId || null }))
+        for (let i = 0; i < toInsert.length; i += 100) {
+          const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
+          if (error) throw error
+        }
+        imported += records.length
+      } catch (e) {
+        notify('Errore import FatturaSMART ' + file.name + ': ' + e.message, false)
+      }
+    }
+    if (imported > 0) {
+      notify(`✓ ${imported} fatture FatturaSMART importate`)
       await loadFatture()
     }
     setImportLoading(false)
@@ -340,8 +349,18 @@ export default function Scadenzario({ orgId, sedeId }) {
               {importLoading ? '…' : '🔧 Carica dati demo'}
             </button>
           )}
+          <label style={{ ...ghostBtn, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            📄 XML SDI
+            <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
+              onChange={e => e.target.files.length && handleImportXML(e.target.files)} />
+          </label>
+          <label style={{ ...ghostBtn, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            📊 FatturaSMART
+            <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
+              onChange={e => e.target.files.length && handleImportSMART(e.target.files)} />
+          </label>
           <label style={primaryBtn}>
-            {importLoading ? '⏳ Importazione…' : '📂 Importa fatture .xlsx'}
+            {importLoading ? '⏳ Importazione…' : '📂 Importa .xlsx'}
             <input type="file" accept=".xlsx,.xls" multiple style={{ display: 'none' }}
               onChange={e => e.target.files.length && handleImportExcel(e.target.files)} />
           </label>
