@@ -19,6 +19,7 @@ import ImpostazioniSedi from './components/ImpostazioniSedi'
 import ConfrontoSedi from './components/ConfrontoSedi'
 import EsportaDati from './components/EsportaDati'
 import { exportRicettaPDF, exportPLMensile, exportProduzione } from './lib/exportPDF'
+import { CHANGELOG } from './lib/changelog'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()

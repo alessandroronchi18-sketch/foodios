@@ -11,7 +11,14 @@
       "Bash(npm install *)",
       "Bash(vercel *)",
       "WebFetch(domain:foodios-rose.vercel.app)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(npm run *)",
+      "Bash(npm list *)",
+      "Bash(node -e \"const j = require\\('/Users/aler/Desktop/foodios/node_modules/jspdf/dist/jspdf.umd.min.js'\\); console.log\\('ok'\\)\")",
+      "Bash(npx vite *)",
+      "Bash(node *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('main:', d.get\\('main'\\)\\); print\\('module:', d.get\\('module'\\)\\); print\\('exports:', list\\(d.get\\('exports',{}\\).keys\\(\\)\\)[:5]\\)\")",
+      "Bash(node_modules/.bin/vite build *)"
     ]
   }
 }
