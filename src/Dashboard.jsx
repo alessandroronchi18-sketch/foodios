@@ -9,7 +9,11 @@ import SedeSelector from './components/SedeSelector'
 import Scadenzario from './components/Scadenzario'
 import CalendarioOperativo from './components/CalendarioOperativo'
 import ReferralPanel from './components/ReferralPanel'
+import Integrazioni from './components/Integrazioni'
+import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from './lib/importDelivery'
+import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importCassa'
 import useIsMobile from './lib/useIsMobile'
+import { exportRicettaPDF, exportPLMensile, exportProduzione } from './lib/exportPDF'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -1117,6 +1121,10 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
           style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${editMode?C.red:C.borderStr}`,background:editMode?C.redLight:"transparent",fontSize:11,fontWeight:700,color:editMode?C.red:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
           ✏️ Prezzo
         </button>
+        <button onClick={()=>exportRicettaPDF(ric, {tot:fc,perc:ricavo>0?fc/ricavo*100:0})}
+          style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
+          📄 PDF
+        </button>
       </div>
 
       {/* Edit prezzo/fette inline */}
@@ -2121,8 +2129,16 @@ function PLView({ricettario, onUpdateRegola}) {
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────────── */}
       <div style={{marginBottom:32}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>{nomeAttivita}</div>
-        <h1 style={{margin:"0 0 8px",fontSize:30,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Profit & Loss</h1>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+          <div>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>{nomeAttivita}</div>
+            <h1 style={{margin:"0 0 8px",fontSize:30,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Profit & Loss</h1>
+          </div>
+          <button onClick={()=>exportPLMensile({ricavi:rows.map(r=>({categoria:r.nome,quantita:r.reg.unita,ricavo:r.ricavo})),costi:rows.map(r=>({categoria:r.nome,costo:r.fc,perc:r.fcPct}))},null,null,nomeAttivita)}
+            style={{marginTop:8,padding:"8px 14px",borderRadius:8,border:"1px solid #E8DDD8",background:"#FFF",fontSize:12,fontWeight:700,color:"#6B4C44",cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+            📄 Esporta PDF
+          </button>
+        </div>
         <p style={{margin:0,fontSize:12,color:C.textSoft,lineHeight:1.7,maxWidth:680}}>
           Analisi reddituale completa per prodotto: ricavi, food cost, margine lordo per stampo e per unità.
           I valori si basano sui prezzi di vendita e listino ingredienti HoReCa Torino correnti.
@@ -3725,10 +3741,27 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
 
   return (
     <div style={{maxWidth:1100}}>
-      <div style={{marginBottom:24}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Operativo</div>
-        <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Produzione Giornaliera</h1>
-        <p style={{margin:0,fontSize:12,color:C.textSoft}}>Registra cosa hai prodotto oggi. Il magazzino si aggiorna automaticamente.</p>
+      <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+        <div>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Operativo</div>
+          <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Produzione Giornaliera</h1>
+          <p style={{margin:0,fontSize:12,color:C.textSoft}}>Registra cosa hai prodotto oggi. Il magazzino si aggiorna automaticamente.</p>
+        </div>
+        {(giornaliero||[]).length>0&&(
+          <button onClick={()=>{
+            const sess=(giornaliero||[])[0];
+            const items=Object.entries(sess?.qtaMap||{}).flatMap(([nome,qty])=>{
+              const r=ricettario?.ricette?.[nome]||ricettario?.ricette?.[nome.toUpperCase()];
+              const regR=r?getR(nome,r):{prezzo:0,unita:1};
+              const {tot:fcR}=r?calcolaFC(r,ingCosti,ricettario):{tot:0};
+              return qty>0?[{nome,quantita:qty,unita:'stampi',costo:fcR,categoria:r?.categoria||'Altro'}]:[];
+            });
+            exportProduzione(items,sess?.data,nomeAttivita);
+          }}
+            style={{marginTop:8,padding:"8px 14px",borderRadius:8,border:"1px solid #E8DDD8",background:"#FFF",fontSize:12,fontWeight:700,color:"#6B4C44",cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+            📄 Esporta PDF
+          </button>
+        )}
       </div>
 
       <div style={{display:"flex",gap:4,marginBottom:24,borderBottom:`2px solid ${C.border}`}}>
@@ -5457,6 +5490,15 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const [batchProgress, setBatchProg] = useState(null); // "3/9" during processing
   const [batchResults, setBatchResults] = useState([]); // [{data, prodotti, salvato, error}]
 
+  // Import delivery/cassa
+  const [importModal, setImportModal] = useState(null); // null | "delivery" | "cassa"
+  const [importPiattaforma, setImportPiattaforma] = useState('deliveroo');
+  const [importSistema, setImportSistema] = useState('cassaincloud');
+  const [importPreview, setImportPreview] = useState(null); // { righe, headers, rows }
+  const [importGenericMapping, setImportGenericMapping] = useState({ data: '', importo: '', comm: '' });
+  const [importLoading, setImportLoading] = useState(false);
+  const importFileRef = useRef(null);
+
   const readFile64 = f => new Promise(res => {
     const r = new FileReader();
     r.onload = ev => res({ data64: ev.target.result.split(",")[1], preview: ev.target.result, mediaType: f.type||"image/jpeg" });
@@ -5622,6 +5664,58 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     await ssave(SK_CHIUS, nuove);
     setSalvato(true);
     notify(`✓ Chiusura del ${new Date(dataFiltro+"T12:00").toLocaleDateString("it-IT")} salvata nello storico`);
+  };
+
+  // ── Import delivery handler ───────────────────────────────────────────────
+  const handleImportDeliveryFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportLoading(true); setImportPreview(null);
+    try {
+      if (importPiattaforma === 'deliveroo') {
+        setImportPreview({ tipo:'aggregated', righe: parseDeliveroo(await file.text()) });
+      } else if (importPiattaforma === 'justeat') {
+        setImportPreview({ tipo:'aggregated', righe: parseJustEat(await file.text()) });
+      } else if (importPiattaforma === 'glovo') {
+        setImportPreview({ tipo:'aggregated', righe: await parseGlovo(file) });
+      } else {
+        const { headers, preview, rows } = parseGenericCSV(await file.text());
+        setImportPreview({ tipo:'generic', headers, preview, rows });
+      }
+    } catch(ex) { notify(`⚠ ${ex.message}`); }
+    setImportLoading(false);
+  };
+
+  const handleConfirmDelivery = async () => {
+    if (!importPreview) return;
+    let righe = importPreview.righe || [];
+    if (importPreview.tipo === 'generic') {
+      righe = applyGenericMapping(importPreview.rows, importGenericMapping.data, importGenericMapping.importo, importGenericMapping.comm, 'Generico');
+    }
+    const nuove = mergeInChiusure(chiusure||[], righe, importPiattaforma);
+    setChiusure(nuove); await ssave(SK_CHIUS, nuove);
+    notify(`✓ ${righe.length} giorni importati da ${importPiattaforma}`);
+    setImportModal(null); setImportPreview(null);
+  };
+
+  // ── Import cassa handler ──────────────────────────────────────────────────
+  const handleImportCassaFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportLoading(true); setImportPreview(null);
+    try {
+      const righe = await parseCassaFile(importSistema, file);
+      setImportPreview({ tipo:'aggregated', righe });
+    } catch(ex) { notify(`⚠ ${ex.message}`); }
+    setImportLoading(false);
+  };
+
+  const handleConfirmCassa = async () => {
+    if (!importPreview?.righe) return;
+    const nuove = mergeInChiusureCassa(chiusure||[], importPreview.righe, importSistema);
+    setChiusure(nuove); await ssave(SK_CHIUS, nuove);
+    notify(`✓ ${importPreview.righe.length} giorni importati da ${importSistema}`);
+    setImportModal(null); setImportPreview(null);
   };
 
   return (
@@ -6852,6 +6946,7 @@ export default function Dashboard({
 
               {sec("Altro")}
               {navItem("azioni","sparkles","AI Assistant",false,false,azioniAperte)}
+              {navItem("integrazioni","creditCard","Integrazioni",false,false,0)}
               {navItem("impostazioni","settings","Impostazioni",false,false,0)}
 
               {/* Mesi archiviati */}
@@ -6969,9 +7064,10 @@ export default function Dashboard({
         {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
         {view==="impostazioni"&&<ImpostazioniView auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} onImportPrezzi={handleImportPrezzi} notify={notify}/>}
+        {view==="integrazioni"&&<Integrazioni orgId={orgId} notify={notify}/>}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId}/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","scadenzario","calendario"].includes(view)&&(
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","integrazioni","scadenzario","calendario"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
       </div>

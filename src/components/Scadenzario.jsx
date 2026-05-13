@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
+import { exportScadenzario } from '../lib/exportPDF'
 
 const C = {
   red: '#C0392B', redLight: '#FEF2F2',
@@ -341,7 +342,10 @@ export default function Scadenzario({ orgId, sedeId }) {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {fatture.length > 0 && (
-            <button onClick={exportExcel} style={ghostBtn}>↓ Esporta Excel</button>
+            <>
+              <button onClick={exportExcel} style={ghostBtn}>↓ Esporta Excel</button>
+              <button onClick={()=>exportScadenzario(fattureFiltrate)} style={ghostBtn}>📄 Esporta PDF</button>
+            </>
           )}
           {fatture.length === 0 && (
             <button onClick={importaFattureDemo} disabled={importLoading}
