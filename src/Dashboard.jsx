@@ -1050,6 +1050,7 @@ function KPI({label,value,sub,color,highlight,icon}) {
 
 // ─── TORTA CARD ───────────────────────────────────────────────────────────────
 function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
+  const isMobile = useIsMobile();
   const [open,setOpen]         = useState(false);
   const [editMode,setEditMode] = useState(false);
   const reg = getR(ric.nome, ric);
@@ -1289,7 +1290,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
             {/* Per unità */}
             <div style={{background:"#F8F4F2",borderRadius:10,padding:"16px"}}>
               <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:10}}>🍰 Per singola {reg.tipo}</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:8}}>
                 {[
                   {lbl:`Prezzo vendita`,val:fmt(reg.prezzo),c:C.text,tip:`Prezzo al cliente per ogni ${reg.tipo}. Modificabile con il pulsante ✏️ Prezzo.`},
                   {lbl:`Food cost`,val:fmt(fcUnita),c:C.red,tip:`Food cost per unità = food cost stampo (${fmt(fc)}) ÷ ${reg.unita} ${reg.tipo==="fetta"?"fette":"pezzi"}.`},
@@ -1727,6 +1728,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
 
 // ─── SCENARIO PREZZI COMPONENT ────────────────────────────────────────────────
 function ScenarioPrezzi({ rows, euro, pct }) {
+  const isMobile = useIsMobile();
   // prezzi scenario: keyed by nome, valore in euro (il prezzo/unita)
   const [prezzi, setPrezzi] = useState(()=>
     Object.fromEntries(rows.map(r=>[r.nome, r.reg.prezzo.toFixed(2)]))
@@ -1778,7 +1780,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
 
         {/* Totali scenario — appare solo se ci sono cambiamenti */}
         {hasChanges&&(
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:24,
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:24,
             padding:"16px 20px",background:"#F8F4F2",borderRadius:10,border:`1px solid ${C.border}`}}>
             {[
               {lbl:"Ricavo base",      val:euro(totRicavoBase), c:C.textMid,
@@ -2263,7 +2265,7 @@ function PLView({ricettario, onUpdateRegola}) {
       </div>
 
       {/* ── BENCHMARK BOX ────────────────────────────────────────────────── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:12}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16,marginBottom:12}}>
         <div style={{background:C.greenLight,border:`1px solid ${C.green}30`,borderRadius:12,padding:"20px 24px"}}>
           <div style={{fontSize:11,fontWeight:800,color:C.green,marginBottom:10}}>✅ Benchmark pasticceria artigianale</div>
           {[["Food cost ideale","< 28–30% del ricavo"],["Margine lordo target","70–72%"],["Margine lordo accettabile","55–70%"],["Sotto questa soglia","< 50% — costi fissi critici"]].map(([k,v])=>(
@@ -2291,6 +2293,7 @@ function PLView({ricettario, onUpdateRegola}) {
 
 // ─── SIMULATORE PREZZI VIEW ───────────────────────────────────────────────────
 function SimulatorePrezziView({ ricettario, giornaliero }) {
+  const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const ricette  = Object.values(ricettario?.ricette||{})
     .filter(r=>isRicettaValida(r.nome) && getR(r.nome,r).tipo!=="interno" && getR(r.nome,r).tipo!=="semilavorato");
@@ -2403,7 +2406,7 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
 
       {/* KPI comparazione — appare solo con modifiche */}
       {hasChanges&&(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:28}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:14,marginBottom:28}}>
           {[
             {lbl:"Ricavo/stampo base",   val:euro(totBaseRicavo),  sub:"prezzi attuali", c:C.textMid},
             {lbl:"Ricavo/stampo scenario",val:euro(totScenRicavo), sub:`${totScenRicavo>totBaseRicavo?"+":""}${euro(totScenRicavo-totBaseRicavo)} vs base`,c:totScenRicavo>=totBaseRicavo?C.green:C.red},
@@ -2429,7 +2432,7 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
           <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",marginBottom:20}}>
             Basata sulla media stampi prodotti per sessione dallo storico
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:20}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:20}}>
             {[
               {lbl:"Margine atteso (prezzi base)",   val:euro(totProiBase), c:"rgba(255,255,255,0.5)"},
               {lbl:"Margine atteso (scenario)",       val:euro(totProiScen), c:totProiScen>=totProiBase?"#7EE8A2":"#FF8080"},
@@ -2553,6 +2556,7 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
 
 // ─── PRODUZIONE VIEW ──────────────────────────────────────────────────────────
 function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
+  const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const ricette  = Object.keys(ricettario?.ricette||{}).filter(n=>isRicettaValida(n) && getR(n,ricettario?.ricette?.[n]).tipo!=="interno" && getR(n,ricettario?.ricette?.[n]).tipo!=="semilavorato");
   const [tab,setTab] = useState("dashboard");
@@ -2625,10 +2629,10 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
           </div>
         ) : (
           <>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:28}}>
-              <KPI icon="💰" label="Ricavi totali" value={fmt(totR)} highlight/>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:28}}>
+              <KPI icon="💰" label="Ricavi" value={fmt(totR)} highlight/>
               <KPI icon="🧾" label="Food cost" value={fmt(totFC)} color={C.red}/>
-              <KPI icon="📈" label="Margine lordo" value={fmt(totM)} color={margColor(totMP)}/>
+              <KPI icon="📈" label="Margine" value={fmt(totM)} color={margColor(totMP)}/>
               <KPI icon="%" label="Margine %" value={fmtp(totMP)} color={margColor(totMP)}/>
               <KPI icon="🎯" label="Sell-through" value={fmtp(st)} sub={`${totV}/${totP} stampi`} color={st>=80?C.green:st>=60?C.amber:C.red}/>
             </div>
@@ -2734,7 +2738,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
             <div>
               <div style={{padding:"16px 18px",background:"#F8F4F2",borderRadius:10,marginBottom:16,fontSize:12,color:C.text,lineHeight:1.75}}>{aiData.sintesi}</div>
               {aiData.alert&&<div style={{padding:"10px 16px",background:C.amberLight,border:`1px solid ${C.amber}30`,borderRadius:8,fontSize:11,color:C.amber,fontWeight:600,marginBottom:16}}>⚠️ {aiData.alert}</div>}
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:12}}>
                 {(aiData.azioni||[]).map((a,i)=>(
                   <div key={i} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:"16px 18px"}}>
                     <div style={{width:26,height:26,background:C.red,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900,color:C.white,marginBottom:10}}>{i+1}</div>
@@ -2755,6 +2759,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
 // ─── AZIONI VIEW ──────────────────────────────────────────────────────────────
 // ─── AI AGENT VIEW ────────────────────────────────────────────────────────────
 function AzioniView({ actions, onUpdate, onDelete, ricettario, giornaliero, chiusure, magazzino }) {
+  const isMobile = useIsMobile();
   const [messages, setMessages] = useState([]);
   const [input, setInput]       = useState("");
   const [loading, setLoading]   = useState(false);
@@ -2913,7 +2918,7 @@ ${azioniStr}
           {messages.length===0&&(
             <div>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft,marginBottom:10}}>Domande rapide</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:8}}>
                 {QUICK_PROMPTS.map(({icon,label,q})=>(
                   <button key={label} onClick={()=>sendMessage(q)}
                     style={{padding:"12px 14px",borderRadius:10,border:`1px solid ${C.border}`,background:C.white,
@@ -4343,6 +4348,7 @@ Instructions:
 
 // ─── NUOVA RICETTA VIEW ───────────────────────────────────────────────────────
 function NuovaRicettaView({ ricettario, onSave, notify }) {
+  const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const tuttiIng = useMemo(()=>{
     const s = new Set();
@@ -4565,7 +4571,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
         }}
       />
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:24}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 300px",gap:24}}>
         {/* Form sinistra */}
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
           {/* Nome + tipo + vendita */}
@@ -4736,6 +4742,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
 
 // ─── STORICO PRODUZIONE VIEW ──────────────────────────────────────────────────
 function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
+  const isMobile = useIsMobile();
   const [vista, setVista]   = useState("giornaliero"); // "giornaliero" | "settimana" | "mese"
   const [tab, setTab]       = useState("produzione"); // "produzione" | "vendite" | "confronto"
   const [dateFrom, setDateFrom] = useState("");
@@ -4924,12 +4931,12 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
           {!hasProd&&<div style={{textAlign:"center",padding:"40px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,color:C.textSoft,fontSize:12}}>Nessuna produzione registrata</div>}
           {hasProd&&(
             <>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:24}}>
-                <KPI icon="📦" label="Stampi totali"  value={totMP}           highlight/>
-                <KPI icon="💰" label="Ricavi stimati" value={fmt(totRP)}      color={C.green}/>
-                <KPI icon="🧾" label="Food cost tot." value={fmt(totFP)}      color={C.red}/>
-                <KPI icon="📈" label="Margine lordo"  value={fmt(totRP-totFP)} color={margColor(totRP>0?((totRP-totFP)/totRP*100):0)}/>
-                <KPI icon="🏆" label="Piu prodotto"   value={topP?topP[0].replace("TORTA DI ",""):"—"} sub={topP?`${topP[1]} stampi`:""} color={C.amber}/>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
+                <KPI icon="📦" label="Stampi"     value={totMP}           highlight/>
+                <KPI icon="💰" label="Ricavi"     value={fmt(totRP)}      color={C.green}/>
+                <KPI icon="🧾" label="Food cost"  value={fmt(totFP)}      color={C.red}/>
+                <KPI icon="📈" label="Margine"    value={fmt(totRP-totFP)} color={margColor(totRP>0?((totRP-totFP)/totRP*100):0)}/>
+                <KPI icon="🏆" label="Top"        value={topP?topP[0].replace("TORTA DI ",""):"—"} sub={topP?`${topP[1]} stampi`:""} color={C.amber}/>
               </div>
               <SH sub={`Stampi per ${vista} e per prodotto`}>Produzione per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
@@ -5007,12 +5014,12 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
           )}
           {hasVend&&(
             <>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:24}}>
-                <KPI icon="💰" label="Ricavi reali tot." value={fmt(totRV)}  highlight/>
-                <KPI icon="📈" label="Margine reale"     value={fmt(totMV)}  color={margColor(totRV>0?(totMV/totRV*100):0)} sub={fmtp(totRV>0?(totMV/totRV*100):0)}/>
-                <KPI icon="🧾" label="Food cost vend."   value={fmt(totFV)}  color={C.red}/>
-                <KPI icon="🎯" label="Sell-through med." value={fmtp(avgST)} color={avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
-                <KPI icon="🗑" label="Spreco tot. stim." value={fmt(totSV)}  color={totSV>20?C.red:C.amber}/>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
+                <KPI icon="💰" label="Ricavi reali"  value={fmt(totRV)}  highlight/>
+                <KPI icon="📈" label="Margine"       value={fmt(totMV)}  color={margColor(totRV>0?(totMV/totRV*100):0)} sub={fmtp(totRV>0?(totMV/totRV*100):0)}/>
+                <KPI icon="🧾" label="Food cost"     value={fmt(totFV)}  color={C.red}/>
+                <KPI icon="🎯" label="Sell-through"  value={fmtp(avgST)} color={avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
+                <KPI icon="🗑" label="Spreco"        value={fmt(totSV)}  color={totSV>20?C.red:C.amber}/>
               </div>
 
               <SH sub={`Ricavi reali da scontrini per ${vista}`}>Ricavi Reali per {vista==="settimana"?"Settimana":"Mese"}</SH>
@@ -5156,7 +5163,7 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
                 </div>
 
                 {/* KPI Strip */}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8,marginBottom:16}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(6,1fr)",gap:8,marginBottom:16}}>
                   {[
                     {icon:"💰",lbl:"Ricavi totali",    val:euro(totRicavi),    sub:`${euro(ricavoMedio.toFixed(2))}/gg`,  color:C.green, hi:true},
                     {icon:"📈",lbl:"Margine lordo",    val:euro(totMarg),      sub:pct(margPct),                          color:margC(margPct)},
@@ -5223,7 +5230,7 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
                 </div>
 
                 {/* Insights row */}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:10,marginBottom:14}}>
                   {/* Miglior giorno */}
                   <div style={{background:"linear-gradient(135deg,#EAF5EE,#FFF)",border:`1px solid ${C.green}30`,borderRadius:10,padding:"14px 16px"}}>
                     <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.green,marginBottom:6}}>🏅 Miglior giorno</div>
@@ -5449,6 +5456,7 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
 
 // ─── CHIUSURA GIORNATA VIEW ───────────────────────────────────────────────────
 function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify }) {
+  const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
 
   const ricetteNote = useMemo(()=>{
@@ -6002,12 +6010,12 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       {/* RISULTATI CONFRONTO */}
       {confronto.length>0 && (
         <>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:24}}>
-            <KPI icon="💰" label="Ricavo reale"       value={fmt(totV)}   highlight/>
-            <KPI icon="📈" label="Margine lordo"      value={fmt(totM)}   color={margColor(totMP)} sub={fmtp(totMP)}/>
-            <KPI icon="🧾" label="Food cost"          value={fmt(totFC)}  color={C.red}/>
-            <KPI icon="🎯" label="Sell-through medio" value={fmtp(avgST)} color={stC(avgST)} sub="% unita vendute"/>
-            <KPI icon="🗑" label="Spreco stimato"     value={fmt(totS)}   color={totS>5?C.red:C.green} sub="FC non recuperato"/>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
+            <KPI icon="💰" label="Ricavo reale"   value={fmt(totV)}   highlight/>
+            <KPI icon="📈" label="Margine"        value={fmt(totM)}   color={margColor(totMP)} sub={fmtp(totMP)}/>
+            <KPI icon="🧾" label="Food cost"      value={fmt(totFC)}  color={C.red}/>
+            <KPI icon="🎯" label="Sell-through"   value={fmtp(avgST)} color={stC(avgST)} sub="% vendute"/>
+            <KPI icon="🗑" label="Spreco"         value={fmt(totS)}   color={totS>5?C.red:C.green} sub="FC perso"/>
           </div>
 
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
@@ -6118,6 +6126,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
 // ─── SEMI CARD (same layout as TortaCard, no price panel) ────────────────────
 function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
 
   const { tot:fc, mancanti } = calcolaFC(ric, ingCosti, ricettario);
@@ -6174,7 +6183,7 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
       </div>
       {open && (
         <div style={{padding:"20px 24px"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:24}}>
             {/* Ingredient table */}
             <div>
               <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.textSoft,marginBottom:8}}>Ingredienti</div>
