@@ -8,6 +8,7 @@ import OnboardingWizard from './onboarding/OnboardingWizard'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TerminiServizio from './pages/TerminiServizio'
 import LandingPage from './pages/LandingPage'
+import FoodOSLogo from './components/FoodOSLogo'
 import { supabase } from './lib/supabase'
 
 function SplashScreen() {
@@ -22,14 +23,7 @@ function SplashScreen() {
       gap: 14,
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-      <div style={{
-        width: 52, height: 52,
-        background: 'linear-gradient(135deg, #C0392B, #E74C3C)',
-        borderRadius: 14,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 26,
-        boxShadow: '0 8px 24px rgba(192,57,43,0.25)',
-      }}>🍰</div>
+      <FoodOSLogo size={56} style={{ boxShadow: '0 8px 28px rgba(192,57,43,0.30)', borderRadius: 14 }} />
       <div style={{ fontSize: 14, color: '#94A3B8', fontWeight: 500 }}>Caricamento…</div>
     </div>
   )
@@ -160,8 +154,6 @@ export default function App() {
   // Admin — fallback se VITE_ADMIN_EMAIL non è configurato in Vercel
   if (auth.isAdmin || (!auth.orgId && !auth.org && auth.user?.email === 'alessandroar@maradeiboschi.com')) return <AdminPage />
 
-  // Profilo ancora in caricamento (race condition post-login)
-  if (!auth.orgId) return <SplashScreen />
 
   // Trial scaduto
   if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} />

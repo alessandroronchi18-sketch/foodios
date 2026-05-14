@@ -10,6 +10,8 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const safetyTimeout = setTimeout(() => setLoading(false), 8000)
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       if (session?.user) loadProfile(session.user.id, session.user)
@@ -29,7 +31,7 @@ export function useAuth() {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => { subscription.unsubscribe(); clearTimeout(safetyTimeout) }
   }, [])
 
   async function loadProfile(userId, userObj) {
