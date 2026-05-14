@@ -4200,9 +4200,15 @@ Instructions:
         ]}]
       })
     });
+    if (!r.ok) throw new Error(`Errore API: ${r.status}`);
     const d = await r.json();
-    const text = d.content?.find(b=>b.type==="text")?.text||"{}";
-    return JSON.parse(text.replace(/```json|```/g,"").trim());
+    if (d.error) throw new Error(d.error);
+    const raw = d.content?.find(b=>b.type==="text")?.text || "";
+    if (!raw) throw new Error("Nessuna risposta dall'AI — riprova");
+    const stripped = raw.replace(/```json\n?|```/g, "").trim();
+    const match = stripped.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Risposta AI non in formato JSON — riprova");
+    return JSON.parse(match[0]);
   };
 
   const handleAnalizza = async () => {
@@ -4321,14 +4327,20 @@ Instructions:
                 {mode==="ricetta" && (
                   <div>
                     {parsed.nome && <div style={{fontSize:13,fontWeight:900,color:C.text,marginBottom:8}}>{parsed.nome}</div>}
-                    <div style={{display:"flex",flexDirection:"column",gap:3,maxHeight:160,overflowY:"auto",marginBottom:6}}>
-                      {(parsed.ingredienti||[]).map((ing,i)=>(
-                        <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"3px 8px",background:"#F8F4F2",borderRadius:4}}>
-                          <span style={{color:C.text,fontWeight:600}}>{ing.nome}</span>
-                          <span style={{color:C.red,fontWeight:700}}>{ing.qty}g</span>
-                        </div>
-                      ))}
-                    </div>
+                    {(parsed.ingredienti||[]).length > 0 ? (
+                      <div style={{display:"flex",flexDirection:"column",gap:3,maxHeight:160,overflowY:"auto",marginBottom:6}}>
+                        {parsed.ingredienti.map((ing,i)=>(
+                          <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"3px 8px",background:"#F8F4F2",borderRadius:4}}>
+                            <span style={{color:C.text,fontWeight:600}}>{ing.nome}</span>
+                            <span style={{color:C.red,fontWeight:700}}>{ing.qty}g</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{padding:"8px 10px",background:C.amberLight,border:`1px solid ${C.amber}40`,borderRadius:6,fontSize:11,color:C.amber,marginBottom:6}}>
+                        ⚠ Nessun ingrediente estratto — prova con una foto più nitida o più vicina alla ricetta
+                      </div>
+                    )}
                     {parsed.note && <div style={{fontSize:10,color:C.textSoft}}>📝 {parsed.note}</div>}
                   </div>
                 )}
@@ -4406,6 +4418,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
   const [deletePin,  setDeletePin]  = useState("");   // PIN conferma cancellazione
   const [overwriteConf, setOverwriteConf] = useState(null); // nome ricetta da sovrascrivere
   const [forceOverwrite, setForceOverwrite] = useState(false); // per batch foto
+  const formRef = useRef(null);
 
   // Elenco ricette esistenti per edit
   const ricetteEsistenti = Object.keys(ricettario?.ricette||{}).filter(isRicettaValida);
@@ -4556,7 +4569,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
             .map(i=>({ nome: translateIngredienteEN(i.nome||""), qty1stampo: parseFloat(i.qty)||0, costoPerG:0, costo1stampo:0 }))
             .filter(i => !SKIP_ING_OCR.includes(i.nome.toLowerCase().trim()) && i.qty1stampo > 0);
           const nomeIT = translateProdottoEN(res.nome||"");
-          if (!isRicettaValida(nomeIT)) return;
+          // Don't hard-block on validation — always populate the form with whatever AI extracted
           setForm(f=>({
             ...f,
             nome:  nomeIT || f.nome,
@@ -4566,7 +4579,11 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
             tipo:  res.tipo  || f.tipo,
             ingredienti: ings.length>0 ? ings : f.ingredienti,
           }));
-          notify(`📷 Importata: ${nomeIT||"ricetta"} con ${ings.length} ingredienti`);
+          setTimeout(()=>formRef.current?.scrollIntoView({behavior:"smooth",block:"start"}), 100);
+          notify(ings.length>0
+            ? `📷 Importata: ${nomeIT||"ricetta"} con ${ings.length} ingredienti — controlla e salva`
+            : `📷 Nome estratto: ${nomeIT||"ricetta"} — aggiungi gli ingredienti manualmente`
+          );
         }}
         onBatchSave={async (res, idx, ricAcc, setRicAcc) => {
           // Salva direttamente una ricetta da OCR senza passare dal form
@@ -4606,7 +4623,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
         }}
       />
 
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 300px",gap:24}}>
+      <div ref={formRef} style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 300px",gap:24}}>
         {/* Form sinistra */}
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
           {/* Nome + tipo + vendita */}
