@@ -29,6 +29,8 @@ import { ALLERGENI, ALLERGENE_COLORS } from './lib/allergeni'
 import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese } from './lib/rese'
 import Fornitori from './components/Fornitori'
 import Personale from './components/Personale'
+import MenuDinamico from './components/MenuDinamico'
+import PrevisioneDomanda from './components/PrevisioneDomanda'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -7431,6 +7433,7 @@ export default function Dashboard({
 
   const sortedMesi=Object.keys(produzione).sort();
   const currentMese=produzione[view];
+  const ingCostiMain = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
 
   if(!ready) return <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:C.textSoft}}>Caricamento…</div>;
 
@@ -7580,6 +7583,7 @@ export default function Dashboard({
               {sec("Analisi")}
               {navItem("simulatore","trendUp","Food Cost",hasRic,false,0)}
               {navItem("pl","barChart","P&L",hasRic,false,0)}
+              {navItem("menu","book","Menù Dinamico",hasRic,false,0)}
 
               {sec("Operazioni")}
               {navItem("giornaliero","clipboard","Produzione",hasGior,false,0)}
@@ -7591,6 +7595,7 @@ export default function Dashboard({
               {navItem("personale","clipboard","Personale",false,false,0)}
 
               {sec("Altro")}
+              {navItem("previsione","trendUp","Previsione Domanda",hasGior,false,0)}
               {navItem("azioni","sparkles","AI Assistant",false,false,azioniAperte)}
               {navItem("integrazioni","creditCard","Integrazioni",false,false,0)}
               {navItem("impostazioni","settings","Impostazioni",false,false,0)}
@@ -7748,6 +7753,8 @@ export default function Dashboard({
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} notify={notify}/>}
         {view==="personale"&&<Personale orgId={orgId} notify={notify}/>}
+        {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita}/>}
+        {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure}/>}
         {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR}/>}
@@ -7759,7 +7766,7 @@ export default function Dashboard({
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale"].includes(view)&&(
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
       </div>

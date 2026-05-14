@@ -1,0 +1,33 @@
+export const ALLERGENI = [
+  { id: 'glutine',     label: 'Glutine',          emoji: '🌾' },
+  { id: 'crostacei',  label: 'Crostacei',         emoji: '🦞' },
+  { id: 'uova',       label: 'Uova',              emoji: '🥚' },
+  { id: 'pesce',      label: 'Pesce',             emoji: '🐟' },
+  { id: 'arachidi',   label: 'Arachidi',          emoji: '🥜' },
+  { id: 'soia',       label: 'Soia',              emoji: '🫘' },
+  { id: 'latte',      label: 'Latte',             emoji: '🥛' },
+  { id: 'fruttasc',   label: 'Frutta a guscio',   emoji: '🌰' },
+  { id: 'sedano',     label: 'Sedano',            emoji: '🥬' },
+  { id: 'senape',     label: 'Senape',            emoji: '🌿' },
+  { id: 'sesamo',     label: 'Sesamo',            emoji: '🌱' },
+  { id: 'solfiti',    label: 'Solfiti',           emoji: '🍷' },
+  { id: 'lupini',     label: 'Lupini',            emoji: '🫛' },
+  { id: 'molluschi',  label: 'Molluschi',         emoji: '🦪' },
+]
+
+export const ALLERGENE_COLORS = {
+  glutine:   '#D97706',
+  crostacei: '#DC2626',
+  uova:      '#CA8A04',
+  pesce:     '#2563EB',
+  arachidi:  '#92400E',
+  soia:      '#16A34A',
+  latte:     '#6366F1',
+  fruttasc:  '#B45309',
+  sedano:    '#15803D',
+  senape:    '#A16207',
+  sesamo:    '#7C3AED',
+  solfiti:   '#9F1239',
+  lupini:    '#0369A1',
+  molluschi: '#0E7490',
+}
