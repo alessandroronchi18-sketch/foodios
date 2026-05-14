@@ -21,7 +21,14 @@ import ConfrontoSedi from './components/ConfrontoSedi'
 import EsportaDati from './components/EsportaDati'
 import { exportRicettaPDF, exportPLMensile, exportProduzione } from './lib/exportPDF'
 import { CHANGELOG } from './lib/changelog'
-import { NovitaModal } from './components/Changelog'
+import ChangelogView, { NovitaModal } from './components/Changelog'
+import NotifichePanel from './components/NotifichePanel'
+import UploadToast from './components/UploadToast'
+import { uploadManager } from './lib/uploadManager'
+import { ALLERGENI, ALLERGENE_COLORS } from './lib/allergeni'
+import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese } from './lib/rese'
+import Fornitori from './components/Fornitori'
+import Personale from './components/Personale'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -899,7 +906,7 @@ function calcolaFC(ricetta, ingCosti, ricettario, _depth) {
 
     const c = ingCosti[normIng(ing.nome)];
     if (!c) { mancanti.push(ing.nome); continue; }
-    tot += qty * c.costoG;
+    tot += qty * costoNettoPerG(c.costoG, nomeNorm);
   }
   return { tot:parseFloat(tot.toFixed(3)), mancanti };
 }
@@ -937,6 +944,9 @@ const isSemilavorato = (nome, ricettario) => {
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
 const SK_RIC="pasticceria-ricettario-v1", SK_PROD="pasticceria-produzione-v1", SK_ACT="pasticceria-actions-v1", SK_AI="pasticceria-ai-v1";
 const SK_MAG="pasticceria-magazzino-v1", SK_GIOR="pasticceria-giornaliero-v1", SK_CHIUS="pasticceria-chiusure-v1", SK_EXCL="pasticceria-esclusi-v1";
+const SK_RESE="pasticceria-rese-v1";
+// Load rese from localStorage immediately so calcolaFC uses correct yields from the start
+try { loadRese(JSON.parse(localStorage.getItem(SK_RESE)||'{}')); } catch {}
 // sload/ssave are imported from ./lib/storage and injected in Dashboard props
 
 // ─── MONTH HELPERS ────────────────────────────────────────────────────────────
@@ -1105,6 +1115,19 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
           <div style={{fontSize:11,color:C.textSoft}}>
             {reg.unita} {reg.tipo==="fetta"?"fette":"pezzi"} × {fmt(reg.prezzo)}{ric.totImpasto1>0?` · ${ric.totImpasto1}g impasto`:""}
           </div>
+          {(ric.allergeni||[]).length>0&&(
+            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>
+              {(ric.allergeni||[]).map(aid=>{
+                const a=ALLERGENI.find(x=>x.id===aid);
+                if(!a) return null;
+                return (
+                  <span key={aid} style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,background:`${ALLERGENE_COLORS[aid]}18`,color:ALLERGENE_COLORS[aid],border:`1px solid ${ALLERGENE_COLORS[aid]}40`}}>
+                    {a.emoji} {a.label}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
         {/* Mini P&L inline */}
         <div style={{display:"flex",gap:2,alignItems:"stretch",flexShrink:0}}>
@@ -4374,7 +4397,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
     return [...s].filter(k=>k&&k.length>1).sort();
   }, [ricettario]);
 
-  const empty = { nome:"", unita:8, prezzo:4, tipo:"fetta", note:"", ingredienti:[], congelabile:false };
+  const empty = { nome:"", unita:8, prezzo:4, tipo:"fetta", note:"", ingredienti:[], congelabile:false, allergeni:[] };
   const [form, setForm] = useState(empty);
   const [newIngNome, setNewIngNome] = useState("");
   const [newIngQty,  setNewIngQty]  = useState("");
@@ -4398,7 +4421,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
     const r = ricettario?.ricette?.[nome];
     if (!r) return;
     const reg = getR(nome, ricettario?.ricette?.[nome]);
-    setForm({ nome:r.nome, unita:reg.unita, prezzo:reg.prezzo, tipo:reg.tipo, note:r.note||"", ingredienti:r.ingredienti.map(i=>({...i})), congelabile:r.congelabile||false });
+    setForm({ nome:r.nome, unita:reg.unita, prezzo:reg.prezzo, tipo:reg.tipo, note:r.note||"", ingredienti:r.ingredienti.map(i=>({...i})), congelabile:r.congelabile||false, allergeni:r.allergeni||[] });
     setEditMode(nome);
   };
 
@@ -4422,6 +4445,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
       prezzo: form.prezzo,
       tipo: form.tipo,
       congelabile: form.congelabile||false,
+      allergeni: form.allergeni||[],
     };
     const nuovoRic = { 
       ingredienti_costi: ricettario?.ingredienti_costi || {},
@@ -4623,6 +4647,26 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
                   {form.congelabile?"Può essere prodotto e conservato in freezer — la vendita può avvenire nei giorni successivi":"Attiva se questo prodotto può essere congelato e venduto in giorni diversi dalla produzione"}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Allergeni */}
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+            <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:4}}>⚠️ Allergeni presenti</div>
+            <div style={{fontSize:10,color:C.textSoft,marginBottom:14}}>Seleziona tutti gli allergeni contenuti nella ricetta (Reg. UE 1169/2011)</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8}}>
+              {ALLERGENI.map(a=>{
+                const sel = (form.allergeni||[]).includes(a.id);
+                return (
+                  <label key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:8,cursor:"pointer",border:`1.5px solid ${sel?ALLERGENE_COLORS[a.id]:"#E2D9D5"}`,background:sel?`${ALLERGENE_COLORS[a.id]}12`:"#FDFAF8",transition:"all 0.15s"}}>
+                    <input type="checkbox" checked={sel} style={{display:"none"}}
+                      onChange={()=>setForm(f=>({...f,allergeni:sel?(f.allergeni||[]).filter(x=>x!==a.id):[...(f.allergeni||[]),a.id]}))}/>
+                    <span style={{fontSize:15}}>{a.emoji}</span>
+                    <span style={{fontSize:10,fontWeight:sel?700:500,color:sel?ALLERGENE_COLORS[a.id]:C.textMid}}>{a.label}</span>
+                    {sel&&<span style={{marginLeft:"auto",fontSize:9,fontWeight:900,color:ALLERGENE_COLORS[a.id]}}>✓</span>}
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -6512,10 +6556,22 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
 
 
 // ─── DASHBOARD HOME VIEW ──────────────────────────────────────────────────────
-function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView }) {
+function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView, orgId }) {
   const isMobile = useIsMobile();
   const now = new Date();
   const today = now.toISOString().slice(0,10);
+  const [costoLavoroMese, setCostoLavoroMese] = useState(null);
+  useEffect(() => {
+    if (!orgId) return;
+    const mese = today.slice(0,7);
+    const from = mese + "-01";
+    const last = new Date(mese.split("-")[0], parseInt(mese.split("-")[1]), 0).getDate();
+    const to = `${mese}-${String(last).padStart(2,"0")}`;
+    supabase.from("turni").select("costo").eq("organization_id", orgId).gte("data", from).lte("data", to)
+      .then(({ data }) => {
+        if (data) setCostoLavoroMese(data.reduce((s,t)=>s+(t.costo||0), 0));
+      });
+  }, [orgId, today]);
 
   // KPI del giorno
   const sessioneOggi = (giornaliero||[]).filter(s => s.data === today);
@@ -6569,8 +6625,8 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
         </div>
       </div>
 
-      {/* KPI grid — 2x2 su mobile, 4 colonne su desktop */}
-      <div style={{ display:"grid", gridTemplateColumns: isMobile?"repeat(2,1fr)":"repeat(4,1fr)", gap: isMobile?10:16, marginBottom:24 }}>
+      {/* KPI grid — 2x2 su mobile, 5 colonne su desktop */}
+      <div style={{ display:"grid", gridTemplateColumns: isMobile?"repeat(2,1fr)":"repeat(5,1fr)", gap: isMobile?10:16, marginBottom:24 }}>
         <div style={kpiStyle}>
           <div style={labelStyle}>{isMobile?"Ricavi oggi":"Ricavi stimati oggi"}</div>
           <div style={valStyle}>{fmt(ricaviStimati)}</div>
@@ -6580,6 +6636,11 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
           <div style={labelStyle}>{isMobile?"Food cost":"Food cost medio"}</div>
           <div style={valStyle}>{(fcMedio*100).toFixed(1)}%</div>
           <div style={subStyle}>{ricette.length} ricette</div>
+        </div>
+        <div style={kpiStyle}>
+          <div style={labelStyle}>{isMobile?"Costo lavoro":"Costo lavoro mese"}</div>
+          <div style={{...valStyle, color: costoLavoroMese>0 ? C.amber : C.textSoft, fontSize:isMobile?20:24}}>{costoLavoroMese!=null?fmt(costoLavoroMese):"—"}</div>
+          <div style={subStyle}>turni registrati</div>
         </div>
         <div style={kpiStyle}>
           <div style={labelStyle}>{isMobile?"Azioni AI":"Azioni AI aperte"}</div>
@@ -6722,9 +6783,29 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
   const TABS = [
     ["generale", "⚙️ Generale"],
+    ["rese", "🔢 Rese"],
     ["sedi", "🏪 Sedi"],
     ["dati", "💾 Dati"],
   ];
+
+  // Rese state
+  const [reseState, setReseState] = useState(() => getAllRese());
+  const [reseFiltro, setReseFiltro] = useState("");
+  const saveRese = (nomeNorm, val) => {
+    const v = Math.max(1, Math.min(100, parseFloat(val)||100)) / 100;
+    setResaIngrediente(nomeNorm, v);
+    const nuoveRese = getStoreRese();
+    localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese));
+    setReseState(getAllRese());
+    notify("✓ Resa aggiornata");
+  };
+  const resetRese = (nomeNorm) => {
+    setResaIngrediente(nomeNorm, 1.0);
+    const nuoveRese = getStoreRese();
+    localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese));
+    setReseState(getAllRese());
+    notify("✓ Resa ripristinata al 100%");
+  };
 
   return (
     <div style={{ maxWidth:700 }}>
@@ -6856,6 +6937,49 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
         </div>
       )}
 
+      {/* ── TAB: Rese ── */}
+      {tab === "rese" && (
+        <div>
+          <div style={card}>
+            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:6 }}>Resa ingredienti</div>
+            <div style={{ fontSize:12, color:C.textSoft, marginBottom:16, lineHeight:1.7 }}>
+              La resa indica quanta parte del peso lordo acquistato è effettivamente utilizzabile. <br/>
+              Es. uova 85% → per 100g netti devi acquistare 118g lordi → il food cost reale è più alto.<br/>
+              FoodOS applica automaticamente la resa al calcolo del food cost di ogni ricetta.
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <input value={reseFiltro} onChange={e=>setReseFiltro(e.target.value)} placeholder="Filtra ingrediente…"
+                style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:12, width:"100%", color:C.text }}/>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:10 }}>
+              {Object.entries(reseState).filter(([k])=>!reseFiltro||k.includes(reseFiltro.toLowerCase())).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>{
+                const pct = Math.round(v*100);
+                const isCustom = getStoreRese()[k]!==undefined;
+                return (
+                  <div key={k} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: isCustom?"#FFF0F0":"#FDFAF8", borderRadius:9, border:`1px solid ${isCustom?C.red+"40":C.border}` }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:C.text, textTransform:"capitalize" }}>{k}</div>
+                      <div style={{ fontSize:9, color:isCustom?C.red:C.textSoft, fontWeight:600 }}>{isCustom?"personalizzata":"default"}</div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <input type="number" min="1" max="100" defaultValue={pct}
+                        onBlur={e=>saveRese(k,e.target.value)}
+                        onKeyDown={e=>e.key==="Enter"&&saveRese(k,e.target.value)}
+                        style={{ width:60, padding:"5px 8px", borderRadius:7, border:`1px solid ${C.borderStr}`, fontSize:12, textAlign:"right", fontWeight:700, color:C.text }}/>
+                      <span style={{ fontSize:11, color:C.textSoft }}>%</span>
+                      {isCustom&&<button onClick={()=>resetRese(k)} style={{ fontSize:9, padding:"3px 7px", borderRadius:5, border:`1px solid ${C.border}`, background:"transparent", color:C.textSoft, cursor:"pointer" }}>↩</button>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop:16, fontSize:11, color:C.textSoft, lineHeight:1.7 }}>
+              💡 Le rese modificate vengono applicate immediatamente al food cost di tutte le ricette. I valori di default sono basati su standard di laboratorio.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── TAB: Sedi ── */}
       {tab === "sedi" && (
         <ImpostazioniSedi orgId={orgId} piano={piano} />
@@ -6883,6 +7007,136 @@ class ErrorBoundary extends React.Component {
     );
     return this.props.children;
   }
+}
+
+function SchedaAllergeniView({ ricettario }) {
+  const ricette = Object.values(ricettario?.ricette||{}).filter(r=>r.tipo!=="semilavorato"&&r.tipo!=="interno");
+
+  const esportaPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+    const pw = doc.internal.pageSize.getWidth();
+    const ph = doc.internal.pageSize.getHeight();
+    const colW = 12;
+    const rowH = 8;
+    const startX = 8;
+    let y = 14;
+
+    doc.setFontSize(14); doc.setFont(undefined,'bold');
+    doc.text('Scheda Allergeni', pw/2, y, {align:'center'});
+    y += 6;
+    doc.setFontSize(7); doc.setFont(undefined,'normal');
+    doc.setTextColor(120);
+    doc.text('Reg. UE 1169/2011 — Informazioni sugli allergeni alimentari', pw/2, y, {align:'center'});
+    doc.setTextColor(0);
+    y += 8;
+
+    // Header: ricette come colonne
+    const nomiRic = ricette.map(r=>r.nome);
+    const totCols = nomiRic.length;
+    const labW = 38;
+    const availW = pw - startX - labW - 8;
+    const cW = Math.min(colW, availW / Math.max(1, totCols));
+
+    doc.setFontSize(6); doc.setFont(undefined,'bold');
+    nomiRic.forEach((n,i)=>{
+      doc.text(n.substring(0,12), startX + labW + i*cW + cW/2, y, {align:'center', maxWidth:cW-1});
+    });
+    y += 5;
+
+    ALLERGENI.forEach(a => {
+      doc.setFontSize(7); doc.setFont(undefined,'normal');
+      doc.text(`${a.emoji} ${a.label}`, startX, y+rowH*0.6);
+      ricette.forEach((r,i)=>{
+        const has = (r.allergeni||[]).includes(a.id);
+        if(has){
+          doc.setFillColor(220,50,50);
+          doc.rect(startX+labW+i*cW+1, y+1, cW-2, rowH-2, 'F');
+          doc.setTextColor(255); doc.setFontSize(8); doc.setFont(undefined,'bold');
+          doc.text('✓', startX+labW+i*cW+cW/2, y+rowH*0.65, {align:'center'});
+          doc.setTextColor(0); doc.setFont(undefined,'normal');
+        } else {
+          doc.setDrawColor(220); doc.rect(startX+labW+i*cW+1, y+1, cW-2, rowH-2);
+        }
+      });
+      y += rowH;
+    });
+
+    y += 6;
+    doc.setFontSize(6); doc.setTextColor(120);
+    doc.text('⚠ Le informazioni sugli allergeni possono variare in base ai fornitori. Verificare sempre le etichette dei singoli ingredienti.', startX, y);
+    doc.text(`Generato il ${new Date().toLocaleDateString('it-IT')}`, pw-8, y, {align:'right'});
+    doc.save('scheda-allergeni.pdf');
+  };
+
+  return (
+    <div style={{maxWidth:1100}}>
+      <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+        <div>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Sicurezza alimentare</div>
+          <h1 style={{margin:"0 0 6px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Scheda Allergeni</h1>
+          <p style={{margin:0,fontSize:12,color:C.textSoft}}>Panoramica degli allergeni per tutte le ricette — Regolamento UE 1169/2011</p>
+        </div>
+        <button onClick={esportaPDF}
+          style={{padding:"10px 22px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer",boxShadow:"0 2px 10px rgba(192,57,43,0.25)"}}>
+          📄 Esporta PDF
+        </button>
+      </div>
+
+      {ricette.length===0 ? (
+        <div style={{textAlign:"center",padding:"60px 0",color:C.textSoft,fontSize:13}}>
+          Nessuna ricetta nel ricettario. Aggiungi ricette con i loro allergeni per visualizzare la scheda.
+        </div>
+      ) : (
+        <>
+          {/* Tabella allergeni × ricette */}
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,overflow:"auto",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",marginBottom:24}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+              <thead>
+                <tr style={{background:"#F8F4F2"}}>
+                  <th style={{padding:"12px 16px",textAlign:"left",fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,minWidth:160,position:"sticky",left:0,background:"#F8F4F2"}}>Allergene</th>
+                  {ricette.map(r=>(
+                    <th key={r.nome} style={{padding:"8px 4px",textAlign:"center",fontSize:9,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,minWidth:80,maxWidth:100,wordBreak:"break-word"}}>
+                      {r.nome.length>14?r.nome.substring(0,13)+"…":r.nome}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ALLERGENI.map((a,ai)=>(
+                  <tr key={a.id} style={{background:ai%2===0?C.white:"#FDFAF8",borderBottom:`1px solid ${C.border}`}}>
+                    <td style={{padding:"10px 16px",fontWeight:600,fontSize:12,color:C.text,position:"sticky",left:0,background:ai%2===0?C.white:"#FDFAF8",display:"flex",alignItems:"center",gap:8,minWidth:160}}>
+                      <span style={{fontSize:16}}>{a.emoji}</span>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:C.text}}>{a.label}</div>
+                      </div>
+                    </td>
+                    {ricette.map(r=>{
+                      const has=(r.allergeni||[]).includes(a.id);
+                      return (
+                        <td key={r.nome} style={{padding:"10px 4px",textAlign:"center"}}>
+                          {has ? (
+                            <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:26,height:26,borderRadius:6,background:`${ALLERGENE_COLORS[a.id]}20`,border:`1.5px solid ${ALLERGENE_COLORS[a.id]}`,color:ALLERGENE_COLORS[a.id],fontSize:13,fontWeight:900}}>✓</span>
+                          ) : (
+                            <span style={{display:"inline-block",width:26,height:26,borderRadius:6,border:`1px solid #E8E0DC`,background:"#FAFAFA"}}/>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Disclaimer legale */}
+          <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"14px 18px",fontSize:11,color:"#92400E",lineHeight:1.7}}>
+            <strong>⚠️ Disclaimer:</strong> Le informazioni sugli allergeni sono indicative e si basano sulle ricette inserite. Gli allergeni possono variare in base ai fornitori e alla contaminazione crociata durante la produzione. Verificare sempre le etichette dei singoli ingredienti e aggiornare la scheda ad ogni modifica di ricetta o fornitore. <em>Regolamento UE 1169/2011 — Art. 21.</em>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function Dashboard({
@@ -7011,27 +7265,39 @@ export default function Dashboard({
   const handleFile=useCallback(async files=>{
     setLoading(true);
     let merged = ricettario ? { ...ricettario, ricette:{...ricettario.ricette}, ingredienti_costi:{...ricettario.ingredienti_costi} } : null;
-    let totRicette = 0;
     let totFile = 0;
-    for(const f of files){
+
+    for(const f of Array.from(files)){
       if(!f.name.endsWith(".xlsx")) continue;
-      try{
-        const p=await parseRicettario(f);
-        if(!merged){
-          merged = p;
-        } else {
-          // Merge: nuove ricette sovrascrivono quelle con stesso nome, prezzi si aggiungono
-          merged = {
-            ...merged,
-            ricette: { ...merged.ricette, ...p.ricette },
-            ingredienti_costi: { ...merged.ingredienti_costi, ...p.ingredienti_costi },
-          };
-        }
-        totRicette += Object.keys(p.ricette).length;
+      const id = `ric-${f.name}-${Date.now()}`;
+
+      const result = await new Promise((resolve) => {
+        uploadManager.add(id, f, async (onProgress) => {
+          onProgress(20);
+          const p = await parseRicettario(f);
+          onProgress(100);
+          return p;
+        });
+        const unsub = uploadManager.subscribe(list => {
+          const u = list.find(x => x.id === id);
+          if (!u) { unsub(); resolve(null); return; }
+          if (u.status === 'done') { unsub(); resolve(u.result); }
+          if (u.status === 'error') { unsub(); notify("⚠ "+f.name+": "+u.error, false); resolve(null); }
+        });
+      });
+
+      if (result) {
+        if (!merged) merged = result;
+        else merged = {
+          ...merged,
+          ricette: { ...merged.ricette, ...result.ricette },
+          ingredienti_costi: { ...merged.ingredienti_costi, ...result.ingredienti_costi },
+        };
         totFile++;
-      }catch(e){notify("⚠ "+f.name+": "+e.message,false);}
+      }
     }
-    if(merged){
+
+    if(merged && totFile > 0){
       setRic(merged);
       await ssave(SK_RIC, merged);
       try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
@@ -7292,6 +7558,7 @@ export default function Dashboard({
               {navItem("ricettario","book","Ricettario",hasRic,false,0)}
               {navItem("semilavorati","layers","Semilavorati",hasRic,false,0)}
               {navItem("nuova-ricetta","pencil","Nuova / Modifica",false,false,0)}
+              {navItem("scheda-allergeni","fileText","Scheda Allergeni",false,false,0)}
 
               {sec("Analisi")}
               {navItem("simulatore","trendUp","Food Cost",hasRic,false,0)}
@@ -7303,6 +7570,8 @@ export default function Dashboard({
               {navItem("magazzino","pkg","Magazzino",hasMag,criticeMag>0,criticeMag)}
               {navItem("chiusura","creditCard","Cassa",hasChius,false,0)}
               {navItem("scadenzario","fileText","Scadenzario",false,false,0)}
+              {navItem("fornitori","pkg","Fornitori",false,false,0)}
+              {navItem("personale","clipboard","Personale",false,false,0)}
 
               {sec("Altro")}
               {navItem("azioni","sparkles","AI Assistant",false,false,azioniAperte)}
@@ -7389,6 +7658,7 @@ export default function Dashboard({
       {showNotifiche&&<NotifichePanel notifiche={notifiche} nonLette={nonLette} onSegnaLetta={segnaLetta} onSegnaTutte={segnaTutte} onClose={()=>setShowNotifiche(false)}/>}
 
       {/* Novità modal */}
+      <UploadToast />
       {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');}} onVediTutte={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');setView('changelog');}}/>}
 
       {/* CONTENT */}
@@ -7439,7 +7709,7 @@ export default function Dashboard({
         )}
 
         {/* Home dashboard */}
-        {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView}/>}
+        {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId}/>}
 
         {/* Ricettario — mostra upload se non ancora caricato */}
         {view==="ricettario"&&!ricettario&&(
@@ -7458,6 +7728,9 @@ export default function Dashboard({
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} onUpdateRegola={handleUpdateRegola}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta}/>}
+        {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario}/>}
+        {view==="fornitori"&&<Fornitori orgId={orgId} notify={notify}/>}
+        {view==="personale"&&<Personale orgId={orgId} notify={notify}/>}
         {view==="chiusura"&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure}/>}
         {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR}/>}
@@ -7469,7 +7742,7 @@ export default function Dashboard({
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","integrazioni","scadenzario","calendario","changelog"].includes(view)&&(
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
       </div>
