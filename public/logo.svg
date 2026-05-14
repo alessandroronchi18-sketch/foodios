@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Dark background gradient -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2E0C0C"/>
+      <stop offset="100%" stop-color="#140404"/>
+    </linearGradient>
+    <!-- F letter gradient: diagonal top-left bright → bottom-right deep -->
+    <linearGradient id="f" x1="112" y1="96" x2="384" y2="416" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F0614E"/>
+      <stop offset="45%" stop-color="#E74C3C"/>
+      <stop offset="100%" stop-color="#9B2D20"/>
+    </linearGradient>
+    <!-- Subtle top radial glow on background -->
+    <radialGradient id="glow" cx="50%" cy="10%" r="55%">
+      <stop offset="0%" stop-color="#C0392B" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#C0392B" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Highlight on the F — thin top edge shine -->
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bg)"/>
+  <!-- Top glow -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#glow)"/>
+  <!-- Inner border highlight (depth effect) -->
+  <rect x="2" y="2" width="508" height="508" rx="94" ry="94"
+        fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="2"/>
+
+  <!-- ═══ F LETTER ═══ -->
+
+  <!-- Vertical stroke: x 112–178, y 96–416 -->
+  <rect x="112" y="96" width="66" height="320" rx="10" ry="10" fill="url(#f)"/>
+
+  <!-- Top horizontal bar: x 112–384, y 96–160 -->
+  <rect x="112" y="96" width="272" height="64" rx="10" ry="10" fill="url(#f)"/>
+
+  <!-- Middle bar with spatula/knife tip
+       Bar body: x 112–304, y 228–288 (60px tall)
+       Spatula: tip extends to x 354, y 258 (center)
+       Left corners rounded via bezier, right side tapers to a point -->
+  <path d="
+    M 122 228
+    Q 112 228 112 238
+    L 112 278
+    Q 112 288 122 288
+    L 304 288
+    L 354 258
+    L 304 228
+    Z
+  " fill="url(#f)"/>
+
+  <!-- Subtle shine on vertical stroke top portion -->
+  <rect x="112" y="96" width="66" height="80" rx="10" ry="10" fill="url(#shine)"/>
+</svg>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import FoodOSLogo from '../components/FoodOSLogo'
 
 // ─── CITTÀ ITALIANE (>30.000 abitanti) ────────────────────────────────────────
 const CITTA_ITALIANE = [
@@ -200,12 +201,9 @@ export function ResetPasswordPage({ onDone }) {
     }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{
-            width: 48, height: 48, background: 'linear-gradient(135deg,#C0392B,#E74C3C)',
-            borderRadius: 14, display: 'inline-flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: 24, marginBottom: 12,
-            boxShadow: '0 6px 20px rgba(192,57,43,0.25)',
-          }}>🍰</div>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+            <FoodOSLogo size={52} style={{ boxShadow: '0 6px 22px rgba(192,57,43,0.28)', borderRadius: 13 }} />
+          </div>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
             Imposta nuova password
           </h1>
@@ -419,12 +417,9 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{
-            width: 48, height: 48, background: 'linear-gradient(135deg,#C0392B,#E74C3C)',
-            borderRadius: 14, display: 'inline-flex', alignItems: 'center',
-            justifyContent: 'center', fontSize: 24, marginBottom: 12,
-            boxShadow: '0 6px 20px rgba(192,57,43,0.25)',
-          }}>🍰</div>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+            <FoodOSLogo size={56} style={{ boxShadow: '0 6px 24px rgba(192,57,43,0.28)', borderRadius: 14 }} />
+          </div>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
             FoodOS
           </h1>

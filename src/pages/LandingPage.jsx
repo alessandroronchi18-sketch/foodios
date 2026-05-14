@@ -86,9 +86,7 @@ function MockApp() {
         <div style={{ width: 180, background: '#0F172A', padding: '20px 0', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '0 16px 20px', borderBottom: '1px solid #1E293B', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 28, height: 28, background: C.accent, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="barChart" size={14} color="#fff" />
-              </div>
+              <FoodOSLogo size={26} style={{ borderRadius: 6 }} />
               <span style={{ fontSize: 13, fontWeight: 700, color: '#F8FAFC', letterSpacing: '-0.01em' }}>FoodOS</span>
             </div>
           </div>
@@ -262,10 +260,8 @@ export default function LandingPage({ onLogin, onRegister }) {
       }}>
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 30, height: 30, background: C.text, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="barChart" size={16} color="#fff" />
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <FoodOSLogo size={32} style={{ borderRadius: 8, boxShadow: '0 2px 10px rgba(192,57,43,0.28)' }} />
             <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.03em', color: C.text }}>FoodOS</span>
           </div>
 
@@ -561,9 +557,7 @@ export default function LandingPage({ onLogin, onRegister }) {
       <footer style={{ background: '#070E1A', padding: '40px 24px', borderTop: '1px solid #1E293B' }}>
         <div style={{ maxWidth: 1120, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 26, height: 26, background: '#1E293B', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="barChart" size={13} color="#64748B" />
-            </div>
+            <FoodOSLogo size={24} style={{ borderRadius: 6, opacity: 0.7 }} />
             <span style={{ fontSize: 14, fontWeight: 700, color: '#334155', letterSpacing: '-0.02em' }}>FoodOS</span>
           </div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
