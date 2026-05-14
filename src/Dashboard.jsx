@@ -4112,6 +4112,9 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
 }
 
 // ─── FOTO OCR COMPONENT ──────────────────────────────────────────────────────
+// Module-level store: persists AI results across FotoOCR unmount/remount (navigation)
+const _ocrPending = {} // { [mode]: { parsed, loading, error } }
+
 function FotoOCR({ mode, onResult, onBatchSave, notify, ricettario }) {
   const [imgs, setImgs]         = useState([]); // [{data, preview, mediaType}]
   const [img, setImg]           = useState(null); // compat: current base64
@@ -4121,6 +4124,15 @@ function FotoOCR({ mode, onResult, onBatchSave, notify, ricettario }) {
   const [error, setError]       = useState(null);
   const [multiResults, setMultiResults] = useState([]); // risultati da più foto
   const inputRef = useRef(null);
+
+  // Restore pending result when component remounts after navigation
+  useEffect(() => {
+    const p = _ocrPending[mode];
+    if (!p) return;
+    if (p.parsed)  { setParsed(p.parsed); setLoading(false); delete _ocrPending[mode]; }
+    else if (p.error) { setError(p.error); setLoading(false); delete _ocrPending[mode]; }
+    else if (p.loading) { setLoading(true); } // still running — spinner shows, toast tracks it
+  }, [mode]);
 
   const PROMPTS = {
     ricetta:`You are an expert OCR and recipe parser for Italian and international artisan pastry recipes.
@@ -4213,58 +4225,79 @@ Instructions:
     return JSON.parse(match[0]);
   };
 
-  const handleAnalizza = async () => {
+  const handleAnalizza = () => {
     if (!img) return;
+    const toProcess = imgs.length > 1 ? imgs : [{ data:img, mediaType }];
     setLoading(true); setError(null); setParsed(null); setMultiResults([]);
-    try {
-      const toProcess = imgs.length > 1 ? imgs : [{ data:img, mediaType }];
-      if (toProcess.length === 1) {
-        const obj = await analyzeOneImage(toProcess[0].data, toProcess[0].mediaType);
-        setParsed(obj);
-      } else if (mode === "ricetta" && onBatchSave) {
-        // Ricette multiple: ogni foto è una ricetta diversa — salva ognuna direttamente
-        let saved = 0, skipped = 0;
-        let ricettarioAccumulato = null; // accumula tutte le ricette senza aspettare lo state React
-        for (let i = 0; i < toProcess.length; i++) {
-          notify(`📷 Analizzando ricetta ${i+1} di ${toProcess.length}…`);
-          try {
-            const obj = await analyzeOneImage(toProcess[i].data, toProcess[i].mediaType);
-            const ok = await onBatchSave(obj, i, ricettarioAccumulato, (r)=>{ ricettarioAccumulato=r; });
-            if (ok) saved++; else skipped++;
-          } catch(e) {
-            notify(`⚠ Foto ${i+1}: ${e.message}`, false);
-            skipped++;
+
+    // Batch save mode (multiple ricette, one per photo): keep synchronous so onBatchSave can accumulate
+    if (mode === "ricetta" && onBatchSave && toProcess.length > 1) {
+      (async () => {
+        try {
+          let saved = 0, skipped = 0, ricettarioAccumulato = null;
+          for (let i = 0; i < toProcess.length; i++) {
+            notify(`📷 Analizzando ricetta ${i+1} di ${toProcess.length}…`);
+            try {
+              const obj = await analyzeOneImage(toProcess[i].data, toProcess[i].mediaType);
+              const ok = await onBatchSave(obj, i, ricettarioAccumulato, (r)=>{ ricettarioAccumulato=r; });
+              if (ok) saved++; else skipped++;
+            } catch(e) { notify(`⚠ Foto ${i+1}: ${e.message}`, false); skipped++; }
           }
-        }
-        notify(`✓ ${saved} ricette salvate${skipped>0?` · ${skipped} saltate (nome mancante o senza ingredienti)`:""}`);
-        reset();
-      } else {
-        // Multiple images for non-ricetta modes: process all and merge results
-        const results = [];
-        for (let i = 0; i < toProcess.length; i++) {
-          notify(`📷 Analizzando foto ${i+1} di ${toProcess.length}…`);
-          const obj = await analyzeOneImage(toProcess[i].data, toProcess[i].mediaType);
-          results.push(obj);
-        }
-        let merged;
-        if (mode === "produzione") {
-          const byNome = {};
-          for (const r of results) for (const p of (r.prodotti||[])) byNome[p.nome] = (byNome[p.nome]||0) + (p.stampi||0);
-          merged = { prodotti: Object.entries(byNome).map(([nome,stampi])=>({nome,stampi})) };
-        } else if (mode === "prezzi") {
-          const byNome = {};
-          for (const r of results) for (const i of (r.ingredienti||[])) if (i.prezzo_kg>0) byNome[i.nome] = i.prezzo_kg;
-          merged = { ingredienti: Object.entries(byNome).map(([nome,prezzo_kg])=>({nome,prezzo_kg})) };
-        } else {
-          const byNome = {};
-          for (const r of results) for (const i of (r.ingredienti||[])) byNome[i.nome] = (byNome[i.nome]||0) + (i.quantita_g||0);
-          merged = { ingredienti: Object.entries(byNome).map(([nome,quantita_g])=>({nome,quantita_g})) };
-        }
-        setParsed(merged);
-        setMultiResults(results);
+          notify(`✓ ${saved} ricette salvate${skipped>0?` · ${skipped} saltate`:""}`);
+          reset();
+        } catch(e) { setError(e.message); }
+        setLoading(false);
+      })();
+      return;
+    }
+
+    // Single image or multi-merge: use uploadManager so analysis survives navigation
+    const label = toProcess.length > 1
+      ? `Analisi ${toProcess.length} foto (${mode})`
+      : `Analisi foto (${mode})`;
+    const id = `ocr-${mode}-${Date.now()}`;
+    _ocrPending[mode] = { loading: true, parsed: null, error: null };
+
+    uploadManager.add(id, { name: label }, async (onProgress) => {
+      if (toProcess.length === 1) {
+        onProgress(20);
+        const obj = await analyzeOneImage(toProcess[0].data, toProcess[0].mediaType);
+        onProgress(100);
+        return obj;
       }
-    } catch(e) { setError(e.message); }
-    setLoading(false);
+      // Multi-image merge for non-batch modes
+      const results = [];
+      for (let i = 0; i < toProcess.length; i++) {
+        const obj = await analyzeOneImage(toProcess[i].data, toProcess[i].mediaType);
+        results.push(obj);
+        onProgress(Math.round(((i+1)/toProcess.length)*100));
+      }
+      setMultiResults(results);
+      if (mode === "produzione") {
+        const byNome = {};
+        for (const r of results) for (const p of (r.prodotti||[])) byNome[p.nome] = (byNome[p.nome]||0)+(p.stampi||0);
+        return { prodotti: Object.entries(byNome).map(([nome,stampi])=>({nome,stampi})) };
+      } else if (mode === "prezzi") {
+        const byNome = {};
+        for (const r of results) for (const i of (r.ingredienti||[])) if(i.prezzo_kg>0) byNome[i.nome]=i.prezzo_kg;
+        return { ingredienti: Object.entries(byNome).map(([nome,prezzo_kg])=>({nome,prezzo_kg})) };
+      } else {
+        const byNome = {};
+        for (const r of results) for (const i of (r.ingredienti||[])) byNome[i.nome]=(byNome[i.nome]||0)+(i.quantita_g||0);
+        return { ingredienti: Object.entries(byNome).map(([nome,quantita_g])=>({nome,quantita_g})) };
+      }
+    }, {
+      onComplete: (obj) => {
+        _ocrPending[mode] = { loading: false, parsed: obj, error: null };
+        setParsed(obj);   // no-op if unmounted — remount useEffect picks it up
+        setLoading(false);
+      },
+      onError: (err) => {
+        _ocrPending[mode] = { loading: false, parsed: null, error: err.message };
+        setError(err.message);
+        setLoading(false);
+      },
+    });
   };
 
   const handleConferma = () => {
@@ -5765,23 +5798,25 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   };
 
   // ── Import delivery handler ───────────────────────────────────────────────
-  const handleImportDeliveryFile = async (e) => {
+  const handleImportDeliveryFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportLoading(true); setImportPreview(null);
-    try {
-      if (importPiattaforma === 'deliveroo') {
-        setImportPreview({ tipo:'aggregated', righe: parseDeliveroo(await file.text()) });
-      } else if (importPiattaforma === 'justeat') {
-        setImportPreview({ tipo:'aggregated', righe: parseJustEat(await file.text()) });
-      } else if (importPiattaforma === 'glovo') {
-        setImportPreview({ tipo:'aggregated', righe: await parseGlovo(file) });
-      } else {
-        const { headers, preview, rows } = parseGenericCSV(await file.text());
-        setImportPreview({ tipo:'generic', headers, preview, rows });
-      }
-    } catch(ex) { notify(`⚠ ${ex.message}`); }
-    setImportLoading(false);
+    const piattaforma = importPiattaforma;
+    const id = `delivery-${file.name}-${Date.now()}`;
+    uploadManager.add(id, file, async (onProgress) => {
+      onProgress(30);
+      let result;
+      if (piattaforma === 'deliveroo')      result = { tipo:'aggregated', righe: parseDeliveroo(await file.text()) };
+      else if (piattaforma === 'justeat')   result = { tipo:'aggregated', righe: parseJustEat(await file.text()) };
+      else if (piattaforma === 'glovo')     result = { tipo:'aggregated', righe: await parseGlovo(file) };
+      else { const g = parseGenericCSV(await file.text()); result = { tipo:'generic', ...g }; }
+      onProgress(100);
+      return result;
+    }, {
+      onComplete: (result) => { setImportPreview(result); setImportLoading(false); },
+      onError: (err) => { notify(`⚠ ${err.message}`); setImportLoading(false); },
+    });
   };
 
   const handleConfirmDelivery = async () => {
@@ -5797,15 +5832,21 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   };
 
   // ── Import cassa handler ──────────────────────────────────────────────────
-  const handleImportCassaFile = async (e) => {
+  const handleImportCassaFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportLoading(true); setImportPreview(null);
-    try {
-      const righe = await parseCassaFile(importSistema, file);
-      setImportPreview({ tipo:'aggregated', righe });
-    } catch(ex) { notify(`⚠ ${ex.message}`); }
-    setImportLoading(false);
+    const sistema = importSistema;
+    const id = `cassa-${file.name}-${Date.now()}`;
+    uploadManager.add(id, file, async (onProgress) => {
+      onProgress(30);
+      const righe = await parseCassaFile(sistema, file);
+      onProgress(100);
+      return { tipo:'aggregated', righe };
+    }, {
+      onComplete: (result) => { setImportPreview(result); setImportLoading(false); },
+      onError: (err) => { notify(`⚠ ${err.message}`); setImportLoading(false); },
+    });
   };
 
   const handleConfirmCassa = async () => {
@@ -7281,50 +7322,39 @@ export default function Dashboard({
     if(vista !== ULTIMA) setShowNovita(true);
   },[ready]);
 
-  const handleFile=useCallback(async files=>{
-    setLoading(true);
-    let merged = ricettario ? { ...ricettario, ricette:{...ricettario.ricette}, ingredienti_costi:{...ricettario.ingredienti_costi} } : null;
-    let totFile = 0;
-
+  const handleFile=useCallback(files=>{
+    // Fire-and-forget: each file runs independently via uploadManager.
+    // onComplete uses functional setRic updater so it's safe even if user navigated away.
     for(const f of Array.from(files)){
       if(!f.name.endsWith(".xlsx")) continue;
       const id = `ric-${f.name}-${Date.now()}`;
-
-      const result = await new Promise((resolve) => {
-        uploadManager.add(id, f, async (onProgress) => {
-          onProgress(20);
-          const p = await parseRicettario(f);
-          onProgress(100);
-          return p;
-        });
-        const unsub = uploadManager.subscribe(list => {
-          const u = list.find(x => x.id === id);
-          if (!u) { unsub(); resolve(null); return; }
-          if (u.status === 'done') { unsub(); resolve(u.result); }
-          if (u.status === 'error') { unsub(); notify("⚠ "+f.name+": "+u.error, false); resolve(null); }
-        });
+      const cacheKey = _RIC_CACHE_KEY;
+      uploadManager.add(id, f, async (onProgress) => {
+        onProgress(20);
+        const p = await parseRicettario(f);
+        onProgress(100);
+        return p;
+      }, {
+        onComplete: (result) => {
+          if (!result) return;
+          setRic(prev => {
+            const merged = prev ? {
+              ...prev,
+              ricette: { ...prev.ricette, ...result.ricette },
+              ingredienti_costi: { ...prev.ingredienti_costi, ...result.ingredienti_costi },
+            } : result;
+            ssave(SK_RIC, merged);
+            try { localStorage.setItem(cacheKey, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
+            return merged;
+          });
+          notify(`✓ ${f.name} — ${Object.keys(result.ricette || {}).length} ricette importate`);
+        },
+        onError: (err) => {
+          notify(`⚠ ${f.name}: ${err.message}`, false);
+        },
       });
-
-      if (result) {
-        if (!merged) merged = result;
-        else merged = {
-          ...merged,
-          ricette: { ...merged.ricette, ...result.ricette },
-          ingredienti_costi: { ...merged.ingredienti_costi, ...result.ingredienti_costi },
-        };
-        totFile++;
-      }
     }
-
-    if(merged && totFile > 0){
-      setRic(merged);
-      await ssave(SK_RIC, merged);
-      try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
-      notify(`✓ ${totFile > 1 ? totFile+" file caricati —" : "Ricettario caricato —"} ${Object.keys(merged.ricette).length} ricette totali`);
-      setView("ricettario");
-    }
-    setLoading(false);
-  },[ricettario]);
+  },[_RIC_CACHE_KEY, notify]);
 
   const handleImportPrezziOCR=useCallback(async (nuoviCosti) => {
     if (!ricettario) return;
@@ -7332,27 +7362,36 @@ export default function Dashboard({
     setRic(nuovoRic); await ssave(SK_RIC, nuovoRic);
   }, [ricettario]);
 
-  const handleImportPrezzi=useCallback(async files=>{
-    setLoading(true);
-    let mergedCosti = { ...(ricettario?.ingredienti_costi||{}) };
-    let totIng = 0; let totFile = 0;
+  const handleImportPrezzi=useCallback(files=>{
+    // Fire-and-forget: each file runs independently via uploadManager.
+    let hasValidFile = false;
     for(const f of Array.from(files||[])){
-      if(!f.name.endsWith(".xlsx") && !f.name.endsWith(".xls") && !f.name.endsWith(".csv")) continue;
-      try{
-        const {prezzi, count} = await parsePrezziFile(f);
-        mergedCosti = { ...mergedCosti, ...prezzi };
-        totIng += count; totFile++;
-      }catch(e){notify("⚠ "+f.name+": "+e.message,false);}
+      if(!/\.(xlsx|xls|csv)$/i.test(f.name)) continue;
+      hasValidFile = true;
+      const id = `prezzi-${f.name}-${Date.now()}`;
+      uploadManager.add(id, f, async (onProgress) => {
+        onProgress(30);
+        const result = await parsePrezziFile(f);
+        onProgress(100);
+        return result;
+      }, {
+        onComplete: ({ prezzi, count } = {}) => {
+          if (!prezzi || !count) return;
+          setRic(prev => {
+            if (!prev) return prev;
+            const nuovoRic = { ...prev, ingredienti_costi: { ...(prev.ingredienti_costi||{}), ...prezzi } };
+            ssave(SK_RIC, nuovoRic);
+            return nuovoRic;
+          });
+          notify(`✓ ${f.name} — ${count} prezzi aggiornati`);
+        },
+        onError: (err) => {
+          notify(`⚠ ${f.name}: ${err.message}`, false);
+        },
+      });
     }
-    if(totFile > 0 && ricettario){
-      const nuovoRic = { ...ricettario, ingredienti_costi: mergedCosti };
-      setRic(nuovoRic); await ssave(SK_RIC, nuovoRic);
-      notify(`✓ Prezzi aggiornati — ${totIng} ingredienti da ${totFile > 1 ? totFile+" file" : "file"} (sovrascrivono stime HoReCa)`);
-    } else if(totFile === 0){
-      notify("⚠ Nessun file xlsx/xls/csv valido trovato", false);
-    }
-    setLoading(false);
-  },[ricettario]);
+    if (!hasValidFile) notify("⚠ Nessun file xlsx/xls/csv valido trovato", false);
+  },[notify]);
 
   const handleNuovoMese=useCallback(async(m,y)=>{
     const k=mKey(m,y);
