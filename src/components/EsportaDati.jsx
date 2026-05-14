@@ -70,6 +70,8 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
   const [importing, setImporting] = useState(false)
   const fileRef = useRef()
 
+  if (!orgId) return null
+
   function notify(msg, ok = true) {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 4000)

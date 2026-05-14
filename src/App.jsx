@@ -118,12 +118,12 @@ export default function App() {
   }, [])
 
   // Controlla localStorage quando l'orgId è disponibile
-  useState(() => {
+  useEffect(() => {
     if (auth.orgId && onboardingVisto === null) {
       const visto = !!localStorage.getItem(`onboarding_seen_${auth.orgId}`)
       setOnboardingVisto(visto)
     }
-  })
+  }, [auth.orgId, onboardingVisto])
 
   function completaOnboarding() {
     if (auth.orgId) localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1')

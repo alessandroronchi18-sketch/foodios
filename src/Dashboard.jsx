@@ -9,6 +9,7 @@ import SedeSelector from './components/SedeSelector'
 import Scadenzario from './components/Scadenzario'
 import CalendarioOperativo from './components/CalendarioOperativo'
 import ReferralPanel from './components/ReferralPanel'
+import FoodOSLogo from './components/FoodOSLogo'
 import Integrazioni from './components/Integrazioni'
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from './lib/importDelivery'
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importCassa'
@@ -6885,8 +6886,17 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function Dashboard({
-  auth, orgId, sedeId, sedi, sedeAttiva, onSetSedeAttiva,
-  nomeAttivita, tipoAttivita, piano, isTrialAttivo, onSignOut
+  auth,
+  orgId = null,
+  sedeId = null,
+  sedi = [],
+  sedeAttiva = null,
+  onSetSedeAttiva = () => {},
+  nomeAttivita = 'La mia attività',
+  tipoAttivita = 'bar',
+  piano = 'trial',
+  isTrialAttivo = false,
+  onSignOut = null,
 }) {
   // Sync module-level storage context with current org/sede
   _ctx_orgId = orgId;
@@ -7257,11 +7267,14 @@ export default function Dashboard({
 
             {/* ── Logo ── */}
             <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-              <div style={{fontSize:18,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.5px",lineHeight:1.1,marginBottom:5}}>
-                FoodOS
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                <FoodOSLogo size={30} style={{borderRadius:8,boxShadow:"0 2px 10px rgba(192,57,43,0.35)"}}/>
+                <div style={{fontSize:18,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.5px",lineHeight:1}}>
+                  FoodOS
+                </div>
               </div>
               <div style={{fontSize:12,fontWeight:600,color:"#C0392B",letterSpacing:"0.01em",
-                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",paddingLeft:40}}>
                 {nomeAttivita || "La tua pasticceria"}
               </div>
             </div>
@@ -7391,7 +7404,10 @@ export default function Dashboard({
                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                 dangerouslySetInnerHTML={{__html:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'}} />
             </button>
-            <div style={{flex:1,fontSize:15,fontWeight:700,color:C.text}}>FoodOS</div>
+            <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
+              <FoodOSLogo size={26} style={{borderRadius:7,boxShadow:"0 2px 8px rgba(192,57,43,0.25)"}}/>
+              <span style={{fontSize:15,fontWeight:700,color:C.text}}>FoodOS</span>
+            </div>
             <button onClick={()=>setShowNotifiche(o=>!o)}
               style={{position:"relative",border:"none",background:"transparent",cursor:"pointer",
                 padding:4,display:"flex",alignItems:"center",justifyContent:"center",color:C.text}}>
