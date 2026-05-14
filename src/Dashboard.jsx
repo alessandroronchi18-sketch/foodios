@@ -4141,11 +4141,12 @@ Instructions:
 - Read ALL ingredients carefully even if handwriting is unclear — infer from context
 - Extract the recipe name. If in English translate to Italian: "carrot cake"→"TORTA DI CAROTE", "banana bread"→"BANANA BREAD", "apple cake"→"TORTA DI MELE", "cookies"→"COOKIES", "poppy seed cake"→"POPPY SEEDS", "lemon coconut"→"LIMONE E COCCO"
 - Extract each ingredient name IN ITALIAN LOWERCASE. Translate from English if needed: "butter"→"burro", "eggs"→"uovo", "flour"→"farina 00", "sugar"→"zucchero", "milk"→"latte intero", "cream"→"panna fresca", "baking powder"→"lievito chimico", "baking soda"→"bicarbonato", "vanilla"→"estratto di vaniglia", "cocoa powder"→"cacao amaro in polvere", "chocolate chips"→"gocce di cioccolato", "carrots"→"carota", "bananas"→"banana", "poppy seeds"→"seme di papavero", "cinnamon"→"cannella in polvere", "nutmeg"→"noce moscata", "walnuts"→"noce", "almonds"→"mandorla", "honey"→"miele", "oil"→"olio di semi", "lemon zest"→"scorza di limone", "cornstarch"→"amido di mais"
-- Extract quantity IN GRAMS for each ingredient. Convert: 1 tbsp=15g, 1 tsp=5g, 1 cup=240g, 1 glass=200g, "q.b."=0, "to taste"=0
-- Extract any cooking notes (temperature °C, minutes)
-- If "for X servings/slices" use that as unita
+- Extract quantity AND unit EXACTLY as written (do NOT pre-convert to grams). Use the unit from the recipe: "g","kg","ml","l","dl","cl","cucchiaio","cucchiaini","tazza","bicchiere","noce","pizzico","qb"
+- "q.b." or "to taste" → quantita:0, unita:"qb"
+- Extract any cooking notes (temperature °C, minutes) as a string
+- "for X servings/slices/pieces" → use X as porzioni
 - CRITICAL: Return ONLY valid JSON, no text before or after, no markdown backticks
-{"nome":"RECIPE NAME IN UPPERCASE ITALIAN","ingredienti":[{"nome":"ingredient name in italian lowercase","qty":grams_as_number}],"note":"cooking notes or empty string","unita":8,"prezzo":4,"tipo":"fetta"}`,
+{"nome":"RECIPE NAME IN UPPERCASE ITALIAN","porzioni":8,"ingredienti":[{"nome":"ingredient name in italian lowercase","quantita":250,"unita":"g"}],"note":"cooking notes or empty string"}`,
 
     produzione:`You are an OCR specialist for Italian artisan pastry daily production notes.
 The image is a handwritten note (paper, notebook) with today's production — e.g. "2 carote", "1 banana", "3 cookies", OR in English: "2 carrot cake", "1 banana bread".
@@ -4322,7 +4323,7 @@ Instructions:
         <div style={{fontSize:12,fontWeight:800,color:C.text}}>{ML.title}</div>
         <div style={{fontSize:10,color:C.textSoft,marginTop:2}}>{ML.sub}</div>
       </div>
-      {!preview ? (
+      {!preview && !parsed && !loading && !error ? (
         <label style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,padding:"24px",background:C.white,border:`1px dashed ${C.borderStr}`,borderRadius:10,cursor:"pointer"}}>
           <span style={{fontSize:28}}>📷</span>
           <span style={{fontSize:12,fontWeight:700,color:C.textMid}}>Tocca per scattare o scegli foto</span>
@@ -4330,13 +4331,15 @@ Instructions:
           <input ref={inputRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={handleFile}/>
         </label>
       ) : (
-        <div style={{display:"grid",gridTemplateColumns:"180px 1fr",gap:20,alignItems:"flex-start"}}>
+        <div style={{display:"grid",gridTemplateColumns:preview?"180px 1fr":"1fr",gap:20,alignItems:"flex-start"}}>
+          {preview && (
           <div style={{position:"relative"}}>
             <img src={preview} alt="preview" style={{width:"100%",borderRadius:10,border:`1px solid ${C.border}`,display:"block"}}/>
             <button onClick={reset} style={{position:"absolute",top:6,right:6,width:22,height:22,borderRadius:11,background:"rgba(0,0,0,0.6)",border:"none",color:"#FFF",fontSize:11,cursor:"pointer",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
             {imgs.length>1&&<div style={{position:"absolute",bottom:6,left:6,background:"rgba(0,0,0,0.7)",color:"#FFF",fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:10}}>📷 {imgs.length} foto</div>}
             <input ref={inputRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={handleFile}/>
           </div>
+          )}
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {!parsed && !loading && !error && (
               <button onClick={handleAnalizza} style={{padding:"12px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(192,57,43,0.25)"}}>
@@ -4367,7 +4370,9 @@ Instructions:
                         {parsed.ingredienti.map((ing,i)=>(
                           <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"3px 8px",background:"#F8F4F2",borderRadius:4}}>
                             <span style={{color:C.text,fontWeight:600}}>{ing.nome}</span>
-                            <span style={{color:C.red,fontWeight:700}}>{ing.qty}g</span>
+                            <span style={{color:C.red,fontWeight:700}}>
+                              {ing.quantita!=null ? `${ing.quantita>0?ing.quantita:"q.b."} ${ing.quantita>0?(ing.unita||"g"):""}`.trim() : `${ing.qty||0}g`}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -4505,7 +4510,8 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
   };
 
   const handleSave = () => {
-    if (!form.nome.trim() || form.ingredienti.length===0) { notify("⚠ Inserisci nome e almeno un ingrediente", false); return; }
+    if (!form.nome.trim()) { notify("⚠ Inserisci il nome della ricetta", false); return; }
+    if (form.ingredienti.length===0) { notify("⚠ Nessun ingrediente — aggiungine almeno uno prima di salvare", false); return; }
     const nomeUp = form.nome.trim().toUpperCase();
     const esiste = ricettario?.ricette?.[nomeUp];
     const isEditing = editMode === nomeUp;
@@ -4599,17 +4605,23 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
       </div>
       <FotoOCR mode="ricetta" notify={notify} ricettario={ricettario}
         onResult={res=>{
+          const UNIT_G = { g:1,gr:1,grammi:1,grammo:1, kg:1000,chilo:1000,chilogrammo:1000, ml:1,millilitri:1, l:1000,litro:1000,litri:1000, cl:10,centilitri:10, dl:100,decilitri:100, cucchiaio:15,cucchiai:15,tbsp:15, cucchiaino:5,cucchiaini:5,tsp:5, tazza:240,cup:240,tazze:240, bicchiere:200,bicchieri:200, noce:15, pizzico:2,pizzichi:2, qb:0 };
           const SKIP_ING_OCR = ["ingrediente","ingredient","ingredienti","nome ingrediente in minuscolo","n/d","nan","undefined",""];
+          const toGrams = (i) => {
+            if (i.qty != null) return parseFloat(i.qty)||0;
+            const q = parseFloat(i.quantita)||0;
+            const u = (i.unita||"g").toLowerCase().trim();
+            return Math.round(q * (UNIT_G[u] ?? 1));
+          };
           const ings = (res.ingredienti||[])
-            .map(i=>({ nome: translateIngredienteEN(i.nome||""), qty1stampo: parseFloat(i.qty)||0, costoPerG:0, costo1stampo:0 }))
-            .filter(i => !SKIP_ING_OCR.includes(i.nome.toLowerCase().trim()) && i.qty1stampo > 0);
+            .map(i=>({ nome: translateIngredienteEN(i.nome||""), qty1stampo: toGrams(i), costoPerG:0, costo1stampo:0 }))
+            .filter(i => !SKIP_ING_OCR.includes(i.nome.toLowerCase().trim()) && i.qty1stampo >= 0);
           const nomeIT = translateProdottoEN(res.nome||"");
-          // Don't hard-block on validation — always populate the form with whatever AI extracted
           setForm(f=>({
             ...f,
             nome:  nomeIT || f.nome,
             note:  res.note || f.note,
-            unita: res.unita || f.unita,
+            unita: res.porzioni || res.unita || f.unita,
             prezzo:res.prezzo|| f.prezzo,
             tipo:  res.tipo  || f.tipo,
             ingredienti: ings.length>0 ? ings : f.ingredienti,
@@ -4622,10 +4634,12 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
         }}
         onBatchSave={async (res, idx, ricAcc, setRicAcc) => {
           // Salva direttamente una ricetta da OCR senza passare dal form
+          const UNIT_G = { g:1,gr:1,grammi:1,grammo:1, kg:1000,chilo:1000,chilogrammo:1000, ml:1,millilitri:1, l:1000,litro:1000,litri:1000, cl:10,centilitri:10, dl:100,decilitri:100, cucchiaio:15,cucchiai:15,tbsp:15, cucchiaino:5,cucchiaini:5,tsp:5, tazza:240,cup:240,tazze:240, bicchiere:200,bicchieri:200, noce:15, pizzico:2,pizzichi:2, qb:0 };
           const SKIP_ING_OCR = ["ingrediente","ingredient","ingredienti","nome ingrediente in minuscolo","n/d","nan","undefined",""];
+          const toGrams = (i) => { if (i.qty != null) return parseFloat(i.qty)||0; const q=parseFloat(i.quantita)||0; const u=(i.unita||"g").toLowerCase().trim(); return Math.round(q*(UNIT_G[u]??1)); };
           const ings = (res.ingredienti||[])
-            .map(i=>({ nome: translateIngredienteEN(i.nome||""), qty1stampo: parseFloat(i.qty)||0, costoPerG:0, costo1stampo:0 }))
-            .filter(i => !SKIP_ING_OCR.includes(i.nome.toLowerCase().trim()) && i.qty1stampo > 0);
+            .map(i=>({ nome: translateIngredienteEN(i.nome||""), qty1stampo: toGrams(i), costoPerG:0, costo1stampo:0 }))
+            .filter(i => !SKIP_ING_OCR.includes(i.nome.toLowerCase().trim()) && i.qty1stampo >= 0);
           const nomeIT = (translateProdottoEN(res.nome||"")||"").trim().toUpperCase();
           if (!nomeIT || ings.length === 0 || !isRicettaValida(nomeIT.toLowerCase())) return false; // skip invalidi
           // Se già esiste e forceOverwrite è false → salta
@@ -4639,7 +4653,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
             numStampi:1, totImpasto1:0, foodCost1:0,
             ingredienti: ings,
             note: res.note||"",
-            unita: res.unita||8,
+            unita: res.porzioni || res.unita || 8,
             prezzo: res.prezzo||4,
             tipo: res.tipo||"fetta",
             congelabile: false,
