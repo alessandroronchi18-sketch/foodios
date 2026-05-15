@@ -331,13 +331,15 @@ export default function Scadenzario({ orgId, sedeId }) {
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>Scadenzario Fatture</div>
+          <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 6 }}>Dashboard › Scadenzario</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.3px' }}>Scadenzario</div>
           <div style={{ fontSize: 13, color: C.textSoft, marginTop: 3 }}>
             {fatture.length} fatture · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} totale
           </div>
         </div>
+        <div style={{ height: 1, background: C.border, position: 'absolute', left: 0, right: 0, marginTop: 60 }} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {fatture.length > 0 && (
             <>

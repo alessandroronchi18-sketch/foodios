@@ -1033,7 +1033,7 @@ Niente markdown, niente testo fuori dal JSON.`;
 
 // ─── DESIGN ───────────────────────────────────────────────────────────────────
 const C = {
-  bg:"#F8FAFC", bgCard:"#FFFFFF", bgSide:"#1A0A0A",
+  bg:"#F8FAFC", bgCard:"#FFFFFF", bgSide:"#0F0F0F",
   border:"#E2E8F0", borderStr:"#CBD5E1",
   red:"#C0392B", redDark:"#922B21", redLight:"#FEF2F2",
   green:"#16A34A", greenLight:"#F0FDF4",
@@ -3945,10 +3945,13 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
         )}
       />
 
-      <div style={{display:"flex",gap:4,marginBottom:24,borderBottom:`2px solid ${C.border}`}}>
-        {[["nuova","➕ Nuova sessione"],["storico","📋 Storico"]].map(([id,lbl])=>(
+      <div style={{display:"flex",gap:4,marginBottom:24,borderBottom:`1px solid ${C.border}`}}>
+        {[["nuova","Nuova sessione"],["storico","Storico"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{padding:"8px 18px",border:"none",background:"transparent",cursor:"pointer",fontSize:11,fontWeight:700,color:tab===id?C.red:C.textSoft,borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",marginBottom:-2,transition:"all 0.12s"}}>
+            style={{padding:"8px 16px",border:"none",background:"transparent",cursor:"pointer",
+              fontSize:13,fontWeight:600,color:tab===id?C.red:C.textSoft,
+              borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",
+              marginBottom:-1,transition:"all 0.15s"}}>
             {lbl}
           </button>
         ))}
@@ -7101,11 +7104,11 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
   return (
     <div style={{ maxWidth:700 }}>
-      <div style={{ marginBottom:6 }}>
-        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:C.red, marginBottom:6 }}>Configurazione</div>
-        <h1 style={{ margin:"0 0 8px", fontSize:28, fontWeight:900, color:C.text, letterSpacing:"-0.03em" }}>Impostazioni</h1>
+      <div style={{ marginBottom:14 }}>
+        <div style={{ fontSize:11, color:C.textSoft, marginBottom:5 }}>Dashboard › Impostazioni</div>
+        <h1 style={{ margin:'0', fontSize:22, fontWeight:700, color:C.text, letterSpacing:'-0.3px' }}>Impostazioni</h1>
       </div>
-
+      <div style={{ borderTop:`1px solid ${C.border}`, marginBottom:20 }}/>
       {/* Tab nav */}
       <div style={{ display:"flex", gap:4, marginBottom:28, borderBottom:`2px solid ${C.border}` }}>
         {TABS.map(([id,lbl]) => (
