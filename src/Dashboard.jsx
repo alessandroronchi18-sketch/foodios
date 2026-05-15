@@ -6665,230 +6665,155 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
     }
     return cnt>0?tot/cnt:0;
   })();
-  const fcColor = fcMedio<0.30 ? '#16A34A' : fcMedio<0.35 ? '#D97706' : '#C0392B';
+  const fcColor = fcMedio<0.30 ? C.green : fcMedio<0.35 ? C.amber : C.red;
 
   // Magazzino critici
   const critici = Object.values(magazzino||{}).filter(m=>m.giacenza_g===0||(m.soglia_g>0&&m.giacenza_g<=m.soglia_g));
 
   // Ultime ricette
-  const ultimeRicette = Object.values(ricettario?.ricette||{}).slice(-3).reverse();
+  const ultimeRicette = Object.values(ricettario?.ricette||{}).slice(-5).reverse();
 
-  // Insights
-  const settimana = new Date(now); settimana.setDate(settimana.getDate()-7);
-  const settStr = settimana.toISOString().slice(0,10);
-  const gior7 = (giornaliero||[]).filter(s=>s.data>=settStr);
-  const stampiSett = gior7.reduce((acc,s)=>acc+(s.prodotti||[]).reduce((a,p)=>a+p.stampi,0),0);
-  const bestRicetta = ricette.reduce((best,ric)=>{
-    const reg=getR(ric.nome,ric);
-    const {tot:fc}=calcolaFC(ric,ingCosti,ricettario);
-    const marg=reg.prezzo*reg.unita-fc;
-    return marg>best.marg?{nome:ric.nome,marg,pct:reg.prezzo*reg.unita>0?((reg.prezzo*reg.unita-fc)/(reg.prezzo*reg.unita)*100):0}:best;
-  },{nome:'',marg:-Infinity,pct:0});
-  const criticiMag = Object.values(magazzino||{})
-    .filter(m=>m.giacenza_g===0||(m.soglia_g>0&&m.giacenza_g<=m.soglia_g));
-  const hasData = ricette.length>0||stampiSett>0;
+  // Todo list items
+  const todos = [];
+  if (!hasProdOggi && ora >= 6) todos.push({id:'prod', label:'Registra produzione di oggi', view:'giornaliero'});
+  if (!cassaOggi && ora >= 14) todos.push({id:'cassa', label:'Chiudi la cassa', view:'chiusura'});
+  if (critici.length > 0) todos.push({id:'mag', label:`${critici.length} ingredienti sotto soglia in magazzino`, view:'magazzino'});
 
-  const giorniTrial = isTrialAttivo && auth?.org?.trial_ends_at
-    ? Math.max(0,Math.ceil((new Date(auth.org.trial_ends_at)-now)/86400000)) : null;
+  // Date header
+  const giornoLabel = now.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const nomeSaluto = nomeAttivita ? `, ${nomeAttivita}` : '';
 
-  const card = (bg,border) => ({ background:bg||'#FFF', borderRadius:14, padding:isMobile?'14px 16px':'20px', boxShadow:'0 1px 6px rgba(0,0,0,0.07)', border:`1px solid ${border||C.border}`, transition:'box-shadow 0.15s', cursor:'default' });
-  const cardClick = (bg,border) => ({ ...card(bg,border), cursor:'pointer' });
-
-  const [aiQ, setAiQ] = useState('');
+  const kpiCard = {
+    background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:12,
+    padding:isMobile?"14px 16px":"18px 20px",
+    boxShadow:"0 1px 3px rgba(0,0,0,0.05)",
+  };
 
   return (
-    <div style={{maxWidth:960,margin:'0 auto'}}>
-      {/* Zone A — Header */}
-      <div style={{marginBottom:isMobile?18:24}}>
-        <div style={{fontSize:isMobile?18:24,fontWeight:800,color:C.text,marginBottom:4}}>
-          Buongiorno{nomeAttivita?`, ${nomeAttivita}`:''}! 👋
+    <div style={{maxWidth:900,margin:"0 auto"}}>
+
+      {/* Header */}
+      <div style={{marginBottom:isMobile?20:28}}>
+        <h1 style={{margin:"0 0 4px",fontSize:isMobile?20:26,fontWeight:700,color:C.text,letterSpacing:"-0.3px"}}>
+          Buongiorno{nomeSaluto}
+        </h1>
+        <div style={{fontSize:13,color:C.textSoft,textTransform:"capitalize"}}>
+          {giornoLabel}
         </div>
-        <div style={{fontSize:13,color:C.textSoft}}>
-          {now.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}
-        </div>
-        {giorniTrial!==null&&(
-          <div style={{marginTop:10,display:'inline-flex',alignItems:'center',gap:8,padding:'6px 12px',
-            background:'#FFFBEB',border:'1px solid #FDE68A',borderRadius:8,fontSize:12,color:'#92400E',fontWeight:500}}>
-            🎁 Trial gratuito — <strong>{giorniTrial} giorni rimanenti</strong>
-          </div>
-        )}
       </div>
 
-      {/* Zone B — 4 status cards */}
-      <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr 1fr':'repeat(4,1fr)',gap:isMobile?10:14,marginBottom:24}}>
+      {/* 4 KPI Cards */}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",gap:isMobile?10:14,marginBottom:isMobile?20:24}}>
 
-        {/* Card 1 — Produzione */}
-        <div style={cardClick(hasProdOggi?'#F0FDF4':ora>=10?'#FFFBEB':'#FFF', hasProdOggi?'#BBF7D0':ora>=10?'#FDE68A':C.border)}
-          onClick={()=>setView('giornaliero')}>
-          <div style={{fontSize:10,fontWeight:700,color:hasProdOggi?'#16A34A':ora>=10?'#D97706':C.textSoft,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:6}}>
-            {hasProdOggi?'✅':'⚠️'} Produzione oggi
-          </div>
-          {hasProdOggi
-            ? <><div style={{fontSize:isMobile?20:26,fontWeight:900,color:C.text,lineHeight:1}}>{prodCount} <span style={{fontSize:12,fontWeight:600,color:C.textSoft}}>stampi</span></div>
-                <div style={{fontSize:11,color:C.textMid,marginTop:4}}>Costo stimato {fmt(costoStimato)}</div></>
-            : <><div style={{fontSize:12,fontWeight:600,color:'#D97706',lineHeight:1.4}}>Non ancora registrata</div>
-                <div style={{fontSize:11,color:C.textMid,marginTop:4,fontWeight:600}}>Registra ora →</div></>
-          }
-        </div>
-
-        {/* Card 2 — Cassa */}
-        <div style={cardClick(cassaOggi?'#F0FDF4':ora>=18?'#FFFBEB':'#FFF', cassaOggi?'#BBF7D0':ora>=18?'#FDE68A':C.border)}
-          onClick={()=>setView('chiusura')}>
-          <div style={{fontSize:10,fontWeight:700,color:cassaOggi?'#16A34A':ora>=18?'#D97706':C.textSoft,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:6}}>
-            {cassaOggi?'✅':'⚠️'} Cassa oggi
-          </div>
+        {/* Ricavi */}
+        <div style={{...kpiCard,cursor:"pointer"}} onClick={()=>setView("chiusura")}
+          onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"}
+          onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.05)"}>
+          <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,marginBottom:8}}>Ricavi</div>
           {cassaOggi
-            ? <><div style={{fontSize:isMobile?20:26,fontWeight:900,color:C.text,lineHeight:1}}>{fmt(ricaviOggi)}</div>
-                <div style={{fontSize:11,color:C.textMid,marginTop:4}}>{fcOggi?`FC: ${fcOggi.toFixed(1)}%`:'Chiusa'}</div></>
-            : <><div style={{fontSize:12,fontWeight:600,color:ora>=18?'#D97706':C.textMid,lineHeight:1.4}}>Non ancora chiusa</div>
-                <div style={{fontSize:11,color:C.textMid,marginTop:4,fontWeight:600}}>Chiudi cassa →</div></>
+            ? <div style={{fontSize:isMobile?22:28,fontWeight:700,color:C.text,lineHeight:1,letterSpacing:"-0.5px"}}>{fmt(ricaviOggi)}</div>
+            : <div style={{fontSize:isMobile?22:28,fontWeight:700,color:"#CBD5E1",lineHeight:1}}>—</div>
           }
+          <div style={{fontSize:12,color:C.textSoft,marginTop:5}}>{cassaOggi?"oggi":"Non ancora registrato"}</div>
         </div>
 
-        {/* Card 3 — Food Cost */}
-        <div style={card()}>
-          <div style={{fontSize:10,fontWeight:700,color:C.textSoft,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:6}}>
-            📊 Food cost medio
-          </div>
+        {/* Food Cost */}
+        <div style={{...kpiCard,cursor:"pointer"}} onClick={()=>setView("simulatore")}
+          onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"}
+          onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.05)"}>
+          <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,marginBottom:8}}>Food Cost</div>
           {ricette.length>0
-            ? <><div style={{fontSize:isMobile?20:26,fontWeight:900,color:fcColor,lineHeight:1}}>{(fcMedio*100).toFixed(1)}%</div>
-                <div style={{fontSize:11,color:C.textMid,marginTop:4}}>{fcMedio<0.30?'Ottimo ✅':fcMedio<0.35?'Nella norma ⚠️':'Troppo alto 🔴'}</div></>
-            : <><div style={{fontSize:13,fontWeight:600,color:C.textSoft}}>—</div>
-                <div style={{fontSize:11,color:C.textSoft,marginTop:4}}>Carica il ricettario</div></>
+            ? <div style={{fontSize:isMobile?22:28,fontWeight:700,color:fcColor,lineHeight:1,letterSpacing:"-0.5px"}}>{(fcMedio*100).toFixed(1)}%</div>
+            : <div style={{fontSize:isMobile?22:28,fontWeight:700,color:"#CBD5E1",lineHeight:1}}>—</div>
           }
+          <div style={{fontSize:12,color:C.textSoft,marginTop:5}}>{ricette.length>0?"medio ricettario":"Non ancora registrato"}</div>
         </div>
 
-        {/* Card 4 — Magazzino */}
-        <div style={cardClick(critici.length>0?'#FEF2F2':'#FFF', critici.length>0?'#FECACA':C.border)}
-          onClick={()=>setView('magazzino')}>
-          <div style={{fontSize:10,fontWeight:700,color:critici.length>0?C.red:C.textSoft,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:6}}>
-            📦 Magazzino
-          </div>
-          {critici.length>0
-            ? <><div style={{fontSize:isMobile?20:26,fontWeight:900,color:C.red,lineHeight:1}}>{critici.length}</div>
-                <div style={{fontSize:11,color:'#9C7B76',marginTop:4}}>sotto soglia o esauriti</div></>
-            : <><div style={{fontSize:13,fontWeight:700,color:'#16A34A'}}>✅ Tutto OK</div>
-                <div style={{fontSize:11,color:C.textSoft,marginTop:4}}>{Object.keys(magazzino||{}).length} ingredienti tracciati</div></>
+        {/* Produzione */}
+        <div style={{...kpiCard,cursor:"pointer"}} onClick={()=>setView("giornaliero")}
+          onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"}
+          onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.05)"}>
+          <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,marginBottom:8}}>Produzione</div>
+          {hasProdOggi
+            ? <div style={{fontSize:isMobile?22:28,fontWeight:700,color:C.text,lineHeight:1,letterSpacing:"-0.5px"}}>{prodCount} <span style={{fontSize:13,fontWeight:500,color:C.textSoft}}>pz</span></div>
+            : <div style={{fontSize:isMobile?22:28,fontWeight:700,color:"#CBD5E1",lineHeight:1}}>—</div>
           }
+          <div style={{fontSize:12,color:C.textSoft,marginTop:5}}>{hasProdOggi?"oggi":"Non ancora registrata"}</div>
         </div>
+
+        {/* Magazzino */}
+        <div style={{...kpiCard,cursor:"pointer"}} onClick={()=>setView("magazzino")}
+          onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"}
+          onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.05)"}>
+          <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,marginBottom:8}}>Magazzino</div>
+          {critici.length>0
+            ? <div style={{fontSize:isMobile?22:28,fontWeight:700,color:C.red,lineHeight:1,letterSpacing:"-0.5px"}}>{critici.length} <span style={{fontSize:13,fontWeight:500,color:C.textSoft}}>critici</span></div>
+            : <div style={{fontSize:isMobile?22:28,fontWeight:700,color:C.green,lineHeight:1}}>OK</div>
+          }
+          <div style={{fontSize:12,color:C.textSoft,marginTop:5}}>{critici.length>0?"sotto soglia":"Tutto in ordine"}</div>
+        </div>
+
       </div>
 
-      {/* Zone C — 2 colonne */}
-      <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 1fr',gap:isMobile?16:20,marginBottom:24}}>
+      {/* Two columns */}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:isMobile?16:20}}>
 
         {/* Ultime ricette */}
-        <div style={card()}>
-          <div style={{fontWeight:700,fontSize:14,color:C.text,marginBottom:14}}>📖 Ultime ricette</div>
+        <div style={{...kpiCard}}>
+          <div style={{fontWeight:700,fontSize:14,color:C.text,marginBottom:14}}>Ultime ricette</div>
           {ultimeRicette.length===0
-            ? <div style={{fontSize:12,color:C.textSoft,marginBottom:12}}>Nessuna ricetta caricata — importa il tuo Excel</div>
+            ? <div style={{fontSize:12,color:C.textSoft,marginBottom:12}}>Nessuna ricetta — importa il tuo Excel</div>
             : ultimeRicette.map(r=>{
                 const reg=getR(r.nome,r);
                 const {tot:fc}=calcolaFC(r,ingCosti,ricettario);
                 const marg=reg.prezzo*reg.unita>0?((reg.prezzo*reg.unita-fc)/(reg.prezzo*reg.unita)*100):0;
                 return (
-                  <div key={r.nome} onClick={()=>setView('ricettario')}
-                    style={{padding:'10px 0',borderBottom:`1px solid ${C.border}`,cursor:'pointer',display:'flex',alignItems:'center',gap:10}}
-                    onMouseEnter={e=>e.currentTarget.style.opacity='0.7'}
-                    onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                  <div key={r.nome} onClick={()=>setView("ricettario")}
+                    style={{padding:"9px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer",
+                      display:"flex",alignItems:"center",gap:10}}
+                    onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
+                    onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:13,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.nome}</div>
-                      <div style={{fontSize:11,color:C.textSoft,marginTop:1}}>{reg.unita} {reg.tipo} · FC {fmt(fc)} · Marg {marg.toFixed(1)}%</div>
+                      <div style={{fontWeight:600,fontSize:13,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.nome}</div>
+                      <div style={{fontSize:11,color:C.textSoft,marginTop:1}}>FC {(fc/((reg.prezzo||1)*(reg.unita||1))*100).toFixed(0)}% · Marg {marg.toFixed(1)}%</div>
                     </div>
-                    <span style={{fontSize:11,color:C.textSoft,flexShrink:0}}>›</span>
+                    <span style={{fontSize:12,color:C.textSoft,flexShrink:0}}>›</span>
                   </div>
                 );
               })
           }
-          <button onClick={()=>setView('ricettario')}
-            style={{marginTop:12,width:'100%',padding:'9px',background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,fontSize:12,fontWeight:600,color:C.textMid,cursor:'pointer'}}>
+          <button onClick={()=>setView("ricettario")}
+            style={{marginTop:12,width:"100%",padding:"9px",background:C.bg,border:`1px solid ${C.border}`,
+              borderRadius:8,fontSize:12,fontWeight:600,color:C.textMid,cursor:"pointer",
+              transition:"background 0.12s"}}
+            onMouseEnter={e=>e.currentTarget.style.background="#EDF2F7"}
+            onMouseLeave={e=>e.currentTarget.style.background=C.bg}>
             Vai al Ricettario →
           </button>
         </div>
 
-        {/* Accesso rapido */}
-        <div style={{display:'flex',flexDirection:'column',gap:12}}>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-            {[
-              {icon:'🏭',label:'Produzione',sub:`${prodCount||0} stampi oggi`,view:'giornaliero',bg:'#F0FDF4',border:'#BBF7D0',c:'#166534'},
-              {icon:'📊',label:'Food Cost',sub:`${ricette.length} ricette`,view:'simulatore',bg:'#EFF6FF',border:'#BFDBFE',c:'#1D4ED8'},
-              {icon:'💳',label:'Cassa',sub:cassaOggi?fmt(ricaviOggi):'Non chiusa',view:'chiusura',bg:'#FFFBEB',border:'#FDE68A',c:'#92400E'},
-              {icon:'📦',label:'Magazzino',sub:critici.length>0?`${critici.length} critici`:'Tutto OK',view:'magazzino',bg:critici.length>0?'#FEF2F2':'#F8FAFC',border:critici.length>0?'#FECACA':C.border,c:critici.length>0?C.red:C.textMid},
-            ].map(s=>(
-              <div key={s.view} onClick={()=>setView(s.view)}
-                style={{background:s.bg,border:`1px solid ${s.border}`,borderRadius:12,padding:'14px 16px',cursor:'pointer',transition:'box-shadow 0.15s'}}
-                onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)'}
-                onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
-                <div style={{fontSize:22,marginBottom:6}}>{s.icon}</div>
-                <div style={{fontSize:13,fontWeight:700,color:s.c}}>{s.label}</div>
-                <div style={{fontSize:11,color:C.textSoft,marginTop:2}}>{s.sub}</div>
-                <div style={{fontSize:11,color:s.c,marginTop:4,fontWeight:600}}>Vai →</div>
+        {/* Da fare oggi */}
+        <div style={{...kpiCard}}>
+          <div style={{fontWeight:700,fontSize:14,color:C.text,marginBottom:14}}>Da fare oggi</div>
+          {todos.length===0
+            ? <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 0"}}>
+                <span style={{fontSize:18}}>✅</span>
+                <span style={{fontSize:13,color:C.textMid,fontWeight:500}}>Tutto fatto per oggi!</span>
               </div>
-            ))}
-          </div>
-
-          {/* AI Quick ask */}
-          <div style={{background:'linear-gradient(135deg,#1C0A0A 0%,#3D1414 100%)',borderRadius:12,padding:'16px 18px'}}>
-            <div style={{fontSize:13,fontWeight:700,color:'#FCA5A5',marginBottom:4}}>🤖 Chiedi all'AI</div>
-            <div style={{fontSize:11,color:'rgba(252,165,165,0.65)',marginBottom:10}}>
-              "Quale ricetta ha il margine più alto questa settimana?"
-            </div>
-            <div style={{display:'flex',gap:8}}>
-              <input value={aiQ} onChange={e=>setAiQ(e.target.value)}
-                onKeyDown={e=>{if(e.key==='Enter'&&aiQ.trim()){setView('azioni');setAiQ('');}}}
-                placeholder="Fai una domanda..."
-                style={{flex:1,padding:'9px 12px',borderRadius:8,border:'1px solid rgba(252,165,165,0.2)',background:'rgba(255,255,255,0.07)',
-                  color:'#FFF',fontSize:12,outline:'none',boxSizing:'border-box'}} />
-              <button onClick={()=>{if(aiQ.trim()){setView('azioni');setAiQ('');}}}
-                style={{padding:'9px 14px',background:'#C0392B',border:'none',borderRadius:8,color:'#FFF',fontSize:12,fontWeight:700,cursor:'pointer',flexShrink:0}}>
-                →
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Zone D — Insights / Onboarding */}
-      <div>
-        {hasData ? (
-          <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':isMobile?'1fr':'repeat(3,1fr)',gap:12,overflowX:isMobile?'auto':'visible'}}>
-            {[
-              stampiSett>0 ? {icon:'📈',txt:`Questa settimana hai prodotto ${stampiSett} stampi`,sub:'Ultimi 7 giorni'} : null,
-              bestRicetta.nome ? {icon:'💰',txt:`Prodotto più redditizio: ${bestRicetta.nome}`,sub:`Margine ${bestRicetta.pct.toFixed(1)}%`} : null,
-              criticiMag.length>0 ? {icon:'⚠️',txt:`${criticiMag[0]?.nome||'Ingrediente'} sta per finire`,sub:'Controlla il magazzino',action:()=>setView('magazzino')} : {icon:'✅',txt:'Magazzino in ordine',sub:'Nessun ingrediente critico'},
-            ].filter(Boolean).map((ins,i)=>(
-              <div key={i} onClick={ins.action}
-                style={{background:'#FFF',borderRadius:12,padding:'14px 16px',boxShadow:'0 1px 4px rgba(0,0,0,0.06)',
-                  border:`1px solid ${C.border}`,cursor:ins.action?'pointer':'default',
-                  animation:`fadeInUp 0.3s ease ${i*100}ms both`,minWidth:isMobile?240:'auto'}}>
-                <div style={{fontSize:18,marginBottom:6}}>{ins.icon}</div>
-                <div style={{fontSize:12,fontWeight:600,color:C.text,lineHeight:1.4}}>{ins.txt}</div>
-                <div style={{fontSize:11,color:C.textSoft,marginTop:3}}>{ins.sub}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div>
-            <div style={{fontSize:12,fontWeight:700,color:C.textSoft,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:12}}>
-              Inizia a usare FoodOS
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:12}}>
-              {[
-                {icon:'📖',label:'Carica il ricettario',sub:'Importa il tuo Excel con le ricette',action:'ricettario'},
-                {icon:'🏭',label:'Prima produzione',sub:'Registra cosa hai prodotto oggi',action:'giornaliero'},
-                {icon:'💳',label:'Collega la cassa',sub:'Integra Cassa in Cloud o SumUp',action:'integrazioni'},
-              ].map(s=>(
-                <div key={s.action} onClick={()=>setView(s.action)}
-                  style={{background:'#FFF',borderRadius:12,padding:'18px',border:`1px dashed ${C.border}`,cursor:'pointer',textAlign:'center',transition:'border-color 0.15s'}}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor='#C0392B'}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-                  <div style={{fontSize:28,marginBottom:8}}>{s.icon}</div>
-                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>{s.label}</div>
-                  <div style={{fontSize:11,color:C.textSoft}}>{s.sub}</div>
+            : todos.map(t=>(
+                <div key={t.id} onClick={()=>setView(t.view)}
+                  style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",
+                    borderBottom:`1px solid ${C.border}`,cursor:"pointer"}}
+                  onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
+                  onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
+                  <div style={{width:16,height:16,border:`2px solid ${C.border}`,borderRadius:4,flexShrink:0}}/>
+                  <span style={{fontSize:13,color:C.text,flex:1}}>{t.label}</span>
+                  <span style={{fontSize:12,color:C.textSoft}}>›</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              ))
+          }
+        </div>
+
       </div>
       <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
@@ -7620,106 +7545,68 @@ export default function Dashboard({
       {/* SIDEBAR */}
       {(()=>{
         const today2 = new Date().toISOString().slice(0,10);
-        const hasRic      = !!ricettario && Object.keys(ricettario.ricette||{}).length > 0;
-        const hasMag      = Object.keys(magazzino||{}).length > 0;
-        const hasGior     = (giornaliero||[]).length > 0;
-        const hasChius    = (chiusure||[]).length > 0;
         const criticeMag  = Object.values(magazzino||{}).filter(m=>m.giacenza_g===0||(m.soglia_g>0&&m.giacenza_g<=m.soglia_g)).length;
         const azioniAperte= (actions||[]).filter(a=>a.stato!=="chiusa").length;
         const hasProdOggi = (giornaliero||[]).some(s=>s.data===today2&&(s.prodotti||[]).length>0);
         const hasCassaOggi= (chiusure||[]).some(c=>c.data===today2);
         const cassaMancante = !hasCassaOggi && new Date().getHours()>=14;
 
-        const S = {
-          inactive: "rgba(215,170,155,0.55)",
-          active:   "#FCA5A5",
-          activeBg: "rgba(192,57,43,0.18)",
-          section:  "rgba(200,130,110,0.5)",
-        };
-
-        const ic = (paths) => (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+        const ic = (paths, sz=16) => (
+          <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
             style={{flexShrink:0}} dangerouslySetInnerHTML={{__html:paths}} />
         );
 
         const ICONS = {
           home:       '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+          cal:        '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+          creditCard: '<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>',
           book:       '<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>',
           layers:     '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
           pencil:     '<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>',
-          trendUp:    '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
           barChart:   '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
-          clipboard:  '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="11" y2="16"/>',
-          activity:   '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+          trendUp:    '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
           pkg:        '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
-          creditCard: '<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>',
           fileText:   '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+          users:      '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
+          menu:       '<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>',
           sparkles:   '<path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>',
-          settings:   '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
-          logOut:     '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
-          calendar:   '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
-          chevron:    '<polyline points="6 9 12 15 18 9"/>',
-          plus:       '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
-          x:          '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
           integ:      '<rect x="2" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="9" y="15" width="6" height="6" rx="1"/><path d="M5 9v3a2 2 0 002 2h10a2 2 0 002-2V9"/><line x1="12" y1="14" x2="12" y2="12"/>',
+          activity:   '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+          forecast:   '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><path d="M2 20l4-8 4 4 4-6 4 4"/>',
+          bell:       '<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>',
+          logOut:     '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+          plus:       '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
         };
 
-        const Dot = ({has, alert, pulse}) => (
-          <span style={{
-            width:6, height:6, borderRadius:"50%", flexShrink:0,
-            background: alert ? "#C0392B" : has ? "#22C55E" : "rgba(255,255,255,0.1)",
-            boxShadow: alert ? "0 0 0 2px rgba(192,57,43,0.25)" : "none",
-            animation: (alert&&pulse) ? "_sp_pulse 1.4s ease-in-out infinite" : "none",
-          }} />
-        );
-
-        const navItem = (id, iconKey, label, hasDot, alertDot, badge, pulse=false) => {
+        const navItem = (id, iconKey, label, badge=0, alert=false) => {
           const active = view === id;
           return (
             <button key={id} onClick={()=>{setView(id);if(isMobile)setSidebarOpen(false);}}
-              style={{width:"100%",padding:"7px 10px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"left",
-                background:active?S.activeBg:"transparent",
-                color:active?S.active:S.inactive,
-                fontWeight:active?600:400,fontSize:12,marginBottom:1,
-                display:"flex",alignItems:"center",gap:8,transition:"background 0.12s,color 0.12s",
-                borderLeft:active?"2px solid #C0392B":"2px solid transparent",
-                paddingLeft:active?"9px":"10px"}}>
+              style={{width:"100%",padding:"8px 16px",
+                borderRadius:"0 6px 6px 0",
+                border:"none",cursor:"pointer",textAlign:"left",
+                background:active?"#1A1A1A":"transparent",
+                color:active?"#FFFFFF":"rgba(255,255,255,0.65)",
+                fontWeight:500,fontSize:13,marginBottom:1,
+                display:"flex",alignItems:"center",gap:10,
+                transition:"background 0.12s,color 0.12s",
+                borderLeft:active?"2px solid #C0392B":"2px solid transparent"}}
+              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="#FFFFFF";}}}
+              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.65)";}}}
+            >
               {ic(ICONS[iconKey])}
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
-              <Dot has={hasDot} alert={alertDot} pulse={pulse} />
-              {badge>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:10,fontSize:8,fontWeight:900,padding:"1px 5px",minWidth:14,textAlign:"center"}}>{badge}</span>}
+              {badge>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:10,fontSize:9,fontWeight:700,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{badge}</span>}
+              {alert&&badge===0&&<span style={{width:6,height:6,borderRadius:"50%",background:"#C0392B",flexShrink:0,animation:"_sp_pulse 1.4s ease-in-out infinite"}}/>}
             </button>
           );
         };
 
-        const SecHeader = ({k, label, hasAlert}) => (
-          <button onClick={()=>setSidebarSec(p=>({...p,[k]:!p[k]}))}
-            style={{width:"100%",marginTop:10,marginBottom:2,padding:"4px 10px",
-              background:"none",border:"none",cursor:"pointer",textAlign:"left",
-              display:"flex",alignItems:"center",gap:5,borderRadius:5,
-              transition:"background 0.1s"}}
-            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"}
-            onMouseLeave={e=>e.currentTarget.style.background="none"}>
-            <span style={{fontSize:9,fontWeight:700,letterSpacing:"0.09em",textTransform:"uppercase",
-              color: hasAlert ? "rgba(252,165,165,0.7)" : S.section, flex:1}}>{label}</span>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-              strokeLinecap="round" strokeLinejoin="round"
-              style={{color:S.section,transition:"transform 0.18s",transform:sidebarSec[k]?"rotate(0deg)":"rotate(-90deg)"}}
-              dangerouslySetInnerHTML={{__html:ICONS.chevron}}/>
-          </button>
-        );
-
-        const Sec = ({k, label, hasAlert, children}) => (
-          <div>
-            <SecHeader k={k} label={label} hasAlert={hasAlert}/>
-            <div style={{
-              overflow:"hidden",
-              maxHeight: sidebarSec[k] ? "600px" : "0px",
-              transition: "max-height 0.22s ease",
-            }}>
-              {children}
-            </div>
+        const Sep = ({label}) => (
+          <div style={{padding:"16px 16px 5px",fontSize:10,fontWeight:700,
+            letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(255,255,255,0.22)"}}>
+            {label}
           </div>
         );
 
@@ -7732,138 +7619,96 @@ export default function Dashboard({
             }
           `}</style>
 
-          {/* Mobile overlay backdrop */}
           {isMobile&&sidebarOpen&&(
             <div onClick={()=>setSidebarOpen(false)}
               style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
           )}
 
-          <div style={{width:248,background:C.bgSide,display:"flex",flexDirection:"column",position:"fixed",
-            top:0,left:0,bottom:0,zIndex:50,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.04)",
-            transform: isMobile&&!sidebarOpen ? "translateX(-100%)" : "translateX(0)",
+          <div style={{width:220,background:"#0F0F0F",display:"flex",flexDirection:"column",
+            position:"fixed",top:0,left:0,bottom:0,zIndex:50,flexShrink:0,
+            borderRight:"1px solid rgba(255,255,255,0.06)",
+            transform:isMobile&&!sidebarOpen?"translateX(-100%)":"translateX(0)",
             transition:"transform 0.22s ease"}}>
 
             {/* Logo */}
-            <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                <FoodOSLogo size={30} style={{borderRadius:8,boxShadow:"0 2px 10px rgba(192,57,43,0.35)"}}/>
-                <div style={{fontSize:18,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.5px",lineHeight:1}}>
-                  FoodOS
+            <div style={{padding:"18px 16px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+                <div style={{width:28,height:28,background:"#C0392B",borderRadius:7,
+                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
+                  boxShadow:"0 2px 8px rgba(192,57,43,0.4)"}}>
+                  <span style={{color:"#fff",fontSize:14,fontWeight:900,letterSpacing:"-1px"}}>F</span>
                 </div>
+                <span style={{fontSize:16,fontWeight:700,color:"#FFFFFF",letterSpacing:"-0.3px"}}>FoodOS</span>
               </div>
-              <div style={{fontSize:12,fontWeight:600,color:"#C0392B",letterSpacing:"0.01em",
-                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",paddingLeft:40}}>
-                {nomeAttivita || "La tua pasticceria"}
+              <div style={{fontSize:11,color:"#C0392B",fontWeight:600,paddingLeft:38,
+                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                {nomeAttivita || "La mia attività"}
               </div>
             </div>
 
             <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />
 
             {/* Nav */}
-            <div style={{flex:1,overflowY:"auto",padding:"6px 8px 8px"}}>
+            <div style={{flex:1,overflowY:"auto",paddingTop:6,paddingBottom:8}}>
 
-              {/* ── OGGI ── */}
-              <Sec k="oggi" label="Oggi" hasAlert={cassaMancante}>
-                {navItem("home","home","Dashboard",true,false,0)}
-                {navItem("giornaliero","clipboard","Produzione",hasProdOggi,!hasProdOggi&&new Date().getHours()>=6,0,!hasProdOggi&&new Date().getHours()>=6)}
-                {navItem("chiusura","creditCard","Cassa",hasCassaOggi,cassaMancante,0,cassaMancante)}
-              </Sec>
+              {navItem("home","home","Dashboard")}
+              {navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)}
+              {navItem("chiusura","creditCard","Cassa",0,cassaMancante)}
 
-              {/* ── RICETTE ── */}
-              <Sec k="ricette" label="Ricette" hasAlert={false}>
-                {navItem("ricettario","book","Ricettario",hasRic,false,0)}
-                {navItem("semilavorati","layers","Semilavorati",hasRic,false,0)}
-                {navItem("nuova-ricetta","pencil","Nuova / Modifica",false,false,0)}
-                {navItem("scheda-allergeni","fileText","Scheda Allergeni",false,false,0)}
-              </Sec>
+              <Sep label="Ricette" />
+              {navItem("ricettario","book","Ricettario")}
+              {navItem("semilavorati","layers","Semilavorati")}
+              {navItem("nuova-ricetta","pencil","Nuova ricetta")}
 
-              {/* ── NUMERI ── */}
-              <Sec k="numeri" label="Numeri" hasAlert={false}>
-                {navItem("simulatore","trendUp","Food Cost",hasRic,false,0)}
-                {navItem("pl","barChart","P&L",hasRic,false,0)}
-                {navItem("menu","book","Menù Dinamico",hasRic,false,0)}
-                {navItem("previsione","trendUp","Previsione Domanda",hasGior,false,0)}
-              </Sec>
+              <Sep label="Numeri" />
+              {navItem("simulatore","barChart","Food Cost")}
+              {navItem("pl","trendUp","P&L")}
 
-              {/* ── GESTIONE ── */}
-              <Sec k="gestione" label="Gestione" hasAlert={criticeMag>0}>
-                {navItem("magazzino","pkg","Magazzino",hasMag,criticeMag>0,criticeMag,criticeMag>0)}
-                {navItem("scadenzario","fileText","Scadenzario",false,false,0)}
-                {navItem("fornitori","pkg","Fornitori",false,false,0)}
-                {navItem("personale","clipboard","Personale",false,false,0)}
-              </Sec>
+              <Sep label="Gestione" />
+              {navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0)}
+              {navItem("scadenzario","fileText","Scadenzario")}
+              {navItem("fornitori","pkg","Fornitori")}
+              {navItem("personale","users","Personale")}
+              {navItem("menu","menu","Menù")}
 
-              {/* ── STRUMENTI ── */}
-              <Sec k="strumenti" label="Strumenti" hasAlert={azioniAperte>0}>
-                {navItem("azioni","sparkles","AI Assistant",false,false,azioniAperte)}
-                {navItem("calendario","calendar","Calendario",false,false,0)}
-                {sedi&&sedi.filter(s=>s.attiva!==false).length>1&&navItem("confronto-sedi","barChart","Confronto Sedi",false,false,0)}
-                {navItem("integrazioni","integ","Integrazioni",false,false,0)}
-                {navItem("impostazioni","settings","Impostazioni",false,false,0)}
-              </Sec>
-
-              {/* ── STORICO ── */}
-              <Sec k="storico" label="Storico" hasAlert={false}>
-                {navItem("storico","activity","Storico produzione",hasGior,false,0)}
-                {sortedMesi.length>0&&sortedMesi.map(k=>(
-                  <div key={k} style={{marginBottom:2}}>
-                    <div style={{display:"flex",alignItems:"center",gap:3}}>
-                      <button onClick={()=>{setView(k);if(isMobile)setSidebarOpen(false);}}
-                        style={{flex:1,padding:"7px 10px",borderRadius:6,border:"none",cursor:"pointer",textAlign:"left",
-                          background:view===k?S.activeBg:"transparent",
-                          color:view===k?S.active:"rgba(175,120,105,0.45)",
-                          fontWeight:view===k?600:400,fontSize:11,transition:"all 0.12s",
-                          borderLeft:view===k?"2px solid #C0392B":"2px solid transparent",paddingLeft:view===k?"9px":"10px"}}>
-                        {produzione[k]?.label}
-                      </button>
-                      <button onClick={()=>setConfDel(confDel===k?null:k)}
-                        style={{padding:"4px 6px",borderRadius:5,border:"none",cursor:"pointer",
-                          background:confDel===k?"rgba(192,57,43,0.25)":"transparent",
-                          color:"rgba(255,255,255,0.18)",fontSize:10}}>✕</button>
-                    </div>
-                    {confDel===k&&(
-                      <div style={{margin:"3px 4px",padding:"7px 10px",background:"rgba(192,57,43,0.1)",borderRadius:7,display:"flex",gap:6}}>
-                        <button onClick={()=>handleDel(k)} style={{flex:1,padding:"5px",background:C.red,color:C.white,border:"none",borderRadius:5,fontSize:9,fontWeight:800,cursor:"pointer"}}>Elimina</button>
-                        <button onClick={()=>setConfDel(null)} style={{flex:1,padding:"5px",background:"transparent",color:"rgba(255,255,255,0.35)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:5,fontSize:9,cursor:"pointer"}}>No</button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </Sec>
+              <Sep label="Altro" />
+              {navItem("azioni","sparkles","AI Assistant",azioniAperte)}
+              {navItem("integrazioni","integ","Integrazioni")}
+              {navItem("storico","activity","Storico")}
+              {navItem("calendario","cal","Calendario")}
+              {navItem("previsione","forecast","Previsioni")}
 
             </div>
 
             {/* Footer */}
-            <div style={{padding:"10px 8px 16px",borderTop:"1px solid rgba(255,255,255,0.05)",display:"flex",flexDirection:"column",gap:5}}>
+            <div style={{padding:"10px 8px 14px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
               {auth?.user?.email&&(
-                <div style={{fontSize:9,color:"rgba(190,130,115,0.4)",padding:"0 4px 4px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"center"}}>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",padding:"0 8px 8px",
+                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                   {auth.user.email}
                 </div>
               )}
-              <div style={{display:"flex",justifyContent:"center",gap:12,padding:"0 4px 4px"}}>
-                <a href="/privacy" style={{fontSize:10,color:"rgba(190,130,115,0.45)",textDecoration:"none"}} target="_blank">Privacy</a>
-                <span style={{fontSize:10,color:"rgba(190,130,115,0.2)"}}>·</span>
-                <a href="/termini" style={{fontSize:10,color:"rgba(190,130,115,0.45)",textDecoration:"none"}} target="_blank">Termini</a>
-                <span style={{fontSize:10,color:"rgba(190,130,115,0.2)"}}>·</span>
-                <button onClick={()=>setView("changelog")} style={{fontSize:10,color:"rgba(190,130,115,0.45)",background:"none",border:"none",cursor:"pointer",padding:0}}>Novità</button>
+              <div style={{display:"flex",justifyContent:"center",gap:10,padding:"0 8px 8px"}}>
+                <a href="/privacy" style={{fontSize:10,color:"rgba(255,255,255,0.3)",textDecoration:"none"}} target="_blank">Privacy</a>
+                <span style={{fontSize:10,color:"rgba(255,255,255,0.15)"}}>·</span>
+                <a href="/termini" style={{fontSize:10,color:"rgba(255,255,255,0.3)",textDecoration:"none"}} target="_blank">Termini</a>
               </div>
               <button onClick={()=>setShowNotifiche(o=>!o)}
-                style={{width:"100%",padding:"8px 10px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",
-                  borderRadius:7,color:"rgba(215,170,155,0.7)",fontSize:12,fontWeight:500,cursor:"pointer",
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                  <path d="M13.73 21a2 2 0 01-3.46 0"/>
-                </svg>
+                style={{width:"100%",padding:"8px 12px",background:"rgba(255,255,255,0.04)",
+                  border:"1px solid rgba(255,255,255,0.08)",borderRadius:7,
+                  color:"rgba(255,255,255,0.55)",fontSize:12,fontWeight:500,cursor:"pointer",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:7}}>
+                {ic(ICONS.bell)}
                 Notifiche
-                {nonLette>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,fontSize:9,fontWeight:800,padding:"1px 6px"}}>{nonLette}</span>}
+                {nonLette>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:10,fontSize:9,fontWeight:700,padding:"1px 6px"}}>{nonLette}</span>}
               </button>
               <button onClick={()=>onSignOut&&onSignOut()}
-                style={{width:"100%",padding:"9px 10px",background:"rgba(192,57,43,0.65)",border:"none",
-                  borderRadius:7,color:"rgba(255,255,255,0.9)",fontSize:12,fontWeight:600,cursor:"pointer",
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"background 0.15s"}}
-                onMouseEnter={e=>e.currentTarget.style.background="#C0392B"}
-                onMouseLeave={e=>e.currentTarget.style.background="rgba(192,57,43,0.65)"}>
+                style={{width:"100%",padding:"9px 12px",background:"#C0392B",border:"none",
+                  borderRadius:7,color:"#FFFFFF",fontSize:13,fontWeight:600,cursor:"pointer",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                  transition:"background 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.background="#922B21"}
+                onMouseLeave={e=>e.currentTarget.style.background="#C0392B"}>
                 {ic(ICONS.logOut)}
                 Esci
               </button>
@@ -7876,17 +7721,16 @@ export default function Dashboard({
               {fabOpen&&(
                 <>
                   {[
-                    {label:"Produzione",view:"giornaliero",emoji:"📋"},
-                    {label:"Cassa",view:"chiusura",emoji:"💳"},
-                    {label:"Nuova ricetta",view:"nuova-ricetta",emoji:"✏️"},
+                    {label:"Produzione",view:"giornaliero"},
+                    {label:"Cassa",view:"chiusura"},
+                    {label:"Nuova ricetta",view:"nuova-ricetta"},
                   ].map(a=>(
                     <button key={a.view} onClick={()=>{setView(a.view);setFabOpen(false);}}
-                      style={{display:"flex",alignItems:"center",gap:8,padding:"9px 14px",
+                      style={{display:"flex",alignItems:"center",gap:8,padding:"9px 16px",
                         background:"#1C2430",border:"none",borderRadius:20,cursor:"pointer",
                         color:"#F8F2EE",fontSize:12,fontWeight:600,
-                        boxShadow:"0 4px 16px rgba(0,0,0,0.35)",animation:"_sp_pulse 0s",
-                        whiteSpace:"nowrap"}}>
-                      <span style={{fontSize:15}}>{a.emoji}</span>{a.label}
+                        boxShadow:"0 4px 16px rgba(0,0,0,0.35)",whiteSpace:"nowrap"}}>
+                      {a.label}
                     </button>
                   ))}
                 </>
@@ -7914,7 +7758,7 @@ export default function Dashboard({
       {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');}} onVediTutte={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');setView('changelog');}}/>}
 
       {/* CONTENT */}
-      <div style={{marginLeft:isMobile?0:248,flex:1,padding:isMobile?"16px 12px 80px":"36px 48px 100px",overflowX:"auto",minHeight:"100vh",boxSizing:"border-box"}}>
+      <div style={{marginLeft:isMobile?0:220,flex:1,padding:isMobile?"16px":"32px",overflowX:"auto",minHeight:"100vh",boxSizing:"border-box"}}>
         {/* Mobile header bar */}
         {isMobile&&(
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,
