@@ -116,11 +116,15 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
       if (sedeId) q.eq('sede_id', sedeId); else q.is('sede_id', null)
       const { data: ex } = await q.maybeSingle()
       const payload = { organization_id: orgId, sede_id: sedeId || null, data: sel, nota: notaEdit.trim() || null }
+      let saveError
       if (ex) {
-        await supabase.from('note_giornaliere').update({ nota: payload.nota }).eq('id', ex.id)
+        const { error } = await supabase.from('note_giornaliere').update({ nota: payload.nota }).eq('id', ex.id)
+        saveError = error
       } else {
-        await supabase.from('note_giornaliere').insert(payload)
+        const { error } = await supabase.from('note_giornaliere').insert(payload)
+        saveError = error
       }
+      if (saveError) throw saveError
       setNote(prev => ({ ...prev, [sel]: notaEdit.trim() }))
       notify?.('✓ Nota salvata')
     } catch (e) {

@@ -56,7 +56,8 @@ function DipendentiTab({ orgId, notify }) {
 
   async function disattiva(id) {
     if (!confirm("Archiviare questo dipendente?")) return
-    await supabase.from("dipendenti").update({ attivo: false }).eq("id", id)
+    const { error } = await supabase.from("dipendenti").update({ attivo: false }).eq("id", id)
+    if (error) { notify("⚠ Errore archiviazione: " + error.message, false); return }
     notify("✓ Dipendente archiviato")
     carica()
   }
@@ -208,7 +209,8 @@ function TurniTab({ orgId, notify }) {
   }
 
   async function eliminaTurno(id) {
-    await supabase.from("turni").delete().eq("id", id)
+    const { error } = await supabase.from("turni").delete().eq("id", id)
+    if (error) { notify("⚠ Errore eliminazione turno: " + error.message, false); return }
     notify("✓ Turno eliminato")
     carica()
   }

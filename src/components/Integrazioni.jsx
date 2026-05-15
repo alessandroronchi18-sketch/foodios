@@ -253,11 +253,13 @@ export default function Integrazioni({ orgId }) {
           const text = await file.text()
           const movimenti = parseZucchettiInfinity(text)
           const dataKey = `zucchetti_infinity_${new Date().toISOString().slice(0, 10)}`
-          await supabase.from('user_data').upsert({
+          const { error: zInfErr } = await supabase.from('user_data').upsert({
             organization_id: orgId,
+            sede_id: null,
             data_key: dataKey,
             data_value: { movimenti, importato_il: new Date().toISOString() },
-          }, { onConflict: 'organization_id,data_key' })
+          }, { onConflict: 'organization_id,sede_id,data_key' })
+          if (zInfErr) throw zInfErr
           imported += movimenti.length
           setRisultato({ tipo: 'movimenti', movimenti, cfgId: cfg.id })
 
@@ -265,11 +267,13 @@ export default function Integrazioni({ orgId }) {
           const text = await file.text()
           const { vendite, chiusure_giornaliere } = parseZucchettiKassa(text)
           for (const ch of chiusure_giornaliere) {
-            await supabase.from('user_data').upsert({
+            const { error: zKassaErr } = await supabase.from('user_data').upsert({
               organization_id: orgId,
+              sede_id: null,
               data_key: `chiusura_${ch.data}`,
               data_value: { ...ch, source: 'zucchetti_kassa' },
-            }, { onConflict: 'organization_id,data_key' })
+            }, { onConflict: 'organization_id,sede_id,data_key' })
+            if (zKassaErr) throw zKassaErr
           }
           imported += vendite.length
           setRisultato({ tipo: 'kassa', chiusure: chiusure_giornaliere, cfgId: cfg.id })

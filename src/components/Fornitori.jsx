@@ -45,7 +45,8 @@ function FornitoriTab({ orgId, notify }) {
 
   async function elimina(id) {
     if (!confirm("Eliminare questo fornitore?")) return
-    await supabase.from("fornitori").delete().eq("id", id)
+    const { error } = await supabase.from("fornitori").delete().eq("id", id)
+    if (error) { notify("⚠ Errore eliminazione: " + error.message, false); return }
     notify("✓ Fornitore eliminato")
     carica()
   }
@@ -162,7 +163,8 @@ function OrdiniTab({ orgId, notify }) {
   }
 
   async function aggiornaStato(id, stato) {
-    await supabase.from("ordini_fornitori").update({ stato }).eq("id", id)
+    const { error } = await supabase.from("ordini_fornitori").update({ stato }).eq("id", id)
+    if (error) { notify("⚠ Errore aggiornamento stato: " + error.message, false); return }
     notify("✓ Stato aggiornato")
     carica()
   }
