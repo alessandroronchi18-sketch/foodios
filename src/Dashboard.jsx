@@ -23,8 +23,9 @@ import { exportRicettaPDF, exportPLMensile, exportProduzione } from './lib/expor
 import { CHANGELOG } from './lib/changelog'
 import ChangelogView, { NovitaModal } from './components/Changelog'
 import NotifichePanel from './components/NotifichePanel'
-import UploadToast from './components/UploadToast'
-import { uploadManager } from './lib/uploadManager'
+import BackgroundToast from './components/BackgroundToast'
+import { backgroundManager } from './lib/backgroundManager'
+import { uploadManager } from './lib/backgroundManager'
 import { ALLERGENI, ALLERGENE_COLORS } from './lib/allergeni'
 import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese } from './lib/rese'
 import Fornitori from './components/Fornitori'
@@ -2547,15 +2548,11 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
 
   return (
     <div style={{maxWidth:1200}}>
-      {/* Header */}
-      <div style={{marginBottom:28}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>{nomeAttivita}</div>
-        <h1 style={{margin:"0 0 8px",fontSize:30,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Simulatore Prezzi</h1>
-        <p style={{margin:0,fontSize:12,color:C.textSoft,lineHeight:1.7,maxWidth:680}}>
-          Inserisci i nuovi prezzi per ogni prodotto. La proiezione futura usa le medie degli stampi dallo storico produzione
-          {hasStorico?` (${(giornaliero||[]).length} sessioni registrate)`:" — carica sessioni di produzione per attivare le proiezioni"}.
-        </p>
-      </div>
+      <PageHeader
+        breadcrumb="Dashboard › Food Cost"
+        title="Food Cost"
+        subtitle={`Simulatore prezzi e proiezioni${hasStorico?" · "+String((giornaliero||[]).length)+" sessioni":"" }`}
+      />
 
       {/* Controlli orizzonte + reset */}
       <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:24,flexWrap:"wrap"}}>
@@ -4243,6 +4240,7 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
 // ─── FOTO OCR COMPONENT ──────────────────────────────────────────────────────
 // Module-level store: persists AI results across FotoOCR unmount/remount (navigation)
 const _ocrPending = {} // { [mode]: { parsed, loading, error } }
+const _receiptPending = { current: null } // { loading, venduto, error, dataEstratta }
 
 function FotoOCR({ mode, onResult, onBatchSave, notify, ricettario }) {
   const [imgs, setImgs]         = useState([]); // [{data, preview, mediaType}]
@@ -4381,14 +4379,14 @@ Instructions:
       return;
     }
 
-    // Single image or multi-merge: use uploadManager so analysis survives navigation
+    // Single image or multi-merge: use backgroundManager so analysis survives navigation
     const label = toProcess.length > 1
       ? `Analisi ${toProcess.length} foto (${mode})`
       : `Analisi foto (${mode})`;
     const id = `ocr-${mode}-${Date.now()}`;
     _ocrPending[mode] = { loading: true, parsed: null, error: null };
 
-    uploadManager.add(id, { name: label }, async (onProgress) => {
+    backgroundManager.add(id, { tipo: 'ai_analisi', nome: label, fn: async (onProgress) => {
       if (toProcess.length === 1) {
         onProgress(20);
         const obj = await analyzeOneImage(toProcess[0].data, toProcess[0].mediaType);
@@ -4416,7 +4414,7 @@ Instructions:
         for (const r of results) for (const i of (r.ingredienti||[])) byNome[i.nome]=(byNome[i.nome]||0)+(i.quantita_g||0);
         return { ingredienti: Object.entries(byNome).map(([nome,quantita_g])=>({nome,quantita_g})) };
       }
-    }, {
+    },
       onComplete: (obj) => {
         _ocrPending[mode] = { loading: false, parsed: obj, error: null };
         setParsed(obj);   // no-op if unmounted — remount useEffect picks it up
@@ -5154,11 +5152,11 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
     <div style={{maxWidth:1100}}>
       {/* Header + toggle */}
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-        <div>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Analytics</div>
-          <h1 style={{margin:"0 0 4px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Storico</h1>
-          <p style={{margin:0,fontSize:12,color:C.textSoft}}>Produzione, vendite reali e confronto per settimana o mese.</p>
-        </div>
+         <div>
+           <div style={{fontSize:11,color:C.textSoft,marginBottom:5}}>Dashboard › Storico</div>
+           <h1 style={{margin:"0 0 3px",fontSize:22,fontWeight:700,color:C.text,letterSpacing:"-0.3px"}}>Storico produzione</h1>
+           <div style={{fontSize:13,color:C.textSoft}}>Produzione, vendite e confronto</div>
+         </div>
         <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
           {/* Tab produzione/vendite/confronto */}
           <div style={{display:"flex",background:"#F0EAE6",borderRadius:9,padding:3,gap:2}}>
@@ -5773,6 +5771,23 @@ function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify }
     }
   }, [chiusuraSalvata]);
 
+  // Recupero risultato AI scontrino se il componente era smontato durante l'analisi
+  useEffect(() => {
+    const p = _receiptPending.current;
+    if (!p) return;
+    if (p.loading) { setLoading(true); return; }
+    if (p.venduto !== null) {
+      setVenduto(p.venduto);
+      if (p.dataEstratta && /^\d{4}-\d{2}-\d{2}$/.test(p.dataEstratta)) setDataFiltro(p.dataEstratta);
+      setLoading(false);
+      _receiptPending.current = null;
+    } else if (p.error) {
+      setError(p.error);
+      setLoading(false);
+      _receiptPending.current = null;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const PROMPT = `Sei un OCR per scontrini di bar/pasticceria italiani.
 Estrai queste informazioni dallo scontrino:
 1. DATA: cerca la data dello scontrino in qualsiasi formato (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, "12 marzo 2026", ecc). Convertila sempre in formato ISO YYYY-MM-DD. Se non trovi la data metti null.
@@ -5820,19 +5835,37 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     }
   };
 
-  const handleAnalizza = async () => {
+  const handleAnalizza = () => {
     if (!img) return;
     setLoading(true); setError(null); setVenduto(null);
-    try {
-      const obj = await analyzeReceipt(img, "image/jpeg");
-      // Auto-imposta la data se estratta dallo scontrino
-      if (obj.data && /^\d{4}-\d{2}-\d{2}$/.test(obj.data)) {
-        setDataFiltro(obj.data);
-        notify(`📅 Data estratta dallo scontrino: ${new Date(obj.data+"T12:00").toLocaleDateString("it-IT")}`);
-      }
-      setVenduto(obj.prodotti||[]);
-    } catch(e) { setError(e.message); }
-    setLoading(false);
+    const imgSnap = img; // snapshot — img state might change if user navigates back
+    _receiptPending.current = { loading: true, venduto: null, error: null, dataEstratta: null };
+    backgroundManager.add(`scontrino-${Date.now()}`, {
+      tipo: 'ai_analisi',
+      nome: 'Analisi scontrino AI',
+      fn: async (onProgress) => {
+        onProgress(20);
+        const obj = await analyzeReceipt(imgSnap, "image/jpeg");
+        onProgress(100);
+        return obj;
+      },
+      onComplete: (obj) => {
+        const prodotti = obj.prodotti || [];
+        const dataEstratta = (obj.data && /^\d{4}-\d{2}-\d{2}$/.test(obj.data)) ? obj.data : null;
+        _receiptPending.current = { loading: false, venduto: prodotti, error: null, dataEstratta };
+        setVenduto(prodotti);
+        if (dataEstratta) {
+          setDataFiltro(dataEstratta);
+          notify(`📅 Data estratta dallo scontrino: ${new Date(dataEstratta+"T12:00").toLocaleDateString("it-IT")}`);
+        }
+        setLoading(false);
+      },
+      onError: (err) => {
+        _receiptPending.current = { loading: false, venduto: null, error: err.message, dataEstratta: null };
+        setError(err.message);
+        setLoading(false);
+      },
+    });
   };
 
   const analyzeReceipt = async (imgData, mediaType) => {
@@ -5849,57 +5882,65 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     return JSON.parse(text.replace(/```json|```/g,"").trim());
   };
 
-  const handleAnalizzaBatch = async () => {
+  const handleAnalizzaBatch = () => {
     if (!batchFiles.length) return;
     setLoading(true); setBatchProg("0/"+batchFiles.length); setBatchResults([]);
-    const nuoveChiusure = [...(chiusure||[])];
-    const results = [];
-    let saved = 0, skipped = 0;
-
-    for (let i = 0; i < batchFiles.length; i++) {
-      setBatchProg(`${i+1}/${batchFiles.length}`);
-      notify(`🧾 Leggo scontrino ${i+1} di ${batchFiles.length}…`);
-      try {
-        const obj = await analyzeReceipt(batchFiles[i].data64, batchFiles[i].mediaType);
-        const prodotti = obj.prodotti||[];
-        // Data: preferisce quella estratta dallo scontrino, fallback today
-        const dataRaw = obj.data;
-        const dataStr = dataRaw && /^\d{4}-\d{2}-\d{2}$/.test(dataRaw) ? dataRaw : today;
-
-        if (!prodotti.length) {
-          results.push({ data:dataStr, prodotti:[], salvato:false, error:"Nessun prodotto estratto" });
-          skipped++;
-          continue;
+    // Snapshot data so the job survives navigation without stale closures
+    const filesSnap = batchFiles.slice();
+    const chiusureSnap = (chiusure || []).slice();
+    const todaySnap = today;
+    backgroundManager.add(`batch-scontrini-${Date.now()}`, {
+      tipo: 'ai_analisi',
+      nome: `Analisi batch ${filesSnap.length} scontrini`,
+      fn: async (onProgress) => {
+        const nuoveChiusure = [...chiusureSnap];
+        const results = [];
+        let saved = 0, skipped = 0;
+        for (let i = 0; i < filesSnap.length; i++) {
+          onProgress(Math.round((i / filesSnap.length) * 90));
+          setBatchProg(`${i+1}/${filesSnap.length}`);
+          try {
+            const obj = await analyzeReceipt(filesSnap[i].data64, filesSnap[i].mediaType);
+            const prodotti = obj.prodotti || [];
+            const dataRaw = obj.data;
+            const dataStr = dataRaw && /^\d{4}-\d{2}-\d{2}$/.test(dataRaw) ? dataRaw : todaySnap;
+            if (!prodotti.length) {
+              results.push({ data:dataStr, prodotti:[], salvato:false, error:"Nessun prodotto estratto" });
+              skipped++; continue;
+            }
+            const rec = {
+              id: `ch-${dataStr}-${Date.now()}`,
+              data: dataStr, salvatoAt: new Date().toISOString(),
+              venduto: prodotti, confronto: [], kpi: {},
+              dataEstrattaDaScontrino: !!dataRaw,
+            };
+            const idx = nuoveChiusure.findIndex(c => c.data === dataStr);
+            if (idx >= 0) nuoveChiusure[idx] = rec; else nuoveChiusure.push(rec);
+            results.push({ data:dataStr, prodotti, salvato:true, error:null });
+            saved++;
+          } catch(e) {
+            results.push({ data:"?", prodotti:[], salvato:false, error:e.message });
+            skipped++;
+          }
         }
-
-        const rec = {
-          id: `ch-${dataStr}-${Date.now()}`,
-          data: dataStr,
-          salvatoAt: new Date().toISOString(),
-          venduto: prodotti,
-          confronto: [], // calcolato on-the-fly nello storico
-          kpi: {},
-          dataEstrattaDaScontrino: !!dataRaw,
-        };
-        // Sostituisce se già esiste per quella data
-        const idx = nuoveChiusure.findIndex(c=>c.data===dataStr);
-        if (idx>=0) nuoveChiusure[idx]=rec; else nuoveChiusure.push(rec);
-        results.push({ data:dataStr, prodotti, salvato:true, error:null });
-        saved++;
-      } catch(e) {
-        results.push({ data:"?", prodotti:[], salvato:false, error:e.message });
-        skipped++;
-      }
-    }
-
-    // Salva tutto in una volta
-    nuoveChiusure.sort((a,b)=>b.data.localeCompare(a.data));
-    setChiusure(nuoveChiusure);
-    await ssave(SK_CHIUS, nuoveChiusure);
-    setBatchResults(results);
-    setBatchProg(null);
-    setLoading(false);
-    notify(`✓ ${saved} chiusure salvate${skipped>0?` · ${skipped} saltate`:""}`);
+        nuoveChiusure.sort((a,b) => b.data.localeCompare(a.data));
+        await ssave(SK_CHIUS, nuoveChiusure); // persists regardless of mount state
+        onProgress(100);
+        return { nuoveChiusure, results, saved, skipped };
+      },
+      onComplete: ({ nuoveChiusure, results, saved, skipped }) => {
+        setChiusure(nuoveChiusure); // no-op if unmounted — data already in ssave
+        setBatchResults(results);
+        setBatchProg(null);
+        setLoading(false);
+        notify(`✓ ${saved} chiusure salvate${skipped > 0 ? ` · ${skipped} saltate` : ""}`);
+      },
+      onError: (err) => {
+        setBatchProg(null);
+        setLoading(false);
+        notify(`⚠ Errore batch: ${err.message}`, false);
+      },
+    });
   };
 
   // Calcola confronto prodotto vs venduto
@@ -7905,7 +7946,7 @@ export default function Dashboard({
       {showNotifiche&&<NotifichePanel notifiche={notifiche} nonLette={nonLette} onSegnaLetta={segnaLetta} onSegnaTutte={segnaTutte} onClose={()=>setShowNotifiche(false)}/>}
 
       {/* Novità modal */}
-      <UploadToast />
+      <BackgroundToast />
       {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');}} onVediTutte={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');setView('changelog');}}/>}
 
       {/* CONTENT */}
