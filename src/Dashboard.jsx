@@ -63,7 +63,7 @@ Leggi con attenzione anche grafia difficile o scritte a mano. Se un valore non �
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+      model: 'claude-sonnet-4-6', max_tokens: 2000,
       messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
         { type: 'text', text: prompts[tipo] || prompts.ricetta }
@@ -1020,7 +1020,7 @@ async function getAI(prompt, key, sload, ssave) {
 {"sintesi":"<2 frasi con numeri chiave>","alert":"<1 frase su cosa ottimizzare>","azioni":[{"titolo":"<3 parole>","desc":"<1 frase concreta>"},{"titolo":"<3 parole>","desc":"<1 frase concreta>"},{"titolo":"<3 parole>","desc":"<1 frase concreta>"}]}
 Niente markdown, niente testo fuori dal JSON.`;
   try {
-    const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,system:sys,messages:[{role:"user",content:prompt}]})});
+    const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:500,system:sys,messages:[{role:"user",content:prompt}]})});
     const d=await r.json();
     const raw=d.content?.find(b=>b.type==="text")?.text||"{}";
     let obj; try{obj=JSON.parse(raw.replace(/```json|```/g,"").trim());}catch{obj={sintesi:raw,alert:"",azioni:[]};}
@@ -3043,7 +3043,7 @@ ${azioniStr}
         method:"POST",
         headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-sonnet-4-6",
           max_tokens: 1000,
           system: ctx,
           messages: [...history, { role:"user", content:q }],
@@ -4338,7 +4338,7 @@ Instructions:
     const r = await fetch("/api/ai", {
       method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`},
       body: JSON.stringify({
-        model:"claude-sonnet-4-20250514", max_tokens:1500,
+        model:"claude-sonnet-4-6", max_tokens:1500,
         messages:[{ role:"user", content:[
           { type:"image", source:{ type:"base64", media_type:imgMediaType, data:imgData }},
           { type:"text",  text:PROMPTS[mode] }
@@ -5874,7 +5874,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const analyzeReceipt = async (imgData, mediaType) => {
     const r = await fetch("/api/ai", {
       method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`},
-      body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:2000,
+      body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:2000,
         messages:[{ role:"user", content:[
           { type:"image", source:{ type:"base64", media_type: mediaType||"image/jpeg", data:imgData }},
           { type:"text",  text:PROMPT }
@@ -7663,6 +7663,11 @@ export default function Dashboard({
   // noRedirect=true quando si elimina — non vogliamo uscire dalla pagina
   const handleSalvaRicetta = useCallback(async (nuovoRic, nuoveRegole, noRedirect=false) => {
     const ricettaNome = Object.keys(nuoveRegole||{})[0];
+    console.log('💾 handleSalvaRicetta', { orgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
+    if (!orgId) {
+      notify('⚠ Sessione non valida (orgId mancante). Ricarica la pagina.', false);
+      return;
+    }
     // 1. REGOLE runtime
     for (const [n,r] of Object.entries(nuoveRegole||{})) REGOLE[n]=r;
     // 2. State locale immediato
@@ -7670,9 +7675,12 @@ export default function Dashboard({
     // 3. Salvataggio su Supabase con feedback esplicito se fallisce
     try {
       await ssave(SK_RIC, nuovoRic);
+      console.log('✅ ricettario salvato su Supabase');
     } catch(err) {
       console.error('❌ ERRORE salvataggio ricetta su Supabase:', err);
-      notify(`⚠ Salvataggio fallito: ${err.message || 'errore DB'}. Riprova o contatta il supporto.`, false);
+      // Backup localStorage perché Supabase ha fallito
+      try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: nuovoRic, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
+      notify(`⚠ Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta in cache locale — esegui SQL Supabase.`, false);
       return; // non procedere — non redirect, non conferm toast
     }
     // 4. Magazzino — aggiungi ingredienti mancanti con giacenza 0
