@@ -44,12 +44,14 @@ export async function ssave(key, value, orgId, sedeId) {
         sede_id: effectiveSedeId,
         data_key: key,
         data_value: value,
-        updated_at: new Date().toISOString(),
       },
       { onConflict: 'organization_id,sede_id,data_key' }
     )
 
-  if (error) console.error('ssave error:', key, error)
+  if (error) {
+    console.error('ssave error:', key, error)
+    throw error
+  }
 }
 
 export async function sdelete(key, orgId, sedeId) {

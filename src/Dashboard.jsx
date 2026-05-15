@@ -7539,7 +7539,7 @@ export default function Dashboard({
         if (changed) {
           const migrated = { ...ric, ricette: nuoveRicette };
           setRic(migrated);
-          ssave(SK_RIC, migrated);
+          ssave(SK_RIC, migrated).catch(e => console.error('ssave migrazione:', e));
         }
       }
       setReady(true);
@@ -7665,10 +7665,17 @@ export default function Dashboard({
     const ricettaNome = Object.keys(nuoveRegole||{})[0];
     // 1. REGOLE runtime
     for (const [n,r] of Object.entries(nuoveRegole||{})) REGOLE[n]=r;
-    // 2. State + storage
+    // 2. State locale immediato
     setRic(nuovoRic);
-    await ssave(SK_RIC, nuovoRic);
-    // 3. Magazzino — aggiungi ingredienti mancanti con giacenza 0 (solo su save, non su delete)
+    // 3. Salvataggio su Supabase con feedback esplicito se fallisce
+    try {
+      await ssave(SK_RIC, nuovoRic);
+    } catch(err) {
+      console.error('❌ ERRORE salvataggio ricetta su Supabase:', err);
+      notify(`⚠ Salvataggio fallito: ${err.message || 'errore DB'}. Riprova o contatta il supporto.`, false);
+      return; // non procedere — non redirect, non conferm toast
+    }
+    // 4. Magazzino — aggiungi ingredienti mancanti con giacenza 0
     const ings = (ricettaNome && nuovoRic.ricette?.[ricettaNome]?.ingredienti) || [];
     if (ings.length > 0 && !noRedirect) {
       setMagazzino(prev => {
@@ -7677,11 +7684,11 @@ export default function Dashboard({
           const k = normIng(ing.nome);
           if (!nm[k]) nm[k]={nome:ing.nome.trim(),giacenza_g:0,soglia_g:0,ultimoRifornimento:null};
         });
-        ssave(SK_MAG, nm);
+        ssave(SK_MAG, nm).catch(e => console.error('ssave SK_MAG:', e));
         return nm;
       });
     }
-    // 4. Toast + redirect solo su salvataggio nuovo (non su delete)
+    // 5. Toast + redirect
     if (ricettaNome) notify(`✓ "${ricettaNome}" salvata`);
     if (!noRedirect) setView("ricettario");
   }, [magazzino]);

@@ -232,7 +232,6 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
           sede_id: null,
           data_key: key,
           data_value: value,
-          updated_at: new Date().toISOString(),
         }, { onConflict: 'organization_id,sede_id,data_key' })
       }
 
@@ -245,7 +244,6 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
             sede_id: sedeId,
             data_key: key,
             data_value: value,
-            updated_at: new Date().toISOString(),
           }, { onConflict: 'organization_id,sede_id,data_key' })
         }
       }
