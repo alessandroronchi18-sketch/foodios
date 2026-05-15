@@ -115,6 +115,17 @@ export function useAuth() {
     if (error) throw new Error(tradurciErrore(error.message))
   }
 
+  async function refreshOrg() {
+    const orgId = profile?.organization_id
+    if (!orgId) return
+    const { data: orgData } = await supabase
+      .from('organizations')
+      .select('*')
+      .eq('id', orgId)
+      .single()
+    if (orgData) setOrg(orgData)
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
   }
@@ -146,6 +157,7 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
+    refreshOrg,
     isTrialAttivo,
     isTrialScaduto,
     isPagante,

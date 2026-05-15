@@ -6915,26 +6915,38 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
   const handleToggleEmail = async (val) => {
     setEmailReport(val);
-    await supabase.from("user_data").upsert({
+    const { error } = await supabase.from("user_data").upsert({
       organization_id: orgId, sede_id: null,
       data_key: "report-settings-v1",
       data_value: { emailReport: val },
     },{ onConflict:"organization_id,sede_id,data_key" });
+    if (error) {
+      console.error("Errore toggle email report:", error);
+      setEmailReport(!val);
+      notify("⚠ Errore nel salvataggio impostazione email", false);
+      return;
+    }
     notify(val ? "✓ Riceverai i report mensili via email" : "✓ Email report mensili disattivata");
   };
 
   const handleSalvaNome = async () => {
     if (!nomeMod.trim()) return;
+    if (!orgId) {
+      notify("⚠ Errore: organizzazione non trovata. Ricarica la pagina.", false);
+      return;
+    }
     setSaving(true);
     try {
       const { error } = await supabase
         .from("organizations")
-        .update({ nome_attivita: nomeMod.trim() })
+        .update({ nome: nomeMod.trim() })
         .eq("id", orgId);
       if (error) throw error;
-      notify("✓ Nome attività aggiornato — ricarica la pagina per vederlo nel menu");
+      await auth.refreshOrg?.();
+      notify("✓ Nome attività aggiornato");
     } catch (e) {
-      notify("⚠ Errore: " + e.message, false);
+      console.error("Errore salvataggio nome:", e);
+      notify("⚠ Errore nel salvataggio: " + (e.message || "Riprova"), false);
     } finally {
       setSaving(false);
     }
