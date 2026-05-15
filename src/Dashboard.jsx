@@ -31,6 +31,7 @@ import Fornitori from './components/Fornitori'
 import Personale from './components/Personale'
 import MenuDinamico from './components/MenuDinamico'
 import PrevisioneDomanda from './components/PrevisioneDomanda'
+import AIFotoAnalisi from './components/AIFotoAnalisi'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -41,6 +42,44 @@ let _ctx_orgId = null;
 let _ctx_sedeId = null;
 function ssave(key, val) { return _ssave(key, val, _ctx_orgId, _ctx_sedeId); }
 function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
+
+// ─── CENTRALIZZATA ANALISI FOTO AI ───────────────────────────────────────────
+async function analizzaFotoAI(file, tipo = 'ricetta') {
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const prompts = {
+    ricetta: `Analizza questa immagine di una ricetta (può essere scritta a mano, stampata, o una pagina di libro di ricette) e restituisci SOLO un oggetto JSON valido senza nessun testo aggiuntivo:
+{"nome":"NOME RICETTA IN MAIUSCOLO","categoria":"una di: Torte/Biscotti/Crostate/Muffin/Croissant/Pane/Pizze/Primi/Secondi/Dolci/Altro","porzioni":8,"ingredienti":[{"nome":"nome ingrediente in italiano minuscolo","quantita":250,"unita":"g/kg/ml/l/pz/cucchiai/tazze"}],"procedimento":"breve descrizione se visibile","temperatura":null,"tempo_cottura_minuti":null}
+Leggi con attenzione anche grafia difficile o scritte a mano. Se un valore non è leggibile metti null.`,
+  };
+  const session = await supabase.auth.getSession();
+  const token = session.data.session?.access_token;
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
+        { type: 'text', text: prompts[tipo] || prompts.ricetta }
+      ]}]
+    })
+  });
+  const data = await res.json();
+  const testo = data.content?.find(b => b.type === 'text')?.text || '';
+  try {
+    const clean = testo.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(clean);
+  } catch {
+    const match = testo.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Impossibile leggere la risposta AI. Riprova con una foto più nitida.');
+  }
+}
 
 // ─── SORTABLE TABLE HOOK ──────────────────────────────────────────────────────
 function useSortable(defaultKey, defaultDir="desc") {
@@ -1063,6 +1102,24 @@ function KPI({label,value,sub,color,highlight,icon}) {
   );
 }
 
+// ─── PAGE HEADER ──────────────────────────────────────────────────────────────
+function PageHeader({breadcrumb, title, subtitle, action}) {
+  return (
+    <div style={{marginBottom:20}}>
+      {breadcrumb && <div style={{fontSize:11,color:C.textSoft,marginBottom:6}}>{breadcrumb}</div>}
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+        <div>
+          <h1 style={{margin:"0 0 3px",fontSize:22,fontWeight:700,color:C.text,letterSpacing:"-0.3px"}}>{title}</h1>
+          {subtitle && <div style={{fontSize:13,color:C.textSoft}}>{subtitle}</div>}
+        </div>
+        {action}
+      </div>
+      <div style={{borderTop:`1px solid ${C.border}`,marginTop:14}}/>
+    </div>
+  );
+}
+
+
 // ─── TORTA CARD ───────────────────────────────────────────────────────────────
 function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
   const isMobile = useIsMobile();
@@ -1341,99 +1398,189 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
 }
 
 // ─── RICETTARIO VIEW ──────────────────────────────────────────────────────────
+// ─── RICETTARIO VIEW ─────────────────────────────────────────────────────────
 function RicettarioView({ricettario, onUpdateRegola, onUpload}) {
-  const ingCosti     = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
-  const ricette      = useMemo(()=>Object.values(ricettario?.ricette||{})
+  const isMobile = useIsMobile();
+  const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
+  const ricette  = useMemo(()=>Object.values(ricettario?.ricette||{})
     .filter(r=>isRicettaValida(r.nome) && getR(r.nome,r).tipo!=="interno" && getR(r.nome,r).tipo!=="semilavorato"),
   [ricettario]);
   const semilavorati = useMemo(()=>Object.values(ricettario?.ricette||{})
     .filter(r=>isRicettaValida(r.nome) && getR(r.nome,r).tipo==="semilavorato"),
   [ricettario]);
 
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('margine');
+  const [gridView, setGridView] = useState(false);
+
+  // Stats
+  const fcMedio = ricette.length===0 ? 0 : (()=>{
+    let tot=0,cnt=0;
+    for(const ric of ricette){
+      const reg=getR(ric.nome,ric);
+      if(!reg.unita||!reg.prezzo) continue;
+      const {tot:fc}=calcolaFC(ric,ingCosti,ricettario);
+      const ricavo=reg.unita*reg.prezzo;
+      if(ricavo>0){tot+=fc/ricavo;cnt++;}
+    }
+    return cnt>0?tot/cnt:0;
+  })();
+
+  // Filter & sort
+  const filtered = useMemo(()=>{
+    let arr = ricette.filter(r=>r.nome.toLowerCase().includes(search.toLowerCase()));
+    arr = [...arr].sort((a,b)=>{
+      if(sortBy==='nome') return a.nome.localeCompare(b.nome);
+      const ra=getR(a.nome,a), rb=getR(b.nome,b);
+      const {tot:fca}=calcolaFC(a,ingCosti,ricettario), {tot:fcb}=calcolaFC(b,ingCosti,ricettario);
+      if(sortBy==='fc') return (fca/(ra.unita*ra.prezzo||1))-(fcb/(rb.unita*rb.prezzo||1));
+      const ma=ra.unita*ra.prezzo>0?((ra.unita*ra.prezzo-fca)/(ra.unita*ra.prezzo)*100):0;
+      const mb=rb.unita*rb.prezzo>0?((rb.unita*rb.prezzo-fcb)/(rb.unita*rb.prezzo)*100):0;
+      return mb-ma; // margine desc
+    });
+    return arr;
+  }, [ricette, search, sortBy, ingCosti, ricettario]);
+
+  const iconBtn = (active, title, path) => (
+    <button title={title}
+      style={{padding:"7px 10px",border:`1px solid ${active?C.red:C.border}`,borderRadius:7,
+        background:active?C.redLight:"transparent",cursor:"pointer",
+        color:active?C.red:C.textMid,display:"flex",alignItems:"center",justifyContent:"center"}}
+      onClick={()=>setGridView(title==='Griglia')}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
+        dangerouslySetInnerHTML={{__html:path}}/>
+    </button>
+  );
+
   return (
     <div style={{maxWidth:1100}}>
-      <div style={{marginBottom:28}}>
-        <h1 style={{margin:"0 0 8px",fontSize:30,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Ricettario</h1>
-        <p style={{margin:0,fontSize:12,color:C.textSoft,lineHeight:1.7,maxWidth:600}}>
-          Distinta ingredienti, composizione food cost e conto economico per stampo. Clicca su una ricetta per espandere il dettaglio.
-        </p>
-        <div style={{marginTop:12,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"5px 10px",background:C.amberLight,borderRadius:6,fontSize:10,color:C.amber,fontWeight:600}}>
-            💡 Per prezzi reali vai in <strong>Magazzino → Importa prezzi .xlsx</strong>
+      {/* Page header */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:11,color:C.textSoft,marginBottom:6}}>Dashboard › Ricettario</div>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div>
+            <h1 style={{margin:"0 0 3px",fontSize:22,fontWeight:700,color:C.text,letterSpacing:"-0.3px"}}>Ricettario</h1>
+            <div style={{fontSize:13,color:C.textSoft}}>
+              {ricette.length} ricette{ricette.length>0?` · food cost medio ${(fcMedio*100).toFixed(1)}%`:""}
+            </div>
           </div>
           {onUpload&&(
-            <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:C.white,border:`1px solid ${C.border}`,borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,color:C.textMid}}>
-              ↻ Aggiorna ricettario
+            <label style={{display:"inline-flex",alignItems:"center",gap:7,padding:"9px 16px",
+              background:C.red,border:"none",borderRadius:8,cursor:"pointer",
+              fontSize:12,fontWeight:600,color:"#fff",flexShrink:0}}>
+              + Aggiorna ricettario
               <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&onUpload(Array.from(e.target.files))}/>
             </label>
           )}
         </div>
       </div>
 
-      {/* ─── RICETTE VENDIBILI ─── */}
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {ricette
-          .sort((a,b)=>{
-            const ra=getR(a.nome,a), rb=getR(b.nome,b);
-            const {tot:fca}=calcolaFC(a,ingCosti,ricettario), {tot:fcb}=calcolaFC(b,ingCosti,ricettario);
-            const ma=ra.unita*ra.prezzo>0?((ra.unita*ra.prezzo-fca)/(ra.unita*ra.prezzo)*100):0;
-            const mb=rb.unita*rb.prezzo>0?((rb.unita*rb.prezzo-fcb)/(rb.unita*rb.prezzo)*100):0;
-            return mb-ma;
-          })
-          .map(ric=><TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola}/>)
-        }
+      <div style={{borderTop:`1px solid ${C.border}`,marginBottom:16}}/>
+
+      {/* Search + sort + view toggle */}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca ricetta..."
+          style={{flex:1,minWidth:180,padding:"8px 12px",border:`1px solid ${C.border}`,borderRadius:8,
+            fontSize:13,color:C.text,background:"#fff",outline:"none",fontFamily:"inherit"}}
+          onFocus={e=>e.target.style.borderColor="#94A3B8"}
+          onBlur={e=>e.target.style.borderColor=C.border}/>
+        <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+          style={{padding:"8px 12px",border:`1px solid ${C.border}`,borderRadius:8,
+            fontSize:13,color:C.text,background:"#fff",cursor:"pointer",fontFamily:"inherit",outline:"none"}}>
+          <option value="margine">Margine ↓</option>
+          <option value="fc">Food cost ↑</option>
+          <option value="nome">Nome A-Z</option>
+        </select>
+        <div style={{display:"flex",gap:4}}>
+          {iconBtn(!gridView,"Lista","<line x1='3' y1='9' x2='21' y2='9'/><line x1='3' y1='15' x2='21' y2='15'/><line x1='3' y1='3' x2='21' y2='3'/>")}
+          {iconBtn(gridView,"Griglia","<rect x='3' y='3' width='7' height='7'/><rect x='14' y='3' width='7' height='7'/><rect x='3' y='14' width='7' height='7'/><rect x='14' y='14' width='7' height='7'/>")}
+        </div>
       </div>
 
-      {/* ─── SEMILAVORATI ─── */}
+      {/* Grid or List */}
+      {gridView ? (
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:16,marginBottom:32}}>
+          {filtered.map(ric=>{
+            const reg=getR(ric.nome,ric);
+            const {tot:fc}=calcolaFC(ric,ingCosti,ricettario);
+            const ricavo=reg.prezzo*reg.unita;
+            const marg=ricavo>0?(ricavo-fc)/ricavo*100:0;
+            const fcPct=ricavo>0?fc/ricavo*100:0;
+            const margColor2=marg>=60?C.green:marg>=40?C.amber:C.red;
+            return (
+              <div key={ric.nome} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,
+                padding:"18px",boxShadow:"0 1px 3px rgba(0,0,0,0.05)",display:"flex",flexDirection:"column",gap:12}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:36,height:36,borderRadius:8,background:C.bg,display:"flex",alignItems:"center",
+                    justifyContent:"center",fontSize:18,flexShrink:0}}>
+                    🍽
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{ric.nome}</div>
+                    <div style={{fontSize:11,color:C.textSoft,marginTop:1}}>{reg.unita||"?"} {reg.tipo||"pz"}</div>
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <div>
+                    <div style={{fontSize:10,color:C.textSoft,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:2}}>Food Cost</div>
+                    <div style={{fontSize:14,fontWeight:700,color:C.red}}>{fcPct.toFixed(1)}%</div>
+                    <div style={{fontSize:11,color:C.textSoft}}>{fmt(fc/Math.max(reg.unita||1,1))}/pz</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,color:C.textSoft,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:2}}>Margine</div>
+                    <div style={{fontSize:14,fontWeight:700,color:margColor2}}>{marg.toFixed(1)}%</div>
+                    <div style={{fontSize:11,color:C.textSoft}}>{fmt(ricavo>0?ricavo-fc:0)}</div>
+                  </div>
+                </div>
+                <div style={{paddingTop:10,borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:12,color:C.textSoft}}>Prezzo: <span style={{fontWeight:600,color:C.text}}>{fmt(reg.prezzo)}</span></div>
+                  <button onClick={()=>exportRicettaPDF(ric,{tot:fc,perc:ricavo>0?fc/ricavo*100:0})}
+                    style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:"transparent",
+                      fontSize:11,color:C.textMid,cursor:"pointer",fontWeight:500}}>PDF</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:32}}>
+          {filtered.map(ric=><TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola}/>)}
+        </div>
+      )}
+
+      {/* Semilavorati */}
       {semilavorati.length>0&&(
-        <div style={{marginTop:36}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-            <div style={{width:3,height:18,background:"#8E44AD",borderRadius:2,flexShrink:0}}/>
-            <div>
-              <h2 style={{margin:0,fontSize:16,fontWeight:800,color:C.text}}>🧁 Semilavorati & Basi</h2>
-              <div style={{fontSize:11,color:C.textSoft,marginTop:2}}>Impasti, creme e basi interne — non vendibili al cliente, usabili come ingredienti in altre ricette</div>
-            </div>
+        <div style={{marginBottom:32}}>
+          <div style={{borderTop:`1px solid ${C.border}`,marginBottom:20}}/>
+          <div style={{marginBottom:14}}>
+            <h2 style={{margin:"0 0 3px",fontSize:16,fontWeight:700,color:C.text}}>Semilavorati & Basi</h2>
+            <div style={{fontSize:12,color:C.textSoft}}>Impasti, creme e basi interne — non vendibili, usabili come ingredienti</div>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {semilavorati.map(ric=>{
-              const { tot:fc, mancanti } = calcolaFC(ric, ingCosti, ricettario);
-              const pesoTot = (ric.ingredienti||[]).reduce((s,i)=>s+(i.qty1stampo||0), 0);
-              const costoG  = pesoTot>0 ? fc/pesoTot : 0;
+              const {tot:fc,mancanti}=calcolaFC(ric,ingCosti,ricettario);
+              const pesoTot=(ric.ingredienti||[]).reduce((s,i)=>s+(i.qty1stampo||0),0);
+              const costoG=pesoTot>0?fc/pesoTot:0;
               return (
-                <div key={ric.nome} style={{background:C.bgCard,border:"1px solid #D4B0E8",borderRadius:12,padding:"16px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                <div key={ric.nome} style={{background:C.bgCard,border:"1px solid #D4B0E8",borderRadius:12,padding:"16px 20px",
+                  boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
                   <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
                     <div style={{flex:1}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                        <span style={{padding:"3px 8px",borderRadius:5,background:"#F0E4FA",color:"#8E44AD",fontSize:9,fontWeight:800,letterSpacing:"0.06em",textTransform:"uppercase"}}>Semilavorato</span>
-                        <span style={{fontSize:14,fontWeight:900,color:C.text}}>{ric.nome}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                        <span style={{padding:"2px 8px",borderRadius:4,background:"#F0E4FA",color:"#8E44AD",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em"}}>Semilavorato</span>
+                        <span style={{fontSize:14,fontWeight:700,color:C.text}}>{ric.nome}</span>
                       </div>
                       <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-                        <div style={{fontSize:11,color:C.textSoft}}>⚖️ Peso tot. <span style={{fontWeight:700,color:C.text}}>{pesoTot>=1000?`${(pesoTot/1000).toFixed(2)} kg`:`${Math.round(pesoTot)} g`}</span></div>
-                        <div style={{fontSize:11,color:C.textSoft}}>💶 Costo batch <span style={{fontWeight:700,color:C.red}}>€{fc.toFixed(2)}</span></div>
-                        <div style={{fontSize:11,color:C.textSoft}}>📏 Costo/g <span style={{fontWeight:700,color:C.text,fontFamily:"monospace"}}>{costoG>0?costoG.toFixed(5):"—"} €/g</span></div>
-                        <div style={{fontSize:11,color:C.textSoft}}>📦 <span style={{fontWeight:700,color:C.text}}>€{(costoG*1000).toFixed(2)}/kg</span></div>
-                      </div>
-                      {mancanti.length>0&&<div style={{fontSize:9,color:C.amber,marginTop:6}}>⚠ Prezzi non trovati: {mancanti.join(", ")}</div>}
-                      {ric.note&&<div style={{fontSize:10,color:C.textSoft,marginTop:4,fontStyle:"italic"}}>📝 {ric.note}</div>}
-                    </div>
-                    <div style={{minWidth:160}}>
-                      <div style={{fontSize:9,fontWeight:700,color:"#8E44AD",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Ingredienti ({(ric.ingredienti||[]).length})</div>
-                      <div style={{display:"flex",flexDirection:"column",gap:2,maxHeight:90,overflowY:"auto"}}>
-                        {(ric.ingredienti||[]).map((ing,i)=>(
-                          <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:9,padding:"2px 6px",background:"#F9F2FD",borderRadius:3}}>
-                            <span style={{color:C.textMid}}>{ing.nome}</span>
-                            <span style={{color:"#8E44AD",fontWeight:700}}>{ing.qty1stampo}g</span>
-                          </div>
-                        ))}
+                        <div style={{fontSize:12,color:C.textSoft}}>Peso: <span style={{fontWeight:600,color:C.text}}>{pesoTot>=1000?`${(pesoTot/1000).toFixed(2)} kg`:`${Math.round(pesoTot)} g`}</span></div>
+                        <div style={{fontSize:12,color:C.textSoft}}>Costo batch: <span style={{fontWeight:600,color:C.red}}>€{fc.toFixed(2)}</span></div>
+                        <div style={{fontSize:12,color:C.textSoft}}>Costo/kg: <span style={{fontWeight:600,color:C.text}}>€{(costoG*1000).toFixed(2)}</span></div>
                       </div>
                     </div>
                   </div>
                 </div>
               );
             })}
-          </div>
-          <div style={{marginTop:10,padding:"10px 14px",background:"#F9F2FD",border:"1px solid #D4B0E8",borderRadius:8,fontSize:10,color:"#6B2FA0",lineHeight:1.6}}>
-            💡 <strong>Come usare un semilavorato in una ricetta:</strong> nella distinta ingredienti di una torta, aggiungi il nome del semilavorato (es. <em>"crema pasticcera"</em>) come ingrediente con la quantità in grammi — il sistema calcola il costo automaticamente.
           </div>
         </div>
       )}
@@ -2175,23 +2322,17 @@ function PLView({ricettario, onUpdateRegola}) {
   return (
     <div style={{maxWidth:1200}}>
 
-      {/* ── PAGE HEADER ─────────────────────────────────────────────────── */}
-      <div style={{marginBottom:32}}>
-        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
-          <div>
-            <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>P&L</div>
-            <h1 style={{margin:"0 0 8px",fontSize:30,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Profit & Loss</h1>
-          </div>
+      <PageHeader
+        breadcrumb="Dashboard › P&L"
+        title="Profit & Loss"
+        subtitle={`${rows.length} prodotti · food cost medio ${pct(fcAvg)} · margine medio ${pct(avgMarg)}`}
+        action={
           <button onClick={()=>exportPLMensile({ricavi:rows.map(r=>({categoria:r.nome,quantita:r.reg.unita,ricavo:r.ricavo})),costi:rows.map(r=>({categoria:r.nome,costo:r.fc,perc:r.fcPct}))},null,null,null)}
-            style={{marginTop:8,padding:"8px 14px",borderRadius:8,border:"1px solid #E8DDD8",background:"#FFF",fontSize:12,fontWeight:700,color:"#6B4C44",cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-            📄 Esporta PDF
+            style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.border}`,background:C.bgCard,fontSize:12,fontWeight:600,color:C.textMid,cursor:"pointer"}}>
+            Esporta PDF
           </button>
-        </div>
-        <p style={{margin:0,fontSize:12,color:C.textSoft,lineHeight:1.7,maxWidth:680}}>
-          Analisi reddituale completa per prodotto: ricavi, food cost, margine lordo per stampo e per unità.
-          I valori si basano sui prezzi di vendita e listino ingredienti HoReCa Torino correnti.
-        </p>
-      </div>
+        }
+      />
 
       {/* ── KPI STRIP ───────────────────────────────────────────────────── */}
       <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(6,1fr)",gap:10,marginBottom:36}}>
@@ -2926,13 +3067,11 @@ ${azioniStr}
   return (
     <div style={{maxWidth:900,display:"flex",flexDirection:"column",gap:0}}>
       {/* Header */}
-      <div style={{marginBottom:24}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Intelligenza Artificiale</div>
-        <h1 style={{margin:"0 0 6px",fontSize:26,fontWeight:900,color:C.text,letterSpacing:"-0.02em"}}>Assistente AI</h1>
-        <p style={{margin:0,fontSize:12,color:C.textSoft,lineHeight:1.7}}>
-          Fai domande sulla tua pasticceria — analisi P&L, ottimizzazioni, struttura del gestionale, next step. L'AI ha accesso a tutti i tuoi dati in tempo reale.
-        </p>
-      </div>
+      <PageHeader
+        breadcrumb="Dashboard › AI Assistant"
+        title="AI Assistant"
+        subtitle="Analisi basate sui tuoi dati reali · ricettario, produzioni, cassa, magazzino"
+      />
 
       {/* Tabs */}
       <div style={{display:"flex",gap:2,marginBottom:20,background:"#F0EAE6",borderRadius:9,padding:3,width:"fit-content"}}>
@@ -3302,27 +3441,19 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
 
   return (
     <div style={{maxWidth:1100}}>
-      <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
-        <div>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Gestione scorte</div>
-          <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Magazzino</h1>
-          <p style={{margin:0,fontSize:12,color:C.textSoft}}>Traccia le giacenze, carica i rifornimenti e ricevi alert automatici basati sul consumo reale.</p>
-        </div>
-        {onImportPrezzi&&(
-          <label style={{display:"flex",alignItems:"center",gap:10,padding:"12px 18px",
-            background:C.amberLight,border:`1px solid ${C.amber}50`,borderRadius:12,
-            cursor:"pointer",flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-            <span style={{fontSize:22}}>💶</span>
-            <div>
-              <div style={{fontSize:12,fontWeight:800,color:C.amber}}>Importa prezzi materie prime</div>
-              <div style={{fontSize:10,color:C.textSoft,marginTop:2}}>Excel: colonne <strong>Ingrediente | €/kg</strong> — sovrascrive le stime HoReCa</div>
-              <div style={{fontSize:9,color:C.textSoft,marginTop:1}}>Formati supportati: .xlsx · .xls · .csv · più file insieme</div>
-            </div>
+      <PageHeader
+        breadcrumb="Dashboard › Magazzino"
+        title="Magazzino"
+        subtitle={`${tuttiIngNomi.length} ingredienti · ${righe.filter(r=>r.stato==="esaurito"||r.stato==="critico").length} critici`}
+        action={onImportPrezzi&&(
+          <label style={{display:"inline-flex",alignItems:"center",gap:7,padding:"9px 16px",
+            background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:8,cursor:"pointer"}}>
+            <span style={{fontSize:12,fontWeight:600,color:C.textMid}}>Importa prezzi</span>
             <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}}
               onChange={e=>e.target.files.length&&onImportPrezzi(e.target.files)}/>
           </label>
         )}
-      </div>
+      />
 
       {/* Alert banner */}
       {(critici.length>0||attenzione.length>0) && (
@@ -3796,13 +3927,11 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
 
   return (
     <div style={{maxWidth:1100}}>
-      <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
-        <div>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Operativo</div>
-          <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Produzione Giornaliera</h1>
-          <p style={{margin:0,fontSize:12,color:C.textSoft}}>Registra cosa hai prodotto oggi. Il magazzino si aggiorna automaticamente.</p>
-        </div>
-        {(giornaliero||[]).length>0&&(
+      <PageHeader
+        breadcrumb="Dashboard › Produzione"
+        title="Produzione giornaliera"
+        subtitle={`${new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})} · Il magazzino si aggiorna automaticamente`}
+        action={(giornaliero||[]).length>0&&(
           <button onClick={()=>{
             const sess=(giornaliero||[])[0];
             const items=Object.entries(sess?.qtaMap||{}).flatMap(([nome,qty])=>{
@@ -3813,11 +3942,11 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
             });
             exportProduzione(items,sess?.data,null);
           }}
-            style={{marginTop:8,padding:"8px 14px",borderRadius:8,border:"1px solid #E8DDD8",background:"#FFF",fontSize:12,fontWeight:700,color:"#6B4C44",cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-            📄 Esporta PDF
+            style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.border}`,background:C.bgCard,fontSize:12,fontWeight:600,color:C.textMid,cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+            PDF
           </button>
         )}
-      </div>
+      />
 
       <div style={{display:"flex",gap:4,marginBottom:24,borderBottom:`2px solid ${C.border}`}}>
         {[["nuova","➕ Nuova sessione"],["storico","📋 Storico"]].map(([id,lbl])=>(
@@ -4356,7 +4485,7 @@ Instructions:
             {error && (
               <div style={{padding:"12px",background:C.redLight,borderRadius:9}}>
                 <div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:6}}>⚠ {error}</div>
-                <button onClick={batchMode ? handleAnalizzaBatch : handleAnalizza} style={{padding:"6px 14px",background:C.red,color:C.white,border:"none",borderRadius:6,fontSize:10,fontWeight:700,cursor:"pointer"}}>Riprova</button>
+                <button onClick={handleAnalizza} style={{padding:"6px 14px",background:C.red,color:C.white,border:"none",borderRadius:6,fontSize:10,fontWeight:700,cursor:"pointer"}}>Riprova</button>
               </div>
             )}
             {parsed && !loading && (
@@ -4458,6 +4587,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
   const [deletePin,  setDeletePin]  = useState("");   // PIN conferma cancellazione
   const [overwriteConf, setOverwriteConf] = useState(null); // nome ricetta da sovrascrivere
   const [forceOverwrite, setForceOverwrite] = useState(false); // per batch foto
+  const [datiEstratti, setDatiEstratti] = useState(null); // dati AI in attesa di conferma
   const formRef = useRef(null);
 
   // Elenco ricette esistenti per edit
@@ -4530,6 +4660,34 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
   const ricavoLive = form.unita * form.prezzo;
   const margLive   = ricavoLive - fcLive;
   const margPctLive= ricavoLive>0?(margLive/ricavoLive*100):0;
+
+  const handleConfermaRicetta = (datiConfermati) => {
+    const UNIT_G = { g:1,gr:1,grammi:1,grammo:1, kg:1000, ml:1, l:1000, cl:10, dl:100,
+      cucchiaio:15,cucchiai:15,tbsp:15, cucchiaino:5,cucchiaini:5,tsp:5,
+      tazza:240,cup:240,tazze:240, bicchiere:200, noce:15, pizzico:2, qb:0, pz:1 };
+    const ings = (datiConfermati.ingredienti || [])
+      .filter(i => i.nome.trim())
+      .map(i => ({
+        nome: translateIngredienteEN(i.nome.toLowerCase().trim()),
+        qty1stampo: Math.round((parseFloat(i.quantita)||0) * (UNIT_G[(i.unita||'g').toLowerCase()] ?? 1)),
+        costoPerG: 0, costo1stampo: 0
+      }));
+    const nomeUp = (datiConfermati.nome || '').trim().toUpperCase();
+    if (!nomeUp || !ings.length) { notify('⚠ Dati incompleti — inserisci nome e almeno un ingrediente', false); return; }
+    const nuovaRic = {
+      nome: nomeUp, sheetName: 'manuale', numStampi:1, totImpasto1:0, foodCost1:0,
+      ingredienti: ings, note: datiConfermati.procedimento || '',
+      unita: datiConfermati.porzioni || 8, prezzo: 4, tipo: 'fetta',
+      congelabile: false, allergeni: [],
+    };
+    const nuovoRic = {
+      ingredienti_costi: ricettario?.ingredienti_costi || {},
+      ...(ricettario || {}),
+      ricette: { ...(ricettario?.ricette || {}), [nomeUp]: nuovaRic }
+    };
+    onSave(nuovoRic, { [nomeUp]: { unita: nuovaRic.unita, prezzo: nuovaRic.prezzo, tipo: nuovaRic.tipo } });
+    setDatiEstratti(null);
+  };
 
   return (
     <div style={{maxWidth:1000}}>
@@ -4605,32 +4763,18 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
       </div>
       <FotoOCR mode="ricetta" notify={notify} ricettario={ricettario}
         onResult={res=>{
-          const UNIT_G = { g:1,gr:1,grammi:1,grammo:1, kg:1000,chilo:1000,chilogrammo:1000, ml:1,millilitri:1, l:1000,litro:1000,litri:1000, cl:10,centilitri:10, dl:100,decilitri:100, cucchiaio:15,cucchiai:15,tbsp:15, cucchiaino:5,cucchiaini:5,tsp:5, tazza:240,cup:240,tazze:240, bicchiere:200,bicchieri:200, noce:15, pizzico:2,pizzichi:2, qb:0 };
-          const SKIP_ING_OCR = ["ingrediente","ingredient","ingredienti","nome ingrediente in minuscolo","n/d","nan","undefined",""];
-          const toGrams = (i) => {
-            if (i.qty != null) return parseFloat(i.qty)||0;
-            const q = parseFloat(i.quantita)||0;
-            const u = (i.unita||"g").toLowerCase().trim();
-            return Math.round(q * (UNIT_G[u] ?? 1));
-          };
-          const ings = (res.ingredienti||[])
-            .map(i=>({ nome: translateIngredienteEN(i.nome||""), qty1stampo: toGrams(i), costoPerG:0, costo1stampo:0 }))
-            .filter(i => !SKIP_ING_OCR.includes(i.nome.toLowerCase().trim()) && i.qty1stampo >= 0);
-          const nomeIT = translateProdottoEN(res.nome||"");
-          setForm(f=>({
-            ...f,
-            nome:  nomeIT || f.nome,
-            note:  res.note || f.note,
-            unita: res.porzioni || res.unita || f.unita,
-            prezzo:res.prezzo|| f.prezzo,
-            tipo:  res.tipo  || f.tipo,
-            ingredienti: ings.length>0 ? ings : f.ingredienti,
-          }));
-          setTimeout(()=>formRef.current?.scrollIntoView({behavior:"smooth",block:"start"}), 100);
-          notify(ings.length>0
-            ? `📷 Importata: ${nomeIT||"ricetta"} con ${ings.length} ingredienti — controlla e salva`
-            : `📷 Nome estratto: ${nomeIT||"ricetta"} — aggiungi gli ingredienti manualmente`
-          );
+          setDatiEstratti({
+            nome: translateProdottoEN(res.nome || ''),
+            categoria: 'Altro',
+            porzioni: res.porzioni || res.unita || 8,
+            ingredienti: (res.ingredienti || []).map(i => ({
+              nome: translateIngredienteEN(i.nome || ''),
+              quantita: parseFloat(i.quantita) || parseFloat(i.qty) || 0,
+              unita: i.unita || 'g'
+            })),
+            procedimento: res.note || ''
+          });
+          setTimeout(()=>formRef.current?.scrollIntoView({behavior:"smooth",block:"start"}), 150);
         }}
         onBatchSave={async (res, idx, ricAcc, setRicAcc) => {
           // Salva direttamente una ricetta da OCR senza passare dal form
@@ -4671,6 +4815,15 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
           return true;
         }}
       />
+
+      {datiEstratti && (
+        <AIFotoAnalisi
+          dati={datiEstratti}
+          onConferma={handleConfermaRicetta}
+          onRianalizza={() => setDatiEstratti(null)}
+          onAnnulla={() => setDatiEstratti(null)}
+        />
+      )}
 
       <div ref={formRef} style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 300px",gap:24}}>
         {/* Form sinistra */}
@@ -5873,25 +6026,23 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
   return (
     <div style={{maxWidth:1100}}>
-      <div style={{marginBottom:24}}>
-        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-          <div>
-            <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Fine giornata</div>
-            <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Chiusura</h1>
-            <p style={{margin:0,fontSize:12,color:C.textSoft,maxWidth:600}}>Carica lo scontrino di fine giornata: Claude legge i dati di vendita, li confronta con la produzione e salva tutto nello storico.</p>
-          </div>
-          <div style={{display:"flex",gap:8,flexShrink:0,marginTop:4}}>
+      <PageHeader
+        breadcrumb="Dashboard › Cassa"
+        title="Cassa"
+        subtitle="Chiudi la giornata — foto scontrino, import delivery o manuale"
+        action={
+          <div style={{display:"flex",gap:8}}>
             <button onClick={()=>{setImportModal('delivery');setImportPreview(null);}}
-              style={{padding:"8px 14px",background:"#FFF8EE",border:"1px solid rgba(217,119,6,0.25)",borderRadius:9,fontSize:11,fontWeight:700,color:C.amber,cursor:"pointer",whiteSpace:"nowrap"}}>
-              🛵 Importa da delivery
+              style={{padding:"8px 14px",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:8,fontSize:12,fontWeight:600,color:C.textMid,cursor:"pointer",whiteSpace:"nowrap"}}>
+              Delivery
             </button>
             <button onClick={()=>{setImportModal('cassa');setImportPreview(null);}}
-              style={{padding:"8px 14px",background:"#F0F7FF",border:"1px solid rgba(147,197,253,0.4)",borderRadius:9,fontSize:11,fontWeight:700,color:"#2563EB",cursor:"pointer",whiteSpace:"nowrap"}}>
-              🖥 Importa da sistema cassa
+              style={{padding:"8px 14px",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:8,fontSize:12,fontWeight:600,color:C.textMid,cursor:"pointer",whiteSpace:"nowrap"}}>
+              Sistema cassa
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* ── Modal import delivery ── */}
       {importModal==="delivery"&&(
