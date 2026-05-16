@@ -20,15 +20,19 @@
     <link rel="alternate icon" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
       *, *::before, *::after { box-sizing: border-box; }
-      html, body { margin: 0; padding: 0; height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #FDFAF7; }
+      html, body { margin: 0; padding: 0; height: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #F8FAFC; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
       #root { min-height: 100vh; }
-      ::-webkit-scrollbar { width: 7px; height: 7px; }
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: rgba(192,57,43,0.25); border-radius: 10px; }
-      ::-webkit-scrollbar-thumb:hover { background: rgba(192,57,43,0.45); }
+      ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.35); border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.55); }
+      @keyframes _fos_pageIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes _fos_fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .fos-page { animation: _fos_pageIn 0.22s ease-out; }
+      .fos-fade { animation: _fos_fadeIn 0.18s ease-out; }
       @media (max-width: 767px) {
         input, textarea, select { font-size: 16px !important; }
         table { width: 100%; }

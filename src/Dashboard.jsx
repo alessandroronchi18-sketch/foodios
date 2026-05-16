@@ -1049,13 +1049,16 @@ Niente markdown, niente testo fuori dal JSON.`;
 
 // ─── DESIGN ───────────────────────────────────────────────────────────────────
 const C = {
-  bg:"#F8FAFC", bgCard:"#FFFFFF", bgSide:"#0F0F0F",
-  border:"#E2E8F0", borderStr:"#CBD5E1",
-  red:"#C0392B", redDark:"#922B21", redLight:"#FEF2F2",
+  bg:"#F8FAFC", bgCard:"#FFFFFF", bgSide:"#0B0E14", bgSubtle:"#F1F5F9",
+  border:"#E5E9EF", borderStr:"#CBD5E1", borderSoft:"#EEF1F6",
+  red:"#C0392B", redDark:"#922B21", redLight:"#FEF2F2", redSoft:"#FCE7E4",
   green:"#16A34A", greenLight:"#F0FDF4",
   amber:"#D97706", amberLight:"#FFFBEB",
   text:"#0F172A", textMid:"#475569", textSoft:"#94A3B8",
   white:"#FFFFFF",
+  shadowSoft:"0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.04)",
+  shadowMed:"0 4px 12px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04)",
+  shadowLg:"0 10px 30px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04)",
 };
 const fmt  = v => `€ ${Number(v).toFixed(2)}`;
 const fmtp = v => `${Number(v).toFixed(1)}%`;
@@ -7867,7 +7870,7 @@ export default function Dashboard({
 
         const ic = (paths, sz=16) => (
           <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
+            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
             style={{flexShrink:0}} dangerouslySetInnerHTML={{__html:paths}} />
         );
 
@@ -7897,29 +7900,31 @@ export default function Dashboard({
           const active = view === id;
           return (
             <button key={id} onClick={()=>{setView(id);if(isMobile)setSidebarOpen(false);}}
-              style={{width:"100%",padding:"8px 16px",
-                borderRadius:"0 6px 6px 0",
+              style={{width:"calc(100% - 16px)",padding:"9px 12px",margin:"0 8px",
+                borderRadius:9,
                 border:"none",cursor:"pointer",textAlign:"left",
-                background:active?"#1A1A1A":"transparent",
-                color:active?"#FFFFFF":"rgba(255,255,255,0.65)",
-                fontWeight:500,fontSize:13,marginBottom:1,
-                display:"flex",alignItems:"center",gap:10,
-                transition:"background 0.12s,color 0.12s",
-                borderLeft:active?"2px solid #C0392B":"2px solid transparent"}}
-              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="#FFFFFF";}}}
-              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.65)";}}}
+                background:active?"rgba(192,57,43,0.14)":"transparent",
+                color:active?"#FFFFFF":"rgba(255,255,255,0.62)",
+                fontWeight:active?500:400,fontSize:13,marginBottom:2,
+                letterSpacing:"-0.005em",
+                display:"flex",alignItems:"center",gap:11,
+                position:"relative",
+                transition:"background 0.18s ease, color 0.18s ease, transform 0.12s ease"}}
+              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.color="rgba(255,255,255,0.95)";}}}
+              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.62)";}}}
             >
-              {ic(ICONS[iconKey])}
+              {active && <span style={{position:"absolute",left:-8,top:8,bottom:8,width:3,background:"#C0392B",borderRadius:"0 3px 3px 0"}}/>}
+              <span style={{color:active?"#C0392B":"inherit",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey])}</span>
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
-              {badge>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:10,fontSize:9,fontWeight:700,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{badge}</span>}
+              {badge>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:10,fontSize:9,fontWeight:700,padding:"2px 7px",minWidth:18,textAlign:"center",letterSpacing:0}}>{badge}</span>}
               {alert&&badge===0&&<span style={{width:6,height:6,borderRadius:"50%",background:"#C0392B",flexShrink:0,animation:"_sp_pulse 1.4s ease-in-out infinite"}}/>}
             </button>
           );
         };
 
         const Sep = ({label}) => (
-          <div style={{padding:"16px 16px 5px",fontSize:10,fontWeight:700,
-            letterSpacing:"0.08em",textTransform:"uppercase",color:"rgba(255,255,255,0.22)"}}>
+          <div style={{padding:"18px 20px 6px",fontSize:9,fontWeight:600,
+            letterSpacing:"0.12em",textTransform:"uppercase",color:"rgba(255,255,255,0.32)"}}>
             {label}
           </div>
         );
@@ -7938,24 +7943,25 @@ export default function Dashboard({
               style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
           )}
 
-          <div style={{width:220,background:"#0F0F0F",display:"flex",flexDirection:"column",
+          <div style={{width:232,background:C.bgSide,display:"flex",flexDirection:"column",
             position:"fixed",top:0,left:0,bottom:0,zIndex:50,flexShrink:0,
-            borderRight:"1px solid rgba(255,255,255,0.06)",
+            borderRight:"1px solid rgba(255,255,255,0.04)",
             transform:isMobile&&!sidebarOpen?"translateX(-100%)":"translateX(0)",
-            transition:"transform 0.22s ease"}}>
+            transition:"transform 0.26s cubic-bezier(0.32,0.72,0,1)",
+            backgroundImage:"linear-gradient(180deg, rgba(255,255,255,0.014) 0%, transparent 100%)"}}>
 
             {/* Logo */}
-            <div style={{padding:"18px 16px 14px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-                <div style={{width:28,height:28,background:"#C0392B",borderRadius:7,
+            <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:11,marginBottom:5}}>
+                <div style={{width:30,height:30,background:"linear-gradient(135deg,#C0392B 0%,#922B21 100%)",borderRadius:8,
                   display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
-                  boxShadow:"0 2px 8px rgba(192,57,43,0.4)"}}>
-                  <span style={{color:"#fff",fontSize:14,fontWeight:900,letterSpacing:"-1px"}}>F</span>
+                  boxShadow:"0 4px 12px rgba(192,57,43,0.35)"}}>
+                  <span style={{color:"#fff",fontSize:14,fontWeight:800,letterSpacing:"-1px"}}>F</span>
                 </div>
-                <span style={{fontSize:16,fontWeight:700,color:"#FFFFFF",letterSpacing:"-0.3px"}}>FoodOS</span>
+                <span style={{fontSize:16,fontWeight:600,color:"#FFFFFF",letterSpacing:"-0.4px"}}>FoodOS</span>
               </div>
-              <div style={{fontSize:11,color:"#C0392B",fontWeight:600,paddingLeft:38,
-                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",fontWeight:400,paddingLeft:41,
+                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.005em"}}>
                 {nomeAttivita || "La mia attività"}
               </div>
             </div>
@@ -7995,37 +8001,45 @@ export default function Dashboard({
             </div>
 
             {/* Footer */}
-            <div style={{padding:"10px 8px 14px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+            <div style={{padding:"12px 12px 16px",borderTop:"1px solid rgba(255,255,255,0.05)"}}>
               {auth?.user?.email&&(
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",padding:"0 8px 8px",
-                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                  {auth.user.email}
+                <div style={{display:"flex",alignItems:"center",gap:9,padding:"4px 6px 10px",overflow:"hidden"}}>
+                  <div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#3B4252 0%,#1F2430 100%)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.78)",letterSpacing:0}}>
+                    {(auth.user.email||"?").slice(0,1).toUpperCase()}
+                  </div>
+                  <div style={{flex:1,minWidth:0,overflow:"hidden"}}>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{auth.user.email}</div>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,0.34)",fontWeight:400,marginTop:1}}>Connesso</div>
+                  </div>
                 </div>
               )}
-              <div style={{display:"flex",justifyContent:"center",gap:10,padding:"0 8px 8px"}}>
-                <a href="/privacy" style={{fontSize:10,color:"rgba(255,255,255,0.3)",textDecoration:"none"}} target="_blank">Privacy</a>
-                <span style={{fontSize:10,color:"rgba(255,255,255,0.15)"}}>·</span>
-                <a href="/termini" style={{fontSize:10,color:"rgba(255,255,255,0.3)",textDecoration:"none"}} target="_blank">Termini</a>
-              </div>
               <button onClick={()=>setShowNotifiche(o=>!o)}
-                style={{width:"100%",padding:"8px 12px",background:"rgba(255,255,255,0.04)",
-                  border:"1px solid rgba(255,255,255,0.08)",borderRadius:7,
-                  color:"rgba(255,255,255,0.55)",fontSize:12,fontWeight:500,cursor:"pointer",
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:7}}>
+                style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,0.03)",
+                  border:"1px solid rgba(255,255,255,0.06)",borderRadius:9,
+                  color:"rgba(255,255,255,0.6)",fontSize:12,fontWeight:400,cursor:"pointer",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:8,
+                  transition:"background 0.18s ease, color 0.18s ease"}}
+                onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.color="rgba(255,255,255,0.9)";}}
+                onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.03)";e.currentTarget.style.color="rgba(255,255,255,0.6)";}}>
                 {ic(ICONS.bell)}
                 Notifiche
-                {nonLette>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:10,fontSize:9,fontWeight:700,padding:"1px 6px"}}>{nonLette}</span>}
+                {nonLette>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:10,fontSize:9,fontWeight:700,padding:"2px 7px"}}>{nonLette}</span>}
               </button>
               <button onClick={()=>onSignOut&&onSignOut()}
-                style={{width:"100%",padding:"9px 12px",background:"#C0392B",border:"none",
-                  borderRadius:7,color:"#FFFFFF",fontSize:13,fontWeight:600,cursor:"pointer",
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,
-                  transition:"background 0.15s"}}
-                onMouseEnter={e=>e.currentTarget.style.background="#922B21"}
-                onMouseLeave={e=>e.currentTarget.style.background="#C0392B"}>
+                style={{width:"100%",padding:"9px 12px",background:"transparent",border:"1px solid rgba(255,255,255,0.08)",
+                  borderRadius:9,color:"rgba(255,255,255,0.75)",fontSize:12,fontWeight:500,cursor:"pointer",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10,
+                  transition:"background 0.18s ease, color 0.18s ease, border-color 0.18s ease"}}
+                onMouseEnter={e=>{e.currentTarget.style.background="rgba(192,57,43,0.12)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(192,57,43,0.35)";}}
+                onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.75)";e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";}}>
                 {ic(ICONS.logOut)}
                 Esci
               </button>
+              <div style={{display:"flex",justifyContent:"center",gap:10,paddingTop:2}}>
+                <a href="/privacy" style={{fontSize:10,color:"rgba(255,255,255,0.28)",textDecoration:"none",letterSpacing:"0.02em"}} target="_blank">Privacy</a>
+                <span style={{fontSize:10,color:"rgba(255,255,255,0.14)"}}>·</span>
+                <a href="/termini" style={{fontSize:10,color:"rgba(255,255,255,0.28)",textDecoration:"none",letterSpacing:"0.02em"}} target="_blank">Termini</a>
+              </div>
             </div>
           </div>
 
@@ -8072,37 +8086,101 @@ export default function Dashboard({
       {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');}} onVediTutte={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');setView('changelog');}}/>}
 
       {/* CONTENT */}
-      <div style={{marginLeft:isMobile?0:220,flex:1,padding:isMobile?"16px":"32px",overflowX:"auto",minHeight:"100vh",boxSizing:"border-box"}}>
+      <div style={{marginLeft:isMobile?0:232,flex:1,padding:0,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
+        {/* Desktop topbar */}
+        {!isMobile&&(()=>{
+          const VIEW_LABELS = {
+            home:"Dashboard", giornaliero:"Produzione", chiusura:"Cassa",
+            ricettario:"Ricettario", semilavorati:"Semilavorati", "nuova-ricetta":"Nuova ricetta",
+            simulatore:"Food Cost", pl:"P&L",
+            magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
+            personale:"Personale", menu:"Menù",
+            azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
+            calendario:"Calendario", previsione:"Previsioni",
+            "scheda-allergeni":"Scheda allergeni", impostazioni:"Impostazioni",
+            "confronto-sedi":"Confronto sedi", changelog:"Novità",
+          };
+          const VIEW_GROUPS = {
+            home:"Oggi", giornaliero:"Oggi", chiusura:"Oggi",
+            ricettario:"Ricette", semilavorati:"Ricette", "nuova-ricetta":"Ricette", "scheda-allergeni":"Ricette",
+            simulatore:"Numeri", pl:"Numeri",
+            magazzino:"Gestione", scadenzario:"Gestione", fornitori:"Gestione", personale:"Gestione", menu:"Gestione",
+            azioni:"Altro", integrazioni:"Altro", storico:"Altro", calendario:"Altro", previsione:"Altro",
+            impostazioni:"Sistema", "confronto-sedi":"Sistema", changelog:"Sistema",
+          };
+          const label = VIEW_LABELS[view] || (typeof view==="string"?view:"");
+          const group = VIEW_GROUPS[view] || "";
+          const sedeCorrente = (sedi||[]).find(s => s.id === sedeAttiva);
+          const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
+          return (
+            <div style={{position:"sticky",top:0,zIndex:30,background:"rgba(248,250,252,0.85)",
+              backdropFilter:"saturate(180%) blur(12px)",WebkitBackdropFilter:"saturate(180%) blur(12px)",
+              borderBottom:`1px solid ${C.borderSoft}`,
+              padding:"14px 32px",display:"flex",alignItems:"center",gap:18}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:11,color:C.textSoft,fontWeight:500,letterSpacing:"-0.005em",display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                  <span>{nomeAttivita||"FoodOS"}</span>
+                  {group&&<><span style={{color:C.borderStr}}>›</span><span>{group}</span></>}
+                </div>
+                <div style={{fontSize:18,fontWeight:600,color:C.text,letterSpacing:"-0.02em",lineHeight:1.2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</div>
+              </div>
+              {sedeCorrente&&(
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,boxShadow:C.shadowSoft}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:C.green}}/>
+                  <span style={{fontSize:12,color:C.textMid,fontWeight:500,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sedeCorrente.nome||"Sede"}</span>
+                </div>
+              )}
+              <button onClick={()=>setShowNotifiche(o=>!o)}
+                style={{position:"relative",width:38,height:38,border:`1px solid ${C.border}`,
+                  background:C.bgCard,borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",
+                  justifyContent:"center",color:C.textMid,boxShadow:C.shadowSoft,
+                  transition:"background 0.15s, border-color 0.15s, color 0.15s"}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=C.borderStr;e.currentTarget.style.color=C.text;}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.textMid;}}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+                </svg>
+                {nonLette>0&&<span style={{position:"absolute",top:-3,right:-3,background:C.red,color:"#fff",borderRadius:"50%",minWidth:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:`2px solid ${C.bg}`}}>{nonLette}</span>}
+              </button>
+              <div title={auth?.user?.email||""} style={{width:38,height:38,borderRadius:"50%",
+                background:"linear-gradient(135deg,#C0392B 0%,#922B21 100%)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                color:"#fff",fontSize:13,fontWeight:600,letterSpacing:0,
+                boxShadow:"0 4px 12px rgba(192,57,43,0.25)",cursor:"default",userSelect:"none"}}>
+                {initial}
+              </div>
+            </div>
+          );
+        })()}
+        {/* Inner content padding */}
+        <div className="fos-page" key={view} style={{padding:isMobile?"16px":"28px 32px",flex:1,maxWidth:1440,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         {/* Mobile header bar */}
         {isMobile&&(
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,
-            background:"#FFF",borderRadius:12,padding:"10px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18,
+            background:C.bgCard,borderRadius:14,padding:"10px 14px",boxShadow:C.shadowSoft,border:`1px solid ${C.borderSoft}`}}>
             <button onClick={()=>setSidebarOpen(o=>!o)}
               style={{border:"none",background:"transparent",cursor:"pointer",padding:4,
                 color:C.text,display:"flex",alignItems:"center",justifyContent:"center"}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
                 dangerouslySetInnerHTML={{__html:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'}} />
             </button>
-            <div style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
-              <FoodOSLogo size={26} style={{borderRadius:7,boxShadow:"0 2px 8px rgba(192,57,43,0.25)"}}/>
-              <span style={{fontSize:15,fontWeight:700,color:C.text}}>FoodOS</span>
+            <div style={{flex:1,display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+              <FoodOSLogo size={26} style={{borderRadius:8,boxShadow:"0 2px 8px rgba(192,57,43,0.25)"}}/>
+              <span style={{fontSize:14,fontWeight:600,color:C.text,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomeAttivita||"FoodOS"}</span>
             </div>
             <button onClick={()=>setShowNotifiche(o=>!o)}
               style={{position:"relative",border:"none",background:"transparent",cursor:"pointer",
-                padding:4,display:"flex",alignItems:"center",justifyContent:"center",color:C.text}}>
+                padding:6,display:"flex",alignItems:"center",justifyContent:"center",color:C.textMid}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a2 2 0 01-3.46 0"/>
               </svg>
-              {nonLette>0&&<span style={{position:"absolute",top:0,right:0,background:C.red,color:"#fff",
-                borderRadius:"50%",width:14,height:14,fontSize:8,fontWeight:900,
+              {nonLette>0&&<span style={{position:"absolute",top:2,right:2,background:C.red,color:"#fff",
+                borderRadius:"50%",width:15,height:15,fontSize:8,fontWeight:800,
                 display:"flex",alignItems:"center",justifyContent:"center"}}>{nonLette}</span>}
             </button>
-            <div style={{fontSize:10,fontWeight:500,color:C.textMid,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:120}}>
-              {nomeAttivita||""}
-            </div>
           </div>
         )}
 
@@ -8157,6 +8235,7 @@ export default function Dashboard({
         {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
+        </div>{/* /fos-page */}
       </div>
 
       {/* AI Assistant — floating button su tutte le pagine */}

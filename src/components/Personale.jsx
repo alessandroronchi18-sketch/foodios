@@ -89,8 +89,13 @@ function DipendentiTab({ orgId, notify, isMobile }) {
         zIndex: isMobile ? 1000 : "auto",
         overflowY: isMobile ? "auto" : "visible",
       }}>
-        <div style={{ fontSize:13, fontWeight:800, color:C.text, marginBottom:16 }}>
-          {editId ? "✏️ Modifica dipendente" : "➕ Nuovo dipendente"}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+          <div style={{ fontSize:13, fontWeight:800, color:C.text }}>
+            {editId ? "✏️ Modifica dipendente" : "➕ Nuovo dipendente"}
+          </div>
+          {isMobile && (
+            <button onClick={reset} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
+          )}
         </div>
         {[["Nome *","nome","text"],["Ruolo","ruolo","text"]].map(([lbl,key,type])=>(
           <div key={key} style={{ marginBottom:12 }}>
@@ -125,30 +130,49 @@ function DipendentiTab({ orgId, notify, isMobile }) {
         </div>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={salva} disabled={saving}
-            style={{ flex:1, padding:"10px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:12, cursor:"pointer" }}>
+            style={{ flex:1, padding: isMobile ? "14px" : "10px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer" }}>
             {saving ? "…" : editId ? "Salva" : "Aggiungi"}
           </button>
-          {editId && <button onClick={reset} style={{ padding:"10px 14px", background:C.white, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:12, color:C.textMid, cursor:"pointer" }}>✕</button>}
+          {editId && <button onClick={reset} style={{ padding: isMobile ? "14px" : "10px 14px", background:C.white, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize: isMobile ? 14 : 12, color:C.textMid, cursor:"pointer" }}>✕</button>}
         </div>
       </div>
+      )}
 
       {/* Lista */}
       <div>
         {costoMeseTot > 0 && (
-          <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 20px", marginBottom:16, display:"flex", alignItems:"center", gap:20 }}>
+          <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "14px 20px", marginBottom:16, display: isMobile ? "grid" : "flex", gridTemplateColumns: isMobile ? "1fr 1fr" : undefined, alignItems:"center", gap: isMobile ? 8 : 20 }}>
             <div>
               <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Costo lavoro / mese</div>
-              <div style={{ fontSize:24, fontWeight:900, color:C.red, fontFamily:"Georgia,serif" }}>{fmt(costoMeseTot)}</div>
+              <div style={{ fontSize: isMobile ? 18 : 24, fontWeight:900, color:C.red, fontFamily:"Georgia,serif" }}>{fmt(costoMeseTot)}</div>
             </div>
             <div>
               <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Dipendenti attivi</div>
-              <div style={{ fontSize:24, fontWeight:900, color:C.text }}>{lista.length}</div>
+              <div style={{ fontSize: isMobile ? 18 : 24, fontWeight:900, color:C.text }}>{lista.length}</div>
             </div>
           </div>
         )}
         {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : lista.length === 0 ? (
           <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun dipendente ancora.</div>
-        ) : lista.map(d=>(
+        ) : isMobile ? lista.map(d=>(
+          <div key={d.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{d.nome}</div>
+                <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>{d.ruolo || "—"} · {fmt(d.costo_orario)}/h</div>
+                <div style={{ fontSize:11, color:C.textSoft, marginTop:2 }}>
+                  {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt((d.costo_orario||0)*(d.ore_settimana||0)*4.33)}/mese</strong>
+                </div>
+              </div>
+              <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:12, background:C.amberLight, color:C.amber, whiteSpace:"nowrap" }}>{d.tipo_contratto}</span>
+            </div>
+            {d.note && <div style={{ fontSize:11, color:C.textSoft, marginTop:6, fontStyle:"italic" }}>{d.note}</div>}
+            <div style={{ display:"flex", gap:8, marginTop:10 }}>
+              <button onClick={()=>initEdit(d)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:6, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
+              <button onClick={()=>disattiva(d.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:6, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Archivia</button>
+            </div>
+          </div>
+        )) : lista.map(d=>(
           <div key={d.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
               <div>
@@ -170,11 +194,19 @@ function DipendentiTab({ orgId, notify, isMobile }) {
           </div>
         ))}
       </div>
+
+      {isMobile && !showForm && (
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:C.white, borderTop:`1px solid ${C.border}`, zIndex:100 }}>
+          <button onClick={()=>{ reset(); setShowForm(true) }} style={{ width:"100%", padding:"14px", background:C.red, color:C.white, border:"none", borderRadius:10, fontSize:15, fontWeight:800, cursor:"pointer" }}>
+            + Aggiungi dipendente
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
-function TurniTab({ orgId, notify }) {
+function TurniTab({ orgId, notify, isMobile }) {
   const [turni, setTurni] = useState([])
   const [dipendenti, setDipendenti] = useState([])
   const [loading, setLoading] = useState(true)
@@ -246,46 +278,87 @@ function TurniTab({ orgId, notify }) {
   function prevWeek() { const d=new Date(week); d.setDate(d.getDate()-7); setWeek(d.toISOString().slice(0,10)) }
   function nextWeek() { const d=new Date(week); d.setDate(d.getDate()+7); setWeek(d.toISOString().slice(0,10)) }
 
-  const inputSt = { padding:"8px 10px", borderRadius:7, border:`1px solid ${C.borderStr}`, fontSize:12, color:C.text }
+  const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius:7, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
+
+  function apriNuovoTurno(dataIso) {
+    setForm({ dipendente_id:"", data: dataIso || week, ora_inizio:"08:00", ora_fine:"16:00", note:"" })
+    setShowForm(true)
+  }
 
   return (
-    <div>
+    <div style={{ paddingBottom: isMobile ? 80 : 0 }}>
       {/* Week nav */}
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16, flexWrap:"wrap" }}>
-        <button onClick={prevWeek} style={{ padding:"7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:12, cursor:"pointer" }}>← Prec</button>
-        <div style={{ fontWeight:800, fontSize:14, color:C.text }}>
-          {new Date(week).toLocaleDateString("it-IT",{day:"2-digit",month:"long"})} – {new Date(weekDays[6]).toLocaleDateString("it-IT",{day:"2-digit",month:"long",year:"numeric"})}
+      <div style={{ display:"flex", alignItems:"center", gap: isMobile ? 8 : 12, marginBottom:16, flexWrap:"wrap" }}>
+        <button onClick={prevWeek} style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>←{isMobile ? "" : " Prec"}</button>
+        <div style={{ fontWeight:800, fontSize: isMobile ? 13 : 14, color:C.text, flex: isMobile ? 1 : "0 0 auto", textAlign: isMobile ? "center" : "left" }}>
+          {new Date(week).toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long"})} – {new Date(weekDays[6]).toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long",year:"numeric"})}
         </div>
-        <button onClick={nextWeek} style={{ padding:"7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:12, cursor:"pointer" }}>Succ →</button>
-        <div style={{ marginLeft:"auto", display:"flex", gap:20 }}>
-          <div style={{ textAlign:"center" }}>
-            <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore settimana</div>
+        <button onClick={nextWeek} style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>{isMobile ? "" : "Succ "}→</button>
+        {!isMobile && (
+          <>
+            <div style={{ marginLeft:"auto", display:"flex", gap:20 }}>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore settimana</div>
+                <div style={{ fontSize:18, fontWeight:900, color:C.text }}>{fmtH(totOre)}</div>
+              </div>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo lavoro</div>
+                <div style={{ fontSize:18, fontWeight:900, color:C.red, fontFamily:"Georgia,serif" }}>{fmt(totCosto)}</div>
+              </div>
+            </div>
+            <button onClick={()=>setShowForm(s=>!s)}
+              style={{ padding:"8px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:11, cursor:"pointer" }}>
+              {showForm ? "✕" : "➕ Turno"}
+            </button>
+          </>
+        )}
+      </div>
+
+      {isMobile && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
+          <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"10px 12px", textAlign:"center" }}>
+            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore</div>
             <div style={{ fontSize:18, fontWeight:900, color:C.text }}>{fmtH(totOre)}</div>
           </div>
-          <div style={{ textAlign:"center" }}>
-            <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo lavoro</div>
+          <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"10px 12px", textAlign:"center" }}>
+            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo</div>
             <div style={{ fontSize:18, fontWeight:900, color:C.red, fontFamily:"Georgia,serif" }}>{fmt(totCosto)}</div>
           </div>
         </div>
-        <button onClick={()=>setShowForm(s=>!s)}
-          style={{ padding:"8px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:11, cursor:"pointer" }}>
-          {showForm ? "✕" : "➕ Turno"}
-        </button>
-      </div>
+      )}
 
       {showForm && (
-        <div style={{ background:"#FFF0F0", border:`1px solid ${C.red}30`, borderRadius:10, padding:"16px 20px", marginBottom:16 }}>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 100px 100px 1fr auto", gap:10, alignItems:"end" }}>
+        <div style={{
+          background:"#FFF0F0",
+          border: isMobile ? "none" : `1px solid ${C.red}30`,
+          borderRadius: isMobile ? 0 : 10,
+          padding: isMobile ? "20px 16px 100px" : "16px 20px",
+          marginBottom:16,
+          position: isMobile ? "fixed" : "relative",
+          top: isMobile ? 0 : "auto",
+          left: isMobile ? 0 : "auto",
+          right: isMobile ? 0 : "auto",
+          bottom: isMobile ? 0 : "auto",
+          zIndex: isMobile ? 1000 : "auto",
+          overflowY: isMobile ? "auto" : "visible",
+        }}>
+          {isMobile && (
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <div style={{ fontSize:14, fontWeight:800, color:C.text }}>Nuovo turno</div>
+              <button onClick={()=>setShowForm(false)} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
+            </div>
+          )}
+          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 100px 100px 1fr auto", gap: isMobile ? 12 : 10, alignItems: isMobile ? "stretch" : "end" }}>
             {[
               { lbl:"Dipendente", el: <select value={form.dipendente_id} onChange={e=>setForm(f=>({...f,dipendente_id:e.target.value}))} style={{ ...inputSt, width:"100%" }}><option value="">Seleziona…</option>{dipendenti.map(d=><option key={d.id} value={d.id}>{d.nome}</option>)}</select> },
               { lbl:"Data", el: <input type="date" value={form.data} onChange={e=>setForm(f=>({...f,data:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
               { lbl:"Inizio", el: <input type="time" value={form.ora_inizio} onChange={e=>setForm(f=>({...f,ora_inizio:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
               { lbl:"Fine", el: <input type="time" value={form.ora_fine} onChange={e=>setForm(f=>({...f,ora_fine:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
               { lbl:"Note", el: <input value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
-              { lbl:" ", el: <button onClick={salvaTurno} disabled={saving} style={{ padding:"9px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:12, cursor:"pointer", width:"100%" }}>{saving?"…":"Salva"}</button> },
+              { lbl:" ", el: <button onClick={salvaTurno} disabled={saving} style={{ padding: isMobile ? "14px" : "9px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer", width:"100%" }}>{saving?"…":"Salva"}</button> },
             ].map(({lbl,el},i)=>(
               <div key={i}>
-                <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>{lbl}</div>
+                <div style={{ fontSize: isMobile ? 10 : 8, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>{lbl}</div>
                 {el}
               </div>
             ))}
@@ -299,8 +372,35 @@ function TurniTab({ orgId, notify }) {
         </div>
       )}
 
-      {/* Grid settimanale */}
-      {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : (
+      {/* Grid settimanale (desktop) / Lista giornaliera (mobile) */}
+      {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : isMobile ? (
+        <div>
+          {weekDays.map((dIso, i) => {
+            const turniGiorno = turni.filter(t => t.data === dIso)
+            const dayDate = new Date(dIso + "T12:00:00")
+            const label = `${GIORNI[i]} ${dayDate.getDate()}/${String(dayDate.getMonth()+1).padStart(2,'0')}`
+            return (
+              <div key={dIso} style={{ marginBottom:12 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", marginBottom:6 }}>{label}</div>
+                {turniGiorno.length === 0 ? (
+                  <div style={{ fontSize:12, color:"#CBD5E1", padding:"6px 0" }}>Nessun turno</div>
+                ) : turniGiorno.map(t => (
+                  <div key={t.id} style={{ background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:8, padding:"10px 12px", marginBottom:6, display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{t.dipendenti?.nome || "—"}</div>
+                      <div style={{ fontSize:11, color:C.textSoft, marginTop:2 }}>{t.ora_inizio} - {t.ora_fine} · {fmtH(t.ore||0)} · {fmt(t.costo)}</div>
+                    </div>
+                    <button onClick={()=>eliminaTurno(t.id)} style={{ background:"none", border:"none", color:C.red, cursor:"pointer", fontSize:20, padding:"4px 8px" }}>×</button>
+                  </div>
+                ))}
+                <button onClick={()=>apriNuovoTurno(dIso)} style={{ width:"100%", padding:"8px", background:C.bg, border:`1px dashed ${C.borderStr}`, borderRadius:6, fontSize:11, color:C.textSoft, cursor:"pointer", marginTop:4 }}>
+                  + Aggiungi turno
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
         <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
           <div style={{ display:"grid", gridTemplateColumns:"140px repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
             <div style={{ padding:"10px 12px", fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Dipendente</div>
@@ -338,11 +438,19 @@ function TurniTab({ orgId, notify }) {
           )}
         </div>
       )}
+
+      {isMobile && !showForm && (
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:C.white, borderTop:`1px solid ${C.border}`, zIndex:100 }}>
+          <button onClick={()=>apriNuovoTurno(week)} style={{ width:"100%", padding:"14px", background:C.red, color:C.white, border:"none", borderRadius:10, fontSize:15, fontWeight:800, cursor:"pointer" }}>
+            + Aggiungi turno
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
-function AnalisiCostoTab({ orgId }) {
+function AnalisiCostoTab({ orgId, isMobile }) {
   const [mese, setMese] = useState(() => new Date().toISOString().slice(0,7))
   const [dati, setDati] = useState({ turni:[], dipendenti:[] })
   const [loading, setLoading] = useState(true)
@@ -378,21 +486,21 @@ function AnalisiCostoTab({ orgId }) {
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
         <input type="month" value={mese} onChange={e=>setMese(e.target.value)}
-          style={{ padding:"8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:12, color:C.text }}/>
+          style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text, width: isMobile ? "100%" : "auto" }}/>
       </div>
 
       {loading ? <div style={{ color:C.textSoft }}>Caricamento…</div> : (
         <>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:14, marginBottom:24 }}>
+          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(180px,1fr))", gap: isMobile ? 8 : 14, marginBottom: isMobile ? 16 : 24 }}>
             {[
               { lbl:"Ore lavorate", val:fmtH(totOre), c:C.text },
               { lbl:"Costo effettivo", val:fmt(totCosto), c:C.red },
               { lbl:"Costo fisso stimato", val:fmt(costoFissoMese), c:C.amber },
               { lbl:"Dipendenti", val:dipendenti.length, c:C.text },
             ].map(({lbl,val,c})=>(
-              <div key={lbl} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"16px 20px", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+              <div key={lbl} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "16px 20px", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
                 <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>{lbl}</div>
-                <div style={{ fontSize:22, fontWeight:900, color:c, fontFamily:"Georgia,serif" }}>{val}</div>
+                <div style={{ fontSize: isMobile ? 17 : 22, fontWeight:900, color:c, fontFamily:"Georgia,serif" }}>{val}</div>
               </div>
             ))}
           </div>
@@ -419,32 +527,33 @@ function AnalisiCostoTab({ orgId }) {
 }
 
 export default function Personale({ orgId, notify }) {
+  const isMobile = useIsMobile()
   const [tab, setTab] = useState("dipendenti")
   const TABS = [["dipendenti","👤 Dipendenti"],["turni","📅 Turni"],["analisi","📊 Analisi costo"]]
 
   return (
-    <div style={{ maxWidth:1000 }}>
-      <div style={{ marginBottom:24 }}>
+    <div style={{ maxWidth:1000, padding: isMobile ? 12 : 0 }}>
+      <div style={{ marginBottom: isMobile ? 16 : 24 }}>
         <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:C.red, marginBottom:6 }}>Risorse umane</div>
-        <h1 style={{ margin:"0 0 6px", fontSize:28, fontWeight:900, color:C.text, letterSpacing:"-0.03em" }}>Personale & Costo del Lavoro</h1>
+        <h1 style={{ margin:"0 0 6px", fontSize: isMobile ? 22 : 28, fontWeight:900, color:C.text, letterSpacing:"-0.03em" }}>Personale & Costo del Lavoro</h1>
         <p style={{ margin:0, fontSize:12, color:C.textSoft }}>Gestisci dipendenti, turni e monitora il costo del lavoro nel tempo.</p>
       </div>
 
-      <div style={{ display:"flex", gap:4, marginBottom:24, borderBottom:`2px solid rgba(0,0,0,0.07)` }}>
+      <div style={{ display:"flex", gap:4, marginBottom: isMobile ? 16 : 24, borderBottom:`2px solid rgba(0,0,0,0.07)`, overflowX: isMobile ? "auto" : "visible" }}>
         {TABS.map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{ padding:"8px 18px", border:"none", background:"transparent", cursor:"pointer",
-              fontSize:11, fontWeight:700, color:tab===id?C.red:C.textSoft,
+            style={{ padding: isMobile ? "10px 14px" : "8px 18px", border:"none", background:"transparent", cursor:"pointer",
+              fontSize: isMobile ? 12 : 11, fontWeight:700, color:tab===id?C.red:C.textSoft,
               borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",
-              marginBottom:-2, transition:"all 0.12s" }}>
+              marginBottom:-2, transition:"all 0.12s", whiteSpace:"nowrap" }}>
             {lbl}
           </button>
         ))}
       </div>
 
-      {tab === "dipendenti" && <DipendentiTab orgId={orgId} notify={notify}/>}
-      {tab === "turni"      && <TurniTab      orgId={orgId} notify={notify}/>}
-      {tab === "analisi"    && <AnalisiCostoTab orgId={orgId}/>}
+      {tab === "dipendenti" && <DipendentiTab orgId={orgId} notify={notify} isMobile={isMobile}/>}
+      {tab === "turni"      && <TurniTab      orgId={orgId} notify={notify} isMobile={isMobile}/>}
+      {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile}/>}
     </div>
   )
 }
