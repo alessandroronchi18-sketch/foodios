@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import useIsMobile from '../lib/useIsMobile'
 
 const C = {
   bg:"#F8FAFC", bgCard:"#FFF", red:"#C0392B", redLight:"#FEF2F2",
@@ -13,12 +14,13 @@ function fmtH(h) { return `${h.toFixed(1)}h` }
 
 const TIPI_CONTRATTO = ["Full-time","Part-time","Stagionale","Collaboratore","Apprendista"]
 
-function DipendentiTab({ orgId, notify }) {
+function DipendentiTab({ orgId, notify, isMobile }) {
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"" })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [showForm, setShowForm] = useState(false)
 
   useEffect(() => { carica() }, [orgId])
 
@@ -62,16 +64,31 @@ function DipendentiTab({ orgId, notify }) {
     carica()
   }
 
-  function reset() { setForm({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"" }); setEditId(null) }
-  function initEdit(d) { setForm({ nome:d.nome, ruolo:d.ruolo||"", tipo_contratto:d.tipo_contratto||"Full-time", costo_orario:d.costo_orario||"", ore_settimana:d.ore_settimana||40, note:d.note||"" }); setEditId(d.id) }
+  function reset() { setForm({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"" }); setEditId(null); setShowForm(false) }
+  function initEdit(d) { setForm({ nome:d.nome, ruolo:d.ruolo||"", tipo_contratto:d.tipo_contratto||"Full-time", costo_orario:d.costo_orario||"", ore_settimana:d.ore_settimana||40, note:d.note||"" }); setEditId(d.id); if (isMobile) setShowForm(true) }
 
   const costoMeseTot = lista.reduce((s,d)=>s+(d.costo_orario||0)*(d.ore_settimana||0)*4.33, 0)
-  const inputSt = { width:"100%", padding:"9px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:12, color:C.text }
+  const inputSt = { width:"100%", padding: isMobile ? "12px 14px" : "9px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
+  const formVisible = !isMobile || showForm
 
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"340px 1fr", gap:24, alignItems:"start" }}>
+    <div style={{ display: isMobile ? "block" : "grid", gridTemplateColumns: isMobile ? undefined : "340px 1fr", gap:24, alignItems:"start", paddingBottom: isMobile ? 80 : 0 }}>
       {/* Form */}
-      <div style={{ background:C.bgCard, borderRadius:12, padding:"20px 24px", border:`1px solid ${C.border}`, boxShadow:"0 1px 4px rgba(0,0,0,0.04)", position:"sticky", top:20 }}>
+      {formVisible && (
+      <div style={{
+        background:C.bgCard,
+        borderRadius: isMobile ? 0 : 12,
+        padding: isMobile ? "20px 16px 100px" : "20px 24px",
+        border: isMobile ? "none" : `1px solid ${C.border}`,
+        boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+        position: isMobile ? "fixed" : "sticky",
+        top: isMobile ? 0 : 20,
+        left: isMobile ? 0 : "auto",
+        right: isMobile ? 0 : "auto",
+        bottom: isMobile ? 0 : "auto",
+        zIndex: isMobile ? 1000 : "auto",
+        overflowY: isMobile ? "auto" : "visible",
+      }}>
         <div style={{ fontSize:13, fontWeight:800, color:C.text, marginBottom:16 }}>
           {editId ? "✏️ Modifica dipendente" : "➕ Nuovo dipendente"}
         </div>

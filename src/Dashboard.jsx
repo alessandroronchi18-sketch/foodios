@@ -33,6 +33,7 @@ import Personale from './components/Personale'
 import MenuDinamico from './components/MenuDinamico'
 import PrevisioneDomanda from './components/PrevisioneDomanda'
 import AIFotoAnalisi from './components/AIFotoAnalisi'
+import AIAssistant from './components/AIAssistant'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -41,7 +42,22 @@ import AIFotoAnalisi from './components/AIFotoAnalisi'
 // view components defined at module scope can call ssave/sload without prop-drilling.
 let _ctx_orgId = null;
 let _ctx_sedeId = null;
-function ssave(key, val) { return _ssave(key, val, _ctx_orgId, _ctx_sedeId); }
+// Backup localStorage di TUTTI i ssave. Recovery se Supabase ritorna vuoto al login.
+// Chiavi indicizzate solo per orgId (ignorando sedeId): in emergenza ripristiniamo
+// quello che c'era; la sede corretta verrà riapplicata dal ssave durante il restore.
+function _bkKey(orgId, key) { return `foodios_bk_${orgId}_${key}`; }
+function bkWriteLS(key, val, orgId) {
+  if (!orgId) return;
+  try { localStorage.setItem(_bkKey(orgId, key), JSON.stringify({ v: val, t: Date.now() })); } catch {}
+}
+function bkReadLS(key, orgId) {
+  if (!orgId) return null;
+  try { const raw = localStorage.getItem(_bkKey(orgId, key)); if (!raw) return null; const o = JSON.parse(raw); return o?.v ?? null; } catch { return null; }
+}
+function ssave(key, val) {
+  bkWriteLS(key, val, _ctx_orgId);
+  return _ssave(key, val, _ctx_orgId, _ctx_sedeId);
+}
 function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
 
 // ─── CENTRALIZZATA ANALISI FOTO AI ───────────────────────────────────────────
@@ -7517,6 +7533,7 @@ export default function Dashboard({
   const notify=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
 
   const _RIC_CACHE_KEY = `ric_cache_${orgId}`;
+  const SK_LOGRIF = "pasticceria-logrif-v1";
 
   useEffect(()=>{
     if (!orgId) {
@@ -7524,18 +7541,44 @@ export default function Dashboard({
       return;
     }
     console.log('📦 caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
-    // Carica subito dal cache locale come fallback
+    // Carica subito dai backup locali come fallback istantaneo (offline-first).
+    // Se Supabase risponde con dati validi, sovrascrive sotto.
     try {
       const cached = localStorage.getItem(_RIC_CACHE_KEY);
       if (cached) {
         const { data, savedAt } = JSON.parse(cached);
-        if (data) { setRic(data); setOfflineCacheDate(savedAt); console.log('💾 cache locale ricettario:', Object.keys(data.ricette||{}).length, 'ricette'); }
+        if (data) { setRic(data); setOfflineCacheDate(savedAt); console.log('💾 cache ricettario:', Object.keys(data.ricette||{}).length, 'ricette'); }
       }
     } catch {}
+    try {
+      const bkMag    = bkReadLS(SK_MAG,    orgId); if (bkMag)    { setMagazzino(bkMag);        console.log('💾 cache magazzino:', Object.keys(bkMag).length); }
+      const bkGior   = bkReadLS(SK_GIOR,   orgId); if (bkGior)   { setGiornaliero(bkGior);     console.log('💾 cache giornaliero:', bkGior.length); }
+      const bkChius  = bkReadLS(SK_CHIUS,  orgId); if (bkChius)  { setChiusure(bkChius);       console.log('💾 cache chiusure:', bkChius.length); }
+      const bkProd   = bkReadLS(SK_PROD,   orgId); if (bkProd)   { setProd(bkProd);            console.log('💾 cache produzione:', Object.keys(bkProd).length); }
+      const bkAct    = bkReadLS(SK_ACT,    orgId); if (bkAct)    { setAct(bkAct);              console.log('💾 cache actions:', bkAct.length); }
+      const bkExcl   = bkReadLS(SK_EXCL,   orgId); if (bkExcl)   { setEsclusi(new Set(bkExcl)); }
+      const bkLogRif = bkReadLS(SK_LOGRIF, orgId); if (bkLogRif) { setLogRif(bkLogRif); }
+    } catch (e) { console.warn('cache locale rec error:', e); }
+
+    // Recovery: se Supabase risponde VUOTO ma il backup locale ha dati,
+    // ripristiniamo i dati su Supabase (re-save). Protegge da perdita dati
+    // al re-login (RLS, race, o save mai avvenuto in passato).
+    const restoreIfEmpty = (supabaseData, sk, label) => {
+      if (supabaseData) return;
+      const bk = bkReadLS(sk, orgId);
+      const nonEmpty = bk == null ? false
+                     : Array.isArray(bk) ? bk.length > 0
+                     : (typeof bk === 'object') ? Object.keys(bk).length > 0
+                     : !!bk;
+      if (!nonEmpty) return;
+      console.warn(`🔄 ${label}: Supabase vuoto, ripristino da backup locale…`);
+      ssave(sk, bk).then(() => console.log(`✅ ${label} ripristinato su Supabase`))
+                   .catch(e => console.error(`❌ Ripristino ${label} fallito:`, e));
+    };
 
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
     Promise.race([
-      Promise.all([sload(SK_RIC),sload(SK_PROD),sload(SK_ACT),sload(SK_MAG),sload("pasticceria-logrif-v1"),sload(SK_GIOR),sload(SK_CHIUS),sload(SK_EXCL)]),
+      Promise.all([sload(SK_RIC),sload(SK_PROD),sload(SK_ACT),sload(SK_MAG),sload(SK_LOGRIF),sload(SK_GIOR),sload(SK_CHIUS),sload(SK_EXCL)]),
       timeout
     ]).then(([ric,prod,act,mag,logrif,gior,chius,excl])=>{
       setOfflineMode(false);
@@ -7546,8 +7589,10 @@ export default function Dashboard({
         magazzino: mag ? Object.keys(mag).length : 'VUOTO',
         chiusure: chius ? chius.length : 'VUOTO',
       });
+
       if(ric){
         setRic(ric);
+        bkWriteLS(SK_RIC, ric, orgId);
         try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: ric, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
         for(const r of Object.values(ric.ricette||{})){
           if(r.unita!=null && !REGOLE[r.nome]){
@@ -7555,16 +7600,28 @@ export default function Dashboard({
           }
         }
       } else {
-        // Supabase vuoto: NON sovrascrivere — magari il cache locale aveva qualcosa
-        console.warn('⚠️ Supabase ricettario vuoto per orgId', orgId, '— mantengo cache locale se presente');
+        console.warn('⚠️ Supabase ricettario vuoto per orgId', orgId);
+        // Tenta restore dal cache ricettario (formato vecchio _RIC_CACHE_KEY)
+        try {
+          const cached = localStorage.getItem(_RIC_CACHE_KEY);
+          if (cached) {
+            const { data } = JSON.parse(cached);
+            if (data && Object.keys(data.ricette||{}).length > 0) {
+              console.warn('🔄 ricettario: ripristino da cache locale…');
+              ssave(SK_RIC, data).then(() => console.log('✅ ricettario ripristinato su Supabase'))
+                                 .catch(e => console.error('❌ Ripristino ricettario fallito:', e));
+            }
+          }
+        } catch {}
+        restoreIfEmpty(null, SK_RIC, 'ricettario'); // anche dal nuovo bk format
       }
-      if(prod){setProd(prod);}
-      if(act)   setAct(act);
-      if(mag)   setMagazzino(mag);
-      if(logrif)setLogRif(logrif);
-      if(gior)  setGiornaliero(gior);
-      if(chius) setChiusure(chius);
-      if(excl)  setEsclusi(new Set(excl));
+      if(prod)  { setProd(prod);          bkWriteLS(SK_PROD,   prod,   orgId); } else { restoreIfEmpty(prod,   SK_PROD,   'produzione'); }
+      if(act)   { setAct(act);            bkWriteLS(SK_ACT,    act,    orgId); } else { restoreIfEmpty(act,    SK_ACT,    'actions'); }
+      if(mag)   { setMagazzino(mag);      bkWriteLS(SK_MAG,    mag,    orgId); } else { restoreIfEmpty(mag,    SK_MAG,    'magazzino'); }
+      if(logrif){ setLogRif(logrif);      bkWriteLS(SK_LOGRIF, logrif, orgId); } else { restoreIfEmpty(logrif, SK_LOGRIF, 'logRif'); }
+      if(gior)  { setGiornaliero(gior);   bkWriteLS(SK_GIOR,   gior,   orgId); } else { restoreIfEmpty(gior,   SK_GIOR,   'giornaliero'); }
+      if(chius) { setChiusure(chius);     bkWriteLS(SK_CHIUS,  chius,  orgId); } else { restoreIfEmpty(chius,  SK_CHIUS,  'chiusure'); }
+      if(excl)  { setEsclusi(new Set(excl)); bkWriteLS(SK_EXCL, excl,  orgId); } else { restoreIfEmpty(excl,   SK_EXCL,   'esclusi'); }
       // Migration: convert known semilavorati from tipo "interno" or missing tipo
       if (ric) {
         let changed = false;
@@ -7788,19 +7845,8 @@ export default function Dashboard({
 
   return (
     <ErrorBoundary>
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',system-ui,sans-serif",color:C.text,display:"flex",paddingTop:isTrialAttivo&&auth?.org?.trial_ends_at?38:0}}>
-      {/* ── Trial Banner ── */}
-      {isTrialAttivo && auth?.org?.trial_ends_at && (()=>{
-        const giorniRim = Math.max(0, Math.ceil((new Date(auth.org.trial_ends_at) - new Date()) / 86400000));
-        return (
-          <div style={{background:"#FFFBEB",borderBottom:"1px solid #FDE68A",
-                       padding:"9px 24px",fontSize:12,fontWeight:500,textAlign:"center",
-                       position:"fixed",top:0,left:0,right:0,zIndex:200,color:"#92400E"}}>
-            🎁 Trial gratuito — <strong>{giorniRim} giorni rimanenti</strong>
-            &nbsp;·&nbsp; Domande? <a href="mailto:support@foodios.it" style={{color:"#C0392B",fontWeight:700}}>support@foodios.it</a>
-          </div>
-        );
-      })()}
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',system-ui,sans-serif",color:C.text,display:"flex"}}>
+      {/* ── Trial Banner rimosso dal rendering (logica isTrialAttivo intatta) ── */}
       <style>{`*{box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.4);border-radius:10px}::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.7)}`}</style>
 
       {toast&&(
@@ -8112,6 +8158,9 @@ export default function Dashboard({
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
       </div>
+
+      {/* AI Assistant — floating button su tutte le pagine */}
+      <AIAssistant />
     </div>
     </ErrorBoundary>
   );

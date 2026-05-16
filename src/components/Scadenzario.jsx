@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
 import { exportScadenzario } from '../lib/exportPDF'
+import useIsMobile from '../lib/useIsMobile'
 
 const C = {
   red: '#C0392B', redLight: '#FEF2F2',
@@ -93,6 +94,7 @@ const DEMO_FATTURE = [
 ]
 
 export default function Scadenzario({ orgId, sedeId }) {
+  const isMobile = useIsMobile()
   const [fatture, setFatture]           = useState([])
   const [loading, setLoading]           = useState(true)
   const [importLoading, setImportLoading] = useState(false)
@@ -322,7 +324,7 @@ export default function Scadenzario({ orgId, sedeId }) {
   )
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1100, padding: isMobile ? 12 : 0, paddingBottom: isMobile ? 80 : 0 }}>
       {/* Toast */}
       {toast && (
         <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 999, background: toast.ok ? C.green : C.red, color: C.white, padding: '10px 20px', borderRadius: 9, fontSize: 12, fontWeight: 700, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
@@ -340,11 +342,11 @@ export default function Scadenzario({ orgId, sedeId }) {
           </div>
         </div>
         <div style={{ height: 1, background: C.border, position: 'absolute', left: 0, right: 0, marginTop: 60 }} />
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
           {fatture.length > 0 && (
             <>
-              <button onClick={exportExcel} style={ghostBtn}>↓ Esporta Excel</button>
-              <button onClick={()=>exportScadenzario(fattureFiltrate)} style={ghostBtn}>📄 Esporta PDF</button>
+              <button onClick={exportExcel} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>↓ Esporta Excel</button>
+              <button onClick={()=>exportScadenzario(fattureFiltrate)} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>📄 Esporta PDF</button>
             </>
           )}
           {fatture.length === 0 && (
@@ -372,7 +374,7 @@ export default function Scadenzario({ orgId, sedeId }) {
       </div>
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: isMobile ? 8 : 14, marginBottom: isMobile ? 16 : 24 }}>
         {[
           {
             label: 'Totale da pagare',
@@ -416,7 +418,7 @@ export default function Scadenzario({ orgId, sedeId }) {
           ))}
         </div>
         <select value={filtroMese} onChange={e => setFiltroMese(e.target.value)}
-          style={{ padding: '6px 10px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, color: C.textMid, background: C.white, cursor: 'pointer' }}>
+          style={{ padding: isMobile ? '8px 12px' : '6px 10px', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, color: C.textMid, background: C.white, cursor: 'pointer' }}>
           <option value="">Tutti i mesi</option>
           {mesiDisp.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
@@ -460,6 +462,46 @@ export default function Scadenzario({ orgId, sedeId }) {
           </div>
           {fattureFiltrate.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Nessuna fattura per i filtri selezionati.</div>
+          ) : isMobile ? (
+            <div style={{ padding: 8 }}>
+              {fattureFiltrate.map(f => {
+                const sc = STATI_CFG[f.statoEff] || STATI_CFG.da_pagare
+                const isPag = pagandoId === f.id
+                return (
+                  <div key={f.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: C.text, flex: 1, minWidth: 0, wordBreak: 'break-word' }}>{f.fornitore}</div>
+                      <span style={{ background: sc.bg, color: sc.color, padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{sc.label}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.textMid, marginBottom: 8 }}>
+                      {f.numero_rif || '—'} · {fmtDate(f.data_fattura)}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{fmtEuro(f.totale)}</div>
+                      {f.statoEff !== 'pagata' && !isPag && (
+                        <button onClick={() => { setPagandoId(f.id); setDataPag(new Date().toISOString().slice(0,10)) }}
+                          style={{ padding: '8px 14px', background: C.green, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                          ✓ Pagata
+                        </button>
+                      )}
+                      {f.statoEff === 'pagata' && (
+                        <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>✓ {fmtDate(f.data_pagamento)}</span>
+                      )}
+                    </div>
+                    {isPag && (
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+                        <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
+                          style={{ padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 16, color: C.text, flex: 1, minWidth: 0 }} />
+                        <button onClick={() => segnaComePagata(f.id)}
+                          style={{ padding: '8px 14px', background: C.green, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>OK</button>
+                        <button onClick={() => setPagandoId(null)}
+                          style={{ padding: '8px 10px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>✕</button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
