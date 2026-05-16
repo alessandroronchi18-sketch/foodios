@@ -6741,17 +6741,31 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
           {/* Foto rapida — sopra il form */}
           <FotoOCR mode="ricetta" notify={notify} ricettario={ricettario} onResult={res=>{
             const SKIP = ["ingrediente","ingredient","ingredienti","nome ingrediente in minuscolo","n/d","nan","undefined",""];
+            // L'AI mode="ricetta" restituisce {nome, quantita, unita}. Convertiamo in grammi.
+            // Manteniamo retrocompatibilità con eventuale i.qty già in grammi.
+            const UNIT_G = { g:1,gr:1,grammi:1,grammo:1, kg:1000,chilo:1000,chilogrammo:1000,
+              ml:1,millilitri:1, l:1000,litro:1000,litri:1000, cl:10,centilitri:10, dl:100,decilitri:100,
+              cucchiaio:15,cucchiai:15,tbsp:15, cucchiaino:5,cucchiaini:5,tsp:5,
+              tazza:240,cup:240,tazze:240, bicchiere:200,bicchieri:200,
+              noce:15, pizzico:2,pizzichi:2, qb:0, pz:1 };
+            const toGrams = (i) => {
+              if (i.qty != null && i.qty !== "") return parseFloat(i.qty)||0;
+              const q = parseFloat(i.quantita)||0;
+              const u = (i.unita||"g").toLowerCase().trim();
+              return Math.round(q * (UNIT_G[u] ?? 1));
+            };
             const ings = (res.ingredienti||[])
-              .map(i=>({nome:translateIngredienteEN(i.nome||""), qty1stampo:parseFloat(i.qty)||0, costoPerG:0, costo1stampo:0}))
+              .map(i=>({nome:translateIngredienteEN((i.nome||"").toLowerCase().trim()), qty1stampo:toGrams(i), costoPerG:0, costo1stampo:0}))
               .filter(i=>!SKIP.includes(i.nome.toLowerCase().trim()) && i.qty1stampo>0);
-            const nomeIT = translateProdottoEN(res.nome||"");
+            const nomeIT = (translateProdottoEN(res.nome||"")||"").toUpperCase();
             setForm(f=>({
               ...f,
               nome: nomeIT || f.nome,
               note: res.note || f.note,
               ingredienti: ings.length>0 ? ings : f.ingredienti,
             }));
-            notify(`📷 Importato: ${nomeIT||"semilavorato"} con ${ings.length} ingredienti`);
+            if (ings.length>0) notify(`📷 Importato: ${nomeIT||"semilavorato"} con ${ings.length} ingredienti`);
+            else notify(`⚠ Nessun ingrediente valido estratto dalla foto`, false);
           }}/>
 
           <div style={{background:C.bgCard,border:`2px solid #D4B0E8`,borderRadius:14,padding:"20px",boxShadow:"0 2px 12px rgba(142,68,173,0.08)"}}>
