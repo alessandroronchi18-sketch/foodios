@@ -1103,11 +1103,11 @@ const TH = ({children,right}) => (
 
 function SH({children,sub}) {
   return (
-    <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:16,marginTop:36}}>
-      <div style={{width:3,height:18,background:C.red,borderRadius:2,flexShrink:0,alignSelf:"center"}}/>
+    <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:14,marginTop:32}}>
+      <div style={{width:3,height:16,background:T.brand,borderRadius:2,flexShrink:0,alignSelf:"center"}}/>
       <div>
-        <h2 style={{margin:0,fontSize:14,fontWeight:800,color:C.text,letterSpacing:"-0.01em"}}>{children}</h2>
-        {sub && <div style={{fontSize:11,color:C.textSoft,marginTop:2}}>{sub}</div>}
+        <h2 style={{margin:0,fontSize:15,fontWeight:600,color:T.text,letterSpacing:"-0.015em"}}>{children}</h2>
+        {sub && <div style={{fontSize:12,color:T.textSoft,marginTop:2,letterSpacing:"-0.005em"}}>{sub}</div>}
       </div>
     </div>
   );
@@ -1115,10 +1115,21 @@ function SH({children,sub}) {
 
 function KPI({label,value,sub,color,highlight,icon}) {
   return (
-    <div style={{background:highlight?C.red:C.bgCard,border:`1px solid ${highlight?C.redDark:C.border}`,borderRadius:10,padding:"16px 18px",boxShadow:highlight?"0 2px 8px rgba(192,57,43,0.2)":"0 1px 3px rgba(0,0,0,0.04)"}}>
-      <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:highlight?"rgba(255,255,255,0.55)":C.textSoft,marginBottom:4}}>{icon&&<span style={{marginRight:5}}>{icon}</span>}{label}</div>
-      <div style={{fontSize:22,fontWeight:900,fontFamily:"Georgia,serif",color:highlight?C.white:color||C.text,letterSpacing:"-0.02em",lineHeight:1.1}}>{value}</div>
-      {sub && <div style={{fontSize:10,color:highlight?"rgba(255,255,255,0.5)":C.textSoft,marginTop:4}}>{sub}</div>}
+    <div style={{background:highlight?T.brand:T.bgCard,
+      border:`1px solid ${highlight?T.brandDark:T.border}`,borderRadius:R.xl,
+      padding:"16px 18px",
+      boxShadow:highlight?"0 4px 14px rgba(192,57,43,0.22)":S.sm,
+      backgroundImage:highlight?"linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)":undefined}}>
+      <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
+        color:highlight?"rgba(255,255,255,0.7)":T.textSoft,marginBottom:6}}>
+        {icon&&<span style={{marginRight:5}}>{icon}</span>}{label}
+      </div>
+      <div style={{fontSize:22,fontWeight:700,color:highlight?T.textOnDark:color||T.text,
+        letterSpacing:"-0.02em",lineHeight:1.1,
+        fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>
+        {value}
+      </div>
+      {sub && <div style={{fontSize:11,color:highlight?"rgba(255,255,255,0.62)":T.textSoft,marginTop:5,letterSpacing:"-0.005em"}}>{sub}</div>}
     </div>
   );
 }
@@ -1126,16 +1137,14 @@ function KPI({label,value,sub,color,highlight,icon}) {
 // ─── PAGE HEADER ──────────────────────────────────────────────────────────────
 function PageHeader({breadcrumb, title, subtitle, action}) {
   return (
-    <div style={{marginBottom:20}}>
-      {breadcrumb && <div style={{fontSize:11,color:C.textSoft,marginBottom:6}}>{breadcrumb}</div>}
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-        <div>
-          <h1 style={{margin:"0 0 3px",fontSize:22,fontWeight:700,color:C.text,letterSpacing:"-0.3px"}}>{title}</h1>
-          {subtitle && <div style={{fontSize:13,color:C.textSoft}}>{subtitle}</div>}
+    <div style={{marginBottom:24}}>
+      <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+        <div style={{minWidth:0,flex:1}}>
+          <h1 style={{margin:"0 0 4px",fontSize:26,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15}}>{title}</h1>
+          {subtitle && <div style={{fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.45}}>{subtitle}</div>}
         </div>
         {action}
       </div>
-      <div style={{borderTop:`1px solid ${C.border}`,marginTop:14}}/>
     </div>
   );
 }
@@ -4078,13 +4087,16 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
         )}
       />
 
-      <div style={{display:"flex",gap:4,marginBottom:24,borderBottom:`1px solid ${C.border}`}}>
+      <div style={{display:"flex",gap:2,marginBottom:24,borderBottom:`1px solid ${T.border}`}}>
         {[["nuova","Nuova sessione"],["storico","Storico"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{padding:"8px 16px",border:"none",background:"transparent",cursor:"pointer",
-              fontSize:13,fontWeight:600,color:tab===id?C.red:C.textSoft,
-              borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",
-              marginBottom:-1,transition:"all 0.15s"}}>
+            style={{padding:"10px 16px",border:"none",background:"transparent",cursor:"pointer",
+              fontSize:13,fontWeight:tab===id?600:500,color:tab===id?T.text:T.textSoft,
+              borderBottom:tab===id?`2px solid ${T.brand}`:"2px solid transparent",
+              marginBottom:-1,letterSpacing:"-0.005em",
+              transition:`color ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}`}}
+            onMouseEnter={e=>{if(tab!==id)e.currentTarget.style.color=T.textMid;}}
+            onMouseLeave={e=>{if(tab!==id)e.currentTarget.style.color=T.textSoft;}}>
             {lbl}
           </button>
         ))}
