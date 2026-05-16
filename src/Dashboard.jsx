@@ -7465,7 +7465,12 @@ export default function Dashboard({
   const [giornaliero,setGiornaliero]=useState([]);
   const [chiusure,setChiusure]=useState([]);
   const [esclusi,setEsclusi]=useState(new Set());
-  const [view,setView]=useState("home");
+  const [view,setView]=useState(() => {
+    try { return sessionStorage.getItem(`foodios_view_${orgId||'_'}`) || "home"; } catch { return "home"; }
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem(`foodios_view_${orgId||'_'}`, view); } catch {}
+  }, [view, orgId]);
   const [ready,setReady]=useState(false);
   const [loading,setLoading]=useState(false);
   const [showMese,setShowMese]=useState(false);
@@ -7699,7 +7704,7 @@ export default function Dashboard({
     // 5. Toast + redirect
     if (ricettaNome) notify(`✓ "${ricettaNome}" salvata`);
     if (!noRedirect) setView("ricettario");
-  }, [magazzino]);
+  }, [magazzino, orgId, sedeId, _RIC_CACHE_KEY]);
 
   const handleSave=useCallback(async(k,entries)=>{
     const np={...produzione,[k]:{...produzione[k],entries}};

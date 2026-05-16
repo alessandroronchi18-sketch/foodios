@@ -18,7 +18,13 @@ export function useAuth() {
       else setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // TOKEN_REFRESHED / USER_UPDATED non devono ricaricare il profilo:
+      // altrimenti loadProfile→setLoading(true)→App mostra Splash→Dashboard smontato (perdita stato view)
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        if (session?.user) setUser(session.user)
+        return
+      }
       setUser(session?.user ?? null)
       if (session?.user) {
         loadProfile(session.user.id, session.user)
