@@ -6698,43 +6698,70 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
       return { ...ing, costo, pct: fc>0?(costo/fc*100):0, mancante:!c, isStima:c?.isStima||false };
     }).sort((a,b)=>b.costo-a.costo);
 
+  const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
+  const PURPLE = "#8E44AD", PURPLE_DARK = "#6B2FA0", PURPLE_BG = "#F5EBFB", PURPLE_BORDER = "#D4B0E8";
   return (
-    <div style={{background:C.bgCard,border:`1px solid #D4B0E8`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)"}}>
-      <div style={{padding:"18px 24px",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,borderBottom:open?`1px solid #D4B0E8`:"none"}}>
-        <div style={{flex:1}}>
+    <div style={{background:T.bgCard,border:`1px solid ${PURPLE_BORDER}`,borderRadius:R.xl,overflow:"hidden",
+      boxShadow:"0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)",
+      transition:`box-shadow ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}`}}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 12px rgba(142,68,173,0.10), 0 1px 3px rgba(142,68,173,0.05)";}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)";}}>
+      <div style={{padding:isMobile?"14px 16px":"18px 22px",display:"flex",flexDirection:isMobile?"column":"row",alignItems:isMobile?"stretch":"center",justifyContent:"space-between",gap:isMobile?14:16,borderBottom:open?`1px solid ${PURPLE_BORDER}`:"none"}}>
+        <div style={{flex:1,minWidth:0}}>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
-            <span style={{padding:"3px 8px",borderRadius:5,background:"#F0E4FA",color:"#8E44AD",fontSize:9,fontWeight:800,letterSpacing:"0.06em",textTransform:"uppercase"}}>Base</span>
-            <h3 style={{margin:0,fontSize:17,fontWeight:900,color:C.text,letterSpacing:"-0.02em"}}>{ric.nome}</h3>
+            <span style={{padding:"3px 9px",borderRadius:R.full,background:PURPLE_BG,color:PURPLE,fontSize:10,fontWeight:600,letterSpacing:"0.04em",textTransform:"uppercase"}}>Base</span>
+            <h3 style={{margin:0,fontSize:16,fontWeight:600,color:T.text,letterSpacing:"-0.015em"}}>{ric.nome}</h3>
             {mancanti.length>0&&<Badge label={`${mancanti.length} prezzi stimati`} color="amber"/>}
           </div>
-          <div style={{fontSize:11,color:C.textSoft}}>
-            {pesoTot>=1000?`${(pesoTot/1000).toFixed(2)}kg batch`:`${Math.round(pesoTot)}g batch`}
-            {" · "}<span style={{fontFamily:"monospace",fontWeight:600}}>{costoG>0?costoG.toFixed(4):"—"} €/g</span>
+          <div style={{fontSize:12,color:T.textSoft,letterSpacing:"-0.005em",...tnum}}>
+            {pesoTot>=1000?`${(pesoTot/1000).toFixed(2)} kg batch`:`${Math.round(pesoTot)}g batch`}
+            {" · "}
+            <span style={{fontWeight:500,color:T.textMid}}>{costoG>0?costoG.toFixed(4):"—"} €/g</span>
           </div>
         </div>
-        <div style={{display:"flex",gap:2,flexShrink:0}}>
+        <div style={{display:"flex",gap:8,flexShrink:0}}>
           {[
-            {lbl:"Costo batch",val:`€${fc.toFixed(2)}`,c:C.red,bg:C.redLight},
-            {lbl:"Costo/g",val:costoG>0?costoG.toFixed(4)+"€":"—",c:"#8E44AD",bg:"#F0E4FA"},
-            {lbl:"Costo/kg",val:`€${(costoG*1000).toFixed(2)}`,c:"#6B2FA0",bg:"#ECD9F8"},
+            {lbl:"Costo batch",val:`€${fc.toFixed(2)}`,c:T.brand,bg:T.brandLight},
+            {lbl:"Costo/g",val:costoG>0?costoG.toFixed(4)+"€":"—",c:PURPLE,bg:PURPLE_BG},
+            {lbl:"Costo/kg",val:`€${(costoG*1000).toFixed(2)}`,c:PURPLE_DARK,bg:"#ECD9F8"},
           ].map(({lbl,val,c,bg})=>(
-            <div key={lbl} style={{background:bg,padding:"8px 14px",borderRadius:8,textAlign:"center",minWidth:72}}>
-              <div style={{fontSize:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,marginBottom:3}}>{lbl}</div>
-              <div style={{fontSize:13,fontWeight:700,color:c,fontFamily:"Georgia,serif"}}>{val}</div>
+            <div key={lbl} style={{background:bg,padding:"9px 12px",borderRadius:R.md,textAlign:"center",minWidth:isMobile?0:80,flex:isMobile?1:"none"}}>
+              <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:T.textSoft,marginBottom:4}}>{lbl}</div>
+              <div style={{fontSize:13,fontWeight:700,color:c,letterSpacing:"-0.015em",...tnum}}>{val}</div>
             </div>
           ))}
         </div>
-        <div style={{display:"flex",gap:6,alignSelf:"center",flexShrink:0}}>
+        <div style={{display:"flex",gap:6,alignSelf:isMobile?"stretch":"center",flexShrink:0}}>
           <button onClick={()=>setOpen(o=>!o)}
-            style={{padding:"7px 14px",borderRadius:7,border:`1px solid #D4B0E8`,background:"transparent",fontSize:11,fontWeight:700,color:"#8E44AD",cursor:"pointer"}}>
-            {open?"▲ Chiudi":"▼ Apri dettaglio"}
+            style={{padding:"8px 12px",borderRadius:R.md,border:`1px solid ${PURPLE_BORDER}`,background:open?PURPLE_BG:"transparent",
+              fontSize:12,fontWeight:500,color:PURPLE,cursor:"pointer",letterSpacing:"-0.005em",
+              display:"inline-flex",alignItems:"center",gap:5,flex:isMobile?1:"none",justifyContent:"center",
+              transition:`background ${M.durFast} ${M.ease}`}}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{transition:`transform ${M.durBase} ${M.ease}`,transform:open?"rotate(180deg)":"rotate(0)"}}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            {open?"Chiudi":"Dettagli"}
           </button>
-          <button onClick={()=>onEdit(ric.nome)}
-            style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:C.textMid,cursor:"pointer"}}>
-            ✏️ Modifica
+          <button onClick={()=>onEdit(ric.nome)} aria-label="Modifica"
+            style={{width:36,height:36,padding:0,borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,
+              color:T.textMid,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+              transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}
+            onMouseEnter={e=>{e.currentTarget.style.background=T.bgSubtle;e.currentTarget.style.color=T.text;}}
+            onMouseLeave={e=>{e.currentTarget.style.background=T.bgCard;e.currentTarget.style.color=T.textMid;}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
           </button>
-          <button onClick={()=>onDelete(ric.nome)}
-            style={{padding:"7px 10px",borderRadius:7,border:`1px solid ${C.border}`,background:"transparent",fontSize:11,color:C.textSoft,cursor:"pointer"}}>🗑</button>
+          <button onClick={()=>onDelete(ric.nome)} aria-label="Elimina"
+            style={{width:36,height:36,padding:0,borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,
+              color:T.textSoft,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+              transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}`}}
+            onMouseEnter={e=>{e.currentTarget.style.background=T.redLight;e.currentTarget.style.color=T.brand;e.currentTarget.style.borderColor="rgba(192,57,43,0.3)";}}
+            onMouseLeave={e=>{e.currentTarget.style.background=T.bgCard;e.currentTarget.style.color=T.textSoft;e.currentTarget.style.borderColor=T.border;}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+            </svg>
+          </button>
         </div>
       </div>
       {open && (
@@ -6874,23 +6901,36 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
   const costoGLive = pesoLive > 0 ? fcLive / pesoLive : 0;
 
   return (
-    <div style={{maxWidth:1100}}>
-      <div style={{marginBottom:28}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:"#8E44AD",marginBottom:6}}>Ricette</div>
-        <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>🧁 Semilavorati & Basi</h1>
-        <p style={{margin:0,fontSize:12,color:C.textSoft,lineHeight:1.7}}>
-          Impasti, creme e preparazioni interne — non vendibili, ma usabili come ingredienti in altre ricette. Il loro costo viene calcolato automaticamente.
-        </p>
+    <div style={{maxWidth:1120,margin:"0 auto"}}>
+      <div style={{marginBottom:24,display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:48,height:48,borderRadius:R.lg,background:"#F5EBFB",
+          display:"flex",alignItems:"center",justifyContent:"center",color:"#8E44AD",flexShrink:0}}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+          </svg>
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <h1 style={{margin:"0 0 4px",fontSize:isMobile?22:26,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15}}>Semilavorati &amp; Basi</h1>
+          <p style={{margin:0,fontSize:13,color:T.textSoft,lineHeight:1.5,letterSpacing:"-0.005em"}}>
+            Impasti, creme e preparazioni interne — usabili come ingredienti in altre ricette.
+          </p>
+        </div>
       </div>
 
       <div style={{display:"flex",flexDirection:"column",gap:0}}>
         {/* ── Lista semilavorati ── */}
         <div>
           {semilavorati.length === 0 && (
-            <div style={{textAlign:"center",padding:"48px 0",color:C.textSoft,fontSize:13}}>
-              <div style={{fontSize:36,marginBottom:10}}>🧁</div>
-              <div style={{fontWeight:700,marginBottom:6}}>Nessun semilavorato</div>
-              <div>Aggiungi basi interne come crema pasticcera, pasta frolla, fruit curd…</div>
+            <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.xl,
+              padding:isMobile?"32px 20px":"48px 24px",textAlign:"center",marginBottom:24,boxShadow:S.sm}}>
+              <div style={{width:56,height:56,borderRadius:"50%",background:"#F5EBFB",
+                display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#8E44AD",marginBottom:14}}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+                </svg>
+              </div>
+              <div style={{fontSize:15,fontWeight:600,color:T.text,marginBottom:6,letterSpacing:"-0.01em"}}>Nessun semilavorato</div>
+              <div style={{fontSize:13,color:T.textSoft,maxWidth:340,margin:"0 auto",lineHeight:1.5}}>Aggiungi basi interne come crema pasticcera, pasta frolla o fruit curd usando il form qui sotto.</div>
             </div>
           )}
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
@@ -6949,9 +6989,18 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
             else notify(`⚠ Nessun ingrediente valido estratto dalla foto`, false);
           }}/>
 
-          <div style={{background:C.bgCard,border:`2px solid #D4B0E8`,borderRadius:14,padding:"20px",boxShadow:"0 2px 12px rgba(142,68,173,0.08)"}}>
-            <div style={{fontSize:12,fontWeight:800,color:"#8E44AD",marginBottom:8}}>
-              {editMode ? `✏️ Modifica: ${editMode}` : "➕ Nuovo semilavorato"}
+          <div style={{background:T.bgCard,border:`1px solid #D4B0E8`,borderRadius:R.xl,padding:isMobile?"18px":"22px",boxShadow:"0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,paddingBottom:14,borderBottom:`1px solid #E5D4F0`}}>
+              <div style={{width:32,height:32,borderRadius:R.md,background:"#F5EBFB",
+                display:"flex",alignItems:"center",justifyContent:"center",color:"#8E44AD",flexShrink:0}}>
+                {editMode
+                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                }
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:600,color:"#6B2FA0",letterSpacing:"-0.01em"}}>{editMode ? `Modifica: ${editMode}` : "Nuovo semilavorato"}</div>
+              </div>
             </div>
 
             {/* Template rapidi */}
