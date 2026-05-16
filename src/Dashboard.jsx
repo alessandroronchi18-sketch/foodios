@@ -9,7 +9,7 @@ import SedeSelector from './components/SedeSelector'
 import Scadenzario from './components/Scadenzario'
 import CalendarioOperativo from './components/CalendarioOperativo'
 import ReferralPanel from './components/ReferralPanel'
-import FoodOSLogo from './components/FoodOSLogo'
+import Logo from './components/Logo'
 import Integrazioni from './components/Integrazioni'
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from './lib/importDelivery'
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importCassa'
@@ -8082,12 +8082,8 @@ export default function Dashboard({
             {/* Logo */}
             <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
               <div style={{display:"flex",alignItems:"center",gap:11,marginBottom:5}}>
-                <div style={{width:30,height:30,background:"linear-gradient(135deg,#C0392B 0%,#922B21 100%)",borderRadius:8,
-                  display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
-                  boxShadow:"0 4px 12px rgba(192,57,43,0.35)"}}>
-                  <span style={{color:"#fff",fontSize:14,fontWeight:800,letterSpacing:"-1px"}}>F</span>
-                </div>
-                <span style={{fontSize:16,fontWeight:600,color:"#FFFFFF",letterSpacing:"-0.4px"}}>FoodOS</span>
+                <Logo size={30} style={{borderRadius:8,boxShadow:"0 4px 14px rgba(216,120,55,0.28)"}}/>
+                <span style={{fontSize:16,fontWeight:700,color:"#F5EFE7",letterSpacing:"-0.025em"}}>FoodOS</span>
               </div>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",fontWeight:400,paddingLeft:41,
                 whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.005em"}}>
@@ -8299,7 +8295,7 @@ export default function Dashboard({
                 dangerouslySetInnerHTML={{__html:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'}} />
             </button>
             <div style={{flex:1,display:"flex",alignItems:"center",gap:8,minWidth:0}}>
-              <FoodOSLogo size={26} style={{borderRadius:8,boxShadow:"0 2px 8px rgba(192,57,43,0.25)"}}/>
+              <Logo size={26} style={{borderRadius:7,boxShadow:"0 2px 10px rgba(216,120,55,0.24)"}}/>
               <span style={{fontSize:14,fontWeight:600,color:C.text,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomeAttivita||"FoodOS"}</span>
             </div>
             <button onClick={()=>setShowNotifiche(o=>!o)}

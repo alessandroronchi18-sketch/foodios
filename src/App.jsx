@@ -8,7 +8,7 @@ import OnboardingWizard from './onboarding/OnboardingWizard'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TerminiServizio from './pages/TerminiServizio'
 import LandingPage from './pages/LandingPage'
-import FoodOSLogo from './components/FoodOSLogo'
+import Logo from './components/Logo'
 import { supabase } from './lib/supabase'
 
 function SplashScreen() {
@@ -23,7 +23,7 @@ function SplashScreen() {
       gap: 14,
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-      <FoodOSLogo size={56} style={{ boxShadow: '0 8px 28px rgba(192,57,43,0.30)', borderRadius: 14 }} />
+      <Logo size={56} style={{ boxShadow: '0 10px 30px rgba(216,120,55,0.28)', borderRadius: 14 }} />
       <div style={{ fontSize: 14, color: '#94A3B8', fontWeight: 500 }}>Caricamento…</div>
     </div>
   )

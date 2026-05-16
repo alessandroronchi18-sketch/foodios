@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import FoodOSLogo from '../components/FoodOSLogo'
+import Logo from '../components/Logo'
 
 // ─── CITTÀ ITALIANE (>30.000 abitanti) ────────────────────────────────────────
 const CITTA_ITALIANE = [
@@ -202,7 +202,7 @@ export function ResetPasswordPage({ onDone }) {
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
-            <FoodOSLogo size={52} style={{ boxShadow: '0 6px 22px rgba(192,57,43,0.28)', borderRadius: 13 }} />
+            <Logo size={52} style={{ boxShadow: '0 8px 24px rgba(216,120,55,0.26)', borderRadius: 13 }} />
           </div>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
             Imposta nuova password
@@ -418,7 +418,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
-            <FoodOSLogo size={56} style={{ boxShadow: '0 6px 24px rgba(192,57,43,0.28)', borderRadius: 14 }} />
+            <Logo size={56} style={{ boxShadow: '0 10px 28px rgba(216,120,55,0.26)', borderRadius: 14 }} />
           </div>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
             FoodOS
