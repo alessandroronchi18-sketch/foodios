@@ -4879,32 +4879,53 @@ function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditCo
   };
 
   return (
-    <div style={{maxWidth:1000}}>
-      <div style={{marginBottom:24}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Gestione</div>
-        <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>
-          {editMode ? `✏️ Modifica Ricetta` : "Nuova Ricetta"}
-        </h1>
-        <p style={{margin:0,fontSize:12,color:C.textSoft}}>
+    <div style={{maxWidth:1040,margin:"0 auto"}}>
+      <div style={{marginBottom:24,display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:48,height:48,borderRadius:R.lg,background:T.brandLight,
+          display:"flex",alignItems:"center",justifyContent:"center",color:T.brand,flexShrink:0}}>
           {editMode
-            ? <>Stai modificando <strong style={{color:C.red}}>{editMode}</strong>. Salva per aggiornare la ricetta.</>
-            : "Aggiungi una ricetta manualmente oppure modificane una esistente."}
-        </p>
+            ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          }
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <h1 style={{margin:"0 0 4px",fontSize:isMobile?22:26,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15}}>
+            {editMode ? `Modifica ricetta` : "Nuova ricetta"}
+          </h1>
+          <p style={{margin:0,fontSize:13,color:T.textSoft,lineHeight:1.5,letterSpacing:"-0.005em"}}>
+            {editMode
+              ? <>Stai modificando <strong style={{color:T.brand,fontWeight:600}}>{editMode}</strong>. Salva per aggiornare.</>
+              : "Aggiungi una ricetta manualmente oppure scattane una foto."}
+          </p>
+        </div>
       </div>
 
       {/* Edit ricetta esistente */}
       {ricetteEsistenti.length>0 && (
-        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 20px",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-          <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:10}}>✏️ Modifica ricetta esistente</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.xl,padding:isMobile?"14px 16px":"18px 22px",marginBottom:20,boxShadow:S.sm}}>
+          <div style={{fontSize:12,fontWeight:600,color:T.text,marginBottom:12,letterSpacing:"-0.005em",display:"flex",alignItems:"center",gap:8}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textMid} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Modifica ricetta esistente
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             {ricetteEsistenti.map(n=>(
               <button key={n} onClick={()=>loadForEdit(n)}
-                style={{padding:"5px 14px",borderRadius:7,border:`1px solid ${editMode===n?C.red:C.border}`,background:editMode===n?C.redLight:C.white,color:editMode===n?C.red:C.textMid,fontSize:10,fontWeight:editMode===n?800:500,cursor:"pointer"}}>
+                style={{padding:"6px 14px",borderRadius:R.full,border:`1px solid ${editMode===n?T.brand:T.border}`,
+                  background:editMode===n?T.brandLight:T.bgCard,color:editMode===n?T.brand:T.textMid,
+                  fontSize:12,fontWeight:editMode===n?600:500,cursor:"pointer",letterSpacing:"-0.005em",
+                  transition:`background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}>
                 {n}
               </button>
             ))}
           </div>
-          {editMode && <div style={{marginTop:8,fontSize:10,color:C.amber}}>⚠️ Stai modificando <b>{editMode}</b> — salva per sovrascrivere.</div>}
+          {editMode && <div style={{marginTop:10,fontSize:12,color:T.amber,display:"flex",alignItems:"center",gap:6}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Stai modificando <b style={{fontWeight:600}}>{editMode}</b> — salva per sovrascrivere.
+          </div>}
           {/* Delete ricetta */}
           {ricetteEsistenti.length>0&&(
             <div style={{marginTop:12,borderTop:`1px solid ${C.border}`,paddingTop:10}}>
