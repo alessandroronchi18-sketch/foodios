@@ -260,7 +260,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-            <Logo variant="horizontal" tone="light" size={30} style={{ filter: 'drop-shadow(0 2px 10px rgba(216,120,55,0.22))' }} />
+            <Logo variant="horizontal" tone="light" size={30} style={{ filter: 'drop-shadow(0 2px 10px rgba(192,57,43,0.24))' }} />
           </div>
 
           {/* Desktop nav */}

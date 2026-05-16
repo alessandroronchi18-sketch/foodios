@@ -5,13 +5,13 @@
       <stop offset="100%" stop-color="#0A0604"/>
     </linearGradient>
     <linearGradient id="f" x1="13" y1="9" x2="45" y2="55" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"  stop-color="#F4B560"/>
-      <stop offset="50%" stop-color="#D87837"/>
-      <stop offset="100%" stop-color="#9B4E20"/>
+      <stop offset="0%"  stop-color="#D8453A"/>
+      <stop offset="50%" stop-color="#C0392B"/>
+      <stop offset="100%" stop-color="#9F2E1F"/>
     </linearGradient>
     <radialGradient id="gl" cx="22%" cy="18%" r="65%">
-      <stop offset="0%"   stop-color="#F4B560" stop-opacity="0.2"/>
-      <stop offset="100%" stop-color="#F4B560" stop-opacity="0"/>
+      <stop offset="0%"   stop-color="#C0392B" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#C0392B" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="sh" x1="0" y1="13" x2="0" y2="26" gradientUnits="userSpaceOnUse">
       <stop offset="0%"   stop-color="rgba(255,255,255,0.22)"/>
@@ -22,8 +22,8 @@
   <rect width="64" height="64" rx="14" fill="url(#gl)"/>
   <rect x="0.5" y="0.5" width="63" height="63" rx="13.5"
         fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-  <path d="M 17 13 L 41 13 L 47 19 L 47 23 L 27 23 L 27 30 L 39 30 L 39 40 L 27 40 L 27 51 L 17 51 Z"
+  <path d="M 17 13 L 47 13 L 27 23 L 27 30 L 40 30 L 27 38 L 27 51 L 17 51 Z"
         fill="url(#f)"/>
-  <path d="M 17 13 L 41 13 L 47 19 L 47 21.5 L 17 21.5 Z"
+  <path d="M 17 13 L 47 13 L 33 20 L 17 20 Z"
         fill="url(#sh)" opacity="0.85"/>
 </svg>

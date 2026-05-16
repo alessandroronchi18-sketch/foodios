@@ -41,13 +41,13 @@ export default function Logo({
           <stop offset="100%" stopColor="#0A0604"/>
         </linearGradient>
         <linearGradient id={f} x1="13" y1="9" x2="45" y2="55" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"  stopColor="#F4B560"/>
-          <stop offset="50%" stopColor="#D87837"/>
-          <stop offset="100%" stopColor="#9B4E20"/>
+          <stop offset="0%"  stopColor="#D8453A"/>
+          <stop offset="50%" stopColor="#C0392B"/>
+          <stop offset="100%" stopColor="#9F2E1F"/>
         </linearGradient>
         <radialGradient id={gl} cx="22%" cy="18%" r="65%">
-          <stop offset="0%"   stopColor="#F4B560" stopOpacity="0.2"/>
-          <stop offset="100%" stopColor="#F4B560" stopOpacity="0"/>
+          <stop offset="0%"   stopColor="#C0392B" stopOpacity="0.16"/>
+          <stop offset="100%" stopColor="#C0392B" stopOpacity="0"/>
         </radialGradient>
         <linearGradient id={sh} x1="0" y1="13" x2="0" y2="26" gradientUnits="userSpaceOnUse">
           <stop offset="0%"   stopColor="rgba(255,255,255,0.22)"/>
@@ -61,14 +61,14 @@ export default function Logo({
       <rect x="0.5" y="0.5" width="63" height="63" rx="13.5"
             fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
 
-      {/* F monogram — single path, chamfered upper-right corner */}
+      {/* F monogram — calligraphic wedge bars (top flat, bottom tapers up to sharp tip) */}
       <path
-        d="M 17 13 L 41 13 L 47 19 L 47 23 L 27 23 L 27 30 L 39 30 L 39 40 L 27 40 L 27 51 L 17 51 Z"
+        d="M 17 13 L 47 13 L 27 23 L 27 30 L 40 30 L 27 38 L 27 51 L 17 51 Z"
         fill={`url(#${f})`}
       />
-      {/* Top shine (light catching the cap of the F) */}
+      {/* Top shine (light catching the upper portion of the F) */}
       <path
-        d="M 17 13 L 41 13 L 47 19 L 47 21.5 L 17 21.5 Z"
+        d="M 17 13 L 47 13 L 33 20 L 17 20 Z"
         fill={`url(#${sh})`}
         opacity="0.85"
       />

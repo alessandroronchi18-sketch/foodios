@@ -23,7 +23,7 @@ function SplashScreen() {
       gap: 14,
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-      <Logo size={56} style={{ boxShadow: '0 10px 30px rgba(216,120,55,0.28)', borderRadius: 14 }} />
+      <Logo size={56} style={{ boxShadow: '0 10px 30px rgba(192,57,43,0.30)', borderRadius: 14 }} />
       <div style={{ fontSize: 14, color: '#94A3B8', fontWeight: 500 }}>Caricamento…</div>
     </div>
   )
