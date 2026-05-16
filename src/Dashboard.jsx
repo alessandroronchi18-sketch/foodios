@@ -16,6 +16,7 @@ import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importC
 import useIsMobile from './lib/useIsMobile'
 import { useOnlineStatus } from './lib/useOnlineStatus'
 import { useNotifiche } from './lib/useNotifiche'
+import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF } from './lib/theme'
 import ImpostazioniSedi from './components/ImpostazioniSedi'
 import ConfrontoSedi from './components/ConfrontoSedi'
 import EsportaDati from './components/EsportaDati'
@@ -7980,7 +7981,19 @@ export default function Dashboard({
       <style>{`*{box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.4);border-radius:10px}::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.7)}`}</style>
 
       {toast&&(
-        <div style={{position:"fixed",top:16,right:16,zIndex:999,background:toast.ok?C.green:C.red,color:C.white,padding:"10px 20px",borderRadius:9,fontSize:12,fontWeight:700,boxShadow:"0 4px 20px rgba(0,0,0,0.2)"}}>
+        <div style={{position:"fixed",top:isMobile?16:20,right:isMobile?16:24,left:isMobile?16:"auto",
+          zIndex:Z.toast,background:toast.ok?T.text:T.brand,color:T.textOnDark,
+          padding:"11px 18px",borderRadius:R.xl,fontSize:13,fontWeight:500,letterSpacing:"-0.005em",
+          boxShadow:"0 10px 32px rgba(15,23,42,0.22), 0 2px 6px rgba(15,23,42,0.08)",
+          display:"flex",alignItems:"center",gap:10,
+          animation:"_fos_pageIn 0.22s cubic-bezier(0.32,0.72,0,1)"}}>
+          <span style={{width:18,height:18,borderRadius:"50%",
+            background:toast.ok?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.2)",
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              {toast.ok?<polyline points="20 6 9 17 4 12"/>:<><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>}
+            </svg>
+          </span>
           {toast.msg}
         </div>
       )}
@@ -8029,31 +8042,30 @@ export default function Dashboard({
           const active = view === id;
           return (
             <button key={id} onClick={()=>{setView(id);if(isMobile)setSidebarOpen(false);}}
-              style={{width:"calc(100% - 16px)",padding:"9px 12px",margin:"0 8px",
-                borderRadius:9,
+              style={{width:"calc(100% - 16px)",padding:"9px 12px",margin:"0 8px 1px",
+                borderRadius:8,
                 border:"none",cursor:"pointer",textAlign:"left",
-                background:active?"rgba(192,57,43,0.14)":"transparent",
-                color:active?"#FFFFFF":"rgba(255,255,255,0.62)",
-                fontWeight:active?500:400,fontSize:13,marginBottom:2,
+                background:active?"rgba(192,57,43,0.18)":"transparent",
+                color:active?"#FFFFFF":"rgba(255,255,255,0.70)",
+                fontWeight:active?600:500,fontSize:13,
                 letterSpacing:"-0.005em",
                 display:"flex",alignItems:"center",gap:11,
                 position:"relative",
-                transition:"background 0.18s ease, color 0.18s ease, transform 0.12s ease"}}
-              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.color="rgba(255,255,255,0.95)";}}}
-              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.62)";}}}
+                transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}`}}
+              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.055)";e.currentTarget.style.color="rgba(255,255,255,0.96)";}}}
+              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.70)";}}}
             >
-              {active && <span style={{position:"absolute",left:-8,top:8,bottom:8,width:3,background:"#C0392B",borderRadius:"0 3px 3px 0"}}/>}
-              <span style={{color:active?"#C0392B":"inherit",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey])}</span>
+              <span style={{color:active?"#E84B3A":"rgba(255,255,255,0.78)",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey])}</span>
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
-              {badge>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:10,fontSize:9,fontWeight:700,padding:"2px 7px",minWidth:18,textAlign:"center",letterSpacing:0}}>{badge}</span>}
-              {alert&&badge===0&&<span style={{width:6,height:6,borderRadius:"50%",background:"#C0392B",flexShrink:0,animation:"_sp_pulse 1.4s ease-in-out infinite"}}/>}
+              {badge>0&&<span style={{background:active?"rgba(255,255,255,0.22)":"#C0392B",color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"2px 7px",minWidth:18,textAlign:"center",letterSpacing:0}}>{badge}</span>}
+              {alert&&badge===0&&<span style={{width:7,height:7,borderRadius:"50%",background:"#E84B3A",flexShrink:0,animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
             </button>
           );
         };
 
         const Sep = ({label}) => (
-          <div style={{padding:"18px 20px 6px",fontSize:9,fontWeight:600,
-            letterSpacing:"0.12em",textTransform:"uppercase",color:"rgba(255,255,255,0.32)"}}>
+          <div style={{padding:"18px 20px 8px",fontSize:10,fontWeight:600,
+            letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.36)"}}>
             {label}
           </div>
         );
@@ -8069,32 +8081,36 @@ export default function Dashboard({
 
           {isMobile&&sidebarOpen&&(
             <div onClick={()=>setSidebarOpen(false)}
-              style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:49}} />
+              style={{position:"fixed",inset:0,background:"rgba(8,12,20,0.56)",backdropFilter:"blur(2px)",WebkitBackdropFilter:"blur(2px)",zIndex:Z.overlay,
+                animation:`_fos_fadeIn ${M.durBase} ${M.ease}`}} />
           )}
 
-          <div style={{width:232,background:C.bgSide,display:"flex",flexDirection:"column",
-            position:"fixed",top:0,left:0,bottom:0,zIndex:50,flexShrink:0,
-            borderRight:"1px solid rgba(255,255,255,0.04)",
+          <div style={{width:L.sidebarWidth,background:T.bgSide,display:"flex",flexDirection:"column",
+            position:"fixed",top:0,left:0,bottom:0,zIndex:Z.drawer,flexShrink:0,
+            borderRight:`1px solid ${T.borderOnDark}`,
             transform:isMobile&&!sidebarOpen?"translateX(-100%)":"translateX(0)",
-            transition:"transform 0.26s cubic-bezier(0.32,0.72,0,1)",
-            backgroundImage:"linear-gradient(180deg, rgba(255,255,255,0.014) 0%, transparent 100%)"}}>
+            transition:`transform ${M.durSlow} ${M.ease}`,
+            boxShadow:isMobile&&sidebarOpen?S.drawer:"none",
+            backgroundImage:"linear-gradient(180deg, rgba(255,255,255,0.022) 0%, transparent 40%)"}}>
 
             {/* Logo */}
-            <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)"}}>
-              <div style={{display:"flex",alignItems:"center",gap:11,marginBottom:5}}>
-                <Logo size={30} style={{borderRadius:8,boxShadow:"0 4px 14px rgba(216,120,55,0.28)"}}/>
-                <span style={{fontSize:16,fontWeight:700,color:"#F5EFE7",letterSpacing:"-0.025em"}}>FoodOS</span>
-              </div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",fontWeight:400,paddingLeft:41,
-                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.005em"}}>
-                {nomeAttivita || "La mia attività"}
+            <div style={{padding:"18px 18px 14px",borderBottom:`1px solid ${T.borderOnDark}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:11}}>
+                <Logo size={32} style={{borderRadius:R.md,boxShadow:S.brandSoft}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:15,fontWeight:600,color:T.textOnDark,letterSpacing:"-0.01em",lineHeight:1.15}}>FoodOS</div>
+                  <div style={{fontSize:11,color:T.textOnDarkSoft,fontWeight:400,marginTop:1,
+                    whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.005em"}}>
+                    {nomeAttivita || "La mia attività"}
+                  </div>
+                </div>
               </div>
             </div>
 
             <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />
 
             {/* Nav */}
-            <div style={{flex:1,overflowY:"auto",paddingTop:6,paddingBottom:8}}>
+            <div style={{flex:1,overflowY:"auto",paddingTop:8,paddingBottom:10}}>
 
               {navItem("home","home","Dashboard")}
               {navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)}
@@ -8130,78 +8146,107 @@ export default function Dashboard({
             </div>
 
             {/* Footer */}
-            <div style={{padding:"12px 12px 16px",borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+            <div style={{padding:"12px 12px 14px",borderTop:`1px solid ${T.borderOnDark}`}}>
               {auth?.user?.email&&(
-                <div style={{display:"flex",alignItems:"center",gap:9,padding:"4px 6px 10px",overflow:"hidden"}}>
-                  <div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#3B4252 0%,#1F2430 100%)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.78)",letterSpacing:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,padding:"4px 6px 12px",overflow:"hidden"}}>
+                  <div style={{width:30,height:30,borderRadius:R.md,background:"linear-gradient(135deg,#3B4252 0%,#1F2430 100%)",
+                    display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.88)",letterSpacing:0,
+                    border:"1px solid rgba(255,255,255,0.06)"}}>
                     {(auth.user.email||"?").slice(0,1).toUpperCase()}
                   </div>
                   <div style={{flex:1,minWidth:0,overflow:"hidden"}}>
-                    <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{auth.user.email}</div>
-                    <div style={{fontSize:10,color:"rgba(255,255,255,0.34)",fontWeight:400,marginTop:1}}>Connesso</div>
+                    <div style={{fontSize:12,color:T.textOnDarkStrong,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{auth.user.email}</div>
+                    <div style={{fontSize:10,color:T.textOnDarkSoft,fontWeight:400,marginTop:2,display:"flex",alignItems:"center",gap:5}}>
+                      <span style={{width:5,height:5,borderRadius:"50%",background:T.green,boxShadow:"0 0 0 2px rgba(14,159,110,0.18)"}}/>
+                      Connesso
+                    </div>
                   </div>
                 </div>
               )}
               <button onClick={()=>setShowNotifiche(o=>!o)}
-                style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,0.03)",
-                  border:"1px solid rgba(255,255,255,0.06)",borderRadius:9,
-                  color:"rgba(255,255,255,0.6)",fontSize:12,fontWeight:400,cursor:"pointer",
+                style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,0.04)",
+                  border:`1px solid ${T.borderOnDark}`,borderRadius:R.md,
+                  color:T.textOnDarkMid,fontSize:12,fontWeight:500,cursor:"pointer",
                   display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:8,
-                  transition:"background 0.18s ease, color 0.18s ease"}}
-                onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.color="rgba(255,255,255,0.9)";}}
-                onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.03)";e.currentTarget.style.color="rgba(255,255,255,0.6)";}}>
+                  transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}`}}
+                onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.08)";e.currentTarget.style.color="#fff";}}
+                onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.color=T.textOnDarkMid;}}>
                 {ic(ICONS.bell)}
                 Notifiche
-                {nonLette>0&&<span style={{background:"#C0392B",color:"#fff",borderRadius:10,fontSize:9,fontWeight:700,padding:"2px 7px"}}>{nonLette}</span>}
+                {nonLette>0&&<span style={{background:T.brand,color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"2px 7px"}}>{nonLette}</span>}
               </button>
               <button onClick={()=>onSignOut&&onSignOut()}
-                style={{width:"100%",padding:"9px 12px",background:"transparent",border:"1px solid rgba(255,255,255,0.08)",
-                  borderRadius:9,color:"rgba(255,255,255,0.75)",fontSize:12,fontWeight:500,cursor:"pointer",
+                style={{width:"100%",padding:"9px 12px",background:"transparent",border:`1px solid ${T.borderOnDarkStr}`,
+                  borderRadius:R.md,color:T.textOnDarkMid,fontSize:12,fontWeight:500,cursor:"pointer",
                   display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10,
-                  transition:"background 0.18s ease, color 0.18s ease, border-color 0.18s ease"}}
-                onMouseEnter={e=>{e.currentTarget.style.background="rgba(192,57,43,0.12)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(192,57,43,0.35)";}}
-                onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.75)";e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";}}>
+                  transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}`}}
+                onMouseEnter={e=>{e.currentTarget.style.background="rgba(192,57,43,0.14)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(192,57,43,0.42)";}}
+                onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=T.textOnDarkMid;e.currentTarget.style.borderColor=T.borderOnDarkStr;}}>
                 {ic(ICONS.logOut)}
                 Esci
               </button>
-              <div style={{display:"flex",justifyContent:"center",gap:10,paddingTop:2}}>
-                <a href="/privacy" style={{fontSize:10,color:"rgba(255,255,255,0.28)",textDecoration:"none",letterSpacing:"0.02em"}} target="_blank">Privacy</a>
+              <div style={{display:"flex",justifyContent:"center",gap:12,paddingTop:2}}>
+                <a href="/privacy" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank">Privacy</a>
                 <span style={{fontSize:10,color:"rgba(255,255,255,0.14)"}}>·</span>
-                <a href="/termini" style={{fontSize:10,color:"rgba(255,255,255,0.28)",textDecoration:"none",letterSpacing:"0.02em"}} target="_blank">Termini</a>
+                <a href="/termini" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank">Termini</a>
               </div>
             </div>
           </div>
 
-          {/* Mobile FAB */}
-          {isMobile&&(
-            <div style={{position:"fixed",bottom:24,right:24,zIndex:60,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:10}}>
-              {fabOpen&&(
-                <>
-                  {[
-                    {label:"Produzione",view:"giornaliero"},
-                    {label:"Cassa",view:"chiusura"},
-                    {label:"Nuova ricetta",view:"nuova-ricetta"},
-                  ].map(a=>(
-                    <button key={a.view} onClick={()=>{setView(a.view);setFabOpen(false);}}
-                      style={{display:"flex",alignItems:"center",gap:8,padding:"9px 16px",
-                        background:"#1C2430",border:"none",borderRadius:20,cursor:"pointer",
-                        color:"#F8F2EE",fontSize:12,fontWeight:600,
-                        boxShadow:"0 4px 16px rgba(0,0,0,0.35)",whiteSpace:"nowrap"}}>
-                      {a.label}
+          {/* Mobile bottom navigation */}
+          {isMobile&&(()=>{
+            const BOTTOM_NAV = [
+              {id:"home",        icon:"home",       label:"Oggi"},
+              {id:"giornaliero", icon:"cal",        label:"Produzione", alert:!hasProdOggi&&new Date().getHours()>=6},
+              {id:"chiusura",    icon:"creditCard", label:"Cassa",      alert:cassaMancante},
+              {id:"magazzino",   icon:"pkg",        label:"Magazzino",  badge:criticeMag},
+              {id:"__more",      icon:"menu",       label:"Altro"},
+            ];
+            return (
+              <nav style={{position:"fixed",bottom:0,left:0,right:0,zIndex:Z.bottomNav,
+                background:"rgba(255,255,255,0.94)",
+                backdropFilter:"saturate(180%) blur(14px)",
+                WebkitBackdropFilter:"saturate(180%) blur(14px)",
+                borderTop:`1px solid ${C.borderSoft}`,
+                paddingBottom:"env(safe-area-inset-bottom, 0px)",
+                display:"flex",alignItems:"stretch",justifyContent:"space-around",
+                boxShadow:"0 -1px 0 rgba(15,23,42,0.04), 0 -4px 16px rgba(15,23,42,0.04)"}}>
+                {BOTTOM_NAV.map(item=>{
+                  const isMore = item.id==="__more";
+                  const active = !isMore && view===item.id;
+                  return (
+                    <button key={item.id}
+                      onClick={()=>{ if (isMore) setSidebarOpen(true); else setView(item.id); }}
+                      style={{flex:1,border:"none",background:"transparent",cursor:"pointer",
+                        padding:"9px 4px 10px",display:"flex",flexDirection:"column",
+                        alignItems:"center",justifyContent:"center",gap:3,position:"relative",
+                        color:active?T.brand:T.textMid,
+                        transition:`color ${M.durFast} ${M.ease}`}}>
+                      {active && <span style={{position:"absolute",top:0,left:"30%",right:"30%",height:2,background:T.brand,borderRadius:"0 0 2px 2px"}}/>}
+                      <span style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        {ic(ICONS[item.icon], 21)}
+                        {item.badge>0 && (
+                          <span style={{position:"absolute",top:-4,right:-8,minWidth:16,height:16,
+                            background:T.brand,color:"#fff",borderRadius:8,fontSize:9,fontWeight:700,
+                            padding:"0 4px",display:"flex",alignItems:"center",justifyContent:"center",
+                            border:"1.5px solid #fff",lineHeight:1}}>
+                            {item.badge>99?"99+":item.badge}
+                          </span>
+                        )}
+                        {(!item.badge||item.badge<=0)&&item.alert && (
+                          <span style={{position:"absolute",top:-2,right:-4,width:7,height:7,
+                            borderRadius:"50%",background:T.brand,border:"1.5px solid #fff"}}/>
+                        )}
+                      </span>
+                      <span style={{fontSize:10,fontWeight:active?600:500,letterSpacing:"-0.005em",lineHeight:1}}>
+                        {item.label}
+                      </span>
                     </button>
-                  ))}
-                </>
-              )}
-              <button onClick={()=>setFabOpen(o=>!o)}
-                style={{width:52,height:52,borderRadius:"50%",background:"#C0392B",border:"none",
-                  cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
-                  boxShadow:"0 4px 20px rgba(192,57,43,0.5)",transition:"transform 0.18s",
-                  transform:fabOpen?"rotate(45deg)":"rotate(0deg)"}}>
-                {ic(ICONS.plus)}
-                <style>{`button:focus{outline:none}`}</style>
-              </button>
-            </div>
-          )}
+                  );
+                })}
+              </nav>
+            );
+          })()}
 
           </>
         );
@@ -8215,7 +8260,7 @@ export default function Dashboard({
       {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');}} onVediTutte={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');setView('changelog');}}/>}
 
       {/* CONTENT */}
-      <div style={{marginLeft:isMobile?0:232,flex:1,padding:0,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
+      <div style={{marginLeft:isMobile?0:L.sidebarWidth,flex:1,padding:0,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
         {/* Desktop topbar */}
         {!isMobile&&(()=>{
           const VIEW_LABELS = {
@@ -8242,86 +8287,130 @@ export default function Dashboard({
           const sedeCorrente = (sedi||[]).find(s => s.id === sedeAttiva);
           const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
           return (
-            <div style={{position:"sticky",top:0,zIndex:30,background:"rgba(248,250,252,0.85)",
-              backdropFilter:"saturate(180%) blur(12px)",WebkitBackdropFilter:"saturate(180%) blur(12px)",
+            <div style={{position:"sticky",top:0,zIndex:Z.topbar,
+              background:"rgba(247,248,250,0.82)",
+              backdropFilter:"saturate(180%) blur(16px)",WebkitBackdropFilter:"saturate(180%) blur(16px)",
               borderBottom:`1px solid ${C.borderSoft}`,
-              padding:"14px 32px",display:"flex",alignItems:"center",gap:18}}>
+              padding:"14px 32px",display:"flex",alignItems:"center",gap:14}}>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:11,color:C.textSoft,fontWeight:500,letterSpacing:"-0.005em",display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                  <span>{nomeAttivita||"FoodOS"}</span>
-                  {group&&<><span style={{color:C.borderStr}}>›</span><span>{group}</span></>}
+                <div style={{fontSize:11,color:T.textSoft,fontWeight:500,letterSpacing:"-0.005em",display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                  <span style={{maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomeAttivita||"FoodOS"}</span>
+                  {group&&<><span style={{color:T.borderStr}}>›</span><span>{group}</span></>}
                 </div>
-                <div style={{fontSize:18,fontWeight:600,color:C.text,letterSpacing:"-0.02em",lineHeight:1.2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</div>
+                <div style={{fontSize:19,fontWeight:600,color:T.text,letterSpacing:"-0.02em",lineHeight:1.2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</div>
               </div>
               {sedeCorrente&&(
-                <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,boxShadow:C.shadowSoft}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",background:C.green}}/>
-                  <span style={{fontSize:12,color:C.textMid,fontWeight:500,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sedeCorrente.nome||"Sede"}</span>
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",
+                  background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.lg,boxShadow:S.sm}}>
+                  <span style={{width:7,height:7,borderRadius:"50%",background:T.green,boxShadow:"0 0 0 2px rgba(14,159,110,0.18)"}}/>
+                  <span style={{fontSize:12,color:T.textMid,fontWeight:500,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sedeCorrente.nome||"Sede"}</span>
                 </div>
               )}
-              <button onClick={()=>setShowNotifiche(o=>!o)}
-                style={{position:"relative",width:38,height:38,border:`1px solid ${C.border}`,
-                  background:C.bgCard,borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",
-                  justifyContent:"center",color:C.textMid,boxShadow:C.shadowSoft,
-                  transition:"background 0.15s, border-color 0.15s, color 0.15s"}}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor=C.borderStr;e.currentTarget.style.color=C.text;}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.textMid;}}>
+              <button onClick={()=>setShowNotifiche(o=>!o)} aria-label="Notifiche"
+                style={{position:"relative",width:38,height:38,border:`1px solid ${T.border}`,
+                  background:T.bgCard,borderRadius:R.lg,cursor:"pointer",display:"flex",alignItems:"center",
+                  justifyContent:"center",color:T.textMid,boxShadow:S.sm,
+                  transition:`background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderStr;e.currentTarget.style.color=T.text;e.currentTarget.style.background=T.bgSubtle;}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.textMid;e.currentTarget.style.background=T.bgCard;}}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
                 </svg>
-                {nonLette>0&&<span style={{position:"absolute",top:-3,right:-3,background:C.red,color:"#fff",borderRadius:"50%",minWidth:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:`2px solid ${C.bg}`}}>{nonLette}</span>}
+                {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:T.brand,color:"#fff",borderRadius:"50%",minWidth:17,height:17,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #FFF",lineHeight:1}}>{nonLette>99?"99+":nonLette}</span>}
               </button>
-              <div title={auth?.user?.email||""} style={{width:38,height:38,borderRadius:"50%",
-                background:"linear-gradient(135deg,#C0392B 0%,#922B21 100%)",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                color:"#fff",fontSize:13,fontWeight:600,letterSpacing:0,
-                boxShadow:"0 4px 12px rgba(192,57,43,0.25)",cursor:"default",userSelect:"none"}}>
+              <div title={auth?.user?.email||""}
+                style={{width:38,height:38,borderRadius:"50%",
+                  background:T.brandGradient,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  color:"#fff",fontSize:13,fontWeight:600,letterSpacing:0,
+                  boxShadow:S.brandSoft,cursor:"default",userSelect:"none",
+                  border:"2px solid rgba(255,255,255,0.9)"}}>
                 {initial}
               </div>
             </div>
           );
         })()}
-        {/* Inner content padding */}
-        <div className="fos-page" key={view} style={{padding:isMobile?"16px":"28px 32px",flex:1,maxWidth:1440,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
-        {/* Mobile header bar */}
-        {isMobile&&(
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18,
-            background:C.bgCard,borderRadius:14,padding:"10px 14px",boxShadow:C.shadowSoft,border:`1px solid ${C.borderSoft}`}}>
-            <button onClick={()=>setSidebarOpen(o=>!o)}
-              style={{border:"none",background:"transparent",cursor:"pointer",padding:4,
-                color:C.text,display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
-                dangerouslySetInnerHTML={{__html:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'}} />
-            </button>
-            <div style={{flex:1,display:"flex",alignItems:"center",gap:8,minWidth:0}}>
-              <Logo size={26} style={{borderRadius:7,boxShadow:"0 2px 10px rgba(216,120,55,0.24)"}}/>
-              <span style={{fontSize:14,fontWeight:600,color:C.text,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomeAttivita||"FoodOS"}</span>
+        {/* Mobile topbar — sticky, flat */}
+        {isMobile&&(()=>{
+          const MOBILE_LABELS = {
+            home:"Oggi", giornaliero:"Produzione", chiusura:"Cassa",
+            ricettario:"Ricettario", semilavorati:"Semilavorati", "nuova-ricetta":"Nuova ricetta",
+            simulatore:"Food Cost", pl:"P&L",
+            magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
+            personale:"Personale", menu:"Menù",
+            azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
+            calendario:"Calendario", previsione:"Previsioni",
+            "scheda-allergeni":"Allergeni", impostazioni:"Impostazioni",
+            "confronto-sedi":"Confronto sedi", changelog:"Novità",
+          };
+          const titolo = MOBILE_LABELS[view] || nomeAttivita || "FoodOS";
+          return (
+            <div style={{position:"sticky",top:0,zIndex:Z.topbar,
+              background:"rgba(247,248,250,0.86)",
+              backdropFilter:"saturate(180%) blur(16px)",WebkitBackdropFilter:"saturate(180%) blur(16px)",
+              borderBottom:`1px solid ${T.borderSoft}`,
+              padding:"10px 14px",display:"flex",alignItems:"center",gap:8}}>
+              <button onClick={()=>setSidebarOpen(o=>!o)} aria-label="Menu"
+                style={{width:40,height:40,border:"none",background:"transparent",cursor:"pointer",
+                  borderRadius:R.md,color:T.text,display:"flex",alignItems:"center",justifyContent:"center",
+                  transition:`background ${M.durFast} ${M.ease}`,flexShrink:0}}
+                onTouchStart={e=>{e.currentTarget.style.background=T.bgSubtle;}}
+                onTouchEnd={e=>{e.currentTarget.style.background="transparent";}}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                  dangerouslySetInnerHTML={{__html:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'}} />
+              </button>
+              <div style={{flex:1,minWidth:0,textAlign:"center"}}>
+                <div style={{fontSize:15,fontWeight:600,color:T.text,letterSpacing:"-0.01em",
+                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.2}}>{titolo}</div>
+                {nomeAttivita && view!=="home" && (
+                  <div style={{fontSize:10,color:T.textSoft,fontWeight:500,marginTop:1,
+                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.005em"}}>
+                    {nomeAttivita}
+                  </div>
+                )}
+              </div>
+              <button onClick={()=>setShowNotifiche(o=>!o)} aria-label="Notifiche"
+                style={{position:"relative",width:40,height:40,border:"none",background:"transparent",
+                  cursor:"pointer",borderRadius:R.md,color:T.textMid,display:"flex",alignItems:"center",
+                  justifyContent:"center",transition:`background ${M.durFast} ${M.ease}`,flexShrink:0}}
+                onTouchStart={e=>{e.currentTarget.style.background=T.bgSubtle;}}
+                onTouchEnd={e=>{e.currentTarget.style.background="transparent";}}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 01-3.46 0"/>
+                </svg>
+                {nonLette>0&&<span style={{position:"absolute",top:6,right:6,background:T.brand,color:"#fff",
+                  borderRadius:"50%",minWidth:16,height:16,fontSize:9,fontWeight:700,
+                  display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",
+                  border:"1.5px solid rgba(247,248,250,1)",lineHeight:1}}>{nonLette>9?"9+":nonLette}</span>}
+              </button>
             </div>
-            <button onClick={()=>setShowNotifiche(o=>!o)}
-              style={{position:"relative",border:"none",background:"transparent",cursor:"pointer",
-                padding:6,display:"flex",alignItems:"center",justifyContent:"center",color:C.textMid}}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 01-3.46 0"/>
-              </svg>
-              {nonLette>0&&<span style={{position:"absolute",top:2,right:2,background:C.red,color:"#fff",
-                borderRadius:"50%",width:15,height:15,fontSize:8,fontWeight:800,
-                display:"flex",alignItems:"center",justifyContent:"center"}}>{nonLette}</span>}
-            </button>
-          </div>
-        )}
+          );
+        })()}
+
+        {/* Inner content padding */}
+        <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 88px":"28px 32px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
 
         {/* Banner offline */}
         {!isOnline&&(
-          <div style={{marginBottom:16,padding:"10px 16px",background:"#C0392B",color:"#FFF",borderRadius:10,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
-            ⚠️ Connessione assente — i dati potrebbero non essere aggiornati
+          <div style={{marginBottom:16,padding:"11px 16px",background:T.brand,color:"#FFF",
+            borderRadius:R.lg,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:10,
+            boxShadow:S.brandSoft}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:"#FFF",animation:"_sp_pulse 1.6s ease-in-out infinite",boxShadow:"0 0 0 0 rgba(255,255,255,0.7)"}}/>
+            Connessione assente — i dati potrebbero non essere aggiornati
           </div>
         )}
         {offlineMode&&isOnline&&offlineCacheDate&&(
-          <div style={{marginBottom:16,padding:"10px 16px",background:"#FFFBEB",border:"1px solid #FDE68A",color:"#92400E",borderRadius:10,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
-            ⚠️ Dati offline — ultimo aggiornamento {offlineCacheDate}
+          <div style={{marginBottom:16,padding:"11px 16px",background:T.amberLight,
+            border:`1px solid #FDE68A`,color:"#92400E",borderRadius:R.lg,fontSize:13,fontWeight:500,
+            display:"flex",alignItems:"center",gap:10}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Dati offline — ultimo aggiornamento {offlineCacheDate}
           </div>
         )}
 
