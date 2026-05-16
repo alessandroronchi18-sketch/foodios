@@ -52,6 +52,7 @@ export function useAuth() {
         .maybeSingle()
 
       if (profErr) throw profErr
+      console.log('🔑 loadProfile OK — userId:', userId, 'orgId:', prof?.organization_id, 'email:', prof?.email);
       setProfile(prof)
 
       if (prof?.organization_id) {

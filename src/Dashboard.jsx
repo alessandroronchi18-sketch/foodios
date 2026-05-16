@@ -7519,16 +7519,19 @@ export default function Dashboard({
   const _RIC_CACHE_KEY = `ric_cache_${orgId}`;
 
   useEffect(()=>{
-    // Carica subito dal cache locale come fallback
-    if (orgId) {
-      try {
-        const cached = localStorage.getItem(_RIC_CACHE_KEY);
-        if (cached) {
-          const { data, savedAt } = JSON.parse(cached);
-          if (data) { setRic(data); setOfflineCacheDate(savedAt); }
-        }
-      } catch {}
+    if (!orgId) {
+      console.log('⏳ caricaDati: orgId non ancora disponibile, attendo...');
+      return;
     }
+    console.log('📦 caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
+    // Carica subito dal cache locale come fallback
+    try {
+      const cached = localStorage.getItem(_RIC_CACHE_KEY);
+      if (cached) {
+        const { data, savedAt } = JSON.parse(cached);
+        if (data) { setRic(data); setOfflineCacheDate(savedAt); console.log('💾 cache locale ricettario:', Object.keys(data.ricette||{}).length, 'ricette'); }
+      }
+    } catch {}
 
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
     Promise.race([
@@ -7536,15 +7539,24 @@ export default function Dashboard({
       timeout
     ]).then(([ric,prod,act,mag,logrif,gior,chius,excl])=>{
       setOfflineMode(false);
+      console.log('📖 caricaDati SUPABASE:', {
+        ricette: ric ? Object.keys(ric.ricette||{}).length : 'VUOTO',
+        produzione: prod ? Object.keys(prod).length : 'VUOTO',
+        actions: act ? act.length : 'VUOTO',
+        magazzino: mag ? Object.keys(mag).length : 'VUOTO',
+        chiusure: chius ? chius.length : 'VUOTO',
+      });
       if(ric){
         setRic(ric);
-        // Salva ricettario in cache locale
         try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: ric, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
         for(const r of Object.values(ric.ricette||{})){
           if(r.unita!=null && !REGOLE[r.nome]){
             REGOLE[r.nome]={ unita:r.unita, prezzo:r.prezzo, tipo:r.tipo||"fetta" };
           }
         }
+      } else {
+        // Supabase vuoto: NON sovrascrivere — magari il cache locale aveva qualcosa
+        console.warn('⚠️ Supabase ricettario vuoto per orgId', orgId, '— mantengo cache locale se presente');
       }
       if(prod){setProd(prod);}
       if(act)   setAct(act);
@@ -7581,13 +7593,13 @@ export default function Dashboard({
       }
       setReady(true);
     }).catch(err => {
-      // Timeout o errore connessione: usa dati dalla cache locale
+      console.error('❌ caricaDati FALLITO:', err);
       if (err.message === 'timeout' || err.message?.includes('network') || err.message?.includes('fetch')) {
         setOfflineMode(true);
       }
       setReady(true);
     });
-  },[]);
+  },[orgId]);
 
   useEffect(()=>{
     if(!ready) return;
