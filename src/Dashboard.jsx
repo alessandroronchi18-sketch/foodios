@@ -7051,142 +7051,210 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
   if (critici.length > 0) todos.push({id:'mag', label:`${critici.length} ingredienti sotto soglia in magazzino`, view:'magazzino'});
 
   // Date header
-  const giornoLabel = now.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const giornoLabel = now.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
+  const saluto = ora < 13 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
   const nomeSaluto = nomeAttivita ? `, ${nomeAttivita}` : '';
+  const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
-  const kpiCard = {
-    background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:12,
-    padding:isMobile?"14px 16px":"18px 20px",
-    boxShadow:"0 1px 3px rgba(0,0,0,0.05)",
+  // FC band: low (great) → high (warning)
+  const fcBand = fcMedio < 0.30 ? 'ok' : fcMedio < 0.35 ? 'warn' : 'bad';
+  const fcAccent = fcBand === 'ok' ? T.green : fcBand === 'warn' ? T.amber : T.red;
+
+  const KpiCard = ({ label, value, sub, valueColor, accent, onClick, empty, mini, alert }) => {
+    const isAlert = !!alert;
+    return (
+      <div onClick={onClick}
+        style={{background:T.bgCard, border:`1px solid ${isAlert?'rgba(192,57,43,0.22)':T.border}`,
+          borderRadius:R.xl, padding:isMobile?"14px 14px 14px 16px":"18px 20px 18px 22px",
+          boxShadow:isAlert?"0 1px 2px rgba(192,57,43,0.08), 0 1px 3px rgba(15,23,42,0.04)":S.sm,
+          cursor:"pointer", position:"relative", overflow:"hidden",
+          transition:`box-shadow ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`}}
+        onMouseEnter={e=>{e.currentTarget.style.boxShadow=S.md;e.currentTarget.style.borderColor=isAlert?'rgba(192,57,43,0.42)':T.borderStr;e.currentTarget.style.transform="translateY(-1px)";}}
+        onMouseLeave={e=>{e.currentTarget.style.boxShadow=isAlert?"0 1px 2px rgba(192,57,43,0.08), 0 1px 3px rgba(15,23,42,0.04)":S.sm;e.currentTarget.style.borderColor=isAlert?'rgba(192,57,43,0.22)':T.border;e.currentTarget.style.transform="translateY(0)";}}>
+        {accent && <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:accent,borderRadius:"3px 0 0 3px"}}/>}
+        <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
+          color:T.textSoft,marginBottom:isMobile?8:10}}>
+          {label}
+        </div>
+        <div style={{fontSize:isMobile?(mini?20:24):(mini?22:28),fontWeight:700,
+          color:empty?T.textFaint:(valueColor||T.text),lineHeight:1.05,letterSpacing:"-0.02em",
+          ...tnum}}>
+          {empty?'—':value}
+        </div>
+        <div style={{fontSize:12,color:T.textSoft,marginTop:isMobile?6:8,fontWeight:500,letterSpacing:"-0.005em"}}>{sub}</div>
+      </div>
+    );
   };
 
   return (
-    <div style={{maxWidth:900,margin:"0 auto"}}>
+    <div style={{maxWidth:960,margin:"0 auto"}}>
 
       {/* Header */}
-      <div style={{marginBottom:isMobile?20:28}}>
-        <h1 style={{margin:"0 0 4px",fontSize:isMobile?20:26,fontWeight:700,color:C.text,letterSpacing:"-0.3px"}}>
-          Buongiorno{nomeSaluto}
-        </h1>
-        <div style={{fontSize:13,color:C.textSoft,textTransform:"capitalize"}}>
+      <div style={{marginBottom:isMobile?20:32}}>
+        <div style={{fontSize:12,color:T.textSoft,textTransform:"capitalize",fontWeight:500,
+          letterSpacing:"-0.005em",marginBottom:6}}>
           {giornoLabel}
         </div>
+        <h1 style={{margin:0,fontSize:isMobile?22:28,fontWeight:700,color:T.text,
+          letterSpacing:"-0.025em",lineHeight:1.15}}>
+          {saluto}{nomeSaluto}
+        </h1>
       </div>
 
       {/* 4 KPI Cards */}
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",gap:isMobile?10:14,marginBottom:isMobile?20:24}}>
-
-        {/* Ricavi */}
-        <div style={{...kpiCard,cursor:"pointer"}} onClick={()=>setView("chiusura")}
-          onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"}
-          onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.05)"}>
-          <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,marginBottom:8}}>Ricavi</div>
-          {cassaOggi
-            ? <div style={{fontSize:isMobile?22:28,fontWeight:700,color:C.text,lineHeight:1,letterSpacing:"-0.5px"}}>{fmt(ricaviOggi)}</div>
-            : <div style={{fontSize:isMobile?22:28,fontWeight:700,color:"#CBD5E1",lineHeight:1}}>—</div>
-          }
-          <div style={{fontSize:12,color:C.textSoft,marginTop:5}}>{cassaOggi?"oggi":"Non ancora registrato"}</div>
-        </div>
-
-        {/* Food Cost */}
-        <div style={{...kpiCard,cursor:"pointer"}} onClick={()=>setView("simulatore")}
-          onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"}
-          onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.05)"}>
-          <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,marginBottom:8}}>Food Cost</div>
-          {ricette.length>0
-            ? <div style={{fontSize:isMobile?22:28,fontWeight:700,color:fcColor,lineHeight:1,letterSpacing:"-0.5px"}}>{(fcMedio*100).toFixed(1)}%</div>
-            : <div style={{fontSize:isMobile?22:28,fontWeight:700,color:"#CBD5E1",lineHeight:1}}>—</div>
-          }
-          <div style={{fontSize:12,color:C.textSoft,marginTop:5}}>{ricette.length>0?"medio ricettario":"Non ancora registrato"}</div>
-        </div>
-
-        {/* Produzione */}
-        <div style={{...kpiCard,cursor:"pointer"}} onClick={()=>setView("giornaliero")}
-          onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"}
-          onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.05)"}>
-          <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,marginBottom:8}}>Produzione</div>
-          {hasProdOggi
-            ? <div style={{fontSize:isMobile?22:28,fontWeight:700,color:C.text,lineHeight:1,letterSpacing:"-0.5px"}}>{prodCount} <span style={{fontSize:13,fontWeight:500,color:C.textSoft}}>pz</span></div>
-            : <div style={{fontSize:isMobile?22:28,fontWeight:700,color:"#CBD5E1",lineHeight:1}}>—</div>
-          }
-          <div style={{fontSize:12,color:C.textSoft,marginTop:5}}>{hasProdOggi?"oggi":"Non ancora registrata"}</div>
-        </div>
-
-        {/* Magazzino */}
-        <div style={{...kpiCard,cursor:"pointer"}} onClick={()=>setView("magazzino")}
-          onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 12px rgba(0,0,0,0.08)"}
-          onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.05)"}>
-          <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,marginBottom:8}}>Magazzino</div>
-          {critici.length>0
-            ? <div style={{fontSize:isMobile?22:28,fontWeight:700,color:C.red,lineHeight:1,letterSpacing:"-0.5px"}}>{critici.length} <span style={{fontSize:13,fontWeight:500,color:C.textSoft}}>critici</span></div>
-            : <div style={{fontSize:isMobile?22:28,fontWeight:700,color:C.green,lineHeight:1}}>OK</div>
-          }
-          <div style={{fontSize:12,color:C.textSoft,marginTop:5}}>{critici.length>0?"sotto soglia":"Tutto in ordine"}</div>
-        </div>
-
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",
+        gap:isMobile?10:14,marginBottom:isMobile?20:28}}>
+        <KpiCard
+          label="Ricavi"
+          value={fmt(ricaviOggi)}
+          empty={!cassaOggi}
+          sub={cassaOggi?"oggi":"non ancora registrati"}
+          onClick={()=>setView("chiusura")}
+        />
+        <KpiCard
+          label="Food Cost"
+          value={`${(fcMedio*100).toFixed(1)}%`}
+          valueColor={fcColor}
+          accent={ricette.length>0?fcAccent:null}
+          empty={ricette.length===0}
+          sub={ricette.length>0?"medio ricettario":"non disponibile"}
+          onClick={()=>setView("simulatore")}
+        />
+        <KpiCard
+          label="Produzione"
+          value={<>{prodCount}<span style={{fontSize:isMobile?12:14,fontWeight:500,color:T.textSoft,marginLeft:6,letterSpacing:0}}>pz</span></>}
+          empty={!hasProdOggi}
+          sub={hasProdOggi?"registrata oggi":"non registrata"}
+          onClick={()=>setView("giornaliero")}
+        />
+        <KpiCard
+          label="Magazzino"
+          value={critici.length>0?<>{critici.length}<span style={{fontSize:isMobile?12:14,fontWeight:500,color:T.textSoft,marginLeft:6,letterSpacing:0}}>critici</span></>:"Tutto OK"}
+          valueColor={critici.length>0?T.brand:T.green}
+          accent={critici.length>0?T.brand:null}
+          alert={critici.length>0}
+          sub={critici.length>0?"ingredienti sotto soglia":"livelli in ordine"}
+          onClick={()=>setView("magazzino")}
+        />
       </div>
 
       {/* Two columns */}
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:isMobile?16:20}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:isMobile?14:18}}>
 
         {/* Ultime ricette */}
-        <div style={{...kpiCard}}>
-          <div style={{fontWeight:700,fontSize:14,color:C.text,marginBottom:14}}>Ultime ricette</div>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.xl,
+          padding:isMobile?"16px 16px 12px":"20px 22px 14px",boxShadow:S.sm,
+          display:"flex",flexDirection:"column"}}>
+          <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:isMobile?12:16}}>
+            <h2 style={{margin:0,fontSize:14,fontWeight:600,color:T.text,letterSpacing:"-0.01em"}}>Ultime ricette</h2>
+            {ultimeRicette.length>0&&<span style={{fontSize:11,color:T.textSoft,fontWeight:500}}>{Object.keys(ricettario?.ricette||{}).length} totali</span>}
+          </div>
           {ultimeRicette.length===0
-            ? <div style={{fontSize:12,color:C.textSoft,marginBottom:12}}>Nessuna ricetta — importa il tuo Excel</div>
-            : ultimeRicette.map(r=>{
-                const reg=getR(r.nome,r);
-                const {tot:fc}=calcolaFC(r,ingCosti,ricettario);
-                const marg=reg.prezzo*reg.unita>0?((reg.prezzo*reg.unita-fc)/(reg.prezzo*reg.unita)*100):0;
-                return (
-                  <div key={r.nome} onClick={()=>setView("ricettario")}
-                    style={{padding:"9px 0",borderBottom:`1px solid ${C.border}`,cursor:"pointer",
-                      display:"flex",alignItems:"center",gap:10}}
-                    onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
-                    onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:13,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.nome}</div>
-                      <div style={{fontSize:11,color:C.textSoft,marginTop:1}}>FC {(fc/((reg.prezzo||1)*(reg.unita||1))*100).toFixed(0)}% · Marg {marg.toFixed(1)}%</div>
+            ? <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                padding:"24px 12px",textAlign:"center",gap:10}}>
+                <div style={{width:38,height:38,borderRadius:R.md,background:T.bgSubtle,
+                  display:"flex",alignItems:"center",justifyContent:"center",color:T.textSoft}}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+                  </svg>
+                </div>
+                <div style={{fontSize:13,color:T.textMid,fontWeight:500}}>Nessuna ricetta caricata</div>
+                <div style={{fontSize:12,color:T.textSoft,maxWidth:240,lineHeight:1.5}}>Importa il tuo file Excel per vedere food cost e margini in automatico.</div>
+              </div>
+            : <div style={{display:"flex",flexDirection:"column"}}>
+                {ultimeRicette.map((r,i)=>{
+                  const reg=getR(r.nome,r);
+                  const {tot:fc}=calcolaFC(r,ingCosti,ricettario);
+                  const ricavo=(reg.prezzo||0)*(reg.unita||0);
+                  const fcPct=ricavo>0?fc/ricavo*100:0;
+                  const marg=ricavo>0?((ricavo-fc)/ricavo*100):0;
+                  const margColor=marg>=60?T.green:marg>=40?T.amber:T.red;
+                  return (
+                    <div key={r.nome} onClick={()=>setView("ricettario")}
+                      style={{padding:"10px 8px",margin:"0 -8px",borderRadius:R.md,
+                        borderTop:i===0?"none":`1px solid ${T.borderSoft}`,cursor:"pointer",
+                        display:"flex",alignItems:"center",gap:12,
+                        transition:`background ${M.durFast} ${M.ease}`}}
+                      onMouseEnter={e=>e.currentTarget.style.background=T.bgSubtle}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:500,fontSize:13,color:T.text,letterSpacing:"-0.005em",
+                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.nome}</div>
+                        <div style={{fontSize:11,color:T.textSoft,marginTop:2,letterSpacing:"-0.005em",
+                          display:"flex",alignItems:"center",gap:8,...tnum}}>
+                          <span>FC {fcPct.toFixed(0)}%</span>
+                          <span style={{width:2,height:2,borderRadius:"50%",background:T.textFaint}}/>
+                          <span style={{color:ricavo>0?margColor:T.textSoft,fontWeight:500}}>Marg {marg.toFixed(0)}%</span>
+                        </div>
+                      </div>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textFaint} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
                     </div>
-                    <span style={{fontSize:12,color:C.textSoft,flexShrink:0}}>›</span>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
           }
           <button onClick={()=>setView("ricettario")}
-            style={{marginTop:12,width:"100%",padding:"9px",background:C.bg,border:`1px solid ${C.border}`,
-              borderRadius:8,fontSize:12,fontWeight:600,color:C.textMid,cursor:"pointer",
-              transition:"background 0.12s"}}
-            onMouseEnter={e=>e.currentTarget.style.background="#EDF2F7"}
-            onMouseLeave={e=>e.currentTarget.style.background=C.bg}>
-            Vai al Ricettario →
+            style={{marginTop:isMobile?12:16,padding:"10px 12px",background:"transparent",
+              border:`1px solid ${T.border}`,borderRadius:R.md,fontSize:13,fontWeight:500,color:T.textMid,
+              cursor:"pointer",letterSpacing:"-0.005em",
+              transition:`background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
+              display:"flex",alignItems:"center",justifyContent:"center",gap:6}}
+            onMouseEnter={e=>{e.currentTarget.style.background=T.bgSubtle;e.currentTarget.style.borderColor=T.borderStr;e.currentTarget.style.color=T.text;}}
+            onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.textMid;}}>
+            Apri il Ricettario
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
           </button>
         </div>
 
         {/* Da fare oggi */}
-        <div style={{...kpiCard}}>
-          <div style={{fontWeight:700,fontSize:14,color:C.text,marginBottom:14}}>Da fare oggi</div>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.xl,
+          padding:isMobile?"16px 16px":"20px 22px",boxShadow:S.sm,display:"flex",flexDirection:"column"}}>
+          <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:isMobile?12:16}}>
+            <h2 style={{margin:0,fontSize:14,fontWeight:600,color:T.text,letterSpacing:"-0.01em"}}>Da fare oggi</h2>
+            {todos.length>0&&<span style={{fontSize:11,fontWeight:600,color:T.brand,
+              background:T.brandLight,borderRadius:R.full,padding:"2px 8px",letterSpacing:0,...tnum}}>{todos.length}</span>}
+          </div>
           {todos.length===0
-            ? <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 0"}}>
-                <span style={{fontSize:18}}>✅</span>
-                <span style={{fontSize:13,color:C.textMid,fontWeight:500}}>Tutto fatto per oggi!</span>
-              </div>
-            : todos.map(t=>(
-                <div key={t.id} onClick={()=>setView(t.view)}
-                  style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",
-                    borderBottom:`1px solid ${C.border}`,cursor:"pointer"}}
-                  onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
-                  onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                  <div style={{width:16,height:16,border:`2px solid ${C.border}`,borderRadius:4,flexShrink:0}}/>
-                  <span style={{fontSize:13,color:C.text,flex:1}}>{t.label}</span>
-                  <span style={{fontSize:12,color:C.textSoft}}>›</span>
+            ? <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                padding:"24px 12px",textAlign:"center",gap:10}}>
+                <div style={{width:42,height:42,borderRadius:"50%",background:T.greenLight,
+                  display:"flex",alignItems:"center",justifyContent:"center",color:T.green}}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
                 </div>
-              ))
+                <div style={{fontSize:13,color:T.textMid,fontWeight:500}}>Tutto fatto per oggi</div>
+                <div style={{fontSize:12,color:T.textSoft}}>Goditi la giornata.</div>
+              </div>
+            : <div style={{display:"flex",flexDirection:"column"}}>
+                {todos.map((t,i)=>(
+                  <div key={t.id} onClick={()=>setView(t.view)}
+                    style={{display:"flex",alignItems:"center",gap:12,padding:"11px 8px",
+                      margin:"0 -8px",borderRadius:R.md,
+                      borderTop:i===0?"none":`1px solid ${T.borderSoft}`,cursor:"pointer",
+                      transition:`background ${M.durFast} ${M.ease}`}}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.bgSubtle}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <div style={{width:18,height:18,border:`2px solid ${T.borderStr}`,borderRadius:R.xs,
+                      flexShrink:0,position:"relative"}}>
+                      <span style={{position:"absolute",inset:0,background:T.brand,opacity:0,
+                        borderRadius:"calc(var(--rxs) - 1px)"}}/>
+                    </div>
+                    <span style={{fontSize:13,color:T.text,flex:1,letterSpacing:"-0.005em"}}>{t.label}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textFaint} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                ))}
+              </div>
           }
         </div>
 
       </div>
-      <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }
