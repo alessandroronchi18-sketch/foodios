@@ -84,6 +84,8 @@ function TrialScadutoPage({ org }) {
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname)
+  // Splash solo al primissimo caricamento — non a ogni eventuale loading transitorio
+  const [primoCaricamento, setPrimoCaricamento] = useState(true)
 
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname)
@@ -135,7 +137,14 @@ export default function App() {
     return <ResetPasswordPage onDone={() => setShowResetPassword(false)} />
   }
 
-  if (auth.loading) return <SplashScreen />
+  // Sblocca primoCaricamento quando auth ha finito la prima volta
+  if (!auth.loading && primoCaricamento) {
+    // Defer setState fuori dal render
+    Promise.resolve().then(() => setPrimoCaricamento(false))
+  }
+  // Splash solo al primissimo caricamento. Se ricarica auth dopo (improbabile con
+  // useAuth.js fix su TOKEN_REFRESHED), Dashboard resta montato e mantiene lo stato.
+  if (auth.loading && primoCaricamento) return <SplashScreen />
 
   // Non loggato
   if (!auth.user) {

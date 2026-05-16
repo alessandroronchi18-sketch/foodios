@@ -97,6 +97,19 @@ export const backgroundManager = {
   },
 }
 
+// Avvisa l'utente se prova a chiudere/ricaricare la tab mentre ci sono job in corso
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', (e) => {
+    const attivi = [...jobs.values()].filter(j => j.status === 'pending' || j.status === 'running')
+    if (attivi.length > 0) {
+      e.preventDefault()
+      // I browser moderni ignorano il messaggio custom ma mostrano comunque il dialog
+      e.returnValue = `Hai ${attivi.length} operazion${attivi.length > 1 ? 'i' : 'e'} in corso. Uscire le interromperà.`
+      return e.returnValue
+    }
+  })
+}
+
 // Backward-compatible alias for existing uploadManager.add(id, file, fn, opts) calls
 export const uploadManager = {
   add(id, fileOrFake, fn, { onComplete, onError, label } = {}) {
