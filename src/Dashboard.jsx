@@ -7668,8 +7668,17 @@ export default function Dashboard({
   // noRedirect=true quando si elimina — non vogliamo uscire dalla pagina
   const handleSalvaRicetta = useCallback(async (nuovoRic, nuoveRegole, noRedirect=false) => {
     const ricettaNome = Object.keys(nuoveRegole||{})[0];
-    console.log('💾 handleSalvaRicetta', { orgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
-    if (!orgId) {
+    // Resolved orgId: prefer prop (current closure), fallback to module ctx (always fresh per render)
+    let effectiveOrgId = orgId || _ctx_orgId;
+    // Retry breve in caso di race con caricamento profilo
+    let tentativo = 0;
+    while (!effectiveOrgId && tentativo < 10) {
+      await new Promise(r => setTimeout(r, 200));
+      effectiveOrgId = orgId || _ctx_orgId;
+      tentativo++;
+    }
+    console.log('💾 handleSalvaRicetta', { orgId, _ctx_orgId, effectiveOrgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
+    if (!effectiveOrgId) {
       notify('⚠ Sessione non valida (orgId mancante). Ricarica la pagina.', false);
       return;
     }
