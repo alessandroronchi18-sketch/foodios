@@ -1141,12 +1141,14 @@ function PageHeader({breadcrumb, title, subtitle, action}) {
 
 
 // ─── TORTA CARD ───────────────────────────────────────────────────────────────
-function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
+function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,variant="ricetta"}) {
   const isMobile = useIsMobile();
   const [open,setOpen]         = useState(false);
   const [editMode,setEditMode] = useState(false);
   const reg = getR(ric.nome, ric);
   if (reg.tipo==="interno") return null;
+
+  const isSemi = variant === "semilavorato" || reg.tipo === "semilavorato";
 
   const [editPrezzo, setEditPrezzo] = useState(reg.prezzo);
   const [editUnita,  setEditUnita]  = useState(reg.unita);
@@ -1168,6 +1170,13 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
   const mc = margColor(margPct);
   const mbg = margPct>=60?C.greenLight:margPct>=40?C.amberLight:C.redLight;
 
+  // Statistiche specifiche per semilavorati (peso batch + costo/kg).
+  const pesoTotSemi = (ric.ingredienti||[]).reduce((s,i)=>s+(i.qty1stampo||0),0);
+  const costoGSemi  = pesoTotSemi>0 ? fc/pesoTotSemi : 0;
+
+  // Palette viola per i semilavorati — stesso layout delle ricette, colore distinto.
+  const SEMI = { bg:"#FAF6FF", border:"#C9A4DC", accent:"#8E44AD", accentLight:"#F0E4FA", panel:"#F5F0FA", divider:"#E5D4F0" };
+
   const ING_SKIP_DISPLAY = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo"];
   const ingList = (ric.ingredienti||[])
     .filter(ing => !ING_SKIP_DISPLAY.includes(normIng(ing.nome||"").toLowerCase().trim()))
@@ -1182,17 +1191,24 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
   const pieData = [...pieRaw, ...(resto>0.01?[{nome:"Altri",costoCalc:parseFloat(resto.toFixed(3))}]:[])];
 
   return (
-    <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",transition:"box-shadow 0.2s"}}>
+    <div style={{background:isSemi?SEMI.bg:C.bgCard,border:`1px solid ${isSemi?SEMI.border:C.border}`,borderRadius:14,overflow:"hidden",boxShadow:isSemi?"0 1px 6px rgba(142,68,173,0.08)":"0 1px 6px rgba(0,0,0,0.05)",transition:"box-shadow 0.2s"}}>
       {/* Header */}
-      <div style={{padding:"18px 24px",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,borderBottom:open?`1px solid ${C.border}`:"none"}}>
+      <div style={{padding:"18px 24px",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,borderBottom:open?`1px solid ${isSemi?SEMI.divider:C.border}`:"none"}}>
         <div style={{flex:1}}>
           <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
+            {isSemi && (
+              <span style={{padding:"3px 9px",borderRadius:5,background:SEMI.accentLight,color:SEMI.accent,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.07em"}}>Semilavorato</span>
+            )}
             <h3 style={{margin:0,fontSize:17,fontWeight:900,color:C.text,letterSpacing:"-0.02em"}}>{ric.nome}</h3>
-            <Tip text={`Margine lordo: ${fmtp(margPct)}. Verde ≥ 60%, giallo 40–60%, rosso < 40%. Calcolato su ricavo ${fmt(ricavo)} − food cost ${fmt(fc)}.`} width={260}>{margBadge(margPct)}</Tip>
+            {!isSemi && (
+              <Tip text={`Margine lordo: ${fmtp(margPct)}. Verde ≥ 60%, giallo 40–60%, rosso < 40%. Calcolato su ricavo ${fmt(ricavo)} − food cost ${fmt(fc)}.`} width={260}>{margBadge(margPct)}</Tip>
+            )}
             {mancanti.length>0 && <Tip text="Alcuni ingredienti non hanno un prezzo reale: il food cost è calcolato su stime HoReCa Torino. Carica il file prezzi per valori precisi." width={280}><Badge label={`${mancanti.length} prezzi stimati`} color="amber"/></Tip>}
           </div>
           <div style={{fontSize:11,color:C.textSoft}}>
-            {reg.unita} {reg.tipo==="fetta"?"fette":"pezzi"} × {fmt(reg.prezzo)}{ric.totImpasto1>0?` · ${ric.totImpasto1}g impasto`:""}
+            {isSemi
+              ? `Base interna · ${pesoTotSemi>=1000?`${(pesoTotSemi/1000).toFixed(2)} kg`:`${Math.round(pesoTotSemi)} g`} per batch${ric.totImpasto1>0?` · ${ric.totImpasto1}g impasto`:""}`
+              : `${reg.unita} ${reg.tipo==="fetta"?"fette":"pezzi"} × ${fmt(reg.prezzo)}${ric.totImpasto1>0?` · ${ric.totImpasto1}g impasto`:""}`}
           </div>
           {(ric.allergeni||[]).length>0&&(
             <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>
@@ -1210,12 +1226,16 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
         </div>
         {/* Mini P&L inline */}
         <div style={{display:"flex",gap:2,alignItems:"stretch",flexShrink:0}}>
-          {[
+          {(isSemi ? [
+            {lbl:"Peso batch",val:pesoTotSemi>=1000?`${(pesoTotSemi/1000).toFixed(2)} kg`:`${Math.round(pesoTotSemi)} g`,c:C.text,bg:SEMI.panel,tip:`Peso totale del batch prodotto = somma dei grammi di tutti gli ingredienti.`},
+            {lbl:"Costo batch",val:fmt(fc),c:SEMI.accent,bg:SEMI.accentLight,bold:true,tip:`Costo totale ingredienti per un batch completo del semilavorato.`},
+            {lbl:"Costo / kg",val:fmt(costoGSemi*1000),c:SEMI.accent,bg:SEMI.accentLight,bold:true,tip:`Costo per kg del semilavorato = Costo batch ÷ Peso batch. Usato per calcolare il food cost delle ricette che lo includono.`},
+          ] : [
             {lbl:"Ricavo",val:fmt(ricavo),c:C.text,bg:"#F8F4F2",tip:`Ricavo per stampo = ${reg.unita} ${reg.tipo==="fetta"?"fette":"pezzi"} × ${fmt(reg.prezzo)}. Massimo incassabile se si vende tutto.`},
             {lbl:"Food Cost",val:fmt(fc),c:C.red,bg:C.redLight,tip:`Costo totale ingredienti per produrre uno stampo. Non include lavoro né costi fissi.`},
             {lbl:"Margine",val:fmt(margine),c:mc,bg:mbg,bold:true,tip:`Margine lordo = Ricavo ${fmt(ricavo)} − Food cost ${fmt(fc)}. Prima di affitto, lavoro e altri costi fissi.`},
             {lbl:"Margine %",val:fmtp(margPct),c:mc,bg:mbg,bold:true,tip:`Percentuale di margine sul ricavo. Verde ≥ 60%, giallo 40–60%, rosso < 40%. Target artigianale: 70%.`},
-          ].map(({lbl,val,c,bg,bold,tip},i)=>(
+          ]).map(({lbl,val,c,bg,bold,tip},i)=>(
             <Tip key={i} text={tip} width={240}>
             <div style={{background:bg,padding:"8px 14px",borderRadius:8,textAlign:"center",minWidth:80,cursor:"help"}}>
               <div style={{fontSize:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,marginBottom:3}}>{lbl}</div>
@@ -1225,15 +1245,17 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
           ))}
         </div>
         <button onClick={()=>setOpen(o=>!o)}
-          style={{padding:"7px 14px",borderRadius:7,border:`1px solid ${C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
+          style={{padding:"7px 14px",borderRadius:7,border:`1px solid ${isSemi?SEMI.border:C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:isSemi?SEMI.accent:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
           {open?"▲ Chiudi":"▼ Apri dettaglio"}
         </button>
-        <button onClick={()=>{setEditPrezzo(reg.prezzo);setEditUnita(reg.unita);setEditMode(e=>!e);}}
-          style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${editMode?C.red:C.borderStr}`,background:editMode?C.redLight:"transparent",fontSize:11,fontWeight:700,color:editMode?C.red:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
-          ✏️ Prezzo
-        </button>
+        {!isSemi && (
+          <button onClick={()=>{setEditPrezzo(reg.prezzo);setEditUnita(reg.unita);setEditMode(e=>!e);}}
+            style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${editMode?C.red:C.borderStr}`,background:editMode?C.redLight:"transparent",fontSize:11,fontWeight:700,color:editMode?C.red:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
+            ✏️ Prezzo
+          </button>
+        )}
         <button onClick={()=>exportRicettaPDF(ric, {tot:fc,perc:ricavo>0?fc/ricavo*100:0})}
-          style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
+          style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${isSemi?SEMI.border:C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:isSemi?SEMI.accent:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
           📄 PDF
         </button>
       </div>
@@ -1363,7 +1385,8 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
               </div>
             )}
 
-            {/* P&L cascade */}
+            {/* P&L cascade — solo ricette (semilavorati non hanno prezzo) */}
+            {!isSemi && (
             <div style={{background:"#F8F4F2",borderRadius:10,padding:"16px"}}>
               <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:12}}>💰 Conto economico per stampo</div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -1391,8 +1414,10 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
                 </div>
               </div>
             </div>
+            )}
 
-            {/* Per unità */}
+            {/* Per unità — solo ricette */}
+            {!isSemi && (
             <div style={{background:"#F8F4F2",borderRadius:10,padding:"16px"}}>
               <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:10}}>🍰 Per singola {reg.tipo}</div>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:8}}>
@@ -1410,6 +1435,28 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola}) {
                 ))}
               </div>
             </div>
+            )}
+
+            {/* Per kg — solo semilavorati */}
+            {isSemi && (
+              <div style={{background:SEMI.panel,borderRadius:10,padding:"16px"}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:10}}>⚖️ Riepilogo batch</div>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:8}}>
+                  {[
+                    {lbl:"Peso totale",val:pesoTotSemi>=1000?`${(pesoTotSemi/1000).toFixed(2)} kg`:`${Math.round(pesoTotSemi)} g`,c:C.text,tip:`Peso totale del batch prodotto.`},
+                    {lbl:"Costo / kg",val:fmt(costoGSemi*1000),c:SEMI.accent,tip:`Costo per kg = Costo batch ÷ Peso batch.`},
+                    {lbl:"Costo / 100 g",val:fmt(costoGSemi*100),c:SEMI.accent,tip:`Costo per 100 g. Usalo per stimare velocemente l'impatto del semilavorato in una ricetta.`},
+                  ].map(({lbl,val,c,tip},i)=>(
+                    <Tip key={i} text={tip} width={240}>
+                    <div style={{background:C.white,border:`1px solid ${SEMI.divider}`,borderRadius:7,padding:"10px 10px",textAlign:"center",cursor:"help"}}>
+                      <div style={{fontSize:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,marginBottom:4}}>{lbl}</div>
+                      <div style={{fontSize:15,fontWeight:900,color:c,fontFamily:"Georgia,serif"}}>{val}</div>
+                    </div>
+                    </Tip>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1569,38 +1616,22 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload}) {
         </div>
       )}
 
-      {/* Semilavorati */}
+      {/* Semilavorati — stesso layout TortaCard, palette viola */}
       {semilavorati.length>0&&(
         <div style={{marginBottom:32}}>
-          <div style={{borderTop:`1px solid ${C.border}`,marginBottom:20}}/>
-          <div style={{marginBottom:14}}>
-            <h2 style={{margin:"0 0 3px",fontSize:16,fontWeight:700,color:C.text}}>Semilavorati & Basi</h2>
-            <div style={{fontSize:12,color:C.textSoft}}>Impasti, creme e basi interne — non vendibili, usabili come ingredienti</div>
+          <div style={{borderTop:`1px solid #E5D4F0`,marginBottom:20}}/>
+          <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:14}}>
+            <div style={{width:3,height:22,background:"#8E44AD",borderRadius:2,flexShrink:0,alignSelf:"center"}}/>
+            <div>
+              <h2 style={{margin:"0 0 3px",fontSize:18,fontWeight:800,color:"#8E44AD",letterSpacing:"-0.2px"}}>Semilavorati</h2>
+              <div style={{fontSize:12,color:C.textSoft}}>Impasti, creme e basi interne — non vendibili, usabili come ingredienti delle ricette</div>
+            </div>
+            <span style={{marginLeft:"auto",padding:"3px 10px",borderRadius:20,background:"#F0E4FA",color:"#8E44AD",fontSize:11,fontWeight:700}}>{semilavorati.length}</span>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {semilavorati.map(ric=>{
-              const {tot:fc,mancanti}=calcolaFC(ric,ingCosti,ricettario);
-              const pesoTot=(ric.ingredienti||[]).reduce((s,i)=>s+(i.qty1stampo||0),0);
-              const costoG=pesoTot>0?fc/pesoTot:0;
-              return (
-                <div key={ric.nome} style={{background:C.bgCard,border:"1px solid #D4B0E8",borderRadius:12,padding:"16px 20px",
-                  boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-                  <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-                    <div style={{flex:1}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                        <span style={{padding:"2px 8px",borderRadius:4,background:"#F0E4FA",color:"#8E44AD",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em"}}>Semilavorato</span>
-                        <span style={{fontSize:14,fontWeight:700,color:C.text}}>{ric.nome}</span>
-                      </div>
-                      <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-                        <div style={{fontSize:12,color:C.textSoft}}>Peso: <span style={{fontWeight:600,color:C.text}}>{pesoTot>=1000?`${(pesoTot/1000).toFixed(2)} kg`:`${Math.round(pesoTot)} g`}</span></div>
-                        <div style={{fontSize:12,color:C.textSoft}}>Costo batch: <span style={{fontWeight:600,color:C.red}}>€{fc.toFixed(2)}</span></div>
-                        <div style={{fontSize:12,color:C.textSoft}}>Costo/kg: <span style={{fontWeight:600,color:C.text}}>€{(costoG*1000).toFixed(2)}</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {semilavorati.map(ric=>(
+              <TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} variant="semilavorato"/>
+            ))}
           </div>
         </div>
       )}
