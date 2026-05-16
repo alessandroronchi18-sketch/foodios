@@ -26,7 +26,7 @@ import NotifichePanel from './components/NotifichePanel'
 import BackgroundToast from './components/BackgroundToast'
 import { backgroundManager } from './lib/backgroundManager'
 import { uploadManager } from './lib/backgroundManager'
-import { ALLERGENI, ALLERGENE_COLORS } from './lib/allergeni'
+import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, mergeAllergeni } from './lib/allergeni'
 import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese } from './lib/rese'
 import Fornitori from './components/Fornitori'
 import Personale from './components/Personale'
@@ -1141,7 +1141,7 @@ function PageHeader({breadcrumb, title, subtitle, action}) {
 
 
 // ─── TORTA CARD ───────────────────────────────────────────────────────────────
-function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,variant="ricetta"}) {
+function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricetta"}) {
   const isMobile = useIsMobile();
   const [open,setOpen]         = useState(false);
   const [editMode,setEditMode] = useState(false);
@@ -1199,7 +1199,13 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,variant="ricetta"}) {
             {isSemi && (
               <span style={{padding:"3px 9px",borderRadius:5,background:SEMI.accentLight,color:SEMI.accent,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.07em"}}>Semilavorato</span>
             )}
-            <h3 style={{margin:0,fontSize:17,fontWeight:900,color:C.text,letterSpacing:"-0.02em"}}>{ric.nome}</h3>
+            <h3 onClick={onEdit?()=>onEdit(ric.nome):undefined}
+                title={onEdit?"Clicca per modificare la ricetta":undefined}
+                style={{margin:0,fontSize:17,fontWeight:900,color:C.text,letterSpacing:"-0.02em",cursor:onEdit?"pointer":"default"}}
+                onMouseEnter={onEdit?(e)=>{e.currentTarget.style.color=C.red;e.currentTarget.style.textDecoration="underline";}:undefined}
+                onMouseLeave={onEdit?(e)=>{e.currentTarget.style.color=C.text;e.currentTarget.style.textDecoration="none";}:undefined}>
+              {ric.nome}
+            </h3>
             {!isSemi && (
               <Tip text={`Margine lordo: ${fmtp(margPct)}. Verde ≥ 60%, giallo 40–60%, rosso < 40%. Calcolato su ricavo ${fmt(ricavo)} − food cost ${fmt(fc)}.`} width={260}>{margBadge(margPct)}</Tip>
             )}
@@ -1252,6 +1258,12 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,variant="ricetta"}) {
           <button onClick={()=>{setEditPrezzo(reg.prezzo);setEditUnita(reg.unita);setEditMode(e=>!e);}}
             style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${editMode?C.red:C.borderStr}`,background:editMode?C.redLight:"transparent",fontSize:11,fontWeight:700,color:editMode?C.red:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
             ✏️ Prezzo
+          </button>
+        )}
+        {onEdit && (
+          <button onClick={()=>onEdit(ric.nome)}
+            style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${C.red}`,background:C.red,color:C.white,fontSize:11,fontWeight:800,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
+            ✏️ Modifica ricetta
           </button>
         )}
         <button onClick={()=>exportRicettaPDF(ric, {tot:fc,perc:ricavo>0?fc/ricavo*100:0})}
@@ -1466,7 +1478,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,variant="ricetta"}) {
 
 // ─── RICETTARIO VIEW ──────────────────────────────────────────────────────────
 // ─── RICETTARIO VIEW ─────────────────────────────────────────────────────────
-function RicettarioView({ricettario, onUpdateRegola, onUpload}) {
+function RicettarioView({ricettario, onUpdateRegola, onUpload, onEditRicetta}) {
   const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const ricette  = useMemo(()=>Object.values(ricettario?.ricette||{})
@@ -1612,7 +1624,7 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload}) {
         </div>
       ) : (
         <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:32}}>
-          {filtered.map(ric=><TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola}/>)}
+          {filtered.map(ric=><TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta}/>)}
         </div>
       )}
 
@@ -1630,7 +1642,7 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload}) {
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {semilavorati.map(ric=>(
-              <TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} variant="semilavorato"/>
+              <TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} variant="semilavorato"/>
             ))}
           </div>
         </div>
@@ -4643,7 +4655,7 @@ Instructions:
 
 
 // ─── NUOVA RICETTA VIEW ───────────────────────────────────────────────────────
-function NuovaRicettaView({ ricettario, onSave, notify }) {
+function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed }) {
   const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const tuttiIng = useMemo(()=>{
@@ -4659,8 +4671,18 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
     return [...s].filter(k=>k&&k.length>1).sort();
   }, [ricettario]);
 
-  const empty = { nome:"", unita:8, prezzo:4, tipo:"fetta", note:"", ingredienti:[], congelabile:false, allergeni:[] };
+  const empty = { nome:"", unita:8, prezzo:4, tipo:"fetta", note:"", ingredienti:[], congelabile:false, allergeniManual:[] };
   const [form, setForm] = useState(empty);
+
+  // Allergeni rilevati automaticamente dagli ingredienti (Reg. UE 1169/2011).
+  const autoAllergeni = useMemo(
+    () => detectAllergeniFromIngredienti(form.ingredienti),
+    [form.ingredienti]
+  );
+  const effectiveAllergeni = useMemo(
+    () => mergeAllergeni(autoAllergeni, form.allergeniManual),
+    [autoAllergeni, form.allergeniManual]
+  );
   const [newIngNome, setNewIngNome] = useState("");
   const [newIngQty,  setNewIngQty]  = useState("");
   const [editMode,   setEditMode]   = useState(null); // nome ricetta esistente in edit
@@ -4685,9 +4707,24 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
     const r = ricettario?.ricette?.[nome];
     if (!r) return;
     const reg = getR(nome, ricettario?.ricette?.[nome]);
-    setForm({ nome:r.nome, unita:reg.unita, prezzo:reg.prezzo, tipo:reg.tipo, note:r.note||"", ingredienti:r.ingredienti.map(i=>({...i})), congelabile:r.congelabile||false, allergeni:r.allergeni||[] });
+    const ings = r.ingredienti.map(i=>({...i}));
+    // Tutto ciò che è stato salvato ma NON è rilevato automaticamente
+    // viene preservato come override manuale.
+    const auto = detectAllergeniFromIngredienti(ings);
+    const manual = (r.allergeni||[]).filter(a => !auto.includes(a));
+    setForm({ nome:r.nome, unita:reg.unita, prezzo:reg.prezzo, tipo:reg.tipo, note:r.note||"", ingredienti:ings, congelabile:r.congelabile||false, allergeniManual:manual });
     setEditMode(nome);
+    setTimeout(()=>formRef.current?.scrollIntoView({behavior:"smooth",block:"start"}), 100);
   };
+
+  // Pre-carica una ricetta in modifica quando arriva dal click su card
+  useEffect(() => {
+    if (editingRicetta && ricettario?.ricette?.[editingRicetta]) {
+      loadForEdit(editingRicetta);
+      onEditConsumed && onEditConsumed();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingRicetta, ricettario]);
 
   const handleDeleteRicetta = async nome => {
     if (deletePin !== "ELIMINA") { notify("⚠ Scrivi ELIMINA in maiuscolo per confermare", false); return; }
@@ -4709,7 +4746,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
       prezzo: form.prezzo,
       tipo: form.tipo,
       congelabile: form.congelabile||false,
-      allergeni: form.allergeni||[],
+      allergeni: effectiveAllergeni,
     };
     const nuovoRic = { 
       ingredienti_costi: ricettario?.ingredienti_costi || {},
@@ -4759,7 +4796,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
       nome: nomeUp, sheetName: 'manuale', numStampi:1, totImpasto1:0, foodCost1:0,
       ingredienti: ings, note: datiConfermati.procedimento || '',
       unita: datiConfermati.porzioni || 8, prezzo: 4, tipo: 'fetta',
-      congelabile: false, allergeni: [],
+      congelabile: false, allergeni: detectAllergeniFromIngredienti(ings),
     };
     const nuovoRic = {
       ingredienti_costi: ricettario?.ingredienti_costi || {},
@@ -4774,8 +4811,14 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
     <div style={{maxWidth:1000}}>
       <div style={{marginBottom:24}}>
         <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Gestione</div>
-        <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Nuova Ricetta</h1>
-        <p style={{margin:0,fontSize:12,color:C.textSoft}}>Aggiungi una ricetta manualmente oppure modificane una esistente.</p>
+        <h1 style={{margin:"0 0 8px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>
+          {editMode ? `✏️ Modifica Ricetta` : "Nuova Ricetta"}
+        </h1>
+        <p style={{margin:0,fontSize:12,color:C.textSoft}}>
+          {editMode
+            ? <>Stai modificando <strong style={{color:C.red}}>{editMode}</strong>. Salva per aggiornare la ricetta.</>
+            : "Aggiungi una ricetta manualmente oppure modificane una esistente."}
+        </p>
       </div>
 
       {/* Edit ricetta esistente */}
@@ -4882,6 +4925,7 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
             prezzo: res.prezzo||4,
             tipo: res.tipo||"fetta",
             congelabile: false,
+            allergeni: detectAllergeniFromIngredienti(ings),
           };
           // Usa il ricettario accumulato (non lo state React che è stale) per non sovrascrivere ricette precedenti
           const base = ricAcc || ricettario || {};
@@ -4950,23 +4994,58 @@ function NuovaRicettaView({ ricettario, onSave, notify }) {
             </div>
           </div>
 
-          {/* Allergeni */}
+          {/* Allergeni — auto-rilevati dagli ingredienti */}
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-            <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:4}}>⚠️ Allergeni presenti</div>
-            <div style={{fontSize:10,color:C.textSoft,marginBottom:14}}>Seleziona tutti gli allergeni contenuti nella ricetta (Reg. UE 1169/2011)</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8}}>
-              {ALLERGENI.map(a=>{
-                const sel = (form.allergeni||[]).includes(a.id);
-                return (
-                  <label key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:8,cursor:"pointer",border:`1.5px solid ${sel?ALLERGENE_COLORS[a.id]:"#E2D9D5"}`,background:sel?`${ALLERGENE_COLORS[a.id]}12`:"#FDFAF8",transition:"all 0.15s"}}>
-                    <input type="checkbox" checked={sel} style={{display:"none"}}
-                      onChange={()=>setForm(f=>({...f,allergeni:sel?(f.allergeni||[]).filter(x=>x!==a.id):[...(f.allergeni||[]),a.id]}))}/>
-                    <span style={{fontSize:15}}>{a.emoji}</span>
-                    <span style={{fontSize:10,fontWeight:sel?700:500,color:sel?ALLERGENE_COLORS[a.id]:C.textMid}}>{a.label}</span>
-                    {sel&&<span style={{marginLeft:"auto",fontSize:9,fontWeight:900,color:ALLERGENE_COLORS[a.id]}}>✓</span>}
-                  </label>
-                );
-              })}
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+              <div style={{fontSize:12,fontWeight:800,color:C.text}}>⚠️ Allergeni presenti</div>
+              <span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:20,background:"#E0F2FE",color:"#0369A1",textTransform:"uppercase",letterSpacing:"0.05em"}}>Auto</span>
+            </div>
+            <div style={{fontSize:10,color:C.textSoft,marginBottom:14}}>
+              Calcolati automaticamente dagli ingredienti (Reg. UE 1169/2011). Aggiungi manualmente quelli mancanti se necessario.
+            </div>
+
+            {/* Badge auto-rilevati (sola lettura) */}
+            {autoAllergeni.length===0 ? (
+              <div style={{fontSize:11,color:C.textSoft,padding:"10px 12px",background:"#FAF8F7",border:`1px dashed ${C.border}`,borderRadius:8,marginBottom:14}}>
+                Nessun allergene rilevato dagli ingredienti attuali. Verifica gli ingredienti o aggiungi manualmente sotto.
+              </div>
+            ) : (
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:14}}>
+                {autoAllergeni.map(aid=>{
+                  const a = ALLERGENI.find(x=>x.id===aid);
+                  if (!a) return null;
+                  return (
+                    <span key={aid} title="Rilevato automaticamente dagli ingredienti"
+                      style={{display:"inline-flex",alignItems:"center",gap:6,padding:"5px 11px",borderRadius:20,background:`${ALLERGENE_COLORS[aid]}15`,color:ALLERGENE_COLORS[aid],border:`1.5px solid ${ALLERGENE_COLORS[aid]}55`,fontSize:11,fontWeight:700}}>
+                      <span style={{fontSize:13}}>{a.emoji}</span>{a.label}<span style={{fontSize:9,opacity:0.7}}>✓ auto</span>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Override manuale */}
+            <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+              <div style={{fontSize:10,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>
+                Aggiungi manualmente (override)
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:6}}>
+                {ALLERGENI.filter(a=>!autoAllergeni.includes(a.id)).map(a=>{
+                  const sel = (form.allergeniManual||[]).includes(a.id);
+                  return (
+                    <label key={a.id} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 10px",borderRadius:7,cursor:"pointer",border:`1px solid ${sel?ALLERGENE_COLORS[a.id]:"#E2D9D5"}`,background:sel?`${ALLERGENE_COLORS[a.id]}10`:"#FDFAF8",transition:"all 0.15s"}}>
+                      <input type="checkbox" checked={sel} style={{display:"none"}}
+                        onChange={()=>setForm(f=>({...f,allergeniManual:sel?(f.allergeniManual||[]).filter(x=>x!==a.id):[...(f.allergeniManual||[]),a.id]}))}/>
+                      <span style={{fontSize:13}}>{a.emoji}</span>
+                      <span style={{fontSize:10,fontWeight:sel?700:500,color:sel?ALLERGENE_COLORS[a.id]:C.textMid}}>{a.label}</span>
+                      {sel&&<span style={{marginLeft:"auto",fontSize:9,fontWeight:900,color:ALLERGENE_COLORS[a.id]}}>✓</span>}
+                    </label>
+                  );
+                })}
+              </div>
+              {ALLERGENI.filter(a=>!autoAllergeni.includes(a.id)).length===0 && (
+                <div style={{fontSize:10,color:C.textSoft,fontStyle:"italic"}}>Tutti gli allergeni UE sono già stati rilevati automaticamente.</div>
+              )}
             </div>
           </div>
 
@@ -7567,6 +7646,9 @@ export default function Dashboard({
   useEffect(() => {
     try { sessionStorage.setItem(`foodios_view_${orgId||'_'}`, view); } catch {}
   }, [view, orgId]);
+  // Quando si clicca "Modifica" su una card ricetta, salviamo qui il nome
+  // così NuovaRicettaView lo carica nel form al mount.
+  const [editingRicetta,setEditingRicetta]=useState(null);
   const [ready,setReady]=useState(false);
   const [loading,setLoading]=useState(false);
   const [showMese,setShowMese]=useState(false);
@@ -8262,11 +8344,11 @@ export default function Dashboard({
             </label>
           </div>
         )}
-        {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)}/>}
+        {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}}/>}
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify}/>}
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} onUpdateRegola={handleUpdateRegola}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero}/>}
-        {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta}/>}
+        {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)}/>}
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} notify={notify}/>}
         {view==="personale"&&<Personale orgId={orgId} notify={notify}/>}
