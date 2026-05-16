@@ -154,6 +154,29 @@ export default function App() {
   // Admin — fallback se VITE_ADMIN_EMAIL non è configurato in Vercel
   if (auth.isAdmin || (!auth.orgId && !auth.org && auth.user?.email === 'alessandroar@maradeiboschi.com')) return <AdminPage />
 
+  // Profilo non caricabile (es. RLS recursion) — mostra errore invece di Dashboard rotto
+  if (auth.profileError) {
+    return (
+      <div style={{ minHeight:'100vh', background:'#F8FAFC', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
+        <div style={{ maxWidth:560, textAlign:'center', background:'#FFF', padding:'32px 40px', borderRadius:16, boxShadow:'0 4px 24px rgba(0,0,0,0.08)' }}>
+          <div style={{ fontSize:42, marginBottom:14 }}>⚠️</div>
+          <h1 style={{ color:'#1C0A0A', marginBottom:10, fontSize:22 }}>Impossibile caricare il profilo</h1>
+          <p style={{ color:'#6B4C44', lineHeight:1.6, marginBottom:18, fontSize:14 }}>
+            Errore database: <code style={{ background:'#FEF2F2', padding:'2px 6px', borderRadius:4, fontSize:12, color:'#B91C1C' }}>{auth.profileError.code || 'unknown'}</code>
+          </p>
+          <p style={{ color:'#6B4C44', lineHeight:1.6, marginBottom:24, fontSize:13 }}>
+            {auth.profileError.message || 'Errore sconosciuto'}
+          </p>
+          <button onClick={() => window.location.reload()} style={{ padding:'12px 24px', background:'#C0392B', color:'#FFF', border:'none', borderRadius:10, fontWeight:700, fontSize:14, cursor:'pointer', marginRight:10 }}>
+            Riprova
+          </button>
+          <button onClick={() => auth.signOut()} style={{ padding:'12px 24px', background:'transparent', color:'#6B4C44', border:'1px solid #E8DDD8', borderRadius:10, fontSize:14, cursor:'pointer' }}>
+            Esci
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // Trial scaduto
   if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} />

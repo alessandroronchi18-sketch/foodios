@@ -8,6 +8,7 @@ export function useAuth() {
   const [sedi, setSedi]       = useState([])
   const [sedeAttiva, setSedeAttivaState] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [profileError, setProfileError] = useState(null)
 
   useEffect(() => {
     const safetyTimeout = setTimeout(() => setLoading(false), 8000)
@@ -42,6 +43,7 @@ export function useAuth() {
 
   async function loadProfile(userId, userObj) {
     setLoading(true)
+    setProfileError(null)
     try {
       const { data: prof, error: profErr } = await supabase
         .from('profiles')
@@ -92,6 +94,7 @@ export function useAuth() {
       }
     } catch (err) {
       console.error('loadProfile error:', err)
+      setProfileError(err)
     } finally {
       setLoading(false)
     }
@@ -160,6 +163,7 @@ export function useAuth() {
     sedeAttiva,
     setSedeAttiva,
     loading,
+    profileError,
     signIn,
     signUp,
     signOut,
