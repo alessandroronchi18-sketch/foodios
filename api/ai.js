@@ -4,7 +4,7 @@ import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { verificaToken, rallentaSeNecessario } from './lib/auth.js'
 
-const MAX_BODY_BYTES = 500_000 // 500 KB
+const MAX_BODY_BYTES = 10_485_760 // 10 MB — foto compresse client-side stanno sotto 2MB tipicamente
 const MAX_MESSAGES = 20
 const MIN_RESPONSE_MS = 200
 
@@ -38,7 +38,7 @@ export default async function handler(req) {
   try {
     const text = await req.text()
     if (text.length > MAX_BODY_BYTES) {
-      return errResponse('Richiesta troppo grande', 413, req)
+      return errResponse('Immagine troppo grande. Riprova con una foto più piccola (max 8MB).', 413, req)
     }
     body = JSON.parse(text)
   } catch {

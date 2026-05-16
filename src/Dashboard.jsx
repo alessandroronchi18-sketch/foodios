@@ -4245,6 +4245,35 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
 const _ocrPending = {} // { [mode]: { parsed, loading, error } }
 const _receiptPending = { current: null } // { loading, venduto, error, dataEstratta }
 
+// Comprime una foto lato client a max 1600px lato lungo, JPEG qualità 0.85.
+// Restituisce un File pronto per il base64. Riduce tipicamente foto smartphone
+// da 3-5MB a 200-400KB senza perdita di qualità visibile per l'OCR.
+async function compressImage(file, maxSide = 1600, quality = 0.85) {
+  if (!file || !file.type?.startsWith('image/')) return file;
+  // Skip compressione su file già piccoli (<300KB) — non vale la pena
+  if (file.size < 300_000) return file;
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(maxSide / img.width, maxSide / img.height, 1);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (!blob) return resolve(file); // fallback: file originale
+        resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 function FotoOCR({ mode, onResult, onBatchSave, notify, ricettario }) {
   const [imgs, setImgs]         = useState([]); // [{data, preview, mediaType}]
   const [img, setImg]           = useState(null); // compat: current base64
@@ -4322,13 +4351,14 @@ Instructions:
     const files = Array.from(e.target.files||[]);
     if (!files.length) return;
     setParsed(null); setError(null); setMultiResults([]);
-    if (files.length === 1) {
-      const read = await readFileAsBase64(files[0]);
+    // Comprimi PRIMA di leggere — evita 413 e velocizza upload
+    const compressed = await Promise.all(files.map(f => compressImage(f)));
+    if (compressed.length === 1) {
+      const read = await readFileAsBase64(compressed[0]);
       setImg(read.data); setPreview(read.preview); setMediaType(read.mediaType);
       setImgs([read]);
     } else {
-      // More than 1 file: show first as preview, keep all
-      const reads = await Promise.all(files.map(readFileAsBase64));
+      const reads = await Promise.all(compressed.map(readFileAsBase64));
       setImgs(reads);
       setImg(reads[0].data); setPreview(reads[0].preview); setMediaType(reads[0].mediaType);
     }
@@ -5825,13 +5855,15 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     const files = Array.from(e.target.files||[]);
     if (!files.length) return;
     setVenduto(null); setError(null); setSalvato(false);
-    if (files.length === 1) {
+    // Comprimi le foto scontrino PRIMA del base64 — evita 413 e accelera upload
+    const compressed = await Promise.all(files.map(f => compressImage(f)));
+    if (compressed.length === 1) {
       setBatchMode(false); setBatchFiles([]); setBatchResults([]);
-      const read = await readFile64(files[0]);
+      const read = await readFile64(compressed[0]);
       setPreview(read.preview); setImg(read.data64);
     } else {
       setBatchMode(true);
-      const reads = await Promise.all(files.map(readFile64));
+      const reads = await Promise.all(compressed.map(readFile64));
       setBatchFiles(reads);
       setPreview(reads[0].preview); setImg(reads[0].data64);
       notify(`📷 ${reads.length} scontrini selezionati — premi "Leggi tutti" per elaborarli`);
