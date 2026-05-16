@@ -1192,7 +1192,9 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
   const pieData = [...pieRaw, ...(resto>0.01?[{nome:"Altri",costoCalc:parseFloat(resto.toFixed(3))}]:[])];
 
   return (
-    <div style={{background:isSemi?SEMI.bg:C.bgCard,border:`1px solid ${isSemi?SEMI.border:C.border}`,borderRadius:14,overflow:"hidden",boxShadow:isSemi?"0 1px 6px rgba(142,68,173,0.08)":"0 1px 6px rgba(0,0,0,0.05)",transition:"box-shadow 0.2s"}}>
+    <div style={{background:isSemi?SEMI.bg:T.bgCard,border:`1px solid ${isSemi?SEMI.border:T.border}`,borderRadius:R.xl,overflow:"hidden",boxShadow:isSemi?"0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)":S.sm,transition:`box-shadow ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}`}}
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow=isSemi?"0 4px 12px rgba(142,68,173,0.10), 0 1px 3px rgba(142,68,173,0.05)":S.md;e.currentTarget.style.borderColor=isSemi?SEMI.border:T.borderStr;}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow=isSemi?"0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)":S.sm;e.currentTarget.style.borderColor=isSemi?SEMI.border:T.border;}}>
       {/* Header */}
       <div style={{padding:"18px 24px",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,borderBottom:open?`1px solid ${isSemi?SEMI.divider:C.border}`:"none"}}>
         <div style={{flex:1}}>
@@ -1521,103 +1523,168 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload, onEditRicetta}) {
     return arr;
   }, [ricette, search, sortBy, ingCosti, ricettario]);
 
-  const iconBtn = (active, title, path) => (
-    <button title={title}
-      style={{padding:"7px 10px",border:`1px solid ${active?C.red:C.border}`,borderRadius:7,
-        background:active?C.redLight:"transparent",cursor:"pointer",
-        color:active?C.red:C.textMid,display:"flex",alignItems:"center",justifyContent:"center"}}
-      onClick={()=>setGridView(title==='Griglia')}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
+
+  const viewToggleBtn = (active, title, path, onClick) => (
+    <button title={title} aria-label={title} onClick={onClick}
+      style={{width:34,height:32,padding:0,border:"none",borderRadius:R.sm,
+        background:active?T.bgCard:"transparent",cursor:"pointer",
+        color:active?T.text:T.textSoft,display:"flex",alignItems:"center",justifyContent:"center",
+        boxShadow:active?S.sm:"none",
+        transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}
+      onMouseEnter={e=>{if(!active)e.currentTarget.style.color=T.textMid;}}
+      onMouseLeave={e=>{if(!active)e.currentTarget.style.color=T.textSoft;}}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
         dangerouslySetInnerHTML={{__html:path}}/>
     </button>
   );
 
   return (
-    <div style={{maxWidth:1100}}>
+    <div style={{maxWidth:1120,margin:"0 auto"}}>
       {/* Page header */}
-      <div style={{marginBottom:20}}>
-        <div style={{fontSize:11,color:C.textSoft,marginBottom:6}}>Dashboard › Ricettario</div>
-        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-          <div>
-            <h1 style={{margin:"0 0 3px",fontSize:22,fontWeight:700,color:C.text,letterSpacing:"-0.3px"}}>Ricettario</h1>
-            <div style={{fontSize:13,color:C.textSoft}}>
-              {ricette.length} ricette{ricette.length>0?` · food cost medio ${(fcMedio*100).toFixed(1)}%`:""}
+      <div style={{marginBottom:isMobile?16:24}}>
+        <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14,flexWrap:"wrap",marginBottom:14}}>
+          <div style={{minWidth:0,flex:1}}>
+            <h1 style={{margin:"0 0 4px",fontSize:isMobile?22:26,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15}}>Ricettario</h1>
+            <div style={{fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",...tnum}}>
+              {ricette.length>0
+                ? <>{ricette.length} ricette · food cost medio <b style={{color:T.textMid,fontWeight:600}}>{(fcMedio*100).toFixed(1)}%</b></>
+                : "Nessuna ricetta caricata"}
             </div>
           </div>
           {onUpload&&(
-            <label style={{display:"inline-flex",alignItems:"center",gap:7,padding:"9px 16px",
-              background:C.red,border:"none",borderRadius:8,cursor:"pointer",
-              fontSize:12,fontWeight:600,color:"#fff",flexShrink:0}}>
-              + Aggiorna ricettario
+            <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"10px 16px",
+              background:T.brandGradient,border:"none",borderRadius:R.md,cursor:"pointer",
+              fontSize:13,fontWeight:600,color:"#fff",flexShrink:0,letterSpacing:"-0.005em",
+              boxShadow:S.brandSoft,transition:`transform ${M.durFast} ${M.ease}, box-shadow ${M.durBase} ${M.ease}`}}
+              onMouseEnter={e=>{e.currentTarget.style.boxShadow=S.brand;e.currentTarget.style.transform="translateY(-1px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.boxShadow=S.brandSoft;e.currentTarget.style.transform="translateY(0)";}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Aggiorna ricettario
               <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&onUpload(Array.from(e.target.files))}/>
             </label>
           )}
         </div>
       </div>
 
-      <div style={{borderTop:`1px solid ${C.border}`,marginBottom:16}}/>
-
       {/* Search + sort + view toggle */}
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca ricetta..."
-          style={{flex:1,minWidth:180,padding:"8px 12px",border:`1px solid ${C.border}`,borderRadius:8,
-            fontSize:13,color:C.text,background:"#fff",outline:"none",fontFamily:"inherit"}}
-          onFocus={e=>e.target.style.borderColor="#94A3B8"}
-          onBlur={e=>e.target.style.borderColor=C.border}/>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:isMobile?16:20,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:200,position:"relative"}}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
+            style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:T.textSoft,pointerEvents:"none"}}>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca ricetta…"
+            style={{width:"100%",padding:"10px 12px 10px 36px",border:`1px solid ${T.border}`,borderRadius:R.md,
+              fontSize:13,color:T.text,background:T.bgCard,outline:"none",fontFamily:"inherit",
+              letterSpacing:"-0.005em",
+              transition:`border-color ${M.durFast} ${M.ease}, box-shadow ${M.durFast} ${M.ease}`,boxShadow:S.xs}}
+            onFocus={e=>{e.target.style.borderColor=T.brand;e.target.style.boxShadow="0 0 0 3px rgba(192,57,43,0.10)";}}
+            onBlur={e=>{e.target.style.borderColor=T.border;e.target.style.boxShadow=S.xs;}}/>
+          {search&&(
+            <button onClick={()=>setSearch('')} aria-label="Pulisci"
+              style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",
+                border:"none",background:T.bgSubtle,width:22,height:22,borderRadius:"50%",
+                cursor:"pointer",color:T.textMid,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
         <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-          style={{padding:"8px 12px",border:`1px solid ${C.border}`,borderRadius:8,
-            fontSize:13,color:C.text,background:"#fff",cursor:"pointer",fontFamily:"inherit",outline:"none"}}>
+          style={{padding:"10px 32px 10px 12px",border:`1px solid ${T.border}`,borderRadius:R.md,
+            fontSize:13,color:T.text,background:T.bgCard,cursor:"pointer",fontFamily:"inherit",outline:"none",
+            letterSpacing:"-0.005em",boxShadow:S.xs,
+            appearance:"none",WebkitAppearance:"none",
+            backgroundImage:`url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23475264' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`,
+            backgroundRepeat:"no-repeat",backgroundPosition:"right 10px center"}}>
           <option value="margine">Margine ↓</option>
           <option value="fc">Food cost ↑</option>
           <option value="nome">Nome A-Z</option>
         </select>
-        <div style={{display:"flex",gap:4}}>
-          {iconBtn(!gridView,"Lista","<line x1='3' y1='9' x2='21' y2='9'/><line x1='3' y1='15' x2='21' y2='15'/><line x1='3' y1='3' x2='21' y2='3'/>")}
-          {iconBtn(gridView,"Griglia","<rect x='3' y='3' width='7' height='7'/><rect x='14' y='3' width='7' height='7'/><rect x='3' y='14' width='7' height='7'/><rect x='14' y='14' width='7' height='7'/>")}
+        <div style={{display:"flex",gap:2,padding:3,background:T.bgSubtle,borderRadius:R.md,border:`1px solid ${T.borderSoft}`}}>
+          {viewToggleBtn(!gridView,"Lista","<line x1='3' y1='6' x2='21' y2='6'/><line x1='3' y1='12' x2='21' y2='12'/><line x1='3' y1='18' x2='21' y2='18'/>",()=>setGridView(false))}
+          {viewToggleBtn(gridView,"Griglia","<rect x='3' y='3' width='7' height='7' rx='1'/><rect x='14' y='3' width='7' height='7' rx='1'/><rect x='3' y='14' width='7' height='7' rx='1'/><rect x='14' y='14' width='7' height='7' rx='1'/>",()=>setGridView(true))}
         </div>
       </div>
 
+      {/* Empty filter result */}
+      {ricette.length>0 && filtered.length===0 && (
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.xl,
+          padding:isMobile?"28px 20px":"40px 24px",textAlign:"center",marginBottom:24}}>
+          <div style={{width:44,height:44,borderRadius:R.md,background:T.bgSubtle,
+            display:"inline-flex",alignItems:"center",justifyContent:"center",color:T.textSoft,marginBottom:12}}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </div>
+          <div style={{fontSize:14,color:T.text,fontWeight:500,marginBottom:4}}>Nessun risultato</div>
+          <div style={{fontSize:13,color:T.textSoft}}>Prova con un altro termine di ricerca.</div>
+        </div>
+      )}
+
       {/* Grid or List */}
-      {gridView ? (
-        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:16,marginBottom:32}}>
+      {filtered.length>0 && (gridView ? (
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fill, minmax(280px, 1fr))",gap:14,marginBottom:32}}>
           {filtered.map(ric=>{
             const reg=getR(ric.nome,ric);
             const {tot:fc}=calcolaFC(ric,ingCosti,ricettario);
             const ricavo=reg.prezzo*reg.unita;
             const marg=ricavo>0?(ricavo-fc)/ricavo*100:0;
             const fcPct=ricavo>0?fc/ricavo*100:0;
-            const margColor2=marg>=60?C.green:marg>=40?C.amber:C.red;
+            const margColor2=marg>=60?T.green:marg>=40?T.amber:T.red;
+            const fcColor2=fcPct<=30?T.green:fcPct<=40?T.amber:T.red;
             return (
-              <div key={ric.nome} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,
-                padding:"18px",boxShadow:"0 1px 3px rgba(0,0,0,0.05)",display:"flex",flexDirection:"column",gap:12}}>
-                <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <div style={{width:36,height:36,borderRadius:8,background:C.bg,display:"flex",alignItems:"center",
-                    justifyContent:"center",fontSize:18,flexShrink:0}}>
-                    🍽
+              <div key={ric.nome}
+                style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.xl,
+                  padding:18,boxShadow:S.sm,display:"flex",flexDirection:"column",gap:14,
+                  cursor:"pointer",
+                  transition:`box-shadow ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`}}
+                onClick={()=>onEditRicetta&&onEditRicetta(ric.nome)}
+                onMouseEnter={e=>{e.currentTarget.style.boxShadow=S.md;e.currentTarget.style.borderColor=T.borderStr;e.currentTarget.style.transform="translateY(-1px)";}}
+                onMouseLeave={e=>{e.currentTarget.style.boxShadow=S.sm;e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform="translateY(0)";}}>
+                <div style={{display:"flex",alignItems:"center",gap:11}}>
+                  <div style={{width:36,height:36,borderRadius:R.md,background:T.bgSubtle,
+                    display:"flex",alignItems:"center",justifyContent:"center",color:T.textMid,flexShrink:0}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 13.87A4 4 0 017.41 6a5.11 5.11 0 011.05-1.54 5 5 0 017.08 0A5.11 5.11 0 0116.59 6 4 4 0 0118 13.87V21H6z"/><line x1="6" y1="17" x2="18" y2="17"/>
+                    </svg>
                   </div>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{ric.nome}</div>
-                    <div style={{fontSize:11,color:C.textSoft,marginTop:1}}>{reg.unita||"?"} {reg.tipo||"pz"}</div>
+                    <div style={{fontSize:14,fontWeight:600,color:T.text,letterSpacing:"-0.01em",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{ric.nome}</div>
+                    <div style={{fontSize:11,color:T.textSoft,marginTop:2,letterSpacing:"-0.005em",...tnum}}>{reg.unita||"?"} {reg.tipo||"pz"} · {fmt(reg.prezzo)}</div>
                   </div>
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                  <div>
-                    <div style={{fontSize:10,color:C.textSoft,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:2}}>Food Cost</div>
-                    <div style={{fontSize:14,fontWeight:700,color:C.red}}>{fcPct.toFixed(1)}%</div>
-                    <div style={{fontSize:11,color:C.textSoft}}>{fmt(fc/Math.max(reg.unita||1,1))}/pz</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <div style={{padding:"10px 12px",background:T.bgSubtle,borderRadius:R.md}}>
+                    <div style={{fontSize:10,color:T.textSoft,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>Food Cost</div>
+                    <div style={{fontSize:18,fontWeight:700,color:fcColor2,letterSpacing:"-0.015em",lineHeight:1,...tnum}}>{fcPct.toFixed(0)}%</div>
+                    <div style={{fontSize:11,color:T.textSoft,marginTop:3,...tnum}}>{fmt(fc/Math.max(reg.unita||1,1))}/pz</div>
                   </div>
-                  <div>
-                    <div style={{fontSize:10,color:C.textSoft,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:2}}>Margine</div>
-                    <div style={{fontSize:14,fontWeight:700,color:margColor2}}>{marg.toFixed(1)}%</div>
-                    <div style={{fontSize:11,color:C.textSoft}}>{fmt(ricavo>0?ricavo-fc:0)}</div>
+                  <div style={{padding:"10px 12px",background:T.bgSubtle,borderRadius:R.md}}>
+                    <div style={{fontSize:10,color:T.textSoft,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>Margine</div>
+                    <div style={{fontSize:18,fontWeight:700,color:margColor2,letterSpacing:"-0.015em",lineHeight:1,...tnum}}>{marg.toFixed(0)}%</div>
+                    <div style={{fontSize:11,color:T.textSoft,marginTop:3,...tnum}}>{fmt(ricavo>0?ricavo-fc:0)}</div>
                   </div>
                 </div>
-                <div style={{paddingTop:10,borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontSize:12,color:C.textSoft}}>Prezzo: <span style={{fontWeight:600,color:C.text}}>{fmt(reg.prezzo)}</span></div>
-                  <button onClick={()=>exportRicettaPDF(ric,{tot:fc,perc:ricavo>0?fc/ricavo*100:0})}
-                    style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:"transparent",
-                      fontSize:11,color:C.textMid,cursor:"pointer",fontWeight:500}}>PDF</button>
+                <div style={{paddingTop:12,borderTop:`1px solid ${T.borderSoft}`,display:"flex",justifyContent:"flex-end",alignItems:"center"}}>
+                  <button onClick={(e)=>{e.stopPropagation();exportRicettaPDF(ric,{tot:fc,perc:ricavo>0?fc/ricavo*100:0});}}
+                    style={{padding:"6px 12px",borderRadius:R.sm,border:`1px solid ${T.border}`,background:T.bgCard,
+                      fontSize:11,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",
+                      display:"inline-flex",alignItems:"center",gap:5,
+                      transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}
+                    onMouseEnter={e=>{e.currentTarget.style.background=T.bgSubtle;e.currentTarget.style.color=T.text;}}
+                    onMouseLeave={e=>{e.currentTarget.style.background=T.bgCard;e.currentTarget.style.color=T.textMid;}}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    PDF
+                  </button>
                 </div>
               </div>
             );
@@ -1627,19 +1694,22 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload, onEditRicetta}) {
         <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:32}}>
           {filtered.map(ric=><TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta}/>)}
         </div>
-      )}
+      ))}
 
       {/* Semilavorati — stesso layout TortaCard, palette viola */}
       {semilavorati.length>0&&(
         <div style={{marginBottom:32}}>
-          <div style={{borderTop:`1px solid #E5D4F0`,marginBottom:20}}/>
-          <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:14}}>
-            <div style={{width:3,height:22,background:"#8E44AD",borderRadius:2,flexShrink:0,alignSelf:"center"}}/>
-            <div>
-              <h2 style={{margin:"0 0 3px",fontSize:18,fontWeight:800,color:"#8E44AD",letterSpacing:"-0.2px"}}>Semilavorati</h2>
-              <div style={{fontSize:12,color:C.textSoft}}>Impasti, creme e basi interne — non vendibili, usabili come ingredienti delle ricette</div>
+          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:18,paddingTop:24,borderTop:`1px solid ${T.borderSoft}`}}>
+            <div style={{width:40,height:40,borderRadius:R.md,background:"#F5EBFB",display:"flex",alignItems:"center",justifyContent:"center",color:"#8E44AD",flexShrink:0}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+              </svg>
             </div>
-            <span style={{marginLeft:"auto",padding:"3px 10px",borderRadius:20,background:"#F0E4FA",color:"#8E44AD",fontSize:11,fontWeight:700}}>{semilavorati.length}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <h2 style={{margin:0,fontSize:16,fontWeight:600,color:T.text,letterSpacing:"-0.015em",lineHeight:1.2}}>Semilavorati</h2>
+              <div style={{fontSize:12,color:T.textSoft,marginTop:2,letterSpacing:"-0.005em"}}>Impasti, creme e basi interne — usabili come ingredienti</div>
+            </div>
+            <span style={{padding:"4px 10px",borderRadius:R.full,background:"#F5EBFB",color:"#8E44AD",fontSize:11,fontWeight:600,letterSpacing:0,...tnum}}>{semilavorati.length}</span>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {semilavorati.map(ric=>(
