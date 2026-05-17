@@ -3252,19 +3252,22 @@ ${azioniStr}
     <div style={{maxWidth:900,display:"flex",flexDirection:"column",gap:0}}>
       {/* Header */}
       <PageHeader
-        breadcrumb="Dashboard › AI Assistant"
         title="AI Assistant"
         subtitle="Analisi basate sui tuoi dati reali · ricettario, produzioni, cassa, magazzino"
       />
 
-      {/* Tabs */}
-      <div style={{display:"flex",gap:2,marginBottom:20,background:"#F0EAE6",borderRadius:9,padding:3,width:"fit-content"}}>
-        {[["chat","💬 Chat AI"],["azioni","✅ Azioni (" + aperte.length + ")"]].map(([t,lbl])=>(
+      {/* Tabs (segmented control) */}
+      <div style={{display:"flex",gap:2,marginBottom:24,background:T.bgSubtle,borderRadius:R.md,padding:3,width:"fit-content",border:`1px solid ${T.borderSoft}`}}>
+        {[["chat","Chat AI"],["azioni",`Azioni (${aperte.length})`]].map(([t,lbl])=>(
           <button key={t} onClick={()=>setTab(t)}
-            style={{padding:"7px 18px",borderRadius:7,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
-              background:tab===t?C.white:"transparent",
-              color:tab===t?C.text:C.textSoft,
-              boxShadow:tab===t?"0 1px 4px rgba(0,0,0,0.08)":"none",transition:"all 0.15s"}}>
+            style={{padding:"7px 16px",borderRadius:R.sm,border:"none",cursor:"pointer",fontSize:13,
+              fontWeight:tab===t?600:500,letterSpacing:"-0.005em",
+              background:tab===t?T.bgCard:"transparent",
+              color:tab===t?T.text:T.textSoft,
+              boxShadow:tab===t?S.sm:"none",
+              transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}
+            onMouseEnter={e=>{if(tab!==t)e.currentTarget.style.color=T.textMid;}}
+            onMouseLeave={e=>{if(tab!==t)e.currentTarget.style.color=T.textSoft;}}>
             {lbl}
           </button>
         ))}
