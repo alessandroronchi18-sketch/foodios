@@ -112,59 +112,73 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
   }
 
   const BTN = {
-    display: 'inline-block',
-    padding: '14px 32px',
-    background: '#C0392B',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    padding: '13px 28px',
+    background: 'linear-gradient(135deg, #C0392B 0%, #8B1F12 100%)',
     color: '#FFF',
     border: 'none',
     borderRadius: 10,
-    fontSize: 15,
-    fontWeight: 800,
+    fontSize: 14,
+    fontWeight: 600,
+    letterSpacing: '-0.005em',
     cursor: 'pointer',
     textDecoration: 'none',
+    boxShadow: '0 4px 14px rgba(192,57,43,0.28)',
+    transition: 'transform 0.12s cubic-bezier(0.32,0.72,0,1), box-shadow 0.18s cubic-bezier(0.32,0.72,0,1)',
   }
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#FDFAF7',
+      background: '#F7F8FA',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px 16px',
+      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     }}>
       {/* Progress dots */}
-      <div style={{ position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 8 }}>
+      <div style={{ position: 'fixed', top: 28, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
         {[1,2,3,4].map(i => (
           <div key={i} style={{
-            width: i === step ? 24 : 8,
-            height: 8,
-            borderRadius: 4,
-            background: i === step ? '#C0392B' : '#E8DDD8',
-            transition: 'all 0.3s',
+            width: i === step ? 28 : 8,
+            height: 6,
+            borderRadius: 3,
+            background: i === step ? '#C0392B' : '#E5E9EF',
+            transition: 'all 0.3s cubic-bezier(0.32,0.72,0,1)',
+            boxShadow: i === step ? '0 2px 6px rgba(192,57,43,0.32)' : 'none',
           }} />
         ))}
       </div>
 
-      <div style={{ width: '100%', maxWidth: 480, textAlign: 'center' }}>
+      <div style={{ width: '100%', maxWidth: 500, textAlign: 'center' }}>
 
         {/* ── STEP 1: Benvenuto ── */}
         {step === 1 && (
           <div>
-            <div style={{ fontSize: 64, marginBottom: 20 }}>🎉</div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#1C0A0A', margin: '0 0 12px' }}>
-              Benvenuto in FoodOS,<br />{nomeAttivita || 'la tua attività'}!
+            <div style={{ width:68, height:68, borderRadius:18,
+              background:'linear-gradient(135deg, #C0392B 0%, #8B1F12 100%)',
+              display:'inline-flex',alignItems:'center',justifyContent:'center',color:'#fff',
+              boxShadow:'0 12px 32px rgba(192,57,43,0.34)',marginBottom:24}}>
+              <span style={{fontSize:30,fontWeight:800,letterSpacing:'-1px'}}>F</span>
+            </div>
+            <h1 style={{ fontSize: 30, fontWeight: 700, color: '#0E1726', margin: '0 0 12px', letterSpacing: '-0.03em', lineHeight: 1.15 }}>
+              Benvenuto{nomeAttivita ? ',' : ''}<br/>{nomeAttivita || 'la tua attività'}
             </h1>
-            <p style={{ color: '#6B4C44', fontSize: 16, lineHeight: 1.7, marginBottom: 12 }}>
-              Hai <strong>3 mesi gratuiti</strong> per esplorare tutto.
-              Nessuna carta di credito.
+            <p style={{ color: '#475264', fontSize: 16, lineHeight: 1.6, marginBottom: 12, letterSpacing: '-0.005em' }}>
+              Hai <strong style={{color:'#0E1726',fontWeight:600}}>3 mesi gratuiti</strong> per esplorare FoodOS.
             </p>
-            <p style={{ color: '#9C7B76', fontSize: 14, lineHeight: 1.6, marginBottom: 32 }}>
-              FoodOS ti aiuta a calcolare il food cost di ogni ricetta,
-              gestire il magazzino e capire se stai guadagnando davvero.
+            <p style={{ color: '#8B95A7', fontSize: 14, lineHeight: 1.6, marginBottom: 32 }}>
+              Calcola il food cost di ogni ricetta, gestisci il magazzino e capisci se stai guadagnando davvero.
             </p>
             <button onClick={() => setStep(2)} style={BTN}>
-              Iniziamo →
+              Iniziamo
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
             </button>
           </div>
         )}
