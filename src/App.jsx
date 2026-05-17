@@ -8,6 +8,7 @@ import OnboardingWizard from './onboarding/OnboardingWizard'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TerminiServizio from './pages/TerminiServizio'
 import LandingPage from './pages/LandingPage'
+import LogoPreview from './pages/LogoPreview'
 import Logo from './components/Logo'
 import { supabase } from './lib/supabase'
 
@@ -96,6 +97,7 @@ export default function App() {
   // Static pages — no auth needed
   if (path === '/privacy') return <PrivacyPolicy />
   if (path === '/termini') return <TerminiServizio />
+  if (path === '/logo' || path === '/brand') return <LogoPreview />
 
   // Intercetta /r/CODICE — salva codice in localStorage e pulisce l'URL
   const referralMatch = path.match(/^\/r\/([A-Za-z0-9]+)$/)

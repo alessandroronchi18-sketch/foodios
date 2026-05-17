@@ -82,6 +82,7 @@ export default function Scadenzario({ orgId, sedeId }) {
   const [toast, setToast]               = useState(null)
   const [pagandoId, setPagandoId]       = useState(null)
   const [dataPag, setDataPag]           = useState(new Date().toISOString().slice(0, 10))
+  const [eliminandoId, setEliminandoId] = useState(null)
 
   const notify = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -199,7 +200,24 @@ export default function Scadenzario({ orgId, sedeId }) {
       setPagandoId(null)
       notify('✓ Fattura segnata come pagata')
     } catch (e) {
-      notify('Errore: ' + e.message, false)
+      notify('Errore: ' + (e?.message || 'aggiornamento fallito'), false)
+    }
+  }
+
+  function chiediElimina(id) {
+    setEliminandoId(id)
+    setPagandoId(null)
+  }
+
+  async function eliminaFattura(id) {
+    try {
+      const { error } = await supabase.from('fatture').delete().eq('id', id)
+      if (error) throw error
+      setFatture(prev => prev.filter(f => f.id !== id))
+      setEliminandoId(null)
+      notify('✓ Fattura eliminata')
+    } catch (e) {
+      notify('Errore: ' + (e?.message || 'eliminazione fallita'), false)
     }
   }
 
@@ -422,8 +440,9 @@ export default function Scadenzario({ orgId, sedeId }) {
               {fattureFiltrate.map(f => {
                 const sc = STATI_CFG[f.statoEff] || STATI_CFG.da_pagare
                 const isPag = pagandoId === f.id
+                const isDel = eliminandoId === f.id
                 return (
-                  <div key={f.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+                  <div key={f.id} style={{ background: C.white, border: `1px solid ${isDel ? '#FCA5A5' : C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: C.text, flex: 1, minWidth: 0, wordBreak: 'break-word' }}>{f.fornitore}</div>
                       <span style={{ background: sc.bg, color: sc.color, padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{sc.label}</span>
@@ -433,15 +452,30 @@ export default function Scadenzario({ orgId, sedeId }) {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                       <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{fmtEuro(f.totale)}</div>
-                      {f.statoEff !== 'pagata' && !isPag && (
-                        <button onClick={() => { setPagandoId(f.id); setDataPag(new Date().toISOString().slice(0,10)) }}
-                          style={{ padding: '8px 14px', background: C.green, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                          ✓ Pagata
-                        </button>
-                      )}
-                      {f.statoEff === 'pagata' && (
-                        <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>✓ {fmtDate(f.data_pagamento)}</span>
-                      )}
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {f.statoEff === 'pagata' && !isDel && (
+                          <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>✓ {fmtDate(f.data_pagamento)}</span>
+                        )}
+                        {f.statoEff !== 'pagata' && !isPag && !isDel && (
+                          <button onClick={() => { setPagandoId(f.id); setEliminandoId(null); setDataPag(new Date().toISOString().slice(0,10)) }}
+                            style={{ padding: '8px 14px', background: C.green, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                            ✓ Pagata
+                          </button>
+                        )}
+                        {!isPag && !isDel && (
+                          <button onClick={() => chiediElimina(f.id)}
+                            aria-label="Elimina fattura"
+                            title="Elimina"
+                            style={{ padding: '7px 9px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                              <path d="M10 11v6M14 11v6"/>
+                              <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {isPag && (
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
@@ -451,6 +485,21 @@ export default function Scadenzario({ orgId, sedeId }) {
                           style={{ padding: '8px 14px', background: C.green, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>OK</button>
                         <button onClick={() => setPagandoId(null)}
                           style={{ padding: '8px 10px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>✕</button>
+                      </div>
+                    )}
+                    {isDel && (
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, color: C.red, flex: 1, minWidth: 120, fontWeight: 600, letterSpacing: '-0.005em' }}>
+                          Sei sicuro? L'azione non è reversibile.
+                        </span>
+                        <button onClick={() => eliminaFattura(f.id)}
+                          style={{ padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                          Sì, elimina
+                        </button>
+                        <button onClick={() => setEliminandoId(null)}
+                          style={{ padding: '8px 12px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          Annulla
+                        </button>
                       </div>
                     )}
                   </div>
@@ -473,8 +522,9 @@ export default function Scadenzario({ orgId, sedeId }) {
                   {fattureFiltrate.map((f, i) => {
                     const sc = STATI_CFG[f.statoEff] || STATI_CFG.da_pagare
                     const isPag = pagandoId === f.id
+                    const isDel = eliminandoId === f.id
                     return (
-                      <tr key={f.id} style={{ borderBottom: i < fattureFiltrate.length-1 ? `1px solid ${C.border}` : 'none', background: i%2===0 ? C.white : '#FAFAFA' }}>
+                      <tr key={f.id} style={{ borderBottom: i < fattureFiltrate.length-1 ? `1px solid ${C.border}` : 'none', background: isDel ? '#FEF2F2' : (i%2===0 ? C.white : '#FAFAFA') }}>
                         <td style={{ padding: '11px 14px', color: C.textMid, whiteSpace: 'nowrap' }}>{fmtDate(f.data_fattura)}</td>
                         <td style={{ padding: '11px 14px', fontWeight: 600, color: C.text, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           <span title={f.fornitore}>{f.fornitore}</span>
@@ -487,14 +537,20 @@ export default function Scadenzario({ orgId, sedeId }) {
                             {sc.label}
                           </span>
                         </td>
-                        <td style={{ padding: '11px 14px', minWidth: 160 }}>
-                          {f.statoEff !== 'pagata' && !isPag && (
-                            <button onClick={() => { setPagandoId(f.id); setDataPag(new Date().toISOString().slice(0,10)) }}
-                              style={{ padding: '5px 10px', background: '#F0FDF4', color: C.green, border: `1px solid ${C.green}`, borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                              ✓ Segna pagata
-                            </button>
-                          )}
-                          {isPag && (
+                        <td style={{ padding: '11px 14px', minWidth: 200 }}>
+                          {isDel ? (
+                            <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 11, color: C.red, fontWeight: 700, marginRight: 4 }}>Sei sicuro?</span>
+                              <button onClick={() => eliminaFattura(f.id)}
+                                style={{ padding: '4px 10px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                Sì, elimina
+                              </button>
+                              <button onClick={() => setEliminandoId(null)}
+                                style={{ padding: '4px 9px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                                Annulla
+                              </button>
+                            </div>
+                          ) : isPag ? (
                             <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
                               <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
                                 style={{ padding: '4px 7px', border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11, color: C.text }} />
@@ -507,9 +563,31 @@ export default function Scadenzario({ orgId, sedeId }) {
                                 ✕
                               </button>
                             </div>
-                          )}
-                          {f.statoEff === 'pagata' && (
-                            <span style={{ fontSize: 11, color: C.green }}>✓ {fmtDate(f.data_pagamento)}</span>
+                          ) : (
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              {f.statoEff !== 'pagata' && (
+                                <button onClick={() => { setPagandoId(f.id); setEliminandoId(null); setDataPag(new Date().toISOString().slice(0,10)) }}
+                                  style={{ padding: '5px 10px', background: '#F0FDF4', color: C.green, border: `1px solid ${C.green}`, borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                  ✓ Segna pagata
+                                </button>
+                              )}
+                              {f.statoEff === 'pagata' && (
+                                <span style={{ fontSize: 11, color: C.green }}>✓ {fmtDate(f.data_pagamento)}</span>
+                              )}
+                              <button onClick={() => chiediElimina(f.id)}
+                                aria-label="Elimina fattura"
+                                title="Elimina"
+                                style={{ padding: '5px 7px', background: 'transparent', color: C.textSoft, border: 'none', cursor: 'pointer', borderRadius: 6, display: 'inline-flex', alignItems: 'center' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = C.red; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.textSoft; }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6"/>
+                                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                                  <path d="M10 11v6M14 11v6"/>
+                                  <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                                </svg>
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -544,13 +622,43 @@ export default function Scadenzario({ orgId, sedeId }) {
                 <tbody>
                   {grp.fatture.map((f, i) => {
                     const sc = STATI_CFG[f.statoEff] || STATI_CFG.da_pagare
+                    const isDel = eliminandoId === f.id
                     return (
-                      <tr key={f.id} style={{ borderBottom: i < grp.fatture.length-1 ? `1px solid ${C.border}` : 'none' }}>
+                      <tr key={f.id} style={{ borderBottom: i < grp.fatture.length-1 ? `1px solid ${C.border}` : 'none', background: isDel ? '#FEF2F2' : 'transparent' }}>
                         <td style={{ padding: '9px 18px', color: C.textMid, whiteSpace: 'nowrap' }}>{fmtDate(f.data_fattura)}</td>
                         <td style={{ padding: '9px 14px', color: C.textMid, fontFamily: 'monospace', fontSize: 11 }}>{f.numero_rif || '—'}</td>
                         <td style={{ padding: '9px 14px', fontWeight: 700, color: C.text, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtEuro(f.totale)}</td>
-                        <td style={{ padding: '9px 18px' }}>
+                        <td style={{ padding: '9px 14px' }}>
                           <span style={{ background: sc.bg, color: sc.color, padding: '2px 9px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>{sc.label}</span>
+                        </td>
+                        <td style={{ padding: '9px 18px 9px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {isDel ? (
+                            <span style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}>
+                              <span style={{ fontSize: 11, color: C.red, fontWeight: 700, marginRight: 2 }}>Sicuro?</span>
+                              <button onClick={() => eliminaFattura(f.id)}
+                                style={{ padding: '4px 10px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                Sì
+                              </button>
+                              <button onClick={() => setEliminandoId(null)}
+                                style={{ padding: '4px 8px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
+                                Annulla
+                              </button>
+                            </span>
+                          ) : (
+                            <button onClick={() => chiediElimina(f.id)}
+                              aria-label="Elimina fattura"
+                              title="Elimina"
+                              style={{ padding: '5px 7px', background: 'transparent', color: C.textSoft, border: 'none', cursor: 'pointer', borderRadius: 6, display: 'inline-flex', alignItems: 'center' }}
+                              onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = C.red; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.textSoft; }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                                <path d="M10 11v6M14 11v6"/>
+                                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                              </svg>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     )
