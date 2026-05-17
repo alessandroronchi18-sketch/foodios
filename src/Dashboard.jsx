@@ -3581,13 +3581,19 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
   return (
     <div style={{maxWidth:1100}}>
       <PageHeader
-        breadcrumb="Dashboard › Magazzino"
         title="Magazzino"
         subtitle={`${tuttiIngNomi.length} ingredienti · ${righe.filter(r=>r.stato==="esaurito"||r.stato==="critico").length} critici`}
         action={onImportPrezzi&&(
-          <label style={{display:"inline-flex",alignItems:"center",gap:7,padding:"9px 16px",
-            background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:8,cursor:"pointer"}}>
-            <span style={{fontSize:12,fontWeight:600,color:C.textMid}}>Importa prezzi</span>
+          <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"10px 16px",
+            background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.md,cursor:"pointer",
+            boxShadow:S.sm,letterSpacing:"-0.005em",
+            transition:`background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}`}}
+            onMouseEnter={e=>{e.currentTarget.style.background=T.bgSubtle;e.currentTarget.style.borderColor=T.borderStr;}}
+            onMouseLeave={e=>{e.currentTarget.style.background=T.bgCard;e.currentTarget.style.borderColor=T.border;}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textMid} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span style={{fontSize:13,fontWeight:500,color:T.textMid}}>Importa prezzi</span>
             <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}}
               onChange={e=>e.target.files.length&&onImportPrezzi(e.target.files)}/>
           </label>
@@ -3596,22 +3602,34 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
 
       {/* Alert banner */}
       {(critici.length>0||attenzione.length>0) && (
-        <div style={{marginBottom:24,display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{marginBottom:24,display:"flex",flexDirection:"column",gap:10}}>
           {critici.length>0 && (
-            <div style={{background:C.redLight,border:`1px solid ${C.red}30`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"flex-start",gap:12}}>
-              <span style={{fontSize:18,flexShrink:0}}>🚨</span>
-              <div>
-                <div style={{fontSize:12,fontWeight:800,color:C.red,marginBottom:4}}>Riordino urgente — {critici.length} ingredient{critici.length>1?"i":"e"}</div>
-                <div style={{fontSize:11,color:C.red,lineHeight:1.7}}>{critici.map(r=>`${r.nome} (${fmtG(r.giacenza)})`).join(" · ")}</div>
+            <div style={{background:T.redLight,border:`1px solid rgba(220,38,38,0.20)`,borderRadius:R.xl,
+              padding:"14px 18px",display:"flex",alignItems:"flex-start",gap:12}}>
+              <div style={{width:32,height:32,borderRadius:R.md,background:"rgba(220,38,38,0.10)",
+                display:"flex",alignItems:"center",justifyContent:"center",color:T.red,flexShrink:0}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:T.red,marginBottom:4,letterSpacing:"-0.005em"}}>Riordino urgente — {critici.length} ingredient{critici.length>1?"i":"e"}</div>
+                <div style={{fontSize:12,color:T.red,lineHeight:1.6,opacity:0.9}}>{critici.map(r=>`${r.nome} (${fmtG(r.giacenza)})`).join(" · ")}</div>
               </div>
             </div>
           )}
           {attenzione.length>0 && (
-            <div style={{background:C.amberLight,border:`1px solid ${C.amber}30`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"flex-start",gap:12}}>
-              <span style={{fontSize:18,flexShrink:0}}>⚠️</span>
-              <div>
-                <div style={{fontSize:12,fontWeight:800,color:C.amber,marginBottom:4}}>Scorte in esaurimento — {attenzione.length} ingredient{attenzione.length>1?"i":"e"}</div>
-                <div style={{fontSize:11,color:C.amber,lineHeight:1.7}}>{attenzione.map(r=>`${r.nome} (~${r.giorniScorta?.toFixed(0)} giorni)`).join(" · ")}</div>
+            <div style={{background:T.amberLight,border:`1px solid rgba(217,119,6,0.22)`,borderRadius:R.xl,
+              padding:"14px 18px",display:"flex",alignItems:"flex-start",gap:12}}>
+              <div style={{width:32,height:32,borderRadius:R.md,background:"rgba(217,119,6,0.12)",
+                display:"flex",alignItems:"center",justifyContent:"center",color:T.amber,flexShrink:0}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:T.amber,marginBottom:4,letterSpacing:"-0.005em"}}>Scorte in esaurimento — {attenzione.length} ingredient{attenzione.length>1?"i":"e"}</div>
+                <div style={{fontSize:12,color:T.amber,lineHeight:1.6,opacity:0.9}}>{attenzione.map(r=>`${r.nome} (~${r.giorniScorta?.toFixed(0)} giorni)`).join(" · ")}</div>
               </div>
             </div>
           )}
@@ -3627,10 +3645,16 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
       </div>
 
       {/* Tab */}
-      <div style={{display:"flex",gap:4,marginBottom:24,borderBottom:`2px solid ${C.border}`}}>
-        {[["giacenze","📦 Giacenze"],["carica","➕ Carica merce"],["log","📋 Log rifornimenti"]].map(([id,lbl])=>(
+      <div style={{display:"flex",gap:2,marginBottom:24,borderBottom:`1px solid ${T.border}`}}>
+        {[["giacenze","Giacenze"],["carica","Carica merce"],["log","Log rifornimenti"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{padding:"8px 18px",border:"none",background:"transparent",cursor:"pointer",fontSize:11,fontWeight:700,color:tab===id?C.red:C.textSoft,borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",marginBottom:-2,transition:"all 0.12s"}}>
+            style={{padding:"10px 16px",border:"none",background:"transparent",cursor:"pointer",
+              fontSize:13,fontWeight:tab===id?600:500,color:tab===id?T.text:T.textSoft,
+              borderBottom:tab===id?`2px solid ${T.brand}`:"2px solid transparent",
+              marginBottom:-1,letterSpacing:"-0.005em",
+              transition:`color ${M.durFast} ${M.ease}`}}
+            onMouseEnter={e=>{if(tab!==id)e.currentTarget.style.color=T.textMid;}}
+            onMouseLeave={e=>{if(tab!==id)e.currentTarget.style.color=T.textSoft;}}>
             {lbl}
           </button>
         ))}
