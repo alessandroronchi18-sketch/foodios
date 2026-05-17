@@ -3,13 +3,14 @@ import { supabase } from '../lib/supabase'
 import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
 import { exportScadenzario } from '../lib/exportPDF'
 import useIsMobile from '../lib/useIsMobile'
+import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const C = {
-  red: '#C0392B', redLight: '#FEF2F2',
-  green: '#16A34A', greenLight: '#F0FDF4',
-  amber: '#D97706', amberLight: '#FFFBEB',
-  text: '#0F172A', textMid: '#475569', textSoft: '#94A3B8',
-  border: '#E2E8F0', bg: '#F8FAFC', white: '#FFFFFF',
+  red: T.brand, redLight: T.brandLight,
+  green: T.green, greenLight: T.greenLight,
+  amber: T.amber, amberLight: T.amberLight,
+  text: T.text, textMid: T.textMid, textSoft: T.textSoft,
+  border: T.border, bg: T.bg, white: T.white,
 }
 
 async function loadXLSX() {
@@ -70,29 +71,6 @@ const fmtDate = d =>
   d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 const mKey = d => d ? String(d).slice(0, 7) : ''
 
-const DEMO_FATTURE = [
-  { numero_rif: '160',                    data_fattura: '2026-04-09', fornitore: "MELLY'S KOMBUCHA SRL",                          totale: 149.33, imponibile: 122.40, imposta: 26.93,  stato: 'da_pagare' },
-  { numero_rif: '349/001',                data_fattura: '2026-04-09', fornitore: 'MARCO RIVELLA',                                  totale: 42.70,  imponibile: 35.00,  imposta: 7.70,   stato: 'da_pagare' },
-  { numero_rif: 'INVIT/rst/26/0266800',   data_fattura: '2026-04-09', fornitore: 'Deliveroo Italy S.R.L.',                         totale: 90.91,  imponibile: 74.52,  imposta: 16.39,  stato: 'da_pagare' },
-  { numero_rif: '10',                     data_fattura: '2026-04-08', fornitore: 'ERBORISTERIA PURANATURA DI FRANCESCO REGALZI',   totale: 118.20, imponibile: 96.89,  imposta: 21.31,  stato: 'da_pagare' },
-  { numero_rif: '1/973',                  data_fattura: '2026-04-08', fornitore: 'CONO ARTIC COMMERCIALE SRL',                     totale: 780.78, imponibile: 640.00, imposta: 140.78, stato: 'da_pagare' },
-  { numero_rif: 'FT/2026/0042',           data_fattura: '2026-04-07', fornitore: 'CAFFÈ BORBONE SRL',                             totale: 234.50, imponibile: 192.21, imposta: 42.29,  stato: 'pagata', data_pagamento: '2026-04-15' },
-  { numero_rif: 'FT-2026-00789',          data_fattura: '2026-04-07', fornitore: 'MULINO BIANCO INGREDIENTS',                     totale: 567.30, imponibile: 465.00, imposta: 102.30, stato: 'da_pagare' },
-  { numero_rif: '2026/88',                data_fattura: '2026-04-06', fornitore: 'LATTERIA MONTELLO S.P.A.',                       totale: 312.00, imponibile: 256.00, imposta: 56.00,  stato: 'da_pagare' },
-  { numero_rif: 'IV/2026/001234',         data_fattura: '2026-04-05', fornitore: 'ENEL ENERGIA S.P.A.',                           totale: 892.44, imponibile: 731.51, imposta: 160.93, stato: 'pagata', data_pagamento: '2026-04-12' },
-  { numero_rif: '0541',                   data_fattura: '2026-04-04', fornitore: 'DOLCIUMI FUMAGALLI SNC',                         totale: 445.60, imponibile: 365.25, imposta: 80.35,  stato: 'da_pagare' },
-  { numero_rif: 'F/2026/0099',            data_fattura: '2026-04-03', fornitore: "MELLY'S KOMBUCHA SRL",                          totale: 213.47, imponibile: 175.00, imposta: 38.47,  stato: 'da_pagare' },
-  { numero_rif: '7741/B',                 data_fattura: '2026-04-02', fornitore: 'FORNITORE GENERALE ALIMENTARI',                  totale: 1240.00,imponibile: 1016.39,imposta: 223.61, stato: 'da_pagare' },
-  { numero_rif: '2026-0178',              data_fattura: '2026-04-01', fornitore: 'PACKAGING EXPRESS SRL',                          totale: 189.00, imponibile: 154.92, imposta: 34.08,  stato: 'pagata', data_pagamento: '2026-04-10' },
-  { numero_rif: 'RCPT/0056',              data_fattura: '2026-03-31', fornitore: 'CONO ARTIC COMMERCIALE SRL',                     totale: 550.00, imponibile: 450.82, imposta: 99.18,  stato: 'da_pagare' },
-  { numero_rif: 'FT2026-22',              data_fattura: '2026-03-28', fornitore: 'MARCO RIVELLA',                                  totale: 67.30,  imponibile: 55.00,  imposta: 12.30,  stato: 'pagata', data_pagamento: '2026-04-05' },
-  { numero_rif: '2026/104',               data_fattura: '2026-03-25', fornitore: 'DOLCIUMI FUMAGALLI SNC',                         totale: 398.40, imponibile: 326.56, imposta: 71.84,  stato: 'da_pagare' },
-  { numero_rif: 'INV-0033',               data_fattura: '2026-03-20', fornitore: 'ERBORISTERIA PURANATURA DI FRANCESCO REGALZI',   totale: 88.50,  imponibile: 72.54,  imposta: 15.96,  stato: 'pagata', data_pagamento: '2026-04-01' },
-  { numero_rif: '26/00312',               data_fattura: '2026-03-15', fornitore: 'LATTERIA MONTELLO S.P.A.',                       totale: 289.00, imponibile: 236.89, imposta: 52.11,  stato: 'da_pagare' },
-  { numero_rif: 'DV/2026/0091',           data_fattura: '2026-03-10', fornitore: 'Deliveroo Italy S.R.L.',                         totale: 125.43, imponibile: 102.81, imposta: 22.62,  stato: 'pagata', data_pagamento: '2026-03-25' },
-  { numero_rif: '2026-567',               data_fattura: '2026-03-05', fornitore: 'CAFFÈ BORBONE SRL',                             totale: 178.90, imponibile: 146.64, imposta: 32.26,  stato: 'da_pagare' },
-]
-
 export default function Scadenzario({ orgId, sedeId }) {
   const isMobile = useIsMobile()
   const [fatture, setFatture]           = useState([])
@@ -148,7 +126,8 @@ export default function Scadenzario({ orgId, sedeId }) {
         }
         imported += records.length
       } catch (e) {
-        notify('Errore import ' + file.name + ': ' + e.message, false)
+        const msg = e?.message || (typeof e === 'string' ? e : '') || 'errore sconosciuto'
+        notify('Errore import ' + file.name + ': ' + msg, false)
       }
     }
     if (imported > 0) {
@@ -207,22 +186,6 @@ export default function Scadenzario({ orgId, sedeId }) {
       await loadFatture()
     }
     setImportLoading(false)
-  }
-
-  async function importaFattureDemo() {
-    if (!orgId) return
-    setImportLoading(true)
-    try {
-      const toInsert = DEMO_FATTURE.map(r => ({ ...r, organization_id: orgId, sede_id: sedeId || null }))
-      const { error } = await supabase.from('fatture').insert(toInsert)
-      if (error) throw error
-      notify(`✓ ${toInsert.length} fatture demo caricate`)
-      await loadFatture()
-    } catch (e) {
-      notify('Errore demo: ' + e.message, false)
-    } finally {
-      setImportLoading(false)
-    }
   }
 
   async function segnaComePagata(id) {
@@ -306,16 +269,16 @@ export default function Scadenzario({ orgId, sedeId }) {
   }, [fattureFiltrate])
 
   // ── UI helpers ───────────────────────────────────────────────────────────────
-  const card = { background: C.white, borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }
+  const card = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, boxShadow: S.sm }
   const pill = (active) => ({
-    padding: '6px 13px', borderRadius: 20, border: 'none', cursor: 'pointer',
-    fontSize: 12, fontWeight: 600,
-    background: active ? C.text : '#EEE',
-    color: active ? C.white : C.textMid,
-    transition: 'background 0.12s',
+    padding: '7px 14px', borderRadius: 9999, border: `1px solid ${active ? T.text : T.border}`, cursor: 'pointer',
+    fontSize: 12, fontWeight: active ? 600 : 500, letterSpacing: '-0.005em',
+    background: active ? T.text : T.bgCard,
+    color: active ? T.textOnDark : T.textMid,
+    transition: `background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
   })
-  const primaryBtn = { padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }
-  const ghostBtn = { padding: '7px 13px', background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: C.textMid }
+  const primaryBtn = { padding: '10px 16px', background: T.brandGradient, color: T.textOnDark, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, letterSpacing: '-0.005em', boxShadow: S.brandSoft }
+  const ghostBtn = { padding: '9px 14px', background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, cursor: 'pointer', color: T.textMid, letterSpacing: '-0.005em', display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.xs }
 
   if (!orgId) return (
     <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>
@@ -333,27 +296,19 @@ export default function Scadenzario({ orgId, sedeId }) {
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 6 }}>Dashboard › Scadenzario</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: C.text, letterSpacing: '-0.3px' }}>Scadenzario</div>
-          <div style={{ fontSize: 13, color: C.textSoft, marginTop: 3 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 14 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h1 style={{ margin: '0 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 700, color: T.text, letterSpacing: '-0.025em', lineHeight: 1.15 }}>Scadenzario</h1>
+          <div style={{ fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }}>
             {fatture.length} fatture · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} totale
           </div>
         </div>
-        <div style={{ height: 1, background: C.border, position: 'absolute', left: 0, right: 0, marginTop: 60 }} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
           {fatture.length > 0 && (
             <>
               <button onClick={exportExcel} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>↓ Esporta Excel</button>
               <button onClick={()=>exportScadenzario(fattureFiltrate)} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>📄 Esporta PDF</button>
             </>
-          )}
-          {fatture.length === 0 && (
-            <button onClick={importaFattureDemo} disabled={importLoading}
-              style={{ ...ghostBtn, color: '#6B4C44', borderColor: '#CCC' }}>
-              {importLoading ? '…' : '🔧 Carica dati demo'}
-            </button>
           )}
           <label style={{ ...ghostBtn, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
             📄 XML SDI
@@ -403,9 +358,9 @@ export default function Scadenzario({ orgId, sedeId }) {
           },
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: '16px 18px' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{k.label}</div>
-            <div style={{ fontSize: k.small ? 15 : 22, fontWeight: 900, color: k.color, lineHeight: 1.1, marginBottom: 4, wordBreak: 'break-word' }}>{k.val}</div>
-            <div style={{ fontSize: 11, color: C.textSoft }}>{k.sub}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{k.label}</div>
+            <div style={{ fontSize: k.small ? 15 : 22, fontWeight: 700, color: k.color, lineHeight: 1.1, marginBottom: 6, wordBreak: 'break-word', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }}>{k.val}</div>
+            <div style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em' }}>{k.sub}</div>
           </div>
         ))}
       </div>
@@ -437,17 +392,17 @@ export default function Scadenzario({ orgId, sedeId }) {
       {loading ? (
         <div style={{ padding: 60, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
       ) : fatture.length === 0 ? (
-        <div style={{ ...card, textAlign: 'center', padding: '60px 40px' }}>
-          <div style={{ fontSize: 52, marginBottom: 16 }}>📄</div>
-          <div style={{ fontWeight: 700, fontSize: 18, color: C.text, marginBottom: 8 }}>Nessuna fattura</div>
-          <div style={{ fontSize: 13, color: C.textSoft, marginBottom: 28, maxWidth: 400, margin: '0 auto 28px' }}>
-            Importa un file Excel nel formato Fattura SMART oppure carica i dati demo per esplorare la funzione.
+        <div style={{ ...card, textAlign: 'center', padding: isMobile ? '40px 20px' : '60px 40px' }}>
+          <div style={{ width: 64, height: 64, borderRadius: R.lg, background: T.bgSubtle, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: T.textSoft, marginBottom: 16 }}>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+          </div>
+          <div style={{ fontWeight: 600, fontSize: 18, color: T.text, marginBottom: 8, letterSpacing: '-0.015em' }}>Nessuna fattura</div>
+          <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 24, maxWidth: 400, margin: '0 auto 24px', lineHeight: 1.5 }}>
+            Importa l'export Excel di FatturaSMART (o un file XML SDI) per iniziare a tenere traccia delle scadenze.
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={importaFattureDemo} disabled={importLoading}
-              style={{ ...primaryBtn, background: '#6B4C44' }}>
-              {importLoading ? '…' : '🔧 Carica 20 fatture demo'}
-            </button>
             <label style={primaryBtn}>
               📂 Importa .xlsx
               <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => e.target.files.length && handleImportExcel(e.target.files)} />

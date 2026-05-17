@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
+import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const C = {
-  bg:"#F8FAFC", bgCard:"#FFF", red:"#C0392B", redLight:"#FEF2F2", redDark:"#922B21",
-  green:"#16A34A", greenLight:"#F0FDF4", amber:"#D97706", amberLight:"#FFFBEB",
-  text:"#0F172A", textMid:"#475569", textSoft:"#94A3B8", white:"#FFF",
-  border:"rgba(0,0,0,0.07)", borderStr:"#D1CBB8",
+  bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight, redDark: T.brandDark,
+  green: T.green, greenLight: T.greenLight, amber: T.amber, amberLight: T.amberLight,
+  text: T.text, textMid: T.textMid, textSoft: T.textSoft, white: T.white,
+  border: T.border, borderStr: T.borderStr,
 }
+const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 function fmt(n) { return n==null?"-":`€${Number(n).toFixed(2)}` }
 function fmtDate(s) { if(!s) return "—"; const d=new Date(s); return d.toLocaleDateString("it-IT"); }
@@ -361,7 +363,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
                   <div style={{ fontSize:11, color:C.textSoft }}>{fmtDate(o.data_ordine)}{o.note && ` · ${o.note}`}</div>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ fontWeight:900, fontSize:15, color:C.text, fontFamily:"Georgia,serif" }}>{fmt(o.totale)}</span>
+                  <span style={{ fontWeight:900, fontSize:15, color:C.text, ...tnum }}>{fmt(o.totale)}</span>
                   <select value={o.stato} onChange={e=>aggiornaStato(o.id,e.target.value)}
                     style={{ padding:"5px 8px", borderRadius:7, border:`1px solid ${C.borderStr}`, fontSize:11, color:C.text, cursor:"pointer" }}>
                     {["bozza","inviato","ricevuto","annullato"].map(s=><option key={s}>{s}</option>)}
@@ -418,7 +420,7 @@ function SpesaTab({ orgId, isMobile }) {
           <option value="90">Ultimi 90 giorni</option>
           <option value="365">Ultimo anno</option>
         </select>
-        <div style={{ fontSize: isMobile ? 26 : 22, fontWeight:900, color:C.text, fontFamily:"Georgia,serif" }}>{fmt(totale)}</div>
+        <div style={{ fontSize: isMobile ? 26 : 22, fontWeight:900, color:C.text, ...tnum }}>{fmt(totale)}</div>
         <div style={{ fontSize:11, color:C.textSoft }}>spesa totale (ordini ricevuti)</div>
       </div>
 
@@ -430,7 +432,7 @@ function SpesaTab({ orgId, isMobile }) {
               {Object.entries(byFornitore).sort(([,a],[,b])=>b-a).map(([nome,tot])=>(
                 <div key={nome} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
                   <span style={{ fontSize:12, color:C.text, fontWeight:600 }}>{nome}</span>
-                  <span style={{ fontSize:12, fontWeight:800, color:C.red, fontFamily:"Georgia,serif" }}>{fmt(tot)}</span>
+                  <span style={{ fontSize:12, fontWeight:800, color:C.red, ...tnum }}>{fmt(tot)}</span>
                 </div>
               ))}
             </div>
@@ -441,7 +443,7 @@ function SpesaTab({ orgId, isMobile }) {
                 <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{o.fornitori?.nome}</span>
                 <span style={{ fontSize:10, color:C.textSoft, marginLeft:10 }}>{fmtDate(o.data_ordine)}</span>
               </div>
-              <span style={{ fontSize:13, fontWeight:800, color:C.text, fontFamily:"Georgia,serif" }}>{fmt(o.totale)}</span>
+              <span style={{ fontSize:13, fontWeight:800, color:C.text, ...tnum }}>{fmt(o.totale)}</span>
             </div>
           ))}
           {righe.length === 0 && <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun ordine ricevuto nel periodo.</div>}
@@ -454,23 +456,25 @@ function SpesaTab({ orgId, isMobile }) {
 export default function Fornitori({ orgId, notify }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState("fornitori")
-  const TABS = [["fornitori","🏭 Fornitori"],["ordini","📋 Ordini"],["spesa","💶 Spesa"]]
+  const TABS = [["fornitori","Fornitori"],["ordini","Ordini"],["spesa","Spesa"]]
 
   return (
-    <div style={{ maxWidth:900, padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: isMobile ? 16 : 24 }}>
-        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:C.red, marginBottom:6 }}>Acquisti</div>
-        <h1 style={{ margin:"0 0 6px", fontSize: isMobile ? 22 : 28, fontWeight:900, color:C.text, letterSpacing:"-0.03em" }}>Gestione Fornitori</h1>
-        <p style={{ margin:0, fontSize:12, color:C.textSoft }}>Gestisci fornitori, ordini e analizza la spesa nel tempo.</p>
+    <div style={{ maxWidth:1040, margin:"0 auto", padding: isMobile ? 12 : 0 }}>
+      <div style={{ marginBottom: isMobile ? 20 : 24 }}>
+        <h1 style={{ margin:"0 0 4px", fontSize: isMobile ? 22 : 26, fontWeight:700, color:T.text, letterSpacing:"-0.025em", lineHeight:1.15 }}>Fornitori</h1>
+        <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Gestisci fornitori, ordini e analizza la spesa nel tempo.</p>
       </div>
 
-      <div style={{ display:"flex", gap:4, marginBottom: isMobile ? 16 : 24, borderBottom:`2px solid rgba(0,0,0,0.07)`, overflowX: isMobile ? "auto" : "visible" }}>
+      <div style={{ display:"flex", gap:2, marginBottom: isMobile ? 16 : 24, borderBottom:`1px solid ${T.border}`, overflowX: isMobile ? "auto" : "visible" }}>
         {TABS.map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{ padding: isMobile ? "10px 14px" : "8px 18px", border:"none", background:"transparent", cursor:"pointer",
-              fontSize: isMobile ? 12 : 11, fontWeight:700, color:tab===id?C.red:C.textSoft,
-              borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",
-              marginBottom:-2, transition:"all 0.12s", whiteSpace:"nowrap" }}>
+            style={{ padding:"10px 16px", border:"none", background:"transparent", cursor:"pointer",
+              fontSize:13, fontWeight:tab===id?600:500, color:tab===id?T.text:T.textSoft,
+              borderBottom:tab===id?`2px solid ${T.brand}`:"2px solid transparent",
+              marginBottom:-1, letterSpacing:"-0.005em", whiteSpace:"nowrap",
+              transition:`color ${M.durFast} ${M.ease}` }}
+            onMouseEnter={e=>{if(tab!==id)e.currentTarget.style.color=T.textMid;}}
+            onMouseLeave={e=>{if(tab!==id)e.currentTarget.style.color=T.textSoft;}}>
             {lbl}
           </button>
         ))}
