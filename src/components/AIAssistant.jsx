@@ -11,15 +11,15 @@ Se l'utente chiede qualcosa fuori scope (es. ricette dettagliate, consulenza fis
 
 const COLORS = {
   brand: '#C0392B',
-  brandDark: '#922B21',
-  text: '#0F172A',
-  textMid: '#475569',
-  textSoft: '#94A3B8',
+  brandDark: '#A02617',
+  text: '#0E1726',
+  textMid: '#475264',
+  textSoft: '#8B95A7',
   bg: '#FFFFFF',
-  bgSoft: '#F8FAFC',
-  border: '#E2E8F0',
+  bgSoft: '#F7F8FA',
+  border: '#E5E9EF',
   bubbleUser: '#C0392B',
-  bubbleAI: '#F1F5F9',
+  bubbleAI: '#F1F4F8',
 }
 
 function ChatIcon({ size = 24 }) {
