@@ -1,304 +1,250 @@
 import React from 'react'
-import Logo from '../components/Logo'
 
-/**
- * /logo — public brand preview page.
- *
- * Showcases the FoodOS logo at all relevant sizes, in both icon-only and
- * horizontal lockup variants, on light and dark surfaces. Useful for design
- * review, marketing exports and ensuring the mark renders correctly across
- * contexts (favicon → hero).
- */
+/* ────────────────────────────────────────────────────────────────────────────
+   LOGO PREVIEW — concept "vedo non vedo"
+   La F emerge dallo spazio negativo. 4 varianti dello stesso concept.
+   Route temporanea: /logo-preview
+─────────────────────────────────────────────────────────────────────────── */
 
-const INK = '#0E1726'
-const INK_SOFT = '#475264'
-const MUTED = '#8B95A7'
-const FAINT = '#B5BCC8'
-const BG = '#F7F8FA'
-const BG_CARD = '#FFFFFF'
-const BORDER = '#E5E9EF'
-const DARK_BG = '#0A0D14'
-const DARK_RAISED = '#11151E'
+const RED   = '#C0392B'
+const DARK  = '#1F1812'
+const LIGHT = '#FDFAF7'
 
-const SANS = "'Inter', system-ui, -apple-system, sans-serif"
+const SERIF = "'Fraunces', 'Iowan Old Style', Georgia, serif"
+const SANS  = "'Inter', system-ui, -apple-system, sans-serif"
 
-const ICON_SIZES = [16, 24, 32, 48, 64, 96, 128, 192]
-
-function Section({ title, hint, children, dark }) {
+/* ──────────────────────────────────────────────────────────
+   VARIANTE 1 — ANGOLI
+   Quadrato arrotondato pieno, F sottratta come spazio negativo.
+   Minimal geometrico.
+─────────────────────────────────────────────────────────── */
+function LogoV1({ size = 64, color = RED }) {
   return (
-    <section style={{ marginBottom: 56 }}>
-      <div style={{ marginBottom: 18 }}>
-        <h2 style={{
-          margin: 0,
-          fontSize: 13,
-          fontWeight: 600,
-          color: dark ? 'rgba(255,255,255,0.55)' : MUTED,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-        }}>{title}</h2>
-        {hint && (
-          <p style={{
-            margin: '6px 0 0',
-            fontSize: 13,
-            color: dark ? 'rgba(255,255,255,0.55)' : INK_SOFT,
-            letterSpacing: '-0.005em',
-            lineHeight: 1.5,
-          }}>{hint}</p>
-        )}
-      </div>
-      {children}
-    </section>
+    <svg viewBox="0 0 64 64" width={size} height={size} style={{ display: 'block' }} aria-label="FoodOS">
+      <path
+        fill={color}
+        fillRule="evenodd"
+        d="M 14 0 L 50 0 C 58 0 64 6 64 14 L 64 50 C 64 58 58 64 50 64 L 14 64 C 6 64 0 58 0 50 L 0 14 C 0 6 6 0 14 0 Z M 16 12 L 50 12 L 50 22 L 26 22 L 26 27 L 40 27 L 40 35 L 26 35 L 26 52 L 16 52 Z"
+      />
+    </svg>
   )
 }
 
-function Tile({ children, dark, padding = '32px 24px', minHeight = 140 }) {
+/* ──────────────────────────────────────────────────────────
+   VARIANTE 2 — CURVE
+   Cerchio pieno + F con angoli arrotondati. Organico, caldo.
+─────────────────────────────────────────────────────────── */
+function LogoV2({ size = 64, color = RED }) {
+  return (
+    <svg viewBox="0 0 64 64" width={size} height={size} style={{ display: 'block' }} aria-label="FoodOS">
+      <path
+        fill={color}
+        fillRule="evenodd"
+        d="M 32 0 A 32 32 0 1 1 32 64 A 32 32 0 1 1 32 0 Z M 18 12 L 48 12 Q 50 12 50 14 L 50 20 Q 50 22 48 22 L 26 22 L 26 27 L 38 27 Q 40 27 40 29 L 40 33 Q 40 35 38 35 L 26 35 L 26 50 Q 26 52 24 52 L 18 52 Q 16 52 16 50 L 16 14 Q 16 12 18 12 Z"
+      />
+    </svg>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────
+   VARIANTE 3 — SOLIDO CON TAGLIO
+   Quadrato netto (no rounding) + F più spessa, taglio aggressivo.
+   Bold, contemporaneo.
+─────────────────────────────────────────────────────────── */
+function LogoV3({ size = 64, color = RED }) {
+  return (
+    <svg viewBox="0 0 64 64" width={size} height={size} style={{ display: 'block' }} aria-label="FoodOS">
+      <path
+        fill={color}
+        fillRule="evenodd"
+        d="M 0 0 L 64 0 L 64 64 L 0 64 Z M 14 10 L 54 10 L 54 23 L 26 23 L 26 28 L 42 28 L 42 36 L 26 36 L 26 54 L 14 54 Z"
+      />
+    </svg>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────
+   VARIANTE 4 — LIBERA (esagono)
+   Esagono flat-top + F nel negativo. Concept: tessera/piastrella
+   italiana — distintiva, premium, memorabile.
+─────────────────────────────────────────────────────────── */
+function LogoV4({ size = 64, color = RED }) {
+  return (
+    <svg viewBox="0 0 64 64" width={size} height={size} style={{ display: 'block' }} aria-label="FoodOS">
+      <path
+        fill={color}
+        fillRule="evenodd"
+        d="M 16 0 L 48 0 L 64 32 L 48 64 L 16 64 L 0 32 Z M 18 14 L 48 14 L 48 23 L 28 23 L 28 28 L 40 28 L 40 35 L 28 35 L 28 50 L 18 50 Z"
+      />
+    </svg>
+  )
+}
+
+/* ──────────────────────────────────────────────────────────
+   SWATCH CARD — mostra una variante su uno sfondo
+─────────────────────────────────────────────────────────── */
+function SwatchCard({ bg, label, sublabel, Logo }) {
+  const isDark = bg === DARK
   return (
     <div style={{
-      background: dark ? DARK_RAISED : BG_CARD,
-      border: `1px solid ${dark ? 'rgba(255,255,255,0.06)' : BORDER}`,
-      borderRadius: 14,
-      padding,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'column',
-      gap: 16,
-      minHeight,
-      boxShadow: dark ? 'none' : '0 1px 2px rgba(15,23,42,0.04)',
-    }}>{children}</div>
-  )
-}
-
-function Label({ children, dark }) {
-  return (
-    <span style={{
-      fontSize: 11,
-      fontWeight: 500,
-      color: dark ? 'rgba(255,255,255,0.42)' : MUTED,
-      letterSpacing: '0.02em',
-      fontVariantNumeric: 'tabular-nums',
-    }}>{children}</span>
-  )
-}
-
-function ColorSwatch({ hex, name, sub, textLight }) {
-  return (
-    <div style={{
-      background: BG_CARD,
-      border: `1px solid ${BORDER}`,
-      borderRadius: 14,
-      overflow: 'hidden',
-      boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+      background: bg,
+      borderRadius: 18,
+      padding: '36px 32px 28px',
+      border: `1px solid ${isDark ? 'rgba(244,236,227,0.06)' : '#EBE3DC'}`,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      gap: 22,
     }}>
-      <div style={{
-        background: hex,
-        height: 96,
-        display: 'flex',
-        alignItems: 'flex-end',
-        padding: 14,
-      }}>
+      <Logo size={96} color={RED}/>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Logo size={32} color={RED}/>
         <span style={{
-          fontSize: 11,
-          fontWeight: 500,
-          color: textLight ? 'rgba(255,255,255,0.85)' : 'rgba(15,23,38,0.65)',
-          letterSpacing: '0.04em',
-          fontVariantNumeric: 'tabular-nums',
-        }}>{hex.toUpperCase()}</span>
+          fontFamily: SERIF, fontSize: 26, fontWeight: 600,
+          color: isDark ? LIGHT : DARK,
+          letterSpacing: '-0.03em',
+        }}>FoodOS</span>
       </div>
-      <div style={{ padding: '12px 14px' }}>
-        <div style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: INK,
-          letterSpacing: '-0.01em',
-        }}>{name}</div>
-        {sub && (
+
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        paddingTop: 16,
+        borderTop: `1px solid ${isDark ? 'rgba(244,236,227,0.08)' : '#F0E7DD'}`,
+        width: '100%', justifyContent: 'center',
+      }}>
+        <Logo size={20} color={RED}/>
+        <Logo size={16} color={RED}/>
+        <Logo size={12} color={RED}/>
+      </div>
+
+      <div style={{
+        fontSize: 10, fontWeight: 700,
+        color: isDark ? 'rgba(244,236,227,0.45)' : '#9C887F',
+        letterSpacing: '0.14em', textTransform: 'uppercase',
+        marginTop: -6, textAlign: 'center',
+      }}>
+        {label}
+        {sublabel && (
           <div style={{
             fontSize: 11,
-            color: MUTED,
-            marginTop: 2,
-            letterSpacing: '-0.005em',
-          }}>{sub}</div>
+            color: isDark ? 'rgba(244,236,227,0.42)' : '#9C887F',
+            letterSpacing: '0.02em', textTransform: 'none', fontWeight: 500,
+            marginTop: 4,
+          }}>{sublabel}</div>
         )}
       </div>
     </div>
   )
 }
 
+const VARIANTS = [
+  {
+    id: 'v1',
+    title: 'Variante 1 — Angoli',
+    tagline: 'Minimal geometrico',
+    desc: "Quadrato arrotondato in pieno colore: la F appare come spazio sottratto. Il più sobrio dei quattro: facile da scalare, ottima leggibilità a tutte le dimensioni, neutralità da brand SaaS.",
+    Logo: LogoV1,
+  },
+  {
+    id: 'v2',
+    title: 'Variante 2 — Curve',
+    tagline: 'Organico e caldo',
+    desc: "Cerchio pieno, F con angoli morbidi (Bézier). La forma circolare evoca il piatto / la padella; più caldo e amichevole, meno aggressivo del quadrato. Italiano = artigianato.",
+    Logo: LogoV2,
+  },
+  {
+    id: 'v3',
+    title: 'Variante 3 — Solido con taglio',
+    tagline: 'Bold e contemporaneo',
+    desc: "Quadrato senza raggi, F più spessa e tagliata a filo. Aggressivo, tipografico, da brand serio. Dominante anche a dimensioni piccole, funziona forte su sfondi chiari.",
+    Logo: LogoV3,
+  },
+  {
+    id: 'v4',
+    title: 'Variante 4 — Esagono',
+    tagline: 'Libera interpretazione',
+    desc: "Esagono flat-top come 'tessera' del menù / piastrella italiana. Sei lati netti = forte memorabilità ottica. Bilancia il geometrico (V1) con qualcosa di distintivo (V3) — meno banale, più riconoscibile a distanza.",
+    Logo: LogoV4,
+  },
+]
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MAIN
+═══════════════════════════════════════════════════════════════════════════ */
 export default function LogoPreview() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: BG,
-      fontFamily: SANS,
-      color: INK,
+      background: '#FBF8F4',
+      fontFamily: SANS, color: DARK,
       WebkitFontSmoothing: 'antialiased',
+      padding: '40px 24px 80px',
     }}>
-      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '64px 32px 96px' }}>
+      <div style={{ maxWidth: 1180, margin: '0 auto' }}>
 
-        {/* Page header */}
-        <header style={{ marginBottom: 64 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 18 }}>
-            <Logo size={56} style={{ borderRadius: 14, boxShadow: '0 10px 30px rgba(192,57,43,0.22)' }} />
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: MUTED, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                Brand book
-              </div>
-              <h1 style={{ margin: '4px 0 0', fontSize: 36, fontWeight: 700, color: INK, letterSpacing: '-0.03em', lineHeight: 1.05 }}>
-                FoodOS Logo
-              </h1>
-            </div>
-          </div>
-          <p style={{ margin: 0, fontSize: 15, color: INK_SOFT, lineHeight: 1.55, maxWidth: 640, letterSpacing: '-0.005em' }}>
-            Monogramma "F" geometrico con bracci calligrafici a punta su fondo coal caldo. Rosso crimson <code style={{ background: BG_CARD, padding: '1px 6px', borderRadius: 4, border: `1px solid ${BORDER}`, fontSize: 13, fontFamily: 'inherit' }}>#C0392B</code>, container quasi-nero per garantire contrasto su qualsiasi superficie. Wordmark Inter ExtraBold.
-          </p>
-        </header>
+        <a href="/" style={{
+          fontSize: 13, color: '#5C4842', textDecoration: 'none',
+          display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 36,
+        }}>← Torna alla home</a>
 
-        {/* Icon sizes on light */}
-        <Section title="Icon · superficie chiara" hint="Resa del marchio sullo sfondo standard dell'app. Il container scuro caldo offre contrasto naturale.">
-          <Tile padding="32px 16px">
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 28, flexWrap: 'wrap', width: '100%' }}>
-              {ICON_SIZES.map(s => (
-                <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                  <Logo size={s} />
-                  <Label>{s}px</Label>
-                </div>
-              ))}
-            </div>
-          </Tile>
-        </Section>
-
-        {/* Icon sizes on dark */}
-        <Section title="Icon · superficie scura" hint="Stesso marchio su sidebar / dark mode. Il container nero caldo continua a leggere.">
-          <Tile dark padding="32px 16px">
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 28, flexWrap: 'wrap', width: '100%' }}>
-              {ICON_SIZES.map(s => (
-                <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                  <Logo size={s} />
-                  <Label dark>{s}px</Label>
-                </div>
-              ))}
-            </div>
-          </Tile>
-        </Section>
-
-        {/* Horizontal lockup */}
-        <Section title="Lockup orizzontale" hint="Icona + wordmark per header e firme. Il tono del wordmark si adatta al fondo.">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Tile>
-              <Logo variant="horizontal" tone="light" size={56} />
-              <Label>tone="light" — 56px</Label>
-            </Tile>
-            <Tile dark>
-              <Logo variant="horizontal" tone="dark" size={56} />
-              <Label dark>tone="dark" — 56px</Label>
-            </Tile>
-            <Tile>
-              <Logo variant="horizontal" tone="light" size={32} />
-              <Label>tone="light" — 32px</Label>
-            </Tile>
-            <Tile dark>
-              <Logo variant="horizontal" tone="dark" size={32} />
-              <Label dark>tone="dark" — 32px</Label>
-            </Tile>
-          </div>
-        </Section>
-
-        {/* Wordmark only */}
-        <Section title="Wordmark" hint="Solo testo, per contesti in cui l'icona è già presente (es. nei pulsanti).">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Tile>
-              <Logo variant="wordmark" tone="light" size={56} />
-            </Tile>
-            <Tile dark>
-              <Logo variant="wordmark" tone="dark" size={56} />
-            </Tile>
-          </div>
-        </Section>
-
-        {/* Favicon test */}
-        <Section title="Favicon" hint="Resa nel tab del browser. Test reale del minimo leggibile.">
-          <Tile>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '8px 12px 8px 8px',
-              background: '#EEF1F6',
-              borderRadius: 10,
-              border: `1px solid ${BORDER}`,
-              maxWidth: 360,
-              width: '100%',
-            }}>
-              <Logo size={16} />
-              <div style={{ flex: 1, fontSize: 13, color: INK, fontWeight: 500, letterSpacing: '-0.005em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                FoodOS — Gestionale Food Cost
-              </div>
-              <span style={{ fontSize: 11, color: MUTED }}>×</span>
-            </div>
-            <Label>simulazione tab @ 16px</Label>
-          </Tile>
-        </Section>
-
-        {/* Palette */}
-        <Section title="Palette" hint="Colori chiave del sistema. Il rosso crimson è il cuore del brand; il coal warm è il fondamento di tutte le superfici scure.">
+        <div style={{ marginBottom: 64 }}>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-            gap: 14,
+            fontSize: 11, fontWeight: 700, color: RED,
+            letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 14,
           }}>
-            <ColorSwatch hex="#C0392B" name="Brand"        sub="warm crimson · CTA, accenti" textLight />
-            <ColorSwatch hex="#A02617" name="Brand Dark"   sub="hover / pressed"             textLight />
-            <ColorSwatch hex="#1F1812" name="Coal Warm"    sub="container icona"             textLight />
-            <ColorSwatch hex="#0A0D14" name="Side"         sub="sidebar / dark surface"     textLight />
-            <ColorSwatch hex="#0E1726" name="Ink"          sub="testo primario"              textLight />
-            <ColorSwatch hex="#475264" name="Ink Soft"     sub="testo secondario"            textLight />
-            <ColorSwatch hex="#8B95A7" name="Muted"        sub="micro-copy, label"  />
-            <ColorSwatch hex="#F7F8FA" name="Background"   sub="app surface" />
-            <ColorSwatch hex="#FFFFFF" name="Card"         sub="superficie cards" />
-            <ColorSwatch hex="#E5E9EF" name="Border"       sub="bordi standard" />
+            Logo concept
           </div>
-        </Section>
+          <h1 style={{
+            fontFamily: SERIF, fontSize: 'clamp(36px, 5vw, 56px)',
+            fontWeight: 500, lineHeight: 1.05,
+            letterSpacing: '-0.035em', color: DARK, margin: '0 0 18px',
+          }}>
+            Vedo / <em style={{ fontStyle: 'italic', color: RED }}>non vedo</em>
+          </h1>
+          <p style={{ fontSize: 17, color: '#5C4842', lineHeight: 1.65, maxWidth: 660, margin: 0 }}>
+            Quattro varianti dello stesso concept: la <strong style={{ color: DARK }}>F</strong> non
+            viene disegnata, <em>emerge</em> dallo spazio negativo delle forme che la contengono.
+            Tutte usano il rosso brand <code style={{ background: '#F4ECE3', padding: '2px 6px', borderRadius: 4, fontSize: 13 }}>#C0392B</code> su
+            sfondo scuro <code style={{ background: '#F4ECE3', padding: '2px 6px', borderRadius: 4, fontSize: 13 }}>#1F1812</code> o
+            chiaro <code style={{ background: '#F4ECE3', padding: '2px 6px', borderRadius: 4, fontSize: 13 }}>#FDFAF7</code>.
+          </p>
+        </div>
 
-        {/* Typography */}
-        <Section title="Tipografia" hint="Inter — geometric sans, tracking stretto sui titoli, tabular nums sui numeri.">
-          <Tile padding="28px 32px" minHeight={0}>
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start' }}>
-              <div style={{ fontSize: 36, fontWeight: 700, color: INK, letterSpacing: '-0.03em', lineHeight: 1.1 }}>
-                Buongiorno, Pasticceria del Corso
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: INK, letterSpacing: '-0.025em' }}>
-                Food cost medio — <span style={{ fontVariantNumeric: 'tabular-nums' }}>32,4%</span>
-              </div>
-              <div style={{ fontSize: 14, color: INK_SOFT, letterSpacing: '-0.005em', lineHeight: 1.55, maxWidth: 560 }}>
-                FoodOS analizza il food cost di ogni ricetta, traccia il magazzino e ti dice in tempo reale quanto stai guadagnando per ogni prodotto venduto.
-              </div>
-              <div style={{ fontSize: 11, color: MUTED, letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
-                Eyebrow / Label
-              </div>
+        {VARIANTS.map(({ id, title, tagline, desc, Logo }) => (
+          <section key={id} style={{ marginBottom: 56 }}>
+            <div style={{ marginBottom: 14, display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+              <h2 style={{
+                fontFamily: SERIF, fontSize: 30, fontWeight: 600,
+                color: DARK, letterSpacing: '-0.025em', margin: 0,
+              }}>{title}</h2>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: RED,
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+                padding: '4px 10px', background: '#FDF2EE', borderRadius: 999,
+              }}>{tagline}</span>
             </div>
-          </Tile>
-        </Section>
+            <p style={{ fontSize: 14, color: '#5C4842', margin: '0 0 22px', lineHeight: 1.6, maxWidth: 760 }}>{desc}</p>
 
-        {/* Footer */}
-        <footer style={{
-          paddingTop: 32,
-          borderTop: `1px solid ${BORDER}`,
-          fontSize: 12,
-          color: MUTED,
-          letterSpacing: '-0.005em',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: 20,
+            }}>
+              <SwatchCard bg={DARK} Logo={Logo} label="su sfondo scuro" sublabel="#1F1812"/>
+              <SwatchCard bg={LIGHT} Logo={Logo} label="su sfondo chiaro" sublabel="#FDFAF7"/>
+            </div>
+          </section>
+        ))}
+
+        <div style={{
+          marginTop: 56, padding: '24px 28px',
+          background: '#F4ECE3', borderRadius: 16,
+          fontSize: 13, color: '#5C4842', lineHeight: 1.7,
         }}>
-          <span>FoodOS · brand book · uso interno</span>
-          <a href="/" style={{ color: INK_SOFT, textDecoration: 'none', borderBottom: `1px dashed ${FAINT}` }}>
-            ← torna all'app
-          </a>
-        </footer>
-
+          <strong style={{ color: DARK }}>Da scegliere:</strong> dimmi quale variante preferisci
+          (V1 / V2 / V3 / V4) — o se vuoi una combinazione/iterazione — e procedo a sostituire
+          il logo corrente in <code style={{ background: '#FFF', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>src/components/Logo.jsx</code> in
+          modo che si aggiorni ovunque venga usato (landing, auth, dashboard).
+        </div>
       </div>
     </div>
   )

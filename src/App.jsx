@@ -97,7 +97,7 @@ export default function App() {
   // Static pages — no auth needed
   if (path === '/privacy') return <PrivacyPolicy />
   if (path === '/termini') return <TerminiServizio />
-  if (path === '/logo' || path === '/brand') return <LogoPreview />
+  if (path === '/logo' || path === '/brand' || path === '/logo-preview') return <LogoPreview />
 
   // Intercetta /r/CODICE — salva codice in localStorage e pulisce l'URL
   const referralMatch = path.match(/^\/r\/([A-Za-z0-9]+)$/)
