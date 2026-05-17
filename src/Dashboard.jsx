@@ -4,9 +4,10 @@ import jsPDF from 'jspdf'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
          Cell, PieChart, Pie, Legend, ReferenceLine, LineChart, Line,
          AreaChart, Area } from 'recharts'
-import { sload as _sload, ssave as _ssave, isSharedKey } from './lib/storage'
+import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
 import { supabase } from './lib/supabase'
 import SedeSelector from './components/SedeSelector'
+import SedeContextBanner from './components/SedeContextBanner'
 import Scadenzario from './components/Scadenzario'
 import CalendarioOperativo from './components/CalendarioOperativo'
 import ReferralPanel from './components/ReferralPanel'
@@ -20,6 +21,7 @@ import { useNotifiche } from './lib/useNotifiche'
 import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF } from './lib/theme'
 import ImpostazioniSedi from './components/ImpostazioniSedi'
 import ConfrontoSedi from './components/ConfrontoSedi'
+import TrasferimentiView from './components/TrasferimentiView'
 import EsportaDati from './components/EsportaDati'
 import { exportRicettaPDF, exportPLMensile, exportProduzione } from './lib/exportPDF'
 import { CHANGELOG } from './lib/changelog'
@@ -4019,7 +4021,7 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
 
 // giornaliero: [{ id, data, prodotti:[{nome,stampi}], note }]
 
-function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify }) {
+function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify, sedi = [], sedeAttiva = null }) {
   const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const ricette  = Object.values(ricettario?.ricette||{}).filter(r=>isRicettaValida(r.nome)&&getR(r.nome,r).tipo!=="interno"&&getR(r.nome,r).tipo!=="semilavorato");
@@ -4057,7 +4059,12 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
   const [qtaMap, setQtaMap]         = useState({});     // stampi PRODOTTI oggi
   const [vendibileMap, setVendMap]  = useState({});     // stampi DISPONIBILI oggi (prod + scongelati)
   const [sessNote, setSessNote]     = useState("");
+  const [destinazioneSedeId, setDestinazioneSedeId] = useState(""); // "" = stessa sede (default)
   const [confermando, setConfermando] = useState(false);
+
+  const sediAttive = (sedi || []).filter(s => s.attiva !== false);
+  const haPiuSedi = sediAttive.length > 1;
+  const sediMapProd = Object.fromEntries(sediAttive.map(s => [s.id, s]));
 
   // Prodotti congelabili (si vende nei giorni successivi): banana bread, carote, cookies + override manuale
   // isCongelabile: legge dal ricettario (campo salvato), con fallback a lista built-in
@@ -4127,6 +4134,10 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
       ingredientiUsati: riepilogo.ings,
       fcTot: riepilogo.fcTot,
       ricavoTot: riepilogo.ricavoTot,
+      // Scenario laboratorio centrale: la sessione è prodotta nella sede attiva
+      // (dove il magazzino è scalato) ma destinata a un'altra sede (o stessa).
+      destinazioneSedeId: destinazioneSedeId || null,
+      destinazioneSedeNome: destinazioneSedeId ? (sediMapProd[destinazioneSedeId]?.nome || null) : null,
     };
     const ng = [sess, ...(giornaliero||[])];
     setMagazzino(nm); setGiornaliero(ng);
@@ -4264,10 +4275,24 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
                 </tbody>
               </table>
               </div>
-              <div style={{padding:"14px 20px",borderTop:`1px solid ${C.border}`}}>
-                <div style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Note sessione</div>
-                <input type="text" value={sessNote} onChange={e=>setSessNote(e.target.value)} placeholder="es. produzione weekend, teglia extra…"
-                  style={{width:"100%",padding:"8px 12px",borderRadius:7,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text}}/>
+              <div style={{padding:"14px 20px",borderTop:`1px solid ${C.border}`,display:'flex',gap:12,flexWrap:'wrap'}}>
+                <div style={{flex:'1 1 240px'}}>
+                  <div style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Note sessione</div>
+                  <input type="text" value={sessNote} onChange={e=>setSessNote(e.target.value)} placeholder="es. produzione weekend, teglia extra…"
+                    style={{width:"100%",padding:"8px 12px",borderRadius:7,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text,boxSizing:'border-box'}}/>
+                </div>
+                {haPiuSedi && (
+                  <div style={{flex:'1 1 200px'}}>
+                    <div style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Destinazione</div>
+                    <select value={destinazioneSedeId} onChange={e=>setDestinazioneSedeId(e.target.value)}
+                      style={{width:"100%",padding:"8px 12px",borderRadius:7,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text,background:C.bgCard,boxSizing:'border-box'}}>
+                      <option value="">📍 Questa sede ({sedeAttiva?.nome || '—'})</option>
+                      {sediAttive.filter(s => s.id !== sedeAttiva?.id).map(s => (
+                        <option key={s.id} value={s.id}>🚚 Per: {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -4374,7 +4399,14 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
                 <div key={sess.id} style={{background:C.bgCard,border:`1px solid ${deleteSessConf?.id===sess.id?C.red:C.border}`,borderRadius:10,padding:"16px 20px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                     <div style={{flex:1}}>
-                      <div style={{fontSize:13,fontWeight:800,color:C.text}}>{new Date(sess.data).toLocaleDateString("it-IT",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})}</div>
+                      <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                        <div style={{fontSize:13,fontWeight:800,color:C.text}}>{new Date(sess.data).toLocaleDateString("it-IT",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})}</div>
+                        {sess.destinazioneSedeNome && (
+                          <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:999,background:'#FEF3C7',color:'#92400E'}}>
+                            🚚 Per: {sess.destinazioneSedeNome}
+                          </span>
+                        )}
+                      </div>
                       {sess.note && <div style={{fontSize:11,color:C.textSoft,marginTop:2}}>{sess.note}</div>}
                     </div>
                     <div style={{display:"flex",gap:12,alignItems:"center"}}>
@@ -7228,15 +7260,40 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
 
 
 // ─── DASHBOARD HOME VIEW ──────────────────────────────────────────────────────
-function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView, orgId, nomeAttivita, isTrialAttivo, auth }) {
+function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView, orgId, nomeAttivita, isTrialAttivo, auth, sedi = [], sedeAttiva = null }) {
   const isMobile = useIsMobile();
   const now = new Date();
   const today = now.toISOString().slice(0,10);
   const ora = now.getHours();
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
 
+  // Vista aggregata: somma KPI di tutte le sedi attive
+  const sediAttiveAll = (sedi || []).filter(s => s.attiva !== false);
+  const [viewAggregato, setViewAggregato] = useState(false);
+  const [aggrData, setAggrData] = useState(null);
+
+  useEffect(() => {
+    if (!viewAggregato || !orgId || sediAttiveAll.length < 2) { setAggrData(null); return }
+    let cancelled = false;
+    ;(async () => {
+      const [gior, chius] = await Promise.all([
+        sloadAllSedi('pasticceria-giornaliero-v1', orgId),
+        sloadAllSedi('pasticceria-chiusure-v1', orgId),
+      ]);
+      if (cancelled) return;
+      const giornAll = Object.values(gior || {}).flatMap(v => Array.isArray(v) ? v : []);
+      const chiusAll = Object.values(chius || {}).flatMap(v => Array.isArray(v) ? v : []);
+      setAggrData({ giornaliero: giornAll, chiusure: chiusAll });
+    })();
+    return () => { cancelled = true };
+  }, [viewAggregato, orgId, sediAttiveAll.length]);
+
+  // Quando in vista aggregata, sovrascrive giornaliero/chiusure con la versione consolidata
+  const giornEff = (viewAggregato && aggrData) ? aggrData.giornaliero : giornaliero;
+  const chiusEff = (viewAggregato && aggrData) ? aggrData.chiusure : chiusure;
+
   // Produzione oggi
-  const sessioniOggi = (giornaliero||[]).filter(s => s.data === today);
+  const sessioniOggi = (giornEff||[]).filter(s => s.data === today);
   const hasProdOggi = sessioniOggi.some(s => (s.prodotti||[]).length > 0);
   const prodCount = sessioniOggi.reduce((acc,s)=>acc+(s.prodotti||[]).reduce((a,p)=>a+p.stampi,0),0);
   const costoStimato = sessioniOggi.reduce((tot,sess)=>tot+(sess.prodotti||[]).reduce((a,p)=>{
@@ -7244,8 +7301,11 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
     return a + fc * p.stampi;
   },0),0);
 
-  // Cassa oggi
-  const cassaOggi = (chiusure||[]).find(c=>c.data===today);
+  // Cassa oggi — somma di tutte le sedi se viewAggregato
+  const cassaOggiList = (chiusEff||[]).filter(c => c.data === today);
+  const cassaOggi = viewAggregato
+    ? (cassaOggiList.length > 0 ? { totale: cassaOggiList.reduce((s,c) => s + (c.totale||0), 0) } : null)
+    : cassaOggiList[0] || null;
   const ricaviOggi = cassaOggi?.totale||0;
   const fcOggi = ricaviOggi>0 && costoStimato>0 ? (costoStimato/ricaviOggi*100) : null;
 
@@ -7326,6 +7386,28 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
           letterSpacing:"-0.035em",lineHeight:1.05}}>
           {saluto}{nomeSaluto}
         </h1>
+        {sediAttiveAll.length > 1 && (
+          <div style={{marginTop:14, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
+            <span style={{fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.07em'}}>Visualizza:</span>
+            <div style={{display:'inline-flex', gap:4, background:T.bgSubtle||'#F1F5F9', border:`1px solid ${T.border}`, borderRadius:999, padding:3}}>
+              <button onClick={()=>setViewAggregato(false)}
+                style={{padding:'4px 12px', border:'none', borderRadius:999, fontSize:11, fontWeight:700, cursor:'pointer',
+                  background: !viewAggregato ? T.bgCard : 'transparent', color: !viewAggregato ? T.text : T.textSoft,
+                  boxShadow: !viewAggregato ? '0 1px 3px rgba(15,23,42,0.08)' : 'none'}}>
+                📍 {sedeAttiva?.nome || 'Sede attiva'}
+              </button>
+              <button onClick={()=>setViewAggregato(true)}
+                style={{padding:'4px 12px', border:'none', borderRadius:999, fontSize:11, fontWeight:700, cursor:'pointer',
+                  background: viewAggregato ? T.bgCard : 'transparent', color: viewAggregato ? T.text : T.textSoft,
+                  boxShadow: viewAggregato ? '0 1px 3px rgba(15,23,42,0.08)' : 'none'}}>
+                🏢 Tutte le sedi ({sediAttiveAll.length})
+              </button>
+            </div>
+            {viewAggregato && !aggrData && (
+              <span style={{fontSize:11, color:T.textSoft}}>Caricamento aggregati…</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 4 KPI Cards */}
@@ -7968,6 +8050,14 @@ export default function Dashboard({
       return;
     }
     console.log('📦 caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
+    // Reset stato per-sede prima di ricaricare (evita di mostrare brevemente
+    // i dati della sede precedente mescolati ai nuovi). Le chiavi shared
+    // (ricettario) le lasciamo: vengono comunque ricaricate sotto.
+    setMagazzino({});
+    setProd({});
+    setGiornaliero([]);
+    setChiusure([]);
+    setLogRif([]);
     // Carica subito dai backup locali come fallback istantaneo (offline-first).
     // Se Supabase risponde con dati validi, sovrascrive sotto.
     try {
@@ -7978,13 +8068,13 @@ export default function Dashboard({
       }
     } catch {}
     try {
-      const bkMag    = bkReadLS(SK_MAG,    orgId); if (bkMag)    { setMagazzino(bkMag);        console.log('💾 cache magazzino:', Object.keys(bkMag).length); }
-      const bkGior   = bkReadLS(SK_GIOR,   orgId); if (bkGior)   { setGiornaliero(bkGior);     console.log('💾 cache giornaliero:', bkGior.length); }
-      const bkChius  = bkReadLS(SK_CHIUS,  orgId); if (bkChius)  { setChiusure(bkChius);       console.log('💾 cache chiusure:', bkChius.length); }
-      const bkProd   = bkReadLS(SK_PROD,   orgId); if (bkProd)   { setProd(bkProd);            console.log('💾 cache produzione:', Object.keys(bkProd).length); }
-      const bkAct    = bkReadLS(SK_ACT,    orgId); if (bkAct)    { setAct(bkAct);              console.log('💾 cache actions:', bkAct.length); }
-      const bkExcl   = bkReadLS(SK_EXCL,   orgId); if (bkExcl)   { setEsclusi(new Set(bkExcl)); }
-      const bkLogRif = bkReadLS(SK_LOGRIF, orgId); if (bkLogRif) { setLogRif(bkLogRif); }
+      const bkMag    = bkReadLS(SK_MAG,    orgId, sedeId); if (bkMag)    { setMagazzino(bkMag);        console.log('💾 cache magazzino:', Object.keys(bkMag).length); }
+      const bkGior   = bkReadLS(SK_GIOR,   orgId, sedeId); if (bkGior)   { setGiornaliero(bkGior);     console.log('💾 cache giornaliero:', bkGior.length); }
+      const bkChius  = bkReadLS(SK_CHIUS,  orgId, sedeId); if (bkChius)  { setChiusure(bkChius);       console.log('💾 cache chiusure:', bkChius.length); }
+      const bkProd   = bkReadLS(SK_PROD,   orgId, sedeId); if (bkProd)   { setProd(bkProd);            console.log('💾 cache produzione:', Object.keys(bkProd).length); }
+      const bkAct    = bkReadLS(SK_ACT,    orgId, null);   if (bkAct)    { setAct(bkAct);              console.log('💾 cache actions:', bkAct.length); }
+      const bkExcl   = bkReadLS(SK_EXCL,   orgId, null);   if (bkExcl)   { setEsclusi(new Set(bkExcl)); }
+      const bkLogRif = bkReadLS(SK_LOGRIF, orgId, sedeId); if (bkLogRif) { setLogRif(bkLogRif); }
     } catch (e) { console.warn('cache locale rec error:', e); }
 
     // Recovery: se Supabase risponde VUOTO ma il backup locale ha dati,
@@ -7992,7 +8082,7 @@ export default function Dashboard({
     // al re-login (RLS, race, o save mai avvenuto in passato).
     const restoreIfEmpty = (supabaseData, sk, label) => {
       if (supabaseData) return;
-      const bk = bkReadLS(sk, orgId);
+      const bk = bkReadLS(sk, orgId, sedeId);
       const nonEmpty = bk == null ? false
                      : Array.isArray(bk) ? bk.length > 0
                      : (typeof bk === 'object') ? Object.keys(bk).length > 0
@@ -8019,7 +8109,7 @@ export default function Dashboard({
 
       if(ric){
         setRic(ric);
-        bkWriteLS(SK_RIC, ric, orgId);
+        bkWriteLS(SK_RIC, ric, orgId, null);
         try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: ric, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
         for(const r of Object.values(ric.ricette||{})){
           if(r.unita!=null && !REGOLE[r.nome]){
@@ -8042,13 +8132,13 @@ export default function Dashboard({
         } catch {}
         restoreIfEmpty(null, SK_RIC, 'ricettario'); // anche dal nuovo bk format
       }
-      if(prod)  { setProd(prod);          bkWriteLS(SK_PROD,   prod,   orgId); } else { restoreIfEmpty(prod,   SK_PROD,   'produzione'); }
-      if(act)   { setAct(act);            bkWriteLS(SK_ACT,    act,    orgId); } else { restoreIfEmpty(act,    SK_ACT,    'actions'); }
-      if(mag)   { setMagazzino(mag);      bkWriteLS(SK_MAG,    mag,    orgId); } else { restoreIfEmpty(mag,    SK_MAG,    'magazzino'); }
-      if(logrif){ setLogRif(logrif);      bkWriteLS(SK_LOGRIF, logrif, orgId); } else { restoreIfEmpty(logrif, SK_LOGRIF, 'logRif'); }
-      if(gior)  { setGiornaliero(gior);   bkWriteLS(SK_GIOR,   gior,   orgId); } else { restoreIfEmpty(gior,   SK_GIOR,   'giornaliero'); }
-      if(chius) { setChiusure(chius);     bkWriteLS(SK_CHIUS,  chius,  orgId); } else { restoreIfEmpty(chius,  SK_CHIUS,  'chiusure'); }
-      if(excl)  { setEsclusi(new Set(excl)); bkWriteLS(SK_EXCL, excl,  orgId); } else { restoreIfEmpty(excl,   SK_EXCL,   'esclusi'); }
+      if(prod)  { setProd(prod);          bkWriteLS(SK_PROD,   prod,   orgId, sedeId); } else { restoreIfEmpty(prod,   SK_PROD,   'produzione'); }
+      if(act)   { setAct(act);            bkWriteLS(SK_ACT,    act,    orgId, null);   } else { restoreIfEmpty(act,    SK_ACT,    'actions'); }
+      if(mag)   { setMagazzino(mag);      bkWriteLS(SK_MAG,    mag,    orgId, sedeId); } else { restoreIfEmpty(mag,    SK_MAG,    'magazzino'); }
+      if(logrif){ setLogRif(logrif);      bkWriteLS(SK_LOGRIF, logrif, orgId, sedeId); } else { restoreIfEmpty(logrif, SK_LOGRIF, 'logRif'); }
+      if(gior)  { setGiornaliero(gior);   bkWriteLS(SK_GIOR,   gior,   orgId, sedeId); } else { restoreIfEmpty(gior,   SK_GIOR,   'giornaliero'); }
+      if(chius) { setChiusure(chius);     bkWriteLS(SK_CHIUS,  chius,  orgId, sedeId); } else { restoreIfEmpty(chius,  SK_CHIUS,  'chiusure'); }
+      if(excl)  { setEsclusi(new Set(excl)); bkWriteLS(SK_EXCL, excl,  orgId, null);   } else { restoreIfEmpty(excl,   SK_EXCL,   'esclusi'); }
       // Migration: convert known semilavorati from tipo "interno" or missing tipo
       if (ric) {
         let changed = false;
@@ -8083,7 +8173,7 @@ export default function Dashboard({
       }
       setReady(true);
     });
-  },[orgId]);
+  },[orgId, sedeId]);
 
   useEffect(()=>{
     if(!ready) return;
@@ -8332,6 +8422,7 @@ export default function Dashboard({
           plus:       '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
           settings:   '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
           building:   '<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="9" y2="6"/><line x1="15" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="9" y2="10"/><line x1="15" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="9" y2="14"/><line x1="15" y1="14" x2="15" y2="14"/><path d="M10 22v-4h4v4"/>',
+          truck:      '<rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
         };
 
         const navItem = (id, iconKey, label, badge=0, alert=false) => {
@@ -8441,6 +8532,7 @@ export default function Dashboard({
 
               <Sep label="Sistema" />
               {(sedi||[]).length>1 && navItem("confronto-sedi","building","Confronto sedi")}
+              {(sedi||[]).length>1 && navItem("trasferimenti","truck","Trasferimenti")}
               {navItem("impostazioni","settings","Impostazioni")}
 
             </div>
@@ -8572,7 +8664,7 @@ export default function Dashboard({
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
             calendario:"Calendario", previsione:"Previsioni",
             "scheda-allergeni":"Scheda allergeni", impostazioni:"Impostazioni",
-            "confronto-sedi":"Confronto sedi", changelog:"Novità",
+            "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
           };
           const VIEW_GROUPS = {
             home:"Oggi", giornaliero:"Oggi", chiusura:"Oggi",
@@ -8580,7 +8672,7 @@ export default function Dashboard({
             simulatore:"Numeri", pl:"Numeri",
             magazzino:"Gestione", scadenzario:"Gestione", fornitori:"Gestione", personale:"Gestione", menu:"Gestione",
             azioni:"Altro", integrazioni:"Altro", storico:"Altro", calendario:"Altro", previsione:"Altro",
-            impostazioni:"Sistema", "confronto-sedi":"Sistema", changelog:"Sistema",
+            impostazioni:"Sistema", "confronto-sedi":"Sistema", trasferimenti:"Sistema", changelog:"Sistema",
           };
           const label = VIEW_LABELS[view] || (typeof view==="string"?view:"");
           const group = VIEW_GROUPS[view] || "";
@@ -8641,7 +8733,7 @@ export default function Dashboard({
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
             calendario:"Calendario", previsione:"Previsioni",
             "scheda-allergeni":"Allergeni", impostazioni:"Impostazioni",
-            "confronto-sedi":"Confronto sedi", changelog:"Novità",
+            "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
           };
           const titolo = MOBILE_LABELS[view] || nomeAttivita || "FoodOS";
           return (
@@ -8714,8 +8806,23 @@ export default function Dashboard({
           </div>
         )}
 
+        {/* Banner contestuale: indica con quale sede stiamo operando nelle viste per-sede */}
+        {sedi && sedi.length > 1 && ['magazzino','giornaliero','chiusura','scadenzario','calendario','storico'].includes(view) && (
+          <SedeContextBanner
+            sedeAttiva={sedeAttiva}
+            sedi={sedi}
+            hint={
+              view === 'magazzino'   ? 'Stock e movimenti di questa sede' :
+              view === 'giornaliero' ? 'Produzione registrata a questa sede' :
+              view === 'chiusura'    ? 'Cassa di questa sede' :
+              view === 'scadenzario' ? 'Fatture intestate a questa sede' :
+              null
+            }
+          />
+        )}
+
         {/* Home dashboard */}
-        {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth}/>}
+        {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva}/>}
 
         {/* Ricettario — mostra upload se non ancora caricato */}
         {view==="ricettario"&&!ricettario&&(
@@ -8735,22 +8842,23 @@ export default function Dashboard({
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)}/>}
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario}/>}
-        {view==="fornitori"&&<Fornitori orgId={orgId} notify={notify}/>}
-        {view==="personale"&&<Personale orgId={orgId} notify={notify}/>}
+        {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
+        {view==="personale"&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure}/>}
         {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR}/>}
-        {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify}/>}
+        {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
         {view==="impostazioni"&&<ImpostazioniView auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="confronto-sedi"&&<ConfrontoSedi orgId={orgId} sedi={sedi}/>}
+        {view==="trasferimenti"&&<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>}
         {view==="integrazioni"&&<Integrazioni orgId={orgId} notify={notify}/>}
-        {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId}/>}
+        {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione"].includes(view)&&(
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
         </div>{/* /fos-page */}

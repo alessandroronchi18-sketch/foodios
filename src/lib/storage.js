@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 
 // Chiavi condivise tra sedi (ricettario, regole, prezzi importati)
-const SHARED_KEYS = [
+export const SHARED_KEYS = [
   'pasticceria-ricettario-v1',
   'pasticceria-ai-v1',
   'pasticceria-actions-v1',
@@ -10,6 +10,10 @@ const SHARED_KEYS = [
   'pasticceria-regole-v1',
   'pasticceria-semilavorati-v1',
 ]
+
+export function isSharedKey(key) {
+  return SHARED_KEYS.includes(key)
+}
 
 // Helper: applica il filtro sede_id corretto (.is per null, .eq altrimenti).
 function applySedeFilter(q, sedeId) {
@@ -106,6 +110,33 @@ export async function ssave(key, value, orgId, sedeId) {
     console.error('ssave INSERT fallito:', key, insErr)
     throw insErr
   }
+}
+
+/**
+ * Carica una chiave PER-SEDE per tutte le sedi di un'org.
+ * Restituisce { [sedeId]: data_value }.
+ * Utile per la "Vista azienda" che aggrega KPI di tutte le sedi.
+ * Per chiavi shared non ha senso e ritorna un singolo entry con key 'shared'.
+ */
+export async function sloadAllSedi(key, orgId) {
+  if (!orgId) return {}
+  if (isSharedKey(key)) {
+    const v = await sload(key, orgId, null)
+    return { shared: v }
+  }
+  const { data, error } = await supabase
+    .from('user_data')
+    .select('sede_id, data_value, updated_at')
+    .eq('organization_id', orgId)
+    .eq('data_key', key)
+    .order('updated_at', { ascending: false })
+  if (error) { console.error('sloadAllSedi error:', key, error); return {} }
+  const out = {}
+  for (const row of (data || [])) {
+    const id = row.sede_id || 'shared'
+    if (!(id in out)) out[id] = row.data_value
+  }
+  return out
 }
 
 export async function sdelete(key, orgId, sedeId) {

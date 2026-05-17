@@ -16,20 +16,28 @@ function fmtH(h) { return `${h.toFixed(1)}h` }
 
 const TIPI_CONTRATTO = ["Full-time","Part-time","Stagionale","Collaboratore","Apprendista"]
 
-function DipendentiTab({ orgId, notify, isMobile }) {
+function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"" })
+  const [form, setForm] = useState({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"", sede_id: "" })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [scopeSede, setScopeSede] = useState('attiva')
 
-  useEffect(() => { carica() }, [orgId])
+  const haPiuSedi = (sedi || []).filter(s => s.attiva !== false).length > 1
+  const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
+
+  useEffect(() => { carica() }, [orgId, sedeId, scopeSede])
 
   async function carica() {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const { data, error } = await supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true).order("nome")
+    let q = supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true).order("nome")
+    if (scopeSede === 'attiva' && sedeId) {
+      q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
+    }
+    const { data, error } = await q
     if (error) notify?.("⚠ Errore caricamento dipendenti: " + error.message, false)
     setLista(data || [])
     setLoading(false)
@@ -46,6 +54,7 @@ function DipendentiTab({ orgId, notify, isMobile }) {
       costo_orario: parseFloat(form.costo_orario)||0,
       ore_settimana: parseFloat(form.ore_settimana)||0,
       note: form.note,
+      sede_id: form.sede_id || null,
       organization_id: orgId,
       attivo: true,
     }
@@ -69,8 +78,8 @@ function DipendentiTab({ orgId, notify, isMobile }) {
     carica()
   }
 
-  function reset() { setForm({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"" }); setEditId(null); setShowForm(false) }
-  function initEdit(d) { setForm({ nome:d.nome, ruolo:d.ruolo||"", tipo_contratto:d.tipo_contratto||"Full-time", costo_orario:d.costo_orario||"", ore_settimana:d.ore_settimana||40, note:d.note||"" }); setEditId(d.id); if (isMobile) setShowForm(true) }
+  function reset() { setForm({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"", sede_id: sedeId || "" }); setEditId(null); setShowForm(false) }
+  function initEdit(d) { setForm({ nome:d.nome, ruolo:d.ruolo||"", tipo_contratto:d.tipo_contratto||"Full-time", costo_orario:d.costo_orario||"", ore_settimana:d.ore_settimana||40, note:d.note||"", sede_id: d.sede_id || "" }); setEditId(d.id); if (isMobile) setShowForm(true) }
 
   const costoMeseTot = lista.reduce((s,d)=>s+(d.costo_orario||0)*(d.ore_settimana||0)*4.33, 0)
   const inputSt = { width:"100%", padding: isMobile ? "12px 14px" : "9px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
@@ -129,6 +138,17 @@ function DipendentiTab({ orgId, notify, isMobile }) {
             Costo mese stimato: {fmt((parseFloat(form.costo_orario)||0)*(parseFloat(form.ore_settimana)||0)*4.33)}
           </div>
         )}
+        {haPiuSedi && (
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Sede primaria</div>
+            <select value={form.sede_id} onChange={e=>setForm(f=>({...f,sede_id:e.target.value}))} style={inputSt}>
+              <option value="">🏢 Tutte le sedi (azienda)</option>
+              {sedi.filter(s => s.attiva !== false).map(s => (
+                <option key={s.id} value={s.id}>📍 {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div style={{ marginBottom:14 }}>
           <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Note</div>
           <textarea value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2} style={{ ...inputSt, resize:"vertical" }}/>
@@ -145,6 +165,16 @@ function DipendentiTab({ orgId, notify, isMobile }) {
 
       {/* Lista */}
       <div>
+        {haPiuSedi && (
+          <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
+            {[['attiva','📍 Solo sede attiva'], ['tutte','🏢 Tutte le sedi']].map(([id,lbl]) => (
+              <button key={id} onClick={()=>setScopeSede(id)}
+                style={{ padding:'4px 10px', borderRadius: 999, border: `1px solid ${C.border}`,
+                  background: scopeSede===id ? C.text : C.white, color: scopeSede===id ? C.white : C.textMid,
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{lbl}</button>
+            ))}
+          </div>
+        )}
         {costoMeseTot > 0 && (
           <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "14px 20px", marginBottom:16, display: isMobile ? "grid" : "flex", gridTemplateColumns: isMobile ? "1fr 1fr" : undefined, alignItems:"center", gap: isMobile ? 8 : 20 }}>
             <div>
@@ -181,9 +211,16 @@ function DipendentiTab({ orgId, notify, isMobile }) {
           <div key={d.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
               <div>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight:800, fontSize:13, color:C.text }}>{d.nome}</span>
                   <span style={{ fontSize:9, fontWeight:700, padding:"2px 8px", borderRadius:20, background:C.amberLight, color:C.amber }}>{d.tipo_contratto}</span>
+                  {haPiuSedi && (
+                    <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 999,
+                      background: d.sede_id ? C.amberLight : '#F1F5F9',
+                      color: d.sede_id ? '#92400E' : C.textSoft, fontWeight: 700 }}>
+                      {d.sede_id ? `📍 ${sediMap[d.sede_id]?.nome || 'Sede'}` : '🏢 Azienda'}
+                    </span>
+                  )}
                 </div>
                 {d.ruolo && <div style={{ fontSize:11, color:C.textMid, marginBottom:2 }}>💼 {d.ruolo}</div>}
                 <div style={{ fontSize:11, color:C.textSoft }}>
@@ -535,7 +572,7 @@ function AnalisiCostoTab({ orgId, isMobile }) {
   )
 }
 
-export default function Personale({ orgId, notify }) {
+export default function Personale({ orgId, sedeId, sedi = [], notify }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState("dipendenti")
   const TABS = [["dipendenti","Dipendenti"],["turni","Turni"],["analisi","Analisi costo"]]
@@ -562,8 +599,8 @@ export default function Personale({ orgId, notify }) {
         ))}
       </div>
 
-      {tab === "dipendenti" && <DipendentiTab orgId={orgId} notify={notify} isMobile={isMobile}/>}
-      {tab === "turni"      && <TurniTab      orgId={orgId} notify={notify} isMobile={isMobile}/>}
+      {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
+      {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
       {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile}/>}
     </div>
   )

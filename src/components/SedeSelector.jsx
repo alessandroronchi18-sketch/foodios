@@ -3,7 +3,21 @@ import React, { useState } from 'react'
 export default function SedeSelector({ sedi, sedeAttiva, onSelect }) {
   const [open, setOpen] = useState(false)
 
-  if (!sedi || sedi.length <= 1) return null
+  if (!sedi || sedi.length === 0) return null
+
+  // Una sola sede: mostra come badge informativo non interattivo
+  if (sedi.length === 1) {
+    return (
+      <div style={{ margin: '8px 10px', padding: '6px 10px',
+        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 6, color: 'rgba(255,255,255,0.55)', fontSize: 11,
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}>
+        <span>📍</span>
+        <span>{sedeAttiva?.nome || sedi[0]?.nome || 'Sede'}</span>
+      </div>
+    )
+  }
 
   return (
     <div style={{ position: 'relative', margin: '8px 10px' }}>

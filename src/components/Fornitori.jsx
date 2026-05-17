@@ -14,20 +14,28 @@ const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'"
 function fmt(n) { return n==null?"-":`€${Number(n).toFixed(2)}` }
 function fmtDate(s) { if(!s) return "—"; const d=new Date(s); return d.toLocaleDateString("it-IT"); }
 
-function FornitoriTab({ orgId, notify, isMobile }) {
+function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ nome:"", contatto:"", email:"", telefono:"", note:"" })
+  const [form, setForm] = useState({ nome:"", contatto:"", email:"", telefono:"", note:"", sede_id: "" })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [scopeSede, setScopeSede] = useState('attiva') // 'attiva' | 'tutte'
 
-  useEffect(() => { carica() }, [orgId])
+  const haPiuSedi = (sedi || []).filter(s => s.attiva !== false).length > 1
+  const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
+
+  useEffect(() => { carica() }, [orgId, sedeId, scopeSede])
 
   async function carica() {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const { data, error } = await supabase.from("fornitori").select("*").eq("organization_id", orgId).order("nome")
+    let q = supabase.from("fornitori").select("*").eq("organization_id", orgId).order("nome")
+    if (scopeSede === 'attiva' && sedeId) {
+      q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
+    }
+    const { data, error } = await q
     if (error) notify?.("⚠ Errore caricamento fornitori: " + error.message, false)
     setLista(data || [])
     setLoading(false)
@@ -37,7 +45,8 @@ function FornitoriTab({ orgId, notify, isMobile }) {
     if (!form.nome.trim()) { notify("⚠ Inserisci il nome del fornitore", false); return }
     if (!orgId) { notify("⚠ Profilo non pronto, riprova", false); return }
     setSaving(true)
-    const payload = { ...form, organization_id: orgId }
+    // sede_id="" significa "Tutte le sedi" (azienda) → NULL nel DB
+    const payload = { ...form, sede_id: form.sede_id || null, organization_id: orgId }
     let err
     if (editId) {
       ({ error: err } = await supabase.from("fornitori").update(payload).eq("id", editId))
@@ -58,8 +67,8 @@ function FornitoriTab({ orgId, notify, isMobile }) {
     carica()
   }
 
-  function resetForm() { setForm({ nome:"", contatto:"", email:"", telefono:"", note:"" }); setEditId(null); setShowForm(false) }
-  function initEdit(f) { setForm({ nome:f.nome, contatto:f.contatto||"", email:f.email||"", telefono:f.telefono||"", note:f.note||"" }); setEditId(f.id); if (isMobile) setShowForm(true) }
+  function resetForm() { setForm({ nome:"", contatto:"", email:"", telefono:"", note:"", sede_id: sedeId || "" }); setEditId(null); setShowForm(false) }
+  function initEdit(f) { setForm({ nome:f.nome, contatto:f.contatto||"", email:f.email||"", telefono:f.telefono||"", note:f.note||"", sede_id: f.sede_id || "" }); setEditId(f.id); if (isMobile) setShowForm(true) }
 
   const inputSt = { width:"100%", padding: isMobile ? "12px 14px" : "9px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
   const formVisible = !isMobile || showForm
@@ -96,6 +105,17 @@ function FornitoriTab({ orgId, notify, isMobile }) {
             <input type={type} value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={inputSt}/>
           </div>
         ))}
+        {haPiuSedi && (
+          <div style={{ marginBottom:12 }}>
+            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Sede</div>
+            <select value={form.sede_id} onChange={e=>setForm(f=>({...f,sede_id:e.target.value}))} style={inputSt}>
+              <option value="">🏢 Tutte le sedi (azienda)</option>
+              {sedi.filter(s => s.attiva !== false).map(s => (
+                <option key={s.id} value={s.id}>📍 {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div style={{ marginBottom:16 }}>
           <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Note</div>
           <textarea value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} rows={2}
@@ -113,11 +133,30 @@ function FornitoriTab({ orgId, notify, isMobile }) {
 
       {/* Lista */}
       <div>
+        {haPiuSedi && (
+          <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
+            {[['attiva','📍 Solo sede attiva'], ['tutte','🏢 Tutte le sedi']].map(([id,lbl]) => (
+              <button key={id} onClick={()=>setScopeSede(id)}
+                style={{ padding:'4px 10px', borderRadius: 999, border: `1px solid ${C.border}`,
+                  background: scopeSede===id ? C.text : C.white, color: scopeSede===id ? C.white : C.textMid,
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{lbl}</button>
+            ))}
+          </div>
+        )}
         {loading ? <div style={{ color:C.textSoft, fontSize:13, padding:20 }}>Caricamento…</div> : lista.length === 0 ? (
           <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun fornitore ancora.</div>
         ) : isMobile ? lista.map(f => (
           <div key={f.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{f.nome}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+              <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{f.nome}</div>
+              {haPiuSedi && (
+                <div style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,
+                  background: f.sede_id ? C.amberLight : '#F1F5F9',
+                  color: f.sede_id ? '#92400E' : C.textSoft, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  {f.sede_id ? `📍 ${sediMap[f.sede_id]?.nome || 'Sede'}` : '🏢 Azienda'}
+                </div>
+              )}
+            </div>
             {f.contatto && <div style={{ fontSize:12, color:C.textMid, marginTop:4 }}>👤 {f.contatto}</div>}
             {f.email && <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>✉️ <a href={`mailto:${f.email}`} style={{ color:C.red }}>{f.email}</a></div>}
             {f.telefono && <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>📞 <a href={`tel:${f.telefono}`} style={{ color:C.red }}>{f.telefono}</a></div>}
@@ -131,7 +170,16 @@ function FornitoriTab({ orgId, notify, isMobile }) {
           <div key={f.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
               <div>
-                <div style={{ fontWeight:800, fontSize:13, color:C.text }}>{f.nome}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontWeight:800, fontSize:13, color:C.text }}>{f.nome}</div>
+                  {haPiuSedi && (
+                    <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,
+                      background: f.sede_id ? C.amberLight : '#F1F5F9',
+                      color: f.sede_id ? '#92400E' : C.textSoft, fontWeight: 700 }}>
+                      {f.sede_id ? `📍 ${sediMap[f.sede_id]?.nome || 'Sede'}` : '🏢 Azienda'}
+                    </span>
+                  )}
+                </div>
                 {f.contatto && <div style={{ fontSize:11, color:C.textMid, marginTop:2 }}>👤 {f.contatto}</div>}
                 {f.email && <div style={{ fontSize:11, color:C.textMid }}><a href={`mailto:${f.email}`} style={{ color:C.red }}>{f.email}</a></div>}
                 {f.telefono && <div style={{ fontSize:11, color:C.textMid }}>📞 {f.telefono}</div>}
@@ -460,7 +508,7 @@ function SpesaTab({ orgId, isMobile }) {
   )
 }
 
-export default function Fornitori({ orgId, notify }) {
+export default function Fornitori({ orgId, sedeId, sedi = [], notify }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState("fornitori")
   const TABS = [["fornitori","Fornitori"],["ordini","Ordini"],["spesa","Spesa"]]
@@ -487,8 +535,8 @@ export default function Fornitori({ orgId, notify }) {
         ))}
       </div>
 
-      {tab === "fornitori" && <FornitoriTab orgId={orgId} notify={notify} isMobile={isMobile}/>}
-      {tab === "ordini"    && <OrdiniTab    orgId={orgId} notify={notify} isMobile={isMobile}/>}
+      {tab === "fornitori" && <FornitoriTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
+      {tab === "ordini"    && <OrdiniTab    orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
       {tab === "spesa"     && <SpesaTab     orgId={orgId} isMobile={isMobile}/>}
     </div>
   )
