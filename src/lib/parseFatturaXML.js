@@ -11,24 +11,52 @@ async function loadXLSX() {
   })
 }
 
+// Parse a cell into ISO date string (YYYY-MM-DD). Uses LOCAL date components
+// so a date authored in Italy doesn't shift backwards via UTC conversion.
 function parseExcelDate(val, XLSX) {
   if (val === null || val === undefined || val === '') return null
-  if (val instanceof Date) return val.toISOString().slice(0, 10)
-  if (typeof val === 'number') {
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return null
+    const y = val.getFullYear()
+    const m = String(val.getMonth() + 1).padStart(2, '0')
+    const d = String(val.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  if (typeof val === 'number' && Number.isFinite(val)) {
     try {
-      const d = XLSX.SSF.parse_date_code(val)
+      const d = XLSX?.SSF?.parse_date_code(val)
       if (d) return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`
-    } catch { return null }
+    } catch { /* fall through */ }
+    return null
   }
   const s = String(val).trim()
-  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (m1) return `${m1[3]}-${m1[2].padStart(2, '0')}-${m1[1].padStart(2, '0')}`
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  if (!s) return null
+  const it = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (it) return `${it[3]}-${it[2].padStart(2, '0')}-${it[1].padStart(2, '0')}`
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
   return null
 }
 
+// Italian number parser: handles "1.234,56" → 1234.56, "1234.56" → 1234.56,
+// numbers, empties, and bad input. Always returns a finite number (0 if invalid).
+function parseItalianNumber(val) {
+  if (val === null || val === undefined || val === '') return 0
+  if (typeof val === 'number') return Number.isFinite(val) ? Math.round(val * 100) / 100 : 0
+  const s = String(val).trim()
+  if (!s) return 0
+  // If the string has both "." and "," assume dots are thousands separators.
+  // If only ",", treat it as decimal separator.
+  let cleaned
+  if (s.includes(',') && s.includes('.')) cleaned = s.replace(/\./g, '').replace(',', '.')
+  else if (s.includes(',')) cleaned = s.replace(',', '.')
+  else cleaned = s
+  cleaned = cleaned.replace(/[^\d.\-]/g, '')
+  const n = parseFloat(cleaned)
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0
+}
+
 function normalizeStato(v) {
-  const s = String(v || '').toLowerCase().trim()
+  const s = String(v ?? '').toLowerCase().trim()
   if ((s.includes('pagat') || s.includes('saldat')) && !s.includes('da')) return 'pagata'
   return 'da_pagare'
 }
@@ -109,79 +137,78 @@ export function parseFatturaXML(xmlString) {
   return fatture
 }
 
-// Parse TeamSystem FatturaSMART Excel export
-// Columns: Numero, Suffisso, Anno, Data, Numero Rif., Data Rif., Tipo Documento,
-//          Fornitore, CF, PIVA, Imponibile, Cassa Previdenza, Imposta,
-//          Totale, Ritenuta, Netto a pagare, Stato
+// Parse TeamSystem FatturaSMART Excel export — fixed positional column layout.
+// File structure (per FatturaSMART export):
+//   Rows 0-2 : 3 rows of titles / metadata ("Elenco documenti…")
+//   Row  3   : header row (column titles)
+//   Rows 4+  : invoice data
+//
+// Column indices (0-based):
+//    0 Numero       1 Suffisso     2 Anno         3 Data (date)
+//    4 Numero Rif.  5 Data Rif.    6 Tipo Doc.    7 Fornitore
+//    8 CF           9 P.IVA       10 Imponibile  11 Tipo cassa prev.
+//   12 Cassa prev. 13 Imposta     14 Art. 15      15 Bollo
+//   16 Totale      17 Ritenuta    18 Netto       19 Note     20 Stato
+const DATA_START_ROW = 4
+const COL = {
+  data:        3,
+  numero_rif:  4,
+  data_rif:    5,
+  fornitore:   7,
+  imponibile: 10,
+  imposta:    13,
+  totale:     16,
+  stato:      20,
+}
+
 export async function parseFatturaSMART(file) {
-  const XLSX = await loadXLSX()
-  const ab = await file.arrayBuffer()
-  const wb = XLSX.read(ab, { type: 'array', cellDates: false })
+  let XLSX
+  try { XLSX = await loadXLSX() }
+  catch { throw new Error('Impossibile caricare il parser Excel (rete bloccata?). Riprova.') }
+
+  let ab
+  try { ab = await file.arrayBuffer() }
+  catch { throw new Error('File illeggibile: ' + (file?.name || 'sconosciuto')) }
+
+  let wb
+  try { wb = XLSX.read(ab, { type: 'array', cellDates: true }) }
+  catch (e) { throw new Error('Formato Excel non valido: ' + (e?.message || 'parsing fallito')) }
+
   const ws = wb.Sheets[wb.SheetNames[0]]
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+  if (!ws) throw new Error('Il file non contiene fogli leggibili.')
 
-  // Find header row by looking for "Fornitore" column
-  let headerIdx = -1
-  for (let i = 0; i < Math.min(rows.length, 20); i++) {
-    if (rows[i].some(c => String(c).trim() === 'Fornitore')) { headerIdx = i; break }
-  }
-  if (headerIdx === -1) {
-    throw new Error('Intestazione "Fornitore" non trovata — esporta da TeamSystem: Contabilità › Fatture passive › Esporta Excel')
-  }
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: false })
 
-  const headers = rows[headerIdx].map(h => String(h).trim())
-  const idx = {}
-  headers.forEach((h, i) => { idx[h] = i })
-
-  const col = (row, ...names) => {
-    for (const n of names) {
-      if (idx[n] !== undefined) return String(row[idx[n]] ?? '').trim()
-    }
-    return ''
+  if (rows.length <= DATA_START_ROW) {
+    // File has no data rows — empty export
+    return []
   }
-  const num = (v) => parseFloat(String(v).replace(',', '.')) || 0
 
   const fatture = []
-  for (let i = headerIdx + 1; i < rows.length; i++) {
+  for (let i = DATA_START_ROW; i < rows.length; i++) {
     const row = rows[i]
-    const fornitore = col(row, 'Fornitore')
+    if (!row || !Array.isArray(row)) continue
+
+    // Skip rows without a supplier (col 7) — these are blank/footer rows
+    const rawFornitore = row[COL.fornitore]
+    if (rawFornitore === null || rawFornitore === undefined) continue
+    const fornitore = String(rawFornitore).trim()
     if (!fornitore) continue
 
-    const numRif = col(row, 'Numero Rif.', 'Numero Rif')
-    const numBase = col(row, 'Numero')
-    const suf = col(row, 'Suffisso')
-    const numero_rif = numRif || (numBase ? `${numBase}${suf ? '/' + suf : ''}` : '')
+    const numero_rif = row[COL.numero_rif] !== null && row[COL.numero_rif] !== undefined
+      ? String(row[COL.numero_rif]).trim()
+      : ''
 
-    const totale = num(col(row, 'Totale'))
-    const imponibile = num(col(row, 'Imponibile'))
-    const imposta = num(col(row, 'Imposta'))
-    const ritenuta = num(col(row, 'Ritenuta'))
-    const netto_pagare = num(col(row, 'Netto a pagare'))
-    const cassa_prev = num(col(row, 'Cassa Previdenza'))
-    const piva = col(row, 'PIVA', 'P.IVA', 'Partita IVA')
-    const cf = col(row, 'CF', 'Codice Fiscale')
-    const tipo = col(row, 'Tipo Documento')
-
-    if (totale === 0 && !fornitore) continue
-
-    const entry = {
+    fatture.push({
       numero_rif,
-      data_fattura: parseExcelDate(row[idx['Data']], XLSX),
-      data_rif: parseExcelDate(row[idx['Data Rif.']] ?? row[idx['Data Rif']], XLSX),
+      data_fattura: parseExcelDate(row[COL.data], XLSX),
+      data_rif:     parseExcelDate(row[COL.data_rif], XLSX),
       fornitore,
-      piva,
-      cf,
-      tipo_documento: tipo,
-      imponibile,
-      imposta,
-      totale,
-      stato: normalizeStato(col(row, 'Stato')),
-    }
-    if (ritenuta) entry.ritenuta = ritenuta
-    if (netto_pagare) entry.netto_pagare = netto_pagare
-    if (cassa_prev) entry.cassa_previdenza = cassa_prev
-
-    fatture.push(entry)
+      imponibile:   parseItalianNumber(row[COL.imponibile]),
+      imposta:      parseItalianNumber(row[COL.imposta]),
+      totale:       parseItalianNumber(row[COL.totale]),
+      stato:        normalizeStato(row[COL.stato]),
+    })
   }
   return fatture
 }
