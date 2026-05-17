@@ -4,7 +4,7 @@ import jsPDF from 'jspdf'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
          Cell, PieChart, Pie, Legend, ReferenceLine, LineChart, Line,
          AreaChart, Area } from 'recharts'
-import { sload as _sload, ssave as _ssave } from './lib/storage'
+import { sload as _sload, ssave as _ssave, isSharedKey } from './lib/storage'
 import { supabase } from './lib/supabase'
 import SedeSelector from './components/SedeSelector'
 import Scadenzario from './components/Scadenzario'
@@ -45,19 +45,23 @@ import AIAssistant from './components/AIAssistant'
 let _ctx_orgId = null;
 let _ctx_sedeId = null;
 // Backup localStorage di TUTTI i ssave. Recovery se Supabase ritorna vuoto al login.
-// Chiavi indicizzate solo per orgId (ignorando sedeId): in emergenza ripristiniamo
-// quello che c'era; la sede corretta verrà riapplicata dal ssave durante il restore.
-function _bkKey(orgId, key) { return `foodios_bk_${orgId}_${key}`; }
-function bkWriteLS(key, val, orgId) {
-  if (!orgId) return;
-  try { localStorage.setItem(_bkKey(orgId, key), JSON.stringify({ v: val, t: Date.now() })); } catch {}
+// Le chiavi shared sono indicizzate solo per orgId; quelle per-sede includono
+// anche sedeId per evitare che switchare sede sovrascriva i backup dell'altra.
+function _bkKey(orgId, sedeId, key) {
+  return isSharedKey(key)
+    ? `foodios_bk_${orgId}_${key}`
+    : `foodios_bk_${orgId}_${sedeId || 'null'}_${key}`;
 }
-function bkReadLS(key, orgId) {
+function bkWriteLS(key, val, orgId, sedeId) {
+  if (!orgId) return;
+  try { localStorage.setItem(_bkKey(orgId, sedeId, key), JSON.stringify({ v: val, t: Date.now() })); } catch {}
+}
+function bkReadLS(key, orgId, sedeId) {
   if (!orgId) return null;
-  try { const raw = localStorage.getItem(_bkKey(orgId, key)); if (!raw) return null; const o = JSON.parse(raw); return o?.v ?? null; } catch { return null; }
+  try { const raw = localStorage.getItem(_bkKey(orgId, sedeId, key)); if (!raw) return null; const o = JSON.parse(raw); return o?.v ?? null; } catch { return null; }
 }
 function ssave(key, val) {
-  bkWriteLS(key, val, _ctx_orgId);
+  bkWriteLS(key, val, _ctx_orgId, _ctx_sedeId);
   return _ssave(key, val, _ctx_orgId, _ctx_sedeId);
 }
 function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
@@ -1116,21 +1120,20 @@ function SH({children,sub}) {
 
 function KPI({label,value,sub,color,highlight,icon}) {
   return (
-    <div style={{background:highlight?T.brand:T.bgCard,
-      border:`1px solid ${highlight?T.brandDark:T.border}`,borderRadius:R.xl,
-      padding:"16px 18px",
-      boxShadow:highlight?"0 4px 14px rgba(192,57,43,0.22)":S.sm,
-      backgroundImage:highlight?"linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)":undefined}}>
-      <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
-        color:highlight?"rgba(255,255,255,0.7)":T.textSoft,marginBottom:6}}>
-        {icon&&<span style={{marginRight:5}}>{icon}</span>}{label}
+    <div style={{background:highlight?"linear-gradient(135deg, #C0392B 0%, #8B1F12 100%)":T.bgCard,
+      border:`1px solid ${highlight?"#8B1F12":T.border}`,borderRadius:14,
+      padding:"20px 22px",
+      boxShadow:highlight?"0 12px 28px rgba(192,57,43,0.34), inset 0 1px 0 rgba(255,255,255,0.18)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 12px rgba(15,23,42,0.04)"}}>
+      <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
+        color:highlight?"rgba(255,255,255,0.76)":T.textSoft,marginBottom:10}}>
+        {icon&&<span style={{marginRight:6}}>{icon}</span>}{label}
       </div>
-      <div style={{fontSize:22,fontWeight:700,color:highlight?T.textOnDark:color||T.text,
-        letterSpacing:"-0.02em",lineHeight:1.1,
+      <div style={{fontSize:30,fontWeight:700,color:highlight?T.textOnDark:color||T.text,
+        letterSpacing:"-0.03em",lineHeight:1.05,
         fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>
         {value}
       </div>
-      {sub && <div style={{fontSize:11,color:highlight?"rgba(255,255,255,0.62)":T.textSoft,marginTop:5,letterSpacing:"-0.005em"}}>{sub}</div>}
+      {sub && <div style={{fontSize:12,color:highlight?"rgba(255,255,255,0.7)":T.textSoft,marginTop:7,letterSpacing:"-0.005em",fontWeight:500}}>{sub}</div>}
     </div>
   );
 }
@@ -1138,11 +1141,11 @@ function KPI({label,value,sub,color,highlight,icon}) {
 // ─── PAGE HEADER ──────────────────────────────────────────────────────────────
 function PageHeader({breadcrumb, title, subtitle, action}) {
   return (
-    <div style={{marginBottom:24}}>
-      <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+    <div style={{marginBottom:32}}>
+      <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
         <div style={{minWidth:0,flex:1}}>
-          <h1 style={{margin:"0 0 4px",fontSize:26,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15}}>{title}</h1>
-          {subtitle && <div style={{fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.45}}>{subtitle}</div>}
+          <h1 style={{margin:"0 0 6px",fontSize:34,fontWeight:700,color:T.text,letterSpacing:"-0.035em",lineHeight:1.1}}>{title}</h1>
+          {subtitle && <div style={{fontSize:14,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>{subtitle}</div>}
         </div>
         {action}
       </div>
@@ -7288,39 +7291,39 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
     const isAlert = !!alert;
     return (
       <div onClick={onClick}
-        style={{background:T.bgCard, border:`1px solid ${isAlert?'rgba(192,57,43,0.22)':T.border}`,
-          borderRadius:R.xl, padding:isMobile?"14px 14px 14px 16px":"18px 20px 18px 22px",
-          boxShadow:isAlert?"0 1px 2px rgba(192,57,43,0.08), 0 1px 3px rgba(15,23,42,0.04)":S.sm,
+        style={{background:T.bgCard, border:`1px solid ${isAlert?'rgba(192,57,43,0.28)':T.border}`,
+          borderRadius:14, padding:isMobile?"18px 18px 18px 20px":"22px 24px 22px 26px",
+          boxShadow:isAlert?"0 4px 14px rgba(192,57,43,0.14), 0 1px 3px rgba(15,23,42,0.05)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.05)",
           cursor:"pointer", position:"relative", overflow:"hidden",
           transition:`box-shadow ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`}}
-        onMouseEnter={e=>{e.currentTarget.style.boxShadow=S.md;e.currentTarget.style.borderColor=isAlert?'rgba(192,57,43,0.42)':T.borderStr;e.currentTarget.style.transform="translateY(-1px)";}}
-        onMouseLeave={e=>{e.currentTarget.style.boxShadow=isAlert?"0 1px 2px rgba(192,57,43,0.08), 0 1px 3px rgba(15,23,42,0.04)":S.sm;e.currentTarget.style.borderColor=isAlert?'rgba(192,57,43,0.22)':T.border;e.currentTarget.style.transform="translateY(0)";}}>
-        {accent && <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:accent,borderRadius:"3px 0 0 3px"}}/>}
-        <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
-          color:T.textSoft,marginBottom:isMobile?8:10}}>
+        onMouseEnter={e=>{e.currentTarget.style.boxShadow=isAlert?"0 12px 28px rgba(192,57,43,0.22)":"0 12px 28px rgba(15,23,42,0.10)";e.currentTarget.style.borderColor=isAlert?'rgba(192,57,43,0.52)':T.borderStr;e.currentTarget.style.transform="translateY(-2px)";}}
+        onMouseLeave={e=>{e.currentTarget.style.boxShadow=isAlert?"0 4px 14px rgba(192,57,43,0.14), 0 1px 3px rgba(15,23,42,0.05)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.05)";e.currentTarget.style.borderColor=isAlert?'rgba(192,57,43,0.28)':T.border;e.currentTarget.style.transform="translateY(0)";}}>
+        {accent && <div style={{position:"absolute",left:0,top:0,bottom:0,width:4,background:accent,borderRadius:"4px 0 0 4px"}}/>}
+        <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
+          color:T.textSoft,marginBottom:isMobile?10:12}}>
           {label}
         </div>
-        <div style={{fontSize:isMobile?(mini?20:24):(mini?22:28),fontWeight:700,
-          color:empty?T.textFaint:(valueColor||T.text),lineHeight:1.05,letterSpacing:"-0.02em",
+        <div style={{fontSize:isMobile?(mini?24:30):(mini?28:38),fontWeight:700,
+          color:empty?T.textFaint:(valueColor||T.text),lineHeight:1.0,letterSpacing:"-0.035em",
           ...tnum}}>
           {empty?'—':value}
         </div>
-        <div style={{fontSize:12,color:T.textSoft,marginTop:isMobile?6:8,fontWeight:500,letterSpacing:"-0.005em"}}>{sub}</div>
+        <div style={{fontSize:13,color:T.textSoft,marginTop:isMobile?8:10,fontWeight:500,letterSpacing:"-0.005em"}}>{sub}</div>
       </div>
     );
   };
 
   return (
-    <div style={{maxWidth:960,margin:"0 auto"}}>
+    <div style={{maxWidth:1040,margin:"0 auto"}}>
 
       {/* Header */}
-      <div style={{marginBottom:isMobile?20:32}}>
-        <div style={{fontSize:12,color:T.textSoft,textTransform:"capitalize",fontWeight:500,
-          letterSpacing:"-0.005em",marginBottom:6}}>
+      <div style={{marginBottom:isMobile?28:40}}>
+        <div style={{fontSize:13,color:T.textSoft,textTransform:"capitalize",fontWeight:500,
+          letterSpacing:"-0.005em",marginBottom:8}}>
           {giornoLabel}
         </div>
-        <h1 style={{margin:0,fontSize:isMobile?22:28,fontWeight:700,color:T.text,
-          letterSpacing:"-0.025em",lineHeight:1.15}}>
+        <h1 style={{margin:0,fontSize:isMobile?30:44,fontWeight:700,color:T.text,
+          letterSpacing:"-0.035em",lineHeight:1.05}}>
           {saluto}{nomeSaluto}
         </h1>
       </div>
@@ -8335,23 +8338,24 @@ export default function Dashboard({
           const active = view === id;
           return (
             <button key={id} onClick={()=>{setView(id);if(isMobile)setSidebarOpen(false);}}
-              style={{width:"calc(100% - 16px)",padding:"9px 12px",margin:"0 8px 1px",
-                borderRadius:8,
+              style={{width:"calc(100% - 16px)",padding:"11px 14px",margin:"0 8px 3px",
+                borderRadius:10,
                 border:"none",cursor:"pointer",textAlign:"left",
-                background:active?"rgba(192,57,43,0.18)":"transparent",
-                color:active?"#FFFFFF":"rgba(255,255,255,0.70)",
-                fontWeight:active?600:500,fontSize:13,
+                background:active?"linear-gradient(135deg, #C0392B 0%, #8B1F12 100%)":"transparent",
+                color:active?"#FFFFFF":"rgba(255,255,255,0.74)",
+                fontWeight:active?600:500,fontSize:14,
                 letterSpacing:"-0.005em",
-                display:"flex",alignItems:"center",gap:11,
+                display:"flex",alignItems:"center",gap:12,
                 position:"relative",
-                transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}`}}
-              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.055)";e.currentTarget.style.color="rgba(255,255,255,0.96)";}}}
-              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.70)";}}}
+                boxShadow:active?"0 4px 12px rgba(192,57,43,0.34), inset 0 1px 0 rgba(255,255,255,0.12)":"none",
+                transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, box-shadow ${M.durBase} ${M.ease}`}}
+              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.07)";e.currentTarget.style.color="#FFFFFF";}}}
+              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.74)";}}}
             >
-              <span style={{color:active?"#E84B3A":"rgba(255,255,255,0.78)",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey])}</span>
+              <span style={{color:active?"#FFFFFF":"rgba(255,255,255,0.82)",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey],17)}</span>
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
-              {badge>0&&<span style={{background:active?"rgba(255,255,255,0.22)":"#C0392B",color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"2px 7px",minWidth:18,textAlign:"center",letterSpacing:0}}>{badge}</span>}
-              {alert&&badge===0&&<span style={{width:7,height:7,borderRadius:"50%",background:"#E84B3A",flexShrink:0,animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
+              {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#C0392B",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
+              {alert&&badge===0&&<span style={{width:8,height:8,borderRadius:"50%",background:"#E84B3A",flexShrink:0,boxShadow:"0 0 0 0 rgba(232,75,58,0.6)",animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
             </button>
           );
         };
@@ -8384,15 +8388,18 @@ export default function Dashboard({
             transform:isMobile&&!sidebarOpen?"translateX(-100%)":"translateX(0)",
             transition:`transform ${M.durSlow} ${M.ease}`,
             boxShadow:isMobile&&sidebarOpen?S.drawer:"none",
-            backgroundImage:"linear-gradient(180deg, rgba(255,255,255,0.022) 0%, transparent 40%)"}}>
+            backgroundImage:"radial-gradient(circle at 100% 0%, rgba(192,57,43,0.10) 0%, transparent 36%), linear-gradient(180deg, rgba(255,255,255,0.025) 0%, transparent 38%)"}}>
+
+            {/* Brand accent strip */}
+            <div style={{height:3, background:"linear-gradient(90deg, #C0392B 0%, #E84B3A 50%, #C0392B 100%)", flexShrink:0}}/>
 
             {/* Logo */}
-            <div style={{padding:"18px 18px 14px",borderBottom:`1px solid ${T.borderOnDark}`}}>
-              <div style={{display:"flex",alignItems:"center",gap:11}}>
-                <Logo size={32} style={{borderRadius:R.md,boxShadow:S.brandSoft}}/>
+            <div style={{padding:"22px 20px 18px",borderBottom:`1px solid ${T.borderOnDark}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <Logo size={38} style={{borderRadius:10,boxShadow:"0 8px 22px rgba(192,57,43,0.42)"}}/>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:15,fontWeight:600,color:T.textOnDark,letterSpacing:"-0.01em",lineHeight:1.15}}>FoodOS</div>
-                  <div style={{fontSize:11,color:T.textOnDarkSoft,fontWeight:400,marginTop:1,
+                  <div style={{fontSize:17,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",lineHeight:1.1}}>FoodOS</div>
+                  <div style={{fontSize:12,color:T.textOnDarkSoft,fontWeight:400,marginTop:2,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.005em"}}>
                     {nomeAttivita || "La mia attività"}
                   </div>
