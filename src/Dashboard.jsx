@@ -2417,7 +2417,19 @@ function PLView({ricettario, onUpdateRegola}) {
     };
   }).sort((a,b)=>b.margPct-a.margPct);
 
-  if (!rows.length) return <div style={{padding:60,textAlign:"center",color:C.textSoft}}>Carica il ricettario per vedere il P&L.</div>;
+  if (!rows.length) return (
+    <div style={{maxWidth:480,margin:"60px auto",textAlign:"center",padding:"32px 24px",
+      background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.xl,boxShadow:S.sm}}>
+      <div style={{width:48,height:48,borderRadius:R.md,background:T.bgSubtle,
+        display:"inline-flex",alignItems:"center",justifyContent:"center",color:T.textSoft,marginBottom:14}}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+      </div>
+      <div style={{fontSize:15,fontWeight:600,color:T.text,marginBottom:6,letterSpacing:"-0.01em"}}>Nessun dato P&amp;L</div>
+      <div style={{fontSize:13,color:T.textSoft,lineHeight:1.5}}>Carica il ricettario per vedere ricavi, food cost e margine per ogni prodotto.</div>
+    </div>
+  );
 
   const totRicavo  = rows.reduce((s,r)=>s+r.ricavo,0);
   const totFC      = rows.reduce((s,r)=>s+r.fc,0);
@@ -2466,12 +2478,19 @@ function PLView({ricettario, onUpdateRegola}) {
     <div style={{maxWidth:1200}}>
 
       <PageHeader
-        breadcrumb="Dashboard › P&L"
         title="Profit & Loss"
         subtitle={`${rows.length} prodotti · food cost medio ${pct(fcAvg)} · margine medio ${pct(avgMarg)}`}
         action={
           <button onClick={()=>exportPLMensile({ricavi:rows.map(r=>({categoria:r.nome,quantita:r.reg.unita,ricavo:r.ricavo})),costi:rows.map(r=>({categoria:r.nome,costo:r.fc,perc:r.fcPct}))},null,null,null)}
-            style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.border}`,background:C.bgCard,fontSize:12,fontWeight:600,color:C.textMid,cursor:"pointer"}}>
+            style={{padding:"10px 16px",borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,
+              fontSize:13,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",
+              display:"inline-flex",alignItems:"center",gap:6,boxShadow:S.sm,
+              transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}
+            onMouseEnter={e=>{e.currentTarget.style.background=T.bgSubtle;e.currentTarget.style.color=T.text;}}
+            onMouseLeave={e=>{e.currentTarget.style.background=T.bgCard;e.currentTarget.style.color=T.textMid;}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
             Esporta PDF
           </button>
         }
@@ -2480,22 +2499,26 @@ function PLView({ricettario, onUpdateRegola}) {
       {/* ── KPI STRIP ───────────────────────────────────────────────────── */}
       <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(6,1fr)",gap:10,marginBottom:36}}>
         {[
-          {ico:"📦",lbl:"Prodotti",val:rows.length,sub:"nel listino",hi:true},
-          {ico:"💰",lbl:"Ricavo/stampo",val:euro(totRicavo),sub:"somma tutti i prodotti",color:C.green},
-          {ico:"🔴",lbl:"Food cost tot.",val:euro(totFC),sub:`FC ratio ${pct(fcAvg)}`,color:C.red},
-          {ico:"✅",lbl:"Margine lordo",val:euro(totMargine),sub:`${pct(avgMarg)} medio`,color:margColor(avgMarg)},
-          {ico:"🏆",lbl:"Miglior margine",val:best.short,sub:pct(best.margPct),color:C.green},
-          {ico:"⚠️",lbl:"Da ottimizzare",val:worst.short,sub:pct(worst.margPct),color:C.red},
-        ].map(({ico,lbl,val,sub,hi,color},i)=>(
-          <div key={i} style={{background:hi?C.red:C.bgCard,border:`1px solid ${hi?C.redDark:C.border}`,
-            borderRadius:10,padding:"14px 16px",boxShadow:hi?"0 2px 8px rgba(192,57,43,0.2)":"0 1px 3px rgba(0,0,0,0.04)"}}>
-            <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",
-              color:hi?"rgba(255,255,255,0.55)":C.textSoft,marginBottom:4}}>
-              {ico} <Tip text={({"Prodotti":"Numero di prodotti attivi nel ricettario, esclusi quelli ad uso interno come creme base.","Ricavo/stampo":"Somma dei ricavi potenziali per stampo di tutti i prodotti. Massimo incassabile se ogni stampo viene venduto completamente.","Food cost tot.":"Somma del food cost di tutti i prodotti per stampo. Il rapporto FC/Ricavo indica quanto del fatturato va in ingredienti.","Margine lordo":"Ricavo − Food cost totale. Margine prima di costi fissi (affitto, utilities) e costo del lavoro.","Miglior margine":"Il prodotto con la percentuale di margine più alta — il più redditizio per ogni € di ricavo.","Da ottimizzare":"Il prodotto con la percentuale di margine più bassa. Valuta se aumentare il prezzo o ridurre il food cost."})[lbl]} width={260}><span style={{cursor:"help",borderBottom:"1px dashed currentColor",borderBottomColor:hi?"rgba(255,255,255,0.3)":"rgba(155,120,115,0.5)"}}>{lbl}</span></Tip>
+          {lbl:"Prodotti",val:rows.length,sub:"nel listino",hi:true},
+          {lbl:"Ricavo/stampo",val:euro(totRicavo),sub:"somma tutti i prodotti",color:T.green},
+          {lbl:"Food cost tot.",val:euro(totFC),sub:`FC ratio ${pct(fcAvg)}`,color:T.brand},
+          {lbl:"Margine lordo",val:euro(totMargine),sub:`${pct(avgMarg)} medio`,color:margColor(avgMarg)},
+          {lbl:"Miglior margine",val:best.short,sub:pct(best.margPct),color:T.green},
+          {lbl:"Da ottimizzare",val:worst.short,sub:pct(worst.margPct),color:T.brand},
+        ].map(({lbl,val,sub,hi,color},i)=>(
+          <div key={i} style={{background:hi?T.brand:T.bgCard,
+            border:`1px solid ${hi?T.brandDark:T.border}`,borderRadius:R.xl,
+            padding:"14px 16px",
+            boxShadow:hi?"0 4px 14px rgba(192,57,43,0.22)":S.sm,
+            backgroundImage:hi?"linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)":undefined}}>
+            <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
+              color:hi?"rgba(255,255,255,0.7)":T.textSoft,marginBottom:6}}>
+              <Tip text={({"Prodotti":"Numero di prodotti attivi nel ricettario, esclusi quelli ad uso interno come creme base.","Ricavo/stampo":"Somma dei ricavi potenziali per stampo di tutti i prodotti. Massimo incassabile se ogni stampo viene venduto completamente.","Food cost tot.":"Somma del food cost di tutti i prodotti per stampo. Il rapporto FC/Ricavo indica quanto del fatturato va in ingredienti.","Margine lordo":"Ricavo − Food cost totale. Margine prima di costi fissi (affitto, utilities) e costo del lavoro.","Miglior margine":"Il prodotto con la percentuale di margine più alta — il più redditizio per ogni € di ricavo.","Da ottimizzare":"Il prodotto con la percentuale di margine più bassa. Valuta se aumentare il prezzo o ridurre il food cost."})[lbl]} width={260}><span style={{cursor:"help",borderBottom:"1px dashed currentColor",borderBottomColor:hi?"rgba(255,255,255,0.3)":"rgba(155,120,115,0.5)"}}>{lbl}</span></Tip>
             </div>
-            <div style={{fontSize:18,fontWeight:900,fontFamily:"Georgia,serif",letterSpacing:"-0.02em",
-              color:hi?C.white:color||C.text,lineHeight:1.1}}>{val}</div>
-            <div style={{fontSize:10,color:hi?"rgba(255,255,255,0.5)":C.textSoft,marginTop:3}}>{sub}</div>
+            <div style={{fontSize:18,fontWeight:700,letterSpacing:"-0.02em",
+              color:hi?T.textOnDark:color||T.text,lineHeight:1.15,
+              fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
+            <div style={{fontSize:11,color:hi?"rgba(255,255,255,0.62)":T.textSoft,marginTop:5,letterSpacing:"-0.005em"}}>{sub}</div>
           </div>
         ))}
       </div>
@@ -2691,31 +2714,42 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
   return (
     <div style={{maxWidth:1200}}>
       <PageHeader
-        breadcrumb="Dashboard › Food Cost"
         title="Food Cost"
         subtitle={`Simulatore prezzi e proiezioni${hasStorico?" · "+String((giornaliero||[]).length)+" sessioni":"" }`}
       />
 
       {/* Controlli orizzonte + reset */}
-      <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:24,flexWrap:"wrap"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,background:C.bgCard,border:`1px solid ${C.border}`,
-          borderRadius:10,padding:"12px 18px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-          <span style={{fontSize:11,fontWeight:700,color:C.textMid}}>Orizzonte proiezione:</span>
-          {[7,14,30,60,90].map(g=>(
-            <button key={g} onClick={()=>setOrizzonteGiorni(g)}
-              style={{padding:"5px 12px",borderRadius:6,border:`1px solid ${orizzonteGiorni===g?C.red:C.border}`,
-                background:orizzonteGiorni===g?C.red:"transparent",
-                color:orizzonteGiorni===g?C.white:C.textMid,
-                fontSize:11,fontWeight:700,cursor:"pointer"}}>
-              {g}g
-            </button>
-          ))}
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,background:T.bgCard,border:`1px solid ${T.border}`,
+          borderRadius:R.xl,padding:"8px 14px",boxShadow:S.sm}}>
+          <span style={{fontSize:12,fontWeight:500,color:T.textMid,letterSpacing:"-0.005em"}}>Orizzonte</span>
+          <div style={{display:"flex",gap:2,padding:3,background:T.bgSubtle,borderRadius:R.md}}>
+            {[7,14,30,60,90].map(g=>(
+              <button key={g} onClick={()=>setOrizzonteGiorni(g)}
+                style={{padding:"5px 10px",borderRadius:R.sm,border:"none",
+                  background:orizzonteGiorni===g?T.bgCard:"transparent",
+                  color:orizzonteGiorni===g?T.text:T.textSoft,
+                  fontSize:12,fontWeight:orizzonteGiorni===g?600:500,cursor:"pointer",
+                  boxShadow:orizzonteGiorni===g?S.sm:"none",
+                  fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",
+                  transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}>
+                {g}g
+              </button>
+            ))}
+          </div>
         </div>
         {hasChanges&&(
           <button onClick={reset}
-            style={{padding:"9px 18px",borderRadius:8,border:`1px solid ${C.borderStr}`,
-              background:"transparent",fontSize:11,fontWeight:700,color:C.textMid,cursor:"pointer"}}>
-            ↺ Reset prezzi
+            style={{padding:"9px 14px",borderRadius:R.md,border:`1px solid ${T.border}`,
+              background:T.bgCard,fontSize:13,fontWeight:500,color:T.textMid,cursor:"pointer",
+              letterSpacing:"-0.005em",display:"inline-flex",alignItems:"center",gap:6,boxShadow:S.xs,
+              transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}
+            onMouseEnter={e=>{e.currentTarget.style.background=T.bgSubtle;e.currentTarget.style.color=T.text;}}
+            onMouseLeave={e=>{e.currentTarget.style.background=T.bgCard;e.currentTarget.style.color=T.textMid;}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
+            </svg>
+            Reset prezzi
           </button>
         )}
       </div>
@@ -2724,16 +2758,19 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
       {hasChanges&&(
         <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:14,marginBottom:28}}>
           {[
-            {lbl:"Ricavo/stampo base",   val:euro(totBaseRicavo),  sub:"prezzi attuali", c:C.textMid},
-            {lbl:"Ricavo/stampo scenario",val:euro(totScenRicavo), sub:`${totScenRicavo>totBaseRicavo?"+":""}${euro(totScenRicavo-totBaseRicavo)} vs base`,c:totScenRicavo>=totBaseRicavo?C.green:C.red},
-            {lbl:"Margine/stampo scenario",val:euro(totScenMarg),  sub:`${totScenMarg>totBaseMarg?"+":""}${euro(totScenMarg-totBaseMarg)} vs base`,c:totScenMarg>=totBaseMarg?C.green:C.red,hi:true},
+            {lbl:"Ricavo/stampo base",   val:euro(totBaseRicavo),  sub:"prezzi attuali", c:T.textMid},
+            {lbl:"Ricavo/stampo scenario",val:euro(totScenRicavo), sub:`${totScenRicavo>totBaseRicavo?"+":""}${euro(totScenRicavo-totBaseRicavo)} vs base`,c:totScenRicavo>=totBaseRicavo?T.green:T.red},
+            {lbl:"Margine/stampo scenario",val:euro(totScenMarg),  sub:`${totScenMarg>totBaseMarg?"+":""}${euro(totScenMarg-totBaseMarg)} vs base`,c:totScenMarg>=totBaseMarg?T.green:T.red,hi:true},
           ].map(({lbl,val,sub,c,hi})=>(
-            <div key={lbl} style={{background:hi?C.red:C.bgCard,border:`1px solid ${hi?C.redDark:C.border}`,
-              borderRadius:12,padding:"18px 20px",boxShadow:hi?"0 2px 8px rgba(192,57,43,0.18)":"0 1px 3px rgba(0,0,0,0.04)"}}>
-              <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",
-                color:hi?"rgba(255,255,255,0.55)":C.textSoft,marginBottom:4}}>{lbl}</div>
-              <div style={{fontSize:22,fontWeight:900,fontFamily:"Georgia,serif",color:hi?C.white:c}}>{val}</div>
-              <div style={{fontSize:10,color:hi?"rgba(255,255,255,0.5)":c,marginTop:3,fontWeight:600}}>{sub}</div>
+            <div key={lbl} style={{background:hi?T.brand:T.bgCard,border:`1px solid ${hi?T.brandDark:T.border}`,
+              borderRadius:R.xl,padding:"18px 20px",
+              boxShadow:hi?"0 4px 14px rgba(192,57,43,0.22)":S.sm,
+              backgroundImage:hi?"linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)":undefined}}>
+              <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.08em",
+                color:hi?"rgba(255,255,255,0.7)":T.textSoft,marginBottom:6}}>{lbl}</div>
+              <div style={{fontSize:22,fontWeight:700,color:hi?T.textOnDark:c,letterSpacing:"-0.02em",lineHeight:1.15,
+                fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
+              <div style={{fontSize:11,color:hi?"rgba(255,255,255,0.62)":c,marginTop:5,fontWeight:500,letterSpacing:"-0.005em"}}>{sub}</div>
             </div>
           ))}
         </div>
@@ -2741,24 +2778,31 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
 
       {/* Proiezione futura — solo se storico disponibile e modifiche attive */}
       {hasChanges && hasStorico && (
-        <div style={{background:"linear-gradient(135deg,#1C0A0A 0%,#2D1010 100%)",borderRadius:14,
-          padding:"24px 28px",marginBottom:28,boxShadow:"0 4px 20px rgba(0,0,0,0.15)"}}>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.14em",textTransform:"uppercase",
-            color:"rgba(255,160,120,0.7)",marginBottom:4}}>📈 Proiezione a {orizzonteGiorni} giorni</div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",marginBottom:20}}>
+        <div style={{background:T.bgSide,backgroundImage:"linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 50%)",
+          border:`1px solid ${T.borderOnDark}`,borderRadius:R.xl,
+          padding:isMobile?"20px 22px":"24px 28px",marginBottom:28,boxShadow:S.lg}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E84B3A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+            </svg>
+            <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",
+              color:"#E84B3A"}}>Proiezione a {orizzonteGiorni} giorni</div>
+          </div>
+          <div style={{fontSize:12,color:T.textOnDarkSoft,marginBottom:22,letterSpacing:"-0.005em"}}>
             Basata sulla media stampi prodotti per sessione dallo storico
           </div>
           <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:20}}>
             {[
-              {lbl:"Margine atteso (prezzi base)",   val:euro(totProiBase), c:"rgba(255,255,255,0.5)"},
-              {lbl:"Margine atteso (scenario)",       val:euro(totProiScen), c:totProiScen>=totProiBase?"#7EE8A2":"#FF8080"},
+              {lbl:"Margine atteso (prezzi base)",   val:euro(totProiBase), c:"rgba(255,255,255,0.62)"},
+              {lbl:"Margine atteso (scenario)",       val:euro(totProiScen), c:totProiScen>=totProiBase?"#34D399":"#FB7185"},
               {lbl:"Differenza margine nel periodo", val:(totProiDiff>0?"+":"")+euro(totProiDiff),
-                c:totProiDiff>0?"#7EE8A2":"#FF8080",big:true},
+                c:totProiDiff>0?"#34D399":"#FB7185",big:true},
             ].map(({lbl,val,c,big})=>(
               <div key={lbl}>
-                <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",
-                  color:"rgba(255,255,255,0.35)",marginBottom:6}}>{lbl}</div>
-                <div style={{fontSize:big?28:20,fontWeight:900,fontFamily:"Georgia,serif",color:c,lineHeight:1}}>{val}</div>
+                <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.08em",
+                  color:"rgba(255,255,255,0.42)",marginBottom:6}}>{lbl}</div>
+                <div style={{fontSize:big?28:20,fontWeight:700,color:c,lineHeight:1.1,letterSpacing:"-0.02em",
+                  fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
               </div>
             ))}
           </div>
