@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
+import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const C = {
-  bg:"#F8FAFC", bgCard:"#FFF", red:"#C0392B", redLight:"#FEF2F2",
-  green:"#16A34A", greenLight:"#F0FDF4", amber:"#D97706", amberLight:"#FFFBEB",
-  text:"#0F172A", textMid:"#475569", textSoft:"#94A3B8", white:"#FFF",
-  border:"rgba(0,0,0,0.07)", borderStr:"#D1CBB8",
+  bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
+  green: T.green, greenLight: T.greenLight, amber: T.amber, amberLight: T.amberLight,
+  text: T.text, textMid: T.textMid, textSoft: T.textSoft, white: T.white,
+  border: T.border, borderStr: T.borderStr,
 }
+const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 function fmt(n) { return n==null?"—":`€${Number(n).toFixed(2)}` }
 function fmtH(h) { return `${h.toFixed(1)}h` }
@@ -144,7 +146,7 @@ function DipendentiTab({ orgId, notify, isMobile }) {
           <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "14px 20px", marginBottom:16, display: isMobile ? "grid" : "flex", gridTemplateColumns: isMobile ? "1fr 1fr" : undefined, alignItems:"center", gap: isMobile ? 8 : 20 }}>
             <div>
               <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Costo lavoro / mese</div>
-              <div style={{ fontSize: isMobile ? 18 : 24, fontWeight:900, color:C.red, fontFamily:"Georgia,serif" }}>{fmt(costoMeseTot)}</div>
+              <div style={{ fontSize: isMobile ? 18 : 24, fontWeight:900, color:C.red, ...tnum }}>{fmt(costoMeseTot)}</div>
             </div>
             <div>
               <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Dipendenti attivi</div>
@@ -303,7 +305,7 @@ function TurniTab({ orgId, notify, isMobile }) {
               </div>
               <div style={{ textAlign:"center" }}>
                 <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo lavoro</div>
-                <div style={{ fontSize:18, fontWeight:900, color:C.red, fontFamily:"Georgia,serif" }}>{fmt(totCosto)}</div>
+                <div style={{ fontSize:18, fontWeight:900, color:C.red, ...tnum }}>{fmt(totCosto)}</div>
               </div>
             </div>
             <button onClick={()=>setShowForm(s=>!s)}
@@ -322,7 +324,7 @@ function TurniTab({ orgId, notify, isMobile }) {
           </div>
           <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"10px 12px", textAlign:"center" }}>
             <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Costo</div>
-            <div style={{ fontSize:18, fontWeight:900, color:C.red, fontFamily:"Georgia,serif" }}>{fmt(totCosto)}</div>
+            <div style={{ fontSize:18, fontWeight:900, color:C.red, ...tnum }}>{fmt(totCosto)}</div>
           </div>
         </div>
       )}
@@ -500,7 +502,7 @@ function AnalisiCostoTab({ orgId, isMobile }) {
             ].map(({lbl,val,c})=>(
               <div key={lbl} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "16px 20px", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
                 <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>{lbl}</div>
-                <div style={{ fontSize: isMobile ? 17 : 22, fontWeight:900, color:c, fontFamily:"Georgia,serif" }}>{val}</div>
+                <div style={{ fontSize: isMobile ? 17 : 22, fontWeight:900, color:c, ...tnum }}>{val}</div>
               </div>
             ))}
           </div>
@@ -513,7 +515,7 @@ function AnalisiCostoTab({ orgId, isMobile }) {
                   <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{nome}</span>
                   <div style={{ display:"flex", gap:20 }}>
                     <span style={{ fontSize:11, color:C.textSoft }}>{fmtH(d.ore)}</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:C.red, fontFamily:"Georgia,serif" }}>{fmt(d.costo)}</span>
+                    <span style={{ fontSize:12, fontWeight:800, color:C.red, ...tnum }}>{fmt(d.costo)}</span>
                   </div>
                 </div>
               ))}
@@ -529,23 +531,25 @@ function AnalisiCostoTab({ orgId, isMobile }) {
 export default function Personale({ orgId, notify }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState("dipendenti")
-  const TABS = [["dipendenti","👤 Dipendenti"],["turni","📅 Turni"],["analisi","📊 Analisi costo"]]
+  const TABS = [["dipendenti","Dipendenti"],["turni","Turni"],["analisi","Analisi costo"]]
 
   return (
-    <div style={{ maxWidth:1000, padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: isMobile ? 16 : 24 }}>
-        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:C.red, marginBottom:6 }}>Risorse umane</div>
-        <h1 style={{ margin:"0 0 6px", fontSize: isMobile ? 22 : 28, fontWeight:900, color:C.text, letterSpacing:"-0.03em" }}>Personale & Costo del Lavoro</h1>
-        <p style={{ margin:0, fontSize:12, color:C.textSoft }}>Gestisci dipendenti, turni e monitora il costo del lavoro nel tempo.</p>
+    <div style={{ maxWidth:1040, margin:"0 auto", padding: isMobile ? 12 : 0 }}>
+      <div style={{ marginBottom: isMobile ? 20 : 24 }}>
+        <h1 style={{ margin:"0 0 4px", fontSize: isMobile ? 22 : 26, fontWeight:700, color:T.text, letterSpacing:"-0.025em", lineHeight:1.15 }}>Personale</h1>
+        <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Gestisci dipendenti, turni e monitora il costo del lavoro nel tempo.</p>
       </div>
 
-      <div style={{ display:"flex", gap:4, marginBottom: isMobile ? 16 : 24, borderBottom:`2px solid rgba(0,0,0,0.07)`, overflowX: isMobile ? "auto" : "visible" }}>
+      <div style={{ display:"flex", gap:2, marginBottom: isMobile ? 16 : 24, borderBottom:`1px solid ${T.border}`, overflowX: isMobile ? "auto" : "visible" }}>
         {TABS.map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{ padding: isMobile ? "10px 14px" : "8px 18px", border:"none", background:"transparent", cursor:"pointer",
-              fontSize: isMobile ? 12 : 11, fontWeight:700, color:tab===id?C.red:C.textSoft,
-              borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",
-              marginBottom:-2, transition:"all 0.12s", whiteSpace:"nowrap" }}>
+            style={{ padding:"10px 16px", border:"none", background:"transparent", cursor:"pointer",
+              fontSize:13, fontWeight:tab===id?600:500, color:tab===id?T.text:T.textSoft,
+              borderBottom:tab===id?`2px solid ${T.brand}`:"2px solid transparent",
+              marginBottom:-1, letterSpacing:"-0.005em", whiteSpace:"nowrap",
+              transition:`color ${M.durFast} ${M.ease}` }}
+            onMouseEnter={e=>{if(tab!==id)e.currentTarget.style.color=T.textMid;}}
+            onMouseLeave={e=>{if(tab!==id)e.currentTarget.style.color=T.textSoft;}}>
             {lbl}
           </button>
         ))}

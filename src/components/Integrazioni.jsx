@@ -2,15 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
 import { parseZucchettiInfinity, parseZucchettiKassa } from '../lib/importZucchetti'
+import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const C = {
-  red: '#C0392B', redLight: '#FEF2F2',
-  green: '#16A34A', greenLight: '#F0FDF4',
-  amber: '#D97706', amberLight: '#FFFBEB',
-  blue: '#2563EB', blueLight: '#EFF6FF',
-  text: '#0F172A', textMid: '#475569', textSoft: '#94A3B8',
-  border: '#E2E8F0', bg: '#F8FAFC', white: '#FFFFFF',
+  red: T.brand, redLight: T.brandLight,
+  green: T.green, greenLight: T.greenLight,
+  amber: T.amber, amberLight: T.amberLight,
+  blue: T.blue, blueLight: T.blueLight,
+  text: T.text, textMid: T.textMid, textSoft: T.textSoft,
+  border: T.border, bg: T.bg, white: T.white,
 }
+const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 const fmtTs = ts => {
   if (!ts) return '—'
@@ -330,9 +332,9 @@ export default function Integrazioni({ orgId }) {
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>Integrazioni</div>
-        <div style={{ fontSize: 13, color: C.textSoft, marginTop: 3 }}>
-          Connetti FoodOS ai tuoi software di contabilità e fatturazione
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: T.text, letterSpacing: "-0.025em", lineHeight: 1.15 }}>Integrazioni</h1>
+        <div style={{ fontSize: 13, color: T.textSoft, marginTop: 4, letterSpacing: "-0.005em" }}>
+          Connetti FoodOS ai tuoi software di contabilità e fatturazione.
         </div>
       </div>
 
