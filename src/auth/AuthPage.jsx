@@ -552,23 +552,13 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
       }}>
         <div style={{ width: '100%', maxWidth: 460 }}>
 
-          {/* Header — logo + brand + chip */}
-          <div style={{ textAlign: 'center', marginBottom: isMobile ? 28 : 36 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-              <FoodOSLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(192,57,43,0.28)' }}/>
-              <span style={{ fontFamily: SERIF, fontSize: isMobile ? 28 : 32, fontWeight: 600, color: T.ink, letterSpacing: '-0.03em' }}>FoodOS</span>
-            </div>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 7,
-              padding: '5px 12px',
-              background: T.paper, border: `1px solid ${T.border}`, borderRadius: 999,
-              fontSize: 11, fontWeight: 500, color: T.textMid,
-              boxShadow: '0 2px 6px rgba(15,9,7,0.03)',
-              letterSpacing: '0.01em',
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, boxShadow: `0 0 0 3px ${T.greenSoft}` }}/>
-              Per la ristorazione italiana
-            </div>
+          {/* Header — logo + brand */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 12, marginBottom: isMobile ? 28 : 36,
+          }}>
+            <FoodOSLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(192,57,43,0.28)' }}/>
+            <span style={{ fontFamily: SERIF, fontSize: isMobile ? 28 : 32, fontWeight: 600, color: T.ink, letterSpacing: '-0.03em' }}>FoodOS</span>
           </div>
 
           {/* Card */}
