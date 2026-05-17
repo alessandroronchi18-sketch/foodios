@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts'
+import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const C = {
-  bg:"#F8FAFC", bgCard:"#FFF", red:"#C0392B", redLight:"#FEF2F2",
-  green:"#16A34A", greenLight:"#F0FDF4", amber:"#D97706", amberLight:"#FFFBEB",
-  text:"#0F172A", textMid:"#475569", textSoft:"#94A3B8", white:"#FFF",
-  border:"rgba(0,0,0,0.07)", borderStr:"#D1CBB8",
+  bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
+  green: T.green, greenLight: T.greenLight, amber: T.amber, amberLight: T.amberLight,
+  text: T.text, textMid: T.textMid, textSoft: T.textSoft, white: T.white,
+  border: T.border, borderStr: T.borderStr,
 }
+const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 // ── Algoritmo previsione ────────────────────────────────────────────────────
 // Weighted moving average with exponential smoothing (α=0.3 for trend)
@@ -182,11 +184,17 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, ingCosti, c
   }
 
   return (
-    <div style={{ maxWidth:1000 }}>
-      <div style={{ marginBottom:24 }}>
-        <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", textTransform:"uppercase", color:C.red, marginBottom:6 }}>AI Analytics</div>
-        <h1 style={{ margin:"0 0 6px", fontSize:28, fontWeight:900, color:C.text, letterSpacing:"-0.03em" }}>Previsione Domanda</h1>
-        <p style={{ margin:0, fontSize:12, color:C.textSoft }}>Analisi dello storico di produzione con algoritmo di smoothing esponenziale doppio per prevedere la domanda futura.</p>
+    <div style={{ maxWidth:1040, margin:"0 auto" }}>
+      <div style={{ marginBottom:24, display:"flex", alignItems:"center", gap:14 }}>
+        <div style={{ width:48, height:48, borderRadius:R.lg, background:T.brandLight, display:"flex", alignItems:"center", justifyContent:"center", color:T.brand, flexShrink:0 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+          </svg>
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <h1 style={{ margin:"0 0 4px", fontSize:26, fontWeight:700, color:T.text, letterSpacing:"-0.025em", lineHeight:1.15 }}>Previsione domanda</h1>
+          <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Smoothing esponenziale doppio sulla serie storica di produzione per stimare la domanda futura.</p>
+        </div>
       </div>
 
       {/* KPI riepilogo */}
