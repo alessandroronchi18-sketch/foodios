@@ -1,5 +1,5 @@
 # FoodOS — Stato del Progetto
-> Aggiornato: 2026-05-12
+> Aggiornato: 2026-05-16
 
 ---
 
@@ -75,6 +75,31 @@ foodios/
 
 ---
 
+## 💶 Piani
+
+### Piano Pro — €89/mese
+- Sedi illimitate
+- Ricettario illimitato
+- Food cost automatico
+- AI Assistant
+- Export PDF
+- Scadenzario fatture
+- Supporto email
+
+### Piano Chain — €149/mese
+- Tutto il piano Pro
+- Utenti multipli per sede (collaboratori)
+- API access
+- White label (logo personalizzato)
+- Supporto prioritario dedicato
+- SLA garantito
+
+> Nessuna limitazione sul numero di sedi in alcun piano. La differenziazione tra Pro e Chain è su utenti multipli, integrazioni API, branding e livello di supporto.
+
+> DB: il valore della colonna `piano` è validato dal CHECK constraint `('trial','base','pro','enterprise')`. Il naming marketing "Chain" mappa internamente su `enterprise` (oppure si può aggiungere `chain` al constraint se si preferisce coerenza letterale).
+
+---
+
 ## 🗄️ Schema Database (già in produzione)
 
 ### `organizations`
@@ -83,7 +108,7 @@ foodios/
 | id | uuid | PK |
 | nome | text | Nome attività |
 | tipo | text | pasticceria / bar / ecc. |
-| piano | text | trial / base / pro / multi / chain |
+| piano | text | trial / base / pro / enterprise (vedi sezione Piani) |
 | trial_ends_at | timestamptz | Default: now + 90 giorni |
 | approvato | boolean | true = cliente pagante |
 | attivo | boolean | soft delete |
@@ -209,7 +234,7 @@ foodios/
 6. **Email transazionali** — `api/send-email.js` con Resend è scaffolded, configurare `RESEND_API_KEY` su Vercel
 7. **Approvazione admin** — il pannello admin ha già i bottoni, ma il workflow di notifica email all'admin quando si registra un nuovo utente non è completo
 8. **Dipendenti** — ruolo `dipendente` nel profilo ma nessuna UI specifica per loro
-9. **Piano multi/chain** — logica piano verificata ma nessun gate sul confronto sedi o feature premium
+9. **Piano Chain — gate feature premium** — sedi illimitate sono ora in tutti i piani. Da implementare: gate su utenti multipli, API access, white-label per il piano Chain (vedi sezione Piani)
 10. **Mobile responsive** — UI non ottimizzata per mobile
 
 ---

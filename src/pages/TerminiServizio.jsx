@@ -50,22 +50,25 @@ export default function TerminiServizio() {
             <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7B76', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piano Pro</div>
             <div style={{ fontSize: 28, fontWeight: 900, color: '#C0392B', marginBottom: 4 }}>€89<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
             <ul style={{ ...S.ul, margin: '12px 0 0', paddingLeft: 16 }}>
-              <li>1 sede</li>
+              <li>Sedi illimitate</li>
               <li>Ricettario illimitato</li>
               <li>Food cost, P&L, Magazzino</li>
               <li>Scadenzario fatture</li>
               <li>AI Assistant</li>
+              <li>Export PDF & Excel</li>
+              <li>Supporto email</li>
             </ul>
           </div>
           <div style={{ ...S.pianoCard, border: '2px solid #C0392B' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#C0392B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piano Chain</div>
             <div style={{ fontSize: 28, fontWeight: 900, color: '#C0392B', marginBottom: 4 }}>€149<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
             <ul style={{ ...S.ul, margin: '12px 0 0', paddingLeft: 16 }}>
-              <li>Sedi illimitate</li>
               <li>Tutto il piano Pro</li>
-              <li>Dashboard multi-sede</li>
-              <li>Report consolidati</li>
-              <li>Supporto prioritario</li>
+              <li>Utenti multipli per sede</li>
+              <li>API access</li>
+              <li>White-label (logo personalizzato)</li>
+              <li>Supporto prioritario dedicato</li>
+              <li>SLA garantito</li>
             </ul>
           </div>
         </div>

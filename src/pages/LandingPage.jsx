@@ -647,7 +647,7 @@ export default function LandingPage({ onLogin, onRegister }) {
     { q: 'Devo essere bravo con i computer?', a: 'No. Se sai usare WhatsApp, sai usare FoodOS. È pensato per essere usato dal titolare, non dal nipote bravo con la tecnologia. Niente formule, niente Excel da non rompere.' },
     { q: 'Posso importare il mio ricettario esistente?', a: "Sì. Carichi un file Excel o CSV e FoodOS lo converte in automatico. L'AI sa leggere anche foto di ricette scritte a mano sul quaderno e immagini delle etichette per registrare i costi automaticamente." },
     { q: 'Quanto dura la prova gratuita?', a: 'Tre mesi pieni, gratis. Senza carta di credito. Se dopo i tre mesi non ti convince, scarichi i tuoi dati e basta. Nessun addebito automatico, mai.' },
-    { q: 'Posso gestire più sedi o brand?', a: "Sì, con il piano Multi-sede gestisci fino a 5 punti vendita con dati separati e dashboard aggregata. Per catene più grandi, scrivici: c'è il piano Enterprise." },
+    { q: 'Posso gestire più sedi o brand?', a: "Sì, già nel piano Pro hai sedi illimitate con dati separati e dashboard aggregata. Il piano Chain aggiunge utenti multipli per sede, API access e white-label per chi gestisce strutture più articolate." },
     { q: 'Cosa succede ai miei dati se smetto?', a: 'Sono tuoi. Puoi esportarli in Excel/PDF in qualsiasi momento, anche durante il trial. Non li condividiamo con nessuno e non li usiamo per addestrare AI di terzi.' },
   ]
 
@@ -1155,7 +1155,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                   fontSize: 26, color: T.cream, letterSpacing: '-0.02em', marginBottom: 4,
                 }}>FoodOS Pro</div>
                 <div style={{ fontSize: 14, color: 'rgba(244,236,227,0.65)', marginBottom: 24 }}>
-                  Per una sede. Tutto incluso.
+                  Sedi illimitate. Tutto incluso.
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
@@ -1175,6 +1175,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                   gap: '12px 24px',
                 }}>
                   {[
+                    'Sedi illimitate',
                     'Ricettario illimitato',
                     'Food cost automatico',
                     'P&L mensile',
@@ -1184,7 +1185,6 @@ export default function LandingPage({ onLogin, onRegister }) {
                     'Import fatture SDI',
                     'Allergeni (Reg. UE 1169)',
                     'Export PDF & Excel',
-                    'Aggiornamenti inclusi',
                   ].map(f => (
                     <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(244,236,227,0.85)' }}>
                       <Icon name="check" size={14} color={T.red}/>{f}
@@ -1200,14 +1200,14 @@ export default function LandingPage({ onLogin, onRegister }) {
                 display: 'flex', flexDirection: 'column',
               }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 24 }}>
-                  Hai più sedi?
+                  Hai un team?
                 </div>
 
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 6 }}>
-                  FoodOS Multi-sede
+                  FoodOS Chain
                 </div>
                 <div style={{ fontSize: 14, color: T.textMid, marginBottom: 24 }}>
-                  Per chi gestisce più punti vendita.
+                  Per chi delega ai collaboratori.
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
@@ -1215,7 +1215,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                   <span style={{ fontSize: 14, color: T.textSoft }}>/ mese</span>
                 </div>
                 <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 24 }}>
-                  Fino a 5 sedi · oltre, scrivici
+                  Tutto Pro + team & integrazioni
                 </div>
 
                 <Button variant="secondary" onClick={onRegister} style={{ marginBottom: 24, justifyContent: 'center' }}>
@@ -1225,10 +1225,11 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {[
                     'Tutto di FoodOS Pro',
-                    'Fino a 5 sedi',
-                    'Dashboard aggregata',
-                    'Confronto sedi',
-                    'Supporto prioritario',
+                    'Utenti multipli per sede',
+                    'API access',
+                    'White-label (logo personalizzato)',
+                    'Supporto prioritario dedicato',
+                    'SLA garantito',
                   ].map(f => (
                     <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: T.textMid }}>
                       <Icon name="check" size={14} color={T.green}/>{f}
@@ -1239,7 +1240,7 @@ export default function LandingPage({ onLogin, onRegister }) {
             </div>
 
             <div style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: T.textSoft }}>
-              Catena con più di 5 sedi? <a href="mailto:support@foodios.it" style={{ color: T.ink, fontWeight: 600, textDecoration: 'none', borderBottom: `1px solid ${T.ink}` }}>Scrivici per il piano Enterprise →</a>
+              Esigenze custom o on-premise? <a href="mailto:support@foodios.it" style={{ color: T.ink, fontWeight: 600, textDecoration: 'none', borderBottom: `1px solid ${T.ink}` }}>Scrivici per il piano Enterprise →</a>
             </div>
           </Reveal>
         </div>

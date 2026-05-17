@@ -7747,7 +7747,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
       {/* ── TAB: Sedi ── */}
       {tab === "sedi" && (
-        <ImpostazioniSedi orgId={orgId} piano={piano} />
+        <ImpostazioniSedi orgId={orgId} />
       )}
 
       {/* ── TAB: Dati ── */}

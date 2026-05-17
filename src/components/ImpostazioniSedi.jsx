@@ -12,7 +12,7 @@ const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${BOR}`, bo
 const lbl = { fontSize: 11, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, display: 'block' }
 const btn = (bg, col) => ({ padding: '8px 16px', background: bg, color: col, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' })
 
-export default function ImpostazioniSedi({ orgId, piano, onSediChange }) {
+export default function ImpostazioniSedi({ orgId, onSediChange }) {
   const [sedi, setSedi] = useState([])
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -22,8 +22,7 @@ export default function ImpostazioniSedi({ orgId, piano, onSediChange }) {
   const [toast, setToast] = useState(null)
 
   const sediAttive = sedi.filter(s => s.attiva !== false)
-  const maxSedi = piano === 'chain' ? Infinity : piano === 'pro' ? 2 : 1
-  const canAddMore = sediAttive.length < maxSedi
+  const canAddMore = true
 
   function notify(msg, ok = true) {
     setToast({ msg, ok })
@@ -144,9 +143,7 @@ export default function ImpostazioniSedi({ orgId, piano, onSediChange }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: TXT }}>Gestione Sedi</div>
         {!showAdd && (
-          canAddMore
-            ? <button onClick={() => setShowAdd(true)} style={btn(R, '#FFF')}>+ Aggiungi sede</button>
-            : <div style={{ fontSize: 11, color: SOFT }}>{piano === 'pro' ? 'Max 2 sedi (piano Pro)' : 'Aggiorna al piano Pro per più sedi'}</div>
+          <button onClick={() => setShowAdd(true)} style={btn(R, '#FFF')}>+ Aggiungi sede</button>
         )}
       </div>
 
