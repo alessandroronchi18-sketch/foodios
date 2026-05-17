@@ -293,144 +293,6 @@ function SuccessAlert({ children }) {
   )
 }
 
-function BrandPanel({ mode, isMobile }) {
-  const isReg = mode === 'registrati'
-
-  if (isMobile) {
-    return (
-      <div style={{
-        background: T.ink, color: T.cream,
-        padding: '32px 28px 28px',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <div aria-hidden style={{
-          position: 'absolute', top: -40, right: -40, width: 180, height: 180,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(192,57,43,0.22), transparent 70%)',
-        }}/>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <FoodOSLogo size={36} style={{ borderRadius: 9, boxShadow: '0 6px 18px rgba(192,57,43,0.28)' }}/>
-          <span style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 600, color: T.cream, letterSpacing: '-0.02em' }}>FoodOS</span>
-        </div>
-        <h1 style={{
-          fontFamily: SERIF, fontSize: 22, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.02em',
-          color: T.cream, margin: 0, position: 'relative',
-        }}>
-          {isReg
-            ? <>Inizia <em style={{ fontStyle: 'italic', color: T.amber }}>3 mesi gratis</em>.</>
-            : <>Bentornato. <em style={{ fontStyle: 'italic', color: T.amber }}>I tuoi numeri ti aspettano.</em></>
-          }
-        </h1>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{
-      background: T.ink, color: T.cream,
-      padding: '48px 48px', position: 'relative', overflow: 'hidden',
-      display: 'flex', flexDirection: 'column',
-      justifyContent: 'space-between', minHeight: '100vh',
-    }}>
-      <div aria-hidden style={{
-        position: 'absolute', top: '-10%', right: '-10%', width: 480, height: 480,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(192,57,43,0.20), transparent 65%)',
-        pointerEvents: 'none',
-      }}/>
-      <div aria-hidden style={{
-        position: 'absolute', bottom: '-15%', left: '-20%', width: 420, height: 420,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(230,189,90,0.10), transparent 65%)',
-        pointerEvents: 'none',
-      }}/>
-
-      <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 48 }}>
-          <FoodOSLogo size={42} style={{ borderRadius: 11, boxShadow: '0 8px 24px rgba(192,57,43,0.30)' }}/>
-          <span style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 600, color: T.cream, letterSpacing: '-0.025em' }}>FoodOS</span>
-        </div>
-
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '6px 12px',
-          background: 'rgba(244,236,227,0.07)', border: '1px solid rgba(244,236,227,0.1)',
-          borderRadius: 999,
-          fontSize: 11, fontWeight: 500, color: T.textOnDark,
-          marginBottom: 24, letterSpacing: '0.01em',
-        }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, boxShadow: '0 0 0 4px rgba(31,122,72,0.18)' }}/>
-          Per la ristorazione italiana
-        </div>
-
-        <h1 style={{
-          fontFamily: SERIF, fontSize: 38, fontWeight: 500,
-          lineHeight: 1.08, letterSpacing: '-0.03em',
-          color: T.cream, margin: '0 0 18px',
-        }}>
-          {isReg ? (
-            <>Inizia <em style={{ fontStyle: 'italic', color: T.amber }}>3 mesi gratis</em>.<br/>Decidi dopo.</>
-          ) : (
-            <>Bentornato.<br/><em style={{ fontStyle: 'italic', color: T.amber }}>I tuoi numeri</em><br/>ti aspettano.</>
-          )}
-        </h1>
-
-        <p style={{ fontSize: 15, color: 'rgba(244,236,227,0.65)', lineHeight: 1.65, margin: 0, maxWidth: 380 }}>
-          {isReg
-            ? "Crea il tuo account in 30 secondi. Senza carta di credito, senza vincoli. Cancelli quando vuoi."
-            : "Accedi per vedere food cost aggiornati, margini reali e i consigli dell'AI per la tua attività."}
-        </p>
-      </div>
-
-      <div style={{ position: 'relative', margin: '48px 0' }}>
-        <div style={{
-          color: T.amber, fontFamily: SERIF, fontSize: 64, fontWeight: 600,
-          lineHeight: 0.4, marginBottom: 18, opacity: 0.5,
-        }}>"</div>
-        <p style={{
-          fontFamily: SERIF, fontSize: 22, fontWeight: 400, fontStyle: 'italic',
-          color: T.cream, lineHeight: 1.45, letterSpacing: '-0.01em',
-          margin: '0 0 20px', maxWidth: 420,
-        }}>
-          In due mesi ho capito che il babà mi costava il 18% in più di quanto pensassi.
-          Ho corretto il prezzo e il margine è salito di 4 punti.
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 42, height: 42, borderRadius: 999,
-            background: `linear-gradient(135deg, ${T.red}, ${T.redDeep})`,
-            color: '#FFF', fontFamily: SERIF, fontWeight: 600, fontSize: 16,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>ME</div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.cream }}>Marco Esposito</div>
-            <div style={{ fontSize: 12, color: 'rgba(244,236,227,0.55)' }}>Pasticceria del Corso · Napoli</div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ position: 'relative', display: 'flex', gap: 32 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-            {[0,1,2,3,4].map(s => <Icon key={s} name="star" size={13} color={T.amber}/>)}
-          </div>
-          <div style={{ fontSize: 11, color: 'rgba(244,236,227,0.6)' }}>
-            <strong style={{ color: T.cream }}>4.9/5</strong> · 240+ locali
-          </div>
-        </div>
-        <div>
-          <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 600, color: T.cream, letterSpacing: '-0.02em', lineHeight: 1 }}>€ 2.400</div>
-          <div style={{ fontSize: 11, color: 'rgba(244,236,227,0.6)', marginTop: 4 }}>risparmio annuo medio</div>
-        </div>
-        <div>
-          <div style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 600, color: T.cream, letterSpacing: '-0.02em', lineHeight: 1 }}>3 min</div>
-          <div style={{ fontSize: 11, color: 'rgba(244,236,227,0.6)', marginTop: 4 }}>chiusura giornaliera</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function ResetPasswordPage({ onDone }) {
   const [pwd, setPwd]         = useState('')
   const [conf, setConf]       = useState('')
@@ -674,29 +536,59 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
       minHeight: '100vh', background: T.cream,
       fontFamily: SANS, color: T.ink,
       WebkitFontSmoothing: 'antialiased',
-      display: isMobile ? 'block' : 'grid',
-      gridTemplateColumns: isMobile ? '1fr' : '0.92fr 1.08fr',
+      position: 'relative', overflow: 'hidden',
     }}>
-      {!isReset && <BrandPanel mode={mode} isMobile={isMobile}/>}
+      {/* Background ornament — discreto, warm */}
+      <div aria-hidden style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: 'radial-gradient(circle at 80% 0%, rgba(192,57,43,0.06), transparent 50%), radial-gradient(circle at 0% 100%, rgba(230,189,90,0.05), transparent 55%)',
+      }}/>
 
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: isMobile ? '32px 20px 48px' : '48px 48px',
-        minHeight: isReset ? '100vh' : (isMobile ? 'auto' : '100vh'),
-        background: T.cream,
+        position: 'relative',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh',
+        padding: isMobile ? '32px 20px 40px' : '48px 24px',
       }}>
-        <div style={{ width: '100%', maxWidth: 440 }}>
+        <div style={{ width: '100%', maxWidth: 460 }}>
+
+          {/* Header — logo + brand + chip */}
+          <div style={{ textAlign: 'center', marginBottom: isMobile ? 28 : 36 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+              <FoodOSLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(192,57,43,0.28)' }}/>
+              <span style={{ fontFamily: SERIF, fontSize: isMobile ? 28 : 32, fontWeight: 600, color: T.ink, letterSpacing: '-0.03em' }}>FoodOS</span>
+            </div>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              padding: '5px 12px',
+              background: T.paper, border: `1px solid ${T.border}`, borderRadius: 999,
+              fontSize: 11, fontWeight: 500, color: T.textMid,
+              boxShadow: '0 2px 6px rgba(15,9,7,0.03)',
+              letterSpacing: '0.01em',
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, boxShadow: `0 0 0 3px ${T.greenSoft}` }}/>
+              Per la ristorazione italiana
+            </div>
+          </div>
+
+          {/* Card */}
+          <div style={{
+            background: T.paper,
+            border: `1px solid ${T.border}`,
+            borderRadius: 20,
+            padding: isMobile ? '28px 22px' : '36px 36px',
+            boxShadow: '0 20px 50px rgba(15,9,7,0.06), 0 4px 14px rgba(15,9,7,0.04)',
+          }}>
 
           {isReset && (
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <FoodOSLogo size={52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(192,57,43,0.28)' }}/>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
               <h1 style={{
-                fontFamily: SERIF, fontSize: 26, fontWeight: 600, color: T.ink,
-                letterSpacing: '-0.025em', margin: '18px 0 6px',
+                fontFamily: SERIF, fontSize: 24, fontWeight: 600, color: T.ink,
+                letterSpacing: '-0.025em', margin: '0 0 6px',
               }}>
                 {mode === 'reset-request' ? 'Password dimenticata?' : 'Imposta nuova password'}
               </h1>
-              <p style={{ margin: 0, fontSize: 14, color: T.textMid }}>
+              <p style={{ margin: 0, fontSize: 14, color: T.textMid, lineHeight: 1.55 }}>
                 {mode === 'reset-request'
                   ? 'Ti mandiamo un link per reimpostarla.'
                   : 'Scegli una nuova password sicura.'}
@@ -963,10 +855,12 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
               </>
             )
           )}
+          </div>
+          {/* /Card */}
 
           <p style={{
             textAlign: 'center', fontSize: 12, color: T.textSoft,
-            marginTop: 32, lineHeight: 1.6,
+            marginTop: 22, lineHeight: 1.6,
           }}>
             Problemi con l'accesso? Scrivici a{' '}
             <a href="mailto:support@foodios.it" style={{ color: T.red, fontWeight: 600, textDecoration: 'none' }}>
