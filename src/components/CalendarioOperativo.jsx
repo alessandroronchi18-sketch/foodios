@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const GIORNI  = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
 const MESI    = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
                   'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
+const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 function toISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -172,27 +174,36 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
       <div style={{ flex:1, minWidth:0 }}>
 
         {/* Header */}
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
-          <div>
-            <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:'#C0392B', marginBottom:6 }}>Operativo</div>
-            <h1 style={{ margin:'0 0 6px', fontSize:28, fontWeight:900, color:'#1A0A08', letterSpacing:'-0.03em' }}>📅 Calendario</h1>
-            <div style={{ display:'flex', gap:16, fontSize:12, color:'#9C7B76', flexWrap:'wrap' }}>
+        <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:14 }}>
+          <div style={{ minWidth:0, flex:1 }}>
+            <h1 style={{ margin:'0 0 4px', fontSize: isMobile ? 22 : 26, fontWeight:700, color:T.text, letterSpacing:'-0.025em', lineHeight:1.15 }}>Calendario</h1>
+            <div style={{ display:'flex', gap:14, fontSize:13, color:T.textSoft, flexWrap:'wrap', letterSpacing:'-0.005em', ...tnum }}>
               <span>
                 {completati}/{totPassati} giorni completi —{' '}
-                <strong style={{ color: pct>=80?'#22C55E':pct>=50?'#F59E0B':'#EF4444' }}>{pct}%</strong>
+                <strong style={{ color: pct>=80?T.green:pct>=50?T.amber:T.red, fontWeight:600 }}>{pct}%</strong>
               </span>
-              {streak > 1 && <span>🔥 {streak} giorni di fila</span>}
-              {streak === 1 && <span>🔥 1 giorno di fila</span>}
+              {streak >= 1 && (
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill={T.amber} stroke="none">
+                    <path d="M12 2c1 3 3 5 3 8a3 3 0 11-6 0c0-1 .5-2 1-3-2 1-4 3-4 7a6 6 0 0012 0c0-5-3-8-6-12z"/>
+                  </svg>
+                  {streak} giorni di fila
+                </span>
+              )}
             </div>
           </div>
           {/* Month nav */}
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <button onClick={prev} style={NAV_BTN}>‹</button>
-            <div style={{ textAlign:'center', minWidth:120 }}>
-              <div style={{ fontSize:15, fontWeight:700, color:'#1A0A08' }}>{MESI[mese]}</div>
-              <div style={{ fontSize:11, color:'#9C7B76' }}>{anno}</div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:R.lg, padding:'4px 6px', boxShadow:S.sm }}>
+            <button onClick={prev} style={NAV_BTN} aria-label="Mese precedente">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div style={{ textAlign:'center', minWidth:110, padding:'4px 0' }}>
+              <div style={{ fontSize:14, fontWeight:600, color:T.text, letterSpacing:'-0.01em' }}>{MESI[mese]}</div>
+              <div style={{ fontSize:11, color:T.textSoft, marginTop:1, ...tnum }}>{anno}</div>
             </div>
-            <button onClick={next} style={NAV_BTN}>›</button>
+            <button onClick={next} style={NAV_BTN} aria-label="Mese successivo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
           </div>
         </div>
 
@@ -424,8 +435,9 @@ function Pill({ bg, color, children }) {
 }
 
 const NAV_BTN = {
-  width:32, height:32, borderRadius:8, border:'1px solid #E8DDD8',
-  background:'#FFF', cursor:'pointer', fontSize:16,
+  width:32, height:32, borderRadius:R.sm, border:'none',
+  background:'transparent', cursor:'pointer',
   display:'flex', alignItems:'center', justifyContent:'center',
-  color:'#6B4C44',
+  color:T.textMid,
+  transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
 }

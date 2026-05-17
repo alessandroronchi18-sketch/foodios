@@ -25,14 +25,17 @@ function FornitoriTab({ orgId, notify, isMobile }) {
   useEffect(() => { carica() }, [orgId])
 
   async function carica() {
+    if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const { data } = await supabase.from("fornitori").select("*").eq("organization_id", orgId).order("nome")
+    const { data, error } = await supabase.from("fornitori").select("*").eq("organization_id", orgId).order("nome")
+    if (error) notify?.("⚠ Errore caricamento fornitori: " + error.message, false)
     setLista(data || [])
     setLoading(false)
   }
 
   async function salva() {
     if (!form.nome.trim()) { notify("⚠ Inserisci il nome del fornitore", false); return }
+    if (!orgId) { notify("⚠ Profilo non pronto, riprova", false); return }
     setSaving(true)
     const payload = { ...form, organization_id: orgId }
     let err
@@ -167,11 +170,13 @@ function OrdiniTab({ orgId, notify, isMobile }) {
   useEffect(() => { carica() }, [orgId])
 
   async function carica() {
+    if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const [{ data:ord }, { data:forn }] = await Promise.all([
+    const [{ data:ord, error:e1 }, { data:forn, error:e2 }] = await Promise.all([
       supabase.from("ordini_fornitori").select("*, fornitori(nome)").eq("organization_id", orgId).order("data_ordine", { ascending:false }).limit(50),
       supabase.from("fornitori").select("id,nome").eq("organization_id", orgId).order("nome"),
     ])
+    if (e1 || e2) notify?.("⚠ Errore caricamento ordini: " + (e1?.message || e2?.message), false)
     setOrdini(ord || [])
     setFornitori(forn || [])
     setLoading(false)
@@ -394,15 +399,17 @@ function SpesaTab({ orgId, isMobile }) {
   useEffect(() => { carica() }, [orgId, range])
 
   async function carica() {
+    if (!orgId) { setLoading(false); return }
     setLoading(true)
     const from = new Date(); from.setDate(from.getDate() - parseInt(range))
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("ordini_fornitori")
       .select("*, fornitori(nome)")
       .eq("organization_id", orgId)
       .eq("stato", "ricevuto")
       .gte("data_ordine", from.toISOString().slice(0,10))
       .order("data_ordine", { ascending:false })
+    if (error) console.warn("ordini storico load:", error.message)
     setRighe(data || [])
     setLoading(false)
   }

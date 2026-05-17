@@ -1,5 +1,6 @@
 import React from 'react'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import jsPDF from 'jspdf'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
          Cell, PieChart, Pie, Legend, ReferenceLine, LineChart, Line,
          AreaChart, Area } from 'recharts'
@@ -7773,8 +7774,7 @@ class ErrorBoundary extends React.Component {
 function SchedaAllergeniView({ ricettario }) {
   const ricette = Object.values(ricettario?.ricette||{}).filter(r=>r.tipo!=="semilavorato"&&r.tipo!=="interno");
 
-  const esportaPDF = async () => {
-    const { jsPDF } = await import('jspdf');
+  const esportaPDF = () => {
     const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
     const pw = doc.internal.pageSize.getWidth();
     const ph = doc.internal.pageSize.getHeight();

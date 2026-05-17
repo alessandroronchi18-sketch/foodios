@@ -7,6 +7,25 @@ const GRAY   = [107, 76, 68]
 const LIGHT  = [253, 250, 247]
 const BORDER = [232, 221, 216]
 
+// Normalizza i nomi ingrediente come fa Dashboard.jsx (normIng):
+// stessa logica plurale→singolare, così i lookup nel costMap coincidono.
+const _SING_PLUR = new Map([
+  ["albumi","albume"],["tuorli","tuorlo"],["uova","uovo"],
+  ["banane","banana"],["carote","carota"],["mele","mela"],
+  ["pere","pera"],["fragole","fragola"],["lamponi","lampone"],
+  ["mirtilli","mirtillo"],["more","mora"],["ciliegie","ciliegia"],
+  ["pesche","pesca"],["albicocche","albicocca"],["prugne","prugna"],["susine","susina"],
+  ["fichi","fico"],["limoni","limone"],["arance","arancia"],["noci","noce"],
+  ["mandorle","mandorla"],["nocciole","nocciola"],["pistacchi","pistacchio"],
+  ["pinoli","pinolo"],["datteri","dattero"],["anacardi","anacardo"],
+  ["arachidi","arachide"],["zucchine","zucchina"],
+  ["biscotti","biscotto"],["gocce di cioccolato","goccia di cioccolato"],
+])
+function normIng(nome) {
+  const k = String(nome || '').toLowerCase().trim().replace(/\s+/g, ' ')
+  return _SING_PLUR.get(k) || k
+}
+
 function addHeader(doc, title, subtitle, nomeAttivita) {
   doc.setFillColor(...DARK)
   doc.rect(0, 0, 210, 22, 'F')
@@ -53,16 +72,45 @@ function fmt(v) {
 }
 
 // ─── 1. Ricetta PDF ───────────────────────────────────────────────────────────
-export function exportRicettaPDF(ricetta, foodCost, nomeAttivita) {
+// Firma: (ricetta, foodCost, ingCosti, nomeAttivita)
+//   - ricetta.ingredienti è un array [{ nome, qty1stampo (grammi), ... }]
+//   - foodCost: { tot, perc } come passato dai chiamanti in Dashboard.jsx
+//   - ingCosti: mappa { [normIng(nome)]: { costoKg, costoG } }
+export function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita) {
+  // Backwards-compat: se qualcuno chiama ancora con (ricetta, foodCost, nomeAttivita) come stringa
+  if (typeof ingCosti === 'string' && nomeAttivita === undefined) {
+    nomeAttivita = ingCosti
+    ingCosti = null
+  }
+  const costMap = ingCosti || {}
+
   const doc = new jsPDF()
   addHeader(doc, ricetta.nome || 'Ricetta', ricetta.categoria || '', nomeAttivita)
 
   const startY = 52
 
+  // Calcolo cost-per-ing dal cost map (struttura reale: qty in grammi)
+  const rows = (ricetta.ingredienti || [])
+    .filter(ing => ing && ing.nome && (ing.qty1stampo || 0) > 0)
+    .map(ing => {
+      const qtyG = Number(ing.qty1stampo) || 0
+      const c = costMap[normIng(ing.nome)]
+      const costoG = c?.costoG || 0
+      const costoTot = qtyG * costoG
+      const qtyDisp = qtyG >= 1000 ? `${(qtyG / 1000).toFixed(2)} kg` : `${Math.round(qtyG)} g`
+      return [ing.nome, qtyDisp, fmt(costoG * 1000) + '/kg', fmt(costoTot)]
+    })
+
+  const totaleCalcolato = rows.reduce((s, r) => {
+    const v = Number(String(r[3]).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0
+    return s + v
+  }, 0)
+  const fcTot = foodCost?.tot ?? foodCost?.costo ?? totaleCalcolato
+
   // Info box
   const info = [
     ['Categoria', ricetta.categoria || '—'],
-    ['Porzioni', String(ricetta.porzioni || 1)],
+    ['Porzioni', String(ricetta.porzioni || ricetta.unita || 1)],
     ['Prezzo di vendita', fmt(ricetta.prezzo)],
     ['Food cost %', foodCost?.perc != null ? `${Number(foodCost.perc).toFixed(1)}%` : '—'],
   ]
@@ -88,31 +136,22 @@ export function exportRicettaPDF(ricetta, foodCost, nomeAttivita) {
   doc.setTextColor(...DARK)
   doc.text('Ingredienti', 14, afterInfo)
 
-  const ingredienti = (ricetta.ingredienti || []).map(ing => [
-    ing.nome || '—',
-    `${ing.quantita || 0} ${ing.unita || 'kg'}`,
-    fmt(ing.costoUnitario || ing.costo_unitario),
-    fmt((ing.costoUnitario || ing.costo_unitario || 0) * (ing.quantita || 0)),
-  ])
-
   autoTable(doc, {
     startY: afterInfo + 4,
     head: [['Ingrediente', 'Quantità', 'Costo unitario', 'Costo totale']],
-    body: ingredienti.length ? ingredienti : [['Nessun ingrediente', '', '', '']],
+    body: rows.length ? rows : [['Nessun ingrediente', '—', '—', '—']],
     theme: 'striped',
     headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
     bodyStyles: { fontSize: 9, textColor: DARK },
     alternateRowStyles: { fillColor: LIGHT },
-    columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } },
+    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
     margin: { left: 14, right: 14 },
   })
 
   const afterTable = doc.lastAutoTable.finalY + 10
 
   // Riepilogo
-  const costoTotale = foodCost?.costo ?? (ricetta.ingredienti || []).reduce(
-    (s, i) => s + (i.costoUnitario || i.costo_unitario || 0) * (i.quantita || 0), 0
-  )
+  const costoTotale = fcTot
   const prezzoVendita = ricetta.prezzo || 0
   const margine = prezzoVendita - costoTotale
   const percFC = prezzoVendita > 0 ? (costoTotale / prezzoVendita * 100) : 0

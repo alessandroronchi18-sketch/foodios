@@ -6,16 +6,37 @@ import { sanitize, sanitizeStrict, validateEmail } from './lib/validate.js'
 
 const FROM = 'FoodOS <noreply@foodios.it>'
 const SUPPORT = 'support@foodios.it'
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'alessandroar@maradeiboschi.com').toLowerCase()
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 }
 
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, subject, html, replyTo }) {
   const { Resend } = await import('resend')
   const resend = new Resend(process.env.RESEND_API_KEY)
-  return resend.emails.send({ from: FROM, to, subject, html })
+  return resend.emails.send({
+    from: FROM, to, subject, html,
+    ...(replyTo ? { reply_to: replyTo } : {}),
+  })
+}
+
+async function isAdminRequest(req, supabase) {
+  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false
+  const token = authHeader.replace('Bearer ', '').trim()
+  if (!token) return false
+  try {
+    const { data: { user } } = await supabase.auth.getUser(token)
+    return (user?.email || '').toLowerCase() === ADMIN_EMAIL
+  } catch { return false }
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
 export default async function handler(req) {
@@ -27,8 +48,11 @@ export default async function handler(req) {
   const ip = getClientIP(req)
   const supabase = await getSupabase()
 
-  // Rate limit: 5 email/ora per IP
-  const rl = await checkRateLimit(supabase, `email:${ip}`, 5, 3600, 3600)
+  // Admin ha rate limit più alto
+  const adminAuth = await isAdminRequest(req, supabase)
+  const rlMax = adminAuth ? 100 : 5
+  const rlKey = adminAuth ? `email-admin:${ip}` : `email:${ip}`
+  const rl = await checkRateLimit(supabase, rlKey, rlMax, 3600, 3600)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
   const body = await req.json()
@@ -46,10 +70,17 @@ export default async function handler(req) {
     })
   }
 
-  const tipi_validi = ['benvenuto', 'approvazione', 'scadenza_trial']
+  const tipi_validi = ['benvenuto', 'approvazione', 'scadenza_trial', 'custom']
   if (!tipi_validi.includes(tipo)) {
     return new Response(JSON.stringify({ error: 'Tipo non valido' }), {
       status: 400, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
+    })
+  }
+
+  // 'custom' richiede autenticazione admin (verificata sopra per il rate limit)
+  if (tipo === 'custom' && !adminAuth) {
+    return new Response(JSON.stringify({ error: 'Solo admin' }), {
+      status: 403, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
     })
   }
 
@@ -116,6 +147,32 @@ export default async function handler(req) {
           `,
         })
       }
+    } else if (tipo === 'custom') {
+      const oggetto = sanitize(body.oggetto || '', 200)
+      const messaggio = sanitize(body.messaggio || '', 5000)
+      if (!validateEmail(email)) throw new Error('Email destinatario mancante')
+      if (!oggetto || !messaggio) throw new Error('Oggetto e messaggio obbligatori')
+
+      // Converte newline in <br> per leggibilità, escapa HTML
+      const bodyHtml = escapeHtml(messaggio).replace(/\n/g, '<br>')
+
+      await sendEmail({
+        to: email,
+        subject: oggetto,
+        replyTo: SUPPORT,
+        html: `
+          <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
+            <div style="background:#FFF;border:1px solid #E8DDD8;border-radius:12px;padding:28px 24px;">
+              <p style="color:#1C0A0A;font-size:15px;line-height:1.7;margin:0 0 16px;">${bodyHtml}</p>
+            </div>
+            <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
+            <p style="color:#9C7B76;font-size:12px;">
+              Inviato dal team FoodOS · scrivici a
+              <a href="mailto:${SUPPORT}" style="color:#C0392B;">${SUPPORT}</a>
+            </p>
+          </div>
+        `,
+      })
     } else if (tipo === 'scadenza_trial') {
       if (!validateEmail(email)) throw new Error('Email destinatario mancante')
       await sendEmail({

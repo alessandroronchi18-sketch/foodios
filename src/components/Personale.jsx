@@ -27,14 +27,17 @@ function DipendentiTab({ orgId, notify, isMobile }) {
   useEffect(() => { carica() }, [orgId])
 
   async function carica() {
+    if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const { data } = await supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true).order("nome")
+    const { data, error } = await supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true).order("nome")
+    if (error) notify?.("⚠ Errore caricamento dipendenti: " + error.message, false)
     setLista(data || [])
     setLoading(false)
   }
 
   async function salva() {
     if (!form.nome.trim()) { notify("⚠ Inserisci il nome del dipendente", false); return }
+    if (!orgId) { notify("⚠ Profilo non pronto, riprova", false); return }
     setSaving(true)
     const payload = {
       nome: form.nome.trim(),
@@ -223,15 +226,17 @@ function TurniTab({ orgId, notify, isMobile }) {
   useEffect(() => { carica() }, [orgId, week])
 
   async function carica() {
+    if (!orgId) { setLoading(false); return }
     setLoading(true)
     const from = week
     const to = new Date(week); to.setDate(to.getDate()+6)
     const toStr = to.toISOString().slice(0,10)
-    const [{ data:t }, { data:d }] = await Promise.all([
+    const [{ data:t, error:et }, { data:d, error:ed }] = await Promise.all([
       supabase.from("turni").select("*, dipendenti(nome,costo_orario)").eq("organization_id", orgId)
         .gte("data", from).lte("data", toStr).order("data").order("ora_inizio"),
       supabase.from("dipendenti").select("id,nome").eq("organization_id", orgId).eq("attivo", true).order("nome"),
     ])
+    if (et || ed) notify?.("⚠ Errore caricamento turni: " + (et?.message || ed?.message), false)
     setTurni(t || [])
     setDipendenti(d || [])
     setLoading(false)
@@ -460,14 +465,16 @@ function AnalisiCostoTab({ orgId, isMobile }) {
   useEffect(() => { carica() }, [orgId, mese])
 
   async function carica() {
+    if (!orgId) { setLoading(false); return }
     setLoading(true)
     const from = mese + "-01"
     const last = new Date(mese.split("-")[0], mese.split("-")[1], 0).getDate()
     const to = `${mese}-${last}`
-    const [{ data:t },{ data:d }] = await Promise.all([
+    const [{ data:t, error:et },{ data:d, error:ed }] = await Promise.all([
       supabase.from("turni").select("*, dipendenti(nome,ruolo)").eq("organization_id", orgId).gte("data", from).lte("data", to),
       supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true),
     ])
+    if (et || ed) console.warn("analisi costo load:", et?.message || ed?.message)
     setDati({ turni:t||[], dipendenti:d||[] })
     setLoading(false)
   }
