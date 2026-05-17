@@ -1,9 +1,10 @@
 import React from 'react'
 import { useUploadManager } from '../lib/useUploadManager'
 import { uploadManager } from '../lib/uploadManager'
+import { color as T } from '../lib/theme'
 
 const ICON = { uploading: '⏳', done: '✅', error: '⚠️' }
-const STATUS_COLOR = { uploading: '#475569', done: '#16A34A', error: '#C0392B' }
+const STATUS_COLOR = { uploading: T.textMid, done: T.green, error: T.brand }
 const STATUS_LABEL = { uploading: 'In corso…', done: 'Completato', error: null }
 
 export default function UploadToast() {

@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { sload } from '../lib/storage'
+import { color as T } from '../lib/theme'
 
-const R = '#C0392B'
-const TXT = '#1C0A0A'
-const SOFT = '#9C7B76'
-const MID = '#4A3728'
-const BOR = '#E2E8F0'
+const R = T.brand
+const TXT = T.text
+const SOFT = T.textSoft
+const MID = T.textMid
+const BOR = T.border
 
 const VERSION = '1.0'
 

@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
+import { color as T, radius as R } from '../lib/theme'
 
 const CATEGORIE = ['Torte','Biscotti','Crostate','Muffin','Croissant','Pane','Pizze','Primi','Secondi','Dolci','Altro']
 const UNITA = ['g','kg','ml','l','pz','cucchiai','cucchiaino','tazze','noce','pizzico','qb']
 
 const INPUT = {
-  width: '100%', padding: '8px 10px', border: '1px solid #E2E8F0',
-  borderRadius: 6, fontSize: 13, background: '#FFF', color: '#0F172A',
-  boxSizing: 'border-box',
+  width: '100%', padding: '9px 12px', border: `1px solid ${T.border}`,
+  borderRadius: R.sm, fontSize: 13, background: T.bgCard, color: T.text,
+  letterSpacing: '-0.005em', boxSizing: 'border-box', outline: 'none',
+  fontFamily: 'inherit',
 }
 
 export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnulla }) {
