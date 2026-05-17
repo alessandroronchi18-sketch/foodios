@@ -1,10 +1,11 @@
 import React from 'react'
 import { CHANGELOG } from '../lib/changelog'
+import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const C = {
-  red: '#C0392B', text: '#0F172A', textMid: '#475569', textSoft: '#94A3B8',
-  border: '#E2E8F0', bg: '#F8FAFC', white: '#FFFFFF', green: '#16A34A',
-  greenLight: '#F0FDF4', redLight: '#FEF2F2',
+  red: T.brand, text: T.text, textMid: T.textMid, textSoft: T.textSoft,
+  border: T.border, bg: T.bg, white: T.bgCard, green: T.green,
+  greenLight: T.greenLight, redLight: T.brandLight,
 }
 
 function fmtData(iso) {

@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
+import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
-const TXT = '#1C0A0A'
-const SOFT = '#9C7B76'
-const MID = '#4A3728'
-const GRN = '#16A34A'
-const RED = '#C0392B'
-const GRN_BG = '#F0FDF4'
-const RED_BG = '#FFF5F5'
+const TXT = T.text
+const SOFT = T.textSoft
+const MID = T.textMid
+const GRN = T.green
+const RED = T.brand
+const GRN_BG = T.greenLight
+const RED_BG = T.brandLight
+const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 function fmt(n) {
   if (n == null) return '—'

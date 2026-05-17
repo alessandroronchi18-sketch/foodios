@@ -938,7 +938,7 @@ function calcolaFC(ricetta, ingCosti, ricettario, _depth) {
   const depth = _depth||0;
   const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""];
   let tot=0, mancanti=[];
-  for (const ing of (ricetta.ingredienti||[])) {
+  for (const ing of (ricetta?.ingredienti||[])) {
     const nomeNorm = normIng((ing.nome||"").toLowerCase().trim());
     if (SKIP_ING.includes(nomeNorm)) continue;
     const qty = ing.qty1stampo || 0;
@@ -1278,7 +1278,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
             ✏️ Modifica ricetta
           </button>
         )}
-        <button onClick={()=>exportRicettaPDF(ric, {tot:fc,perc:ricavo>0?fc/ricavo*100:0})}
+        <button onClick={()=>exportRicettaPDF(ric, {tot:fc,perc:ricavo>0?fc/ricavo*100:0}, ingCosti)}
           style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${isSemi?SEMI.border:C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:isSemi?SEMI.accent:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
           📄 PDF
         </button>
@@ -1682,7 +1682,7 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload, onEditRicetta}) {
                   </div>
                 </div>
                 <div style={{paddingTop:12,borderTop:`1px solid ${T.borderSoft}`,display:"flex",justifyContent:"flex-end",alignItems:"center"}}>
-                  <button onClick={(e)=>{e.stopPropagation();exportRicettaPDF(ric,{tot:fc,perc:ricavo>0?fc/ricavo*100:0});}}
+                  <button onClick={(e)=>{e.stopPropagation();exportRicettaPDF(ric,{tot:fc,perc:ricavo>0?fc/ricavo*100:0},ingCosti);}}
                     style={{padding:"6px 12px",borderRadius:R.sm,border:`1px solid ${T.border}`,background:T.bgCard,
                       fontSize:11,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",
                       display:"inline-flex",alignItems:"center",gap:5,
@@ -2924,7 +2924,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
     if (mese.entries?.length>0) return mese.entries.map(e=>({...e}));
     return ricette.map(nome=>{
       const reg=getR(nome, ricettario?.ricette?.[nome]);
-      const {tot:fc}=calcolaFC(ricettario.ricette[nome], ingCosti, ricettario);
+      const {tot:fc}=calcolaFC(ricettario?.ricette?.[nome], ingCosti, ricettario);
       return {ricettaNome:nome,stampiProdotti:0,stampiVenduti:0,prezzo:reg.prezzo,unita:reg.unita,fc,spreco:0,note:""};
     });
   });
@@ -7567,20 +7567,22 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
   };
 
   return (
-    <div style={{ maxWidth:700 }}>
-      <div style={{ marginBottom:14 }}>
-        <div style={{ fontSize:11, color:C.textSoft, marginBottom:5 }}>Dashboard › Impostazioni</div>
-        <h1 style={{ margin:'0', fontSize:22, fontWeight:700, color:C.text, letterSpacing:'-0.3px' }}>Impostazioni</h1>
+    <div style={{ maxWidth:720, margin:"0 auto" }}>
+      <div style={{ marginBottom:20 }}>
+        <h1 style={{ margin:'0 0 4px', fontSize:26, fontWeight:700, color:T.text, letterSpacing:'-0.025em', lineHeight:1.15 }}>Impostazioni</h1>
+        <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Gestisci attività, account e preferenze.</p>
       </div>
-      <div style={{ borderTop:`1px solid ${C.border}`, marginBottom:20 }}/>
       {/* Tab nav */}
-      <div style={{ display:"flex", gap:4, marginBottom:28, borderBottom:`2px solid ${C.border}` }}>
+      <div style={{ display:"flex", gap:2, marginBottom:24, borderBottom:`1px solid ${T.border}` }}>
         {TABS.map(([id,lbl]) => (
           <button key={id} onClick={()=>setTab(id)}
-            style={{ padding:"8px 18px", border:"none", background:"transparent", cursor:"pointer",
-              fontSize:11, fontWeight:700, color:tab===id?C.red:C.textSoft,
-              borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",
-              marginBottom:-2, transition:"all 0.12s" }}>
+            style={{ padding:"10px 16px", border:"none", background:"transparent", cursor:"pointer",
+              fontSize:13, fontWeight:tab===id?600:500, color:tab===id?T.text:T.textSoft,
+              borderBottom:tab===id?`2px solid ${T.brand}`:"2px solid transparent",
+              marginBottom:-1, letterSpacing:"-0.005em",
+              transition:`color ${M.durFast} ${M.ease}` }}
+            onMouseEnter={e=>{if(tab!==id)e.currentTarget.style.color=T.textMid;}}
+            onMouseLeave={e=>{if(tab!==id)e.currentTarget.style.color=T.textSoft;}}>
             {lbl}
           </button>
         ))}
