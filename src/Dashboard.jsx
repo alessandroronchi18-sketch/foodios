@@ -4348,14 +4348,17 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
         const vendibile = vendibileMap[r.nome] || stampi
         if (vendibile <= 0) continue
         const reg = getR(r.nome, r)
-        const pezzi = vendibile * (Number(reg.unita) || 1)
+        const unitaFactor = Number(reg.unita)
+        const pezzi = vendibile * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
         if (pezzi <= 0) continue
+        // Chiave normalizzata: stesso schema usato da ChiusuraView per il match vendite.
+        const prodottoKey = r.nome.toUpperCase().trim()
 
         // 1. Carico stock PF nella sede produttiva.
         try {
           await caricoProduzionePF({
             sedeId: sedeProduttiva,
-            prodotto: r.nome,
+            prodotto: prodottoKey,
             quantita: pezzi,
             unita: 'pz',
             note: `Sessione ${data}${sess.note ? ' · ' + sess.note : ''}`,
@@ -4373,7 +4376,7 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
               sedeDa: sedeProduttiva,
               sedeA: sedeDest,
               tipo: 'prodotto',
-              prodotto: r.nome,
+              prodotto: prodottoKey,
               quantita: pezzi,
               unita: 'pz',
               note: `Da produzione del ${data}`,
@@ -4381,6 +4384,14 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
             })
           } catch (e) {
             transferErrors.push(`${r.nome}: ${e.message}`)
+            // Rollback del carico: se il trasferimento fallisce, lo stock PF
+            // nella sede produttiva resta gonfiato. Compensiamo con uno scarto.
+            try {
+              const { scartoPF } = await import('./lib/stockPF')
+              await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: 'Rollback trasferimento fallito' })
+            } catch (rb) {
+              console.error('Rollback carico fallito:', rb)
+            }
           }
         }
       }

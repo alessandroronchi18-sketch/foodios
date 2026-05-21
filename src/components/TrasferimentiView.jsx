@@ -83,12 +83,31 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     const qty = parseFloat(form.quantita)
     if (!Number.isFinite(qty) || qty <= 0) { notify?.('Quantità non valida', false); return }
 
+    // Per materia prima: il magazzino MP vive in grammi (giacenza_g).
+    // Se l'utente sceglie 'kg', convertiamo. Per 'g' resta com'è.
+    let qtyMpGrammi = qty
+    if (form.tipo === 'materia_prima') {
+      if (form.unita === 'kg') qtyMpGrammi = qty * 1000
+      else if (form.unita !== 'g') {
+        notify?.("Per materia prima usa unità 'g' o 'kg'", false)
+        return
+      }
+    }
+
+    // Per prodotto finito: normalizziamo il nome a UPPERCASE.TRIM() per matchare
+    // lo schema usato dalla produzione e dalla chiusura vendite.
+    const prodottoSalvato = form.tipo === 'prodotto'
+      ? form.prodotto.trim().toUpperCase()
+      : form.prodotto.trim()
+
     setSaving(true)
+    let mpScalato = false
     try {
       // Per materia prima, l'invio richiede di muovere lo stock client-side.
       // Lo facciamo PRIMA di creare il record (così se MP non disponibile, non lascio bozza vuota).
       if (autoInvia && form.tipo === 'materia_prima') {
-        await scaricoMP({ orgId, sedeId: form.sede_da, ingrediente: form.prodotto.trim(), quantita: qty })
+        await scaricoMP({ orgId, sedeId: form.sede_da, ingrediente: form.prodotto.trim(), quantita: qtyMpGrammi })
+        mpScalato = true
       }
 
       const created = await creaTrasferimento({
@@ -96,7 +115,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         sedeDa: form.sede_da,
         sedeA: form.sede_a,
         tipo: form.tipo,
-        prodotto: form.prodotto.trim(),
+        prodotto: prodottoSalvato,
         quantita: qty,
         unita: form.unita || 'pz',
         valoreUnit: parseFloat(form.valore_unit) || 0,
@@ -117,15 +136,25 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       setShowForm(false)
       await carica()
     } catch (e) {
+      // Se abbiamo già scalato l'MP ma poi qualcosa è fallito, ripristiniamo.
+      if (mpScalato) {
+        try { await caricoMP({ orgId, sedeId: form.sede_da, ingrediente: form.prodotto.trim(), quantita: qtyMpGrammi }) } catch {}
+      }
       notify?.('Errore: ' + e.message, false)
     } finally { setSaving(false) }
+  }
+
+  // Converte quantita di un trasferimento MP in grammi.
+  function mpGrammi(t) {
+    const q = Number(t.quantita)
+    return t.unita === 'kg' ? q * 1000 : q
   }
 
   async function azInvia(t) {
     setBusyId(t.id)
     try {
       if (t.tipo === 'materia_prima') {
-        await scaricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: Number(t.quantita) })
+        await scaricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: mpGrammi(t) })
         await supabase.from('trasferimenti')
           .update({ stato: 'inviato', stock_applicato: true, data_invio: new Date().toISOString() })
           .eq('id', t.id)
@@ -156,7 +185,9 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     setBusyId(t.id)
     try {
       if (t.tipo === 'materia_prima') {
-        if (qty > 0) await caricoMP({ orgId, sedeId: t.sede_a, ingrediente: t.prodotto, quantita: qty })
+        // qty è nell'unità del trasferimento (g o kg). Converti in grammi per il magazzino.
+        const qtyGrammi = t.unita === 'kg' ? qty * 1000 : qty
+        if (qty > 0) await caricoMP({ orgId, sedeId: t.sede_a, ingrediente: t.prodotto, quantita: qtyGrammi })
         const scarto = Number(t.quantita) - qty
         await supabase.from('trasferimenti').update({
           stato: 'ricevuto',
@@ -181,8 +212,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     setBusyId(t.id)
     try {
       if (t.stato === 'inviato' && t.tipo === 'materia_prima' && t.stock_applicato) {
-        // Rollback MP client-side.
-        await caricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: Number(t.quantita) })
+        // Rollback MP client-side: rimetti l'MP nella sede di partenza.
+        await caricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: mpGrammi(t) })
         await supabase.from('trasferimenti').update({ stato: 'annullato', stock_applicato: false }).eq('id', t.id)
       } else {
         await annullaTrasferimento(t.id)
@@ -291,7 +322,17 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             </div>
             <div>
               <div style={lbl}>Tipo</div>
-              <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} style={inp}>
+              <select value={form.tipo} onChange={e => {
+                const nuovoTipo = e.target.value
+                setForm(f => ({
+                  ...f,
+                  tipo: nuovoTipo,
+                  // Auto-imposta un'unità sensata quando cambia il tipo.
+                  unita: nuovoTipo === 'materia_prima'
+                    ? (f.unita === 'kg' || f.unita === 'g' ? f.unita : 'g')
+                    : (['pz','vassoi','kg','g','l','ml'].includes(f.unita) ? f.unita : 'pz'),
+                }))
+              }} style={inp}>
                 {TIPI.map(t => <option key={t.id} value={t.id}>{t.lbl}</option>)}
               </select>
             </div>
