@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
+import useIsMobile from '../lib/useIsMobile'
 
 const R = '#C0392B'
 const TXT = '#1C0A0A'
@@ -141,6 +142,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
 }
 
 export default function ImpostazioniSedi({ orgId, onSediChange }) {
+  const isMobile = useIsMobile()
   const [sedi, setSedi] = useState([])
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -267,7 +269,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
   }
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div style={{ maxWidth: 560, padding: isMobile ? 12 : 0 }}>
       {toast && (
         <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 10, background: toast.ok ? '#22C55E' : R, color: '#FFF', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
           {toast.msg}
@@ -294,7 +296,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
             <label style={lbl}>Nome sede *</label>
             <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} style={inp} placeholder="Es. Sede Centro" />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <div>
               <label style={lbl}>Indirizzo</label>
               <input value={form.indirizzo} onChange={e => setForm(f => ({ ...f, indirizzo: e.target.value }))} style={inp} placeholder="Via Roma 1" />
@@ -323,7 +325,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
                 <label style={lbl}>Nome</label>
                 <input value={editForm.nome || ''} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} style={inp} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 12 }}>
                 <div>
                   <label style={lbl}>Indirizzo</label>
                   <input value={editForm.indirizzo || ''} onChange={e => setEditForm(f => ({ ...f, indirizzo: e.target.value }))} style={inp} />
