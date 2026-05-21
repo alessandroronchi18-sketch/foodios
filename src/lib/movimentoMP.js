@@ -88,3 +88,37 @@ export async function spostaMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, 
 export async function rollbackMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, quantita }) {
   return spostaMaterialePrima({ orgId, sedeDa: sedeA, sedeA: sedeDa, ingrediente, quantita })
 }
+
+// Scarico di MP da una sede (per workflow trasferimento step 1: invio).
+// throws se non disponibile.
+export async function scaricoMP({ orgId, sedeId, ingrediente, quantita }) {
+  if (!orgId || !sedeId) throw new Error('Parametri mancanti')
+  if (!(quantita > 0)) throw new Error('Quantita non valida')
+  const k = normIng(ingrediente)
+  const mag = await sload(SK_MAG, orgId, sedeId) || {}
+  const giac = Number(mag[k]?.giacenza_g || 0)
+  if (giac < quantita) {
+    throw new Error(`Disponibilità insufficiente: ${giac}g disponibili, richiesti ${quantita}g`)
+  }
+  const newMag = {
+    ...mag,
+    [k]: { ...mag[k], giacenza_g: giac - quantita, ultimoMovimento: new Date().toISOString() },
+  }
+  await ssave(SK_MAG, newMag, orgId, sedeId)
+  return newMag[k].giacenza_g
+}
+
+// Carico di MP in una sede (step 2: ricezione).
+export async function caricoMP({ orgId, sedeId, ingrediente, quantita }) {
+  if (!orgId || !sedeId) throw new Error('Parametri mancanti')
+  if (!(quantita > 0)) throw new Error('Quantita non valida')
+  const k = normIng(ingrediente)
+  const mag = await sload(SK_MAG, orgId, sedeId) || {}
+  const base = mag[k] || { giacenza_g: 0, soglia_g: 0 }
+  const newMag = {
+    ...mag,
+    [k]: { ...base, giacenza_g: Number(base.giacenza_g || 0) + quantita, ultimoMovimento: new Date().toISOString() },
+  }
+  await ssave(SK_MAG, newMag, orgId, sedeId)
+  return newMag[k].giacenza_g
+}

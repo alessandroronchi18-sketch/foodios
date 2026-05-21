@@ -2,6 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, motion as M } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
+import {
+  loadTrasferimenti, creaTrasferimento,
+  inviaTrasferimento, riceviTrasferimento, annullaTrasferimento,
+  STATO_LABEL, TIPO_LABEL,
+} from '../lib/trasferimenti'
+import { scaricoMP, caricoMP } from '../lib/movimentoMP'
 
 const C = {
   bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
@@ -15,12 +21,6 @@ const TIPI = [
   { id: 'prodotto',       lbl: '🍰 Prodotto finito' },
   { id: 'semilavorato',   lbl: '🧁 Semilavorato' },
   { id: 'materia_prima',  lbl: '🌾 Materia prima' },
-]
-const STATI = [
-  { id: 'bozza',       lbl: 'Bozza',       bg: '#F1F5F9', fg: '#475569' },
-  { id: 'inviato',     lbl: 'Inviato',     bg: '#DBEAFE', fg: '#1E40AF' },
-  { id: 'completato',  lbl: 'Completato',  bg: '#D1FAE5', fg: '#065F46' },
-  { id: 'annullato',   lbl: 'Annullato',   bg: '#FEE2E2', fg: '#991B1B' },
 ]
 
 function fmtData(iso) {
@@ -36,7 +36,10 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [scope, setScope] = useState('attiva') // 'attiva' (in/out della sede attiva) | 'tutte'
+  const [scope, setScope] = useState('attiva')
+  const [busyId, setBusyId] = useState(null)
+  const [riceviModal, setRiceviModal] = useState(null) // { t, qtyRic, note }
+
   const [form, setForm] = useState(() => ({
     data: new Date().toISOString().slice(0, 10),
     tipo: 'prodotto',
@@ -47,7 +50,6 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     unita: 'pz',
     valore_unit: '',
     note: '',
-    stato: 'completato',
   }))
   const [saving, setSaving] = useState(false)
 
@@ -55,9 +57,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   const sediMap = Object.fromEntries(sediAttive.map(s => [s.id, s]))
 
   useEffect(() => {
-    if (sedeAttiva?.id && !form.sede_da) {
-      setForm(f => ({ ...f, sede_da: sedeAttiva.id }))
-    }
+    if (sedeAttiva?.id && !form.sede_da) setForm(f => ({ ...f, sede_da: sedeAttiva.id }))
   }, [sedeAttiva?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { carica() }, [orgId, sedeAttiva?.id, scope])
@@ -66,19 +66,16 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     if (!orgId) { setLoading(false); return }
     setLoading(true)
     try {
-      let q = supabase.from('trasferimenti').select('*').eq('organization_id', orgId)
-      if (scope === 'attiva' && sedeAttiva?.id) {
-        q = q.or(`sede_da.eq.${sedeAttiva.id},sede_a.eq.${sedeAttiva.id}`)
-      }
-      const { data, error } = await q.order('data', { ascending: false }).order('created_at', { ascending: false })
-      if (error) throw error
-      setLista(data || [])
+      const data = await loadTrasferimenti(orgId, { sedeAttivaId: sedeAttiva?.id, scope })
+      setLista(data)
     } catch (e) {
       notify?.('Errore caricamento trasferimenti: ' + e.message, false)
     } finally { setLoading(false) }
   }
 
-  async function salva() {
+  // ── Azioni ───────────────────────────────────────────────────────────────
+
+  async function salvaBozza(autoInvia) {
     if (!orgId) return
     if (!form.sede_da || !form.sede_a) { notify?.('Seleziona sede di partenza e destinazione', false); return }
     if (form.sede_da === form.sede_a) { notify?.('Sede di partenza e destinazione devono essere diverse', false); return }
@@ -88,24 +85,34 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
     setSaving(true)
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const payload = {
-        organization_id: orgId,
-        data: form.data,
+      // Per materia prima, l'invio richiede di muovere lo stock client-side.
+      // Lo facciamo PRIMA di creare il record (così se MP non disponibile, non lascio bozza vuota).
+      if (autoInvia && form.tipo === 'materia_prima') {
+        await scaricoMP({ orgId, sedeId: form.sede_da, ingrediente: form.prodotto.trim(), quantita: qty })
+      }
+
+      const created = await creaTrasferimento({
+        orgId,
+        sedeDa: form.sede_da,
+        sedeA: form.sede_a,
         tipo: form.tipo,
-        sede_da: form.sede_da,
-        sede_a: form.sede_a,
         prodotto: form.prodotto.trim(),
         quantita: qty,
         unita: form.unita || 'pz',
-        valore_unit: parseFloat(form.valore_unit) || 0,
+        valoreUnit: parseFloat(form.valore_unit) || 0,
         note: form.note?.trim() || null,
-        stato: form.stato,
-        created_by: userData?.user?.id || null,
+        data: form.data,
+        autoInvia: autoInvia && form.tipo === 'prodotto', // RPC scala stock per prodotti
+      })
+
+      // Per MP autoInvia, marchiamo a mano lo stato inviato (lo stock è già scalato).
+      if (autoInvia && form.tipo === 'materia_prima') {
+        await supabase.from('trasferimenti')
+          .update({ stato: 'inviato', stock_applicato: true, data_invio: new Date().toISOString() })
+          .eq('id', created.id)
       }
-      const { error } = await supabase.from('trasferimenti').insert(payload)
-      if (error) throw error
-      notify?.('✓ Trasferimento registrato')
+
+      notify?.(autoInvia ? '✓ Trasferimento inviato' : '✓ Bozza salvata')
       setForm(f => ({ ...f, prodotto: '', quantita: '', valore_unit: '', note: '' }))
       setShowForm(false)
       await carica()
@@ -114,40 +121,106 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     } finally { setSaving(false) }
   }
 
-  async function aggiornaStato(id, nuovoStato) {
+  async function azInvia(t) {
+    setBusyId(t.id)
     try {
-      const { error } = await supabase.from('trasferimenti').update({ stato: nuovoStato }).eq('id', id)
+      if (t.tipo === 'materia_prima') {
+        await scaricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: Number(t.quantita) })
+        await supabase.from('trasferimenti')
+          .update({ stato: 'inviato', stock_applicato: true, data_invio: new Date().toISOString() })
+          .eq('id', t.id)
+      } else {
+        // 'prodotto' e 'semilavorato' (per ora solo log) passano da RPC.
+        // RPC con tipo='semilavorato' non scala stock ma aggiorna stato.
+        await inviaTrasferimento(t.id)
+      }
+      notify?.('✓ Invio registrato')
+      await carica()
+    } catch (e) {
+      notify?.('Errore invio: ' + e.message, false)
+    } finally { setBusyId(null) }
+  }
+
+  function apriRicevi(t) {
+    setRiceviModal({ t, qtyRic: String(t.quantita), note: '' })
+  }
+
+  async function confermaRicezione() {
+    if (!riceviModal) return
+    const { t, qtyRic, note } = riceviModal
+    const qty = parseFloat(qtyRic)
+    if (!Number.isFinite(qty) || qty < 0 || qty > Number(t.quantita)) {
+      notify?.('Quantità ricevuta non valida (deve essere tra 0 e ' + t.quantita + ')', false)
+      return
+    }
+    setBusyId(t.id)
+    try {
+      if (t.tipo === 'materia_prima') {
+        if (qty > 0) await caricoMP({ orgId, sedeId: t.sede_a, ingrediente: t.prodotto, quantita: qty })
+        const scarto = Number(t.quantita) - qty
+        await supabase.from('trasferimenti').update({
+          stato: 'ricevuto',
+          quantita_ricevuta: qty,
+          scarto_qty: scarto,
+          scarto_note: note?.trim() || null,
+          data_ricezione: new Date().toISOString(),
+        }).eq('id', t.id)
+      } else {
+        await riceviTrasferimento(t.id, { quantitaRicevuta: qty, scartoNote: note?.trim() || null })
+      }
+      notify?.('✓ Ricezione registrata')
+      setRiceviModal(null)
+      await carica()
+    } catch (e) {
+      notify?.('Errore ricezione: ' + e.message, false)
+    } finally { setBusyId(null) }
+  }
+
+  async function azAnnulla(t) {
+    if (!confirm(`Annullare il trasferimento di ${t.prodotto}? ${t.stato === 'inviato' ? 'Lo stock sarà ripristinato sulla sede di partenza.' : ''}`)) return
+    setBusyId(t.id)
+    try {
+      if (t.stato === 'inviato' && t.tipo === 'materia_prima' && t.stock_applicato) {
+        // Rollback MP client-side.
+        await caricoMP({ orgId, sedeId: t.sede_da, ingrediente: t.prodotto, quantita: Number(t.quantita) })
+        await supabase.from('trasferimenti').update({ stato: 'annullato', stock_applicato: false }).eq('id', t.id)
+      } else {
+        await annullaTrasferimento(t.id)
+      }
+      notify?.('✓ Trasferimento annullato')
+      await carica()
+    } catch (e) {
+      notify?.('Errore annullamento: ' + e.message, false)
+    } finally { setBusyId(null) }
+  }
+
+  async function azElimina(t) {
+    if (!['bozza', 'annullato'].includes(t.stato)) {
+      notify?.('Solo bozze e trasferimenti annullati possono essere eliminati', false)
+      return
+    }
+    if (!confirm('Eliminare definitivamente questo trasferimento?')) return
+    try {
+      const { error } = await supabase.from('trasferimenti').delete().eq('id', t.id).eq('organization_id', orgId)
       if (error) throw error
-      notify?.('✓ Stato aggiornato')
+      notify?.('✓ Eliminato')
       await carica()
     } catch (e) {
       notify?.('Errore: ' + e.message, false)
     }
   }
 
-  async function elimina(id) {
-    if (!confirm('Eliminare questo trasferimento?')) return
-    try {
-      const { error } = await supabase.from('trasferimenti').delete().eq('id', id)
-      if (error) throw error
-      notify?.('✓ Trasferimento eliminato')
-      await carica()
-    } catch (e) {
-      notify?.('Errore: ' + e.message, false)
-    }
-  }
-
+  // ── KPI ──────────────────────────────────────────────────────────────────
   const kpi = useMemo(() => {
     const sedeId = sedeAttiva?.id
     return {
       tot: lista.length,
-      inUscita: sedeId ? lista.filter(t => t.sede_da === sedeId).length : 0,
-      inEntrata: sedeId ? lista.filter(t => t.sede_a === sedeId).length : 0,
-      bozze: lista.filter(t => t.stato === 'bozza').length,
+      inUscita: sedeId ? lista.filter(t => t.sede_da === sedeId && !['annullato'].includes(t.stato)).length : 0,
+      inEntrata: sedeId ? lista.filter(t => t.sede_a === sedeId && !['annullato'].includes(t.stato)).length : 0,
+      daRicevere: sedeId ? lista.filter(t => t.sede_a === sedeId && t.stato === 'inviato').length : 0,
     }
   }, [lista, sedeAttiva?.id])
 
-  // Se ho meno di 2 sedi, la feature non ha senso
   if (sediAttive.length < 2) {
     return (
       <div style={{ maxWidth: 720, margin: '60px auto', textAlign: 'center', padding: 20 }}>
@@ -171,7 +244,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>Operazioni multi-sede</div>
         <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 900, color: C.text, letterSpacing: '-0.03em' }}>Trasferimenti tra sedi</h1>
         <p style={{ margin: 0, fontSize: 13, color: C.textSoft }}>
-          Sposta prodotti dal laboratorio ai punti vendita, o tra qualsiasi coppia di sedi.
+          Sposta prodotti finiti, semilavorati o materie prime da una sede all'altra. Lo stock si aggiorna automaticamente.
         </p>
       </div>
 
@@ -181,9 +254,9 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           { label: 'Totale', val: kpi.tot, color: C.text },
           { label: 'In uscita', val: kpi.inUscita, color: C.red },
           { label: 'In entrata', val: kpi.inEntrata, color: C.green },
-          { label: 'Bozze', val: kpi.bozze, color: C.amber },
+          { label: 'Da ricevere', val: kpi.daRicevere, color: C.amber, highlight: kpi.daRicevere > 0 },
         ].map(k => (
-          <div key={k.label} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 18px' }}>
+          <div key={k.label} style={{ background: k.highlight ? '#FEF3C7' : C.bgCard, border: `1px solid ${k.highlight ? C.amber : C.border}`, borderRadius: 12, padding: '14px 18px' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{k.label}</div>
             <div style={{ fontSize: 22, fontWeight: 900, color: k.color, marginTop: 4, ...tnum }}>{k.val}</div>
           </div>
@@ -211,7 +284,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* Form */}
       {showForm && (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <div style={lbl}>Data</div>
               <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} style={inp}/>
@@ -220,12 +293,6 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               <div style={lbl}>Tipo</div>
               <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} style={inp}>
                 {TIPI.map(t => <option key={t.id} value={t.id}>{t.lbl}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={lbl}>Stato</div>
-              <select value={form.stato} onChange={e => setForm(f => ({ ...f, stato: e.target.value }))} style={inp}>
-                {STATI.map(s => <option key={s.id} value={s.id}>{s.lbl}</option>)}
               </select>
             </div>
           </div>
@@ -248,8 +315,9 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
-              <div style={lbl}>Prodotto *</div>
-              <input value={form.prodotto} onChange={e => setForm(f => ({ ...f, prodotto: e.target.value }))} style={inp} placeholder="es. BRIOCHES VUOTE"/>
+              <div style={lbl}>{form.tipo === 'materia_prima' ? 'Ingrediente *' : 'Prodotto *'}</div>
+              <input value={form.prodotto} onChange={e => setForm(f => ({ ...f, prodotto: e.target.value }))} style={inp}
+                placeholder={form.tipo === 'materia_prima' ? 'es. zucchero' : 'es. BRIOCHES VUOTE'}/>
             </div>
             <div>
               <div style={lbl}>Quantità *</div>
@@ -258,7 +326,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             <div>
               <div style={lbl}>Unità</div>
               <select value={form.unita} onChange={e => setForm(f => ({ ...f, unita: e.target.value }))} style={inp}>
-                {['pz','kg','g','l','ml','vassoi'].map(u => <option key={u} value={u}>{u}</option>)}
+                {(form.tipo === 'materia_prima' ? ['g','kg'] : ['pz','vassoi','kg','g','l','ml']).map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
             <div>
@@ -270,10 +338,64 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             <div style={lbl}>Note</div>
             <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} style={inp} placeholder="opzionale"/>
           </div>
-          <button onClick={salva} disabled={saving}
-            style={{ padding: '10px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-            {saving ? '…' : 'Registra trasferimento'}
-          </button>
+
+          {/* Info movimentazione stock */}
+          <div style={{ marginBottom: 14, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, color: '#1E40AF', lineHeight: 1.5 }}>
+            {form.tipo === 'prodotto' && <>📦 All'invio: scala stock prodotti finiti di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa stock di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
+            {form.tipo === 'materia_prima' && <>🌾 All'invio: scala magazzino materie prime di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa magazzino di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
+            {form.tipo === 'semilavorato' && <>🧁 Trasferimento di semilavorato. Solo log, lo stock semilavorati non è ancora gestito automaticamente.</>}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => salvaBozza(true)} disabled={saving}
+              style={{ padding: '10px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+              {saving ? '…' : '🚚 Invia subito'}
+            </button>
+            <button onClick={() => salvaBozza(false)} disabled={saving}
+              style={{ padding: '10px 20px', background: C.bgCard, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              💾 Salva bozza
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Ricezione */}
+      {riceviModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
+          onClick={() => setRiceviModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 14, padding: 24, maxWidth: 480, width: '100%' }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text }}>📦 Conferma ricezione</h3>
+            <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>
+              <strong>{riceviModal.t.prodotto}</strong> · {fmtQty(riceviModal.t.quantita, riceviModal.t.unita)} inviati da {sediMap[riceviModal.t.sede_da]?.nome || '—'}
+            </p>
+            <div style={{ marginBottom: 12 }}>
+              <div style={lbl}>Quantità effettivamente ricevuta</div>
+              <input type="number" min="0" max={riceviModal.t.quantita} step="0.1"
+                value={riceviModal.qtyRic}
+                onChange={e => setRiceviModal(m => ({ ...m, qtyRic: e.target.value }))}
+                style={inp}/>
+              {parseFloat(riceviModal.qtyRic) < Number(riceviModal.t.quantita) && (
+                <div style={{ marginTop: 6, fontSize: 11, color: C.amber }}>
+                  ⚠ Scarto: {(Number(riceviModal.t.quantita) - parseFloat(riceviModal.qtyRic || 0)).toFixed(2)} {riceviModal.t.unita}
+                </div>
+              )}
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <div style={lbl}>Note scarto (opzionale)</div>
+              <input value={riceviModal.note} onChange={e => setRiceviModal(m => ({ ...m, note: e.target.value }))}
+                style={inp} placeholder="es. 2 pezzi danneggiati"/>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setRiceviModal(null)}
+                style={{ padding: '10px 18px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                Annulla
+              </button>
+              <button onClick={confermaRicezione} disabled={busyId === riceviModal.t.id}
+                style={{ padding: '10px 18px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
+                ✓ Conferma ricezione
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -289,35 +411,65 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           {lista.map(t => {
             const sda = sediMap[t.sede_da]
             const sa = sediMap[t.sede_a]
-            const statoCfg = STATI.find(s => s.id === t.stato) || STATI[2]
+            const statoCfg = STATO_LABEL[t.stato] || STATO_LABEL.bozza
+            const sedeAttivaId = sedeAttiva?.id
+            const isMioInArrivo = t.sede_a === sedeAttivaId && t.stato === 'inviato'
+            const busy = busyId === t.id
+
             return (
-              <div key={t.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 18px' }}>
+              <div key={t.id} style={{
+                background: isMioInArrivo ? '#FFFBEB' : C.bgCard,
+                border: `1px solid ${isMioInArrivo ? C.amber : C.border}`,
+                borderRadius: 10, padding: '14px 18px'
+              }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{t.prodotto}</span>
                     <span style={{ fontSize: 11, color: C.textMid, ...tnum }}>{fmtQty(t.quantita, t.unita)}</span>
                     {t.valore_unit > 0 && <span style={{ fontSize: 11, color: C.textSoft, ...tnum }}>· €{(t.quantita * t.valore_unit).toFixed(2)}</span>}
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: statoCfg.bg, color: statoCfg.fg }}>
-                      {statoCfg.lbl}
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: statoCfg.bg, color: statoCfg.color }}>
+                      {statoCfg.label}
                     </span>
+                    {t.scarto_qty > 0 && (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FEE2E2', color: '#991B1B' }}>
+                        Scarto: {t.scarto_qty} {t.unita}
+                      </span>
+                    )}
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    {t.stato !== 'completato' && (
-                      <button onClick={() => aggiornaStato(t.id, 'completato')} title="Segna come completato"
-                        style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.green}`, background: C.greenLight, color: C.green, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>✓</button>
+                    {t.stato === 'bozza' && (
+                      <>
+                        <button onClick={() => azInvia(t)} disabled={busy} title="Invia"
+                          style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          🚚 Invia
+                        </button>
+                        <button onClick={() => azElimina(t)} disabled={busy} title="Elimina bozza"
+                          style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                      </>
                     )}
-                    {t.stato !== 'annullato' && (
-                      <button onClick={() => aggiornaStato(t.id, 'annullato')} title="Annulla"
-                        style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.amber}40`, background: C.amberLight, color: C.amber, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>⊘</button>
+                    {t.stato === 'inviato' && (
+                      <>
+                        <button onClick={() => apriRicevi(t)} disabled={busy} title="Conferma ricezione"
+                          style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: C.green, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          ✓ Ricevuto
+                        </button>
+                        <button onClick={() => azAnnulla(t)} disabled={busy} title="Annulla (rollback stock)"
+                          style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>⊘</button>
+                      </>
                     )}
-                    <button onClick={() => elimina(t.id)} title="Elimina"
-                      style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.red}40`, background: C.redLight, color: C.red, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                    {(t.stato === 'ricevuto' || t.stato === 'completato') && (
+                      <span style={{ fontSize: 11, color: C.textSoft }}>{t.data_ricezione ? fmtData(t.data_ricezione) : ''}</span>
+                    )}
+                    {t.stato === 'annullato' && (
+                      <button onClick={() => azElimina(t)} title="Elimina"
+                        style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                    )}
                   </div>
                 </div>
                 <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: C.textSoft, flexWrap: 'wrap' }}>
                   <span>📅 {fmtData(t.data)}</span>
                   <span>•</span>
-                  <span>{TIPI.find(tt => tt.id === t.tipo)?.lbl || t.tipo}</span>
+                  <span>{TIPO_LABEL[t.tipo] || t.tipo}</span>
                   <span>•</span>
                   <span><strong style={{ color: C.text }}>{sda?.nome || '—'}</strong> → <strong style={{ color: C.text }}>{sa?.nome || '—'}</strong></span>
                   {t.note && <><span>•</span><span style={{ fontStyle: 'italic' }}>{t.note}</span></>}
