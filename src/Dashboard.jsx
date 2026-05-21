@@ -1144,15 +1144,13 @@ function KPI({label,value,sub,color,highlight,icon}) {
 
 // ─── PAGE HEADER ──────────────────────────────────────────────────────────────
 function PageHeader({breadcrumb, title, subtitle, action}) {
+  // Il titolo della view è già nella topbar — qui mostriamo solo subtitle/action
+  // per evitare la duplicazione del titolo in ogni pagina.
+  if (!subtitle && !action) return null;
   return (
-    <div style={{marginBottom:32}}>
-      <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
-        <div style={{minWidth:0,flex:1}}>
-          <h1 style={{margin:"0 0 6px",fontSize:34,fontWeight:700,color:T.text,letterSpacing:"-0.035em",lineHeight:1.1}}>{title}</h1>
-          {subtitle && <div style={{fontSize:14,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>{subtitle}</div>}
-        </div>
-        {action}
-      </div>
+    <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
+      {subtitle && <div style={{fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500,flex:1,minWidth:0}}>{subtitle}</div>}
+      {action}
     </div>
   );
 }
@@ -1563,7 +1561,6 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload, onEditRicetta}) {
       <div style={{marginBottom:isMobile?16:24}}>
         <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14,flexWrap:"wrap",marginBottom:14}}>
           <div style={{minWidth:0,flex:1}}>
-            <h1 style={{margin:"0 0 4px",fontSize:isMobile?22:26,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15}}>Ricettario</h1>
             <div style={{fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",...tnum}}>
               {ricette.length>0
                 ? <>{ricette.length} ricette · food cost medio <b style={{color:T.textMid,fontWeight:600}}>{(fcMedio*100).toFixed(1)}%</b></>
@@ -2968,8 +2965,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
     <div style={{maxWidth:1100}}>
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:4}}>Produzione mensile</div>
-          <h1 style={{margin:0,fontSize:26,fontWeight:900,color:C.text,letterSpacing:"-0.02em"}}>{mese.label}</h1>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:4}}>Produzione mensile · {mese.label}</div>
           {mese.meteo&&<div style={{fontSize:11,color:C.textSoft,marginTop:4}}>☀️ {mese.meteo.giorniSole}gg sole · 🌧 {mese.meteo.giorniPioggia}gg pioggia · {mese.meteo.tempMean}°C media</div>}
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -5270,9 +5266,6 @@ function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditCo
           }
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <h1 style={{margin:"0 0 4px",fontSize:isMobile?22:26,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15}}>
-            {editMode ? `Modifica ricetta` : "Nuova ricetta"}
-          </h1>
           <p style={{margin:0,fontSize:13,color:T.textSoft,lineHeight:1.5,letterSpacing:"-0.005em"}}>
             {editMode
               ? <>Stai modificando <strong style={{color:T.brand,fontWeight:600}}>{editMode}</strong>. Salva per aggiornare.</>
@@ -5788,8 +5781,6 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
       {/* Header + toggle */}
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
          <div>
-           <div style={{fontSize:11,color:C.textSoft,marginBottom:5}}>Dashboard › Storico</div>
-           <h1 style={{margin:"0 0 3px",fontSize:22,fontWeight:700,color:C.text,letterSpacing:"-0.3px"}}>Storico produzione</h1>
            <div style={{fontSize:13,color:C.textSoft}}>Produzione, vendite e confronto</div>
          </div>
         <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
@@ -7336,7 +7327,6 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
           </svg>
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <h1 style={{margin:"0 0 4px",fontSize:isMobile?22:26,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15}}>Semilavorati &amp; Basi</h1>
           <p style={{margin:0,fontSize:13,color:T.textSoft,lineHeight:1.5,letterSpacing:"-0.005em"}}>
             Impasti, creme e preparazioni interne — usabili come ingredienti in altre ricette.
           </p>
@@ -8080,7 +8070,6 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
   return (
     <div style={{ maxWidth:720, margin:"0 auto" }}>
       <div style={{ marginBottom:20 }}>
-        <h1 style={{ margin:'0 0 4px', fontSize:26, fontWeight:700, color:T.text, letterSpacing:'-0.025em', lineHeight:1.15 }}>Impostazioni</h1>
         <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Gestisci attività, account e preferenze.</p>
       </div>
       {/* Tab nav */}
@@ -8345,7 +8334,6 @@ function SchedaAllergeniView({ ricettario }) {
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div>
           <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Sicurezza alimentare</div>
-          <h1 style={{margin:"0 0 6px",fontSize:28,fontWeight:900,color:C.text,letterSpacing:"-0.03em"}}>Scheda Allergeni</h1>
           <p style={{margin:0,fontSize:12,color:C.textSoft}}>Panoramica degli allergeni per tutte le ricette — Regolamento UE 1169/2011</p>
         </div>
         <button onClick={esportaPDF}
