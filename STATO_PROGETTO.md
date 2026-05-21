@@ -1,5 +1,5 @@
 # FoodOS — Stato del Progetto
-> Aggiornato: 2026-05-16
+> Aggiornato: 2026-05-20 (post-commit `179b546`)
 
 ---
 
@@ -181,12 +181,16 @@ foodios/
 - [x] Impostazioni (nome attività, import prezzi, account)
 - [x] Pulsante logout in sidebar (rosso, sempre visibile)
 
-### Storage & Multi-sede (parziale)
+### Storage & Multi-sede ✅ completo
 - [x] `storage.js` — logica `sload`/`ssave` con `sede_id` corretto per shared vs per-sede
-- [x] `SedeSelector.jsx` — componente dropdown già costruito
-- [x] Props `sedi`, `sedeAttiva`, `onSetSedeAttiva` passati a Dashboard
-- [ ] **SedeSelector NON ancora inserito nella sidebar** — componente esiste ma non è posizionato nel JSX
-- [ ] **Reload dati al cambio sede** — non implementato (useEffect con `[sedeId]`)
+- [x] `SedeSelector.jsx` — dropdown integrato nella sidebar (`Dashboard.jsx:8923`)
+- [x] Reload dati al cambio sede — `useEffect([orgId, sedeId])` in `Dashboard.jsx:8598` ricarica ricettario, produzione, magazzino, logRif, giornaliero, chiusure, esclusi
+- [x] `ImpostazioniSedi.jsx` — CRUD completo (lista, aggiungi, modifica inline, disattiva/riattiva, set default) + ScenarioOperativoCard
+- [x] `ConfrontoSedi.jsx` — visibile solo se `sedi.length > 1` (vincolo sia sul nav item `Dashboard.jsx:8956` sia interno al componente). KPI: ricavi settimana, food cost medio, prodotti oggi, stock vetrina, trasferimenti in arrivo, fatture da pagare. Best/worst evidenziati verde/rosso, mobile responsive.
+- [x] Onboarding step 4 "Hai altri punti vendita?" in `OnboardingWizard.jsx` con form nome/indirizzo/città e insert su `sedi`
+- [x] Trasferimenti tra sedi (movimento stock reale) — `TrasferimentiView.jsx` (visibile solo se `sedi.length > 1`)
+- [x] Stock prodotti finiti per sede (`stock_prodotti_finiti`) — produzione e vendita aggiornano stock automaticamente
+- [x] Scenario operativo A/B/C/D (laboratorio centrale / sedi autonome / più produttori / rete distribuita)
 
 ### Deploy
 - [x] Vercel deploy manuale (`vercel --prod`) funzionante
@@ -197,45 +201,32 @@ foodios/
 
 ## ❌ Cosa Manca (TODO)
 
-### URGENTE / Prossimo Sprint
+### Operativo / DB
 
-1. **Multi-sede — Gestione in Impostazioni**
-   - Aggiungere card "Punti vendita" in `ImpostazioniView` (Dashboard.jsx ~riga 6382)
-   - CRUD: lista sedi, aggiungi (nome/indirizzo/città), disattiva, set default
-   - Usa `supabase.from('sedi')`
-
-2. **Multi-sede — SedeSelector nella sidebar**
-   - Inserire `<SedeSelector>` nel JSX sidebar (Dashboard.jsx ~riga 6807, dopo il logo div)
-   - Aggiungere `useEffect` con dep `[sedeId]` per ricaricare dati per-sede al cambio
-
-3. **Multi-sede — Confronto Sedi**
-   - Nuovo componente `ConfrontoSediView` con tabella KPI fianco a fianco per ogni sede
-   - Nav item "📊 Confronto Sedi" (visibile solo se `sedi.length > 1`)
-   - KPI: produzione settimanale, ricavi, magazzino critico per sede
-
-4. **Onboarding — Step opzionale seconda sede**
-   - Aggiungere step 3 in `OnboardingWizard.jsx` ("Hai altri punti vendita?")
-   - Richiede passare `orgId` da `App.jsx` al wizard
-   - Usa `supabase.from('sedi').insert(...)` per creare la sede
-
-5. **Fix profile 500 per utenti senza profilo**
-   - Query SQL da eseguire su Supabase per utente `7aebcbe5-2b75-4a82-a1ec-9418433f7379`:
+1. **Fix profilo utente `7aebcbe5-2b75-4a82-a1ec-9418433f7379`** — da eseguire su Supabase SQL editor:
    ```sql
    INSERT INTO public.profiles (id, organization_id, email, ruolo, approvato)
    SELECT u.id, o.id, u.email, 'titolare', false
    FROM auth.users u
-   LEFT JOIN public.organizations o ON o.nome = coalesce(u.raw_user_meta_data->>'nome_attivita', 'La mia attività')
-   WHERE u.id NOT IN (SELECT id FROM public.profiles)
+   LEFT JOIN public.organizations o
+     ON o.nome = coalesce(u.raw_user_meta_data->>'nome_attivita', 'La mia attività')
+   WHERE u.id = '7aebcbe5-2b75-4a82-a1ec-9418433f7379'
+     AND u.id NOT IN (SELECT id FROM public.profiles)
    ON CONFLICT (id) DO NOTHING;
    ```
+   Controllo preventivo:
+   ```sql
+   SELECT id, email FROM public.profiles WHERE id = '7aebcbe5-2b75-4a82-a1ec-9418433f7379';
+   ```
+   Se ritorna una riga, il profilo esiste già e non serve eseguire l'INSERT.
 
 ### Features Future
 
-6. **Email transazionali** — `api/send-email.js` con Resend è scaffolded, configurare `RESEND_API_KEY` su Vercel
-7. **Approvazione admin** — il pannello admin ha già i bottoni, ma il workflow di notifica email all'admin quando si registra un nuovo utente non è completo
-8. **Dipendenti** — ruolo `dipendente` nel profilo ma nessuna UI specifica per loro
-9. **Piano Chain — gate feature premium** — sedi illimitate sono ora in tutti i piani. Da implementare: gate su utenti multipli, API access, white-label per il piano Chain (vedi sezione Piani)
-10. **Mobile responsive** — UI non ottimizzata per mobile
+2. **Email transazionali** — `api/send-email.js` con Resend è scaffolded, configurare `RESEND_API_KEY` su Vercel
+3. **Approvazione admin** — il pannello admin ha già i bottoni, ma il workflow di notifica email all'admin quando si registra un nuovo utente non è completo
+4. **Dipendenti** — ruolo `dipendente` nel profilo ma nessuna UI specifica per loro
+5. **Piano Chain — gate feature premium** — sedi illimitate sono ora in tutti i piani. Da implementare: gate su utenti multipli, API access, white-label per il piano Chain (vedi sezione Piani)
+6. **Mobile responsive** — perfezionamenti residui (la maggior parte delle view usa già `useIsMobile`, ma alcune sezioni di Dashboard.jsx vanno ancora rifinite)
 
 ---
 
