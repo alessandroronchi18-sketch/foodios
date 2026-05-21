@@ -3505,6 +3505,194 @@ function calcolaFabbisognoSettimana(ricettario, giornaliero) {
   return fabb;
 }
 
+// ─── PRODOTTI FINITI TAB ────────────────────────────────────────────────────
+// Mostra lo stock prodotti finiti della sede attiva con possibilità di
+// registrare uno scarto manuale (rotture, scaduti, dati a omaggio, ecc).
+function ProdottiFinitiTab({ notify }) {
+  const isMobile = useIsMobile();
+  const [stock, setStock] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [scartoForm, setScartoForm] = useState(null); // { prodotto, qty, note }
+  const [movimenti, setMovimenti] = useState([]);
+
+  const sedeId = _ctx_sedeId;
+  const orgId = _ctx_orgId;
+
+  const carica = useCallback(async () => {
+    if (!orgId || !sedeId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const { loadStockPF, loadMovimentiPF } = await import('./lib/stockPF');
+      const [s, m] = await Promise.all([
+        loadStockPF(orgId, sedeId),
+        loadMovimentiPF(orgId, sedeId, { limit: 30 }),
+      ]);
+      setStock(s);
+      setMovimenti(m);
+    } catch (e) {
+      notify?.('Errore caricamento stock: ' + e.message, false);
+    } finally { setLoading(false); }
+  }, [orgId, sedeId, notify]);
+
+  useEffect(() => { carica(); }, [carica]);
+
+  const handleScarto = async () => {
+    if (!scartoForm?.prodotto || !(scartoForm.qty > 0)) return;
+    try {
+      const { scartoPF } = await import('./lib/stockPF');
+      await scartoPF({ sedeId, prodotto: scartoForm.prodotto, quantita: scartoForm.qty, note: scartoForm.note || null });
+      notify('✓ Scarto registrato');
+      setScartoForm(null);
+      await carica();
+    } catch (e) {
+      notify('Errore: ' + e.message, false);
+    }
+  };
+
+  if (!sedeId) {
+    return <div style={{padding:24,textAlign:"center",color:C.textSoft,fontSize:13}}>Seleziona una sede attiva per vedere lo stock prodotti finiti.</div>;
+  }
+
+  if (loading) {
+    return <div style={{padding:24,textAlign:"center",color:C.textSoft,fontSize:13}}>Caricamento…</div>;
+  }
+
+  const totPezzi = stock.reduce((s,r) => s + Number(r.quantita || 0), 0);
+  const sottoSoglia = stock.filter(r => r.soglia_min > 0 && Number(r.quantita) <= Number(r.soglia_min));
+  const negativi = stock.filter(r => Number(r.quantita) < 0);
+
+  const CAUSALE_LBL = {
+    produzione: { lbl: '🏭 Produzione', col: '#16A34A' },
+    trasferimento_invio: { lbl: '🚚 Inviato', col: '#DC2626' },
+    trasferimento_ricezione: { lbl: '📦 Ricevuto', col: '#16A34A' },
+    vendita: { lbl: '🛒 Vendita', col: '#2563EB' },
+    scarto: { lbl: '⚠️ Scarto', col: '#92400E' },
+    annullo_trasferimento: { lbl: '↩ Annullo', col: '#94A3B8' },
+    rettifica: { lbl: '✏️ Rettifica', col: '#475569' },
+  };
+
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:20}}>
+        <KPI icon="📦" label="Prodotti in stock" value={stock.length}/>
+        <KPI icon="🧮" label="Pezzi totali" value={totPezzi.toLocaleString('it-IT', {maximumFractionDigits:0})}/>
+        <KPI icon="⚠️" label="Sotto soglia" value={sottoSoglia.length} color={sottoSoglia.length>0?C.amber:C.green}/>
+        <KPI icon="🚨" label="Stock negativo" value={negativi.length} color={negativi.length>0?C.red:C.green} sub={negativi.length>0?"vendite > carico":""}/>
+      </div>
+
+      {stock.length === 0 ? (
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"40px 20px",textAlign:"center",color:C.textSoft,fontSize:13}}>
+          <div style={{fontSize:36,marginBottom:8}}>📦</div>
+          Nessun prodotto in stock per questa sede.<br/>
+          Lo stock si popola automaticamente alla conferma di una sessione di produzione.
+        </div>
+      ) : (
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:20}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr style={{background:"#F8F4F2"}}>
+                {["Prodotto","Disponibili","Soglia","Aggiornato",""].map((h,i)=>(
+                  <th key={i} style={{padding:"10px 14px",textAlign:i===1||i===2?"right":"left",fontSize:9,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {stock.map((r,i) => {
+                const q = Number(r.quantita || 0);
+                const sotto = r.soglia_min > 0 && q <= Number(r.soglia_min);
+                const neg = q < 0;
+                return (
+                  <tr key={r.id} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
+                    <td style={{padding:"10px 14px",fontWeight:700,color:C.text}}>{r.prodotto_nome}</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:neg?C.red:sotto?C.amber:C.text,...tnum}}>
+                      {q.toLocaleString('it-IT',{maximumFractionDigits:2})} {r.unita}
+                    </td>
+                    <td style={{padding:"10px 14px",textAlign:"right",color:C.textSoft,...tnum}}>
+                      {r.soglia_min > 0 ? Number(r.soglia_min).toLocaleString('it-IT') : "—"}
+                    </td>
+                    <td style={{padding:"10px 14px",fontSize:11,color:C.textSoft}}>
+                      {r.updated_at ? new Date(r.updated_at).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : "—"}
+                    </td>
+                    <td style={{padding:"10px 14px",textAlign:"right"}}>
+                      <button onClick={()=>setScartoForm({prodotto:r.prodotto_nome,qty:"",note:""})} disabled={q<=0}
+                        style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:C.bgCard,color:q<=0?C.textSoft:C.amber,fontSize:11,fontWeight:700,cursor:q<=0?"not-allowed":"pointer"}}>
+                        Scarto
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {movimenti.length > 0 && (
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>Movimenti recenti</div>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <tbody>
+                {movimenti.map(m => {
+                  const c = CAUSALE_LBL[m.causale] || { lbl: m.causale, col: C.textSoft };
+                  const d = Number(m.delta);
+                  return (
+                    <tr key={m.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                      <td style={{padding:"8px 14px",fontSize:10,color:C.textSoft,whiteSpace:"nowrap"}}>
+                        {new Date(m.created_at).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                      </td>
+                      <td style={{padding:"8px 14px",fontWeight:700,color:C.text}}>{m.prodotto_nome}</td>
+                      <td style={{padding:"8px 14px",fontSize:11,color:c.col,whiteSpace:"nowrap"}}>{c.lbl}</td>
+                      <td style={{padding:"8px 14px",textAlign:"right",fontWeight:800,color:d>0?C.green:d<0?C.red:C.textSoft,...tnum}}>
+                        {d>0?'+':''}{d}
+                      </td>
+                      <td style={{padding:"8px 14px",fontSize:10,color:C.textSoft,fontStyle:"italic"}}>{m.note||""}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal scarto */}
+      {scartoForm && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}
+          onClick={()=>setScartoForm(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.bgCard,borderRadius:14,padding:24,maxWidth:420,width:"100%"}}>
+            <h3 style={{margin:"0 0 6px",fontSize:18,fontWeight:800,color:C.text}}>⚠️ Registra scarto</h3>
+            <p style={{margin:"0 0 16px",fontSize:12,color:C.textSoft}}>Prodotto: <strong>{scartoForm.prodotto}</strong></p>
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>Quantità scartata (pz)</div>
+              <input type="number" min="0" step="1" value={scartoForm.qty}
+                onChange={e=>setScartoForm(f=>({...f,qty:parseFloat(e.target.value)||0}))}
+                style={{width:"100%",padding:"10px 14px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:14,boxSizing:"border-box"}}/>
+            </div>
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>Motivo (opzionale)</div>
+              <input value={scartoForm.note}
+                onChange={e=>setScartoForm(f=>({...f,note:e.target.value}))}
+                placeholder="es. caduti per terra, scaduti, dati a omaggio"
+                style={{width:"100%",padding:"10px 14px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:13,boxSizing:"border-box"}}/>
+            </div>
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+              <button onClick={()=>setScartoForm(null)}
+                style={{padding:"10px 18px",background:"transparent",color:C.textMid,border:`1px solid ${C.border}`,borderRadius:8,fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                Annulla
+              </button>
+              <button onClick={handleScarto}
+                style={{padding:"10px 18px",background:C.red,color:C.white,border:"none",borderRadius:8,fontWeight:800,fontSize:13,cursor:"pointer"}}>
+                Registra scarto
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif, giornaliero, notify, esclusi=new Set(), setEsclusi, onImportPrezzi, onImportPrezziOCR }) {
   const isMobile = useIsMobile();
   const [tab, setTab] = useState("giacenze");
@@ -3700,13 +3888,13 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
       </div>
 
       {/* Tab */}
-      <div style={{display:"flex",gap:2,marginBottom:24,borderBottom:`1px solid ${T.border}`}}>
-        {[["giacenze","Giacenze"],["carica","Carica merce"],["log","Log rifornimenti"]].map(([id,lbl])=>(
+      <div style={{display:"flex",gap:2,marginBottom:24,borderBottom:`1px solid ${T.border}`,overflowX:"auto"}}>
+        {[["giacenze","Materie prime"],["pf","Prodotti finiti"],["carica","Carica merce"],["log","Log rifornimenti"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
             style={{padding:"10px 16px",border:"none",background:"transparent",cursor:"pointer",
               fontSize:13,fontWeight:tab===id?600:500,color:tab===id?T.text:T.textSoft,
               borderBottom:tab===id?`2px solid ${T.brand}`:"2px solid transparent",
-              marginBottom:-1,letterSpacing:"-0.005em",
+              marginBottom:-1,letterSpacing:"-0.005em",whiteSpace:"nowrap",
               transition:`color ${M.durFast} ${M.ease}`}}
             onMouseEnter={e=>{if(tab!==id)e.currentTarget.style.color=T.textMid;}}
             onMouseLeave={e=>{if(tab!==id)e.currentTarget.style.color=T.textSoft;}}>
@@ -3714,6 +3902,9 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
           </button>
         ))}
       </div>
+
+      {/* PRODOTTI FINITI */}
+      {tab==="pf" && <ProdottiFinitiTab notify={notify}/>}
 
       {/* GIACENZE */}
       {tab==="giacenze" && (
@@ -7343,6 +7534,139 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
 }
 
 
+// ─── STOCK PF WIDGET (home) ──────────────────────────────────────────────────
+function StockPFWidget({ isMobile, setView, viewAggregato }) {
+  const [stock, setStock] = useState([]);
+  const [inArrivo, setInArrivo] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const orgId = _ctx_orgId;
+  const sedeId = _ctx_sedeId;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!orgId) { setLoading(false); return; }
+      try {
+        const { loadStockPF, loadStockPFAllSedi } = await import('./lib/stockPF');
+        let s;
+        if (viewAggregato) {
+          const allSedi = await loadStockPFAllSedi(orgId);
+          // Aggrega per prodotto_nome sommando tra sedi.
+          const map = {};
+          for (const sedeStock of Object.values(allSedi)) {
+            for (const r of sedeStock) {
+              if (!map[r.prodotto_nome]) map[r.prodotto_nome] = { prodotto_nome: r.prodotto_nome, quantita: 0, unita: r.unita };
+              map[r.prodotto_nome].quantita += Number(r.quantita || 0);
+            }
+          }
+          s = Object.values(map);
+        } else {
+          if (!sedeId) { setLoading(false); return; }
+          s = await loadStockPF(orgId, sedeId);
+        }
+        if (cancelled) return;
+        setStock(s);
+
+        // Conta trasferimenti in attesa di ricezione (solo per sede attiva).
+        if (!viewAggregato && sedeId) {
+          const { count } = await supabase
+            .from('trasferimenti')
+            .select('id', { count: 'exact', head: true })
+            .eq('organization_id', orgId)
+            .eq('sede_a', sedeId)
+            .eq('stato', 'inviato');
+          if (!cancelled) setInArrivo(count || 0);
+        }
+      } catch (e) {
+        console.error('StockPFWidget:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true };
+  }, [orgId, sedeId, viewAggregato]);
+
+  if (loading) return null;
+
+  const totPezzi = stock.reduce((s, r) => s + Number(r.quantita || 0), 0);
+  const top3 = [...stock].sort((a, b) => Number(b.quantita) - Number(a.quantita)).slice(0, 3);
+  const hasStock = stock.length > 0;
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : (inArrivo > 0 ? '1.6fr 1fr' : '1fr'),
+      gap: isMobile ? 12 : 14,
+      marginBottom: isMobile ? 20 : 28,
+    }}>
+      {/* Card stock vetrina */}
+      <div onClick={() => setView('magazzino')}
+        style={{
+          background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl,
+          padding: isMobile ? '16px 18px' : '18px 22px',
+          boxShadow: '0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.05)',
+          cursor: 'pointer', transition: `box-shadow ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`,
+        }}
+        onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 28px rgba(15,23,42,0.10)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+        onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.05)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft }}>
+            {viewAggregato ? 'Stock vetrina · tutte le sedi' : 'Stock vetrina · sede attiva'}
+          </div>
+          <span style={{ fontSize: 11, color: T.textSoft }}>{stock.length} prodotti</span>
+        </div>
+        {hasStock ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: isMobile ? 28 : 34, fontWeight: 700, color: T.text, letterSpacing: '-0.035em', ...TNUM }}>
+                {totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+              </span>
+              <span style={{ fontSize: 14, color: T.textSoft, fontWeight: 500 }}>pezzi disponibili</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {top3.map(r => (
+                <span key={r.prodotto_nome} style={{
+                  fontSize: 11, padding: '4px 10px', borderRadius: 999,
+                  background: T.bgSubtle, color: T.textMid, fontWeight: 500,
+                }}>
+                  {r.prodotto_nome} · <strong style={{ color: T.text, ...TNUM }}>{Number(r.quantita).toLocaleString('it-IT', { maximumFractionDigits: 0 })}</strong>
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5 }}>
+            Nessun prodotto in stock. Si popola automaticamente quando confermi una sessione di produzione.
+          </div>
+        )}
+      </div>
+
+      {/* Card trasferimenti in arrivo */}
+      {inArrivo > 0 && !viewAggregato && (
+        <div onClick={() => setView('trasferimenti')}
+          style={{
+            background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: R.xl,
+            padding: isMobile ? '16px 18px' : '18px 22px',
+            boxShadow: '0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(252,211,77,0.18)',
+            cursor: 'pointer', transition: `box-shadow ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 28px rgba(252,211,77,0.30)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(252,211,77,0.18)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 12 }}>
+            🚚 In arrivo da altre sedi
+          </div>
+          <div style={{ fontSize: isMobile ? 28 : 34, fontWeight: 700, color: '#92400E', letterSpacing: '-0.035em', ...TNUM }}>
+            {inArrivo}
+          </div>
+          <div style={{ fontSize: 13, color: '#92400E', marginTop: 6, fontWeight: 500 }}>
+            {inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── DASHBOARD HOME VIEW ──────────────────────────────────────────────────────
 function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView, orgId, nomeAttivita, isTrialAttivo, auth, sedi = [], sedeAttiva = null }) {
   const isMobile = useIsMobile();
@@ -7530,6 +7854,9 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
           onClick={()=>setView("magazzino")}
         />
       </div>
+
+      {/* Widget Stock Prodotti Finiti + Trasferimenti in arrivo */}
+      <StockPFWidget isMobile={isMobile} setView={setView} viewAggregato={viewAggregato}/>
 
       {/* Two columns */}
       <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:isMobile?14:18}}>
