@@ -6,6 +6,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
          AreaChart, Area } from 'recharts'
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
 import { supabase } from './lib/supabase'
+import { caricoProduzionePF, scaricoVenditaPF } from './lib/stockPF'
+import { creaTrasferimento } from './lib/trasferimenti'
 import SedeSelector from './components/SedeSelector'
 import SedeContextBanner from './components/SedeContextBanner'
 import Scadenzario from './components/Scadenzario'
@@ -4134,16 +4136,74 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
       ingredientiUsati: riepilogo.ings,
       fcTot: riepilogo.fcTot,
       ricavoTot: riepilogo.ricavoTot,
-      // Scenario laboratorio centrale: la sessione è prodotta nella sede attiva
-      // (dove il magazzino è scalato) ma destinata a un'altra sede (o stessa).
       destinazioneSedeId: destinazioneSedeId || null,
       destinazioneSedeNome: destinazioneSedeId ? (sediMapProd[destinazioneSedeId]?.nome || null) : null,
     };
     const ng = [sess, ...(giornaliero||[])];
     setMagazzino(nm); setGiornaliero(ng);
     await ssave(SK_MAG, nm); await ssave(SK_GIOR, ng);
+
+    // ── Stock prodotti finiti: carico automatico (sede produttiva) ─────────
+    // + eventuale trasferimento auto-inviato verso la sede destinataria.
+    const orgIdProd = _ctx_orgId
+    const sedeProduttiva = sedeAttiva?.id
+    if (orgIdProd && sedeProduttiva) {
+      const stockErrors = []
+      const transferErrors = []
+      const sedeDest = destinazioneSedeId && destinazioneSedeId !== sedeProduttiva ? destinazioneSedeId : null
+
+      for (const r of ricette) {
+        const stampi = qtaMap[r.nome] || 0
+        const vendibile = vendibileMap[r.nome] || stampi
+        if (vendibile <= 0) continue
+        const reg = getR(r.nome, r)
+        const pezzi = vendibile * (Number(reg.unita) || 1)
+        if (pezzi <= 0) continue
+
+        // 1. Carico stock PF nella sede produttiva.
+        try {
+          await caricoProduzionePF({
+            sedeId: sedeProduttiva,
+            prodotto: r.nome,
+            quantita: pezzi,
+            unita: 'pz',
+            note: `Sessione ${data}${sess.note ? ' · ' + sess.note : ''}`,
+          })
+        } catch (e) {
+          stockErrors.push(`${r.nome}: ${e.message}`)
+          continue // se il carico fallisce, non possiamo trasferire
+        }
+
+        // 2. Se destinazione ≠ sede produttiva, genera trasferimento già inviato.
+        if (sedeDest) {
+          try {
+            await creaTrasferimento({
+              orgId: orgIdProd,
+              sedeDa: sedeProduttiva,
+              sedeA: sedeDest,
+              tipo: 'prodotto',
+              prodotto: r.nome,
+              quantita: pezzi,
+              unita: 'pz',
+              note: `Da produzione del ${data}`,
+              autoInvia: true,
+            })
+          } catch (e) {
+            transferErrors.push(`${r.nome}: ${e.message}`)
+          }
+        }
+      }
+
+      if (stockErrors.length || transferErrors.length) {
+        notify('⚠ Alcuni movimenti stock falliti: ' + [...stockErrors, ...transferErrors].slice(0, 2).join('; '), false)
+      }
+    }
+
     setQtaMap({}); setVendMap({}); setSessNote(""); setConfermando(false);
-    notify(`✓ Produzione registrata — magazzino aggiornato`);
+    const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id
+      ? ` — trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}`
+      : ''
+    notify(`✓ Produzione registrata${msgDest} — magazzino e stock vetrina aggiornati`);
     setTab("storico");
   };
 
@@ -6373,10 +6433,33 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       kpi: { totV, totFC, totM, totS, totMP, avgST }
     };
     // Sostituisce se già esiste per quella data
+    const eraGiaChiusa = !!chiusuraSalvata
     const nuove = [...(chiusure||[]).filter(c=>c.data!==dataFiltro), rec];
     setChiusure(nuove);
     await ssave(SK_CHIUS, nuove);
     setSalvato(true);
+
+    // ── Scarico automatico stock PF (solo prima chiusura del giorno) ──────
+    // Se la chiusura veniva ri-salvata, non scarichiamo per non duplicare.
+    if (!eraGiaChiusa && _ctx_orgId && _ctx_sedeId) {
+      for (const row of confronto) {
+        const venduti = Number(row.unitaV || 0)
+        if (venduti <= 0) continue
+        try {
+          await scaricoVenditaPF({
+            sedeId: _ctx_sedeId,
+            prodotto: row.nome,
+            quantita: venduti,
+            unita: 'pz',
+            note: `Chiusura ${dataFiltro}`,
+          })
+        } catch (e) {
+          // Non blocchiamo il salvataggio chiusura per errori sullo stock.
+          console.error('Errore scarico vendita PF:', row.nome, e?.message)
+        }
+      }
+    }
+
     notify(`✓ Chiusura del ${new Date(dataFiltro+"T12:00").toLocaleDateString("it-IT")} salvata nello storico`);
   };
 
