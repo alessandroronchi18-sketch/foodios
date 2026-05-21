@@ -26,6 +26,7 @@ import ImpostazioniTv from './components/ImpostazioniTv'
 import ExportContabilita from './components/ExportContabilita'
 import WhiteLabel, { WL_KEY } from './components/WhiteLabel'
 import BenchmarkOptin, { BenchmarkBadge } from './components/BenchmarkOptin'
+import EventiView from './components/Eventi'
 import ConfrontoSedi from './components/ConfrontoSedi'
 import TrasferimentiView from './components/TrasferimentiView'
 import EsportaDati from './components/EsportaDati'
@@ -8976,6 +8977,7 @@ export default function Dashboard({
               {navItem("home","home","Dashboard")}
               {navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)}
               {navItem("chiusura","creditCard","Cassa",0,cassaMancante)}
+              {navItem("eventi","cal","Eventi")}
 
               <Sep label="Ricette" />
               {navItem("ricettario","book","Ricettario")}
@@ -9126,7 +9128,7 @@ export default function Dashboard({
         {/* Desktop topbar */}
         {!isMobile&&(()=>{
           const VIEW_LABELS = {
-            home:"Dashboard", giornaliero:"Produzione", chiusura:"Cassa",
+            home:"Dashboard", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
             ricettario:"Ricettario", semilavorati:"Semilavorati", "nuova-ricetta":"Nuova ricetta",
             simulatore:"Food Cost", pl:"P&L",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
@@ -9137,7 +9139,7 @@ export default function Dashboard({
             "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
           };
           const VIEW_GROUPS = {
-            home:"Oggi", giornaliero:"Oggi", chiusura:"Oggi",
+            home:"Oggi", giornaliero:"Oggi", chiusura:"Oggi", eventi:"Oggi",
             ricettario:"Ricette", semilavorati:"Ricette", "nuova-ricetta":"Ricette", "scheda-allergeni":"Ricette",
             simulatore:"Numeri", pl:"Numeri",
             magazzino:"Gestione", scadenzario:"Gestione", fornitori:"Gestione", personale:"Gestione", menu:"Gestione",
@@ -9195,7 +9197,7 @@ export default function Dashboard({
         {/* Mobile topbar — sticky, flat */}
         {isMobile&&(()=>{
           const MOBILE_LABELS = {
-            home:"Oggi", giornaliero:"Produzione", chiusura:"Cassa",
+            home:"Oggi", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
             ricettario:"Ricettario", semilavorati:"Semilavorati", "nuova-ricetta":"Nuova ricetta",
             simulatore:"Food Cost", pl:"P&L",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
@@ -9323,12 +9325,13 @@ export default function Dashboard({
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
         {view==="impostazioni"&&<ImpostazioniView auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="confronto-sedi"&&<ConfrontoSedi orgId={orgId} sedi={sedi}/>}
+        {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita}/>}
         {view==="trasferimenti"&&<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>}
         {view==="integrazioni"&&<Integrazioni orgId={orgId} notify={notify}/>}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione"].includes(view)&&(
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
         </div>{/* /fos-page */}
