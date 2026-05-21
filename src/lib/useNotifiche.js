@@ -33,17 +33,24 @@ export function useNotifiche(orgId) {
   }, [orgId, load])
 
   const segnaLetta = useCallback(async (id) => {
-    await supabase.from('notifiche').update({ letta: true }).eq('id', id)
+    if (!orgId) return
+    const { error } = await supabase
+      .from('notifiche')
+      .update({ letta: true })
+      .eq('id', id)
+      .eq('organization_id', orgId)
+    if (error) return
     setNotifiche(prev => prev.map(n => n.id === id ? { ...n, letta: true } : n))
-  }, [])
+  }, [orgId])
 
   const segnaTutte = useCallback(async () => {
     if (!orgId) return
-    await supabase
+    const { error } = await supabase
       .from('notifiche')
       .update({ letta: true })
       .eq('organization_id', orgId)
       .eq('letta', false)
+    if (error) return
     setNotifiche(prev => prev.map(n => ({ ...n, letta: true })))
   }, [orgId])
 

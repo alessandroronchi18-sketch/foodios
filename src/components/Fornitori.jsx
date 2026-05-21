@@ -245,7 +245,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
       totale: parseFloat(totale.toFixed(2)),
     }).select().single()
     if (error) { notify("⚠ Errore: " + error.message, false); setSaving(false); return }
-    await supabase.from("righe_ordine").insert(righeValide.map(r=>({
+    const { error: errRighe } = await supabase.from("righe_ordine").insert(righeValide.map(r=>({
       ordine_id: ordineData.id,
       prodotto: r.prodotto,
       quantita: parseFloat(r.quantita)||0,
@@ -253,6 +253,12 @@ function OrdiniTab({ orgId, notify, isMobile }) {
       prezzo_unitario: parseFloat(r.prezzo_unitario)||0,
       totale_riga: (parseFloat(r.quantita)||0)*(parseFloat(r.prezzo_unitario)||0),
     })))
+    if (errRighe) {
+      await supabase.from("ordini_fornitori").delete().eq("id", ordineData.id).eq("organization_id", orgId)
+      notify("⚠ Errore salvataggio righe: " + errRighe.message, false)
+      setSaving(false)
+      return
+    }
     notify("✓ Ordine salvato")
     setShowForm(false)
     setForm({ fornitore_id:"", data_ordine: new Date().toISOString().slice(0,10), note:"", stato:"bozza" })

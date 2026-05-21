@@ -34,7 +34,8 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
     let q = supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true).order("nome")
-    if (scopeSede === 'attiva' && sedeId) {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (scopeSede === 'attiva' && sedeId && UUID_RE.test(sedeId)) {
       q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
     }
     const { data, error } = await q
@@ -71,8 +72,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   }
 
   async function disattiva(id) {
+    if (!orgId) return
     if (!confirm("Archiviare questo dipendente?")) return
-    const { error } = await supabase.from("dipendenti").update({ attivo: false }).eq("id", id)
+    const { error } = await supabase.from("dipendenti").update({ attivo: false }).eq("id", id).eq("organization_id", orgId)
     if (error) { notify("⚠ Errore archiviazione: " + error.message, false); return }
     notify("✓ Dipendente archiviato")
     carica()
@@ -281,6 +283,7 @@ function TurniTab({ orgId, notify, isMobile }) {
 
   async function salvaTurno() {
     if (!form.dipendente_id || !form.data) { notify("⚠ Seleziona dipendente e data", false); return }
+    if (!orgId) { notify("⚠ Profilo non pronto, riprova", false); return }
     const ore = calcOre(form.ora_inizio, form.ora_fine)
     const dip = dipendenti.find(d=>d.id===form.dipendente_id)
     const costo = ore * (dip?.costo_orario||0)
@@ -302,7 +305,8 @@ function TurniTab({ orgId, notify, isMobile }) {
   }
 
   async function eliminaTurno(id) {
-    const { error } = await supabase.from("turni").delete().eq("id", id)
+    if (!orgId) return
+    const { error } = await supabase.from("turni").delete().eq("id", id).eq("organization_id", orgId)
     if (error) { notify("⚠ Errore eliminazione turno: " + error.message, false); return }
     notify("✓ Turno eliminato")
     carica()
