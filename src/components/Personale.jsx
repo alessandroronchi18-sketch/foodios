@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
 
 const C = {
   bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
@@ -9,7 +9,6 @@ const C = {
   text: T.text, textMid: T.textMid, textSoft: T.textSoft, white: T.white,
   border: T.border, borderStr: T.borderStr,
 }
-const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 function fmt(n) { return n==null?"—":`€${Number(n).toFixed(2)}` }
 function fmtH(h) { return `${h.toFixed(1)}h` }

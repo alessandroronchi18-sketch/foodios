@@ -74,7 +74,7 @@ export default function ReferralPanel({ auth }) {
           <div style={{
             display: 'inline-flex', alignItems: 'center',
             background: '#FEF2F2', border: '2px solid #FECACA', borderRadius: 10,
-            padding: '10px 18px', fontFamily: 'monospace', fontSize: 22, fontWeight: 900,
+            padding: '10px 18px', fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 22, fontWeight: 900,
             color: '#C0392B', letterSpacing: '0.12em',
           }}>
             {data.codice}
@@ -91,7 +91,7 @@ export default function ReferralPanel({ auth }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div style={{
             padding: '8px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0',
-            borderRadius: 8, fontSize: 11, color: '#475569', fontFamily: 'monospace',
+            borderRadius: 8, fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', ui-monospace, monospace",
             wordBreak: 'break-all', flex: 1, minWidth: 0,
           }}>
             {data.url}

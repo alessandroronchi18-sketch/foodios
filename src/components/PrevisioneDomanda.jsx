@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
 
 const C = {
   bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
@@ -8,7 +8,6 @@ const C = {
   text: T.text, textMid: T.textMid, textSoft: T.textSoft, white: T.white,
   border: T.border, borderStr: T.borderStr,
 }
-const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 // ── Algoritmo previsione ────────────────────────────────────────────────────
 // Weighted moving average with exponential smoothing (α=0.3 for trend)
@@ -104,7 +103,7 @@ function RicettaForecast({ ric, giornaliero, calcolaFC, ingCosti, ricettario, ge
           </div>
           <div style={{ textAlign:"center" }}>
             <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Ricavo prev.</div>
-            <div style={{ fontSize:14, fontWeight:900, color:C.green, fontFamily:"Georgia,serif" }}>€{(prev * ricavoPerStampo).toFixed(0)}</div>
+            <div style={{ fontSize:14, fontWeight:800, color:C.green, ...tnum }}>€{(prev * ricavoPerStampo).toFixed(0)}</div>
           </div>
           <div style={{ padding:"4px 10px", borderRadius:20, background:confidence>=0.7?C.greenLight:confidence>=0.4?C.amberLight:C.redLight, fontSize:9, fontWeight:700, color:confidence>=0.7?C.green:confidence>=0.4?C.amber:C.red }}>
             {Math.round(confidence*100)}% conf.

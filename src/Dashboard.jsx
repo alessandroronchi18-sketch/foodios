@@ -18,7 +18,7 @@ import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importC
 import useIsMobile from './lib/useIsMobile'
 import { useOnlineStatus } from './lib/useOnlineStatus'
 import { useNotifiche } from './lib/useNotifiche'
-import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF } from './lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF, typo, tnum as TNUM } from './lib/theme'
 import ImpostazioniSedi from './components/ImpostazioniSedi'
 import ConfrontoSedi from './components/ConfrontoSedi'
 import TrasferimentiView from './components/TrasferimentiView'
@@ -1098,8 +1098,8 @@ const margColor = pct => pct>=60?C.green:pct>=40?C.amber:C.red;
 
 // Global table cell primitives used by PLTable, SensTable and PLView
 const TD = ({children,right,bold,color,mono,small}) => (
-  <td style={{padding:"10px 14px",textAlign:right?"right":"left",fontWeight:bold?800:500,
-    color:color||C.text,fontFamily:mono?"Georgia,serif":"inherit",fontSize:small?10:11,
+  <td style={{padding:"10px 14px",textAlign:right?"right":"left",fontWeight:bold?700:500,
+    color:color||C.text,...(mono?TNUM:null),fontSize:small?10:11,
     whiteSpace:"nowrap"}}>{children}</td>
 );
 const TH = ({children,right}) => (
@@ -1263,7 +1263,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
             <Tip key={i} text={tip} width={240}>
             <div style={{background:bg,padding:"8px 14px",borderRadius:8,textAlign:"center",minWidth:80,cursor:"help"}}>
               <div style={{fontSize:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,marginBottom:3}}>{lbl}</div>
-              <div style={{fontSize:13,fontWeight:bold?900:700,color:c,fontFamily:"Georgia,serif"}}>{val}</div>
+              <div style={{fontSize:13,fontWeight:bold?900:700,color:c,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
             </div>
             </Tip>
           ))}
@@ -1306,7 +1306,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 12px",background:C.white,borderRadius:7,border:`1px solid ${C.border}`}}>
             <span style={{fontSize:10,color:C.textSoft}}>Ricavo stimato:</span>
-            <span style={{fontSize:13,fontWeight:900,color:C.green,fontFamily:"Georgia,serif"}}>{fmt((parseFloat(editPrezzo)||0)*(parseInt(editUnita)||0))}</span>
+            <span style={{fontSize:13,fontWeight:900,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt((parseFloat(editPrezzo)||0)*(parseInt(editUnita)||0))}</span>
           </div>
           {/* Toggle congelabile */}
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:ric.congelabile?"#EEF8FF":"#F8F4F2",borderRadius:7,border:`1px solid ${ric.congelabile?"#BDE":"#E8E0DC"}`,cursor:"pointer"}}
@@ -1357,8 +1357,8 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
                         {ing.isStima&&<span style={{fontSize:7,marginLeft:4,background:C.amberLight,color:C.amber,padding:"1px 4px",borderRadius:3,fontWeight:700}}>stima</span>}
                         {ing.mancante&&<span style={{fontSize:7,marginLeft:4,background:C.redLight,color:C.red,padding:"1px 4px",borderRadius:3,fontWeight:700}}>n/d</span>}
                       </td>
-                      <td style={{padding:"8px 10px",textAlign:"right",color:C.textMid,fontFamily:"monospace"}}>{ing.qty1stampo}</td>
-                      <td style={{padding:"8px 10px",textAlign:"right",color:C.textSoft,fontFamily:"monospace",fontSize:9}}>{ing.costoPerGCalc>0?ing.costoPerGCalc.toFixed(4):"—"}</td>
+                      <td style={{padding:"8px 10px",textAlign:"right",color:C.textMid,fontFamily:"'JetBrains Mono', ui-monospace, monospace"}}>{ing.qty1stampo}</td>
+                      <td style={{padding:"8px 10px",textAlign:"right",color:C.textSoft,fontFamily:"'JetBrains Mono', ui-monospace, monospace",fontSize:9}}>{ing.costoPerGCalc>0?ing.costoPerGCalc.toFixed(4):"—"}</td>
                       <td style={{padding:"8px 10px",textAlign:"right",fontWeight:600,color:ing.costoCalc>0?C.text:C.textSoft}}>{ing.costoCalc>0?fmt(ing.costoCalc):"—"}</td>
                       <td style={{padding:"8px 10px",textAlign:"right"}}>
                         {ing.pct>0&&(
@@ -1376,7 +1376,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
                 <tfoot>
                   <tr style={{background:"#F0EAE6",borderTop:`2px solid ${C.borderStr}`}}>
                     <td colSpan={3} style={{padding:"10px 10px",fontWeight:800,fontSize:11,color:C.text}}>TOTALE FOOD COST</td>
-                    <td style={{padding:"10px 10px",textAlign:"right",fontWeight:900,fontSize:13,color:C.red,fontFamily:"Georgia,serif"}}>{fmt(fc)}</td>
+                    <td style={{padding:"10px 10px",textAlign:"right",fontWeight:900,fontSize:13,color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(fc)}</td>
                     <td/>
                   </tr>
                 </tfoot>
@@ -1422,17 +1422,17 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 <div style={{padding:"10px 14px",background:C.greenLight,border:`1px solid ${C.green}25`,borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{fontSize:11,color:C.green,fontWeight:700}}>+ Ricavo ({reg.unita} {reg.tipo==="fetta"?"fette":"pezzi"} × {fmt(reg.prezzo)})</span>
-                  <span style={{fontSize:15,fontWeight:900,color:C.green,fontFamily:"Georgia,serif"}}>{fmt(ricavo)}</span>
+                  <span style={{fontSize:15,fontWeight:900,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(ricavo)}</span>
                 </div>
                 <div style={{padding:"10px 14px",background:C.redLight,border:`1px solid ${C.red}20`,borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{fontSize:11,color:C.red,fontWeight:700}}>− Food cost materie prime</span>
-                  <span style={{fontSize:15,fontWeight:900,color:C.red,fontFamily:"Georgia,serif"}}>−{fmt(fc)}</span>
+                  <span style={{fontSize:15,fontWeight:900,color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>−{fmt(fc)}</span>
                 </div>
                 <div style={{width:"100%",borderTop:`2px dashed ${C.border}`,margin:"2px 0"}}/>
                 <div style={{padding:"12px 14px",background:mbg,border:`1px solid ${mc}25`,borderRadius:8}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                     <span style={{fontSize:12,color:mc,fontWeight:800}}>= Margine lordo</span>
-                    <span style={{fontSize:18,fontWeight:900,color:mc,fontFamily:"Georgia,serif"}}>{fmt(margine)}</span>
+                    <span style={{fontSize:18,fontWeight:900,color:mc,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(margine)}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
                     <span style={{color:C.textMid}}>Margine %</span>
@@ -1459,7 +1459,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
                   <Tip key={i} text={tip} width={240}>
                   <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:7,padding:"10px 10px",textAlign:"center",cursor:"help"}}>
                     <div style={{fontSize:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,marginBottom:4}}>{lbl}</div>
-                    <div style={{fontSize:15,fontWeight:900,color:c,fontFamily:"Georgia,serif"}}>{val}</div>
+                    <div style={{fontSize:15,fontWeight:900,color:c,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
                   </div>
                   </Tip>
                 ))}
@@ -1480,7 +1480,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
                     <Tip key={i} text={tip} width={240}>
                     <div style={{background:C.white,border:`1px solid ${SEMI.divider}`,borderRadius:7,padding:"10px 10px",textAlign:"center",cursor:"help"}}>
                       <div style={{fontSize:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,marginBottom:4}}>{lbl}</div>
-                      <div style={{fontSize:15,fontWeight:900,color:c,fontFamily:"Georgia,serif"}}>{val}</div>
+                      <div style={{fontSize:15,fontWeight:900,color:c,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
                     </div>
                     </Tip>
                   ))}
@@ -1538,7 +1538,7 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload, onEditRicetta}) {
     return arr;
   }, [ricette, search, sortBy, ingCosti, ricettario]);
 
-  const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
+  const tnum = TNUM;
 
   const viewToggleBtn = (active, title, path, onClick) => (
     <button title={title} aria-label={title} onClick={onClick}
@@ -1798,7 +1798,7 @@ function BarreRicavo({ rows, euro, pct }) {
                       <Tip key={lbl} text={tip} width={250}>
                       <div style={{cursor:"help"}}>
                         <div style={{fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:"1px dashed rgba(155,120,115,0.35)"}}>{lbl}</div>
-                        <div style={{fontSize:14,fontWeight:900,color:c,fontFamily:"Georgia,serif"}}>{val}</div>
+                        <div style={{fontSize:14,fontWeight:900,color:c,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
                       </div>
                       </Tip>
                     ))}
@@ -1852,16 +1852,16 @@ function BarreRicavo({ rows, euro, pct }) {
                 <div style={{fontSize:11,color:C.green,fontWeight:700,marginBottom:6}}>🟢 Margine lordo</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:"4px 16px",fontSize:11}}>
                   <span style={{color:C.textMid}}>Ricavo stampo</span>
-                  <span style={{fontWeight:800,color:C.text,fontFamily:"Georgia,serif",textAlign:"right"}}>{euro(tooltip.r.ricavo)}</span>
+                  <span style={{fontWeight:800,color:C.text,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",textAlign:"right"}}>{euro(tooltip.r.ricavo)}</span>
                   <span style={{color:C.textMid}}>Meno costo ingredienti</span>
-                  <span style={{fontWeight:800,color:C.red,fontFamily:"Georgia,serif",textAlign:"right"}}>−{euro(tooltip.r.fc)}</span>
+                  <span style={{fontWeight:800,color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",textAlign:"right"}}>−{euro(tooltip.r.fc)}</span>
                   <div style={{gridColumn:"1/-1",borderTop:`1px solid ${C.border}`,margin:"4px 0"}}/>
                   <span style={{color:C.green,fontWeight:700}}>= Margine lordo</span>
-                  <span style={{fontWeight:900,color:C.green,fontFamily:"Georgia,serif",textAlign:"right"}}>{euro(tooltip.r.margine)}</span>
+                  <span style={{fontWeight:900,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",textAlign:"right"}}>{euro(tooltip.r.margine)}</span>
                   <span style={{color:C.textSoft,fontSize:10}}>sul ricavo</span>
                   <span style={{fontWeight:700,color:margColor(tooltip.r.margPct),textAlign:"right"}}>{pct(tooltip.r.margPct)}</span>
                   <span style={{color:C.textSoft,fontSize:10}}>per unità</span>
-                  <span style={{fontWeight:700,color:C.green,textAlign:"right",fontFamily:"Georgia,serif"}}>{euro(tooltip.r.mrgUnita)}</span>
+                  <span style={{fontWeight:700,color:C.green,textAlign:"right",fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(tooltip.r.mrgUnita)}</span>
                 </div>
                 <div style={{marginTop:8,fontSize:10,color:C.textSoft,fontStyle:"italic"}}>
                   Questo è quanto resta prima di costi fissi (affitto, lavoro, energia)
@@ -1872,14 +1872,14 @@ function BarreRicavo({ rows, euro, pct }) {
                 <div style={{fontSize:11,color:C.red,fontWeight:700,marginBottom:6}}>🔴 Costo ingredienti (food cost)</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:"4px 16px",fontSize:11}}>
                   <span style={{color:C.textMid}}>Food cost totale/stampo</span>
-                  <span style={{fontWeight:800,color:C.red,fontFamily:"Georgia,serif",textAlign:"right"}}>{euro(tooltip.r.fc)}</span>
+                  <span style={{fontWeight:800,color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",textAlign:"right"}}>{euro(tooltip.r.fc)}</span>
                   <span style={{color:C.textMid}}>Su ricavo di</span>
-                  <span style={{fontWeight:800,color:C.text,fontFamily:"Georgia,serif",textAlign:"right"}}>{euro(tooltip.r.ricavo)}</span>
+                  <span style={{fontWeight:800,color:C.text,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",textAlign:"right"}}>{euro(tooltip.r.ricavo)}</span>
                   <div style={{gridColumn:"1/-1",borderTop:`1px solid ${C.border}`,margin:"4px 0"}}/>
                   <span style={{color:C.textMid}}>FC ratio</span>
                   <span style={{fontWeight:900,color:C.red,textAlign:"right"}}>{pct(tooltip.r.fcPct)}</span>
                   <span style={{color:C.textSoft,fontSize:10}}>per singola unità</span>
-                  <span style={{fontWeight:700,color:C.red,textAlign:"right",fontFamily:"Georgia,serif"}}>{euro(tooltip.r.fcUnita)}</span>
+                  <span style={{fontWeight:700,color:C.red,textAlign:"right",fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(tooltip.r.fcUnita)}</span>
                 </div>
                 <div style={{marginTop:8,fontSize:10,color:C.textSoft,fontStyle:"italic"}}>
                   Target pasticceria artigianale: FC ratio &lt; 28–30%
@@ -2024,8 +2024,8 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                       </div>
                     )}
                   </td>
-                  <td style={{padding:"10px 14px",textAlign:"right",fontFamily:"monospace",color:C.textMid}}>{Math.round(ing.qty)}g</td>
-                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.red,fontFamily:"Georgia,serif"}}>{euro(ing.costoTot)}</td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontFamily:"'JetBrains Mono', ui-monospace, monospace",color:C.textMid}}>{Math.round(ing.qty)}g</td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(ing.costoTot)}</td>
                   <td style={{padding:"10px 14px",textAlign:"right"}}>
                     <Tip text={`${ing.k} incide per il ${pct(ing.pctTot)} sul food cost totale di tutti i prodotti. Costo per grammo: € ${ing.costoG>0?ing.costoG.toFixed(4):"n/d"}. Più alta l'incidenza, più critico è monitorare questo ingrediente.`} width={260}>
                     <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"flex-end",cursor:"help"}}>
@@ -2036,7 +2036,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                     </div>
                     </Tip>
                   </td>
-                  <td style={{padding:"10px 14px",textAlign:"right",fontSize:10,color:C.textSoft,fontFamily:"monospace"}}>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontSize:10,color:C.textSoft,fontFamily:"'JetBrains Mono', ui-monospace, monospace"}}>
                     {ing.costoG>0?`€ ${ing.costoG.toFixed(4)}`:"—"}
                   </td>
                 </tr>
@@ -2048,7 +2048,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
               <td colSpan={3} style={{padding:"10px 14px",fontWeight:900,fontSize:11,color:C.text}}>
                 TOTALE FOOD COST — somma tutti i prodotti
               </td>
-              <td style={{padding:"10px 14px",textAlign:"right",fontWeight:900,fontSize:13,color:C.red,fontFamily:"Georgia,serif"}}>{euro(grandTotal)}</td>
+              <td style={{padding:"10px 14px",textAlign:"right",fontWeight:900,fontSize:13,color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(grandTotal)}</td>
               <td colSpan={2}/>
             </tr>
           </tfoot>
@@ -2130,7 +2130,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
               <div style={{textAlign:"center",cursor:"help"}}>
                 <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",
                   color:C.textSoft,marginBottom:4,borderBottom:"1px dashed rgba(155,120,115,0.4)",display:"inline-block"}}>{lbl}</div>
-                <div style={{fontSize:16,fontWeight:900,color:c,fontFamily:"Georgia,serif"}}>{val}</div>
+                <div style={{fontSize:16,fontWeight:900,color:c,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
                 {sub&&<div style={{fontSize:11,fontWeight:800,color:c,marginTop:2}}>{sub}</div>}
               </div>
               </Tip>
@@ -2181,7 +2181,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                       style={{width:72,padding:"6px 8px",borderRadius:7,textAlign:"center",
                         border:`2px solid ${changed?(r.delta>0?C.green:C.red):C.border}`,
                         fontSize:14,fontWeight:900,color:changed?(r.delta>0?C.green:C.red):C.text,
-                        fontFamily:"Georgia,serif",outline:"none",transition:"border-color 0.2s"}}
+                        fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",outline:"none",transition:"border-color 0.2s"}}
                     />
                   </div>
                   <div style={{fontSize:9,color:C.textSoft}}>
@@ -2198,7 +2198,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                   <div style={{textAlign:"center"}}>
                     <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",
                       color:!changed?C.textSoft:r.delta>0?C.green:C.red,marginBottom:2}}>Variazione</div>
-                    <div style={{fontSize:15,fontWeight:900,fontFamily:"Georgia,serif",
+                    <div style={{fontSize:15,fontWeight:900,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",
                       color:!changed?C.textSoft:r.delta>0?C.green:C.red}}>
                       {!changed?"—":`${dSign}${r.delta.toFixed(1)}%`}
                     </div>
@@ -2216,7 +2216,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
 Calcolo: ricavo ${euro(r.ricavo)} − food cost ${euro(r.fc)} = ${euro(r.margine)} (${pct(r.margPct)} del ricavo).`} width={260}>
                   <div style={{background:"#F0EAE6",borderRadius:8,padding:"8px 12px",textAlign:"center",minWidth:90,cursor:"help"}}>
                     <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft,marginBottom:3}}>Margine base</div>
-                    <div style={{fontSize:13,fontWeight:600,color:C.textMid,fontFamily:"Georgia,serif"}}>{euro(r.margine)}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:C.textMid,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(r.margine)}</div>
                     <div style={{fontSize:9,color:C.textSoft,marginTop:2}}>{pct(r.margPct)}</div>
                   </div>
                   </Tip>
@@ -2229,7 +2229,7 @@ Il food cost rimane fisso: cambia solo il prezzo.` : `Il margine scenario coinci
                   <div style={{background:changed?(r.newMarg>r.margine?"#EAF5EE":"#FDECEA"):"#F8F4F2",borderRadius:8,padding:"8px 12px",textAlign:"center",minWidth:90,cursor:"help",
                     border:changed?`1px solid ${r.newMarg>r.margine?C.green:C.red}30`:"none"}}>
                     <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft,marginBottom:3}}>Margine nuovo</div>
-                    <div style={{fontSize:13,fontWeight:900,color:changed?mc:C.textMid,fontFamily:"Georgia,serif"}}>{euro(r.newMarg)}</div>
+                    <div style={{fontSize:13,fontWeight:900,color:changed?mc:C.textMid,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(r.newMarg)}</div>
                     <div style={{fontSize:9,color:changed?mc:C.textSoft,marginTop:2}}>{pct(r.newMargPct)}</div>
                   </div>
                   </Tip>
@@ -2238,7 +2238,7 @@ Il food cost rimane fisso: cambia solo il prezzo.` : `Il margine scenario coinci
 Calcolo: ${r.reg.unita} ${r.reg.tipo==="fetta"?"fette":"pz"} × ${euro(r.newPrezzo)} = ${euro(r.newRicavo)}.`} width={240}>
                   <div style={{background:"#F8F4F2",borderRadius:8,padding:"8px 12px",textAlign:"center",minWidth:90,cursor:"help"}}>
                     <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft,marginBottom:3}}>Ricavo/st.</div>
-                    <div style={{fontSize:13,fontWeight:600,color:C.text,fontFamily:"Georgia,serif"}}>{euro(r.newRicavo)}</div>
+                    <div style={{fontSize:13,fontWeight:600,color:C.text,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(r.newRicavo)}</div>
                   </div>
                   </Tip>
                 </div>
@@ -2252,7 +2252,7 @@ Variazione percentuale: ${r.diffMargPct>0?"+":""}${r.diffMargPct.toFixed(1)} pun
                   border:`1px solid ${!changed?C.border:r.diffMarg>0?C.green:C.red}30`}}>
                   <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",
                     color:!changed?C.textSoft:r.diffMarg>0?C.green:C.red,marginBottom:3}}>Δ margine</div>
-                  <div style={{fontSize:18,fontWeight:900,fontFamily:"Georgia,serif",
+                  <div style={{fontSize:18,fontWeight:900,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",
                     color:!changed?C.textSoft:r.diffMarg>0?C.green:C.red}}>
                     {!changed?"—":(r.diffMarg>0?"+":"")+euro(r.diffMarg)}
                   </div>
@@ -2327,10 +2327,10 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
           <tfoot>
             <tr style={{background:"#F0EAE6",borderTop:`2px solid ${C.borderStr}`}}>
               <td colSpan={3} style={{padding:"12px 14px",fontWeight:900,fontSize:12,color:C.text}}>TOTALE / MEDIA PONDERATA</td>
-              <td style={{padding:"12px 14px",textAlign:"right",fontWeight:900,fontSize:13,color:C.green,fontFamily:"Georgia,serif"}}>{euro(totRicavo)}</td>
-              <td style={{padding:"12px 14px",textAlign:"right",fontWeight:900,fontSize:13,color:C.red,fontFamily:"Georgia,serif"}}>{euro(totFC)}</td>
+              <td style={{padding:"12px 14px",textAlign:"right",fontWeight:900,fontSize:13,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(totRicavo)}</td>
+              <td style={{padding:"12px 14px",textAlign:"right",fontWeight:900,fontSize:13,color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(totFC)}</td>
               <td style={{padding:"12px 14px",textAlign:"right",fontWeight:800,color:fcAvg<30?C.green:fcAvg<40?C.amber:C.red}}>{pct(fcAvg)}</td>
-              <td style={{padding:"12px 14px",textAlign:"right",fontWeight:900,fontSize:13,color:margColor(avgMarg),fontFamily:"Georgia,serif"}}>{euro(totMargine)}</td>
+              <td style={{padding:"12px 14px",textAlign:"right",fontWeight:900,fontSize:13,color:margColor(avgMarg),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(totMargine)}</td>
               <td style={{padding:"12px 14px",textAlign:"right",fontWeight:900,color:margColor(avgMarg)}}>{pct(avgMarg)}</td>
               <td colSpan={3}/>
             </tr>
@@ -2473,7 +2473,7 @@ function PLView({ricettario, onUpdateRegola}) {
         {payload.map((p,i)=>(
           <div key={i} style={{display:"flex",justifyContent:"space-between",gap:20,color:p.color,marginBottom:2}}>
             <span style={{fontWeight:600}}>{p.name}</span>
-            <span style={{fontWeight:800,fontFamily:"Georgia,serif"}}>€ {Number(p.value).toFixed(2)}</span>
+            <span style={{fontWeight:800,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>€ {Number(p.value).toFixed(2)}</span>
           </div>
         ))}
       </div>
@@ -2565,7 +2565,7 @@ function PLView({ricettario, onUpdateRegola}) {
                 <div key={r.nome}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                     <span style={{fontSize:10,fontWeight:700,color:C.text}}>{r.short}</span>
-                    <span style={{fontSize:11,fontWeight:900,color:mc,fontFamily:"Georgia,serif"}}>{pct(r.margPct)}</span>
+                    <span style={{fontSize:11,fontWeight:900,color:mc,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{pct(r.margPct)}</span>
                   </div>
                   <div style={{height:10,background:"#F0EAE6",borderRadius:5,overflow:"hidden"}}>
                     <div style={{height:"100%",width:`${Math.min(100,r.margPct)}%`,background:mc,borderRadius:5,transition:"width 0.5s ease"}}/>
@@ -2866,7 +2866,7 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
                         style={{width:80,padding:"8px 10px",borderRadius:8,textAlign:"center",
                           border:`2px solid ${r.changed?(r.delta>0?C.green:C.red):C.border}`,
                           fontSize:16,fontWeight:900,color:r.changed?(r.delta>0?C.green:C.red):C.text,
-                          fontFamily:"Georgia,serif",outline:"none",transition:"border-color 0.2s"}}/>
+                          fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",outline:"none",transition:"border-color 0.2s"}}/>
                     </div>
                   </div>
                 </div>
@@ -2882,7 +2882,7 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
                   ].map(({lbl,val,c,bold,sub})=>(
                     <div key={lbl} style={{background:"#F8F4F2",borderRadius:8,padding:"10px 14px",textAlign:"center",minWidth:90}}>
                       <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft,marginBottom:3}}>{lbl}</div>
-                      <div style={{fontSize:13,fontWeight:bold?900:600,color:c,fontFamily:"Georgia,serif"}}>{val}</div>
+                      <div style={{fontSize:13,fontWeight:bold?900:600,color:c,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
                       {sub&&<div style={{fontSize:9,fontWeight:800,color:c,marginTop:2}}>{sub}</div>}
                     </div>
                   ))}
@@ -2895,7 +2895,7 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
                     border:`1px solid ${r.diffMarg>0?C.green:C.red}30`}}>
                     <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",
                       color:r.diffMarg>0?C.green:C.red,marginBottom:3}}>Δ stampo</div>
-                    <div style={{fontSize:18,fontWeight:900,color:r.diffMarg>0?C.green:C.red,fontFamily:"Georgia,serif"}}>
+                    <div style={{fontSize:18,fontWeight:900,color:r.diffMarg>0?C.green:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>
                       {r.diffMarg>0?"+":""}{euro(r.diffMarg)}
                     </div>
                     {r.proiDiff!==0&&hasStorico&&(
@@ -2904,7 +2904,7 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
                           textTransform:"uppercase",letterSpacing:"0.06em",marginTop:8,marginBottom:2}}>
                           Δ {orizzonteGiorni}g
                         </div>
-                        <div style={{fontSize:14,fontWeight:900,color:r.proiDiff>0?C.green:C.red,fontFamily:"Georgia,serif"}}>
+                        <div style={{fontSize:14,fontWeight:900,color:r.proiDiff>0?C.green:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>
                           {r.proiDiff>0?"+":""}{euro(r.proiDiff)}
                         </div>
                       </>
@@ -3021,7 +3021,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
                       <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:r.st>=80?C.green:r.st>=60?C.amber:C.red}}>{fmtp(r.st)}</td>
                       <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,color:C.text}}>{fmt(r.ricavi)}</td>
                       <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{fmt(r.fcTot)}</td>
-                      <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:r.marg>=0?C.green:C.red,fontFamily:"Georgia,serif"}}>{fmt(r.marg)}</td>
+                      <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:r.marg>=0?C.green:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(r.marg)}</td>
                       <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(r.margPct)}</td>
                     </tr>
                   ))}
@@ -3032,9 +3032,9 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
                     <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700}}>{totP}</td>
                     <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700}}>{totV}</td>
                     <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:margColor(st)}}>{fmtp(st)}</td>
-                    <td style={{padding:"10px 12px",textAlign:"right",fontWeight:900,fontFamily:"Georgia,serif"}}>{fmt(totR)}</td>
+                    <td style={{padding:"10px 12px",textAlign:"right",fontWeight:900,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(totR)}</td>
                     <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.red}}>{fmt(totFC)}</td>
-                    <td style={{padding:"10px 12px",textAlign:"right",fontWeight:900,color:margColor(totMP),fontFamily:"Georgia,serif"}}>{fmt(totM)}</td>
+                    <td style={{padding:"10px 12px",textAlign:"right",fontWeight:900,color:margColor(totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(totM)}</td>
                     <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(totMP)}</td>
                   </tr>
                 </tfoot>
@@ -3773,7 +3773,7 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
                     </td>
                     <td style={{padding:"10px 14px",textAlign:"center"}}>
                       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                        <span style={{fontWeight:800,fontSize:12,color:statoColor(r.stato),fontFamily:"Georgia,serif"}}>{fmtG(r.giacenza)}</span>
+                        <span style={{fontWeight:800,fontSize:12,color:statoColor(r.stato),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmtG(r.giacenza)}</span>
                         {r.fabb>0 && (
                           <div style={{width:60,height:4,background:"#EEE",borderRadius:2}}>
                             <div style={{width:`${Math.min(100,(r.giacenza/r.fabb)*100)}%`,height:4,background:statoColor(r.stato),borderRadius:2}}/>
@@ -4321,7 +4321,7 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
                     <span>Food cost totale</span><span style={{fontWeight:700}}>−{fmt(riepilogo.fcTot)}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:900,color:margColor(margPct),borderTop:`2px solid ${C.border}`,paddingTop:8}}>
-                    <span>Margine lordo</span><span style={{fontFamily:"Georgia,serif"}}>{fmt(riepilogo.ricavoTot-riepilogo.fcTot)}</span>
+                    <span>Margine lordo</span><span style={{fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(riepilogo.ricavoTot-riepilogo.fcTot)}</span>
                   </div>
                 </div>
               )}
@@ -4411,8 +4411,8 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
                     </div>
                     <div style={{display:"flex",gap:12,alignItems:"center"}}>
                       <div style={{display:"flex",gap:16,textAlign:"right"}}>
-                        <div><div style={{fontSize:8,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",fontWeight:700}}>Ricavo pot.</div><div style={{fontSize:14,fontWeight:800,color:C.green,fontFamily:"Georgia,serif"}}>{fmt(sess.ricavoTot||0)}</div></div>
-                        <div><div style={{fontSize:8,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",fontWeight:700}}>Food cost</div><div style={{fontSize:14,fontWeight:800,color:C.red,fontFamily:"Georgia,serif"}}>{fmt(sess.fcTot||0)}</div></div>
+                        <div><div style={{fontSize:8,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",fontWeight:700}}>Ricavo pot.</div><div style={{fontSize:14,fontWeight:800,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(sess.ricavoTot||0)}</div></div>
+                        <div><div style={{fontSize:8,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",fontWeight:700}}>Food cost</div><div style={{fontSize:14,fontWeight:800,color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(sess.fcTot||0)}</div></div>
                       </div>
                       <button onClick={()=>{ setDeleteSessConf(sess); setDeleteSessPin(""); }}
                         style={{padding:"5px 12px",borderRadius:6,border:`1px solid ${C.red}`,background:C.redLight,color:C.red,fontSize:10,fontWeight:700,cursor:"pointer",flexShrink:0}}>
@@ -5356,16 +5356,16 @@ function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditCo
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{padding:"10px 14px",background:C.greenLight,border:`1px solid ${C.green}25`,borderRadius:8,display:"flex",justifyContent:"space-between"}}>
                   <span style={{fontSize:11,color:C.green,fontWeight:700}}>+ Ricavo ({form.unita} × {fmt(form.prezzo)})</span>
-                  <span style={{fontSize:13,fontWeight:900,color:C.green,fontFamily:"Georgia,serif"}}>{fmt(ricavoLive)}</span>
+                  <span style={{fontSize:13,fontWeight:900,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(ricavoLive)}</span>
                 </div>
                 <div style={{padding:"10px 14px",background:C.redLight,border:`1px solid ${C.red}20`,borderRadius:8,display:"flex",justifyContent:"space-between"}}>
                   <span style={{fontSize:11,color:C.red,fontWeight:700}}>− Food cost</span>
-                  <span style={{fontSize:13,fontWeight:900,color:C.red,fontFamily:"Georgia,serif"}}>−{fmt(fcLive)}</span>
+                  <span style={{fontSize:13,fontWeight:900,color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>−{fmt(fcLive)}</span>
                 </div>
                 <div style={{padding:"12px 14px",background:margPctLive>=60?C.greenLight:margPctLive>=40?C.amberLight:C.redLight,border:`1px solid ${margColor(margPctLive)}25`,borderRadius:8}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                     <span style={{fontSize:12,fontWeight:800,color:margColor(margPctLive)}}>= Margine lordo</span>
-                    <span style={{fontSize:16,fontWeight:900,color:margColor(margPctLive),fontFamily:"Georgia,serif"}}>{fmt(margLive)}</span>
+                    <span style={{fontSize:16,fontWeight:900,color:margColor(margPctLive),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(margLive)}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
                     <span style={{color:C.textMid}}>Margine %</span>
@@ -5633,7 +5633,7 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
                           <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600}}>{p.stampiTot}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.green,fontWeight:600}}>{fmt(p.ricavoTot)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{fmt(p.fcTot)}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(p.margPct),fontFamily:"Georgia,serif"}}>{fmt(p.margine)}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(p.margPct),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(p.margine)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(p.margPct)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontSize:10}}>{top?`${top[0].replace("TORTA DI ","")} (${top[1]})`:"-"}</td>
                         </tr>
@@ -5823,7 +5823,7 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
                       <div style={{fontSize:11,marginBottom:4}}>{icon}</div>
                       <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",
                         color:hi?`rgba(255,255,255,0.6)`:C.textSoft,marginBottom:3}}>{lbl}</div>
-                      <div style={{fontSize:16,fontWeight:900,color:hi?C.white:color,fontFamily:"Georgia,serif"}}>{val}</div>
+                      <div style={{fontSize:16,fontWeight:900,color:hi?C.white:color,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
                       {sub&&<div style={{fontSize:9,color:hi?`rgba(255,255,255,0.55)`:C.textSoft,marginTop:2}}>{sub}</div>}
                     </div>
                   ))}
@@ -5868,7 +5868,7 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
                           </div>
                           <div style={{fontSize:9,color:C.textSoft}}>{d.qta} pz · {d.spreco>0?`spreco ${euro(d.spreco.toFixed(2))}`:"spreco 0"}</div>
                         </div>
-                        <div style={{fontSize:12,fontWeight:800,color:C.green,fontFamily:"Georgia,serif",flexShrink:0}}>{euro(d.rv.toFixed(2))}</div>
+                        <div style={{fontSize:12,fontWeight:800,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",flexShrink:0}}>{euro(d.rv.toFixed(2))}</div>
                       </div>
                     ))}
                   </div>
@@ -5926,7 +5926,7 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
                           <tr key={nome} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?"#FFFAF8":"#FFF"}}>
                             <td style={{padding:"9px 12px",fontWeight:700,color:C.text,fontSize:11}}>{nome}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:C.textMid}}>{d.qta}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",fontWeight:800,color:C.green,fontFamily:"Georgia,serif"}}>{euro(d.rv.toFixed(2))}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",fontWeight:800,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(d.rv.toFixed(2))}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:C.textMid}}>{euro((d.rv/n).toFixed(2))}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:d.spreco>0?C.amber:C.textSoft}}>{d.spreco>0?euro(d.spreco.toFixed(2)):"—"}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",color:C.textSoft}}>{totRicavi>0?pct(d.rv/totRicavi*100):"—"}</td>
@@ -5983,9 +5983,9 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
                       <tr key={ch.id} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
                         <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>{new Date(ch.data+"T12:00").toLocaleDateString("it-IT",{weekday:"short",day:"2-digit",month:"short"})}</td>
                         <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid}}>{(ch.confronto||[]).length}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green,fontFamily:"Georgia,serif"}}>{fmt(ch.kpi.totV)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(ch.kpi.totV)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{fmt(ch.kpi.totFC)}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(ch.kpi.totMP),fontFamily:"Georgia,serif"}}>{fmt(ch.kpi.totM)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(ch.kpi.totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(ch.kpi.totM)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(ch.kpi.totMP)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>
                           <span style={{fontWeight:700,color:ch.kpi.avgST>=85?C.green:ch.kpi.avgST>=65?C.amber:C.red}}>{fmtp(ch.kpi.avgST)}</span>
@@ -6519,7 +6519,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                   ))}
                 </div>
                 <div style={{fontSize:10,color:C.textSoft,marginBottom:6}}>Preview prime 5 righe:</div>
-                <div style={{maxHeight:100,overflowY:"auto",background:"#F8F4F2",borderRadius:8,padding:"8px",fontSize:9,fontFamily:"monospace"}}>
+                <div style={{maxHeight:100,overflowY:"auto",background:"#F8F4F2",borderRadius:8,padding:"8px",fontSize:9,fontFamily:"'JetBrains Mono', ui-monospace, monospace"}}>
                   {(importPreview.preview||[]).map((r,i)=>(
                     <div key={i} style={{marginBottom:2,color:C.textMid}}>{Object.entries(r).slice(0,5).map(([k,v])=>`${k}:${v}`).join(" | ")}</div>
                   ))}
@@ -6748,9 +6748,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                           </div>
                         ):"—"}
                       </td>
-                      <td style={{padding:"9px 12px",textAlign:"right",fontWeight:700,color:C.green,fontFamily:"Georgia,serif"}}>{fmt(r.rv)}</td>
+                      <td style={{padding:"9px 12px",textAlign:"right",fontWeight:700,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(r.rv)}</td>
                       <td style={{padding:"9px 12px",textAlign:"right",color:C.red}}>{fmt(r.fcV)}</td>
-                      <td style={{padding:"9px 12px",textAlign:"right",fontWeight:800,color:margColor(r.rv>0?(r.marg/r.rv*100):0),fontFamily:"Georgia,serif"}}>{fmt(r.marg)}</td>
+                      <td style={{padding:"9px 12px",textAlign:"right",fontWeight:800,color:margColor(r.rv>0?(r.marg/r.rv*100):0),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(r.marg)}</td>
                       <td style={{padding:"9px 12px",textAlign:"right",color:r.spreco>2?C.red:C.textSoft,fontWeight:r.spreco>2?700:400}}>{r.spreco>0.01?fmt(r.spreco):"—"}</td>
                     </tr>
                   ))}
@@ -6758,9 +6758,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 <tfoot>
                   <tr style={{background:"#F0EAE6",borderTop:`2px solid ${C.borderStr}`}}>
                     <td colSpan={5} style={{padding:"9px 12px",fontWeight:900,color:C.text,fontSize:12}}>TOTALE GIORNATA</td>
-                    <td style={{padding:"9px 12px",textAlign:"right",fontWeight:900,color:C.green,fontFamily:"Georgia,serif",fontSize:13}}>{fmt(totV)}</td>
+                    <td style={{padding:"9px 12px",textAlign:"right",fontWeight:900,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",fontSize:13}}>{fmt(totV)}</td>
                     <td style={{padding:"9px 12px",textAlign:"right",fontWeight:700,color:C.red}}>{fmt(totFC)}</td>
-                    <td style={{padding:"9px 12px",textAlign:"right",fontWeight:900,color:margColor(totMP),fontFamily:"Georgia,serif",fontSize:13}}>{fmt(totM)}</td>
+                    <td style={{padding:"9px 12px",textAlign:"right",fontWeight:900,color:margColor(totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",fontSize:13}}>{fmt(totM)}</td>
                     <td style={{padding:"9px 12px",textAlign:"right",fontWeight:700,color:totS>5?C.red:C.textSoft}}>{fmt(totS)}</td>
                   </tr>
                 </tfoot>
@@ -6838,7 +6838,7 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
       return { ...ing, costo, pct: fc>0?(costo/fc*100):0, mancante:!c, isStima:c?.isStima||false };
     }).sort((a,b)=>b.costo-a.costo);
 
-  const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
+  const tnum = TNUM;
   const PURPLE = "#8E44AD", PURPLE_DARK = "#6B2FA0", PURPLE_BG = "#F5EBFB", PURPLE_BORDER = "#D4B0E8";
   return (
     <div style={{background:T.bgCard,border:`1px solid ${PURPLE_BORDER}`,borderRadius:R.xl,overflow:"hidden",
@@ -6925,9 +6925,9 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
                         {ing.nome}{ing.isStima&&<span style={{marginLeft:4,fontSize:8,color:C.amber}}>est.</span>}
                         {ing.mancante&&<span style={{marginLeft:4,fontSize:8,color:C.red}}>?</span>}
                       </td>
-                      <td style={{padding:"7px 10px",textAlign:"right",fontFamily:"monospace"}}>{ing.qty1stampo}g</td>
-                      <td style={{padding:"7px 10px",textAlign:"right",fontFamily:"monospace",color:C.red}}>{ing.costo>0?`€${ing.costo.toFixed(3)}`:"—"}</td>
-                      <td style={{padding:"7px 10px",textAlign:"right",fontFamily:"monospace",color:C.textMid}}>{ing.pct>0?`${ing.pct.toFixed(1)}%`:"—"}</td>
+                      <td style={{padding:"7px 10px",textAlign:"right",fontFamily:"'JetBrains Mono', ui-monospace, monospace"}}>{ing.qty1stampo}g</td>
+                      <td style={{padding:"7px 10px",textAlign:"right",fontFamily:"'JetBrains Mono', ui-monospace, monospace",color:C.red}}>{ing.costo>0?`€${ing.costo.toFixed(3)}`:"—"}</td>
+                      <td style={{padding:"7px 10px",textAlign:"right",fontFamily:"'JetBrains Mono', ui-monospace, monospace",color:C.textMid}}>{ing.pct>0?`${ing.pct.toFixed(1)}%`:"—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -7220,7 +7220,7 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
                     <span style={{color:C.textSoft}}>Costo/g</span>
-                    <span style={{fontWeight:700,color:"#8E44AD",fontFamily:"monospace"}}>{costoGLive>0?costoGLive.toFixed(5):"—"} €/g</span>
+                    <span style={{fontWeight:700,color:"#8E44AD",fontFamily:"'JetBrains Mono', ui-monospace, monospace"}}>{costoGLive>0?costoGLive.toFixed(5):"—"} €/g</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
                     <span style={{color:C.textSoft}}>Costo/kg</span>
@@ -7242,7 +7242,7 @@ function SemilavoratiView({ ricettario, onSave, notify }) {
                 style={{padding:"11px",background:"#8E44AD",color:"#FFF",border:"none",borderRadius:9,fontWeight:900,fontSize:12,cursor:"pointer",boxShadow:"0 2px 8px rgba(142,68,173,0.25)",marginTop:4}}>
                 💾 {editMode ? "Aggiorna semilavorato" : "Salva semilavorato"}
               </button>
-              <div style={{fontSize:9,color:C.textSoft,textAlign:"center"}}>Premi <kbd style={{padding:"1px 4px",background:"#F0E4FA",borderRadius:3,border:"1px solid #D4B0E8",fontFamily:"monospace"}}>Enter</kbd> per aggiungere ingrediente · <kbd style={{padding:"1px 4px",background:"#F0E4FA",borderRadius:3,border:"1px solid #D4B0E8",fontFamily:"monospace"}}>↵ Salva</kbd> clic o invio sul bottone</div>
+              <div style={{fontSize:9,color:C.textSoft,textAlign:"center"}}>Premi <kbd style={{padding:"1px 4px",background:"#F0E4FA",borderRadius:3,border:"1px solid #D4B0E8",fontFamily:"'JetBrains Mono', ui-monospace, monospace"}}>Enter</kbd> per aggiungere ingrediente · <kbd style={{padding:"1px 4px",background:"#F0E4FA",borderRadius:3,border:"1px solid #D4B0E8",fontFamily:"'JetBrains Mono', ui-monospace, monospace"}}>↵ Salva</kbd> clic o invio sul bottone</div>
               {editMode&&<button onClick={()=>{setEditMode(null);setForm(empty);}}
                 style={{padding:"8px",background:C.white,color:C.textMid,border:`1px solid ${C.border}`,borderRadius:8,fontWeight:600,fontSize:11,cursor:"pointer"}}>
                 Annulla modifica
@@ -7342,7 +7342,7 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
   const giornoLabel = now.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
   const saluto = ora < 13 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera';
   const nomeSaluto = nomeAttivita ? `, ${nomeAttivita}` : '';
-  const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
+  const tnum = TNUM;
 
   // FC band: low (great) → high (warning)
   const fcBand = fcMedio < 0.30 ? 'ok' : fcMedio < 0.35 ? 'warn' : 'bad';
@@ -7850,7 +7850,7 @@ class ErrorBoundary extends React.Component {
   static getDerivedStateFromError(e) { return { err: e }; }
   render() {
     if (this.state.err) return (
-      <div style={{padding:40,fontFamily:"monospace",color:"#C0392B",background:"#FFF5F5",minHeight:"100vh"}}>
+      <div style={{padding:40,fontFamily:"'JetBrains Mono', ui-monospace, monospace",color:"#C0392B",background:"#FFF5F5",minHeight:"100vh"}}>
         <h2>⚠️ Errore runtime</h2>
         <pre style={{whiteSpace:"pre-wrap",fontSize:11}}>{this.state.err.toString()}</pre>
         <pre style={{whiteSpace:"pre-wrap",fontSize:10,color:"#666"}}>{this.state.err.stack}</pre>

@@ -74,11 +74,16 @@ export const radius = {
   full: 9999,
 };
 
+// ─── Typography ──────────────────────────────────────────────────────────────
+// Stack: Inter per UI/dati densi + JetBrains Mono per codici/ID. I numeri non
+// usano una mono dedicata ma Inter con `font-variant-numeric: tabular-nums` per
+// allineamento colonne senza spezzare il ritmo tipografico.
+
 export const font = {
-  sans: "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
-  mono: "'JetBrains Mono', 'SF Mono', Menlo, monospace",
-  // Tabular figures for numeric columns
-  numeric: { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" },
+  sans: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+  mono: "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+
+  numeric: { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum', 'cv11', 'ss01'" },
 
   size: {
     '2xs': 10, xs: 11, sm: 12, base: 13, md: 14, lg: 16,
@@ -101,10 +106,58 @@ export const font = {
   leading: {
     tight:   1.1,
     snug:    1.25,
-    normal:  1.5,
-    relaxed: 1.65,
+    normal:  1.4,
+    relaxed: 1.55,
+    loose:   1.7,
   },
 };
+
+// Tabular numerals — spread su qualsiasi cella numerica (prezzi, KPI, colonne).
+export const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum', 'cv11', 'ss01'" };
+
+// Typography presets — single source of truth della scala. Usa così:
+//   import { typo, tnum, getTypo } from './lib/theme'
+//   <h1 style={typo.h1}>…</h1>
+//   <span style={{ ...typo.numSm }}>€12.345,67</span>
+//   const t = getTypo(isMobile); <h1 style={t.h1}>…</h1>
+const _stack = "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+
+export const typo = {
+  display:    { fontFamily: _stack, fontSize: 32, fontWeight: 700, letterSpacing: '-0.02em',  lineHeight: 1.1 },
+  h1:         { fontFamily: _stack, fontSize: 24, fontWeight: 700, letterSpacing: '-0.015em', lineHeight: 1.2 },
+  h2:         { fontFamily: _stack, fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em',  lineHeight: 1.3 },
+  h3:         { fontFamily: _stack, fontSize: 15, fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.35 },
+  body:       { fontFamily: _stack, fontSize: 14, fontWeight: 400, letterSpacing: 0,          lineHeight: 1.5 },
+  bodyStrong: { fontFamily: _stack, fontSize: 14, fontWeight: 600, letterSpacing: 0,          lineHeight: 1.5 },
+  small:      { fontFamily: _stack, fontSize: 12, fontWeight: 500, letterSpacing: 0,          lineHeight: 1.4 },
+  caption:    { fontFamily: _stack, fontSize: 11, fontWeight: 500, letterSpacing: '0.01em',   lineHeight: 1.35 },
+  overline:   { fontFamily: _stack, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',   lineHeight: 1.3, textTransform: 'uppercase' },
+
+  // Numerici (tabular-nums incluso)
+  num:   { fontFamily: _stack, fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.15,
+           fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum', 'cv11', 'ss01'" },
+  numSm: { fontFamily: _stack, fontSize: 14, fontWeight: 600, letterSpacing: 0,          lineHeight: 1.3,
+           fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum', 'cv11', 'ss01'" },
+  numLg: { fontFamily: _stack, fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1,
+           fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum', 'cv11', 'ss01'" },
+
+  // Codice/ID (vera mono)
+  code:  { fontFamily: "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace",
+           fontSize: 12, fontWeight: 500, letterSpacing: 0, lineHeight: 1.4 },
+};
+
+// Mobile: titoli scalati −15/20%, body invariato (≥14px per touch).
+export const typoMobile = {
+  ...typo,
+  display: { ...typo.display, fontSize: 26 },
+  h1:      { ...typo.h1,      fontSize: 20 },
+  h2:      { ...typo.h2,      fontSize: 16 },
+  h3:      { ...typo.h3,      fontSize: 14 },
+  num:     { ...typo.num,     fontSize: 18 },
+  numLg:   { ...typo.numLg,   fontSize: 24 },
+};
+
+export const getTypo = (isMobile) => (isMobile ? typoMobile : typo);
 
 export const shadow = {
   none: 'none',

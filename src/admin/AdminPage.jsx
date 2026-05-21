@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, tnum as _tnum, typo } from '../lib/theme'
 
 // ─── Costanti ──────────────────────────────────────────────────────────────
 const PIANI = ['trial', 'base', 'pro', 'enterprise']
@@ -31,7 +31,7 @@ const COLORS = {
   blue: '#1D4ED8',
   blueBg: T.blueLight,
 }
-const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
+const tnum = _tnum;
 
 // ─── Utility ───────────────────────────────────────────────────────────────
 const fmtData = iso => iso ? new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'
@@ -330,7 +330,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
                   <tr key={f.id} style={{ borderBottom: i < matches.length - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
                     <td style={{ padding: '7px 10px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '—'}</td>
                     <td style={{ padding: '7px 10px', color: COLORS.text, fontWeight: 500 }}>{f.fornitore}</td>
-                    <td style={{ padding: '7px 10px', color: COLORS.textSoft, fontFamily: 'monospace', fontSize: 11 }}>{f.numero_rif || '—'}</td>
+                    <td style={{ padding: '7px 10px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{f.numero_rif || '—'}</td>
                     <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toFixed(2)}</td>
                   </tr>
                 ))}
@@ -372,7 +372,7 @@ function ImpersonaModal({ cliente, link, onClose }) {
       </div>
       <div style={{
         padding: '10px 12px', background: '#F1F5F9', borderRadius: 8,
-        fontFamily: 'ui-monospace, monospace', fontSize: 11, color: COLORS.text,
+        fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, color: COLORS.text,
         wordBreak: 'break-all', maxHeight: 120, overflow: 'auto',
       }}>{link}</div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
@@ -990,7 +990,7 @@ export default function AdminPage() {
                       </td>
                       <td style={{ padding: '8px 0', color: COLORS.textSoft, width: 180 }}>{r.actor}</td>
                       <td style={{ padding: '8px 0', fontWeight: 600 }}>{r.action}</td>
-                      <td style={{ padding: '8px 18px', color: COLORS.textMute, fontFamily: 'ui-monospace, monospace', fontSize: 10 }}>
+                      <td style={{ padding: '8px 18px', color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 10 }}>
                         {r.target ? r.target.slice(0, 8) + '…' : ''}
                       </td>
                     </tr>
