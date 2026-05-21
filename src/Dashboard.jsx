@@ -25,6 +25,7 @@ import ImpostazioniSedi from './components/ImpostazioniSedi'
 import ImpostazioniTv from './components/ImpostazioniTv'
 import ExportContabilita from './components/ExportContabilita'
 import WhiteLabel, { WL_KEY } from './components/WhiteLabel'
+import BenchmarkOptin, { BenchmarkBadge } from './components/BenchmarkOptin'
 import ConfrontoSedi from './components/ConfrontoSedi'
 import TrasferimentiView from './components/TrasferimentiView'
 import EsportaDati from './components/EsportaDati'
@@ -2643,7 +2644,7 @@ function PLView({ricettario, onUpdateRegola}) {
 
 
 // ─── SIMULATORE PREZZI VIEW ───────────────────────────────────────────────────
-function SimulatorePrezziView({ ricettario, giornaliero }) {
+function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita, sedi }) {
   const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const ricette  = Object.values(ricettario?.ricette||{})
@@ -2719,12 +2720,26 @@ function SimulatorePrezziView({ ricettario, giornaliero }) {
   const totProiDiff    = scenRows.reduce((s,r)=>s+r.proiDiff,0);
   const hasChanges     = scenRows.some(r=>r.changed);
 
+  // Food cost medio per benchmark settoriale (% ricavi)
+  const fcAvgPct = (() => {
+    const totFc = baseRows.reduce((s,r)=>s+r.fc,0);
+    const totRic = baseRows.reduce((s,r)=>s+r.ricavo,0);
+    return totRic > 0 ? (totFc / totRic * 100) : null;
+  })();
+  const cittaDefault = (sedi || []).find(s => s.is_default)?.citta || (sedi || [])[0]?.citta || null;
+
   return (
     <div style={{maxWidth:1200}}>
       <PageHeader
         title="Food Cost"
         subtitle={`Simulatore prezzi e proiezioni${hasStorico?" · "+String((giornaliero||[]).length)+" sessioni":"" }`}
       />
+
+      {tipoAttivita && (
+        <div style={{ marginBottom: 18 }}>
+          <BenchmarkBadge tipoAttivita={tipoAttivita} miaFcPct={fcAvgPct} citta={cittaDefault} />
+        </div>
+      )}
 
       {/* Controlli orizzonte + reset */}
       <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24,flexWrap:"wrap"}}>
@@ -8050,6 +8065,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
     ["sedi", "🏪 Sedi"],
     ["tv", "📺 TV"],
     ["contabilita", "📊 Contabilità"],
+    ["benchmark", "📈 Benchmark"],
     ["personalizzazione", "🎨 Personalizzazione"],
     ["dati", "💾 Dati"],
   ];
@@ -8260,6 +8276,11 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
       {/* ── TAB: Contabilità ── */}
       {tab === "contabilita" && (
         <ExportContabilita orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} notify={notify} />
+      )}
+
+      {/* ── TAB: Benchmark anonimi ── */}
+      {tab === "benchmark" && (
+        <BenchmarkOptin orgId={orgId} sedeId={auth?.sedeId} tipoAttivita={tipoAttivita} sedi={sedi || []} notify={notify} />
       )}
 
       {/* ── TAB: Personalizzazione (piano Chain) ── */}
@@ -9288,7 +9309,7 @@ export default function Dashboard({
         {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}}/>}
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify}/>}
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} onUpdateRegola={handleUpdateRegola}/>}
-        {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero}/>}
+        {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)}/>}
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
