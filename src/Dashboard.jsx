@@ -22,6 +22,7 @@ import { useOnlineStatus } from './lib/useOnlineStatus'
 import { useNotifiche } from './lib/useNotifiche'
 import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF, typo, tnum as TNUM } from './lib/theme'
 import ImpostazioniSedi from './components/ImpostazioniSedi'
+import ImpostazioniTv from './components/ImpostazioniTv'
 import ConfrontoSedi from './components/ConfrontoSedi'
 import TrasferimentiView from './components/TrasferimentiView'
 import EsportaDati from './components/EsportaDati'
@@ -8045,6 +8046,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
     ["generale", "⚙️ Generale"],
     ["rese", "🔢 Rese"],
     ["sedi", "🏪 Sedi"],
+    ["tv", "📺 TV"],
     ["dati", "💾 Dati"],
   ];
 
@@ -8244,6 +8246,11 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
       {/* ── TAB: Sedi ── */}
       {tab === "sedi" && (
         <ImpostazioniSedi orgId={orgId} />
+      )}
+
+      {/* ── TAB: TV ── */}
+      {tab === "tv" && (
+        <ImpostazioniTv orgId={orgId} sedi={sedi || []} notify={notify} />
       )}
 
       {/* ── TAB: Dati ── */}
