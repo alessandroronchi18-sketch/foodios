@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { sload, ssave } from '../lib/storage'
 
 const R = '#C0392B'
 const TXT = '#1C0A0A'
@@ -12,6 +13,133 @@ const inp = { width: '100%', padding: '8px 12px', border: `1px solid ${BOR}`, bo
 const lbl = { fontSize: 11, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, display: 'block' }
 const btn = (bg, col) => ({ padding: '8px 16px', background: bg, color: col, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' })
 
+const SK_SCENARIO = 'pasticceria-scenario-operativo-v1'
+
+const SCENARI = [
+  {
+    id: 'B',
+    nome: 'Ogni sede produce per sé',
+    icon: '🏪',
+    descr: 'Ogni sede ha la propria produzione, magazzino e vendita. Le sedi sono autonome, non si scambiano prodotti.',
+    setupHint: 'Crea tutte le sedi paritarie. La produzione di ogni sede resta nella sede stessa.',
+  },
+  {
+    id: 'A',
+    nome: 'Laboratorio centrale → punti vendita',
+    icon: '🏭',
+    descr: 'Una sede produce tutto, le altre sono punti vendita che ricevono i prodotti dal laboratorio.',
+    setupHint: 'Crea una sede "Laboratorio" + N sedi "Punto vendita". In produzione giornaliera scegli a quale PV destinare la sessione.',
+  },
+  {
+    id: 'C',
+    nome: 'Più produttori + sedi solo riceventi',
+    icon: '🚛',
+    descr: 'Due o più sedi producono ognuna i propri prodotti, mentre altre sedi sono solo punti vendita che vengono rifornite.',
+    setupHint: 'Crea le sedi produttive con le loro materie prime e ricette. Le sedi riceventi ricevono via trasferimento.',
+  },
+  {
+    id: 'D',
+    nome: 'Rete distribuita',
+    icon: '🔄',
+    descr: 'Più sedi producono prodotti diversi e si scambiano tra loro per riempire le vetrine. Modello a hub multipli.',
+    setupHint: 'Pianifica chi produce cosa. Usa i trasferimenti per ogni movimento, lo stock vetrina si aggiornerà automaticamente.',
+  },
+]
+
+function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
+  const [scelta, setScelta] = useState(scenarioCorrente)
+  const [saving, setSaving] = useState(false)
+  const [expanded, setExpanded] = useState(!scenarioCorrente)
+
+  useEffect(() => { setScelta(scenarioCorrente); setExpanded(!scenarioCorrente) }, [scenarioCorrente])
+
+  async function salva(id) {
+    setSaving(true)
+    try {
+      await ssave(SK_SCENARIO, { scenario: id, scelto_il: new Date().toISOString() }, orgId, null)
+      onCambia?.(id)
+      setExpanded(false)
+    } finally { setSaving(false) }
+  }
+
+  const corrente = SCENARI.find(s => s.id === scenarioCorrente)
+
+  if (!expanded && corrente) {
+    return (
+      <div style={{ background: '#FAFAFA', border: `1px solid ${BOR}`, borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 22 }}>{corrente.icon}</span>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Scenario operativo</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: TXT, marginTop: 2 }}>{corrente.nome}</div>
+          </div>
+        </div>
+        <button onClick={() => setExpanded(true)}
+          style={{ ...btn('transparent', MID), border: `1px solid ${BOR}` }}>
+          Cambia
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ background: '#FFFBEB', border: '2px dashed #FCD34D', borderRadius: 14, padding: 20, marginBottom: 18 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+        🧭 Come lavora la tua attività?
+      </div>
+      <div style={{ fontSize: 13, color: MID, marginBottom: 16, lineHeight: 1.55 }}>
+        Scegli lo scenario che meglio descrive il tuo modello operativo. Useremo questa informazione per suggerirti la configurazione corretta delle sedi e dei flussi.
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 14 }}>
+        {SCENARI.map(s => {
+          const isSel = scelta === s.id
+          return (
+            <button key={s.id} onClick={() => setScelta(s.id)}
+              style={{
+                textAlign: 'left', padding: '14px 16px',
+                background: isSel ? '#FFF' : '#FFFEF7',
+                border: `2px solid ${isSel ? R : '#FDE68A'}`,
+                borderRadius: 10, cursor: 'pointer',
+                boxShadow: isSel ? '0 4px 14px rgba(192,57,43,0.18)' : 'none',
+                transition: 'all .15s',
+              }}>
+              <div style={{ fontSize: 28, marginBottom: 6 }}>{s.icon}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: TXT, marginBottom: 6, lineHeight: 1.25 }}>{s.nome}</div>
+              <div style={{ fontSize: 11, color: SOFT, lineHeight: 1.5 }}>{s.descr}</div>
+            </button>
+          )
+        })}
+      </div>
+
+      {scelta && (() => {
+        const s = SCENARI.find(x => x.id === scelta)
+        return (
+          <div style={{ background: '#FFF', borderRadius: 10, padding: '12px 14px', border: `1px solid ${BOR}`, marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+              💡 Come configurarlo
+            </div>
+            <div style={{ fontSize: 12, color: MID, lineHeight: 1.6 }}>{s.setupHint}</div>
+          </div>
+        )
+      })()}
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => scelta && salva(scelta)} disabled={!scelta || saving}
+          style={{ ...btn(R, '#FFF'), opacity: scelta ? 1 : 0.5, cursor: scelta ? 'pointer' : 'not-allowed' }}>
+          {saving ? '…' : (scenarioCorrente ? 'Aggiorna scenario' : 'Conferma scenario')}
+        </button>
+        {scenarioCorrente && (
+          <button onClick={() => setExpanded(false)}
+            style={{ ...btn('transparent', SOFT), border: `1px solid ${BOR}` }}>
+            Annulla
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function ImpostazioniSedi({ orgId, onSediChange }) {
   const [sedi, setSedi] = useState([])
   const [loading, setLoading] = useState(false)
@@ -20,6 +148,12 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
   const [form, setForm] = useState({ nome: '', indirizzo: '', citta: '', is_default: false })
   const [editForm, setEditForm] = useState({})
   const [toast, setToast] = useState(null)
+  const [scenario, setScenario] = useState(null)
+
+  useEffect(() => {
+    if (!orgId) return
+    sload(SK_SCENARIO, orgId, null).then(v => setScenario(v?.scenario || null))
+  }, [orgId])
 
   const sediAttive = sedi.filter(s => s.attiva !== false)
   const canAddMore = true
@@ -139,6 +273,12 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
           {toast.msg}
         </div>
       )}
+
+      <ScenarioOperativoCard
+        orgId={orgId}
+        scenarioCorrente={scenario}
+        onCambia={(id) => { setScenario(id); notify('✓ Scenario aggiornato') }}
+      />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: TXT }}>Gestione Sedi</div>
