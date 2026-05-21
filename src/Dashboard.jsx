@@ -24,6 +24,7 @@ import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z,
 import ImpostazioniSedi from './components/ImpostazioniSedi'
 import ImpostazioniTv from './components/ImpostazioniTv'
 import ExportContabilita from './components/ExportContabilita'
+import WhiteLabel, { WL_KEY } from './components/WhiteLabel'
 import ConfrontoSedi from './components/ConfrontoSedi'
 import TrasferimentiView from './components/TrasferimentiView'
 import EsportaDati from './components/EsportaDati'
@@ -8049,6 +8050,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
     ["sedi", "🏪 Sedi"],
     ["tv", "📺 TV"],
     ["contabilita", "📊 Contabilità"],
+    ["personalizzazione", "🎨 Personalizzazione"],
     ["dati", "💾 Dati"],
   ];
 
@@ -8260,6 +8262,11 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
         <ExportContabilita orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} notify={notify} />
       )}
 
+      {/* ── TAB: Personalizzazione (piano Chain) ── */}
+      {tab === "personalizzazione" && (
+        <WhiteLabel orgId={orgId} piano={piano} notify={notify} />
+      )}
+
       {/* ── TAB: Dati ── */}
       {tab === "dati" && (
         <EsportaDati orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} />
@@ -8461,7 +8468,23 @@ export default function Dashboard({
   const [showNovita, setShowNovita] = useState(false);
   const [sidebarSec, setSidebarSec] = useState({oggi:true,ricette:true,numeri:true,gestione:true,strumenti:true,storico:false});
   const [fabOpen, setFabOpen] = useState(false);
+  const [whiteLabel, setWhiteLabel] = useState(null);
   const { notifiche, nonLette, segnaLetta, segnaTutte } = useNotifiche(orgId);
+
+  // Carica personalizzazione white label (piano Chain) — solo lettura, non blocca il render
+  useEffect(() => {
+    if (!orgId) return
+    sload(WL_KEY, orgId, null).then(v => {
+      setWhiteLabel(v || null)
+      if (v?.colorePrimario && /^#[0-9A-Fa-f]{6}$/.test(v.colorePrimario)) {
+        document.documentElement.style.setProperty('--fos-brand', v.colorePrimario)
+      }
+      if (v?.nomeApp) document.title = `${v.nomeApp} — Dashboard`
+    }).catch(()=>{})
+  }, [orgId]);
+
+  const appName = whiteLabel?.nomeApp || 'FoodOS';
+  const customLogo = whiteLabel?.logoDataUrl || null;
 
   const notify=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
 
@@ -8911,9 +8934,11 @@ export default function Dashboard({
             {/* Logo */}
             <div style={{padding:"22px 20px 18px",borderBottom:`1px solid ${T.borderOnDark}`}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <Logo size={38} style={{borderRadius:10,boxShadow:"0 8px 22px rgba(192,57,43,0.42)"}}/>
+                {customLogo
+                  ? <img src={customLogo} alt={appName} style={{height:38,maxWidth:60,objectFit:'contain',borderRadius:10}}/>
+                  : <Logo size={38} style={{borderRadius:10,boxShadow:"0 8px 22px rgba(192,57,43,0.42)"}}/>}
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:17,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",lineHeight:1.1}}>FoodOS</div>
+                  <div style={{fontSize:17,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",lineHeight:1.1}}>{appName}</div>
                   <div style={{fontSize:12,color:T.textOnDarkSoft,fontWeight:400,marginTop:2,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.005em"}}>
                     {nomeAttivita || "La mia attività"}

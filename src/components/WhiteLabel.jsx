@@ -1,0 +1,204 @@
+import React, { useEffect, useState } from 'react'
+import { sload, ssave } from '../lib/storage'
+
+export const WL_KEY = 'pasticceria-white-label-v1'
+
+const PIANI_CHAIN = new Set(['enterprise', 'chain'])
+
+const card = { background: '#FFF', borderRadius: 14, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
+const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
+
+const MAX_LOGO_BYTES = 500_000 // 500 KB inline base64 in JSON
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+function isHexColor(v) { return /^#[0-9A-Fa-f]{6}$/.test(v || '') }
+
+export default function WhiteLabel({ orgId, piano, notify }) {
+  const [settings, setSettings] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [nomeApp, setNomeApp] = useState('')
+  const [colorePrimario, setColorePrimario] = useState('#C0392B')
+  const [logoData, setLogoData] = useState(null)
+
+  const piaIsChain = PIANI_CHAIN.has((piano || '').toLowerCase())
+
+  useEffect(() => {
+    if (!orgId) return
+    sload(WL_KEY, orgId, null).then(v => {
+      setSettings(v || {})
+      setNomeApp(v?.nomeApp || '')
+      setColorePrimario(v?.colorePrimario || '#C0392B')
+      setLogoData(v?.logoDataUrl || null)
+      setLoading(false)
+    })
+  }, [orgId])
+
+  if (!piaIsChain) return (
+    <div style={card}>
+      <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8 }}>🎨 Personalizzazione</div>
+      <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6 }}>
+        La personalizzazione completa (logo, colore primario, nome app) è inclusa nel piano <strong>Chain</strong>.
+        Contatta <a href="mailto:support@foodios.it" style={{ color: '#C0392B' }}>support@foodios.it</a> per aggiornare il piano.
+      </div>
+    </div>
+  )
+
+  async function handleLogo(file) {
+    if (!file) return
+    if (file.size > MAX_LOGO_BYTES) {
+      notify?.(`⚠ Logo troppo grande (max ${(MAX_LOGO_BYTES/1024).toFixed(0)} KB)`, false)
+      return
+    }
+    try {
+      const dataUrl = await fileToBase64(file)
+      setLogoData(dataUrl)
+    } catch (e) {
+      notify?.('⚠ Errore lettura file', false)
+    }
+  }
+
+  async function salva() {
+    setSaving(true)
+    try {
+      const next = {
+        nomeApp: nomeApp.trim() || null,
+        colorePrimario: isHexColor(colorePrimario) ? colorePrimario : '#C0392B',
+        logoDataUrl: logoData || null,
+        aggiornato_il: new Date().toISOString(),
+      }
+      await ssave(WL_KEY, next, orgId, null)
+      setSettings(next)
+      notify?.('✓ Personalizzazione salvata · ricarica la pagina per applicare ovunque')
+    } catch (e) {
+      notify?.('⚠ Errore salvataggio', false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function reset() {
+    if (!confirm('Ripristinare il branding FoodOS predefinito?')) return
+    setSaving(true)
+    try {
+      await ssave(WL_KEY, { nomeApp: null, colorePrimario: null, logoDataUrl: null, reset_il: new Date().toISOString() }, orgId, null)
+      setNomeApp('')
+      setColorePrimario('#C0392B')
+      setLogoData(null)
+      notify?.('✓ Branding ripristinato · ricarica la pagina')
+    } catch (e) {
+      notify?.('⚠ Errore reset', false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <div style={{ fontSize: 13, color: '#94A3B8', padding: 24 }}>Caricamento…</div>
+
+  return (
+    <div>
+      <div style={card}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6 }}>🎨 Personalizzazione</div>
+        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, lineHeight: 1.6 }}>
+          Esclusiva piano Chain. Applica logo, colore e nome custom a tutta l'interfaccia per gli utenti della tua organizzazione.
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={lbl}>Nome app (al posto di "FoodOS")</label>
+          <input value={nomeApp} onChange={e => setNomeApp(e.target.value)} placeholder="Es. PasticceriaOS"
+            maxLength={32} style={inp} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={lbl}>Colore primario</label>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="color" value={isHexColor(colorePrimario) ? colorePrimario : '#C0392B'}
+              onChange={e => setColorePrimario(e.target.value)}
+              style={{ width: 56, height: 40, border: '1px solid #E2E8F0', borderRadius: 8, cursor: 'pointer', padding: 0 }} />
+            <input value={colorePrimario} onChange={e => setColorePrimario(e.target.value)} maxLength={7}
+              placeholder="#C0392B" style={{ ...inp, fontFamily: 'monospace', maxWidth: 140 }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: isHexColor(colorePrimario) ? colorePrimario : '#C0392B', border: '1px solid #E2E8F0' }} />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={lbl}>Logo (max 500 KB, PNG/SVG/JPG)</label>
+          {logoData && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 10, background: '#F8FAFC', borderRadius: 9, border: '1px solid #E2E8F0', marginBottom: 10 }}>
+              <img src={logoData} alt="logo" style={{ maxHeight: 56, maxWidth: 120, objectFit: 'contain' }} />
+              <button onClick={() => setLogoData(null)}
+                style={{ marginLeft: 'auto', padding: '6px 12px', background: '#FFF5F5', color: '#C0392B', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                Rimuovi
+              </button>
+            </div>
+          )}
+          <label style={{ display: 'inline-block', padding: '10px 18px', background: '#FFFBEB', border: '1px dashed #FDE68A', borderRadius: 9, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#92400E' }}>
+            📂 Carica logo
+            <input type="file" accept="image/png,image/svg+xml,image/jpeg" style={{ display: 'none' }}
+              onChange={e => e.target.files?.[0] && handleLogo(e.target.files[0])} />
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={salva} disabled={saving}
+            style={{ padding: '10px 22px', background: '#C0392B', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.5 : 1 }}>
+            {saving ? '…' : 'Salva personalizzazione'}
+          </button>
+          <button onClick={reset} disabled={saving}
+            style={{ padding: '10px 18px', background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            Ripristina default
+          </button>
+        </div>
+      </div>
+
+      <div style={card}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#0F172A', marginBottom: 12 }}>Anteprima</div>
+        <div style={{ background: '#FAFAFA', borderRadius: 12, padding: 18, border: '1px solid #E2E8F0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {logoData ? (
+              <img src={logoData} alt="logo" style={{ height: 36, maxWidth: 80, objectFit: 'contain' }} />
+            ) : (
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: colorePrimario, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 800 }}>
+                {(nomeApp || 'F').slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A' }}>{nomeApp || 'FoodOS'}</div>
+              <div style={{ fontSize: 11, color: '#64748B' }}>Sidebar e topbar useranno questo brand.</div>
+            </div>
+            <button style={{ marginLeft: 'auto', padding: '8px 16px', background: colorePrimario, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+              Bottone primario
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Funzione applicazione runtime (chiamata da App.jsx all'avvio) ──
+export async function applyWhiteLabel(orgId) {
+  if (!orgId) return null
+  try {
+    const v = await sload(WL_KEY, orgId, null)
+    if (!v) return null
+    if (v.colorePrimario && isHexColor(v.colorePrimario)) {
+      document.documentElement.style.setProperty('--fos-brand', v.colorePrimario)
+    }
+    if (v.nomeApp) {
+      document.title = `${v.nomeApp} — Dashboard`
+    }
+    return v
+  } catch (e) {
+    return null
+  }
+}
