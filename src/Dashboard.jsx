@@ -6963,6 +6963,7 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
 
 // ─── SEMILAVORATI VIEW ────────────────────────────────────────────────────────
 function SemilavoratiView({ ricettario, onSave, notify }) {
+  const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const semilavorati = useMemo(()=>Object.values(ricettario?.ricette||{})
     .filter(r=>isRicettaValida(r.nome) && getR(r.nome,r).tipo==="semilavorato"),
