@@ -17,7 +17,8 @@
     { "path": "/api/sync-delivery", "schedule": "0 2 * * *" },
     { "path": "/api/cron-report-mensile", "schedule": "0 7 1 * *" },
     { "path": "/api/cron-notifiche", "schedule": "0 8 * * *" },
-    { "path": "/api/anomaly-detect", "schedule": "0 * * * *" }
+    { "path": "/api/anomaly-detect", "schedule": "0 6 * * *" },
+    { "path": "/api/cron-trial-reminder", "schedule": "0 9 * * *" }
   ],
   "headers": [
     {
