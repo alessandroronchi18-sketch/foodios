@@ -84,6 +84,20 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
   changed_by      uuid,
   created_at      timestamptz DEFAULT now()
 );
+-- Se la tabella esisteva già con uno schema legacy, aggiungiamo le colonne mancanti.
+-- ADD COLUMN IF NOT EXISTS è no-op se la colonna c'è già.
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS organization_id uuid REFERENCES public.organizations(id) ON DELETE CASCADE;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS user_id         uuid REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS user_email      text;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS table_name      text;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS row_id          uuid;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS user_agent      text;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS client_ip       text;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS old_data        jsonb;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS new_data        jsonb;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS changed_by      uuid;
+ALTER TABLE public.audit_log ADD COLUMN IF NOT EXISTS created_at      timestamptz DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS idx_audit_log_org_created ON public.audit_log (organization_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_log_op         ON public.audit_log (operation);
 ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
@@ -198,6 +212,11 @@ CREATE TABLE IF NOT EXISTS public.login_attempts (
   user_agent  text,
   created_at  timestamptz DEFAULT now()
 );
+-- Se la tabella esisteva già, aggiungi colonne mancanti
+ALTER TABLE public.login_attempts ADD COLUMN IF NOT EXISTS country    text;
+ALTER TABLE public.login_attempts ADD COLUMN IF NOT EXISTS ip         text;
+ALTER TABLE public.login_attempts ADD COLUMN IF NOT EXISTS user_agent text;
+ALTER TABLE public.login_attempts ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 CREATE INDEX IF NOT EXISTS idx_login_attempts_email_ts ON public.login_attempts (email, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_ts    ON public.login_attempts (ip, created_at DESC);
 ALTER TABLE public.login_attempts ENABLE ROW LEVEL SECURITY;
