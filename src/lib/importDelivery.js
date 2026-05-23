@@ -98,6 +98,19 @@ export function parseJustEat(csvText) {
   return aggrega(rows, dateKey, impKey, commKey).map(r => ({ ...r, fonte: 'JustEat' }));
 }
 
+// ── Parser Uber Eats ──────────────────────────────────────────────────────────
+// Export "Payouts" o "Order details" dal Restaurant Manager Uber Eats (CSV).
+// Colonne tipiche: Date, Order ID, Order subtotal, Service fee, Promotion, Net payout
+// In alternativa: Payout date, Gross sales, Uber fees, Net payout
+export function parseUberEats(csvText) {
+  const { rows } = parseCSV(csvText);
+  if (!rows.length) return [];
+  const dateKey = ['Date', 'Order date', 'Payout date', 'Data', 'Data ordine'].find(k => rows[0][k] !== undefined) || 'Date';
+  const grossKey = ['Order subtotal', 'Gross sales', 'Total', 'Order total', 'Totale ordine'].find(k => rows[0][k] !== undefined) || 'Total';
+  const feeKey   = ['Service fee', 'Uber fees', 'Commission', 'Commissione'].find(k => rows[0][k] !== undefined);
+  return aggrega(rows, dateKey, grossKey, feeKey || null).map(r => ({ ...r, fonte: 'Uber Eats' }));
+}
+
 // ── Parser Glovo / Foodinho ───────────────────────────────────────────────────
 // Formato Excel — usa SheetJS (xlsx)
 export async function parseGlovo(file) {

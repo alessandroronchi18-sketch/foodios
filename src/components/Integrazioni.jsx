@@ -2,6 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
 import { parseZucchettiInfinity, parseZucchettiKassa } from '../lib/importZucchetti'
+import { parseSumUp, parseSatispay, parseSquare } from '../lib/importCassa'
+import { parseUberEats, parseDeliveroo, parseJustEat, parseGlovo, mergeInChiusure } from '../lib/importDelivery'
+import { parseShopifyOrders, parseWooCommerceOrders, mergeOrdiniInChiusure } from '../lib/importEcommerce'
+import { sload, ssave } from '../lib/storage'
+
+const SK_CHIUS = 'pasticceria-chiusure-v1'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const C = {
@@ -96,6 +102,147 @@ const INTEGRAZIONI_CFG = [
       'Inserisci l\'URL e il secret qui sotto — i dati arriveranno automaticamente',
     ],
     tipo: 'webhook',
+  },
+
+  // ── Pagamenti ──────────────────────────────────────────────────────────────
+  {
+    id: 'sumup',
+    nome: 'SumUp',
+    icona: '💳',
+    categoria: 'Pagamenti',
+    descrizione: 'Importa i pagamenti POS da SumUp (export CSV "Transactions").',
+    istruzioni: [
+      'Accedi a sumup.com → Vendite → Transazioni',
+      'Esporta in CSV nel periodo desiderato',
+      'Carica qui — verranno aggregati per giorno e aggiunti alle chiusure cassa',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
+  },
+  {
+    id: 'satispay',
+    nome: 'Satispay Business',
+    icona: '🟧',
+    categoria: 'Pagamenti',
+    descrizione: 'Importa i movimenti dal Business Dashboard Satispay (CSV).',
+    istruzioni: [
+      'Accedi a businessdashboard.satispay.com → Movimenti',
+      'Esporta i movimenti del periodo in CSV',
+      'Carica qui — vengono considerati solo i pagamenti ACCETTATI',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
+  },
+  {
+    id: 'square',
+    nome: 'Square',
+    icona: '⬛',
+    categoria: 'Pagamenti',
+    descrizione: 'Importa transazioni Square (CSV export dal Seller Dashboard).',
+    istruzioni: [
+      'Accedi a squareup.com → Reports → Transactions',
+      'Esporta in CSV',
+      'Carica qui — l\'importo netto sottrae le commissioni Square',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
+  },
+
+  // ── Delivery ───────────────────────────────────────────────────────────────
+  {
+    id: 'deliveroo',
+    nome: 'Deliveroo',
+    icona: '🛵',
+    categoria: 'Delivery',
+    descrizione: 'Importa gli ordini Deliveroo (CSV "Orders export").',
+    istruzioni: [
+      'Restaurant Hub Deliveroo → Sales → Export orders',
+      'Scarica il CSV del periodo',
+      'Carica qui — gli ordini verranno aggregati per giorno',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
+  },
+  {
+    id: 'justeat',
+    nome: 'JustEat',
+    icona: '🍕',
+    categoria: 'Delivery',
+    descrizione: 'Importa gli ordini JustEat (CSV report ordini con commissioni).',
+    istruzioni: [
+      'JustEat Partner Hub → Reports → Orders → Export',
+      'Seleziona il periodo e formato CSV',
+      'Carica qui — l\'importo netto sottrae la commissione JustEat',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
+  },
+  {
+    id: 'uber_eats',
+    nome: 'Uber Eats',
+    icona: '🚗',
+    categoria: 'Delivery',
+    descrizione: 'Importa gli ordini Uber Eats dal Restaurant Manager (CSV "Payouts" o "Order details").',
+    istruzioni: [
+      'Restaurant Manager Uber Eats → Reports → Payouts',
+      'Esporta CSV del periodo',
+      'Carica qui — gli ordini sono aggregati per data; le service fee sono sottratte',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
+  },
+  {
+    id: 'glovo',
+    nome: 'Glovo Business',
+    icona: '🟡',
+    categoria: 'Delivery',
+    descrizione: 'Importa ordini Glovo (export Excel dal Glovo Manager).',
+    istruzioni: [
+      'Glovo Manager → Storico ordini → Esporta Excel',
+      'Carica il file qui',
+    ],
+    tipoFile: '.xlsx,.xls',
+    tipoLabel: 'Excel',
+    multiplo: false,
+  },
+
+  // ── E-commerce ─────────────────────────────────────────────────────────────
+  {
+    id: 'shopify',
+    nome: 'Shopify',
+    icona: '🛍️',
+    categoria: 'E-commerce',
+    descrizione: 'Importa gli ordini Shopify dal pannello Admin (CSV "Orders > Export").',
+    istruzioni: [
+      'Admin Shopify → Orders → Export',
+      'Scegli "Current page" o "All orders matching your search"',
+      'Formato: "Plain CSV file" → Export',
+      'Carica qui — verranno aggregati gli ordini "paid" per giorno',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
+  },
+  {
+    id: 'woocommerce',
+    nome: 'WooCommerce',
+    icona: '🟪',
+    categoria: 'E-commerce',
+    descrizione: 'Importa ordini WooCommerce (CSV dal plugin "Customer/Order CSV Export" o WP Admin).',
+    istruzioni: [
+      'WP Admin → WooCommerce → Orders → Export to CSV',
+      'In alternativa: Order Export plugin → CSV',
+      'Carica qui — vengono importati ordini completed/processing',
+    ],
+    tipoFile: '.csv',
+    tipoLabel: 'CSV',
+    multiplo: false,
   },
 ]
 
@@ -279,6 +426,36 @@ export default function Integrazioni({ orgId }) {
           }
           imported += vendite.length
           setRisultato({ tipo: 'kassa', chiusure: chiusure_giornaliere, cfgId: cfg.id })
+
+        } else if (['sumup','satispay','square','deliveroo','justeat','uber_eats','glovo','shopify','woocommerce'].includes(cfg.id)) {
+          // Pattern unificato: parser → aggregati per giorno → merge in chiusure (SK_CHIUS shared)
+          let aggregati = []
+          if (cfg.id === 'sumup')         aggregati = parseSumUp(await file.text())
+          else if (cfg.id === 'satispay') aggregati = parseSatispay(await file.text())
+          else if (cfg.id === 'square')   aggregati = parseSquare(await file.text())
+          else if (cfg.id === 'deliveroo') aggregati = parseDeliveroo(await file.text())
+          else if (cfg.id === 'justeat')  aggregati = parseJustEat(await file.text())
+          else if (cfg.id === 'uber_eats') aggregati = parseUberEats(await file.text())
+          else if (cfg.id === 'glovo')    aggregati = await parseGlovo(file)
+          else if (cfg.id === 'shopify')  aggregati = parseShopifyOrders(await file.text())
+          else if (cfg.id === 'woocommerce') aggregati = parseWooCommerceOrders(await file.text())
+
+          // Merge nelle chiusure cassa (SK_CHIUS) — chiave shared
+          const chiusureAttuali = (await sload(SK_CHIUS, orgId, null)) || []
+          const fonteLabel = cfg.nome
+          const nuove = ['shopify','woocommerce'].includes(cfg.id)
+            ? mergeOrdiniInChiusure(chiusureAttuali, aggregati, fonteLabel)
+            : mergeInChiusure(chiusureAttuali, aggregati, fonteLabel)
+          await ssave(SK_CHIUS, nuove, orgId, null)
+          imported += aggregati.length
+          setRisultato({
+            tipo: 'aggregato',
+            cfgId: cfg.id,
+            righe: aggregati,
+            totale: aggregati.reduce((s, r) => s + (r.importo || 0), 0),
+            ordini: aggregati.reduce((s, r) => s + (r.ordini || 0), 0),
+            fonte: fonteLabel,
+          })
         }
 
         await logSync(cfg.id, 'ok', imported, null)
@@ -330,11 +507,10 @@ export default function Integrazioni({ orgId }) {
         </div>
       )}
 
-      {/* Header */}
+      {/* Sub-header (il titolo è in topbar) */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: T.text, letterSpacing: "-0.025em", lineHeight: 1.15 }}>Integrazioni</h1>
-        <div style={{ fontSize: 13, color: T.textSoft, marginTop: 4, letterSpacing: "-0.005em" }}>
-          Connetti FoodOS ai tuoi software di contabilità e fatturazione.
+        <div style={{ fontSize: 13, color: T.textSoft, letterSpacing: "-0.005em" }}>
+          Connetti FoodOS ai tuoi software di contabilità, casse, delivery, pagamenti ed e-commerce.
         </div>
       </div>
 
@@ -494,6 +670,16 @@ export default function Integrazioni({ orgId }) {
                             </div>
                           </>
                         )}
+                        {risultato.tipo === 'aggregato' && (
+                          <>
+                            <div style={{ fontWeight: 700, fontSize: 12, color: C.green, marginBottom: 6 }}>
+                              ✓ {risultato.righe.length} giorni · {risultato.ordini || risultato.righe.reduce((s,r)=>s+(r.ordini||r.righe||0),0)} record da {risultato.fonte}
+                            </div>
+                            <div style={{ fontSize: 11, color: C.green }}>
+                              Totale: €{risultato.totale.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · uniti alle chiusure cassa
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
 
@@ -515,6 +701,36 @@ export default function Integrazioni({ orgId }) {
           })}
         </div>
       ))}
+
+      {/* ── Roadmap integrazioni (in arrivo) ───────────────────────────── */}
+      <div style={{ marginTop: 36 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>In arrivo</div>
+        <div style={{ background: '#F8FAFC', border: `1px dashed ${C.border}`, borderRadius: 12, padding: '14px 18px' }}>
+          <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.7 }}>
+            Integrazioni pianificate ma in attesa di credenziali / file campione / accordi commerciali. Sblocco dettagliato in <code style={{ background: 'rgba(0,0,0,0.04)', padding: '1px 5px', borderRadius: 4 }}>ROADMAP.md</code>.
+          </div>
+          <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
+            {[
+              ['📑', 'Fatture in Cloud (API)', 'serve API key cliente'],
+              ['🏛', 'TeamSystem export XML', 'spec import del cliente'],
+              ['📒', 'Danea Easyfatt', 'serve file campione CSV'],
+              ['🧾', 'Epson RT / Custom RT / Ditron', 'servono XML esempi'],
+              ['🛒', 'Metro / Transgourmet / Europastry', 'serve listino campione'],
+              ['👥', 'Zucchetti HR / TeamSystem HR', 'serve formato richiesto'],
+              ['🌡', 'Sensori HACCP (Govee, SensorPush, Inkbird)', 'servono API key cliente'],
+              ['📦', 'Amazon Fresh', 'sblocco con accordo commerciale'],
+            ].map(([icon, nome, why]) => (
+              <div key={nome} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', background: '#FFF', borderRadius: 8, border: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 18 }}>{icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{nome}</div>
+                  <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>{why}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,5 +1,53 @@
 # FoodOS — Roadmap delle feature bloccate
-> Aggiornato: 2026-05-21
+> Aggiornato: 2026-05-23
+
+---
+
+## ✅ Sicurezza — già attive (2026-05-23)
+
+| Misura | Note |
+|---|---|
+| Audit log centralizzato (`audit_log`) | Eseguire `supabase_security_audit.sql` per creare/verificare la tabella + trigger ricettario. |
+| Rate limit export PDF (10/h ricettario, 30/h altri) | `api/audit-export.js` server-side, wrapper client in `src/lib/exportGuard.js`. |
+| Watermark PDF (email utente + nome attività + diagonale) | Applicato in `src/lib/exportPDF.js`. |
+| Zero-trust su `/api/ai` | Blocca cross-org se il body dichiara `organization_id` diverso da quello del profilo. Logga in `audit_log`. |
+| User-agent binding sessione | `src/lib/sessionGuard.js` — al cambio di fingerprint forza signOut. Niente IP binding (rompe l'UX mobile). |
+| CSS dissuasore RicettarioView | `user-select: none`, no context menu, no drag. Non protegge da screenshot — è solo deterrenza. |
+| RLS hardening | `supabase_security_audit.sql` esegue `FORCE ROW LEVEL SECURITY` su `user_data`, `organizations`, `profiles`, `sedi`. |
+
+**Cifratura client-side ricettario:** **non implementata di proposito**. Con il salt nel bundle JS è security theater. Implementabile correttamente solo con pgcrypto + KMS server-side; vedi sezione "Da decidere" sotto.
+
+---
+
+## ✅ Integrazioni — già attive (2026-05-23)
+
+Parser CSV/Excel implementati e disponibili nella pagina Integrazioni:
+
+| Categoria | Integrazione | Funzione |
+|---|---|---|
+| Fatturazione | Fattura Elettronica SDI (XML/P7M) | `parseFatturaXML` |
+| Fatturazione | TeamSystem FatturaSMART (Excel) | `parseFatturaSMART` |
+| Contabilità | Zucchetti Infinity (CSV) | `parseZucchettiInfinity` |
+| Cassa | Zucchetti Kassa (CSV) | `parseZucchettiKassa` |
+| Cassa | Cassa in Cloud (CSV) | `parseCassaInCloud` |
+| Cassa | Lightspeed (CSV) | `parseLightspeed` |
+| Pagamenti | SumUp (CSV) | `parseSumUp` |
+| Pagamenti | Satispay Business (CSV) | `parseSatispay` |
+| Pagamenti | Square (CSV) | `parseSquare` |
+| Delivery | Deliveroo (CSV) | `parseDeliveroo` |
+| Delivery | JustEat (CSV) | `parseJustEat` |
+| Delivery | Uber Eats (CSV) | `parseUberEats` |
+| Delivery | Glovo Business (Excel) | `parseGlovo` |
+| E-commerce | Shopify Orders (CSV) | `parseShopifyOrders` |
+| E-commerce | WooCommerce Orders (CSV) | `parseWooCommerceOrders` |
+
+Tutti aggregano per giorno e fanno merge automatico nelle chiusure cassa (`pasticceria-chiusure-v1`).
+
+---
+
+## ⏳ Da decidere / sbloccare
+
+
 
 Le feature qui elencate **non sono implementate** perché richiedono decisioni di prodotto o credenziali esterne che servono prima di poter scrivere codice utile. Per ciascuna è indicato cosa serve per sbloccarla.
 
@@ -145,9 +193,24 @@ CREATE POLICY "Org owner can read own insights" ON public.ai_insights
 
 ---
 
+## Integrazioni bloccate (servono credenziali o file campione)
+
+| Integrazione | Bloccante |
+|---|---|
+| **Fatture in Cloud (API REST)** | API key del cliente. L'export CSV manuale funziona già lato nostro nel tab Contabilità. |
+| **TeamSystem (XML import)** | Spec import del software TeamSystem in uso dal cliente (cambia per versione). |
+| **Danea Easyfatt (CSV)** | Serve un export reale come campione. |
+| **POS RT** (Epson, Custom, Ditron) | Serve almeno 1 XML reale per ognuno — i formati non sono pubblici. |
+| **Listini Metro / Transgourmet / Europastry** | Serve un file Excel/CSV campione. |
+| **Zucchetti HR / TeamSystem HR** | Serve il formato di import richiesto dal cliente. |
+| **Sensori HACCP** (Govee, SensorPush, Inkbird) | API key + scelta tra polling cloud vs pairing Bluetooth Web. |
+| **Amazon Fresh** | Solo per chi è seller — accordo commerciale Amazon. |
+| **Webhook real-time** SumUp / Square / Satispay | Webhook secret + dominio approvato lato provider. |
+
 ## Prossimi passi
 
 1. **Sblocca C** configurando `RESEND_API_KEY` su Vercel (è il prerequisito anche per il workflow di notifica admin nel pannello).
 2. **Decidi provider WhatsApp** (B) — Twilio è il path di minor resistenza.
 3. **Raccogli file campione POS** per F. Senza, non si parte.
 4. Una volta sbloccati B+J, hanno il flusso più simile e si possono pianificare insieme.
+5. **Cifratura ricettario "vera"**: valutare pgcrypto + KMS (es. Supabase Vault) per cifrare `user_data.data_value` dove `data_key = 'pasticceria-ricettario-v1'`. Richiede modifica di `sload`/`ssave` e impatta `sloadAllSedi`, `/api/benchmark`, cron — refactor architetturale 2-3 giorni.

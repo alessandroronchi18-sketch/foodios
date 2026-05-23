@@ -132,6 +132,39 @@ export function parseLightspeed(csvText) {
   return aggrega(rows, dateKey, impKey, null, metKey || null, 'Lightspeed');
 }
 
+// ── 4d-bis. Satispay ─────────────────────────────────────────────────────────
+// Export "Movimenti" dal Business Dashboard Satispay (CSV).
+// Colonne tipiche: Data, ID Transazione, Tipo, Stato, Importo (€), Commissione (€), Nome Cliente.
+// Lo status "ACCEPTED" identifica i pagamenti effettivamente riscossi.
+export function parseSatispay(csvText) {
+  const { rows } = parseCSV(csvText);
+  const dateKey   = ['Data', 'Date', 'Data Movimento'].find(k => rows[0]?.[k] !== undefined) || 'Data';
+  const impKey    = ['Importo', 'Amount', 'Importo (€)', 'Importo (EUR)'].find(k => rows[0]?.[k] !== undefined) || 'Importo';
+  const stateKey  = ['Stato', 'Status'].find(k => rows[0]?.[k] !== undefined);
+  const commKey   = ['Commissione', 'Commissione (€)', 'Fee'].find(k => rows[0]?.[k] !== undefined);
+
+  const filtered = rows.filter(r => {
+    if (!stateKey) return true;
+    const s = String(r[stateKey] || '').toUpperCase();
+    return s === 'ACCEPTED' || s === 'COMPLETED' || s === 'PAGATO' || s === '';
+  });
+
+  const result = aggrega(filtered, dateKey, impKey, null, null, 'Satispay');
+  if (commKey) {
+    const feeMap = {};
+    for (const r of filtered) {
+      const d = parseItalianDate(r[dateKey]);
+      if (d) feeMap[d] = (feeMap[d] || 0) + parseNum(r[commKey]);
+    }
+    return result.map(r => ({
+      ...r,
+      commissione: Math.round((feeMap[r.data] || 0) * 100) / 100,
+      netto: Math.round((r.importo - (feeMap[r.data] || 0)) * 100) / 100,
+    }));
+  }
+  return result;
+}
+
 // ── 4e. Square ───────────────────────────────────────────────────────────────
 // Colonne: Date, Time, Category, Description, Amount, Fee
 export function parseSquare(csvText) {
@@ -201,6 +234,8 @@ export async function parseFile(sistema, file) {
       return parseCassaInCloud(text);
     case 'sumup':
       return parseSumUp(text);
+    case 'satispay':
+      return parseSatispay(text);
     case 'lightspeed':
       return parseLightspeed(text);
     case 'square':
