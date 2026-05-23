@@ -1,6 +1,61 @@
-# FoodOS — Security Audit 2026-05-23
+# FoodOS — Security Audit
 
-Audit completo di `api/`, `src/lib/`, `src/components/`, `vercel.json` e schema Supabase. Riporta findings + fix applicate in questa sessione, e residual risk con piano di rientro.
+> Aggiornato 2026-05-23 (round 2: 2FA + Sentry + brute-force + anomaly detection)
+
+Audit completo di `api/`, `src/lib/`, `src/components/`, `vercel.json` e schema Supabase. Riporta findings + fix applicate, e residual risk con piano di rientro.
+
+---
+
+## 🆕 Round 2 — fix applicate in questa sessione (2026-05-23 pomeriggio)
+
+### N1. 2FA TOTP (Google Authenticator / Authy / 1Password)
+- **Cosa fa**: enroll via QR code (Supabase MFA), challenge al login se AAL < richiesto, disenroll con conferma TOTP.
+- **File**: `src/components/Mfa.jsx` (componente + `MfaChallenge`), `src/App.jsx` (gate AAL2), nuovo tab "🔐 Sicurezza" in Impostazioni.
+- **Backend**: nessuna modifica DB richiesta — Supabase MFA usa tabelle interne `auth.mfa_factors` / `auth.mfa_challenges`.
+- **Da fare lato Supabase**: nessuna SQL. Solo verificare che MFA sia abilitato nel pannello Supabase → Authentication → Providers → Multi-factor.
+
+### N2. Sentry scaffold (no dipendenza npm)
+- **Cosa fa**: cattura window.error + unhandledrejection, invia a `/api/error-report` che inoltra all'envelope Sentry se `SENTRY_DSN` è configurato. Fallback: log su `audit_log`.
+- **File**: `src/lib/errorReporting.js`, `api/error-report.js`.
+- **Privacy**: l'email utente non viene mai inviata in chiaro — viene hashata SHA-256 (primi 16 char).
+- **Env da settare**: `SENTRY_DSN` (server) + `VITE_ERROR_REPORTING_ENABLED=1` (client) → vedi RUNBOOK.
+
+### N3. Brute force protection server-side
+- **Cosa fa**: server-side lockout di 30 minuti dopo 5 fallimenti in 15 minuti per email. Il client-side esistente (in localStorage) era bypassabile; ora c'è anche un controllo server.
+- **File**: `api/login-guard.js`, modifica a `src/auth/AuthPage.jsx`.
+- **Notifica**: al raggiungimento della soglia, invio email al titolare via `send-email.js` con dettagli del tentativo (IP, UA).
+- **SQL**: nuova tabella `login_attempts` (sez. 2.5 di `supabase_security_audit.sql`).
+
+### N4. Anomaly detection cron
+- **Cosa fa**: ogni ora (`/api/anomaly-detect`, cron Vercel) cerca:
+  - Login da paese diverso dal dominante (>70% degli ultimi 30)
+  - Più di 50 export ricettario nella stessa ora per stessa org
+  - Burst di fail login (>10 in 1h)
+- Findings → `audit_log` con `operation='anomaly_detected'` + email all'admin se `ADMIN_EMAIL` + `RESEND_API_KEY` + `INTERNAL_API_SECRET` configurati.
+- **Paese**: estratto da header `x-vercel-ip-country` (Vercel lo aggiunge automaticamente).
+
+### N5. Session timeout 8 ore di inattività
+- **Cosa fa**: tracker idle (mouse/key/touch/scroll) in `src/lib/idleTimeout.js`. Dopo 8h senza attività → signOut automatico. Persistito in localStorage per sopravvivere ai reload e cross-tab.
+- **Note**: non interrompe utenti attivi; solo chi lascia la sessione aperta e va via (laboratorio condiviso, cassa banco).
+
+### N6. CSP/Headers ulteriori
+- Rimosso `X-XSS-Protection: 1; mode=block` (deprecated/dannoso per OWASP) → `X-XSS-Protection: 0`
+- Aggiunto `X-Permitted-Cross-Domain-Policies: none` (Flash legacy ma valido)
+- Aggiunto `Origin-Agent-Cluster: ?1` (process isolation per browser moderni)
+- Permissions-Policy esteso: `interest-cohort=(), browsing-topics=()` (disabilita FLoC/Topics ads)
+
+### N7. RUNBOOK rotazione secret
+- **File**: `RUNBOOK_SECRETS.md` nella root. Tabella di 12 secret con procedura zero-downtime per ognuno + disaster recovery + verifica post-rotazione.
+
+### N8. Audit dipendenze npm
+- **Vulns trovate** (`npm audit`):
+  - `xlsx@0.18.5` — **high** (prototype pollution + ReDoS). **No fix npm available**. SheetJS si è spostato su `https://cdn.sheetjs.com/`. **Mitigazione attuale**: l'app importa xlsx solo dinamicamente in parsing controllati di file utente; il rischio è limitato a payload Excel maligno → utente che apre file infetto. **Fix definitivo**: migrare a `exceljs` (refactor 1 giornata) o caricare da CDN ufficiale con SRI.
+  - `js-cookie@3.0.5` — **high** (prototype hijack via `assign()`). Transitive da `resend` → `@react-email/render` → `js-beautify`. **Non usato in runtime di FoodOS** (resend è server-only e usa solo `.send()`, non template rendering). Aspetto fix upstream.
+  - `esbuild` (via `vite`) — **moderate**. Solo dev dependency (`npm run dev`), zero impatto in produzione. Fix richiede vite v8 (major bump).
+
+---
+
+## 🔴 Critiche (round 1 — già fixate)
 
 ---
 

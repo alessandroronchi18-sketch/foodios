@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { validaSessionFingerprint, resetSessionFingerprint } from '../lib/sessionGuard'
+import { startIdleTimeout, clearIdleTimestamp } from '../lib/idleTimeout'
+import { setErrorReportingUser } from '../lib/errorReporting'
+
+const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000 // 8 ore di inattività → auto-logout
 
 export function useAuth() {
   const [user, setUser]       = useState(null)
@@ -51,6 +55,23 @@ export function useAuth() {
     return () => { subscription.unsubscribe(); clearTimeout(safetyTimeout) }
   }, [])
 
+  // Idle-timeout: dopo 8h senza interazione, logout automatico.
+  // Si attiva solo quando c'è un utente loggato; viene ripulito al cambio utente.
+  useEffect(() => {
+    if (!user) return
+    const cleanup = startIdleTimeout({
+      timeoutMs: IDLE_TIMEOUT_MS,
+      onTimeout: async () => {
+        try {
+          console.warn('🕓 Sessione scaduta per inattività — logout automatico')
+          clearIdleTimestamp()
+          await supabase.auth.signOut()
+        } catch (e) { /* ignore */ }
+      },
+    })
+    return cleanup
+  }, [user?.id])
+
   async function loadProfile(userId, userObj) {
     setLoading(true)
     setProfileError(null)
@@ -66,6 +87,8 @@ export function useAuth() {
       if (import.meta.env.DEV) {
         console.log('🔑 loadProfile OK — userId:', userId?.slice(0, 8), 'orgId:', prof?.organization_id?.slice(0, 8));
       }
+      // Imposta utente per error reporting (hash email, non email in chiaro)
+      setErrorReportingUser({ id: userId, email: prof?.email })
       setProfile(prof)
 
       if (prof?.organization_id) {
@@ -151,6 +174,7 @@ export function useAuth() {
 
   async function signOut() {
     resetSessionFingerprint()
+    clearIdleTimestamp()
     await supabase.auth.signOut()
   }
 

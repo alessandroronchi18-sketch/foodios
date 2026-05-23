@@ -26,6 +26,7 @@ import ImpostazioniTv from './components/ImpostazioniTv'
 import ExportContabilita from './components/ExportContabilita'
 import WhiteLabel, { WL_KEY } from './components/WhiteLabel'
 import BenchmarkOptin, { BenchmarkBadge } from './components/BenchmarkOptin'
+import MfaSection from './components/Mfa'
 import EventiView from './components/Eventi'
 import ConfrontoSedi from './components/ConfrontoSedi'
 import TrasferimentiView from './components/TrasferimentiView'
@@ -8083,6 +8084,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
   const TABS = [
     ["generale", "⚙️ Generale"],
+    ["sicurezza", "🔐 Sicurezza"],
     ["rese", "🔢 Rese"],
     ["sedi", "🏪 Sedi"],
     ["tv", "📺 TV"],
@@ -8283,6 +8285,11 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── TAB: Sicurezza (2FA + audit) ── */}
+      {tab === "sicurezza" && (
+        <MfaSection notify={notify} />
       )}
 
       {/* ── TAB: Sedi ── */}

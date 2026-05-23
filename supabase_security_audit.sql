@@ -187,6 +187,30 @@ BEGIN
   END IF;
 END $$;
 
+-- 2.5. login_attempts: tabella per brute-force protection + anomaly detection (paese).
+-- Scrittura/lettura solo da service_role (via /api/login-guard).
+CREATE TABLE IF NOT EXISTS public.login_attempts (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       text NOT NULL,
+  success     boolean NOT NULL,
+  ip          text,
+  country     text, -- ISO 2-letter (da x-vercel-ip-country)
+  user_agent  text,
+  created_at  timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_email_ts ON public.login_attempts (email, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_ts    ON public.login_attempts (ip, created_at DESC);
+ALTER TABLE public.login_attempts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.login_attempts FROM anon, authenticated;
+-- Pulizia automatica: tieni solo ultimi 90 giorni (privacy + storage)
+-- Eseguire una volta o programmare come cron job:
+-- DELETE FROM public.login_attempts WHERE created_at < now() - interval '90 days';
+
+-- 2.6. Vista materializzata per anomaly detection veloce (opzionale).
+-- Le query di /api/anomaly-detect funzionano anche senza, ma con questa vista
+-- riducono i tempi su org grandi.
+CREATE INDEX IF NOT EXISTS idx_audit_log_op_ts ON public.audit_log (operation, created_at DESC);
+
 -- 2.5 Pulizia eventuali duplicati legacy del ricettario (vedi diagnosi 1.5)
 --     COMMENTATO per sicurezza: scommenta solo dopo aver verificato.
 -- WITH ranked AS (

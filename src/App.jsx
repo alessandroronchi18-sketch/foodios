@@ -10,6 +10,7 @@ import TerminiServizio from './pages/TerminiServizio'
 import LandingPage from './pages/LandingPage'
 import TvDashboard from './pages/TvDashboard'
 import Logo from './components/Logo'
+import { MfaChallenge } from './components/Mfa'
 import { supabase } from './lib/supabase'
 
 function SplashScreen() {
@@ -110,6 +111,20 @@ export default function App() {
   const auth = useAuth()
   const [onboardingVisto, setOnboardingVisto] = useState(null)
   const [showResetPassword, setShowResetPassword] = useState(false)
+  const [mfaRequired, setMfaRequired] = useState(false)
+
+  // MFA: se l'utente ha un fattore TOTP verificato (aal2) ma la sessione corrente
+  // è ferma a aal1 (solo password), serve completare il challenge prima di proseguire.
+  useEffect(() => {
+    if (!auth.user) { setMfaRequired(false); return }
+    let cancelled = false
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data }) => {
+      if (cancelled || !data) return
+      const needsMfa = data.currentLevel === 'aal1' && data.nextLevel === 'aal2'
+      setMfaRequired(!!needsMfa)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [auth.user?.id])
 
   // Intercetta PASSWORD_RECOVERY prima di qualsiasi altra logica di routing
   useEffect(() => {
@@ -147,6 +162,16 @@ export default function App() {
   // Splash solo al primissimo caricamento. Se ricarica auth dopo (improbabile con
   // useAuth.js fix su TOKEN_REFRESHED), Dashboard resta montato e mantiene lo stato.
   if (auth.loading && primoCaricamento) return <SplashScreen />
+
+  // MFA challenge: utente con password ok ma 2FA non ancora completato in questa sessione
+  if (auth.user && mfaRequired) {
+    return (
+      <MfaChallenge
+        onComplete={() => setMfaRequired(false)}
+        onCancel={async () => { await auth.signOut(); setMfaRequired(false) }}
+      />
+    )
+  }
 
   // Non loggato
   if (!auth.user) {

@@ -442,11 +442,41 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
     if (lockoutUntil > now) { setErrore(getLockoutMessage(lockoutUntil)); return }
     setLoading(true)
     try {
+      // ── Server-side brute-force check (PRIMA del signIn) ──
+      // Il lockout client-side è bypassabile (localStorage.clear()): il server è la fonte di verità.
+      try {
+        const guard = await fetch('/api/login-guard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check', email: loginEmail }),
+        })
+        if (guard.status === 423) {
+          const j = await guard.json().catch(() => ({}))
+          const mins = Math.ceil((j.retryAfter || 1800) / 60)
+          setErrore(`Account temporaneamente bloccato per troppi tentativi. Riprova tra ${mins} minuti.`)
+          setLoading(false)
+          return
+        }
+      } catch { /* guard giù: fail-open, supabase rate-limit interno è il fallback */ }
+
       await onSignIn(loginEmail, loginPwd)
+      // Notifica successo (fire-and-forget): serve per resettare contatore e per anomaly detection
+      fetch('/api/login-guard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'success', email: loginEmail }),
+      }).catch(() => {})
       setLoginAttempts(0); setLockoutUntil(0)
       localStorage.removeItem('foodios-login-attempts')
       localStorage.removeItem('foodios-lockout-until')
     } catch (err) {
+      // Log fail server-side (fire-and-forget). Soglia raggiunta = notifica email al titolare.
+      fetch('/api/login-guard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fail', email: loginEmail }),
+      }).catch(() => {})
+
       const next = loginAttempts + 1
       setLoginAttempts(next)
       localStorage.setItem('foodios-login-attempts', String(next))
