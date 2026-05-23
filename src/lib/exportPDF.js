@@ -56,15 +56,58 @@ function addHeader(doc, title, subtitle, nomeAttivita) {
   }
 }
 
-function addFooter(doc) {
+function addFooter(doc, opts = {}) {
+  const { emailUtente, nomeAttivita } = opts
   const pages = doc.internal.getNumberOfPages()
+  const wm = emailUtente
+    ? `Esportato da ${emailUtente}${nomeAttivita ? ' · ' + nomeAttivita : ''} · uso interno`
+    : null
+  const tsIso = new Date().toISOString().replace('T', ' ').slice(0, 19)
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
     doc.setTextColor(180, 160, 155)
     doc.text('Generato da FoodOS — foodios.it', 14, 290)
     doc.text(`${i} / ${pages}`, 196, 290, { align: 'right' })
+    if (wm) {
+      doc.setFontSize(7)
+      doc.setTextColor(200, 195, 190)
+      doc.text(wm, 14, 285)
+      doc.text(tsIso, 196, 285, { align: 'right' })
+    }
   }
+}
+
+// Watermark "diagonale" leggero sulla pagina — dissuade screenshot/condivisione casuale.
+// È visibile ma non occlude i contenuti. Si applica solo se emailUtente è fornito.
+function addDiagonalWatermark(doc, emailUtente) {
+  if (!emailUtente) return
+  const pages = doc.internal.getNumberOfPages()
+  const text = `${emailUtente} · ${new Date().toLocaleDateString('it-IT')}`
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i)
+    doc.saveGraphicsState()
+    doc.setGState(new doc.GState({ opacity: 0.05 }))
+    doc.setFontSize(40)
+    doc.setTextColor(150, 100, 100)
+    doc.setFont('helvetica', 'bold')
+    // Una diagonale al centro pagina
+    doc.text(text, 105, 160, { align: 'center', angle: 30 })
+    doc.restoreGraphicsState()
+  }
+}
+
+function setPdfMetadata(doc, opts = {}) {
+  const { titolo, emailUtente, nomeAttivita } = opts
+  try {
+    doc.setProperties({
+      title: titolo || 'Documento FoodOS',
+      subject: nomeAttivita || 'FoodOS',
+      author: emailUtente || 'FoodOS user',
+      creator: 'FoodOS',
+      keywords: `foodios,${nomeAttivita || ''},${emailUtente || ''},${new Date().toISOString()}`,
+    })
+  } catch { /* jsPDF versioni vecchie: ignora */ }
 }
 
 function fmt(v) {
@@ -76,7 +119,7 @@ function fmt(v) {
 //   - ricetta.ingredienti è un array [{ nome, qty1stampo (grammi), ... }]
 //   - foodCost: { tot, perc } come passato dai chiamanti in Dashboard.jsx
 //   - ingCosti: mappa { [normIng(nome)]: { costoKg, costoG } }
-export function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita) {
+export function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita, emailUtente) {
   // Backwards-compat: se qualcuno chiama ancora con (ricetta, foodCost, nomeAttivita) come stringa
   if (typeof ingCosti === 'string' && nomeAttivita === undefined) {
     nomeAttivita = ingCosti
@@ -85,6 +128,7 @@ export function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita) {
   const costMap = ingCosti || {}
 
   const doc = new jsPDF()
+  setPdfMetadata(doc, { titolo: `Ricetta — ${ricetta.nome || ''}`, emailUtente, nomeAttivita })
   addHeader(doc, ricetta.nome || 'Ricetta', ricetta.categoria || '', nomeAttivita)
 
   const startY = 52
@@ -173,12 +217,13 @@ export function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita) {
     tableWidth: 100,
   })
 
-  addFooter(doc)
+  addDiagonalWatermark(doc, emailUtente)
+  addFooter(doc, { emailUtente, nomeAttivita })
   doc.save(`ricetta-${(ricetta.nome || 'export').replace(/\s+/g, '-').toLowerCase()}.pdf`)
 }
 
 // ─── 2. P&L mensile ───────────────────────────────────────────────────────────
-export function exportPLMensile(dati, mese, anno, nomeAttivita) {
+export function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtente) {
   const doc = new jsPDF()
   const label = mese && anno ? `${mese} ${anno}` : 'Report mensile'
   addHeader(doc, 'Report P&L', label, nomeAttivita)
@@ -249,12 +294,13 @@ export function exportPLMensile(dati, mese, anno, nomeAttivita) {
     tableWidth: 120,
   })
 
-  addFooter(doc)
+  addDiagonalWatermark(doc, emailUtente)
+  addFooter(doc, { emailUtente, nomeAttivita })
   doc.save(`pl-${(mese || 'mensile').toLowerCase()}-${anno || ''}.pdf`)
 }
 
 // ─── 3. Produzione giornaliera ────────────────────────────────────────────────
-export function exportProduzione(dati, data, nomeAttivita) {
+export function exportProduzione(dati, data, nomeAttivita, emailUtente) {
   const doc = new jsPDF()
   const dataLabel = data ? new Date(data).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) : ''
   addHeader(doc, 'Produzione Giornaliera', dataLabel, nomeAttivita)
@@ -310,12 +356,12 @@ export function exportProduzione(dati, data, nomeAttivita) {
     tableWidth: 120,
   })
 
-  addFooter(doc)
+  addFooter(doc, { emailUtente, nomeAttivita })
   doc.save(`produzione-${(data || 'export').replace(/\//g, '-')}.pdf`)
 }
 
 // ─── 4. Scadenzario fatture ───────────────────────────────────────────────────
-export function exportScadenzario(fatture, nomeAttivita) {
+export function exportScadenzario(fatture, nomeAttivita, emailUtente) {
   const doc = new jsPDF({ orientation: 'landscape' })
   addHeader(doc, 'Scadenzario Fatture', `${fatture.length} fatture`, nomeAttivita)
 
@@ -386,6 +432,6 @@ export function exportScadenzario(fatture, nomeAttivita) {
     tableWidth: 120,
   })
 
-  addFooter(doc)
+  addFooter(doc, { emailUtente, nomeAttivita })
   doc.save('scadenzario-fatture.pdf')
 }

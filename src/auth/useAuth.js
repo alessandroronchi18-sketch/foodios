@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { validaSessionFingerprint, resetSessionFingerprint } from '../lib/sessionGuard'
 
 export function useAuth() {
   const [user, setUser]       = useState(null)
@@ -13,7 +14,16 @@ export function useAuth() {
   useEffect(() => {
     const safetyTimeout = setTimeout(() => setLoading(false), 8000)
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        // UA binding: se il fingerprint del browser è cambiato dall'ultimo login,
+        // forziamo logout per proteggere da session hijacking.
+        const check = await validaSessionFingerprint(async () => {
+          console.warn('🛡 fingerprint sessione cambiato: forced sign-out')
+          await supabase.auth.signOut()
+        })
+        if (!check.ok) { setLoading(false); return }
+      }
       setUser(session?.user ?? null)
       if (session?.user) loadProfile(session.user.id, session.user)
       else setLoading(false)
@@ -137,6 +147,7 @@ export function useAuth() {
   }
 
   async function signOut() {
+    resetSessionFingerprint()
     await supabase.auth.signOut()
   }
 

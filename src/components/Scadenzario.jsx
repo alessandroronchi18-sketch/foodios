@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
 import { exportScadenzario } from '../lib/exportPDF'
+import { getExportCtx, gateExport } from '../lib/exportGuard'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
@@ -628,7 +629,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           {fatture.length > 0 && (
             <>
               <button onClick={exportExcel} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>↓ Esporta Excel</button>
-              <button onClick={() => exportScadenzario(gruppiVisibili.flatMap(k => gruppi[k] || []))} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>📄 Esporta PDF</button>
+              <button onClick={async () => {
+                const list = gruppiVisibili.flatMap(k => gruppi[k] || []);
+                if (!(await gateExport('scadenzario', { n_items: list.length }, window.__foodos_notify))) return;
+                const c = getExportCtx();
+                exportScadenzario(list, c.nomeAttivita, c.email);
+              }} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>📄 Esporta PDF</button>
             </>
           )}
           <label style={{ ...ghostBtn, cursor: 'pointer' }}>

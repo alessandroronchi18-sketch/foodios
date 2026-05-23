@@ -31,6 +31,7 @@ import ConfrontoSedi from './components/ConfrontoSedi'
 import TrasferimentiView from './components/TrasferimentiView'
 import EsportaDati from './components/EsportaDati'
 import { exportRicettaPDF, exportPLMensile, exportProduzione } from './lib/exportPDF'
+import { setExportCtx, getExportCtx, gateExport } from './lib/exportGuard'
 import { CHANGELOG } from './lib/changelog'
 import ChangelogView, { NovitaModal } from './components/Changelog'
 import NotifichePanel from './components/NotifichePanel'
@@ -1289,7 +1290,11 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
             ✏️ Modifica ricetta
           </button>
         )}
-        <button onClick={()=>exportRicettaPDF(ric, {tot:fc,perc:ricavo>0?fc/ricavo*100:0}, ingCosti)}
+        <button onClick={async()=>{
+          if(!(await gateExport('ricettario',{nome:ric.nome},window.__foodos_notify))) return;
+          const c=getExportCtx();
+          exportRicettaPDF(ric, {tot:fc,perc:ricavo>0?fc/ricavo*100:0}, ingCosti, c.nomeAttivita, c.email);
+        }}
           style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${isSemi?SEMI.border:C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:isSemi?SEMI.accent:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
           📄 PDF
         </button>
@@ -1561,7 +1566,11 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload, onEditRicetta}) {
   );
 
   return (
-    <div style={{maxWidth:1120,margin:"0 auto"}}>
+    <div
+      className="foodios-ricettario-view"
+      onContextMenu={(e) => { e.preventDefault(); }}
+      onDragStart={(e) => e.preventDefault()}
+      style={{maxWidth:1120,margin:"0 auto",userSelect:"none",WebkitUserSelect:"none",MozUserSelect:"none",msUserSelect:"none"}}>
       {/* Page header */}
       <div style={{marginBottom:isMobile?16:24}}>
         <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14,flexWrap:"wrap",marginBottom:14}}>
@@ -1692,7 +1701,12 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload, onEditRicetta}) {
                   </div>
                 </div>
                 <div style={{paddingTop:12,borderTop:`1px solid ${T.borderSoft}`,display:"flex",justifyContent:"flex-end",alignItems:"center"}}>
-                  <button onClick={(e)=>{e.stopPropagation();exportRicettaPDF(ric,{tot:fc,perc:ricavo>0?fc/ricavo*100:0},ingCosti);}}
+                  <button onClick={async(e)=>{
+                    e.stopPropagation();
+                    if(!(await gateExport('ricettario',{nome:ric.nome},window.__foodos_notify))) return;
+                    const c=getExportCtx();
+                    exportRicettaPDF(ric,{tot:fc,perc:ricavo>0?fc/ricavo*100:0},ingCosti,c.nomeAttivita,c.email);
+                  }}
                     style={{padding:"6px 12px",borderRadius:R.sm,border:`1px solid ${T.border}`,background:T.bgCard,
                       fontSize:11,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",
                       display:"inline-flex",alignItems:"center",gap:5,
@@ -2491,7 +2505,11 @@ function PLView({ricettario, onUpdateRegola}) {
         title="Profit & Loss"
         subtitle={`${rows.length} prodotti · food cost medio ${pct(fcAvg)} · margine medio ${pct(avgMarg)}`}
         action={
-          <button onClick={()=>exportPLMensile({ricavi:rows.map(r=>({categoria:r.nome,quantita:r.reg.unita,ricavo:r.ricavo})),costi:rows.map(r=>({categoria:r.nome,costo:r.fc,perc:r.fcPct}))},null,null,null)}
+          <button onClick={async()=>{
+            if(!(await gateExport('pl',{n_items:rows.length},window.__foodos_notify))) return;
+            const c=getExportCtx();
+            exportPLMensile({ricavi:rows.map(r=>({categoria:r.nome,quantita:r.reg.unita,ricavo:r.ricavo})),costi:rows.map(r=>({categoria:r.nome,costo:r.fc,perc:r.fcPct}))},null,null,c.nomeAttivita,c.email);
+          }}
             style={{padding:"10px 16px",borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,
               fontSize:13,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",
               display:"inline-flex",alignItems:"center",gap:6,boxShadow:S.sm,
@@ -4442,7 +4460,10 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
               const {tot:fcR}=r?calcolaFC(r,ingCosti,ricettario):{tot:0};
               return qty>0?[{nome,quantita:qty,unita:'stampi',costo:fcR,categoria:r?.categoria||'Altro'}]:[];
             });
-            exportProduzione(items,sess?.data,null);
+            const c=getExportCtx();
+            gateExport('produzione',{data:sess?.data},window.__foodos_notify).then(ok=>{
+              if(ok) exportProduzione(items,sess?.data,c.nomeAttivita,c.email);
+            });
           }}
             style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.border}`,background:C.bgCard,fontSize:12,fontWeight:600,color:C.textMid,cursor:"pointer",display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
             PDF
@@ -8493,6 +8514,11 @@ export default function Dashboard({
   const [whiteLabel, setWhiteLabel] = useState(null);
   const { notifiche, nonLette, segnaLetta, segnaTutte } = useNotifiche(orgId);
 
+  // Espone il contesto per gli export PDF (nome attività + email utente) → watermark
+  useEffect(() => {
+    setExportCtx({ email: auth?.user?.email || null, nomeAttivita: nomeAttivita || null })
+  }, [auth?.user?.email, nomeAttivita]);
+
   // Carica personalizzazione white label (piano Chain) — solo lettura, non blocca il render
   useEffect(() => {
     if (!orgId) return
@@ -8509,6 +8535,8 @@ export default function Dashboard({
   const customLogo = whiteLabel?.logoDataUrl || null;
 
   const notify=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
+  // Espone notify globalmente per i call site che non l'hanno in scope (es. export PDF rate-limited)
+  useEffect(()=>{ window.__foodos_notify=notify; return ()=>{ delete window.__foodos_notify; }; },[]);
 
   const _RIC_CACHE_KEY = `ric_cache_${orgId}`;
   const SK_LOGRIF = "pasticceria-logrif-v1";

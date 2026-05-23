@@ -22,7 +22,7 @@ export default async function handler(req) {
   const startTime = Date.now()
 
   // Auth rafforzata
-  const { user, supabase, error: authErr } = await verificaToken(req)
+  const { user, profile, supabase, error: authErr } = await verificaToken(req)
   if (authErr) {
     await rallentaSeNecessario(startTime, MIN_RESPONSE_MS)
     return errResponse(authErr, 401, req)
@@ -51,6 +51,39 @@ export default async function handler(req) {
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     return errResponse('Messages richiesto', 400, req)
   }
+
+  // ── Zero-trust: se il client dichiara una organization_id nel body, deve
+  //    corrispondere a quella del profilo. Impedisce a un client compromesso
+  //    di richiedere analisi sui dati di un'altra org passando ricettario altrui.
+  if (body.organization_id && body.organization_id !== profile.organization_id) {
+    try {
+      await supabase.from('audit_log').insert({
+        organization_id: profile.organization_id,
+        user_id: user.id,
+        user_email: user.email,
+        operation: 'ai_cross_org_block',
+        user_agent: (req.headers.get('user-agent') || '').slice(0, 256),
+        client_ip: ip,
+        new_data: { requested_org: body.organization_id },
+      })
+    } catch {}
+    await rallentaSeNecessario(startTime, MIN_RESPONSE_MS)
+    return errResponse('organization mismatch', 403, req)
+  }
+
+  // Audit fail-soft: registriamo che è stata fatta una chiamata AI
+  // (no payload del prompt — può contenere dati sensibili)
+  try {
+    await supabase.from('audit_log').insert({
+      organization_id: profile.organization_id,
+      user_id: user.id,
+      user_email: user.email,
+      operation: 'ai_call',
+      user_agent: (req.headers.get('user-agent') || '').slice(0, 256),
+      client_ip: ip,
+      new_data: { n_messages: body.messages.length, model: body.model || 'claude-sonnet-4-6' },
+    })
+  } catch {}
 
   // Proxy Anthropic con parametri controllati
   try {
