@@ -3,6 +3,7 @@
 // Verifica Authorization: Bearer <CRON_SECRET> per proteggere l'endpoint
 
 import { createClient } from '@supabase/supabase-js';
+import { verifyBearerSecret } from './lib/cryptoCompare.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -12,10 +13,12 @@ const supabase = createClient(
 export const config = { runtime: 'edge' };
 
 export default async function handler(req) {
-  // Protezione cron — Vercel invia automaticamente il secret configurato
-  const authHeader = req.headers.get('authorization') || '';
-  const cronSecret = process.env.CRON_SECRET || '';
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // FAIL-CLOSED: se CRON_SECRET non è configurato, rifiutiamo sempre.
+  const authCheck = verifyBearerSecret(
+    req.headers.get('Authorization') || req.headers.get('authorization') || '',
+    process.env.CRON_SECRET,
+  )
+  if (!authCheck.ok) {
     return new Response('Unauthorized', { status: 401 });
   }
 

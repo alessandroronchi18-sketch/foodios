@@ -1,6 +1,8 @@
 // Eseguito ogni primo del mese alle 7:00 via Vercel Cron
 // Genera report PDF mensile per ogni org attiva e lo invia via email
 
+import { verifyBearerSecret } from './lib/cryptoCompare.js'
+
 const FROM = 'FoodOS <noreply@foodios.it>'
 const MESI_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
 
@@ -285,16 +287,18 @@ async function elaboraOrg(supabase, org, { anno, mese, label }) {
   if (prof?.email && emailReport) {
     const { Resend } = await import('resend')
     const resend = new Resend(process.env.RESEND_API_KEY)
+    // escapeHtml inline (Edge runtime non eredita helper da send-email.js)
+    const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
     await resend.emails.send({
       from: FROM,
       to: prof.email,
       subject: `Report FoodOS — ${label}`,
       html: `
         <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
-          <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">📊 Report ${label}</h1>
+          <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">📊 Report ${esc(label)}</h1>
           <p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 16px;">
-            Ciao ${prof.nome_completo || ''},<br>
-            il report mensile di <strong>${label}</strong> per <strong>${org.nome_attivita || org.nome}</strong> è pronto.
+            Ciao ${esc(prof.nome_completo || '')},<br>
+            il report mensile di <strong>${esc(label)}</strong> per <strong>${esc(org.nome_attivita || org.nome)}</strong> è pronto.
           </p>
           <p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 24px;">
             Trovi il PDF allegato a questa email e disponibile nella sezione <strong>Impostazioni → Report</strong> dell'app.
@@ -317,12 +321,12 @@ async function elaboraOrg(supabase, org, { anno, mese, label }) {
 }
 
 export default async function handler(req) {
-  // Protezione: richiedi il CRON_SECRET o authorization header di Vercel
-  const authHeader = req.headers.get ? req.headers.get('authorization') : req.headers?.authorization
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  // FAIL-CLOSED: se CRON_SECRET non è configurato, l'endpoint rifiuta sempre.
+  const authHeader = req.headers.get
+    ? (req.headers.get('Authorization') || req.headers.get('authorization') || '')
+    : (req.headers?.authorization || req.headers?.Authorization || '')
+  const authCheck = verifyBearerSecret(authHeader, process.env.CRON_SECRET)
+  if (!authCheck.ok) {
     return new Response('Unauthorized', { status: 401 })
   }
 

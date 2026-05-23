@@ -182,11 +182,16 @@ async function azApprova(supabase, orgId, req) {
   const r2 = await supabase.from('profiles').update({ approvato: true }).eq('organization_id', orgId)
   if (r2.error) throw new Error(r2.error.message)
 
-  // Email approvazione (best-effort)
+  // Email approvazione (best-effort) — chiamata server→server con shared secret per
+  // distinguere chiamate interne da chiamate utente non-autenticate.
   try {
+    const headers = { 'Content-Type': 'application/json' }
+    if (process.env.INTERNAL_API_SECRET) {
+      headers['x-internal-secret'] = process.env.INTERNAL_API_SECRET
+    }
     await fetch(new URL('/api/send-email', req.url).toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ tipo: 'approvazione', orgId }),
     })
   } catch { /* ignore */ }
@@ -273,6 +278,10 @@ async function azInviaEmail(req, body) {
 }
 
 async function azPulisciDemoFatture(supabase, orgId, valore) {
+  // STRICT VALIDATION: solo 'preview' (sola lettura) o 'esegui' (cancellazione).
+  // Qualunque altro valore (anche vuoto) viene trattato come preview per evitare cancellazioni accidentali.
+  const mode = valore === 'esegui' ? 'esegui' : 'preview'
+
   const { data: fatture, error: fetchErr } = await supabase
     .from('fatture')
     .select('id, fornitore, numero_rif, data_fattura, totale')
@@ -285,9 +294,9 @@ async function azPulisciDemoFatture(supabase, orgId, valore) {
     )
   )
 
-  if (valore === 'preview') return { matches, count: matches.length }
+  if (mode === 'preview') return { matches, count: matches.length, mode: 'preview' }
 
-  if (matches.length === 0) return { deleted: 0 }
+  if (matches.length === 0) return { deleted: 0, mode: 'esegui' }
 
   const { error: delErr } = await supabase
     .from('fatture')
@@ -295,7 +304,7 @@ async function azPulisciDemoFatture(supabase, orgId, valore) {
     .in('id', matches.map(m => m.id))
   if (delErr) throw new Error(delErr.message)
 
-  return { deleted: matches.length, matches }
+  return { deleted: matches.length, matches, mode: 'esegui' }
 }
 
 async function azElimina(supabase, orgId, conferma) {
@@ -356,8 +365,10 @@ export default async function handler(req) {
 
   const auth = await verificaAdmin(req, supabase)
   if (!auth.user) {
+    // Log dettagliato lato server, ma NON esponiamo l'email/reason completo al chiamante
+    // (evita user enumeration: con un Bearer valido di un utente non-admin si vedrebbe la sua email).
     await logAdmin(supabase, 'UNKNOWN', `accesso_negato:${auth.reason}`, null, ip, ua)
-    return json({ error: 'Accesso negato', reason: auth.reason }, 403, req)
+    return json({ error: 'Accesso negato' }, 403, req)
   }
   const user = auth.user
 

@@ -8,6 +8,7 @@ export const config = { runtime: 'edge' }
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitizeStrict, validateUUID } from './lib/validate.js'
+import { verifyRawSecret } from './lib/cryptoCompare.js'
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -30,10 +31,11 @@ export default async function handler(request) {
   const rl = await checkRateLimit(supabase, `webhook-zucchetti:${ip}`, 60, 60)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
-  // Verify webhook secret
-  const secret = request.headers.get('x-zucchetti-secret') || request.headers.get('authorization')?.replace('Bearer ', '')
-  const expected = process.env.ZUCCHETTI_WEBHOOK_SECRET
-  if (expected && secret !== expected) {
+  // Verify webhook secret (FAIL-CLOSED + constant-time compare)
+  const provided = request.headers.get('x-zucchetti-secret')
+    || (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
+  const secretCheck = verifyRawSecret(provided, process.env.ZUCCHETTI_WEBHOOK_SECRET)
+  if (!secretCheck.ok) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },

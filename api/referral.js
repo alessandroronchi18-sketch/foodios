@@ -27,8 +27,13 @@ function generaCodice(nomeAttivita) {
     .toUpperCase()
     .slice(0, 4)
     .padEnd(4, 'X')
-  const digits = Math.floor(1000 + Math.random() * 9000)
-  return `${prefix}${digits}`
+  // 6 caratteri alfanumerici crypto-random (no ambigui: niente 0/O, I/1)
+  // 32^6 = 1G combinazioni → impossibile da brute-forzare con rate limit attivo.
+  const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const buf = new Uint8Array(6)
+  crypto.getRandomValues(buf)
+  const suffix = Array.from(buf, b => ALPH[b % ALPH.length]).join('')
+  return `${prefix}${suffix}`
 }
 
 export default async function handler(req) {

@@ -3,6 +3,7 @@ export const config = { runtime: 'edge' }
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitize, sanitizeStrict, validateEmail } from './lib/validate.js'
+import { verifyRawSecret } from './lib/cryptoCompare.js'
 
 const FROM = 'FoodOS <noreply@foodios.it>'
 const SUPPORT = 'support@foodios.it'
@@ -48,12 +49,22 @@ export default async function handler(req) {
   const ip = getClientIP(req)
   const supabase = await getSupabase()
 
+  // Chiamata interna server→server (es. da admin.js dopo approvazione).
+  // Verifica shared secret in header. Se OK, salta rate limit.
+  const internalCheck = verifyRawSecret(
+    req.headers.get('x-internal-secret') || '',
+    process.env.INTERNAL_API_SECRET,
+  )
+  const isInternal = internalCheck.ok
+
   // Admin ha rate limit più alto
-  const adminAuth = await isAdminRequest(req, supabase)
-  const rlMax = adminAuth ? 100 : 5
-  const rlKey = adminAuth ? `email-admin:${ip}` : `email:${ip}`
-  const rl = await checkRateLimit(supabase, rlKey, rlMax, 3600, 3600)
-  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
+  const adminAuth = !isInternal && await isAdminRequest(req, supabase)
+  if (!isInternal) {
+    const rlMax = adminAuth ? 100 : 5
+    const rlKey = adminAuth ? `email-admin:${ip}` : `email:${ip}`
+    const rl = await checkRateLimit(supabase, rlKey, rlMax, 3600, 3600)
+    if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
+  }
 
   const body = await req.json()
 
@@ -78,8 +89,17 @@ export default async function handler(req) {
   }
 
   // 'custom' richiede autenticazione admin (verificata sopra per il rate limit)
-  if (tipo === 'custom' && !adminAuth) {
+  if (tipo === 'custom' && !adminAuth && !isInternal) {
     return new Response(JSON.stringify({ error: 'Solo admin' }), {
+      status: 403, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
+    })
+  }
+
+  // 'approvazione' è una notifica server→server: richiede secret interno o admin.
+  // Gli altri tipi ('benvenuto', 'scadenza_trial') sono chiamati dal client autenticato
+  // o da cron; il rate limit per IP basta come protezione anti-spam.
+  if (tipo === 'approvazione' && !isInternal && !adminAuth) {
+    return new Response(JSON.stringify({ error: 'Solo chiamata interna' }), {
       status: 403, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
     })
   }
@@ -94,7 +114,7 @@ export default async function handler(req) {
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
             <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Benvenuto in FoodOS! 🎉</h1>
             <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
-              La tua attività <strong>${nomeAttivita}</strong> è stata registrata con successo.<br>
+              La tua attività <strong>${escapeHtml(nomeAttivita)}</strong> è stata registrata con successo.<br>
               Hai <strong>3 mesi gratuiti</strong> per esplorare tutte le funzionalità —
               nessuna carta di credito richiesta.
             </p>
@@ -130,8 +150,8 @@ export default async function handler(req) {
             <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
               <h1 style="color:#1C0A0A;font-size:24px;margin:0 0 8px;">Account attivato! 🎉</h1>
               <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
-                Ciao ${sanitize(prof.nome_completo || '', 100)},<br>
-                il tuo account per <strong>${sanitize(org?.nome || 'la tua attività', 200)}</strong> è stato attivato.
+                Ciao ${escapeHtml(prof.nome_completo || '')},<br>
+                il tuo account per <strong>${escapeHtml(org?.nome || 'la tua attività')}</strong> è stato attivato.
               </p>
               <a href="https://foodios.it"
                  style="display:inline-block;padding:12px 28px;background:#C0392B;color:#FFF;

@@ -87,12 +87,23 @@ export default async function handler(req) {
 
   // Proxy Anthropic con parametri controllati
   try {
+    // Sanitizza messages: solo role user/assistant accettati.
+    // Un role 'system' iniettato dal client potrebbe sovrascrivere istruzioni
+    // di sistema applicate altrove → filtriamo qui per sicurezza.
+    const sanitizedMessages = body.messages
+      .slice(0, MAX_MESSAGES)
+      .filter(m => m && (m.role === 'user' || m.role === 'assistant') && m.content != null)
+    if (sanitizedMessages.length === 0) {
+      return errResponse('Messages: nessun ruolo user/assistant valido', 400, req)
+    }
     const safeBody = {
       ...body,
       model: body.model || 'claude-sonnet-4-6',
       max_tokens: Math.min(Math.max(parseInt(body.max_tokens) || 1000, 1), 4000),
-      messages: body.messages.slice(0, MAX_MESSAGES),
+      messages: sanitizedMessages,
     }
+    // Rimuovi eventuale organization_id dal body inoltrato ad Anthropic (era solo per zero-trust check)
+    delete safeBody.organization_id
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

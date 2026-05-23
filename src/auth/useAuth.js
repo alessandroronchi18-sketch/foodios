@@ -62,7 +62,10 @@ export function useAuth() {
         .maybeSingle()
 
       if (profErr) throw profErr
-      console.log('🔑 loadProfile OK — userId:', userId, 'orgId:', prof?.organization_id, 'email:', prof?.email);
+      // Niente log di email/userId in production: leakable via console di shared computer.
+      if (import.meta.env.DEV) {
+        console.log('🔑 loadProfile OK — userId:', userId?.slice(0, 8), 'orgId:', prof?.organization_id?.slice(0, 8));
+      }
       setProfile(prof)
 
       if (prof?.organization_id) {

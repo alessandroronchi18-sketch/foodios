@@ -152,6 +152,41 @@ FOR EACH ROW EXECUTE FUNCTION public.log_ricettario_change();
 REVOKE ALL ON public.user_data FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_data TO authenticated;
 
+-- 2.4-bis. View admin_overview: deve essere accessibile SOLO al service_role,
+-- mai a anon o authenticated. Senza questa revoke, qualunque utente loggato
+-- potrebbe fare `SELECT * FROM admin_overview` e vedere tutte le organizzazioni.
+-- (Le RLS sulle tabelle sottostanti aiutano, ma la view può aggirarle a seconda
+-- del security_invoker setting su Postgres ≥15.)
+REVOKE ALL ON public.admin_overview FROM anon;
+REVOKE ALL ON public.admin_overview FROM authenticated;
+-- Su Postgres ≥ 15, forza security_invoker così la view rispetta le RLS dell'utente:
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_views WHERE schemaname = 'public' AND viewname = 'admin_overview') THEN
+    BEGIN
+      EXECUTE 'ALTER VIEW public.admin_overview SET (security_invoker = true)';
+    EXCEPTION WHEN OTHERS THEN
+      -- Postgres < 15 non supporta security_invoker — ignora silenziosamente.
+      NULL;
+    END;
+  END IF;
+END $$;
+
+-- 2.4-ter. admin_log e sync_log: lettura solo a service_role.
+-- (Sono log centrali, non destinati a utenti normali.)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'admin_log') THEN
+    EXECUTE 'REVOKE ALL ON public.admin_log FROM anon, authenticated';
+    EXECUTE 'ALTER TABLE public.admin_log ENABLE ROW LEVEL SECURITY';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'rate_limits') THEN
+    -- rate_limits è scritto dalla service_role; nessun client deve leggerlo/scriverlo.
+    EXECUTE 'REVOKE ALL ON public.rate_limits FROM anon, authenticated';
+    EXECUTE 'ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY';
+  END IF;
+END $$;
+
 -- 2.5 Pulizia eventuali duplicati legacy del ricettario (vedi diagnosi 1.5)
 --     COMMENTATO per sicurezza: scommenta solo dopo aver verificato.
 -- WITH ranked AS (
