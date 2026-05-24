@@ -1217,16 +1217,16 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
     <div style={{background:isSemi?SEMI.bg:T.bgCard,border:`1px solid ${isSemi?SEMI.border:T.border}`,borderRadius:R.xl,overflow:"hidden",boxShadow:isSemi?"0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)":S.sm,transition:`box-shadow ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}`}}
       onMouseEnter={e=>{e.currentTarget.style.boxShadow=isSemi?"0 4px 12px rgba(142,68,173,0.10), 0 1px 3px rgba(142,68,173,0.05)":S.md;e.currentTarget.style.borderColor=isSemi?SEMI.border:T.borderStr;}}
       onMouseLeave={e=>{e.currentTarget.style.boxShadow=isSemi?"0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)":S.sm;e.currentTarget.style.borderColor=isSemi?SEMI.border:T.border;}}>
-      {/* Header */}
-      <div style={{padding:"18px 24px",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,borderBottom:open?`1px solid ${isSemi?SEMI.divider:C.border}`:"none"}}>
-        <div style={{flex:1}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
+      {/* Header — layout coerente: title block (flex 1) | KPI strip | action bar */}
+      <div style={{padding:isMobile?"14px 16px":"16px 20px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",borderBottom:open?`1px solid ${isSemi?SEMI.divider:C.border}`:"none"}}>
+        <div style={{flex:"1 1 220px",minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:5}}>
             {isSemi && (
-              <span style={{padding:"3px 9px",borderRadius:5,background:SEMI.accentLight,color:SEMI.accent,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.07em"}}>Semilavorato</span>
+              <span style={{padding:"3px 8px",borderRadius:5,background:SEMI.accentLight,color:SEMI.accent,fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:"0.07em",lineHeight:1.2}}>Semilavorato</span>
             )}
             <h3 onClick={onEdit?()=>onEdit(ric.nome):undefined}
                 title={onEdit?"Clicca per modificare la ricetta":undefined}
-                style={{margin:0,fontSize:17,fontWeight:900,color:C.text,letterSpacing:"-0.02em",cursor:onEdit?"pointer":"default"}}
+                style={{margin:0,fontSize:isMobile?15:16,fontWeight:800,color:C.text,letterSpacing:"-0.02em",cursor:onEdit?"pointer":"default",lineHeight:1.25,overflow:"hidden",textOverflow:"ellipsis"}}
                 onMouseEnter={onEdit?(e)=>{e.currentTarget.style.color=C.red;e.currentTarget.style.textDecoration="underline";}:undefined}
                 onMouseLeave={onEdit?(e)=>{e.currentTarget.style.color=C.text;e.currentTarget.style.textDecoration="none";}:undefined}>
               {ric.nome}
@@ -1236,7 +1236,7 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
             )}
             {mancanti.length>0 && <Tip text="Alcuni ingredienti non hanno un prezzo reale: il food cost è calcolato su stime HoReCa Torino. Carica il file prezzi per valori precisi." width={280}><Badge label={`${mancanti.length} prezzi stimati`} color="amber"/></Tip>}
           </div>
-          <div style={{fontSize:11,color:C.textSoft}}>
+          <div style={{fontSize:11,color:C.textSoft,lineHeight:1.4}}>
             {isSemi
               ? `Base interna · ${pesoTotSemi>=1000?`${(pesoTotSemi/1000).toFixed(2)} kg`:`${Math.round(pesoTotSemi)} g`} per batch${ric.totImpasto1>0?` · ${ric.totImpasto1}g impasto`:""}`
               : `${reg.unita} ${reg.tipo==="fetta"?"fette":"pezzi"} × ${fmt(reg.prezzo)}${ric.totImpasto1>0?` · ${ric.totImpasto1}g impasto`:""}`}
@@ -1255,8 +1255,9 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
             </div>
           )}
         </div>
-        {/* Mini P&L inline */}
-        <div style={{display:"flex",gap:2,alignItems:"stretch",flexShrink:0}}>
+
+        {/* Mini P&L inline — gruppo coerente, baseline allineata */}
+        <div style={{display:"flex",gap:4,alignItems:"center",flexShrink:0}}>
           {(isSemi ? [
             {lbl:"Peso batch",val:pesoTotSemi>=1000?`${(pesoTotSemi/1000).toFixed(2)} kg`:`${Math.round(pesoTotSemi)} g`,c:C.text,bg:SEMI.panel,tip:`Peso totale del batch prodotto = somma dei grammi di tutti gli ingredienti.`},
             {lbl:"Costo batch",val:fmt(fc),c:SEMI.accent,bg:SEMI.accentLight,bold:true,tip:`Costo totale ingredienti per un batch completo del semilavorato.`},
@@ -1268,37 +1269,41 @@ function TortaCard({ric,ingCosti,ricettario,onUpdateRegola,onEdit,variant="ricet
             {lbl:"Margine %",val:fmtp(margPct),c:mc,bg:mbg,bold:true,tip:`Percentuale di margine sul ricavo. Verde ≥ 60%, giallo 40–60%, rosso < 40%. Target artigianale: 70%.`},
           ]).map(({lbl,val,c,bg,bold,tip},i)=>(
             <Tip key={i} text={tip} width={240}>
-            <div style={{background:bg,padding:"8px 14px",borderRadius:8,textAlign:"center",minWidth:80,cursor:"help"}}>
-              <div style={{fontSize:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,marginBottom:3}}>{lbl}</div>
-              <div style={{fontSize:13,fontWeight:bold?900:700,color:c,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
+            <div style={{background:bg,padding:"7px 12px",borderRadius:8,textAlign:"center",minWidth:72,cursor:"help",height:46,display:"flex",flexDirection:"column",justifyContent:"center",boxSizing:"border-box"}}>
+              <div style={{fontSize:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,marginBottom:2,lineHeight:1}}>{lbl}</div>
+              <div style={{fontSize:12.5,fontWeight:bold?900:700,color:c,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",lineHeight:1.1}}>{val}</div>
             </div>
             </Tip>
           ))}
         </div>
-        <button onClick={()=>setOpen(o=>!o)}
-          style={{padding:"7px 14px",borderRadius:7,border:`1px solid ${isSemi?SEMI.border:C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:isSemi?SEMI.accent:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
-          {open?"▲ Chiudi":"▼ Apri dettaglio"}
-        </button>
-        {!isSemi && (
-          <button onClick={()=>{setEditPrezzo(reg.prezzo);setEditUnita(reg.unita);setEditMode(e=>!e);}}
-            style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${editMode?C.red:C.borderStr}`,background:editMode?C.redLight:"transparent",fontSize:11,fontWeight:700,color:editMode?C.red:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
-            ✏️ Prezzo
+
+        {/* Action bar — bottoni allineati, stessa altezza, stesso stile */}
+        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0,flexWrap:"wrap"}}>
+          <button onClick={()=>setOpen(o=>!o)}
+            style={{height:34,padding:"0 12px",borderRadius:7,border:`1px solid ${isSemi?SEMI.border:C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:isSemi?SEMI.accent:C.textMid,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",lineHeight:1,whiteSpace:"nowrap"}}>
+            {open?"▲ Chiudi":"▼ Apri dettaglio"}
           </button>
-        )}
-        {onEdit && (
-          <button onClick={()=>onEdit(ric.nome)}
-            style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${C.red}`,background:C.red,color:C.white,fontSize:11,fontWeight:800,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
-            ✏️ Modifica ricetta
+          {!isSemi && (
+            <button onClick={()=>{setEditPrezzo(reg.prezzo);setEditUnita(reg.unita);setEditMode(e=>!e);}}
+              style={{height:34,padding:"0 12px",borderRadius:7,border:`1px solid ${editMode?C.red:C.borderStr}`,background:editMode?C.redLight:"transparent",fontSize:11,fontWeight:700,color:editMode?C.red:C.textMid,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",lineHeight:1,whiteSpace:"nowrap"}}>
+              ✏️ Prezzo
+            </button>
+          )}
+          {onEdit && (
+            <button onClick={()=>onEdit(ric.nome)}
+              style={{height:34,padding:"0 12px",borderRadius:7,border:`1px solid ${C.red}`,background:C.red,color:C.white,fontSize:11,fontWeight:800,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",lineHeight:1,whiteSpace:"nowrap"}}>
+              ✏️ Modifica ricetta
+            </button>
+          )}
+          <button onClick={async()=>{
+            if(!(await gateExport('ricettario',{nome:ric.nome},window.__foodos_notify))) return;
+            const c=getExportCtx();
+            exportRicettaPDF(ric, {tot:fc,perc:ricavo>0?fc/ricavo*100:0}, ingCosti, c.nomeAttivita, c.email);
+          }}
+            style={{height:34,padding:"0 12px",borderRadius:7,border:`1px solid ${isSemi?SEMI.border:C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:isSemi?SEMI.accent:C.textMid,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",lineHeight:1,whiteSpace:"nowrap"}}>
+            📄 PDF
           </button>
-        )}
-        <button onClick={async()=>{
-          if(!(await gateExport('ricettario',{nome:ric.nome},window.__foodos_notify))) return;
-          const c=getExportCtx();
-          exportRicettaPDF(ric, {tot:fc,perc:ricavo>0?fc/ricavo*100:0}, ingCosti, c.nomeAttivita, c.email);
-        }}
-          style={{padding:"7px 12px",borderRadius:7,border:`1px solid ${isSemi?SEMI.border:C.borderStr}`,background:"transparent",fontSize:11,fontWeight:700,color:isSemi?SEMI.accent:C.textMid,cursor:"pointer",flexShrink:0,alignSelf:"center"}}>
-          📄 PDF
-        </button>
+        </div>
       </div>
 
       {/* Edit prezzo/fette inline */}
@@ -4286,6 +4291,8 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
   const [qtaMap, setQtaMap]         = useState({});     // stampi PRODOTTI oggi
   const [vendibileMap, setVendMap]  = useState({});     // stampi DISPONIBILI oggi (prod + scongelati)
   const [sessNote, setSessNote]     = useState("");
+  // Prodotti rilevati dalla foto AI ma NON presenti nel ricettario — solo info, non entrano nei calcoli
+  const [prodottiNonRicettario, setProdottiNonRicettario] = useState([]);
   const [destinazioneSedeId, setDestinazioneSedeId] = useState(""); // "" = stessa sede (default)
   const [confermando, setConfermando] = useState(false);
 
@@ -4491,6 +4498,8 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
         <div>
           <FotoOCR mode="produzione" notify={notify} ricettario={ricettario} onResult={res=>{
             const nuovaMap = {...qtaMap};
+            const ignorati = []; // prodotti NON nel ricettario — non vanno in calcoli
+            let importati = 0;
             for (const p of (res.prodotti||[])) {
               const nomeIT = translateProdottoEN(p.nome||"");
               const match = ricette.find(r => {
@@ -4498,12 +4507,61 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
                 const pn = nomeIT.toUpperCase();
                 return rn === pn || rn.includes(pn) || pn.includes(rn);
               });
-              const chiave = match ? match.nome : nomeIT;
-              nuovaMap[chiave] = (nuovaMap[chiave]||0) + (p.stampi||0);
+              if (!match) {
+                // Prodotto non riconosciuto: NON entra in qtaMap, NON impatta food cost/totali
+                ignorati.push({ nome: nomeIT, stampi: p.stampi || 0 });
+                continue;
+              }
+              nuovaMap[match.nome] = (nuovaMap[match.nome]||0) + (p.stampi||0);
+              importati++;
             }
             setQtaMap(nuovaMap);
-            notify(`📷 Importati ${(res.prodotti||[]).length} prodotti — controlla i valori`);
+            setProdottiNonRicettario(ignorati);
+            if (ignorati.length > 0) {
+              notify(`📷 ${importati} prodotti importati · ${ignorati.length} non riconosciuti (ignorati nei calcoli)`);
+            } else {
+              notify(`📷 Importati ${importati} prodotti — controlla i valori`);
+            }
           }}/>
+
+          {/* Lista informativa prodotti non riconosciuti (non impattano calcoli) */}
+          {prodottiNonRicettario && prodottiNonRicettario.length > 0 && (
+            <div style={{
+              background:"#FFFBEB", border:"1px solid #FCD34D", borderRadius:10,
+              padding:"12px 14px", marginBottom:16,
+              display:"flex", alignItems:"flex-start", gap:10,
+            }}>
+              <div style={{flexShrink:0, marginTop:1}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </div>
+              <div style={{flex:1, minWidth:0}}>
+                <div style={{fontWeight:700, color:"#92400E", fontSize:12, marginBottom:4}}>
+                  {prodottiNonRicettario.length} prodotto/i non riconosciuti dal ricettario — ignorati nei calcoli
+                </div>
+                <div style={{fontSize:11, color:"#78350F", lineHeight:1.55}}>
+                  Per includerli, aggiungi prima la ricetta. Lista solo informativa:
+                </div>
+                <div style={{marginTop:8, display:"flex", flexWrap:"wrap", gap:6}}>
+                  {prodottiNonRicettario.map((p,i)=>(
+                    <span key={i} style={{
+                      background:"#FFF", border:"1px solid #FCD34D",
+                      borderRadius:6, padding:"3px 8px", fontSize:11, color:"#78350F",
+                    }}>
+                      {p.nome}{p.stampi ? ` · ${p.stampi}` : ''}
+                    </span>
+                  ))}
+                </div>
+                <button onClick={()=>setProdottiNonRicettario([])} style={{
+                  marginTop:8, background:"none", border:"none", color:"#92400E",
+                  fontSize:11, fontWeight:600, cursor:"pointer", padding:0, textDecoration:"underline",
+                }}>
+                  Nascondi
+                </button>
+              </div>
+            </div>
+          )}
           <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 340px",gap:24}}>
           {/* Form sinistra */}
           <div>
@@ -7023,6 +7081,19 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       {/* RISULTATI CONFRONTO */}
       {confronto.length>0 && (
         <>
+          {/* Avviso prodotti dello scontrino NON nel ricettario — esclusi dai calcoli */}
+          {(() => {
+            const matched = new Set(confronto.map(r => r.nomeScont));
+            const nonRic = (venduto || []).filter(v => !matched.has(v.nome));
+            if (nonRic.length === 0) return null;
+            return (
+              <div style={{background:"#FFFBEB", border:"1px solid #FCD34D", borderRadius:10,
+                padding:"10px 14px", marginBottom:16, fontSize:12, color:"#78350F", lineHeight:1.5}}>
+                <b style={{color:"#92400E"}}>{nonRic.length} prodotto/i non riconosciuti</b> dal ricettario, esclusi dai totali e dal food cost:{" "}
+                {nonRic.slice(0,6).map(p => p.nome).join(" · ")}{nonRic.length>6 ? ` · +${nonRic.length-6}` : ""}
+              </div>
+            );
+          })()}
           <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
             <KPI icon="💰" label="Ricavo reale"   value={fmt(totV)}   highlight/>
             <KPI icon="📈" label="Margine"        value={fmt(totM)}   color={margColor(totMP)} sub={fmtp(totMP)}/>

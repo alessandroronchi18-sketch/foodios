@@ -432,15 +432,21 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
         </div>
       )}
 
-      {editing == null && eventi.length === 0 && (
+      {editing == null && eventiCorrentiTab.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94A3B8' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
-          <div style={{ fontSize: 14, marginBottom: 6 }}>Nessun evento ancora.</div>
-          <div style={{ fontSize: 12 }}>Crea il primo preventivo per un catering o una prenotazione.</div>
+          <div style={{ fontSize: 14, marginBottom: 6 }}>
+            {tab === 'archivio' ? 'Nessun evento passato in archivio.' : 'Nessun evento in programma.'}
+          </div>
+          <div style={{ fontSize: 12 }}>
+            {tab === 'archivio'
+              ? 'Gli eventi con data passata appariranno qui.'
+              : 'Crea il primo preventivo per un catering o una prenotazione.'}
+          </div>
         </div>
       )}
 
-      {editing == null && eventi.map(ev => {
+      {editing == null && eventiCorrentiTab.map(ev => {
         const t = calcolaTotali(ev)
         const saldo = t.totRicavo - Number(ev.acconto || 0)
         const isPassato = new Date(ev.data + 'T23:59:59') < new Date()
