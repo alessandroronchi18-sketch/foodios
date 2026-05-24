@@ -47,6 +47,7 @@ import MenuDinamico from './components/MenuDinamico'
 import PrevisioneDomanda from './components/PrevisioneDomanda'
 import AIFotoAnalisi from './components/AIFotoAnalisi'
 import AIAssistant from './components/AIAssistant'
+import ImportaDatiView from './components/ImportaDati'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -1020,6 +1021,7 @@ const isSemilavorato = (nome, ricettario) => {
 const SK_RIC="pasticceria-ricettario-v1", SK_PROD="pasticceria-produzione-v1", SK_ACT="pasticceria-actions-v1", SK_AI="pasticceria-ai-v1";
 const SK_MAG="pasticceria-magazzino-v1", SK_GIOR="pasticceria-giornaliero-v1", SK_CHIUS="pasticceria-chiusure-v1", SK_EXCL="pasticceria-esclusi-v1";
 const SK_RESE="pasticceria-rese-v1";
+const SK_LOG_PRZ="pasticceria-log-prezzi-v1"; // storico modifiche manuali prezzi ingredienti
 // Load rese from localStorage immediately so calcolaFC uses correct yields from the start
 try { loadRese(JSON.parse(localStorage.getItem(SK_RESE)||'{}')); } catch {}
 // sload/ssave are imported from ./lib/storage and injected in Dashboard props
@@ -3732,7 +3734,253 @@ function ProdottiFinitiTab({ notify }) {
   );
 }
 
-function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif, giornaliero, notify, esclusi=new Set(), setEsclusi, onImportPrezzi, onImportPrezziOCR }) {
+// ─── Prezzi ingredienti — edit inline rapido con conferma e log audit ──────
+function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile }) {
+  const [search, setSearch] = useState("");
+  const [editKey, setEditKey] = useState(null); // chiave ingrediente in modifica
+  const [editVal, setEditVal] = useState("");
+  const [confirmKey, setConfirmKey] = useState(null); // chiave per la modale di conferma
+  const [confirmVal, setConfirmVal] = useState(null);
+  const [showLog, setShowLog] = useState(false);
+
+  // Unione di tutti gli ingredienti usati nelle ricette + quelli con prezzo
+  const ingredienti = useMemo(() => {
+    const map = new Map(); // key -> { nome, prezzoKg, fonte }
+    const costi = ricettario?.ingredienti_costi || {};
+    // 1. Da ricette: nome originale dell'ingrediente
+    for (const ric of Object.values(ricettario?.ricette || {})) {
+      for (const ing of (ric.ingredienti||[])) {
+        const k = normIng(ing.nome||"");
+        if (!k) continue;
+        if (!map.has(k)) {
+          const c = costi[k];
+          map.set(k, {
+            key: k,
+            nome: ing.nome,
+            prezzoKg: c?.costoKg || 0,
+            haPrezzo: !!c && c.costoKg > 0,
+          });
+        }
+      }
+    }
+    // 2. Aggiungi quelli con prezzo ma non usati in ricette
+    for (const [k, c] of Object.entries(costi)) {
+      if (!map.has(k)) {
+        map.set(k, { key: k, nome: k, prezzoKg: c.costoKg || 0, haPrezzo: (c.costoKg||0) > 0 });
+      }
+    }
+    return [...map.values()].sort((a,b) => a.nome.localeCompare(b.nome));
+  }, [ricettario]);
+
+  const filtered = search.trim()
+    ? ingredienti.filter(i => (i.nome||"").toLowerCase().includes(search.toLowerCase().trim()))
+    : ingredienti;
+
+  const startEdit = (row) => {
+    setEditKey(row.key);
+    setEditVal(row.prezzoKg ? row.prezzoKg.toFixed(2) : "");
+  };
+  const cancelEdit = () => { setEditKey(null); setEditVal(""); };
+
+  const tentaSalva = (row) => {
+    const v = parseFloat(editVal.replace(",", "."));
+    if (isNaN(v) || v < 0) return;
+    if (v === row.prezzoKg) { cancelEdit(); return; }
+    setConfirmKey(row.key);
+    setConfirmVal(v);
+  };
+
+  const confermaSalva = async () => {
+    const row = ingredienti.find(i => i.key === confirmKey);
+    if (!row) { setConfirmKey(null); return; }
+    await onUpdatePrezzo(row.nome, confirmVal);
+    setConfirmKey(null);
+    setConfirmVal(null);
+    cancelEdit();
+  };
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:200,position:"relative"}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="🔍 Cerca ingrediente…"
+            style={{width:"100%",padding:"9px 14px",borderRadius:8,border:`1px solid ${C.border}`,fontSize:12,background:C.white,color:C.text,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+        <button onClick={()=>setShowLog(s=>!s)}
+          style={{padding:"9px 14px",borderRadius:8,border:`1px solid ${C.borderStr}`,background:showLog?C.redLight:"transparent",fontSize:11,fontWeight:700,color:showLog?C.red:C.textMid,cursor:"pointer",whiteSpace:"nowrap"}}>
+          {showLog ? "✕ Chiudi log" : `📜 Log modifiche · ${logPrezzi?.length||0}`}
+        </button>
+      </div>
+
+      <div style={{fontSize:12,color:C.textSoft,marginBottom:14,lineHeight:1.5}}>
+        Modifica il <b>prezzo €/kg</b> di un ingrediente con un click. La modifica richiede
+        conferma esplicita per evitare errori e viene registrata nel log.
+      </div>
+
+      {showLog && (
+        <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,marginBottom:18,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+          <div style={{padding:"10px 14px",background:"#F8F4F2",fontSize:11,fontWeight:700,color:C.textMid,borderBottom:`1px solid ${C.border}`}}>
+            Storico modifiche prezzi · ultime {Math.min(50, logPrezzi?.length||0)} di {logPrezzi?.length||0}
+          </div>
+          {(!logPrezzi || logPrezzi.length === 0) ? (
+            <div style={{padding:"24px 16px",textAlign:"center",fontSize:12,color:C.textSoft}}>Nessuna modifica registrata.</div>
+          ) : (
+            <div style={{maxHeight:240,overflowY:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <thead>
+                  <tr>
+                    {["Data","Ingrediente","Vecchio","Nuovo","Δ"].map((h,i)=>(
+                      <th key={i} style={{padding:"8px 12px",textAlign:"left",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,background:"#FDFAF7"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {logPrezzi.slice(0,50).map(l => (
+                    <tr key={l.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                      <td style={{padding:"7px 12px",color:C.textMid,whiteSpace:"nowrap"}}>{new Date(l.data).toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"})}</td>
+                      <td style={{padding:"7px 12px",fontWeight:600,color:C.text,textTransform:"capitalize"}}>{l.ingrediente}</td>
+                      <td style={{padding:"7px 12px",color:C.textMid,fontVariantNumeric:"tabular-nums"}}>€{(l.prezzoVecchio||0).toFixed(2)}/kg</td>
+                      <td style={{padding:"7px 12px",fontWeight:700,color:C.text,fontVariantNumeric:"tabular-nums"}}>€{(l.prezzoNuovo||0).toFixed(2)}/kg</td>
+                      <td style={{padding:"7px 12px",fontWeight:700,color:l.delta>0?C.red:C.green,fontVariantNumeric:"tabular-nums"}}>
+                        {l.delta>0?"+":""}{l.delta.toFixed(2)}
+                        {l.deltaPct!=null && <span style={{fontSize:9,marginLeft:4,opacity:0.7}}>({l.deltaPct>0?"+":""}{l.deltaPct.toFixed(1)}%)</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tabella ingredienti */}
+      <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:480}}>
+            <thead>
+              <tr style={{background:"#F8F4F2"}}>
+                <th style={{padding:"10px 14px",textAlign:"left",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>Ingrediente</th>
+                <th style={{padding:"10px 14px",textAlign:"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>Prezzo €/kg</th>
+                <th style={{padding:"10px 14px",textAlign:"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,width:140}}>Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && (
+                <tr><td colSpan={3} style={{padding:"40px 16px",textAlign:"center",fontSize:13,color:C.textSoft}}>
+                  {search.trim() ? `Nessun ingrediente che corrisponde a "${search}".` : "Nessun ingrediente disponibile."}
+                </td></tr>
+              )}
+              {filtered.map((row,i)=>{
+                const editing = editKey === row.key;
+                return (
+                  <tr key={row.key} style={{borderBottom:`1px solid ${C.border}`,background:editing?"#FFF8F7":i%2===0?C.white:"#FDFAF7"}}>
+                    <td style={{padding:"10px 14px",fontWeight:600,color:C.text,textTransform:"capitalize"}}>
+                      {row.nome}
+                      {!row.haPrezzo && <span style={{marginLeft:8,fontSize:9,padding:"2px 6px",borderRadius:4,background:C.amberLight,color:C.amber,fontWeight:700}}>Prezzo da impostare</span>}
+                    </td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.text,fontVariantNumeric:"tabular-nums"}}>
+                      {editing ? (
+                        <input
+                          type="number" min="0" step="0.01" value={editVal}
+                          onChange={e=>setEditVal(e.target.value)}
+                          onKeyDown={e=>{
+                            if (e.key === "Enter") tentaSalva(row);
+                            if (e.key === "Escape") cancelEdit();
+                          }}
+                          autoFocus
+                          style={{width:96,padding:"6px 8px",borderRadius:6,border:`1px solid ${C.red}`,fontSize:13,fontWeight:700,color:C.text,textAlign:"right",outline:"none"}}/>
+                      ) : (
+                        <span onClick={()=>startEdit(row)} title="Clicca per modificare"
+                          style={{cursor:"pointer",padding:"4px 8px",borderRadius:5,display:"inline-block",transition:"background 100ms ease"}}
+                          onMouseEnter={e=>e.currentTarget.style.background="#F1F5F9"}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          {row.prezzoKg > 0 ? `€${row.prezzoKg.toFixed(2)}` : "—"}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{padding:"10px 14px",textAlign:"right",whiteSpace:"nowrap"}}>
+                      {editing ? (
+                        <>
+                          <button onClick={()=>tentaSalva(row)}
+                            style={{padding:"6px 12px",borderRadius:6,border:"none",background:C.red,color:C.white,fontSize:10,fontWeight:800,cursor:"pointer",marginRight:4}}>
+                            Salva
+                          </button>
+                          <button onClick={cancelEdit}
+                            style={{padding:"6px 10px",borderRadius:6,border:`1px solid ${C.borderStr}`,background:"transparent",fontSize:10,fontWeight:700,color:C.textMid,cursor:"pointer"}}>
+                            Annulla
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={()=>startEdit(row)}
+                          style={{padding:"6px 12px",borderRadius:6,border:`1px solid ${C.borderStr}`,background:"transparent",fontSize:10,fontWeight:700,color:C.textMid,cursor:"pointer"}}>
+                          ✏️ Modifica
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modale conferma — evita modifiche accidentali */}
+      {confirmKey && (() => {
+        const row = ingredienti.find(i => i.key === confirmKey);
+        if (!row) return null;
+        const delta = confirmVal - row.prezzoKg;
+        const deltaPct = row.prezzoKg > 0 ? (delta / row.prezzoKg * 100) : null;
+        return (
+          <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+            onClick={()=>setConfirmKey(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{background:C.white,borderRadius:14,padding:28,maxWidth:420,width:"100%",boxShadow:"0 24px 60px rgba(0,0,0,0.3)"}}>
+              <div style={{fontSize:16,fontWeight:800,color:C.text,marginBottom:8}}>Conferma modifica prezzo</div>
+              <div style={{fontSize:13,color:C.textMid,marginBottom:16,lineHeight:1.55}}>
+                Sei sicuro di voler aggiornare il prezzo di <b style={{color:C.text,textTransform:"capitalize"}}>{row.nome}</b>?
+              </div>
+              <div style={{background:"#F8F4F2",borderRadius:10,padding:"14px 16px",marginBottom:18}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <span style={{fontSize:11,color:C.textSoft,fontWeight:600}}>Prezzo attuale</span>
+                  <span style={{fontSize:14,color:C.textMid,fontVariantNumeric:"tabular-nums",fontWeight:700}}>€{row.prezzoKg.toFixed(2)}/kg</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <span style={{fontSize:11,color:C.textSoft,fontWeight:600}}>Nuovo prezzo</span>
+                  <span style={{fontSize:14,color:C.red,fontVariantNumeric:"tabular-nums",fontWeight:800}}>€{confirmVal.toFixed(2)}/kg</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:6,borderTop:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:11,color:C.textSoft,fontWeight:600}}>Variazione</span>
+                  <span style={{fontSize:13,color:delta>0?C.red:C.green,fontVariantNumeric:"tabular-nums",fontWeight:800}}>
+                    {delta>0?"+":""}€{delta.toFixed(2)} {deltaPct!=null && <span style={{fontSize:11,marginLeft:4,opacity:0.85}}>({deltaPct>0?"+":""}{deltaPct.toFixed(1)}%)</span>}
+                  </span>
+                </div>
+              </div>
+              {deltaPct != null && Math.abs(deltaPct) > 50 && (
+                <div style={{background:"#FFFBEB",border:"1px solid #FCD34D",borderRadius:8,padding:"10px 12px",marginBottom:16,fontSize:11,color:"#78350F",lineHeight:1.5}}>
+                  <b>⚠ Variazione importante</b> — la modifica del {Math.abs(deltaPct).toFixed(0)}% influenzerà il food cost di tutte le ricette che usano questo ingrediente.
+                </div>
+              )}
+              <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+                <button onClick={()=>setConfirmKey(null)}
+                  style={{padding:"10px 18px",borderRadius:8,border:`1px solid ${C.borderStr}`,background:"transparent",fontSize:12,fontWeight:700,color:C.textMid,cursor:"pointer"}}>
+                  Annulla
+                </button>
+                <button onClick={confermaSalva}
+                  style={{padding:"10px 20px",borderRadius:8,border:"none",background:C.red,color:C.white,fontSize:12,fontWeight:800,cursor:"pointer"}}>
+                  ✓ Conferma e salva
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif, logPrezzi=[], onUpdatePrezzoIng, giornaliero, notify, esclusi=new Set(), setEsclusi, onImportPrezzi, onImportPrezziOCR }) {
   const isMobile = useIsMobile();
   const [tab, setTab] = useState("giacenze");
   const [deleteIngConf, setDeleteIngConf] = useState(null); // key ingrediente da eliminare
@@ -3928,7 +4176,7 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
 
       {/* Tab */}
       <div style={{display:"flex",gap:2,marginBottom:24,borderBottom:`1px solid ${T.border}`,overflowX:"auto"}}>
-        {[["giacenze","Materie prime"],["pf","Prodotti finiti"],["carica","Carica merce"],["log","Log rifornimenti"]].map(([id,lbl])=>(
+        {[["giacenze","Materie prime"],["pf","Prodotti finiti"],["prezzi","Prezzi ingredienti"],["carica","Carica merce"],["log","Log rifornimenti"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
             style={{padding:"10px 16px",border:"none",background:"transparent",cursor:"pointer",
               fontSize:13,fontWeight:tab===id?600:500,color:tab===id?T.text:T.textSoft,
@@ -4172,6 +4420,16 @@ function MagazzinoView({ ricettario, magazzino, setMagazzino, logRif, setLogRif,
             </div>
           </div>
         </div>
+      )}
+
+      {/* PREZZI INGREDIENTI — edit inline, conferma esplicita, log modifiche */}
+      {tab==="prezzi" && (
+        <PrezziIngredientiTab
+          ricettario={ricettario}
+          logPrezzi={logPrezzi}
+          onUpdatePrezzo={onUpdatePrezzoIng}
+          isMobile={isMobile}
+        />
       )}
 
       {/* LOG */}
@@ -8568,6 +8826,7 @@ export default function Dashboard({
   const [actions,setAct]=useState([]);
   const [magazzino,setMagazzino]=useState({});
   const [logRif,setLogRif]=useState([]);
+  const [logPrezzi,setLogPrezzi]=useState([]); // storico modifiche prezzi ingredienti
   const [giornaliero,setGiornaliero]=useState([]);
   const [chiusure,setChiusure]=useState([]);
   const [esclusi,setEsclusi]=useState(new Set());
@@ -8633,6 +8892,7 @@ export default function Dashboard({
     setGiornaliero([]);
     setChiusure([]);
     setLogRif([]);
+    setLogPrezzi([]);
     // Carica subito dai backup locali come fallback istantaneo (offline-first).
     // Se Supabase risponde con dati validi, sovrascrive sotto.
     try {
@@ -8670,9 +8930,9 @@ export default function Dashboard({
 
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
     Promise.race([
-      Promise.all([sload(SK_RIC),sload(SK_PROD),sload(SK_ACT),sload(SK_MAG),sload(SK_LOGRIF),sload(SK_GIOR),sload(SK_CHIUS),sload(SK_EXCL)]),
+      Promise.all([sload(SK_RIC),sload(SK_PROD),sload(SK_ACT),sload(SK_MAG),sload(SK_LOGRIF),sload(SK_GIOR),sload(SK_CHIUS),sload(SK_EXCL),sload(SK_LOG_PRZ)]),
       timeout
-    ]).then(([ric,prod,act,mag,logrif,gior,chius,excl])=>{
+    ]).then(([ric,prod,act,mag,logrif,gior,chius,excl,logprz])=>{
       setOfflineMode(false);
       console.log('📖 caricaDati SUPABASE:', {
         ricette: ric ? Object.keys(ric.ricette||{}).length : 'VUOTO',
@@ -8714,6 +8974,7 @@ export default function Dashboard({
       if(gior)  { setGiornaliero(gior);   bkWriteLS(SK_GIOR,   gior,   orgId, sedeId); } else { restoreIfEmpty(gior,   SK_GIOR,   'giornaliero'); }
       if(chius) { setChiusure(chius);     bkWriteLS(SK_CHIUS,  chius,  orgId, sedeId); } else { restoreIfEmpty(chius,  SK_CHIUS,  'chiusure'); }
       if(excl)  { setEsclusi(new Set(excl)); bkWriteLS(SK_EXCL, excl,  orgId, null);   } else { restoreIfEmpty(excl,   SK_EXCL,   'esclusi'); }
+      if(logprz){ setLogPrezzi(logprz); }
       // Migration: convert known semilavorati from tipo "interno" or missing tipo
       if (ric) {
         let changed = false;
@@ -8796,6 +9057,90 @@ export default function Dashboard({
     const nuovoRic = { ...ricettario, ingredienti_costi: { ...(ricettario.ingredienti_costi||{}), ...nuoviCosti } };
     setRic(nuovoRic); await ssave(SK_RIC, nuovoRic);
   }, [ricettario]);
+
+  // ── Importazioni globali usate dalla pagina "Importa dati" ────────────────
+  // Delivery: auto-detect piattaforma in base alle prime righe del file
+  const handleImportDeliveryGlobal = useCallback(async (files) => {
+    for (const f of Array.from(files||[])) {
+      try {
+        const text = await f.text();
+        let righe = [], piattaforma = 'Generico';
+        // Try platforms in order
+        try { const r = parseDeliveroo(text);  if (r?.length) { righe = r; piattaforma = 'Deliveroo'; } } catch {}
+        if (!righe.length) try { const r = parseJustEat(text);  if (r?.length) { righe = r; piattaforma = 'Just Eat'; } } catch {}
+        if (!righe.length) try { const r = await parseGlovo(f); if (r?.length) { righe = r; piattaforma = 'Glovo'; } } catch {}
+        if (!righe.length) {
+          notify(`⚠ Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
+          continue;
+        }
+        const nuove = mergeInChiusure(chiusure||[], righe, piattaforma);
+        setChiusure(nuove); await ssave(SK_CHIUS, nuove);
+        notify(`✓ ${righe.length} giorni importati da ${piattaforma}`);
+      } catch (e) {
+        notify(`⚠ ${f.name}: ${e.message}`, false);
+      }
+    }
+  }, [chiusure, notify]);
+
+  // Casse: prova i parser conosciuti (zucchetti/streamcassa/toast) — se nessuno funziona avvisa
+  const handleImportCasseGlobal = useCallback(async (files) => {
+    const sistemi = ['zucchetti', 'streamcassa', 'toast'];
+    for (const f of Array.from(files||[])) {
+      let righe = null, sistema = null;
+      for (const s of sistemi) {
+        try { const r = await parseCassaFile(s, f); if (r?.length) { righe = r; sistema = s; break; } } catch {}
+      }
+      if (!righe?.length) {
+        notify(`⚠ Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
+        continue;
+      }
+      const nuove = mergeInChiusureCassa(chiusure||[], righe, sistema);
+      setChiusure(nuove); await ssave(SK_CHIUS, nuove);
+      notify(`✓ ${righe.length} giorni importati da ${sistema}`);
+    }
+  }, [chiusure, notify]);
+
+  // Fatture: per ora indirizza l'utente alla pagina Fornitori (parser XML lì)
+  const handleImportFattureGlobal = useCallback(async (files) => {
+    notify(`📂 Per fatture XML/PDF usa la pagina Fornitori → Ordini → Importa fattura.`);
+    setView('fornitori');
+  }, [notify]);
+
+  // Aggiornamento manuale singolo prezzo ingrediente — usato dalla tabella "Prezzi" in Magazzino.
+  // Salva il vecchio prezzo nel log per audit/storico.
+  const handleUpdatePrezzoIng = useCallback(async (nomeIng, nuovoPrezzoKg) => {
+    if (!ricettario) return;
+    const key = normIng(nomeIng);
+    const old = ricettario.ingredienti_costi?.[key] || { costoKg: 0, costoG: 0 };
+    const prevKg = Number(old.costoKg) || 0;
+    const newKg  = Number(nuovoPrezzoKg) || 0;
+    if (prevKg === newKg) return;
+    const nuovoRic = {
+      ...ricettario,
+      ingredienti_costi: {
+        ...(ricettario.ingredienti_costi||{}),
+        [key]: { costoKg: parseFloat(newKg.toFixed(4)), costoG: parseFloat((newKg/1000).toFixed(6)) },
+      },
+    };
+    setRic(nuovoRic);
+    await ssave(SK_RIC, nuovoRic);
+
+    // Log audit
+    const entry = {
+      id: `lp-${Date.now()}`,
+      data: new Date().toISOString(),
+      ingrediente: nomeIng,
+      prezzoVecchio: prevKg,
+      prezzoNuovo:   newKg,
+      delta:         newKg - prevKg,
+      deltaPct:      prevKg > 0 ? ((newKg - prevKg) / prevKg * 100) : null,
+      utente:        auth?.user?.email || null,
+    };
+    const nextLog = [entry, ...(logPrezzi||[])].slice(0, 500); // tieni gli ultimi 500
+    setLogPrezzi(nextLog);
+    await ssave(SK_LOG_PRZ, nextLog);
+    notify(`✓ Prezzo "${nomeIng}" aggiornato a €${newKg.toFixed(2)}/kg`);
+  }, [ricettario, logPrezzi, auth?.user?.email]);
 
   const handleImportPrezzi=useCallback(files=>{
     // Fire-and-forget: each file runs independently via uploadManager.
@@ -8998,6 +9343,7 @@ export default function Dashboard({
           settings:   '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
           building:   '<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="9" y2="6"/><line x1="15" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="9" y2="10"/><line x1="15" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="9" y2="14"/><line x1="15" y1="14" x2="15" y2="14"/><path d="M10 22v-4h4v4"/>',
           truck:      '<rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+          download:   '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
         };
 
         const navItem = (id, iconKey, label, badge=0, alert=false) => {
@@ -9111,6 +9457,7 @@ export default function Dashboard({
               <Sep label="Sistema" />
               {(sedi||[]).length>1 && navItem("confronto-sedi","building","Confronto sedi")}
               {(sedi||[]).length>1 && navItem("trasferimenti","truck","Trasferimenti")}
+              {navItem("importa-dati","download","Importa dati")}
               {navItem("impostazioni","settings","Impostazioni")}
 
             </div>
@@ -9243,6 +9590,7 @@ export default function Dashboard({
             calendario:"Calendario", previsione:"Previsioni",
             "scheda-allergeni":"Scheda allergeni", impostazioni:"Impostazioni",
             "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
+            "importa-dati":"Importa dati",
           };
           const VIEW_GROUPS = {
             home:"Oggi", giornaliero:"Oggi", chiusura:"Oggi", eventi:"Oggi",
@@ -9250,7 +9598,7 @@ export default function Dashboard({
             simulatore:"Numeri", pl:"Numeri",
             magazzino:"Gestione", scadenzario:"Gestione", fornitori:"Gestione", personale:"Gestione", menu:"Gestione",
             azioni:"Altro", integrazioni:"Altro", storico:"Altro", calendario:"Altro", previsione:"Altro",
-            impostazioni:"Sistema", "confronto-sedi":"Sistema", trasferimenti:"Sistema", changelog:"Sistema",
+            impostazioni:"Sistema", "confronto-sedi":"Sistema", trasferimenti:"Sistema", changelog:"Sistema", "importa-dati":"Sistema",
           };
           const label = VIEW_LABELS[view] || (typeof view==="string"?view:"");
           const group = VIEW_GROUPS[view] || "";
@@ -9312,6 +9660,7 @@ export default function Dashboard({
             calendario:"Calendario", previsione:"Previsioni",
             "scheda-allergeni":"Allergeni", impostazioni:"Impostazioni",
             "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
+            "importa-dati":"Importa dati",
           };
           const titolo = MOBILE_LABELS[view] || nomeAttivita || "FoodOS";
           return (
@@ -9426,10 +9775,17 @@ export default function Dashboard({
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure}/>}
-        {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR}/>}
+        {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR}/>}
         {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
         {view==="impostazioni"&&<ImpostazioniView auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
+        {view==="importa-dati"&&<ImportaDatiView
+          onImportRicettario={handleFile}
+          onImportPrezzi={handleImportPrezzi}
+          onImportDelivery={handleImportDeliveryGlobal}
+          onImportCasse={handleImportCasseGlobal}
+          onImportFatture={handleImportFattureGlobal}
+          notify={notify}/>}
         {view==="confronto-sedi"&&<ConfrontoSedi orgId={orgId} sedi={sedi}/>}
         {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita}/>}
         {view==="trasferimenti"&&<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>}
@@ -9437,7 +9793,7 @@ export default function Dashboard({
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi"].includes(view)&&(
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
         </div>{/* /fos-page */}
