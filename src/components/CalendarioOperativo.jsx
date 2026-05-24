@@ -226,14 +226,14 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                     display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
                     borderRadius:10,
                     background: isSel ? '#FEF0EE' : '#FFF',
-                    border: isOggi ? '2px solid #C0392B' : isSel ? '2px solid #E07040' : '1px solid #E8DDD8',
+                    border: isOggi ? '2px solid #8B1A1A' : isSel ? '2px solid #E07040' : '1px solid #E8DDD8',
                     cursor:'pointer', boxSizing:'border-box',
                   }}>
                   <div style={{ width:8, height:8, borderRadius:'50%', background: dotColor||'#E2E8F0', flexShrink:0 }} />
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight: isOggi?800:500, color: isOggi?'#C0392B':'#1A0A08' }}>
+                    <div style={{ fontSize:13, fontWeight: isOggi?800:500, color: isOggi?'#8B1A1A':'#1A0A08' }}>
                       {d.toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'})}
-                      {isOggi && <span style={{ marginLeft:6, fontSize:9, fontWeight:700, color:'#C0392B', background:'#FEF0EE', borderRadius:4, padding:'1px 5px' }}>OGGI</span>}
+                      {isOggi && <span style={{ marginLeft:6, fontSize:9, fontWeight:700, color:'#8B1A1A', background:'#FEF0EE', borderRadius:4, padding:'1px 5px' }}>OGGI</span>}
                     </div>
                     <div style={{ display:'flex', gap:5, marginTop:3 }}>
                       {prod   && <Pill bg="#EAF5EE" color="#1B7A3E">🏭 Prod.</Pill>}
@@ -255,7 +255,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
             {GIORNI.map(g => (
               <div key={g} style={{ textAlign:'center', fontSize:10, fontWeight:700, padding:'4px 0',
                 textTransform:'uppercase', letterSpacing:'0.05em',
-                color: (g==='Sab'||g==='Dom') ? '#C0392B' : '#9C7B76' }}>
+                color: (g==='Sab'||g==='Dom') ? '#8B1A1A' : '#9C7B76' }}>
                 {g}
               </div>
             ))}
@@ -279,13 +279,13 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                   style={{
                     borderRadius:10, padding:'7px 6px', minHeight:68,
                     background: isSel ? '#FEF0EE' : isWeek && cur ? '#FAF5F3' : cur ? '#FFF' : '#F5F5F5',
-                    border: isOggi ? '2px solid #C0392B' : isSel ? '2px solid #E07040' : '1px solid #E8DDD8',
+                    border: isOggi ? '2px solid #8B1A1A' : isSel ? '2px solid #E07040' : '1px solid #E8DDD8',
                     cursor: cur ? 'pointer' : 'default',
                     opacity: cur ? 1 : 0.28,
                     transition:'background 0.13s',
                     position:'relative', boxSizing:'border-box',
                   }}>
-                  <div style={{ fontSize:13, fontWeight: isOggi?800:500, color: isOggi?'#C0392B': cur?'#1A0A08':'#BBB', marginBottom:3 }}>
+                  <div style={{ fontSize:13, fontWeight: isOggi?800:500, color: isOggi?'#8B1A1A': cur?'#1A0A08':'#BBB', marginBottom:3 }}>
                     {date.getDate()}
                   </div>
                   {status && status !== 'futuro' && (
@@ -343,7 +343,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
               <div style={{ fontSize:13, fontWeight:700, color:'#1A0A08', lineHeight:1.3 }}>
                 {new Date(sel+'T12:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}
               </div>
-              {selDetail.isToday && <div style={{ fontSize:10, color:'#C0392B', fontWeight:700, marginTop:2 }}>OGGI</div>}
+              {selDetail.isToday && <div style={{ fontSize:10, color:'#8B1A1A', fontWeight:700, marginTop:2 }}>OGGI</div>}
             </div>
             <button onClick={()=>setSel(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9C7B76', fontSize:16, padding:2, lineHeight:1 }}>✕</button>
           </div>
@@ -365,15 +365,15 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                 <span style={{ fontSize:20, lineHeight:1 }}>{icon}</span>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:12, fontWeight:600,
-                    color: has ? '#166534' : selDetail.isFuture ? '#64748B' : '#C0392B' }}>
+                    color: has ? '#166534' : selDetail.isFuture ? '#64748B' : '#8B1A1A' }}>
                     {has ? '✅' : selDetail.isFuture ? '—' : '❌'} {label}
                   </div>
                   {sub && <div style={{ fontSize:10, color:'#6B4C44', marginTop:1 }}>{sub}</div>}
                 </div>
                 {!has && !selDetail.isFuture && (
                   <button onClick={()=>setView(v)} style={{
-                    fontSize:10, fontWeight:700, color:'#C0392B', background:'none',
-                    border:'1px solid #C0392B', borderRadius:6, padding:'3px 8px', cursor:'pointer',
+                    fontSize:10, fontWeight:700, color:'#8B1A1A', background:'none',
+                    border:'1px solid #8B1A1A', borderRadius:6, padding:'3px 8px', cursor:'pointer',
                   }}>Vai →</button>
                 )}
               </div>
@@ -407,7 +407,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                   disabled={savingNota || notaEdit === (note[sel]||'')}
                   style={{
                     marginTop:7, width:'100%', padding:'8px 0',
-                    background:'#C0392B', color:'#FFF', border:'none', borderRadius:8,
+                    background:'#8B1A1A', color:'#FFF', border:'none', borderRadius:8,
                     fontSize:12, fontWeight:700, cursor:'pointer',
                     opacity:(savingNota || notaEdit===(note[sel]||''))?0.45:1,
                     transition:'opacity 0.15s',

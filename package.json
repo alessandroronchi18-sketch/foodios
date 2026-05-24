@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sentry/react": "^10.53.1",
     "@supabase/supabase-js": "^2.43.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",

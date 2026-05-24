@@ -582,8 +582,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify }) {
 
   return (
     <div style={{ maxWidth:1040, margin:"0 auto", padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: isMobile ? 20 : 24 }}>
-        <h1 style={{ margin:"0 0 4px", fontSize: isMobile ? 22 : 26, fontWeight:700, color:T.text, letterSpacing:"-0.025em", lineHeight:1.15 }}>Personale</h1>
+      <div style={{ marginBottom: isMobile ? 16 : 20 }}>
         <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Gestisci dipendenti, turni e monitora il costo del lavoro nel tempo.</p>
       </div>
 

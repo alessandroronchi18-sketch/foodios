@@ -311,7 +311,7 @@ export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, noti
           <button onClick={() => run('ts')} disabled={busy != null} style={btn(busy === 'ts', '#1E40AF')}>
             {busy === 'ts' ? 'Generazione…' : '🏛 Esporta per TeamSystem (XML)'}
           </button>
-          <button onClick={() => run('xlsx')} disabled={busy != null} style={btn(busy === 'xlsx', '#C0392B')}>
+          <button onClick={() => run('xlsx')} disabled={busy != null} style={btn(busy === 'xlsx', '#8B1A1A')}>
             {busy === 'xlsx' ? 'Generazione…' : '📚 Esporta per commercialista (Excel)'}
           </button>
         </div>

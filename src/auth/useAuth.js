@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { validaSessionFingerprint, resetSessionFingerprint } from '../lib/sessionGuard'
 import { startIdleTimeout, clearIdleTimestamp } from '../lib/idleTimeout'
-import { setErrorReportingUser } from '../lib/errorReporting'
+import * as Sentry from '@sentry/react'
 
 const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000 // 8 ore di inattività → auto-logout
 
@@ -87,8 +87,9 @@ export function useAuth() {
       if (import.meta.env.DEV) {
         console.log('🔑 loadProfile OK — userId:', userId?.slice(0, 8), 'orgId:', prof?.organization_id?.slice(0, 8));
       }
-      // Imposta utente per error reporting (hash email, non email in chiaro)
-      setErrorReportingUser({ id: userId, email: prof?.email })
+      // Imposta utente per Sentry (id e org_id come tag — niente email in chiaro)
+      Sentry.setUser({ id: userId })
+      Sentry.setTag('organization_id', prof?.organization_id || 'unknown')
       setProfile(prof)
 
       if (prof?.organization_id) {
@@ -175,6 +176,7 @@ export function useAuth() {
   async function signOut() {
     resetSessionFingerprint()
     clearIdleTimestamp()
+    Sentry.setUser(null)
     await supabase.auth.signOut()
   }
 

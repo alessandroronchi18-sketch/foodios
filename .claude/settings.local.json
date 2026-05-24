@@ -18,7 +18,8 @@
       "Bash(npx vite *)",
       "Bash(node *)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('main:', d.get\\('main'\\)\\); print\\('module:', d.get\\('module'\\)\\); print\\('exports:', list\\(d.get\\('exports',{}\\).keys\\(\\)\\)[:5]\\)\")",
-      "Bash(node_modules/.bin/vite build *)"
+      "Bash(node_modules/.bin/vite build *)",
+      "Bash(grep -n \"^const T\\\\|^  T,\\\\|import { T\\\\|import {T\\\\|brand:\" /Users/aler/Desktop/foodios/src/Dashboard.jsx)"
     ]
   }
 }

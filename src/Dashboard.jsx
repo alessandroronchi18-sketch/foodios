@@ -140,7 +140,7 @@ function SortTH({ k, children, right, active, dir, onToggle }) {
     <th onClick={()=>onToggle(k)}
       style={{padding:"10px 16px",textAlign:right?"right":"left",fontSize:10,fontWeight:600,
         letterSpacing:"0.05em",textTransform:"uppercase",whiteSpace:"nowrap",
-        color:active?"#C0392B":"#94A3B8",borderBottom:"1px solid #E2E8F0",
+        color:active?"#8B1A1A":"#94A3B8",borderBottom:"1px solid #E2E8F0",
         background:active?"#FEF2F2":"transparent",cursor:"pointer",userSelect:"none",
         transition:"background 0.15s"}}>
       {children}{active?(dir==="desc"?" ▼":" ▲"):""}
@@ -1068,7 +1068,7 @@ Niente markdown, niente testo fuori dal JSON.`;
 const C = {
   bg:"#F8FAFC", bgCard:"#FFFFFF", bgSide:"#0B0E14", bgSubtle:"#F1F5F9",
   border:"#E5E9EF", borderStr:"#CBD5E1", borderSoft:"#EEF1F6",
-  red:"#C0392B", redDark:"#922B21", redLight:"#FEF2F2", redSoft:"#FCE7E4",
+  red:"#8B1A1A", redDark:"#6B1414", redLight:"#FEF2F2", redSoft:"#FCE7E4",
   green:"#16A34A", greenLight:"#F0FDF4",
   amber:"#D97706", amberLight:"#FFFBEB",
   text:"#0F172A", textMid:"#475569", textSoft:"#94A3B8",
@@ -1131,10 +1131,10 @@ function SH({children,sub}) {
 
 function KPI({label,value,sub,color,highlight,icon}) {
   return (
-    <div style={{background:highlight?"linear-gradient(135deg, #C0392B 0%, #8B1F12 100%)":T.bgCard,
-      border:`1px solid ${highlight?"#8B1F12":T.border}`,borderRadius:14,
+    <div style={{background:highlight?"linear-gradient(135deg, #8B1A1A 0%, #5A0F0F 100%)":T.bgCard,
+      border:`1px solid ${highlight?"#5A0F0F":T.border}`,borderRadius:14,
       padding:"20px 22px",
-      boxShadow:highlight?"0 12px 28px rgba(192,57,43,0.34), inset 0 1px 0 rgba(255,255,255,0.18)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 12px rgba(15,23,42,0.04)"}}>
+      boxShadow:highlight?"0 12px 28px rgba(139,26,26,0.34), inset 0 1px 0 rgba(255,255,255,0.18)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 12px rgba(15,23,42,0.04)"}}>
       <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
         color:highlight?"rgba(255,255,255,0.76)":T.textSoft,marginBottom:10}}>
         {icon&&<span style={{marginRight:6}}>{icon}</span>}{label}
@@ -1612,7 +1612,7 @@ function RicettarioView({ricettario, onUpdateRegola, onUpload, onEditRicetta}) {
               fontSize:13,color:T.text,background:T.bgCard,outline:"none",fontFamily:"inherit",
               letterSpacing:"-0.005em",
               transition:`border-color ${M.durFast} ${M.ease}, box-shadow ${M.durFast} ${M.ease}`,boxShadow:S.xs}}
-            onFocus={e=>{e.target.style.borderColor=T.brand;e.target.style.boxShadow="0 0 0 3px rgba(192,57,43,0.10)";}}
+            onFocus={e=>{e.target.style.borderColor=T.brand;e.target.style.boxShadow="0 0 0 3px rgba(139,26,26,0.10)";}}
             onBlur={e=>{e.target.style.borderColor=T.border;e.target.style.boxShadow=S.xs;}}/>
           {search&&(
             <button onClick={()=>setSearch('')} aria-label="Pulisci"
@@ -2019,7 +2019,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                       {/* Colored dots — max 5 visible */}
                       {ing.ricette.slice(0,5).map((_,di)=>(
                         <div key={di} style={{width:8,height:8,borderRadius:"50%",flexShrink:0,
-                          background:["#C0392B","#E07040","#B45309","#5B8FCE","#7B7B7B"][di%5]}}/>
+                          background:["#8B1A1A","#E07040","#B45309","#5B8FCE","#7B7B7B"][di%5]}}/>
                       ))}
                       <span style={{fontSize:10,fontWeight:700,color:C.textMid,whiteSpace:"nowrap"}}>
                         {nRic} {nRic===1?"ricetta":"ricette"}
@@ -2036,7 +2036,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                         {ing.ricette.map((r,ri)=>(
                           <div key={r} style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
                             <div style={{width:8,height:8,borderRadius:"50%",flexShrink:0,
-                              background:["#C0392B","#E07040","#B45309","#5B8FCE","#7B7B7B"][ri%5]}}/>
+                              background:["#8B1A1A","#E07040","#B45309","#5B8FCE","#7B7B7B"][ri%5]}}/>
                             <span style={{fontSize:11,fontWeight:600,color:C.text}}>{r}</span>
                           </div>
                         ))}
@@ -2538,7 +2538,7 @@ function PLView({ricettario, onUpdateRegola}) {
           <div key={i} style={{background:hi?T.brand:T.bgCard,
             border:`1px solid ${hi?T.brandDark:T.border}`,borderRadius:R.xl,
             padding:"14px 16px",
-            boxShadow:hi?"0 4px 14px rgba(192,57,43,0.22)":S.sm,
+            boxShadow:hi?"0 4px 14px rgba(139,26,26,0.22)":S.sm,
             backgroundImage:hi?"linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)":undefined}}>
             <div style={{fontSize:10,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
               color:hi?"rgba(255,255,255,0.7)":T.textSoft,marginBottom:6}}>
@@ -2807,7 +2807,7 @@ function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita, sedi }) {
           ].map(({lbl,val,sub,c,hi})=>(
             <div key={lbl} style={{background:hi?T.brand:T.bgCard,border:`1px solid ${hi?T.brandDark:T.border}`,
               borderRadius:R.xl,padding:"18px 20px",
-              boxShadow:hi?"0 4px 14px rgba(192,57,43,0.22)":S.sm,
+              boxShadow:hi?"0 4px 14px rgba(139,26,26,0.22)":S.sm,
               backgroundImage:hi?"linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)":undefined}}>
               <div style={{fontSize:10,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.08em",
                 color:hi?"rgba(255,255,255,0.7)":T.textSoft,marginBottom:6}}>{lbl}</div>
@@ -4665,7 +4665,7 @@ function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giorna
             {hasQta && (
               !confermando ? (
                 <button onClick={()=>setConfermando(true)}
-                  style={{padding:"14px",background:C.red,color:C.white,border:"none",borderRadius:10,fontWeight:800,fontSize:13,cursor:"pointer",boxShadow:"0 2px 8px rgba(192,57,43,0.3)"}}>
+                  style={{padding:"14px",background:C.red,color:C.white,border:"none",borderRadius:10,fontWeight:800,fontSize:13,cursor:"pointer",boxShadow:"0 2px 8px rgba(139,26,26,0.3)"}}>
                   ✅ Conferma produzione
                 </button>
               ) : (
@@ -5053,7 +5053,7 @@ Instructions:
           )}
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {!parsed && !loading && !error && (
-              <button onClick={handleAnalizza} style={{padding:"12px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(192,57,43,0.25)"}}>
+              <button onClick={handleAnalizza} style={{padding:"12px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(139,26,26,0.25)"}}>
                 🔍 Analizza con AI
               </button>
             )}
@@ -5637,7 +5637,7 @@ function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditCo
               </div>
             </div>
           )}
-          <button onClick={handleSave} style={{padding:"13px",background:C.red,color:C.white,border:"none",borderRadius:10,fontWeight:900,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(192,57,43,0.25)"}}>
+          <button onClick={handleSave} style={{padding:"13px",background:C.red,color:C.white,border:"none",borderRadius:10,fontWeight:900,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(139,26,26,0.25)"}}>
             💾 {editMode?"Salva modifiche a "+editMode:"Salva nuova ricetta"}
           </button>
         </div>
@@ -5838,7 +5838,7 @@ function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
           <div style={{display:"flex",background:"#F0EAE6",borderRadius:9,padding:3,gap:2}}>
             {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
               <button key={id} onClick={()=>setVista(id)}
-                style={{padding:"5px 12px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:10,background:vista===id?"rgba(192,57,43,0.18)":"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
+                style={{padding:"5px 12px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:10,background:vista===id?"rgba(139,26,26,0.18)":"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
                 {lbl}
               </button>
             ))}
@@ -6970,7 +6970,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               {!venduto && !loading && !error && (
-                <button onClick={handleAnalizza} style={{padding:"13px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(192,57,43,0.25)"}}>
+                <button onClick={handleAnalizza} style={{padding:"13px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(139,26,26,0.25)"}}>
                   {batchMode ? `📊 Leggi tutti (${batchFiles.length} scontrini)` : "🔍 Leggi scontrino con AI"}
                 </button>
               )}
@@ -7213,7 +7213,7 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
             style={{width:36,height:36,padding:0,borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,
               color:T.textSoft,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
               transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}`}}
-            onMouseEnter={e=>{e.currentTarget.style.background=T.redLight;e.currentTarget.style.color=T.brand;e.currentTarget.style.borderColor="rgba(192,57,43,0.3)";}}
+            onMouseEnter={e=>{e.currentTarget.style.background=T.redLight;e.currentTarget.style.color=T.brand;e.currentTarget.style.borderColor="rgba(139,26,26,0.3)";}}
             onMouseLeave={e=>{e.currentTarget.style.background=T.bgCard;e.currentTarget.style.color=T.textSoft;e.currentTarget.style.borderColor=T.border;}}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
@@ -7801,13 +7801,13 @@ function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actio
     const isAlert = !!alert;
     return (
       <div onClick={onClick}
-        style={{background:T.bgCard, border:`1px solid ${isAlert?'rgba(192,57,43,0.28)':T.border}`,
+        style={{background:T.bgCard, border:`1px solid ${isAlert?'rgba(139,26,26,0.28)':T.border}`,
           borderRadius:14, padding:isMobile?"18px 18px 18px 20px":"22px 24px 22px 26px",
-          boxShadow:isAlert?"0 4px 14px rgba(192,57,43,0.14), 0 1px 3px rgba(15,23,42,0.05)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.05)",
+          boxShadow:isAlert?"0 4px 14px rgba(139,26,26,0.14), 0 1px 3px rgba(15,23,42,0.05)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.05)",
           cursor:"pointer", position:"relative", overflow:"hidden",
           transition:`box-shadow ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`}}
-        onMouseEnter={e=>{e.currentTarget.style.boxShadow=isAlert?"0 12px 28px rgba(192,57,43,0.22)":"0 12px 28px rgba(15,23,42,0.10)";e.currentTarget.style.borderColor=isAlert?'rgba(192,57,43,0.52)':T.borderStr;e.currentTarget.style.transform="translateY(-2px)";}}
-        onMouseLeave={e=>{e.currentTarget.style.boxShadow=isAlert?"0 4px 14px rgba(192,57,43,0.14), 0 1px 3px rgba(15,23,42,0.05)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.05)";e.currentTarget.style.borderColor=isAlert?'rgba(192,57,43,0.28)':T.border;e.currentTarget.style.transform="translateY(0)";}}>
+        onMouseEnter={e=>{e.currentTarget.style.boxShadow=isAlert?"0 12px 28px rgba(139,26,26,0.22)":"0 12px 28px rgba(15,23,42,0.10)";e.currentTarget.style.borderColor=isAlert?'rgba(139,26,26,0.52)':T.borderStr;e.currentTarget.style.transform="translateY(-2px)";}}
+        onMouseLeave={e=>{e.currentTarget.style.boxShadow=isAlert?"0 4px 14px rgba(139,26,26,0.14), 0 1px 3px rgba(15,23,42,0.05)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.05)";e.currentTarget.style.borderColor=isAlert?'rgba(139,26,26,0.28)':T.border;e.currentTarget.style.transform="translateY(0)";}}>
         {accent && <div style={{position:"absolute",left:0,top:0,bottom:0,width:4,background:accent,borderRadius:"4px 0 0 4px"}}/>}
         <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
           color:T.textSoft,marginBottom:isMobile?10:12}}>
@@ -8331,7 +8331,7 @@ class ErrorBoundary extends React.Component {
   static getDerivedStateFromError(e) { return { err: e }; }
   render() {
     if (this.state.err) return (
-      <div style={{padding:40,fontFamily:"'JetBrains Mono', ui-monospace, monospace",color:"#C0392B",background:"#FFF5F5",minHeight:"100vh"}}>
+      <div style={{padding:40,fontFamily:"'JetBrains Mono', ui-monospace, monospace",color:"#8B1A1A",background:"#FFF5F5",minHeight:"100vh"}}>
         <h2>⚠️ Errore runtime</h2>
         <pre style={{whiteSpace:"pre-wrap",fontSize:11}}>{this.state.err.toString()}</pre>
         <pre style={{whiteSpace:"pre-wrap",fontSize:10,color:"#666"}}>{this.state.err.stack}</pre>
@@ -8408,7 +8408,7 @@ function SchedaAllergeniView({ ricettario }) {
           <p style={{margin:0,fontSize:12,color:C.textSoft}}>Panoramica degli allergeni per tutte le ricette — Regolamento UE 1169/2011</p>
         </div>
         <button onClick={esportaPDF}
-          style={{padding:"10px 22px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer",boxShadow:"0 2px 10px rgba(192,57,43,0.25)"}}>
+          style={{padding:"10px 22px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer",boxShadow:"0 2px 10px rgba(139,26,26,0.25)"}}>
           📄 Esporta PDF
         </button>
       </div>
@@ -8936,20 +8936,20 @@ export default function Dashboard({
               style={{width:"calc(100% - 16px)",padding:"11px 14px",margin:"0 8px 3px",
                 borderRadius:10,
                 border:"none",cursor:"pointer",textAlign:"left",
-                background:active?"linear-gradient(135deg, #C0392B 0%, #8B1F12 100%)":"transparent",
+                background:active?"linear-gradient(135deg, #8B1A1A 0%, #5A0F0F 100%)":"transparent",
                 color:active?"#FFFFFF":"rgba(255,255,255,0.74)",
                 fontWeight:active?600:500,fontSize:14,
                 letterSpacing:"-0.005em",
                 display:"flex",alignItems:"center",gap:12,
                 position:"relative",
-                boxShadow:active?"0 4px 12px rgba(192,57,43,0.34), inset 0 1px 0 rgba(255,255,255,0.12)":"none",
+                boxShadow:active?"0 4px 12px rgba(139,26,26,0.34), inset 0 1px 0 rgba(255,255,255,0.12)":"none",
                 transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, box-shadow ${M.durBase} ${M.ease}`}}
               onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.07)";e.currentTarget.style.color="#FFFFFF";}}}
               onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.74)";}}}
             >
               <span style={{color:active?"#FFFFFF":"rgba(255,255,255,0.82)",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey],17)}</span>
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
-              {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#C0392B",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
+              {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#8B1A1A",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
               {alert&&badge===0&&<span style={{width:8,height:8,borderRadius:"50%",background:"#E84B3A",flexShrink:0,boxShadow:"0 0 0 0 rgba(232,75,58,0.6)",animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
             </button>
           );
@@ -8966,8 +8966,8 @@ export default function Dashboard({
           <>
           <style>{`
             @keyframes _sp_pulse {
-              0%,100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.6); }
-              50%      { box-shadow: 0 0 0 4px rgba(192,57,43,0); }
+              0%,100% { box-shadow: 0 0 0 0 rgba(139,26,26,0.6); }
+              50%      { box-shadow: 0 0 0 4px rgba(139,26,26,0); }
             }
           `}</style>
 
@@ -8983,17 +8983,17 @@ export default function Dashboard({
             transform:isMobile&&!sidebarOpen?"translateX(-100%)":"translateX(0)",
             transition:`transform ${M.durSlow} ${M.ease}`,
             boxShadow:isMobile&&sidebarOpen?S.drawer:"none",
-            backgroundImage:"radial-gradient(circle at 100% 0%, rgba(192,57,43,0.10) 0%, transparent 36%), linear-gradient(180deg, rgba(255,255,255,0.025) 0%, transparent 38%)"}}>
+            backgroundImage:"radial-gradient(circle at 100% 0%, rgba(139,26,26,0.10) 0%, transparent 36%), linear-gradient(180deg, rgba(255,255,255,0.025) 0%, transparent 38%)"}}>
 
             {/* Brand accent strip */}
-            <div style={{height:3, background:"linear-gradient(90deg, #C0392B 0%, #E84B3A 50%, #C0392B 100%)", flexShrink:0}}/>
+            <div style={{height:3, background:"linear-gradient(90deg, #8B1A1A 0%, #E84B3A 50%, #8B1A1A 100%)", flexShrink:0}}/>
 
             {/* Logo */}
             <div style={{padding:"22px 20px 18px",borderBottom:`1px solid ${T.borderOnDark}`}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 {customLogo
                   ? <img src={customLogo} alt={appName} style={{height:38,maxWidth:60,objectFit:'contain',borderRadius:10}}/>
-                  : <Logo size={38} style={{borderRadius:10,boxShadow:"0 8px 22px rgba(192,57,43,0.42)"}}/>}
+                  : <Logo size={38} style={{borderRadius:10,boxShadow:"0 8px 22px rgba(139,26,26,0.42)"}}/>}
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:17,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",lineHeight:1.1}}>{appName}</div>
                   <div style={{fontSize:12,color:T.textOnDarkSoft,fontWeight:400,marginTop:2,
@@ -9079,7 +9079,7 @@ export default function Dashboard({
                   borderRadius:R.md,color:T.textOnDarkMid,fontSize:12,fontWeight:500,cursor:"pointer",
                   display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10,
                   transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}`}}
-                onMouseEnter={e=>{e.currentTarget.style.background="rgba(192,57,43,0.14)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(192,57,43,0.42)";}}
+                onMouseEnter={e=>{e.currentTarget.style.background="rgba(139,26,26,0.14)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(139,26,26,0.42)";}}
                 onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=T.textOnDarkMid;e.currentTarget.style.borderColor=T.borderOnDarkStr;}}>
                 {ic(ICONS.logOut)}
                 Esci
@@ -9337,7 +9337,7 @@ export default function Dashboard({
             <div style={{fontSize:52,marginBottom:18}}>📖</div>
             <h2 style={{margin:"0 0 10px",fontSize:24,fontWeight:900,color:C.text}}>Carica il ricettario</h2>
             <p style={{color:C.textSoft,marginBottom:32,fontSize:13,lineHeight:1.75}}>Importa il tuo file Excel con le ricette per vedere subito food cost, margini e ricavi per ogni prodotto.</p>
-            <label style={{display:"inline-block",padding:"14px 32px",background:C.red,color:C.white,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:13,boxShadow:"0 4px 16px rgba(192,57,43,0.3)"}}>
+            <label style={{display:"inline-block",padding:"14px 32px",background:C.red,color:C.white,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:13,boxShadow:"0 4px 16px rgba(139,26,26,0.3)"}}>
               📂 Carica .xlsx ricettario
               <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
             </label>

@@ -166,7 +166,7 @@ export function BenchmarkBadge({ tipoAttivita, miaFcPct, citta }) {
 
   const media = data.media_settore
   const delta = miaFcPct != null ? (miaFcPct - media) : null
-  const color = delta == null ? '#64748B' : delta < -1 ? '#10B981' : delta > 1 ? '#C0392B' : '#92400E'
+  const color = delta == null ? '#64748B' : delta < -1 ? '#10B981' : delta > 1 ? '#8B1A1A' : '#92400E'
 
   return (
     <div style={{

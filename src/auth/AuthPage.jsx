@@ -11,7 +11,7 @@ const T = {
   textMid:    '#5C4842',
   textSoft:   '#9C887F',
   textOnDark: '#F4ECE3',
-  red:        '#C0392B',
+  red:        '#8B1A1A',
   redDeep:    '#8B2415',
   redSoft:    '#FDF2EE',
   green:      '#1F7A48',
@@ -209,7 +209,7 @@ function PrimaryBtn({ children, disabled, type = 'submit', onClick, style }) {
         letterSpacing: '-0.005em',
         cursor: disabled ? 'not-allowed' : 'pointer',
         transition: 'all 0.2s ease',
-        boxShadow: disabled ? 'none' : h ? '0 12px 30px rgba(192,57,43,0.28)' : '0 6px 18px rgba(192,57,43,0.20)',
+        boxShadow: disabled ? 'none' : h ? '0 12px 30px rgba(139,26,26,0.28)' : '0 6px 18px rgba(139,26,26,0.20)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         ...style,
       }}
@@ -327,7 +327,7 @@ export function ResetPasswordPage({ onDone }) {
       <div style={{ width: '100%', maxWidth: 440 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
-            <FoodOSLogo size={56} style={{ borderRadius: 14, boxShadow: '0 8px 28px rgba(192,57,43,0.28)' }}/>
+            <FoodOSLogo size={56} style={{ borderRadius: 14, boxShadow: '0 8px 28px rgba(139,26,26,0.28)' }}/>
           </div>
           <h1 style={{
             margin: 0, fontFamily: SERIF, fontSize: 28, fontWeight: 600,
@@ -571,7 +571,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
       {/* Background ornament — discreto, warm */}
       <div aria-hidden style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(circle at 80% 0%, rgba(192,57,43,0.06), transparent 50%), radial-gradient(circle at 0% 100%, rgba(230,189,90,0.05), transparent 55%)',
+        background: 'radial-gradient(circle at 80% 0%, rgba(139,26,26,0.06), transparent 50%), radial-gradient(circle at 0% 100%, rgba(230,189,90,0.05), transparent 55%)',
       }}/>
 
       <div style={{
@@ -587,7 +587,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             gap: 12, marginBottom: isMobile ? 28 : 36,
           }}>
-            <FoodOSLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(192,57,43,0.28)' }}/>
+            <FoodOSLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(139,26,26,0.28)' }}/>
             <span style={{ fontFamily: SERIF, fontSize: isMobile ? 28 : 32, fontWeight: 600, color: T.ink, letterSpacing: '-0.03em' }}>FoodOS</span>
           </div>
 

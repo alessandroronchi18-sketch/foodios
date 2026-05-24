@@ -1,9 +1,8 @@
 /**
- * FoodOS Logo — concept "vedo / non vedo"
+ * FoodOS Logo — bordeaux fisso, F armoniosa.
  *
- * Quadrato arrotondato pieno (#C0392B). La F è lo spazio sottratto, mai
- * disegnata: emerge dal background che traspare attraverso il foro
- * (fill-rule="evenodd").
+ * Il colore è hardcoded (#8B1A1A) e non può essere cambiato: deve essere
+ * identico ovunque nell'app. Il prop `color` è ignorato volutamente.
  *
  * props:
  *   size     — px (default 32)
@@ -11,17 +10,19 @@
  *   tone     — 'light' | 'dark' (default 'light')
  *                light = wordmark dark (su sfondo chiaro)
  *                dark  = wordmark light (su sfondo scuro)
- *   color    — colore della forma piena (default #C0392B)
  *   style    — applicato al wrapper (boxShadow, borderRadius, margin…)
  */
+const LOGO_COLOR = '#8B1A1A' // bordeaux — invariante
+
 export default function Logo({
   size = 32,
   variant = 'icon',
   tone = 'light',
-  color = '#C0392B',
   style,
   ...rest
 }) {
+  // Scarta eventuale prop `color` esterno: il colore del logo è invariante.
+  if ('color' in rest) delete rest.color
   const Mark = (
     <svg
       width={size}
@@ -33,9 +34,9 @@ export default function Logo({
       style={{ display: 'block', flexShrink: 0 }}
     >
       <path
-        fill={color}
+        fill={LOGO_COLOR}
         fillRule="evenodd"
-        d="M 14 0 L 50 0 C 58 0 64 6 64 14 L 64 50 C 64 58 58 64 50 64 L 14 64 C 6 64 0 58 0 50 L 0 14 C 0 6 6 0 14 0 Z M 16 12 L 50 12 L 50 22 L 26 22 L 26 27 L 40 27 L 40 35 L 26 35 L 26 52 L 16 52 Z"
+        d="M 14 0 L 50 0 C 58 0 64 6 64 14 L 64 50 C 64 58 58 64 50 64 L 14 64 C 6 64 0 58 0 50 L 0 14 C 0 6 6 0 14 0 Z M 18 12 L 50 12 L 50 23 L 29 23 L 29 29 L 45 29 L 45 37 L 29 37 L 29 52 L 18 52 Z"
       />
     </svg>
   )

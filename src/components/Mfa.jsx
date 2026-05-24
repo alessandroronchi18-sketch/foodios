@@ -200,7 +200,7 @@ export default function MfaSection({ notify }) {
             </div>
             <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
               <button onClick={verifyEnroll} disabled={verifying || code.length !== 6}
-                style={{ padding: '10px 22px', background: code.length === 6 ? '#C0392B' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: code.length === 6 ? 'pointer' : 'not-allowed' }}>
+                style={{ padding: '10px 22px', background: code.length === 6 ? '#8B1A1A' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: code.length === 6 ? 'pointer' : 'not-allowed' }}>
                 {verifying ? '…' : 'Conferma e attiva'}
               </button>
               <button onClick={cancelEnroll}
@@ -224,7 +224,7 @@ export default function MfaSection({ notify }) {
                   </div>
                 </div>
                 <button onClick={() => startUnenroll(f)}
-                  style={{ padding: '7px 14px', background: '#FFF5F5', color: '#C0392B', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  style={{ padding: '7px 14px', background: '#FFF5F5', color: '#8B1A1A', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                   Disattiva
                 </button>
               </div>
@@ -233,8 +233,8 @@ export default function MfaSection({ notify }) {
         )}
 
         {unenrolling && (
-          <div style={{ background: '#FEF7F5', border: '2px solid #C0392B', borderRadius: 12, padding: 20, marginTop: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#C0392B', marginBottom: 10 }}>
+          <div style={{ background: '#FEF7F5', border: '2px solid #8B1A1A', borderRadius: 12, padding: 20, marginTop: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#8B1A1A', marginBottom: 10 }}>
               ⚠ Disattivare 2FA?
             </div>
             <div style={{ fontSize: 12, color: '#6B4C44', marginBottom: 14, lineHeight: 1.6 }}>
@@ -247,7 +247,7 @@ export default function MfaSection({ notify }) {
               style={{ ...inp, maxWidth: 200, fontSize: 18, letterSpacing: '0.3em', textAlign: 'center', fontFamily: 'monospace' }} />
             <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
               <button onClick={doUnenroll} disabled={confirmCode.length !== 6}
-                style={{ padding: '10px 22px', background: confirmCode.length === 6 ? '#C0392B' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: confirmCode.length === 6 ? 'pointer' : 'not-allowed' }}>
+                style={{ padding: '10px 22px', background: confirmCode.length === 6 ? '#8B1A1A' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: confirmCode.length === 6 ? 'pointer' : 'not-allowed' }}>
                 Disattiva 2FA
               </button>
               <button onClick={() => { setUnenrolling(null); setConfirmCode('') }}
@@ -317,9 +317,9 @@ export function MfaChallenge({ onComplete, onCancel }) {
           placeholder="123456" inputMode="numeric" autoComplete="one-time-code" autoFocus
           onKeyDown={e => e.key === 'Enter' && verify()}
           style={{ width: '100%', padding: '14px 18px', border: `1px solid ${err ? '#FCA5A5' : '#E2E8F0'}`, borderRadius: 10, fontSize: 24, letterSpacing: '0.4em', textAlign: 'center', fontFamily: 'monospace', color: '#0F172A', background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }} />
-        {err && <div style={{ color: '#C0392B', fontSize: 12, marginTop: 10, textAlign: 'center' }}>{err}</div>}
+        {err && <div style={{ color: '#8B1A1A', fontSize: 12, marginTop: 10, textAlign: 'center' }}>{err}</div>}
         <button onClick={verify} disabled={busy || code.length !== 6}
-          style={{ width: '100%', padding: '14px', marginTop: 18, background: code.length === 6 ? '#C0392B' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: code.length === 6 ? 'pointer' : 'not-allowed' }}>
+          style={{ width: '100%', padding: '14px', marginTop: 18, background: code.length === 6 ? '#8B1A1A' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: code.length === 6 ? 'pointer' : 'not-allowed' }}>
           {busy ? '…' : 'Accedi'}
         </button>
         <button onClick={onCancel}

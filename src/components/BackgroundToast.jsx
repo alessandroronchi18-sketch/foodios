@@ -75,7 +75,7 @@ export default function BackgroundToast() {
               <div style={{ marginTop: 8 }}>
                 <div style={{ height: 4, background: '#E2E8F0', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{
-                    height: '100%', background: '#C0392B', borderRadius: 4,
+                    height: '100%', background: '#8B1A1A', borderRadius: 4,
                     width: `${job.progress}%`, transition: 'width 0.35s ease',
                   }} />
                 </div>

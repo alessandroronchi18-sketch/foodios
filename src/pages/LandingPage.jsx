@@ -15,7 +15,7 @@ const T = {
   textMid:    '#5C4842',
   textSoft:   '#9C887F',
   textOnDark: '#F4ECE3',
-  red:        '#C0392B',
+  red:        '#8B1A1A',
   redDeep:    '#8B2415',
   redSoft:    '#FDF2EE',
   green:      '#1F7A48',
@@ -107,7 +107,7 @@ function Button({ children, variant = 'primary', onClick, style, size = 'md' }) 
       background: h ? T.redDeep : T.red,
       color: '#FFF',
       border: `1px solid ${h ? T.redDeep : T.red}`,
-      boxShadow: h ? '0 8px 28px rgba(192,57,43,0.28)' : '0 4px 14px rgba(192,57,43,0.18)',
+      boxShadow: h ? '0 8px 28px rgba(139,26,26,0.28)' : '0 4px 14px rgba(139,26,26,0.18)',
     },
     secondary: {
       background: h ? T.creamDeep : 'transparent',
@@ -514,7 +514,7 @@ function VisualAI() {
           width: 34, height: 34, borderRadius: 999,
           background: `linear-gradient(135deg, ${T.red}, ${T.redDeep})`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 14px rgba(192,57,43,0.30)',
+          boxShadow: '0 4px 14px rgba(139,26,26,0.30)',
         }}>
           <Icon name="sparkles" size={16} color="#FFF" stroke={2}/>
         </div>
@@ -672,7 +672,7 @@ export default function LandingPage({ onLogin, onRegister }) {
           height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Logo size={32} style={{ borderRadius: 8, boxShadow: '0 4px 12px rgba(192,57,43,0.22)' }}/>
+            <Logo size={32} style={{ borderRadius: 8, boxShadow: '0 4px 12px rgba(139,26,26,0.22)' }}/>
             <span style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 600, letterSpacing: '-0.03em', color: T.ink }}>
               FoodOS
             </span>
@@ -694,7 +694,7 @@ export default function LandingPage({ onLogin, onRegister }) {
       <section style={{ position: 'relative', overflow: 'hidden' }}>
         <div aria-hidden style={{
           position: 'absolute', inset: 0,
-          background: 'radial-gradient(circle at 80% 0%, rgba(192,57,43,0.06), transparent 50%), radial-gradient(circle at 0% 80%, rgba(192,57,43,0.04), transparent 50%)',
+          background: 'radial-gradient(circle at 80% 0%, rgba(139,26,26,0.06), transparent 50%), radial-gradient(circle at 0% 80%, rgba(139,26,26,0.04), transparent 50%)',
           pointerEvents: 'none',
         }}/>
 
@@ -1137,7 +1137,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div aria-hidden style={{
                   position: 'absolute', top: -60, right: -60,
                   width: 240, height: 240, borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(192,57,43,0.20), transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(139,26,26,0.20), transparent 70%)',
                   pointerEvents: 'none',
                 }}/>
 
@@ -1289,7 +1289,7 @@ export default function LandingPage({ onLogin, onRegister }) {
       }}>
         <div aria-hidden style={{
           position: 'absolute', inset: 0,
-          background: 'radial-gradient(circle at 50% 0%, rgba(192,57,43,0.18), transparent 60%)',
+          background: 'radial-gradient(circle at 50% 0%, rgba(139,26,26,0.18), transparent 60%)',
           pointerEvents: 'none',
         }}/>
 
