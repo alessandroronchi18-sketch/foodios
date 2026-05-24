@@ -86,6 +86,8 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null) // id evento aperto in form
   const [draft, setDraft] = useState(null)
+  const [tab, setTab] = useState('attivi') // 'attivi' | 'archivio'
+  const [filterMese, setFilterMese] = useState('') // 'YYYY-MM' o ''
 
   // Mappa ricette + costi per il calcolo FC
   const ricetteMap = useMemo(() => {
@@ -182,16 +184,109 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
 
   const ricetteList = Object.values(ricettario?.ricette || {}).map(r => r.nome).sort()
 
+  // Split attivi (data >= oggi) vs archivio (data < oggi)
+  const oggi = new Date(); oggi.setHours(0, 0, 0, 0)
+  const eventiAttivi = eventi.filter(ev => {
+    if (!ev.data) return true
+    return new Date(ev.data + 'T23:59:59') >= oggi
+  })
+  const eventiPassati = eventi.filter(ev => {
+    if (!ev.data) return false
+    return new Date(ev.data + 'T23:59:59') < oggi
+  }).sort((a, b) => (b.data || '').localeCompare(a.data || ''))
+
+  // Mesi disponibili nell'archivio (per il filtro)
+  const mesiDisponibili = [...new Set(eventiPassati.map(e => (e.data || '').slice(0, 7)).filter(Boolean))]
+    .sort((a, b) => b.localeCompare(a))
+
+  const eventiArchivioFiltrati = filterMese
+    ? eventiPassati.filter(e => (e.data || '').startsWith(filterMese))
+    : eventiPassati
+
+  // KPI aggregati su quanto visualizzato in archivio
+  const kpiArchivio = eventiArchivioFiltrati.reduce((acc, ev) => {
+    const t = calcolaTotali(ev)
+    acc.ricavi += t.totRicavo
+    acc.fc    += t.totFC
+    acc.margine += t.margine
+    acc.eventi += 1
+    return acc
+  }, { ricavi: 0, fc: 0, margine: 0, eventi: 0 })
+  kpiArchivio.fcPct = kpiArchivio.ricavi > 0 ? (kpiArchivio.fc / kpiArchivio.ricavi * 100) : 0
+  kpiArchivio.margPct = kpiArchivio.ricavi > 0 ? (kpiArchivio.margine / kpiArchivio.ricavi * 100) : 0
+
+  function fmtMese(yyyymm) {
+    if (!yyyymm) return ''
+    try {
+      const d = new Date(yyyymm + '-01T12:00:00')
+      return d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
+    } catch { return yyyymm }
+  }
+
+  const eventiCorrentiTab = tab === 'archivio' ? eventiArchivioFiltrati : eventiAttivi
+
   return (
     <div style={{ maxWidth: 1100, padding: isMobile ? 8 : 0 }}>
+      {/* Tab attivi / archivio */}
+      {editing == null && (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid #E2E8F0' }}>
+          {[['attivi', `Attivi · ${eventiAttivi.length}`], ['archivio', `Archivio · ${eventiPassati.length}`]].map(([id, lblTab]) => (
+            <button key={id} onClick={() => { setTab(id); setFilterMese('') }}
+              style={{
+                padding: '10px 16px', border: 'none', background: 'transparent',
+                cursor: 'pointer', fontSize: 13,
+                fontWeight: tab === id ? 700 : 500,
+                color: tab === id ? '#0F172A' : '#64748B',
+                borderBottom: tab === id ? '2px solid #8B1A1A' : '2px solid transparent',
+                marginBottom: -1,
+              }}>
+              {lblTab}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ fontSize: 13, color: '#64748B' }}>
-          Preventivi, prenotazioni e catering — {eventi.length} evento/i in archivio
+          {tab === 'archivio'
+            ? `Eventi passati — ${eventiArchivioFiltrati.length} evento/i${filterMese ? ` · ${fmtMese(filterMese)}` : ''}`
+            : `Preventivi e prenotazioni in arrivo — ${eventiAttivi.length} evento/i`}
         </div>
-        {editing == null && (
+        {editing == null && tab === 'attivi' && (
           <button onClick={nuovo} style={btn('#8B1A1A', '#FFF')}>+ Nuovo evento</button>
         )}
+        {editing == null && tab === 'archivio' && mesiDisponibili.length > 0 && (
+          <select value={filterMese} onChange={e => setFilterMese(e.target.value)}
+            style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, background: '#FFF', color: '#0F172A', cursor: 'pointer' }}>
+            <option value="">Tutti i mesi</option>
+            {mesiDisponibili.map(m => <option key={m} value={m}>{fmtMese(m)}</option>)}
+          </select>
+        )}
       </div>
+
+      {/* KPI archivio */}
+      {editing == null && tab === 'archivio' && eventiArchivioFiltrati.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+          <div style={{ ...card, marginBottom: 0, padding: '14px 16px' }}>
+            <div style={lbl}>Eventi</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#0F172A' }}>{kpiArchivio.eventi}</div>
+          </div>
+          <div style={{ ...card, marginBottom: 0, padding: '14px 16px' }}>
+            <div style={lbl}>Ricavi</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#0F172A' }}>{fmtEur(kpiArchivio.ricavi)}</div>
+          </div>
+          <div style={{ ...card, marginBottom: 0, padding: '14px 16px' }}>
+            <div style={lbl}>Food cost</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#92400E' }}>{fmtEur(kpiArchivio.fc)}</div>
+            <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, marginTop: 2 }}>{kpiArchivio.fcPct.toFixed(1)}%</div>
+          </div>
+          <div style={{ ...card, marginBottom: 0, padding: '14px 16px' }}>
+            <div style={lbl}>Margine</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: kpiArchivio.margPct >= 50 ? '#10B981' : kpiArchivio.margPct >= 30 ? '#F59E0B' : '#8B1A1A' }}>{fmtEur(kpiArchivio.margine)}</div>
+            <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, marginTop: 2 }}>{kpiArchivio.margPct.toFixed(1)}%</div>
+          </div>
+        </div>
+      )}
 
       {editing != null && draft && (
         <div style={{ ...card, border: '2px solid #8B1A1A', background: '#FEF7F5' }}>
@@ -218,9 +313,36 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
           </div>
 
           <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ ...lbl, marginBottom: 0 }}>Prodotti</div>
+            <div style={{ ...lbl, marginBottom: 0 }}>Prodotti dell'evento</div>
             <button onClick={aggiungiRiga} style={btn('#0F172A', '#FFF')}>+ Aggiungi riga</button>
           </div>
+          <div style={{ fontSize: 12, color: '#64748B', marginBottom: 10, lineHeight: 1.45 }}>
+            Per ogni prodotto specifica <b>quanti pezzi produrre</b> e <b>a che prezzo li vendi</b> al cliente.
+            Il margine si calcola automaticamente in base al food cost della ricetta.
+          </div>
+
+          {/* Intestazioni colonna — solo desktop */}
+          {!isMobile && (draft.righe || []).length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '2.4fr 0.9fr 1.1fr 0.6fr', gap: 8, marginBottom: 4, padding: '0 4px' }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>Prodotto</div>
+                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>Scegli dal ricettario</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>Quantità da produrre</div>
+                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>N° di pezzi/porzioni</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>Prezzo di vendita unitario</div>
+                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>Prezzo a cui vendi al cliente</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>Food cost</div>
+                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>Costo ingredienti</div>
+              </div>
+            </div>
+          )}
+
           {(draft.righe || []).length === 0 && (
             <div style={{ fontSize: 12, color: '#94A3B8', padding: '12px 0', fontStyle: 'italic' }}>
               Nessun prodotto. Aggiungi almeno una riga.
@@ -230,23 +352,45 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             const ric = ricetteMap[r.nome]
             const fcStampo = Number(ric?.foodCost || ric?.fc || 0)
             return (
-              <div key={r.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2.4fr 0.8fr 0.8fr 0.6fr', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                <input list="ricette-list" value={r.nome}
-                  onChange={e => {
-                    const nome = e.target.value
-                    const found = ricetteMap[nome]
-                    aggiornaRiga(r.id, { nome, prezzo: r.prezzo || Number(found?.reg?.prezzo || 0) })
-                  }}
-                  placeholder="Nome prodotto / ricetta" style={inp} />
-                <input type="number" min="0" step="1" value={r.qty}
-                  onChange={e => aggiornaRiga(r.id, { qty: e.target.value })}
-                  placeholder="Quantità" style={inp} />
-                <input type="number" min="0" step="0.01" value={r.prezzo}
-                  onChange={e => aggiornaRiga(r.id, { prezzo: e.target.value })}
-                  placeholder="Prezzo €" style={inp} />
+              <div key={r.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2.4fr 0.9fr 1.1fr 0.6fr', gap: 8, alignItems: isMobile ? 'stretch' : 'center', marginBottom: isMobile ? 16 : 8, padding: isMobile ? 12 : 0, background: isMobile ? '#F8FAFC' : 'transparent', borderRadius: isMobile ? 10 : 0 }}>
+                <div>
+                  {isMobile && <label style={{ ...lbl, marginBottom: 4 }}>Prodotto</label>}
+                  <input list="ricette-list" value={r.nome}
+                    onChange={e => {
+                      const nome = e.target.value
+                      const found = ricetteMap[nome]
+                      aggiornaRiga(r.id, { nome, prezzo: r.prezzo || Number(found?.reg?.prezzo || 0) })
+                    }}
+                    placeholder="Es. Torta della nonna" style={inp} />
+                </div>
+                <div>
+                  {isMobile && (
+                    <label style={{ ...lbl, marginBottom: 4 }}>
+                      Quantità da produrre
+                      <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>N° pezzi/porzioni</div>
+                    </label>
+                  )}
+                  <input type="number" min="0" step="1" value={r.qty}
+                    onChange={e => aggiornaRiga(r.id, { qty: e.target.value })}
+                    title="Numero di pezzi/porzioni da preparare per l'evento"
+                    placeholder="Es. 12" style={inp} />
+                </div>
+                <div>
+                  {isMobile && (
+                    <label style={{ ...lbl, marginBottom: 4 }}>
+                      Prezzo di vendita unitario
+                      <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>Prezzo al cliente per pezzo</div>
+                    </label>
+                  )}
+                  <input type="number" min="0" step="0.01" value={r.prezzo}
+                    onChange={e => aggiornaRiga(r.id, { prezzo: e.target.value })}
+                    title="Prezzo a cui venderai ogni pezzo al cliente (€)"
+                    placeholder="Es. 4.50" style={inp} />
+                </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <div style={{ fontSize: 11, color: '#64748B', flex: 1 }}>FC {fmtEur(fcStampo * Number(r.qty || 0))}</div>
-                  <button onClick={() => rimuoviRiga(r.id)}
+                  {isMobile && <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>FC tot</span>}
+                  <div style={{ fontSize: 11, color: '#64748B', flex: 1 }} title="Costo ingredienti totale (quantità × food cost ricetta)">{fmtEur(fcStampo * Number(r.qty || 0))}</div>
+                  <button onClick={() => rimuoviRiga(r.id)} aria-label="Rimuovi riga"
                     style={{ padding: '6px 10px', background: '#FFF5F5', color: '#8B1A1A', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                     ×
                   </button>

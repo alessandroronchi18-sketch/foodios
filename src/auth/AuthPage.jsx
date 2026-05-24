@@ -65,6 +65,7 @@ const Icon = ({ name, size = 18, color = 'currentColor', stroke = 1.7 }) => {
     eye:       <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" fill="none"/><circle cx="12" cy="12" r="3" fill="none"/></>,
     eyeOff:    <><path d="M17.94 17.94A10.06 10.06 0 0 1 12 19c-6.5 0-10-7-10-7a18 18 0 0 1 5.06-5.94M9.9 4.24A10 10 0 0 1 12 4c6.5 0 10 7 10 7a18 18 0 0 1-2.16 3.19" fill="none"/><line x1="3" y1="3" x2="21" y2="21"/></>,
     user:      <><circle cx="12" cy="8" r="4" fill="none"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7" fill="none"/></>,
+    phone:     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" fill="none"/>,
     bag:       <><path d="M5 7h14l-1 13H6L5 7z" fill="none"/><path d="M8 7a4 4 0 0 1 8 0" fill="none"/></>,
     map:       <><path d="M12 2c-4 0-7 3-7 7 0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z" fill="none"/><circle cx="12" cy="9" r="2.5" fill="none"/></>,
     star:      <polygon points="12 2 14.5 8.5 21 9 16 13.5 17.5 20 12 16.5 6.5 20 8 13.5 3 9 9.5 8.5" />,
@@ -410,7 +411,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
   const [newPwdConf, setNewPwdConf] = useState('')
 
   const [reg, setReg] = useState({
-    nome: '', cognome: '', nome_attivita: '',
+    nome: '', cognome: '', telefono: '', nome_attivita: '',
     tipo_attivita: 'Pasticceria', citta: '',
     email: '', password: '', codice_invito: initialReferralCode,
   })
@@ -526,8 +527,17 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
     } finally { setLoading(false) }
   }
 
+  // Validazione telefono italiano opzionale: accetta vuoto OPPURE +39 seguito da 9-10 cifre,
+  // OPPURE numero italiano senza prefisso (9-10 cifre dopo eventuale 0). Spazi/punti tollerati.
+  function isTelefonoValido(t) {
+    const v = (t || '').replace(/[\s.\-()]/g, '')
+    if (!v) return true // opzionale
+    return /^(\+39)?[0-9]{9,11}$/.test(v)
+  }
+
   function regStep1Valid() {
     return !!(reg.nome.trim() && reg.cognome.trim() && reg.email.trim() &&
+              isTelefonoValido(reg.telefono) &&
               Object.values(checkPwd(reg.password)).every(Boolean))
   }
 
@@ -546,11 +556,16 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
     }
     setLoading(true)
     try {
+      // Normalizza telefono: aggiungi +39 se mancante e numero italiano
+      let telNorm = (reg.telefono || '').replace(/[\s.\-()]/g, '')
+      if (telNorm && !telNorm.startsWith('+')) telNorm = '+39' + telNorm.replace(/^0+/, '')
+
       await onSignUp(reg.email, reg.password, {
         nome_completo: `${reg.nome.trim()} ${reg.cognome.trim()}`.trim(),
         nome_attivita: reg.nome_attivita,
         tipo_attivita: reg.tipo_attivita.toLowerCase().replace(' / ', '_').replace('/', '_'),
         citta: reg.citta,
+        ...(telNorm && { telefono: telNorm }),
         ...(reg.codice_invito.trim() && { codice_invito: reg.codice_invito.trim() }),
       })
       setSuccesso(true)
@@ -784,6 +799,14 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
                     <Field label="Email">
                       <Input icon="mail" type="email" required value={reg.email} onChange={setR('email')}
                         placeholder="tua@email.com" autoComplete="email"/>
+                    </Field>
+                    <Field label="Telefono" hint="opzionale"
+                      error={reg.telefono && !isTelefonoValido(reg.telefono) ? 'Formato non valido (9-10 cifre, +39 facoltativo)' : null}>
+                      <Input icon="phone" type="tel" value={reg.telefono} onChange={setR('telefono')}
+                        placeholder="+39 333 1234567" autoComplete="tel"/>
+                      <div style={{ fontSize: 11, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
+                        Per notifiche WhatsApp, 2FA via SMS e contatto supporto. Non lo condividiamo.
+                      </div>
                     </Field>
                     <Field label="Password">
                       <Input icon="lock" type="password" required value={reg.password} onChange={setR('password')}
