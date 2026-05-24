@@ -1,6 +1,28 @@
 # FoodOS — Security Audit
 
-> Aggiornato 2026-05-23 (round 2: 2FA + Sentry + brute-force + anomaly detection)
+> Aggiornato 2026-05-23 (round 3: critici + safeError + MFA admin + SRI + xlsx removed)
+
+## 🆕 Round 3 — fix applicate
+
+### Critici
+1. **`ADMIN_EMAIL` default rimosso** in `admin.js` e `send-email.js`. Senza env var configurata, l'admin endpoint rifiuta SEMPRE — niente hardcoded `alessandroar@maradeiboschi.com` come fallback.
+2. **Check trial/attivo in `verificaToken`**: ora ogni endpoint che usa `verificaToken` (audit-export, benchmark POST, ai, …) blocca con 402/403 se l'org è `attivo=false` o `trial_ends_at<now()`. Skip opzionale via `options.skipOrgCheck` per casi speciali.
+3. **`safeError` helper** in `api/lib/safeError.js`: `err.message` nei response sostituito ovunque (admin GET/POST, send-email, referral, benchmark, webhook-zucchetti). In produzione → "Errore interno" generico; in dev → message reale per debug.
+
+### Alti
+4. **Rate limit su `tv`, `benchmark GET`, `health`**: 60/min, 30/min, 60/min rispettivamente.
+5. **Org validation in `webhook-zucchetti`**: prima dell'upsert, SELECT su `organizations` per verificare esistenza + `attivo=true`. Bocca org disattivate/inesistenti anche con secret valido.
+6. **MFA enforced per admin**: `verificaAdmin` chiama `getAuthenticatorAssuranceLevel`. Se `currentLevel !== 'aal2'` rifiuta con `reason='mfa_required'` o `'mfa_not_enrolled'`. L'admin **deve** avere TOTP configurato.
+7. **SRI integrity hash** (`sha384-vtjasyidUo0kW94K...`) su tutti i 7 punti dove xlsx viene caricato da CDN (`Dashboard.jsx`, `ExportContabilita.jsx`, `Scadenzario.jsx`, `EsportaDati.jsx`, `parseFatturaXML.js`, `OnboardingWizard.jsx`, `importDelivery.js`).
+
+### Medi
+8. **`xlsx` rimosso da package.json**. Uniformati tutti i punti su caricamento CDN con SRI. 1 vuln high eliminata da npm audit (da 4 a 3 vulnerabilità, da 2 high a 1 high).
+9. **Sentry beforeSend scrubber**: rimuove password/token/api_key da URL query, headers, breadcrumbs, request body, exception value. Regex per chiavi sensibili + pattern per JWT/Bearer/sk-/eyJ.
+10. **`.github/dependabot.yml`**: scan settimanale lunedì 06:00 Europe/Rome, max 5 PR aperte, ignora major bump di vite/react.
+11. **Audit log policy stricter**: `WITH CHECK (organization_id IS NOT NULL AND organization_id IN ...)` — niente più insert org-less dal client.
+12. **Referral race condition + trial bug**: INSERT con retry esplicito su 23505; `trial_ends_at` ora **estende** il trial (+60g dalla data corrente del trial) invece di sostituirlo (che riduceva il trial se originale > 60g).
+
+
 
 Audit completo di `api/`, `src/lib/`, `src/components/`, `vercel.json` e schema Supabase. Riporta findings + fix applicate, e residual risk con piano di rientro.
 

@@ -3,6 +3,7 @@ export const config = { runtime: 'edge' }
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, json, getClientIP } from './lib/cors.js'
 import { sanitizeStrict } from './lib/validate.js'
+import { safeError } from './lib/safeError.js'
 
 const APP_URL = 'https://foodios-rose.vercel.app'
 
@@ -73,23 +74,27 @@ export default async function handler(req) {
         .single()
 
       const nomeBase = org?.nome || org?.nome_attivita || 'FOOD'
-      let codice
-      let attempts = 0
-      do {
-        codice = generaCodice(nomeBase)
-        const { data: existing } = await supabase
-          .from('referral').select('id').eq('codice', codice).maybeSingle()
-        if (!existing) break
-        attempts++
-      } while (attempts < 10)
 
-      const { data: created, error } = await supabase
-        .from('referral')
-        .insert({ organization_id: orgId, codice })
-        .select()
-        .single()
-
-      if (error) return json({ error: error.message }, 500, req)
+      // Genera + insert con retry esplicito su 23505 (race fra select e insert).
+      // Con 32^6 combinazioni le collisioni reali sono ~0; un retry max 5 basta.
+      let created = null
+      let lastError = null
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const codice = generaCodice(nomeBase)
+        const { data, error } = await supabase
+          .from('referral')
+          .insert({ organization_id: orgId, codice })
+          .select()
+          .single()
+        if (!error) { created = data; break }
+        lastError = error
+        // 23505 = unique constraint violation → riprova con nuovo codice random.
+        if (error.code !== '23505') break
+      }
+      if (!created) {
+        const safe = safeError(lastError || new Error('referral create failed'), { endpoint: 'referral', op: 'create_code', orgId })
+        return json(safe.body, safe.status, req)
+      }
       referral = created
     }
 
@@ -129,8 +134,15 @@ export default async function handler(req) {
       return json({ error: 'Non puoi usare il tuo stesso codice' }, 400, req)
     }
 
-    const trialEnd = new Date()
-    trialEnd.setDate(trialEnd.getDate() + 60)
+    // Bug fix: prima si settava trial_ends_at a now+60 sostituendo l'originale.
+    // Se il trial originario era a +90 giorni, l'utente PERDEVA 30 giorni invece
+    // di guadagnarne 60. Ora estendiamo correttamente:
+    //   - se il trial corrente è in futuro → aggiungi 60 giorni a quello
+    //   - se è già scaduto → 60 giorni da oggi
+    const trialBaseTs = org?.trial_ends_at ? new Date(org.trial_ends_at).getTime() : 0
+    const nowTs = Date.now()
+    const startTs = trialBaseTs > nowTs ? trialBaseTs : nowTs
+    const trialEnd = new Date(startTs + 60 * 86400_000)
 
     await supabase.from('organizations').update({
       referral_code_usato: codice,

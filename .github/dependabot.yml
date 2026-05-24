@@ -1,0 +1,43 @@
+version: 2
+updates:
+  # ── npm dependencies ───────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Rome"
+    open-pull-requests-limit: 5
+    versioning-strategy: "increase"
+    labels:
+      - "dependencies"
+      - "npm"
+    # Auto-merge solo i patch (sicurezza/bugfix). Minor + major richiedono review umana.
+    groups:
+      patch-deps:
+        update-types: ["patch"]
+    # Ignora major bump per librerie con breaking change frequenti che richiedono refactor
+    ignore:
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+    # Reviewer (sostituire con il tuo username GitHub se desiderato)
+    # reviewers:
+    #   - "alessandroronchi18-sketch"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+
+  # ── GitHub Actions (se in futuro aggiungerai workflow) ────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "github-actions"

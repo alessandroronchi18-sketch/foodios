@@ -105,11 +105,14 @@ ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "audit_insert_own"  ON public.audit_log;
 DROP POLICY IF EXISTS "audit_read_own"    ON public.audit_log;
 
+-- ► Audit policy stricter: organization_id NON può essere NULL dal client.
+-- Un attaccante con auth potrebbe altrimenti inquinare il log con righe org-less,
+-- nascondendo tracce o creando rumore. La service_role bypassa comunque RLS.
 CREATE POLICY "audit_insert_own" ON public.audit_log
   FOR INSERT
   WITH CHECK (
-    organization_id IS NULL
-    OR organization_id IN (SELECT organization_id FROM public.profiles WHERE id = auth.uid())
+    organization_id IS NOT NULL
+    AND organization_id IN (SELECT organization_id FROM public.profiles WHERE id = auth.uid())
   );
 
 CREATE POLICY "audit_read_own" ON public.audit_log

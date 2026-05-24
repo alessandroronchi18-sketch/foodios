@@ -9,6 +9,7 @@ import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitizeStrict, validateUUID } from './lib/validate.js'
 import { verifyRawSecret } from './lib/cryptoCompare.js'
+import { safeError } from './lib/safeError.js'
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -58,6 +59,31 @@ export default async function handler(request) {
     return new Response(JSON.stringify({ error: 'x-organization-id non valido' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // ── Verifica che l'org esista e sia attiva ────────────────────────────
+  // Senza questo check, un attaccante con il secret valido può scrivere
+  // chiusure cassa a org arbitrarie (purché l'UUID esista).
+  try {
+    const { data: org, error: orgErr } = await supabase
+      .from('organizations')
+      .select('id, attivo')
+      .eq('id', orgId)
+      .maybeSingle()
+    if (orgErr || !org) {
+      return new Response(JSON.stringify({ error: 'Organizzazione non trovata' }), {
+        status: 404, headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    if (org.attivo === false) {
+      return new Response(JSON.stringify({ error: 'Organizzazione disattivata' }), {
+        status: 403, headers: { 'Content-Type': 'application/json' },
+      })
+    }
+  } catch {
+    return new Response(JSON.stringify({ error: 'Verifica organizzazione fallita' }), {
+      status: 500, headers: { 'Content-Type': 'application/json' },
     })
   }
 
@@ -120,11 +146,12 @@ export default async function handler(request) {
       organization_id: orgId,
       integrazione: 'zucchetti_webhook',
       stato: 'errore',
-      errore: e.message,
+      errore: (e?.message || '').slice(0, 200),
     }).catch(() => {})
 
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
+    const safe = safeError(e, { endpoint: 'webhook-zucchetti', orgId })
+    return new Response(JSON.stringify(safe.body), {
+      status: safe.status,
       headers: { 'Content-Type': 'application/json' },
     })
   }

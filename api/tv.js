@@ -1,6 +1,7 @@
 export const config = { runtime: 'edge' }
 
-import { getCorsHeaders, handleOptions, json } from './lib/cors.js'
+import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
+import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 
 const TV_KEY = 'pasticceria-tv-token-v1'
 
@@ -29,6 +30,12 @@ export default async function handler(req) {
 
   let supabase
   try { supabase = await getSupabase() } catch (e) { return errResponse('supabase init failed', 500, req) }
+
+  // Rate limit: 60 req/min per IP+token (le TV legittime fanno 1 req/5min, gli abusi sono molto sopra)
+  const ip = getClientIP(req)
+  const rlKey = `tv:${ip}:${token.slice(0, 8)}`
+  const rl = await checkRateLimit(supabase, rlKey, 60, 60, 300)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
   // Trova organization tramite token salvato in user_data (chiave shared, sede_id NULL).
   const { data: rows, error: tokErr } = await supabase

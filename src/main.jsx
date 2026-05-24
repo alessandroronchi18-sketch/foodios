@@ -3,16 +3,49 @@ import ReactDOM from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import App from './App.jsx'
 
-// ─── Sentry — SDK ufficiale ────────────────────────────────────────────────
-// DSN nel client è OK: è pubblico per design (rate-limited lato Sentry).
+// ─── Sentry — SDK ufficiale con scrubber ───────────────────────────────────
+// DSN nel client è pubblico per design (rate-limited lato Sentry).
 // Per limitare la quota, attiva l'allowList del dominio nel pannello Sentry → Settings → Security.
+
+// Pattern di chiavi sensibili da scrubbare (case-insensitive)
+const SENSITIVE_KEY_RX = /^(password|passwd|pwd|token|access_token|refresh_token|api[_-]?key|secret|authorization|cookie|session|jwt|bearer|x[_-]?internal[_-]?secret|x[_-]?zucchetti[_-]?secret|cron[_-]?secret|service[_-]?key|anthropic|resend)/i
+const SENSITIVE_VALUE_RX = /(eyJ[\w-]{20,}|sk-ant-\w{20,}|sk-\w{20,}|re_\w{10,}|Bearer\s+[\w-]+)/g
+
+// Scrub ricorsivo di un oggetto: nasconde valori di chiavi sensibili e maschera token in stringhe.
+function scrubObject(obj, depth = 0) {
+  if (depth > 8 || obj == null) return obj
+  if (typeof obj === 'string') return obj.replace(SENSITIVE_VALUE_RX, '[REDACTED]')
+  if (Array.isArray(obj)) return obj.map(v => scrubObject(v, depth + 1))
+  if (typeof obj !== 'object') return obj
+  const out = {}
+  for (const [k, v] of Object.entries(obj)) {
+    if (SENSITIVE_KEY_RX.test(k)) out[k] = '[REDACTED]'
+    else out[k] = scrubObject(v, depth + 1)
+  }
+  return out
+}
+
+// Rimuovi parametri sensibili da URL e query string
+function scrubUrl(url) {
+  if (typeof url !== 'string') return url
+  try {
+    const u = new URL(url)
+    for (const param of [...u.searchParams.keys()]) {
+      if (SENSITIVE_KEY_RX.test(param)) u.searchParams.set(param, '[REDACTED]')
+    }
+    return u.toString()
+  } catch {
+    return url.replace(SENSITIVE_VALUE_RX, '[REDACTED]')
+  }
+}
+
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
   release: import.meta.env.VITE_RELEASE || 'foodios@local',
   tracesSampleRate: 0.1,
   enabled: import.meta.env.PROD && !!import.meta.env.VITE_SENTRY_DSN,
-  // Riduci rumore: ignora errori di estensioni browser e script di terze parti
+  sendDefaultPii: false,
   ignoreErrors: [
     'ResizeObserver loop limit exceeded',
     'ResizeObserver loop completed with undelivered notifications',
@@ -22,6 +55,34 @@ Sentry.init({
     /chrome-extension:\/\//,
     /moz-extension:\/\//,
   ],
+  // ── Scrubber: rimuovi token/password/api_key da URL, breadcrumbs, request data ──
+  beforeSend(event) {
+    try {
+      if (event.request) {
+        if (event.request.url) event.request.url = scrubUrl(event.request.url)
+        if (event.request.query_string) event.request.query_string = scrubUrl('?' + event.request.query_string).slice(1)
+        if (event.request.headers) event.request.headers = scrubObject(event.request.headers)
+        if (event.request.cookies) event.request.cookies = '[REDACTED]'
+        if (event.request.data) event.request.data = scrubObject(event.request.data)
+      }
+      if (event.extra) event.extra = scrubObject(event.extra)
+      if (event.contexts) event.contexts = scrubObject(event.contexts)
+      if (event.exception?.values) {
+        for (const ex of event.exception.values) {
+          if (ex.value) ex.value = ex.value.replace(SENSITIVE_VALUE_RX, '[REDACTED]')
+        }
+      }
+    } catch { /* fail-soft */ }
+    return event
+  },
+  beforeBreadcrumb(breadcrumb) {
+    try {
+      if (breadcrumb.data?.url) breadcrumb.data.url = scrubUrl(breadcrumb.data.url)
+      if (breadcrumb.message) breadcrumb.message = breadcrumb.message.replace(SENSITIVE_VALUE_RX, '[REDACTED]')
+      if (breadcrumb.data) breadcrumb.data = scrubObject(breadcrumb.data)
+    } catch {}
+    return breadcrumb
+  },
 })
 
 // In sviluppo: errore visibile in pagina per debug rapido.

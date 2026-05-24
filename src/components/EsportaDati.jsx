@@ -37,6 +37,8 @@ async function loadXLSX() {
   return new Promise((resolve, reject) => {
     const s = document.createElement('script')
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
+    s.crossOrigin = 'anonymous'
     s.onload = () => resolve(window.XLSX)
     s.onerror = () => reject(new Error('Impossibile caricare XLSX'))
     document.head.appendChild(s)

@@ -4,10 +4,12 @@ import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { sanitize, sanitizeStrict, validateEmail } from './lib/validate.js'
 import { verifyRawSecret } from './lib/cryptoCompare.js'
+import { safeError } from './lib/safeError.js'
 
 const FROM = 'FoodOS <noreply@foodios.it>'
 const SUPPORT = 'support@foodios.it'
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'alessandroar@maradeiboschi.com').toLowerCase()
+// ADMIN_EMAIL deve essere configurato su Vercel. Nessun default hardcoded.
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase()
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -224,9 +226,9 @@ export default async function handler(req) {
       headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
     })
   } catch (err) {
-    console.error('send-email error:', err)
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
+    const safe = safeError(err, { endpoint: 'send-email', tipo })
+    return new Response(JSON.stringify(safe.body), {
+      status: safe.status, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
     })
   }
 }

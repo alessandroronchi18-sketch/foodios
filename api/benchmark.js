@@ -1,7 +1,9 @@
 export const config = { runtime: 'edge' }
 
-import { getCorsHeaders, handleOptions } from './lib/cors.js'
+import { getCorsHeaders, handleOptions, getClientIP } from './lib/cors.js'
 import { verificaToken } from './lib/auth.js'
+import { safeError } from './lib/safeError.js'
+import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -102,7 +104,10 @@ async function handlePost(req, user, supabase) {
         status: 200, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
       })
     }
-    return errResponse('benchmark write failed: ' + upErr.message, 500, req)
+    const safe = safeError(upErr, { endpoint: 'benchmark', op: 'upsert', tipo, anno_mese })
+    return new Response(JSON.stringify(safe.body), {
+      status: safe.status, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
+    })
   }
   return new Response(JSON.stringify({ stored: true }), {
     headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
@@ -114,6 +119,11 @@ export default async function handler(req) {
 
   let supabase
   try { supabase = await getSupabase() } catch { return errResponse('supabase init failed', 500, req) }
+
+  // Rate limit anche su GET (endpoint pubblico): 30 req/min per IP, ban 5 min.
+  const ip = getClientIP(req)
+  const rl = await checkRateLimit(supabase, `benchmark:${ip}`, 30, 60, 300)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
   if (req.method === 'GET') return handleGet(req, supabase)
 

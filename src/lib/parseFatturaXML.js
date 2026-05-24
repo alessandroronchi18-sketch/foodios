@@ -5,6 +5,8 @@ async function loadXLSX() {
     if (window.XLSX) return resolve(window.XLSX)
     const s = document.createElement('script')
     s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
+    s.crossOrigin = 'anonymous'
     s.onload = () => resolve(window.XLSX)
     s.onerror = reject
     document.head.appendChild(s)

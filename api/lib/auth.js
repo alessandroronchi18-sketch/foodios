@@ -1,8 +1,12 @@
 /**
- * Verifica un Bearer token Supabase e ritorna user + profile.
+ * Verifica un Bearer token Supabase e ritorna user + profile + org.
  * Da usare nelle Edge Function al posto della verifica inline.
+ *
+ * options.skipOrgCheck = true  → salta verifica organizations.attivo + trial.
+ *   Usare SOLO per endpoint che non gestiscono dati operativi (es. status sessione).
+ *   Tutti gli endpoint normali devono lasciare il check attivo (default).
  */
-export async function verificaToken(req) {
+export async function verificaToken(req, options = {}) {
   const authHeader = req.headers.get('Authorization')
   if (!authHeader?.startsWith('Bearer ')) {
     return { user: null, profile: null, error: 'Token mancante' }
@@ -34,6 +38,31 @@ export async function verificaToken(req) {
 
     if (!profile?.organization_id) {
       return { user: null, profile: null, error: 'Account non configurato' }
+    }
+
+    // ── Gate trial/attivo (default ON, disabilitabile con skipOrgCheck) ────────
+    // L'UI può mostrare "trial scaduto", ma senza questo check le API restano
+    // chiamabili con curl. Qui blocchiamo lato server.
+    if (!options.skipOrgCheck) {
+      const { data: org, error: orgErr } = await supabase
+        .from('organizations')
+        .select('attivo, approvato, trial_ends_at')
+        .eq('id', profile.organization_id)
+        .maybeSingle()
+      if (orgErr || !org) {
+        return { user: null, profile: null, error: 'Organizzazione non trovata', status: 403 }
+      }
+      if (org.attivo === false) {
+        return { user: null, profile: null, error: 'Organizzazione disattivata', status: 403 }
+      }
+      // Pagante (approvato=true) → accesso illimitato.
+      // Altrimenti, deve essere ancora in trial.
+      if (!org.approvato) {
+        const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null
+        if (!trialEnd || trialEnd < new Date()) {
+          return { user: null, profile: null, error: 'Trial scaduto. Contatta support@foodios.it per attivare l\'abbonamento.', status: 402 }
+        }
+      }
     }
 
     return { user, profile, supabase, error: null }

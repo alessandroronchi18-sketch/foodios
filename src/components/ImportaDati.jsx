@@ -1,7 +1,20 @@
 import React, { useState } from 'react'
-import * as XLSX from 'xlsx'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
+
+// Carica SheetJS da CDN con SRI hash (xlsx npm pkg ha vuln high senza fix).
+async function loadXLSX() {
+  if (window.XLSX) return window.XLSX
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script')
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
+    s.crossOrigin = 'anonymous'
+    s.onload = () => resolve(window.XLSX)
+    s.onerror = () => reject(new Error('Impossibile caricare XLSX'))
+    document.head.appendChild(s)
+  })
+}
 
 // ─── Definizione dei tipi di import ───────────────────────────────────────────
 // Ogni voce ha: descrizione, colonne (con nota), righe di esempio per il template,
@@ -94,22 +107,18 @@ const TIPI_IMPORT = [
   },
 ]
 
-function scaricaTemplate(tipo) {
-  // Costruisce un workbook con intestazioni + 3 righe demo, mantiene le note nelle celle di intestazione (tramite seconda riga descrittiva)
+async function scaricaTemplate(tipo) {
+  const XLSX = await loadXLSX()
   const headers = tipo.colonne.map(c => c.nome)
   const note    = tipo.colonne.map(c => c.nota)
-  // Determina max righe esempio
   const maxEx = Math.max(...tipo.colonne.map(c => (c.esempi||[]).length))
   const demoRows = []
   for (let i = 0; i < maxEx; i++) {
     demoRows.push(tipo.colonne.map(c => (c.esempi||[])[i] ?? ''))
   }
-  // Combina: header + note + esempi
   const data = [headers, note, ...demoRows]
   const ws = XLSX.utils.aoa_to_sheet(data)
-  // Imposta larghezza colonne approssimativa
   ws['!cols'] = tipo.colonne.map(c => ({ wch: Math.max(c.nome.length + 4, 16) }))
-  // Stile intestazione (xlsx-js non supporta stili full senza pro, ma applichiamo cellStyles basici)
   const range = XLSX.utils.decode_range(ws['!ref'])
   for (let C = range.s.c; C <= range.e.c; ++C) {
     const headerCell = ws[XLSX.utils.encode_cell({ r: 0, c: C })]

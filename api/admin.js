@@ -3,8 +3,11 @@ export const config = { runtime: 'edge' }
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP, json } from './lib/cors.js'
 import { sanitize, sanitizeStrict, validateUUID, validateEmail } from './lib/validate.js'
+import { safeError } from './lib/safeError.js'
 
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'alessandroar@maradeiboschi.com').toLowerCase()
+// ADMIN_EMAIL deve essere configurato su Vercel come env var.
+// Nessun default hardcoded: se manca, l'endpoint rifiuta SEMPRE.
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase()
 const PIANI_VALIDI = ['trial', 'base', 'pro', 'enterprise']
 
 // Fingerprint dei 20 record di DEMO_FATTURE rimossi dal codice di Scadenzario.
@@ -39,6 +42,9 @@ async function getSupabase() {
 }
 
 async function verificaAdmin(req, supabase) {
+  // Fail-closed: senza ADMIN_EMAIL configurato, nessuno è admin.
+  if (!ADMIN_EMAIL) return { user: null, reason: 'admin_email_not_configured' }
+
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return { user: null, reason: 'no_bearer' }
@@ -52,6 +58,23 @@ async function verificaAdmin(req, supabase) {
     if (!user) return { user: null, reason: 'no_user' }
     if ((user.email || '').toLowerCase() !== ADMIN_EMAIL) {
       return { user: null, reason: `not_admin:${user.email}` }
+    }
+    // ── Enforce MFA per admin ────────────────────────────────────────────
+    // L'admin è target ad alto valore: MFA è obbligatoria. Se la sessione è
+    // solo aal1 (password), rifiutiamo: l'admin deve completare il challenge TOTP.
+    try {
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel({ jwt: token })
+      const currentLevel = aal?.currentLevel || null
+      const nextLevel = aal?.nextLevel || null
+      // currentLevel='aal2' = già autenticato con MFA → OK
+      // currentLevel='aal1' && nextLevel='aal2' = ha MFA ma non l'ha usata in questa sessione → BLOCCA
+      // nextLevel='aal1' = non ha MFA configurata → BLOCCA (admin DEVE avere MFA)
+      if (currentLevel !== 'aal2') {
+        return { user: null, reason: nextLevel === 'aal2' ? 'mfa_required' : 'mfa_not_enrolled' }
+      }
+    } catch (mfaErr) {
+      // Se la API MFA non risponde, fail-closed (blocca l'admin)
+      return { user: null, reason: 'mfa_check_failed' }
     }
     return { user, reason: 'ok' }
   } catch (err) {
@@ -423,8 +446,8 @@ export default async function handler(req) {
 
       return json({ error: 'Action non riconosciuta' }, 400, req)
     } catch (err) {
-      console.error('admin GET error:', err)
-      return json({ error: err.message }, 500, req)
+      const safe = safeError(err, { endpoint: 'admin', method: 'GET', action })
+      return json(safe.body, safe.status, req)
     }
   }
 
@@ -475,9 +498,10 @@ export default async function handler(req) {
       await logAdmin(supabase, user.email, tipo, orgId || null, ip, ua)
       return json(result, 200, req)
     } catch (err) {
-      console.error(`admin POST ${tipo} error:`, err)
+      const safe = safeError(err, { endpoint: 'admin', method: 'POST', tipo, orgId })
+      // L'admin_log internamente registra il dettaglio reale; al client va il safe
       await logAdmin(supabase, user.email, `${tipo}_errore:${(err.message || '').slice(0, 80)}`, orgId || null, ip, ua)
-      return json({ error: err.message || 'Errore interno' }, 500, req)
+      return json(safe.body, safe.status, req)
     }
   }
 

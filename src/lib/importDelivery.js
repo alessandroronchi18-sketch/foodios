@@ -176,10 +176,19 @@ export function mergeInChiusure(chiusure = [], importati = [], fonte = '') {
   return nuove;
 }
 
-// Carica SheetJS dinamicamente
+// Carica SheetJS da CDN con SRI integrity hash.
+// Non usiamo il pacchetto npm 'xlsx' perché ha vuln high (prototype pollution + ReDoS)
+// senza fix disponibile. La versione CDN ufficiale è la stessa libreria — il SRI hash
+// garantisce che il file scaricato sia identico al bundle atteso.
 async function loadXLSX() {
-  if (window.__XLSX) return window.__XLSX;
-  const mod = await import('xlsx');
-  window.__XLSX = mod;
-  return mod;
+  if (window.XLSX) return window.XLSX;
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => resolve(window.XLSX);
+    s.onerror = () => reject(new Error('Impossibile caricare XLSX'));
+    document.head.appendChild(s);
+  });
 }
