@@ -49,6 +49,7 @@ import AIFotoAnalisi from './components/AIFotoAnalisi'
 import AIAssistant from './components/AIAssistant'
 import ImportaDatiView from './components/ImportaDati'
 import AbbonamentoPanel from './components/AbbonamentoPanel'
+import HaccpView from './components/Haccp'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -8875,7 +8876,7 @@ export default function Dashboard({
     'scheda-allergeni':'ricette', menu:'ricette',
     simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri',
     magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'importa-dati':'acquisti',
-    personale:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda',
+    personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
   }), []);
   useEffect(() => {
@@ -9554,6 +9555,7 @@ export default function Dashboard({
 
               <Group id="azienda" iconKey="briefcase" label="Azienda">
                 {navItem("personale","users","Personale")}
+                {navItem("haccp","shield","HACCP")}
                 {(sedi||[]).length>1 && navItem("confronto-sedi","building","Confronto sedi")}
                 {(sedi||[]).length>1 && navItem("trasferimenti","truck","Trasferimenti tra sedi")}
               </Group>
@@ -9694,7 +9696,7 @@ export default function Dashboard({
             ricettario:"Ricettario", semilavorati:"Semilavorati", "nuova-ricetta":"Nuova ricetta",
             simulatore:"Food Cost", pl:"P&L",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
-            personale:"Personale", menu:"Menù",
+            personale:"Personale", haccp:"HACCP", menu:"Menù",
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
             calendario:"Calendario", previsione:"Previsioni",
             "scheda-allergeni":"Scheda allergeni", impostazioni:"Impostazioni",
@@ -9708,7 +9710,7 @@ export default function Dashboard({
             simulatore:"Numeri", pl:"Numeri", storico:"Numeri", previsione:"Numeri",
             magazzino:"Magazzino & Acquisti", scadenzario:"Magazzino & Acquisti",
             fornitori:"Magazzino & Acquisti", "importa-dati":"Magazzino & Acquisti",
-            personale:"Azienda", "confronto-sedi":"Azienda", trasferimenti:"Azienda",
+            personale:"Azienda", haccp:"Azienda", "confronto-sedi":"Azienda", trasferimenti:"Azienda",
             azioni:"Strumenti", integrazioni:"Strumenti",
             impostazioni:"", changelog:"",
           };
@@ -9767,7 +9769,7 @@ export default function Dashboard({
             ricettario:"Ricettario", semilavorati:"Semilavorati", "nuova-ricetta":"Nuova ricetta",
             simulatore:"Food Cost", pl:"P&L",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
-            personale:"Personale", menu:"Menù",
+            personale:"Personale", haccp:"HACCP", menu:"Menù",
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
             calendario:"Calendario", previsione:"Previsioni",
             "scheda-allergeni":"Allergeni", impostazioni:"Impostazioni",
@@ -9883,6 +9885,7 @@ export default function Dashboard({
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="personale"&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
+        {view==="haccp"&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
         {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify}/>}
