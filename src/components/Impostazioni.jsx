@@ -1,0 +1,684 @@
+// Impostazioni — redesign 2-pane (sidebar + content) ispirato a Stripe / Linear / Notion.
+//
+// Migliorie rispetto al layout precedente a tab orizzontali:
+//   - Categorie raggruppate semanticamente (Attività, Fatturazione, Notifiche, Sicurezza, Dati, Avanzate)
+//   - Sidebar persistente con icone + label + active state
+//   - Ogni sezione mostra un SOMMARIO con lo stato corrente (intelligente: "Pro · attivo", "WhatsApp non configurato")
+//   - Search bar in cima per saltare a una sezione
+//   - URL hash (#section=billing) per deep-link e cronologia browser
+//   - Mobile: sidebar collassa in dropdown selector
+//
+// Tutti i sub-componenti esistenti (AbbonamentoPanel, MfaSection, ImpostazioniSedi, etc.)
+// vengono usati come building blocks senza modifiche.
+
+import React, { useEffect, useMemo, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import useIsMobile from '../lib/useIsMobile'
+import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+
+import AbbonamentoPanel from './AbbonamentoPanel'
+import WhatsAppReportPanel from './WhatsAppReportPanel'
+import MfaSection from './Mfa'
+import ImpostazioniSedi from './ImpostazioniSedi'
+import ImpostazioniTv from './ImpostazioniTv'
+import ExportContabilita from './ExportContabilita'
+import BenchmarkOptin from './BenchmarkOptin'
+import WhiteLabel from './WhiteLabel'
+import EsportaDati from './EsportaDati'
+import ReferralPanel from './ReferralPanel'
+
+import { getAllRese, getStoreRese, setResaIngrediente } from '../lib/rese'
+
+const SK_RESE = 'pasticceria-rese-v1' // stesso constant usato da Dashboard.jsx per persistere su localStorage
+
+// ─── Icons (SVG inline, no extra deps) ───────────────────────────────────────
+const Icon = ({ name, size = 16, color = 'currentColor' }) => {
+  const p = {
+    building:    <><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="9.01" y2="6"/><line x1="15" y1="6" x2="15.01" y2="6"/><path d="M9 22V18h6v4"/></>,
+    creditCard:  <><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
+    bell:        <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>,
+    shield:      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
+    database:    <><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></>,
+    sparkles:    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>,
+    search:      <><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.65" y2="16.65"/></>,
+    chevR:       <polyline points="9 6 15 12 9 18"/>,
+    chevD:       <polyline points="6 9 12 15 18 9"/>,
+    check:       <polyline points="20 6 9 17 4 12"/>,
+    x:           <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
+    user:        <><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
+    mail:        <><rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/></>,
+    phone:       <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z"/>,
+    tv:          <><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></>,
+    chart:       <><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>,
+    upload:      <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>,
+    download:    <><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
+    pie:         <><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></>,
+    palette:     <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="7" r="1"/><circle cx="17" cy="12" r="1"/><circle cx="12" cy="17" r="1"/><circle cx="7" cy="12" r="1"/></>,
+    map:         <><path d="M12 2c-4 0-7 3-7 7 0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></>,
+    gift:        <><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></>,
+    book:        <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></>,
+    menu:        <><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>,
+  }[name] || null
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>{p}</svg>
+}
+
+// ─── Sub-componenti generale (Profilo + Account + Email report + Changelog) ──
+
+function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify }) {
+  const [nomeMod, setNomeMod] = useState(nomeAttivita || '')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => { setNomeMod(nomeAttivita || '') }, [nomeAttivita])
+
+  async function salva() {
+    if (!nomeMod.trim() || nomeMod === nomeAttivita) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('organizations').update({ nome: nomeMod.trim() }).eq('id', orgId)
+      if (error) throw error
+      await auth.refreshOrg?.()
+      notify('✓ Nome attività aggiornato')
+    } catch (e) {
+      notify('⚠ ' + (e.message || 'Errore'), false)
+    } finally { setSaving(false) }
+  }
+
+  const inp = { width:'100%', height:40, padding:'0 12px', border:`1px solid ${T.borderStr}`, borderRadius:R.md, fontSize:13, color:T.text, background:T.bgCard, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
+  const ro  = { ...inp, background:T.bgSubtle, color:T.textMid, display:'flex', alignItems:'center' }
+
+  return (
+    <SectionCard title="Profilo attività" description="Le informazioni di base usate ovunque nell'app, nelle email e nei PDF.">
+      <FieldRow label="Nome attività">
+        <div style={{ display:'flex', gap:8 }}>
+          <input style={{ ...inp, flex:1 }} value={nomeMod} onChange={e=>setNomeMod(e.target.value)} placeholder="Pasticceria Rossi"/>
+          <button onClick={salva} disabled={saving || nomeMod === nomeAttivita || !nomeMod.trim()}
+            style={{ height:40, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:'#FFF', fontSize:13, fontWeight:700, cursor: (saving || nomeMod === nomeAttivita || !nomeMod.trim()) ? 'not-allowed':'pointer', opacity:(saving || nomeMod === nomeAttivita || !nomeMod.trim()) ? 0.5 : 1 }}>
+            {saving ? '…' : 'Salva'}
+          </button>
+        </div>
+      </FieldRow>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+        <FieldRow label="Tipo attività" hint="Modificabile solo dal supporto">
+          <div style={ro}>{tipoAttivita || '—'}</div>
+        </FieldRow>
+        <FieldRow label="Piano" hint="Cambia da Fatturazione → Abbonamento">
+          <div style={ro}>
+            <PianoBadge piano={piano} approvato={auth?.org?.approvato}/>
+          </div>
+        </FieldRow>
+      </div>
+    </SectionCard>
+  )
+}
+
+function AccountSection({ auth }) {
+  return (
+    <SectionCard title="Account" description="L'email è quella usata per il login. Per modificarla contatta il supporto.">
+      <FieldRow label="Email">
+        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:T.bgSubtle, borderRadius:R.md, fontSize:13, color:T.text }}>
+          <Icon name="mail" size={16} color={T.textSoft}/>
+          <span style={{ flex:1, fontWeight:600 }}>{auth?.user?.email || '—'}</span>
+          {auth?.user?.email_confirmed_at && (
+            <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700, color:T.green, padding:'2px 8px', borderRadius:999, background:T.greenLight }}>
+              <Icon name="check" size={12}/> Verificata
+            </span>
+          )}
+        </div>
+      </FieldRow>
+      <div style={{ fontSize:12, color:T.textSoft, lineHeight:1.6 }}>
+        Per cambiare email o password contatta <a href="mailto:support@foodios.it" style={{ color:T.brand, textDecoration:'none', fontWeight:600 }}>support@foodios.it</a>.
+        Per il 2FA vai in <strong>Sicurezza</strong>.
+      </div>
+    </SectionCard>
+  )
+}
+
+function ReportMensiliSection({ orgId, notify }) {
+  const [enabled, setEnabled] = useState(true)
+  const [reports, setReports] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!orgId) return
+    setLoading(true)
+    supabase.storage.from('reports').list(orgId, { limit: 12, sortBy:{ column:'created_at', order:'desc' } })
+      .then(({ data }) => { setReports(data || []); setLoading(false) })
+    supabase.from('user_data').select('data_value')
+      .eq('organization_id', orgId).eq('data_key', 'report-settings-v1').is('sede_id', null).maybeSingle()
+      .then(({ data }) => { if (data?.data_value?.emailReport === false) setEnabled(false) })
+  }, [orgId])
+
+  async function toggle(val) {
+    setEnabled(val)
+    const { error } = await supabase.from('user_data').upsert({
+      organization_id: orgId, sede_id: null, data_key: 'report-settings-v1',
+      data_value: { emailReport: val },
+    }, { onConflict: 'organization_id,sede_id,data_key' })
+    if (error) { setEnabled(!val); notify('⚠ ' + error.message, false); return }
+    notify(val ? '✓ Riceverai i report mensili' : '✓ Email report disattivata')
+  }
+
+  return (
+    <SectionCard title="Report mensili via email"
+      description="Ogni 1° del mese ricevi un PDF con i KPI del mese precedente, generato automaticamente da FoodOS."
+      action={<Toggle checked={enabled} onChange={toggle}/>}>
+      <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
+        Storico report ({reports.length})
+      </div>
+      {loading ? (
+        <div style={{ fontSize:13, color:T.textSoft }}>Caricamento…</div>
+      ) : reports.length === 0 ? (
+        <div style={{ padding:'14px 16px', background:T.bgSubtle, borderRadius:R.md, fontSize:12, color:T.textSoft, fontStyle:'italic' }}>
+          Nessun report ancora. Il primo verrà generato il 1° del prossimo mese.
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+          {reports.map(r => {
+            const { data: urlData } = supabase.storage.from('reports').getPublicUrl(`${orgId}/${r.name}`)
+            return (
+              <div key={r.name} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:T.bgSubtle, borderRadius:R.md }}>
+                <span style={{ fontSize:18 }}>📄</span>
+                <span style={{ flex:1, fontSize:13, fontWeight:600, color:T.text }}>{r.name.replace('.pdf','')}</span>
+                <a href={urlData?.publicUrl} download target="_blank" rel="noreferrer"
+                  style={{ fontSize:12, fontWeight:700, color:T.brand, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:4 }}>
+                  <Icon name="download" size={13}/> Scarica
+                </a>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </SectionCard>
+  )
+}
+
+function PrezziImportSection({ onImportPrezzi }) {
+  return (
+    <SectionCard title="Importa prezzi ingredienti"
+      description="Carica un file Excel/CSV con i prezzi degli ingredienti. Una colonna nome, una colonna prezzo €/kg. Il food cost di tutte le ricette si ricalcola automaticamente.">
+      <label style={{
+        display:'inline-flex', alignItems:'center', gap:10, padding:'12px 20px',
+        background:'#FFFBEB', border:'1px dashed #FDE68A', borderRadius:R.md,
+        cursor:'pointer', fontSize:13, fontWeight:700, color:'#92400E',
+      }}>
+        <Icon name="upload" size={16}/>
+        Carica file (.xlsx / .xls / .csv)
+        <input type="file" accept=".xlsx,.xls,.csv" multiple style={{ display:'none' }}
+          onChange={e => e.target.files.length && onImportPrezzi(e.target.files)}/>
+      </label>
+      <div style={{ marginTop:12, fontSize:12, color:T.textSoft }}>
+        Suggerimento: per modificare un singolo prezzo usa <strong>Importa dati → Prezzi ingredienti</strong> con edit inline.
+      </div>
+    </SectionCard>
+  )
+}
+
+function ReseSection({ notify }) {
+  const [rese, setRese] = useState(() => getAllRese())
+  const [filtro, setFiltro] = useState('')
+
+  function save(k, val) {
+    const v = Math.max(1, Math.min(100, parseFloat(val) || 100)) / 100
+    setResaIngrediente(k, v)
+    try { localStorage.setItem(SK_RESE, JSON.stringify(getStoreRese())) } catch {}
+    setRese(getAllRese())
+    notify('✓ Resa aggiornata')
+  }
+  function reset(k) {
+    setResaIngrediente(k, 1.0)
+    try { localStorage.setItem(SK_RESE, JSON.stringify(getStoreRese())) } catch {}
+    setRese(getAllRese())
+    notify('✓ Resa ripristinata al 100%')
+  }
+
+  const inp = { width:'100%', height:40, padding:'0 12px', border:`1px solid ${T.borderStr}`, borderRadius:R.md, fontSize:13, color:T.text, background:T.bgCard, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
+  const items = Object.entries(rese)
+    .filter(([k]) => !filtro || k.includes(filtro.toLowerCase()))
+    .sort(([a],[b]) => a.localeCompare(b))
+
+  const nCustom = Object.keys(getStoreRese()).length
+
+  return (
+    <SectionCard title="Resa ingredienti"
+      description="La resa indica quanta parte del peso lordo è effettivamente utilizzabile. Es. uova 85% → per 100g netti acquisti 118g lordi. FoodOS applica la resa al food cost in automatico."
+      action={<span style={{ fontSize:11, fontWeight:700, color:T.textSoft, padding:'4px 10px', background:T.bgSubtle, borderRadius:999 }}>{nCustom} personalizzate</span>}>
+      <input style={{ ...inp, marginBottom:14 }} value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="🔍 Filtra ingrediente…"/>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:8 }}>
+        {items.map(([k, v]) => {
+          const pct = Math.round(v * 100)
+          const isCustom = getStoreRese()[k] !== undefined
+          return (
+            <div key={k} style={{
+              display:'flex', alignItems:'center', gap:8,
+              padding:'10px 12px',
+              background: isCustom ? T.brandLight : T.bgSubtle,
+              borderRadius:R.md,
+              border:`1px solid ${isCustom ? T.brandSoft : T.borderSoft}`,
+            }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:T.text, textTransform:'capitalize', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{k}</div>
+                <div style={{ fontSize:10, color: isCustom ? T.brand : T.textSoft, fontWeight:600 }}>
+                  {isCustom ? 'personalizzata' : 'default'}
+                </div>
+              </div>
+              <input type="number" min="1" max="100" defaultValue={pct}
+                onBlur={e=>save(k, e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&save(k, e.target.value)}
+                style={{ width:56, padding:'5px 8px', borderRadius:6, border:`1px solid ${T.borderStr}`, fontSize:12, textAlign:'right', fontWeight:700, color:T.text, fontFamily:'inherit', background:T.bgCard }}/>
+              <span style={{ fontSize:11, color:T.textSoft }}>%</span>
+              {isCustom && (
+                <button onClick={()=>reset(k)} title="Ripristina default"
+                  style={{ width:24, height:24, borderRadius:6, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:11 }}>↩</button>
+              )}
+            </div>
+          )
+        })}
+        {items.length === 0 && (
+          <div style={{ gridColumn:'1 / -1', textAlign:'center', padding:'24px 0', color:T.textSoft, fontSize:13 }}>
+            Nessun ingrediente trovato.
+          </div>
+        )}
+      </div>
+    </SectionCard>
+  )
+}
+
+function ChangelogSection({ onChangelogOpen }) {
+  return (
+    <SectionCard title="Novità e changelog"
+      description="Scopri le ultime funzionalità rilasciate e gli aggiornamenti di FoodOS.">
+      <button onClick={onChangelogOpen}
+        style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:13, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
+        <Icon name="book" size={15}/> Vedi changelog completo
+      </button>
+    </SectionCard>
+  )
+}
+
+// ─── Building blocks ─────────────────────────────────────────────────────────
+
+function SectionCard({ title, description, action, children }) {
+  return (
+    <div style={{
+      background: T.bgCard, borderRadius: R.xl, padding: '24px 28px',
+      border: `1px solid ${T.border}`, boxShadow: S.sm, marginBottom: 16,
+    }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16, marginBottom: description ? 6 : 16 }}>
+        <h3 style={{ margin:0, fontSize:16, fontWeight:700, color:T.text, letterSpacing:'-0.01em' }}>{title}</h3>
+        {action && <div style={{ flexShrink:0 }}>{action}</div>}
+      </div>
+      {description && (
+        <p style={{ margin:'0 0 18px', fontSize:13, color:T.textSoft, lineHeight:1.55 }}>{description}</p>
+      )}
+      {children}
+    </div>
+  )
+}
+
+function FieldRow({ label, hint, children }) {
+  return (
+    <div style={{ marginBottom:16 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+        <label style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</label>
+        {hint && <span style={{ fontSize:11, color:T.textFaint }}>{hint}</span>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function Toggle({ checked, onChange }) {
+  return (
+    <button onClick={() => onChange(!checked)}
+      role="switch" aria-checked={checked}
+      style={{ width:42, height:24, borderRadius:12, border:'none', cursor:'pointer', position:'relative',
+        background: checked ? T.brand : '#CBD5E1', transition:'background 0.18s', padding:0, flexShrink:0 }}>
+      <span style={{ position:'absolute', top:3, left: checked ? 21 : 3, width:18, height:18,
+        borderRadius:'50%', background:'#FFF', transition:'left 0.18s', boxShadow:'0 1px 3px rgba(0,0,0,0.2)' }}/>
+    </button>
+  )
+}
+
+function PianoBadge({ piano, approvato }) {
+  const label = ({
+    trial:      { txt: 'Trial', color: T.amber,  bg: T.amberLight },
+    base:       { txt: 'Base',  color: T.textMid, bg: T.bgSubtle },
+    pro:        { txt: 'Pro',   color: T.green,  bg: T.greenLight },
+    enterprise: { txt: 'Chain', color: T.green,  bg: T.greenLight },
+  })[piano] || { txt: piano || 'Trial', color: T.textMid, bg: T.bgSubtle }
+  return (
+    <span style={{
+      display:'inline-flex', alignItems:'center', gap:6,
+      padding:'3px 10px', borderRadius:999,
+      background: label.bg, color: label.color,
+      fontSize:12, fontWeight:700,
+    }}>
+      <span style={{ width:6, height:6, borderRadius:'50%', background: approvato ? T.green : T.amber }}/>
+      {label.txt}
+    </span>
+  )
+}
+
+// ─── Sezioni registry ────────────────────────────────────────────────────────
+
+function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, onImportPrezzi, notify, onChangelogOpen }) {
+  const isPagante = auth?.org?.approvato === true && auth?.org?.stripe_subscription_id
+
+  return [
+    {
+      id: 'attivita', label: 'Attività', icon: 'building',
+      items: [
+        {
+          id: 'profilo', label: 'Profilo', icon: 'user',
+          summary: nomeAttivita || '—',
+          render: () => <ProfiloSection auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} notify={notify}/>,
+        },
+        {
+          id: 'account', label: 'Account', icon: 'mail',
+          summary: auth?.user?.email,
+          render: () => <AccountSection auth={auth}/>,
+        },
+        {
+          id: 'sedi', label: 'Sedi', icon: 'map',
+          summary: `${(sedi || []).filter(s => s.attiva !== false).length} sede/i`,
+          render: () => <ImpostazioniSedi orgId={orgId}/>,
+        },
+        {
+          id: 'brand', label: 'Personalizzazione', icon: 'palette',
+          summary: piano === 'enterprise' ? 'Logo & colori' : 'Solo piano Chain',
+          render: () => <WhiteLabel orgId={orgId} piano={piano} notify={notify}/>,
+        },
+      ],
+    },
+    {
+      id: 'fatturazione', label: 'Fatturazione', icon: 'creditCard',
+      items: [
+        {
+          id: 'abbonamento', label: 'Abbonamento', icon: 'creditCard',
+          summary: isPagante ? (piano === 'enterprise' ? 'Chain attivo' : 'Pro attivo') : 'Trial / non attivo',
+          render: () => <AbbonamentoPanel org={auth?.org} notify={notify}/>,
+        },
+        {
+          id: 'referral', label: 'Programma referral', icon: 'gift',
+          summary: 'Invita altri locali e guadagna sconti',
+          render: () => <SectionCard title="Programma referral" description="Invita altri locali e guadagna mesi gratuiti / sconti sul tuo abbonamento."><ReferralPanel auth={auth}/></SectionCard>,
+        },
+      ],
+    },
+    {
+      id: 'notifiche', label: 'Notifiche', icon: 'bell',
+      items: [
+        {
+          id: 'report-mensili', label: 'Report mensili email', icon: 'mail',
+          summary: 'PDF il 1° di ogni mese',
+          render: () => <ReportMensiliSection orgId={orgId} notify={notify}/>,
+        },
+        {
+          id: 'whatsapp', label: 'WhatsApp serale', icon: 'phone',
+          summary: auth?.org?.telefono_whatsapp ? 'Attivo · ' + auth.org.telefono_whatsapp : 'Non configurato',
+          render: () => <WhatsAppReportPanel org={auth?.org} orgId={orgId} notify={notify} onRefresh={() => auth?.refreshOrg?.()}/>,
+        },
+        {
+          id: 'tv', label: 'TV dashboard', icon: 'tv',
+          summary: 'Dashboard a schermo intero per il locale',
+          render: () => <ImpostazioniTv orgId={orgId} sedi={sedi || []} notify={notify}/>,
+        },
+      ],
+    },
+    {
+      id: 'sicurezza', label: 'Sicurezza', icon: 'shield',
+      items: [
+        {
+          id: '2fa', label: 'Autenticazione 2FA', icon: 'shield',
+          summary: 'Protegge l\'account con un secondo fattore',
+          render: () => <MfaSection notify={notify}/>,
+        },
+      ],
+    },
+    {
+      id: 'dati', label: 'Dati & calcoli', icon: 'database',
+      items: [
+        {
+          id: 'rese', label: 'Resa ingredienti', icon: 'pie',
+          summary: `${Object.keys(getStoreRese()).length} rese personalizzate`,
+          render: () => <ReseSection notify={notify}/>,
+        },
+        {
+          id: 'prezzi-import', label: 'Importa prezzi', icon: 'upload',
+          summary: 'Excel / CSV',
+          render: () => <PrezziImportSection onImportPrezzi={onImportPrezzi}/>,
+        },
+        {
+          id: 'export-dati', label: 'Esporta dati', icon: 'download',
+          summary: 'Backup completo / GDPR',
+          render: () => <EsportaDati orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita}/>,
+        },
+        {
+          id: 'contabilita', label: 'Export contabilità', icon: 'chart',
+          summary: 'Per commercialista',
+          render: () => <ExportContabilita orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} notify={notify}/>,
+        },
+      ],
+    },
+    {
+      id: 'avanzate', label: 'Avanzate', icon: 'sparkles',
+      items: [
+        {
+          id: 'benchmark', label: 'Benchmark anonimi', icon: 'chart',
+          summary: 'Confrontati con altri locali del tuo settore',
+          render: () => <BenchmarkOptin orgId={orgId} sedeId={auth?.sedeId} tipoAttivita={tipoAttivita} sedi={sedi || []} notify={notify}/>,
+        },
+        {
+          id: 'changelog', label: 'Changelog', icon: 'book',
+          summary: 'Novità e aggiornamenti',
+          render: () => <ChangelogSection onChangelogOpen={onChangelogOpen}/>,
+        },
+      ],
+    },
+  ]
+}
+
+// ─── Main ────────────────────────────────────────────────────────────────────
+
+export default function Impostazioni(props) {
+  const isMobile = useIsMobile()
+  const sezioni = useMemo(() => buildSezioni(props), [props.auth, props.nomeAttivita, props.tipoAttivita, props.piano, props.orgId, props.sedi])
+  const allItems = useMemo(() => sezioni.flatMap(s => s.items.map(it => ({ ...it, _group: s.label, _groupId: s.id }))), [sezioni])
+
+  // Active item via URL hash (#section=xyz) per deep-link + back button
+  const initialId = (() => {
+    const h = new URLSearchParams(window.location.hash.slice(1)).get('section')
+    if (h && allItems.find(i => i.id === h)) return h
+    return allItems[0].id
+  })()
+  const [activeId, setActiveId] = useState(initialId)
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    const hash = new URLSearchParams()
+    hash.set('section', activeId)
+    if (window.location.hash !== '#' + hash.toString()) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search + '#' + hash.toString())
+    }
+  }, [activeId])
+
+  // Mobile state: false = mostra lista, true = mostra detail
+  const [mobileDetail, setMobileDetail] = useState(false)
+
+  function pickItem(id) {
+    setActiveId(id)
+    setQuery('')
+    setMobileDetail(true)
+    // Scroll to top of content
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50)
+  }
+
+  const filtered = query
+    ? allItems.filter(i =>
+        i.label.toLowerCase().includes(query.toLowerCase()) ||
+        (i.summary || '').toLowerCase().includes(query.toLowerCase()) ||
+        i._group.toLowerCase().includes(query.toLowerCase())
+      )
+    : null
+
+  const activeItem = allItems.find(i => i.id === activeId) || allItems[0]
+  const activeGroup = sezioni.find(s => s.id === activeItem._groupId)
+
+  // ─── Sidebar ──
+  function Sidebar({ inDrawer = false } = {}) {
+    return (
+      <div style={{
+        background: T.bgCard, borderRadius: R.xl,
+        border: inDrawer ? 'none' : `1px solid ${T.border}`,
+        padding: '12px 8px',
+        boxShadow: inDrawer ? 'none' : S.sm,
+      }}>
+        {sezioni.map((sec, gi) => (
+          <div key={sec.id} style={{ marginBottom: gi < sezioni.length - 1 ? 12 : 0 }}>
+            <div style={{
+              padding: '6px 12px 8px', fontSize: 10, fontWeight: 700, color: T.textSoft,
+              textTransform: 'uppercase', letterSpacing: '0.08em',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <Icon name={sec.icon} size={12} color={T.textSoft}/> {sec.label}
+            </div>
+            {sec.items.map(it => {
+              const active = activeId === it.id
+              return (
+                <button key={it.id} onClick={() => pickItem(it.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    width: '100%', padding: '8px 12px', marginBottom: 2,
+                    background: active ? T.brandLight : 'transparent',
+                    border: 'none', borderRadius: R.md, cursor: 'pointer',
+                    color: active ? T.brand : T.text,
+                    fontSize: 13, fontWeight: active ? 700 : 500, textAlign: 'left',
+                    fontFamily: 'inherit',
+                    transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
+                  }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = T.bgSubtle }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}>
+                  <Icon name={it.icon} size={15} color={active ? T.brand : T.textSoft}/>
+                  <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+      {/* Header con search */}
+      <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <p style={{ margin: 0, fontSize: 13, color: T.textSoft, lineHeight: 1.45 }}>
+            Gestisci attività, fatturazione, notifiche, sicurezza e dati.
+          </p>
+        </div>
+        <div style={{ position: 'relative', minWidth: isMobile ? '100%' : 280 }}>
+          <Icon name="search" size={15} color={T.textSoft}/>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Cerca impostazione…"
+            style={{
+              width: '100%', height: 40, padding: '0 12px 0 36px',
+              border: `1px solid ${T.borderStr}`, borderRadius: R.md,
+              fontSize: 13, color: T.text, background: T.bgCard, outline: 'none',
+              boxSizing: 'border-box', fontFamily: 'inherit',
+            }}/>
+          <span style={{ position: 'absolute', left: 12, top: 12, pointerEvents: 'none' }}>
+            <Icon name="search" size={15} color={T.textSoft}/>
+          </span>
+        </div>
+      </div>
+
+      {/* Search results (overlay) */}
+      {filtered && (
+        <div style={{
+          background: T.bgCard, borderRadius: R.xl, border: `1px solid ${T.border}`,
+          boxShadow: S.md, padding: 10, marginBottom: 16,
+          maxHeight: 380, overflowY: 'auto',
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '14px 12px', fontSize: 13, color: T.textSoft }}>
+              Nessuna impostazione corrisponde a "{query}".
+            </div>
+          ) : (
+            filtered.map(it => (
+              <button key={it.id} onClick={() => pickItem(it.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  width: '100%', padding: '10px 12px', margin: '2px 0',
+                  background: 'transparent', border: 'none', borderRadius: R.md,
+                  cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                  transition: 'background 120ms',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = T.bgSubtle}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <Icon name={it.icon} size={16} color={T.textSoft}/>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{it.label}</div>
+                  <div style={{ fontSize: 11, color: T.textSoft, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {it._group} · {it.summary}
+                  </div>
+                </div>
+                <Icon name="chevR" size={14} color={T.textFaint}/>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Layout 2 colonne (desktop) / accordion (mobile) */}
+      {!isMobile ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
+          <div style={{ position: 'sticky', top: 16 }}>
+            <Sidebar/>
+          </div>
+          <div>
+            <Breadcrumb groupLabel={activeGroup?.label} itemLabel={activeItem.label}/>
+            {activeItem.render()}
+          </div>
+        </div>
+      ) : (
+        // Mobile: lista voci → drill into detail
+        mobileDetail ? (
+          <div>
+            <button onClick={() => setMobileDetail(false)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '8px 14px 8px 10px', marginBottom: 12,
+                background: 'transparent', border: `1px solid ${T.borderStr}`,
+                borderRadius: R.md, color: T.text, fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+              <Icon name="chevR" size={14} color={T.text}/>
+              <span style={{ transform: 'rotate(180deg)', marginRight: 4 }}>‹</span>
+              Tutte le impostazioni
+            </button>
+            <Breadcrumb groupLabel={activeGroup?.label} itemLabel={activeItem.label}/>
+            {activeItem.render()}
+          </div>
+        ) : (
+          <Sidebar inDrawer={false}/>
+        )
+      )}
+    </div>
+  )
+}
+
+function Breadcrumb({ groupLabel, itemLabel }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 12, color: T.textSoft }}>
+      <span>Impostazioni</span>
+      <span style={{ color: T.textFaint }}>›</span>
+      <span>{groupLabel}</span>
+      <span style={{ color: T.textFaint }}>›</span>
+      <span style={{ color: T.text, fontWeight: 700 }}>{itemLabel}</span>
+    </div>
+  )
+}
