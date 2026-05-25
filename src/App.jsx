@@ -25,7 +25,7 @@ function SplashScreen() {
       gap: 14,
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-      <Logo size={56} style={{ boxShadow: '0 10px 30px rgba(139,26,26,0.30)', borderRadius: 14 }} />
+      <Logo size={56} style={{ boxShadow: '0 10px 30px rgba(110,14,26,0.30)', borderRadius: 14 }} />
       <div style={{ fontSize: 14, color: '#94A3B8', fontWeight: 500 }}>Caricamento…</div>
     </div>
   )
@@ -51,12 +51,12 @@ function TrialScadutoPage({ org }) {
         </p>
         <div style={{
           background: '#FFF',
-          border: '2px solid #8B1A1A',
+          border: '2px solid #6E0E1A',
           borderRadius: 16,
           padding: 24,
           marginBottom: 24,
         }}>
-          <div style={{ fontSize: 32, fontWeight: 900, color: '#8B1A1A' }}>€39/mese</div>
+          <div style={{ fontSize: 32, fontWeight: 900, color: '#6E0E1A' }}>€39/mese</div>
           <div style={{ fontSize: 13, color: '#6B4C44', marginTop: 4 }}>
             Piano Base · disdici quando vuoi
           </div>
@@ -66,7 +66,7 @@ function TrialScadutoPage({ org }) {
           style={{
             display: 'inline-block',
             padding: '14px 32px',
-            background: '#8B1A1A',
+            background: '#6E0E1A',
             color: '#FFF',
             borderRadius: 10,
             fontWeight: 800,
@@ -203,7 +203,7 @@ export default function App() {
           <p style={{ color:'#6B4C44', lineHeight:1.6, marginBottom:24, fontSize:13 }}>
             {auth.profileError.message || 'Errore sconosciuto'}
           </p>
-          <button onClick={() => window.location.reload()} style={{ padding:'12px 24px', background:'#8B1A1A', color:'#FFF', border:'none', borderRadius:10, fontWeight:700, fontSize:14, cursor:'pointer', marginRight:10 }}>
+          <button onClick={() => window.location.reload()} style={{ padding:'12px 24px', background:'#6E0E1A', color:'#FFF', border:'none', borderRadius:10, fontWeight:700, fontSize:14, cursor:'pointer', marginRight:10 }}>
             Riprova
           </button>
           <button onClick={() => auth.signOut()} style={{ padding:'12px 24px', background:'transparent', color:'#6B4C44', border:'1px solid #E8DDD8', borderRadius:10, fontSize:14, cursor:'pointer' }}>

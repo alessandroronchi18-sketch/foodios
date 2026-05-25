@@ -27,7 +27,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [nomeApp, setNomeApp] = useState('')
-  const [colorePrimario, setColorePrimario] = useState('#8B1A1A')
+  const [colorePrimario, setColorePrimario] = useState('#6E0E1A')
   const [logoData, setLogoData] = useState(null)
 
   const piaIsChain = PIANI_CHAIN.has((piano || '').toLowerCase())
@@ -37,7 +37,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
     sload(WL_KEY, orgId, null).then(v => {
       setSettings(v || {})
       setNomeApp(v?.nomeApp || '')
-      setColorePrimario(v?.colorePrimario || '#8B1A1A')
+      setColorePrimario(v?.colorePrimario || '#6E0E1A')
       setLogoData(v?.logoDataUrl || null)
       setLoading(false)
     })
@@ -48,7 +48,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8 }}>🎨 Personalizzazione</div>
       <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6 }}>
         La personalizzazione completa (logo, colore primario, nome app) è inclusa nel piano <strong>Chain</strong>.
-        Contatta <a href="mailto:support@foodios.it" style={{ color: '#8B1A1A' }}>support@foodios.it</a> per aggiornare il piano.
+        Contatta <a href="mailto:support@foodios.it" style={{ color: '#6E0E1A' }}>support@foodios.it</a> per aggiornare il piano.
       </div>
     </div>
   )
@@ -72,7 +72,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
     try {
       const next = {
         nomeApp: nomeApp.trim() || null,
-        colorePrimario: isHexColor(colorePrimario) ? colorePrimario : '#8B1A1A',
+        colorePrimario: isHexColor(colorePrimario) ? colorePrimario : '#6E0E1A',
         logoDataUrl: logoData || null,
         aggiornato_il: new Date().toISOString(),
       }
@@ -92,7 +92,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
     try {
       await ssave(WL_KEY, { nomeApp: null, colorePrimario: null, logoDataUrl: null, reset_il: new Date().toISOString() }, orgId, null)
       setNomeApp('')
-      setColorePrimario('#8B1A1A')
+      setColorePrimario('#6E0E1A')
       setLogoData(null)
       notify?.('✓ Branding ripristinato · ricarica la pagina')
     } catch (e) {
@@ -121,12 +121,12 @@ export default function WhiteLabel({ orgId, piano, notify }) {
         <div style={{ marginBottom: 16 }}>
           <label style={lbl}>Colore primario</label>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <input type="color" value={isHexColor(colorePrimario) ? colorePrimario : '#8B1A1A'}
+            <input type="color" value={isHexColor(colorePrimario) ? colorePrimario : '#6E0E1A'}
               onChange={e => setColorePrimario(e.target.value)}
               style={{ width: 56, height: 40, border: '1px solid #E2E8F0', borderRadius: 8, cursor: 'pointer', padding: 0 }} />
             <input value={colorePrimario} onChange={e => setColorePrimario(e.target.value)} maxLength={7}
-              placeholder="#8B1A1A" style={{ ...inp, fontFamily: 'monospace', maxWidth: 140 }} />
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: isHexColor(colorePrimario) ? colorePrimario : '#8B1A1A', border: '1px solid #E2E8F0' }} />
+              placeholder="#6E0E1A" style={{ ...inp, fontFamily: 'monospace', maxWidth: 140 }} />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: isHexColor(colorePrimario) ? colorePrimario : '#6E0E1A', border: '1px solid #E2E8F0' }} />
           </div>
         </div>
 
@@ -136,7 +136,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 10, background: '#F8FAFC', borderRadius: 9, border: '1px solid #E2E8F0', marginBottom: 10 }}>
               <img src={logoData} alt="logo" style={{ maxHeight: 56, maxWidth: 120, objectFit: 'contain' }} />
               <button onClick={() => setLogoData(null)}
-                style={{ marginLeft: 'auto', padding: '6px 12px', background: '#FFF5F5', color: '#8B1A1A', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ marginLeft: 'auto', padding: '6px 12px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                 Rimuovi
               </button>
             </div>
@@ -150,7 +150,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={salva} disabled={saving}
-            style={{ padding: '10px 22px', background: '#8B1A1A', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.5 : 1 }}>
+            style={{ padding: '10px 22px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.5 : 1 }}>
             {saving ? '…' : 'Salva personalizzazione'}
           </button>
           <button onClick={reset} disabled={saving}

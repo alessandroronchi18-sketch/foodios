@@ -6,13 +6,13 @@
 // palette is kept untouched. New / redesigned UI should reach for these tokens.
 
 export const color = {
-  // Brand
-  brand:        '#8B1A1A',
-  brandDark:    '#A02617',
-  brandDarker:  '#5A0F0F',
-  brandLight:   '#FEF2F2',
-  brandSoft:    '#FCE7E4',
-  brandGradient:'linear-gradient(135deg, #8B1A1A 0%, #5A0F0F 100%)',
+  // Brand — bordeaux invariante, deve coincidere con LOGO_COLOR in Logo.jsx
+  brand:        '#6E0E1A',
+  brandDark:    '#8A1726',
+  brandDarker:  '#4A0612',
+  brandLight:   '#FBEEF0',
+  brandSoft:    '#F5D9DD',
+  brandGradient:'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)',
 
   // Surfaces
   bg:           '#F7F8FA',
@@ -167,10 +167,10 @@ export const shadow = {
   lg:   '0 10px 30px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04)',
   xl:   '0 20px 50px rgba(15,23,42,0.12), 0 4px 12px rgba(15,23,42,0.05)',
   inner:'inset 0 1px 2px rgba(15,23,42,0.06)',
-  brand:    '0 6px 20px rgba(139,26,26,0.28)',
-  brandSoft:'0 2px 8px rgba(139,26,26,0.18)',
+  brand:    '0 6px 20px rgba(110,14,26,0.28)',
+  brandSoft:'0 2px 8px rgba(110,14,26,0.18)',
   drawer:   '4px 0 30px rgba(0,0,0,0.32)',
-  fab:      '0 8px 24px rgba(139,26,26,0.42)',
+  fab:      '0 8px 24px rgba(110,14,26,0.42)',
 };
 
 // Motion — all timings use the same easing for coherence
@@ -217,6 +217,6 @@ export const layout = {
 export const keyframes = `
   @keyframes fos_pageIn  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes fos_fadeIn  { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes fos_pulse   { 0%, 100% { box-shadow: 0 0 0 0 rgba(139,26,26,0.55); } 50% { box-shadow: 0 0 0 5px rgba(139,26,26,0); } }
+  @keyframes fos_pulse   { 0%, 100% { box-shadow: 0 0 0 0 rgba(110,14,26,0.55); } 50% { box-shadow: 0 0 0 5px rgba(110,14,26,0); } }
   @keyframes fos_slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 `;

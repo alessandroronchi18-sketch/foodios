@@ -15,7 +15,7 @@ const T = {
   textMid:    '#5C4842',
   textSoft:   '#9C887F',
   textOnDark: '#F4ECE3',
-  red:        '#8B1A1A',
+  red:        '#6E0E1A',
   redDeep:    '#8B2415',
   redSoft:    '#FDF2EE',
   green:      '#1F7A48',
@@ -107,7 +107,7 @@ function Button({ children, variant = 'primary', onClick, style, size = 'md' }) 
       background: h ? T.redDeep : T.red,
       color: '#FFF',
       border: `1px solid ${h ? T.redDeep : T.red}`,
-      boxShadow: h ? '0 8px 28px rgba(139,26,26,0.28)' : '0 4px 14px rgba(139,26,26,0.18)',
+      boxShadow: h ? '0 8px 28px rgba(110,14,26,0.28)' : '0 4px 14px rgba(110,14,26,0.18)',
     },
     secondary: {
       background: h ? T.creamDeep : 'transparent',
@@ -514,7 +514,7 @@ function VisualAI() {
           width: 34, height: 34, borderRadius: 999,
           background: `linear-gradient(135deg, ${T.red}, ${T.redDeep})`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 14px rgba(139,26,26,0.30)',
+          boxShadow: '0 4px 14px rgba(110,14,26,0.30)',
         }}>
           <Icon name="sparkles" size={16} color="#FFF" stroke={2}/>
         </div>
@@ -621,27 +621,6 @@ export default function LandingPage({ onLogin, onRegister }) {
     "Il P&L lo leggo a marzo per l'anno prima. Quando arriva è già tardi per cambiare qualcosa.",
   ]
 
-  const testimonials = [
-    {
-      q: "In due mesi ho capito che il babà mi costava il 18% in più di quanto pensassi. Ho corretto il prezzo e il margine del reparto pasticceria è salito di 4 punti.",
-      name: 'Marco Esposito',
-      role: 'Titolare · Pasticceria del Corso',
-      city: 'Napoli',
-    },
-    {
-      q: 'Prima passavo due ore al mese a sistemare Excel. Adesso chiudo la giornata in tre minuti dal cellulare. E vedo il P&L senza aspettare il commercialista.',
-      name: 'Anna Conti',
-      role: 'Titolare · Bistrot Conti',
-      city: 'Milano',
-    },
-    {
-      q: "Avevo 47 ricette su un quaderno. L'ho caricato in FoodOS in mezza mattinata e da subito vedo cosa mi rende e cosa no. Mi ha cambiato il modo di pensare al menù.",
-      name: 'Giuseppe Lo Cascio',
-      role: 'Chef · Trattoria Da Pino',
-      city: 'Palermo',
-    },
-  ]
-
   const faqs = [
     { q: 'Funziona anche per ristoranti e bar, non solo pasticcerie?', a: "Sì. FoodOS è pensato per tutta la ristorazione italiana: ristoranti, bar, pasticcerie, gelaterie, panetterie, pizzerie, gastronomie. Ovunque ci siano ingredienti, ricette e margini da tenere sotto controllo, FoodOS funziona." },
     { q: 'Devo essere bravo con i computer?', a: 'No. Se sai usare WhatsApp, sai usare FoodOS. È pensato per essere usato dal titolare, non dal nipote bravo con la tecnologia. Niente formule, niente Excel da non rompere.' },
@@ -672,7 +651,7 @@ export default function LandingPage({ onLogin, onRegister }) {
           height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Logo size={32} style={{ borderRadius: 8, boxShadow: '0 4px 12px rgba(139,26,26,0.22)' }}/>
+            <Logo size={32} style={{ borderRadius: 8, boxShadow: '0 4px 12px rgba(110,14,26,0.22)' }}/>
             <span style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 600, letterSpacing: '-0.03em', color: T.ink }}>
               FoodOS
             </span>
@@ -694,7 +673,7 @@ export default function LandingPage({ onLogin, onRegister }) {
       <section style={{ position: 'relative', overflow: 'hidden' }}>
         <div aria-hidden style={{
           position: 'absolute', inset: 0,
-          background: 'radial-gradient(circle at 80% 0%, rgba(139,26,26,0.06), transparent 50%), radial-gradient(circle at 0% 80%, rgba(139,26,26,0.04), transparent 50%)',
+          background: 'radial-gradient(circle at 80% 0%, rgba(110,14,26,0.06), transparent 50%), radial-gradient(circle at 0% 80%, rgba(110,14,26,0.04), transparent 50%)',
           pointerEvents: 'none',
         }}/>
 
@@ -1033,63 +1012,6 @@ export default function LandingPage({ onLogin, onRegister }) {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section style={{ padding: isMobile ? '80px 24px' : '120px 24px', background: T.cream }}>
-        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
-          <Reveal>
-            <div style={{ maxWidth: 720, marginBottom: 56 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
-                Hanno provato FoodOS
-              </div>
-              <h2 style={{
-                fontFamily: SERIF, fontSize: 'clamp(30px, 4.5vw, 46px)', fontWeight: 500,
-                color: T.ink, letterSpacing: '-0.03em', lineHeight: 1.1, margin: 0,
-              }}>
-                Le storie di chi <em style={{ fontStyle: 'italic', color: T.red }}>l'ha già fatto</em>.
-              </h2>
-            </div>
-          </Reveal>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-            gap: 20,
-          }}>
-            {testimonials.map((t, i) => (
-              <Reveal key={i} delay={i * 80}>
-                <div style={{
-                  background: T.paper, border: `1px solid ${T.border}`,
-                  borderRadius: 20, padding: '36px 32px', height: '100%',
-                  display: 'flex', flexDirection: 'column',
-                }}>
-                  <div style={{ display: 'flex', gap: 4, marginBottom: 22 }}>
-                    {[0,1,2,3,4].map(s => <Icon key={s} name="star" size={14} color={T.amber}/>)}
-                  </div>
-                  <p style={{
-                    fontFamily: SERIF, fontSize: 18, fontWeight: 400, fontStyle: 'italic',
-                    color: T.ink, lineHeight: 1.55, letterSpacing: '-0.01em',
-                    margin: '0 0 28px', flex: 1,
-                  }}>"{t.q}"</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, borderTop: `1px solid ${T.borderSoft}`, paddingTop: 18 }}>
-                    <div style={{
-                      width: 44, height: 44, borderRadius: 999,
-                      background: `linear-gradient(135deg, ${T.red}, ${T.redDeep})`,
-                      color: '#FFF', fontFamily: SERIF, fontWeight: 600, fontSize: 18,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>{t.name.split(' ').map(n => n[0]).join('').slice(0,2)}</div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{t.name}</div>
-                      <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{t.role} · {t.city}</div>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ROI — desktop only */}
       {!isMobile && (
         <section style={{ padding: '40px 24px 120px', background: T.cream }}>
@@ -1137,7 +1059,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div aria-hidden style={{
                   position: 'absolute', top: -60, right: -60,
                   width: 240, height: 240, borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(139,26,26,0.20), transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(110,14,26,0.20), transparent 70%)',
                   pointerEvents: 'none',
                 }}/>
 
@@ -1289,7 +1211,7 @@ export default function LandingPage({ onLogin, onRegister }) {
       }}>
         <div aria-hidden style={{
           position: 'absolute', inset: 0,
-          background: 'radial-gradient(circle at 50% 0%, rgba(139,26,26,0.18), transparent 60%)',
+          background: 'radial-gradient(circle at 50% 0%, rgba(110,14,26,0.18), transparent 60%)',
           pointerEvents: 'none',
         }}/>
 

@@ -10,15 +10,15 @@ Stile: risposte brevi, concrete, in italiano. Usa elenchi puntati quando aiutano
 Se l'utente chiede qualcosa fuori scope (es. ricette dettagliate, consulenza fiscale), rispondi gentilmente che il tuo focus è l'uso dell'app.`
 
 const COLORS = {
-  brand: '#8B1A1A',
-  brandDark: '#A02617',
+  brand: '#6E0E1A',
+  brandDark: '#8A1726',
   text: '#0E1726',
   textMid: '#475264',
   textSoft: '#8B95A7',
   bg: '#FFFFFF',
   bgSoft: '#F7F8FA',
   border: '#E5E9EF',
-  bubbleUser: '#8B1A1A',
+  bubbleUser: '#6E0E1A',
   bubbleAI: '#F1F4F8',
 }
 
@@ -129,7 +129,7 @@ export default function AIAssistant() {
           40% { transform: scale(1); opacity: 1; }
         }
         .ai-fab { transition: transform 0.18s ease, box-shadow 0.18s ease; }
-        .ai-fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 10px 28px rgba(139,26,26,0.45); }
+        .ai-fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 10px 28px rgba(110,14,26,0.45); }
         .ai-send { transition: background 0.15s ease, transform 0.12s ease; }
         .ai-send:hover:not(:disabled) { background: ${COLORS.brandDark}; }
         .ai-send:active:not(:disabled) { transform: scale(0.95); }
@@ -223,7 +223,7 @@ export default function AIAssistant() {
                   lineHeight: 1.5,
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
-                  boxShadow: m.role === 'user' ? '0 2px 8px rgba(139,26,26,0.18)' : '0 1px 2px rgba(15,23,42,0.04)',
+                  boxShadow: m.role === 'user' ? '0 2px 8px rgba(110,14,26,0.18)' : '0 1px 2px rgba(15,23,42,0.04)',
                   animation: '_ai_pop 0.18s ease-out',
                 }}
               >
@@ -298,7 +298,7 @@ export default function AIAssistant() {
                 cursor: (!input.trim() || loading) ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
-                boxShadow: (!input.trim() || loading) ? 'none' : '0 4px 12px rgba(139,26,26,0.32)',
+                boxShadow: (!input.trim() || loading) ? 'none' : '0 4px 12px rgba(110,14,26,0.32)',
               }}
             >
               <SendIcon />
@@ -323,7 +323,7 @@ export default function AIAssistant() {
           cursor: 'pointer',
           color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 6px 20px rgba(139,26,26,0.42)',
+          boxShadow: '0 6px 20px rgba(110,14,26,0.42)',
           zIndex: 1001,
         }}
       >

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import FoodOSLogo from '../components/FoodOSLogo'
+import COMUNI_ITALIANI from '../lib/comuniItaliani'
 
 const T = {
   cream:      '#FBF8F4',
@@ -11,7 +12,7 @@ const T = {
   textMid:    '#5C4842',
   textSoft:   '#9C887F',
   textOnDark: '#F4ECE3',
-  red:        '#8B1A1A',
+  red:        '#6E0E1A',
   redDeep:    '#8B2415',
   redSoft:    '#FDF2EE',
   green:      '#1F7A48',
@@ -25,24 +26,26 @@ const T = {
 const SERIF = "'Fraunces', 'Iowan Old Style', 'Apple Garamond', Georgia, serif"
 const SANS  = "'Inter', system-ui, -apple-system, sans-serif"
 
-const CITTA_ITALIANE = [
-  'Agrigento','Alessandria','Altamura','Ancona','Andria','Aprilia','Arezzo',
-  'Asti','Bari','Barletta','Bergamo','Biella','Bologna','Bolzano','Brescia',
-  'Brindisi','Busto Arsizio','Cagliari','Caltanissetta','Campobasso','Carrara',
-  'Caserta','Catania','Catanzaro','Cesena','Como','Cosenza','Cremona','Crotone',
-  'Enna','Ferrara','Firenze','Fiumicino','Foggia','Forlì','Genova','Gela',
-  'Giugliano in Campania','Grosseto','Guidonia Montecelio','Imola','La Spezia',
-  'L\'Aquila','Latina','Lecce','Lecco','Livorno','Lodi','Lucca','Mantova',
-  'Marsala','Massa','Matera','Messina','Milano','Modena','Molfetta','Monza',
-  'Napoli','Novara','Olbia','Padova','Palermo','Parma','Perugia','Pescara',
-  'Piacenza','Pisa','Pistoia','Potenza','Prato','Quartu Sant\'Elena','Ragusa',
-  'Ravenna','Reggio Calabria','Reggio Emilia','Rimini','Roma','Salerno','Sassari',
-  'Savona','Sesto San Giovanni','Siracusa','Taranto','Teramo','Terni','Torre del Greco',
-  'Torino','Trapani','Trento','Trieste','Udine','Varese','Venezia','Verbania',
-  'Verona','Vibo Valentia','Vicenza','Vittoria',
-].sort()
-
 const TIPI_ATTIVITA = ['Pasticceria','Bar / Caffè','Gelateria','Ristorante','Pizzeria','Panetteria','Altro']
+
+// Prefissi telefonici internazionali — default Italia (+39)
+const PREFISSI_TELEFONO = [
+  { code: '+39',  flag: '🇮🇹', label: 'Italia' },
+  { code: '+378', flag: '🇸🇲', label: 'San Marino' },
+  { code: '+377', flag: '🇲🇨', label: 'Monaco' },
+  { code: '+33',  flag: '🇫🇷', label: 'Francia' },
+  { code: '+34',  flag: '🇪🇸', label: 'Spagna' },
+  { code: '+41',  flag: '🇨🇭', label: 'Svizzera' },
+  { code: '+49',  flag: '🇩🇪', label: 'Germania' },
+  { code: '+44',  flag: '🇬🇧', label: 'Regno Unito' },
+  { code: '+43',  flag: '🇦🇹', label: 'Austria' },
+  { code: '+30',  flag: '🇬🇷', label: 'Grecia' },
+  { code: '+31',  flag: '🇳🇱', label: 'Paesi Bassi' },
+  { code: '+32',  flag: '🇧🇪', label: 'Belgio' },
+  { code: '+351', flag: '🇵🇹', label: 'Portogallo' },
+  { code: '+352', flag: '🇱🇺', label: 'Lussemburgo' },
+  { code: '+1',   flag: '🇺🇸', label: 'USA / Canada' },
+]
 
 function useIsMobile(bp = 920) {
   const [m, setM] = useState(typeof window !== 'undefined' ? window.innerWidth < bp : false)
@@ -130,7 +133,7 @@ function PasswordStrength({ password }) {
   )
 }
 
-function Input({ icon, type = 'text', value, onChange, placeholder, required, autoComplete, name, onFocus, onBlur }) {
+function Input({ icon, type = 'text', value, onChange, placeholder, required, autoComplete, name, onFocus, onBlur, inputMode, maxLength }) {
   const [focused, setFocused] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
   const inputType = type === 'password' && showPwd ? 'text' : type
@@ -143,6 +146,7 @@ function Input({ icon, type = 'text', value, onChange, placeholder, required, au
       borderRadius: 12, padding: '0 14px', height: 48,
       transition: 'all 0.18s ease',
       boxShadow: focused ? `0 0 0 4px ${T.creamDeep}` : 'none',
+      boxSizing: 'border-box', width: '100%', minWidth: 0,
     }}>
       {icon && <Icon name={icon} size={18} color={focused ? T.ink : T.textSoft}/>}
       <input
@@ -151,6 +155,8 @@ function Input({ icon, type = 'text', value, onChange, placeholder, required, au
         required={required}
         value={value}
         autoComplete={autoComplete}
+        inputMode={inputMode}
+        maxLength={maxLength}
         onChange={onChange}
         onFocus={(e) => { setFocused(true); onFocus?.(e) }}
         onBlur={(e) => { setFocused(false); onBlur?.(e) }}
@@ -158,7 +164,7 @@ function Input({ icon, type = 'text', value, onChange, placeholder, required, au
         style={{
           flex: 1, border: 'none', outline: 'none', background: 'transparent',
           fontSize: 15, color: T.ink, fontFamily: SANS, fontWeight: 500,
-          padding: 0, minWidth: 0,
+          padding: 0, minWidth: 0, width: '100%',
         }}
       />
       {type === 'password' && (
@@ -175,7 +181,7 @@ function Input({ icon, type = 'text', value, onChange, placeholder, required, au
 
 function Field({ label, hint, children, error }) {
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ marginBottom: 16, minWidth: 0 }}>
       {label && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: T.textMid, letterSpacing: '0.01em' }}>{label}</label>
@@ -210,7 +216,7 @@ function PrimaryBtn({ children, disabled, type = 'submit', onClick, style }) {
         letterSpacing: '-0.005em',
         cursor: disabled ? 'not-allowed' : 'pointer',
         transition: 'all 0.2s ease',
-        boxShadow: disabled ? 'none' : h ? '0 12px 30px rgba(139,26,26,0.28)' : '0 6px 18px rgba(139,26,26,0.20)',
+        boxShadow: disabled ? 'none' : h ? '0 12px 30px rgba(110,14,26,0.28)' : '0 6px 18px rgba(110,14,26,0.20)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         ...style,
       }}
@@ -225,8 +231,19 @@ function CittaInput({ value, onChange }) {
 
   useEffect(() => { setQ(value) }, [value])
 
-  const matches = q && q.length >= 1
-    ? CITTA_ITALIANE.filter(c => c.toLowerCase().startsWith(q.toLowerCase())).slice(0, 7)
+  const matches = q && q.length >= 2
+    ? (() => {
+        const needle = q.toLowerCase()
+        const starts = []
+        const contains = []
+        for (const c of COMUNI_ITALIANI) {
+          const cl = c.toLowerCase()
+          if (cl.startsWith(needle)) starts.push(c)
+          else if (cl.includes(needle)) contains.push(c)
+          if (starts.length >= 8) break
+        }
+        return [...starts, ...contains].slice(0, 8)
+      })()
     : []
 
   useEffect(() => {
@@ -259,6 +276,86 @@ function CittaInput({ value, onChange }) {
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
               {c}
             </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PhoneInput({ prefisso, numero, onPrefisso, onNumero }) {
+  const [open, setOpen] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const ref = useRef(null)
+  const sel = PREFISSI_TELEFONO.find(p => p.code === prefisso) || PREFISSI_TELEFONO[0]
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  return (
+    <div ref={ref} style={{
+      display: 'flex', alignItems: 'stretch', gap: 8,
+      background: focused ? T.paper : T.cream,
+      border: `1.5px solid ${focused ? T.ink : T.border}`,
+      borderRadius: 12, height: 48, padding: 0,
+      boxSizing: 'border-box', width: '100%', minWidth: 0,
+      boxShadow: focused ? `0 0 0 4px ${T.creamDeep}` : 'none',
+      transition: 'all 0.18s ease', position: 'relative',
+    }}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '0 10px 0 12px', background: 'transparent',
+          border: 'none', borderRight: `1px solid ${T.border}`,
+          fontSize: 14, color: T.ink, fontWeight: 600, cursor: 'pointer',
+          fontFamily: SANS, minWidth: 84,
+        }}>
+        <span style={{ fontSize: 18, lineHeight: 1 }}>{sel.flag}</span>
+        <span>{sel.code}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textSoft} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <input
+        type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={15}
+        value={numero}
+        onChange={e => onNumero(e.target.value.replace(/[^0-9]/g, ''))}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        placeholder="333 1234567"
+        style={{
+          flex: 1, minWidth: 0, border: 'none', outline: 'none',
+          background: 'transparent', fontSize: 15, color: T.ink,
+          fontFamily: SANS, fontWeight: 500, padding: '0 14px 0 0',
+        }}
+      />
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+          minWidth: 230, zIndex: 999, background: T.paper,
+          border: `1px solid ${T.border}`, borderRadius: 12,
+          boxShadow: '0 14px 40px rgba(15,9,7,0.12)',
+          maxHeight: 260, overflowY: 'auto',
+        }}>
+          {PREFISSI_TELEFONO.map(p => (
+            <button type="button" key={p.code}
+              onMouseDown={e => { e.preventDefault(); onPrefisso(p.code); setOpen(false) }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', background: p.code === prefisso ? T.cream : 'transparent',
+                border: 'none', cursor: 'pointer', fontSize: 14, fontFamily: SANS,
+                color: T.ink, textAlign: 'left',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = T.cream}
+              onMouseLeave={e => e.currentTarget.style.background = p.code === prefisso ? T.cream : 'transparent'}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{p.flag}</span>
+              <span style={{ fontWeight: 600, minWidth: 50 }}>{p.code}</span>
+              <span style={{ color: T.textMid }}>{p.label}</span>
+            </button>
           ))}
         </div>
       )}
@@ -328,7 +425,7 @@ export function ResetPasswordPage({ onDone }) {
       <div style={{ width: '100%', maxWidth: 440 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
-            <FoodOSLogo size={56} style={{ borderRadius: 14, boxShadow: '0 8px 28px rgba(139,26,26,0.28)' }}/>
+            <FoodOSLogo size={56} style={{ borderRadius: 14, boxShadow: '0 8px 28px rgba(110,14,26,0.28)' }}/>
           </div>
           <h1 style={{
             margin: 0, fontFamily: SERIF, fontSize: 28, fontWeight: 600,
@@ -411,10 +508,14 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
   const [newPwdConf, setNewPwdConf] = useState('')
 
   const [reg, setReg] = useState({
-    nome: '', cognome: '', telefono: '', nome_attivita: '',
+    nome: '', cognome: '', prefisso: '+39', telefono: '', nome_attivita: '',
     tipo_attivita: 'Pasticceria', citta: '',
     email: '', password: '', codice_invito: initialReferralCode,
   })
+  const [otpCode, setOtpCode]   = useState('')
+  const [otpSent, setOtpSent]   = useState(false)
+  const [otpVerified, setOtpVerified] = useState(false)
+  const [otpSkipped, setOtpSkipped]   = useState(false)
   const [successo, setSuccesso] = useState(false)
 
   useEffect(() => {
@@ -527,26 +628,83 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
     } finally { setLoading(false) }
   }
 
-  // Validazione telefono italiano opzionale: accetta vuoto OPPURE +39 seguito da 9-10 cifre,
-  // OPPURE numero italiano senza prefisso (9-10 cifre dopo eventuale 0). Spazi/punti tollerati.
-  function isTelefonoValido(t) {
-    const v = (t || '').replace(/[\s.\-()]/g, '')
-    if (!v) return true // opzionale
-    return /^(\+39)?[0-9]{9,11}$/.test(v)
+  // Telefono richiesto: 6-15 cifre dopo aver tolto il prefisso (regola E.164 lasca).
+  function isNumeroValido(numero) {
+    const v = (numero || '').replace(/[^0-9]/g, '')
+    return v.length >= 6 && v.length <= 15
+  }
+
+  function telefonoCompleto() {
+    return (reg.prefisso + reg.telefono.replace(/[^0-9]/g, '')).trim()
   }
 
   function regStep1Valid() {
     return !!(reg.nome.trim() && reg.cognome.trim() && reg.email.trim() &&
-              isTelefonoValido(reg.telefono) &&
+              isNumeroValido(reg.telefono) &&
               Object.values(checkPwd(reg.password)).every(Boolean))
   }
 
-  function nextRegStep(e) {
+  async function nextRegStep(e) {
     e.preventDefault(); clear()
     if (!regStep1Valid()) {
       setErrore('Compila tutti i campi e scegli una password sicura.'); return
     }
-    setRegStep(2)
+    // Tenta invio OTP SMS. Se il backend (Supabase Phone Auth) non è configurato,
+    // saltiamo la verifica e procediamo: il numero viene comunque salvato.
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: telefonoCompleto(),
+        options: { shouldCreateUser: false },
+      })
+      if (error) {
+        // Backend non configurato o numero non collegato a un user: skip verifica
+        setOtpSkipped(true)
+        setRegStep(2)
+      } else {
+        setOtpSent(true)
+        setRegStep(1.5)
+      }
+    } catch {
+      setOtpSkipped(true)
+      setRegStep(2)
+    } finally { setLoading(false) }
+  }
+
+  async function verificaOtp(e) {
+    e.preventDefault(); clear()
+    if (!/^[0-9]{6}$/.test(otpCode)) {
+      setErrore('Il codice deve essere di 6 cifre.'); return
+    }
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: telefonoCompleto(),
+        token: otpCode,
+        type: 'sms',
+      })
+      if (error) throw error
+      // Verifica OK: sign out del sessione OTP per non interferire col signUp email+password
+      await supabase.auth.signOut().catch(() => {})
+      setOtpVerified(true)
+      setRegStep(2)
+    } catch (err) {
+      setErrore(err.message || 'Codice non valido o scaduto.')
+    } finally { setLoading(false) }
+  }
+
+  async function rinviaOtp() {
+    clear(); setLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: telefonoCompleto(),
+        options: { shouldCreateUser: false },
+      })
+      if (error) throw error
+      setMsg('Codice rinviato.')
+    } catch (err) {
+      setErrore(err.message || 'Errore nel rinvio.')
+    } finally { setLoading(false) }
   }
 
   async function handleRegistrazione(e) {
@@ -556,16 +714,15 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
     }
     setLoading(true)
     try {
-      // Normalizza telefono: aggiungi +39 se mancante e numero italiano
-      let telNorm = (reg.telefono || '').replace(/[\s.\-()]/g, '')
-      if (telNorm && !telNorm.startsWith('+')) telNorm = '+39' + telNorm.replace(/^0+/, '')
+      const telNorm = telefonoCompleto()
 
       await onSignUp(reg.email, reg.password, {
         nome_completo: `${reg.nome.trim()} ${reg.cognome.trim()}`.trim(),
         nome_attivita: reg.nome_attivita,
         tipo_attivita: reg.tipo_attivita.toLowerCase().replace(' / ', '_').replace('/', '_'),
         citta: reg.citta,
-        ...(telNorm && { telefono: telNorm }),
+        telefono: telNorm,
+        telefono_verificato: otpVerified,
         ...(reg.codice_invito.trim() && { codice_invito: reg.codice_invito.trim() }),
       })
       setSuccesso(true)
@@ -586,7 +743,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
       {/* Background ornament — discreto, warm */}
       <div aria-hidden style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: 'radial-gradient(circle at 80% 0%, rgba(139,26,26,0.06), transparent 50%), radial-gradient(circle at 0% 100%, rgba(230,189,90,0.05), transparent 55%)',
+        background: 'radial-gradient(circle at 80% 0%, rgba(110,14,26,0.06), transparent 50%), radial-gradient(circle at 0% 100%, rgba(230,189,90,0.05), transparent 55%)',
       }}/>
 
       <div style={{
@@ -602,7 +759,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             gap: 12, marginBottom: isMobile ? 28 : 36,
           }}>
-            <FoodOSLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(139,26,26,0.28)' }}/>
+            <FoodOSLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(110,14,26,0.28)' }}/>
             <span style={{ fontFamily: SERIF, fontSize: isMobile ? 28 : 32, fontWeight: 600, color: T.ink, letterSpacing: '-0.03em' }}>FoodOS</span>
           </div>
 
@@ -657,14 +814,16 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
                 color: T.ink, letterSpacing: '-0.025em',
                 margin: '0 0 6px',
               }}>
-                {mode === 'login' ? 'Accedi al tuo account' : (regStep === 1 ? 'Crea il tuo account' : 'Parlaci della tua attività')}
+                {mode === 'login' ? 'Accedi al tuo account' : (regStep === 1 ? 'Crea il tuo account' : regStep === 1.5 ? 'Verifica il telefono' : 'Parlaci della tua attività')}
               </h2>
               <p style={{ fontSize: 14, color: T.textMid, margin: 0, lineHeight: 1.55 }}>
                 {mode === 'login'
                   ? 'Inserisci email e password per continuare.'
                   : (regStep === 1
-                    ? 'Bastano 30 secondi. Senza carta di credito.'
-                    : "Ultimo passo per personalizzare la tua FoodOS.")}
+                    ? 'Bastano 30 secondi.'
+                    : regStep === 1.5
+                      ? `Inserisci il codice di 6 cifre inviato al ${reg.prefisso} ${reg.telefono}.`
+                      : "Ultimo passo per personalizzare la tua FoodOS.")}
               </p>
             </div>
           )}
@@ -783,29 +942,39 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
                   <StepDot active={regStep === 1} done={regStep > 1}>1</StepDot>
                   <div style={{ flex: 1, height: 1.5, background: regStep > 1 ? T.ink : T.border, transition: 'background 0.3s' }}/>
+                  <StepDot active={regStep === 1.5} done={regStep > 1.5}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="6" y="3" width="12" height="18" rx="2.5"/><line x1="11" y1="18" x2="13" y2="18"/>
+                    </svg>
+                  </StepDot>
+                  <div style={{ flex: 1, height: 1.5, background: regStep > 1.5 ? T.ink : T.border, transition: 'background 0.3s' }}/>
                   <StepDot active={regStep === 2} done={false}>2</StepDot>
                 </div>
 
                 {regStep === 1 && (
                   <form onSubmit={nextRegStep}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
                       <Field label="Nome">
                         <Input icon="user" required value={reg.nome} onChange={setR('nome')} placeholder="Mario"/>
                       </Field>
                       <Field label="Cognome">
-                        <Input required value={reg.cognome} onChange={setR('cognome')} placeholder="Rossi"/>
+                        <Input icon="user" required value={reg.cognome} onChange={setR('cognome')} placeholder="Rossi"/>
                       </Field>
                     </div>
                     <Field label="Email">
                       <Input icon="mail" type="email" required value={reg.email} onChange={setR('email')}
                         placeholder="tua@email.com" autoComplete="email"/>
                     </Field>
-                    <Field label="Telefono" hint="opzionale"
-                      error={reg.telefono && !isTelefonoValido(reg.telefono) ? 'Formato non valido (9-10 cifre, +39 facoltativo)' : null}>
-                      <Input icon="phone" type="tel" value={reg.telefono} onChange={setR('telefono')}
-                        placeholder="+39 333 1234567" autoComplete="tel"/>
+                    <Field label="Telefono"
+                      error={reg.telefono && !isNumeroValido(reg.telefono) ? 'Numero non valido (6-15 cifre).' : null}>
+                      <PhoneInput
+                        prefisso={reg.prefisso}
+                        numero={reg.telefono}
+                        onPrefisso={v => setReg(p => ({ ...p, prefisso: v }))}
+                        onNumero={v => setReg(p => ({ ...p, telefono: v }))}
+                      />
                       <div style={{ fontSize: 11, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
-                        Per notifiche WhatsApp, 2FA via SMS e contatto supporto. Non lo condividiamo.
+                        Ti invieremo un codice SMS di conferma. Useremo il numero per notifiche e 2FA.
                       </div>
                     </Field>
                     <Field label="Password">
@@ -813,8 +982,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
                         placeholder="••••••••" autoComplete="new-password"/>
                       <PasswordStrength password={reg.password}/>
                     </Field>
-                    <PrimaryBtn type="submit" disabled={!regStep1Valid()} style={{ marginTop: 8 }}>
-                      Continua <Icon name="arrowR" size={15} color={regStep1Valid() ? '#FFF' : T.textSoft}/>
+                    <PrimaryBtn type="submit" disabled={loading || !regStep1Valid()} style={{ marginTop: 8 }}>
+                      {loading ? 'Invio codice…' : <>Continua <Icon name="arrowR" size={15} color={regStep1Valid() ? '#FFF' : T.textSoft}/></>}
                     </PrimaryBtn>
 
                     <div style={{ textAlign: 'center', marginTop: 22, fontSize: 13, color: T.textMid }}>
@@ -826,6 +995,43 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
                       }}>
                         Accedi
                       </button>
+                    </div>
+                  </form>
+                )}
+
+                {regStep === 1.5 && (
+                  <form onSubmit={verificaOtp}>
+                    <Field label="Codice SMS"
+                      hint={<button type="button" onClick={rinviaOtp} disabled={loading}
+                        style={{ background: 'none', border: 'none', color: T.red, fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                        Rinvia codice
+                      </button>}>
+                      <Input icon="lock" type="text" inputMode="numeric" maxLength={6}
+                        required autoComplete="one-time-code"
+                        value={otpCode}
+                        onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="123456"/>
+                      <div style={{ fontSize: 11, color: T.textSoft, marginTop: 6, lineHeight: 1.4 }}>
+                        Non hai ricevuto l'SMS? Controlla il numero o riprova tra qualche secondo.
+                      </div>
+                    </Field>
+
+                    <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                      <button type="button" onClick={() => { setRegStep(1); clear(); setOtpCode(''); setOtpSent(false) }} style={{
+                        padding: '14px 18px',
+                        background: 'transparent', color: T.textMid,
+                        border: `1.5px solid ${T.border}`, borderRadius: 12,
+                        fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                        fontFamily: SANS, display: 'flex', alignItems: 'center', gap: 6,
+                        flexShrink: 0,
+                      }}>
+                        <Icon name="arrowL" size={14} color={T.textMid}/>
+                      </button>
+                      <div style={{ flex: 1 }}>
+                        <PrimaryBtn disabled={loading || otpCode.length !== 6}>
+                          {loading ? 'Verifica…' : <>Verifica e continua <Icon name="arrowR" size={15} color="#FFF"/></>}
+                        </PrimaryBtn>
+                      </div>
                     </div>
                   </form>
                 )}

@@ -119,7 +119,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
     justifyContent: 'center',
     gap: 6,
     padding: '13px 28px',
-    background: 'linear-gradient(135deg, #8B1A1A 0%, #5A0F0F 100%)',
+    background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)',
     color: '#FFF',
     border: 'none',
     borderRadius: 10,
@@ -128,7 +128,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
     letterSpacing: '-0.005em',
     cursor: 'pointer',
     textDecoration: 'none',
-    boxShadow: '0 4px 14px rgba(139,26,26,0.28)',
+    boxShadow: '0 4px 14px rgba(110,14,26,0.28)',
     transition: 'transform 0.12s cubic-bezier(0.32,0.72,0,1), box-shadow 0.18s cubic-bezier(0.32,0.72,0,1)',
   }
 
@@ -149,9 +149,9 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
             width: i === step ? 28 : 8,
             height: 6,
             borderRadius: 3,
-            background: i === step ? '#8B1A1A' : '#E5E9EF',
+            background: i === step ? '#6E0E1A' : '#E5E9EF',
             transition: 'all 0.3s cubic-bezier(0.32,0.72,0,1)',
-            boxShadow: i === step ? '0 2px 6px rgba(139,26,26,0.32)' : 'none',
+            boxShadow: i === step ? '0 2px 6px rgba(110,14,26,0.32)' : 'none',
           }} />
         ))}
       </div>
@@ -162,9 +162,9 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
         {step === 1 && (
           <div>
             <div style={{ width:68, height:68, borderRadius:18,
-              background:'linear-gradient(135deg, #8B1A1A 0%, #5A0F0F 100%)',
+              background:'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)',
               display:'inline-flex',alignItems:'center',justifyContent:'center',color:'#fff',
-              boxShadow:'0 12px 32px rgba(139,26,26,0.34)',marginBottom:24}}>
+              boxShadow:'0 12px 32px rgba(110,14,26,0.34)',marginBottom:24}}>
               <span style={{fontSize:30,fontWeight:800,letterSpacing:'-1px'}}>F</span>
             </div>
             <h1 style={{ fontSize: 30, fontWeight: 700, color: '#0E1726', margin: '0 0 12px', letterSpacing: '-0.03em', lineHeight: 1.15 }}>
@@ -203,7 +203,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
               onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]) }}
               onClick={() => document.getElementById('file-input-onboarding').click()}
               style={{
-                border: `2px dashed ${dragging ? '#8B1A1A' : '#E8DDD8'}`,
+                border: `2px dashed ${dragging ? '#6E0E1A' : '#E8DDD8'}`,
                 borderRadius: 16,
                 padding: '40px 24px',
                 marginBottom: 24,
@@ -244,7 +244,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
               <a
                 href="#"
                 onClick={e => { e.preventDefault(); downloadTemplate() }}
-                style={{ color: '#8B1A1A', fontSize: 13, textDecoration: 'none' }}
+                style={{ color: '#6E0E1A', fontSize: 13, textDecoration: 'none' }}
               >
                 📥 Scarica template Excel
               </a>

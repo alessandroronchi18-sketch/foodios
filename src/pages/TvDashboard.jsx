@@ -84,7 +84,7 @@ export default function TvDashboard() {
     footer: { position: 'fixed', bottom: 16, right: 24, fontSize: 12, color: 'rgba(255,255,255,0.35)' },
     errorBox: {
       maxWidth: 560, margin: '160px auto', padding: 40, textAlign: 'center',
-      background: 'rgba(139,26,26,0.18)', border: '1px solid rgba(139,26,26,0.4)',
+      background: 'rgba(110,14,26,0.18)', border: '1px solid rgba(110,14,26,0.4)',
       borderRadius: 18, color: '#FFF',
     },
   }

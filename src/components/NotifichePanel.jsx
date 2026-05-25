@@ -157,7 +157,7 @@ export default function NotifichePanel({ notifiche, nonLette, onSegnaLetta, onSe
                     <div style={{
                       width: 8, height: 8, borderRadius: '50%',
                       background: T.brand, flexShrink: 0, marginTop: 8,
-                      boxShadow: '0 0 0 3px rgba(139,26,26,0.18)',
+                      boxShadow: '0 0 0 3px rgba(110,14,26,0.18)',
                     }} />
                   )}
                 </div>

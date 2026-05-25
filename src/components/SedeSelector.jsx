@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 
-const BRAND = '#8B1A1A'
+const BRAND = '#6E0E1A'
 
 export default function SedeSelector({ sedi, sedeAttiva, onSelect }) {
   const [open, setOpen] = useState(false)
@@ -29,7 +29,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect }) {
       }}>
         <span style={{
           width: 28, height: 28, borderRadius: 8,
-          background: 'rgba(139,26,26,0.18)',
+          background: 'rgba(110,14,26,0.18)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}>
@@ -60,9 +60,9 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect }) {
           width: '100%',
           padding: '10px 12px',
           background: open
-            ? 'rgba(139,26,26,0.18)'
+            ? 'rgba(110,14,26,0.18)'
             : hover ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${open ? 'rgba(139,26,26,0.45)' : 'rgba(255,255,255,0.08)'}`,
+          border: `1px solid ${open ? 'rgba(110,14,26,0.45)' : 'rgba(255,255,255,0.08)'}`,
           borderRadius: 10,
           color: 'rgba(255,255,255,0.92)',
           fontSize: 12.5,
@@ -76,7 +76,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect }) {
       >
         <span style={{
           width: 28, height: 28, borderRadius: 8,
-          background: open ? BRAND : 'rgba(139,26,26,0.22)',
+          background: open ? BRAND : 'rgba(110,14,26,0.22)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
           transition: 'background 120ms ease',
@@ -127,8 +127,8 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect }) {
               <button
                 key={sede.id}
                 onClick={() => { onSelect(sede); setOpen(false) }}
-                onMouseEnter={e => { e.currentTarget.style.background = active ? 'rgba(139,26,26,0.28)' : 'rgba(255,255,255,0.05)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = active ? 'rgba(139,26,26,0.22)' : 'transparent' }}
+                onMouseEnter={e => { e.currentTarget.style.background = active ? 'rgba(110,14,26,0.28)' : 'rgba(255,255,255,0.05)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = active ? 'rgba(110,14,26,0.22)' : 'transparent' }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -136,7 +136,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect }) {
                   width: '100%',
                   padding: '10px 12px',
                   textAlign: 'left',
-                  background: active ? 'rgba(139,26,26,0.22)' : 'transparent',
+                  background: active ? 'rgba(110,14,26,0.22)' : 'transparent',
                   border: 'none',
                   borderLeft: active ? `2px solid ${BRAND}` : '2px solid transparent',
                   color: 'rgba(255,255,255,0.9)',

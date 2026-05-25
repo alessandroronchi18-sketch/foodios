@@ -8,7 +8,7 @@ const S = {
   h2: { fontSize: 16, fontWeight: 800, color: '#1C0A0A', marginTop: 36, marginBottom: 10 },
   p: { fontSize: 14, lineHeight: 1.8, color: '#4B3832', marginBottom: 12 },
   ul: { fontSize: 14, lineHeight: 1.9, color: '#4B3832', paddingLeft: 20, marginBottom: 12 },
-  badge: { display: 'inline-block', background: '#FEF2F2', color: '#8B1A1A', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, marginBottom: 24 },
+  badge: { display: 'inline-block', background: '#FEF2F2', color: '#6E0E1A', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, marginBottom: 24 },
   piani: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, margin: '16px 0' },
   pianoCard: { background: '#FFF', border: '1px solid #E8DDD8', borderRadius: 12, padding: '20px 24px' },
 }
@@ -39,7 +39,7 @@ export default function TerminiServizio() {
         </p>
         <p style={S.p}>
           Il servizio viene erogato tramite accesso web all'indirizzo{' '}
-          <a href="https://foodios-rose.vercel.app" style={{ color: '#8B1A1A' }}>foodios-rose.vercel.app</a>{' '}
+          <a href="https://foodios-rose.vercel.app" style={{ color: '#6E0E1A' }}>foodios-rose.vercel.app</a>{' '}
           e non richiede installazione di software.
         </p>
 
@@ -48,7 +48,7 @@ export default function TerminiServizio() {
         <div style={S.piani}>
           <div style={S.pianoCard}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7B76', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piano Pro</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: '#8B1A1A', marginBottom: 4 }}>€89<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: '#6E0E1A', marginBottom: 4 }}>€89<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
             <ul style={{ ...S.ul, margin: '12px 0 0', paddingLeft: 16 }}>
               <li>Sedi illimitate</li>
               <li>Ricettario illimitato</li>
@@ -59,9 +59,9 @@ export default function TerminiServizio() {
               <li>Supporto email</li>
             </ul>
           </div>
-          <div style={{ ...S.pianoCard, border: '2px solid #8B1A1A' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#8B1A1A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piano Chain</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: '#8B1A1A', marginBottom: 4 }}>€149<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
+          <div style={{ ...S.pianoCard, border: '2px solid #6E0E1A' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#6E0E1A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piano Chain</div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: '#6E0E1A', marginBottom: 4 }}>€149<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
             <ul style={{ ...S.ul, margin: '12px 0 0', paddingLeft: 16 }}>
               <li>Tutto il piano Pro</li>
               <li>Utenti multipli per sede</li>
@@ -157,12 +157,12 @@ export default function TerminiServizio() {
         <h2 style={S.h2}>11. Contatti</h2>
         <p style={S.p}>
           Per qualsiasi domanda sui presenti Termini:{' '}
-          <a href="mailto:support@foodios.it" style={{ color: '#8B1A1A' }}>support@foodios.it</a>
+          <a href="mailto:support@foodios.it" style={{ color: '#6E0E1A' }}>support@foodios.it</a>
         </p>
 
         <div style={{ borderTop: '1px solid #E8DDD8', marginTop: 48, paddingTop: 20 }}>
           <p style={{ fontSize: 12, color: '#9C7B76' }}>
-            © 2026 FoodOS · <a href="/privacy" style={{ color: '#8B1A1A' }}>Privacy Policy</a>
+            © 2026 FoodOS · <a href="/privacy" style={{ color: '#6E0E1A' }}>Privacy Policy</a>
           </p>
         </div>
       </div>

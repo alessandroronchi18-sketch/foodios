@@ -237,7 +237,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 cursor: 'pointer', fontSize: 13,
                 fontWeight: tab === id ? 700 : 500,
                 color: tab === id ? '#0F172A' : '#64748B',
-                borderBottom: tab === id ? '2px solid #8B1A1A' : '2px solid transparent',
+                borderBottom: tab === id ? '2px solid #6E0E1A' : '2px solid transparent',
                 marginBottom: -1,
               }}>
               {lblTab}
@@ -253,7 +253,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             : `Preventivi e prenotazioni in arrivo — ${eventiAttivi.length} evento/i`}
         </div>
         {editing == null && tab === 'attivi' && (
-          <button onClick={nuovo} style={btn('#8B1A1A', '#FFF')}>+ Nuovo evento</button>
+          <button onClick={nuovo} style={btn('#6E0E1A', '#FFF')}>+ Nuovo evento</button>
         )}
         {editing == null && tab === 'archivio' && mesiDisponibili.length > 0 && (
           <select value={filterMese} onChange={e => setFilterMese(e.target.value)}
@@ -282,14 +282,14 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
           </div>
           <div style={{ ...card, marginBottom: 0, padding: '14px 16px' }}>
             <div style={lbl}>Margine</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: kpiArchivio.margPct >= 50 ? '#10B981' : kpiArchivio.margPct >= 30 ? '#F59E0B' : '#8B1A1A' }}>{fmtEur(kpiArchivio.margine)}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: kpiArchivio.margPct >= 50 ? '#10B981' : kpiArchivio.margPct >= 30 ? '#F59E0B' : '#6E0E1A' }}>{fmtEur(kpiArchivio.margine)}</div>
             <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, marginTop: 2 }}>{kpiArchivio.margPct.toFixed(1)}%</div>
           </div>
         </div>
       )}
 
       {editing != null && draft && (
-        <div style={{ ...card, border: '2px solid #8B1A1A', background: '#FEF7F5' }}>
+        <div style={{ ...card, border: '2px solid #6E0E1A', background: '#FEF7F5' }}>
           <div style={{ fontWeight: 800, fontSize: 14, color: '#0F172A', marginBottom: 14 }}>
             {draft._new ? 'Nuovo evento' : 'Modifica evento'}
           </div>
@@ -391,7 +391,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   {isMobile && <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>FC tot</span>}
                   <div style={{ fontSize: 11, color: '#64748B', flex: 1 }} title="Costo ingredienti totale (quantità × food cost ricetta)">{fmtEur(fcStampo * Number(r.qty || 0))}</div>
                   <button onClick={() => rimuoviRiga(r.id)} aria-label="Rimuovi riga"
-                    style={{ padding: '6px 10px', background: '#FFF5F5', color: '#8B1A1A', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                    style={{ padding: '6px 10px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                     ×
                   </button>
                 </div>
@@ -418,14 +418,14 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               <div style={{ marginTop: 18, padding: 14, background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 10, display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12 }}>
                 <div><div style={lbl}>Totale</div><div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A' }}>{fmtEur(t.totRicavo)}</div></div>
                 <div><div style={lbl}>Food cost</div><div style={{ fontSize: 18, fontWeight: 800, color: '#92400E' }}>{fmtEur(t.totFC)}</div></div>
-                <div><div style={lbl}>Margine</div><div style={{ fontSize: 18, fontWeight: 800, color: t.margPct >= 50 ? '#10B981' : t.margPct >= 30 ? '#F59E0B' : '#8B1A1A' }}>{fmtEur(t.margine)} ({t.margPct.toFixed(0)}%)</div></div>
-                <div><div style={lbl}>Saldo</div><div style={{ fontSize: 18, fontWeight: 800, color: '#8B1A1A' }}>{fmtEur(saldo)}</div></div>
+                <div><div style={lbl}>Margine</div><div style={{ fontSize: 18, fontWeight: 800, color: t.margPct >= 50 ? '#10B981' : t.margPct >= 30 ? '#F59E0B' : '#6E0E1A' }}>{fmtEur(t.margine)} ({t.margPct.toFixed(0)}%)</div></div>
+                <div><div style={lbl}>Saldo</div><div style={{ fontSize: 18, fontWeight: 800, color: '#6E0E1A' }}>{fmtEur(saldo)}</div></div>
               </div>
             )
           })()}
 
           <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
-            <button onClick={salva} style={btn('#8B1A1A', '#FFF')}>Salva evento</button>
+            <button onClick={salva} style={btn('#6E0E1A', '#FFF')}>Salva evento</button>
             <button onClick={() => { setEditing(null); setDraft(null) }}
               style={{ ...btn('transparent', '#64748B'), border: '1px solid #E2E8F0' }}>Annulla</button>
           </div>
@@ -465,7 +465,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 20, fontWeight: 900, color: '#0F172A' }}>{fmtEur(t.totRicavo)}</div>
-                <div style={{ fontSize: 11, color: t.margPct >= 50 ? '#10B981' : t.margPct >= 30 ? '#F59E0B' : '#8B1A1A', fontWeight: 700 }}>
+                <div style={{ fontSize: 11, color: t.margPct >= 50 ? '#10B981' : t.margPct >= 30 ? '#F59E0B' : '#6E0E1A', fontWeight: 700 }}>
                   margine {t.margPct.toFixed(0)}%
                 </div>
                 <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
@@ -483,7 +483,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 📄 Esporta PDF
               </button>
               <button onClick={() => elimina(ev.id)}
-                style={{ padding: '6px 12px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#8B1A1A', cursor: 'pointer' }}>
+                style={{ padding: '6px 12px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#6E0E1A', cursor: 'pointer' }}>
                 Elimina
               </button>
             </div>

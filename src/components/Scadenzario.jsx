@@ -704,11 +704,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               font: 'inherit',
               position: 'relative',
               borderLeft: `4px solid ${k.accent}`,
-              boxShadow: k.urgent ? '0 1px 2px rgba(139,26,26,0.08), 0 1px 3px rgba(15,23,42,0.04)' : S.sm,
+              boxShadow: k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 1px 3px rgba(15,23,42,0.04)' : S.sm,
               transition: `box-shadow ${M.durBase} ${M.ease}, transform ${M.durBase} ${M.ease}`,
             }}
             onMouseEnter={e => { e.currentTarget.style.boxShadow = S.md; e.currentTarget.style.transform = 'translateY(-1px)' }}
-            onMouseLeave={e => { e.currentTarget.style.boxShadow = k.urgent ? '0 1px 2px rgba(139,26,26,0.08), 0 1px 3px rgba(15,23,42,0.04)' : S.sm; e.currentTarget.style.transform = 'translateY(0)' }}>
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 1px 3px rgba(15,23,42,0.04)' : S.sm; e.currentTarget.style.transform = 'translateY(0)' }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
               {k.label}
             </div>

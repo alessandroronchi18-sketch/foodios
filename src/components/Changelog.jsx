@@ -121,7 +121,7 @@ export default function ChangelogView() {
             <div style={{
               background: C.white, borderRadius: 14,
               padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-              border: idx === 0 ? `1px solid rgba(139,26,26,0.15)` : `1px solid ${C.border}`,
+              border: idx === 0 ? `1px solid rgba(110,14,26,0.15)` : `1px solid ${C.border}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 <div style={{

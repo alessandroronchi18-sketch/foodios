@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
 
-const R = '#8B1A1A'
+const R = '#6E0E1A'
 const TXT = '#1C0A0A'
 const SOFT = '#9C7B76'
 const MID = '#4A3728'
@@ -102,7 +102,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
                 background: isSel ? '#FFF' : '#FFFEF7',
                 border: `2px solid ${isSel ? R : '#FDE68A'}`,
                 borderRadius: 10, cursor: 'pointer',
-                boxShadow: isSel ? '0 4px 14px rgba(139,26,26,0.18)' : 'none',
+                boxShadow: isSel ? '0 4px 14px rgba(110,14,26,0.18)' : 'none',
                 transition: 'all .15s',
               }}>
               <div style={{ fontSize: 28, marginBottom: 6 }}>{s.icon}</div>
@@ -290,7 +290,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
       </div>
 
       {showAdd && (
-        <div style={{ ...card, border: '2px dashed #8B1A1A', background: '#FEF0EE', marginBottom: 16 }}>
+        <div style={{ ...card, border: '2px dashed #6E0E1A', background: '#FEF0EE', marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 14 }}>Nuova sede</div>
           <div style={{ marginBottom: 10 }}>
             <label style={lbl}>Nome sede *</label>

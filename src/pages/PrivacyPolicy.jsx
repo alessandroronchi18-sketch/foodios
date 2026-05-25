@@ -8,7 +8,7 @@ const S = {
   h2: { fontSize: 16, fontWeight: 800, color: '#1C0A0A', marginTop: 36, marginBottom: 10 },
   p: { fontSize: 14, lineHeight: 1.8, color: '#4B3832', marginBottom: 12 },
   ul: { fontSize: 14, lineHeight: 1.9, color: '#4B3832', paddingLeft: 20, marginBottom: 12 },
-  badge: { display: 'inline-block', background: '#FEF2F2', color: '#8B1A1A', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, marginBottom: 24 },
+  badge: { display: 'inline-block', background: '#FEF2F2', color: '#6E0E1A', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, marginBottom: 24 },
 }
 
 export default function PrivacyPolicy() {
@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
         <p style={S.p}>
           <strong>[NOME LEGALE]</strong><br />
           [INDIRIZZO]<br />
-          Email: <a href="mailto:support@foodios.it" style={{ color: '#8B1A1A' }}>support@foodios.it</a>
+          Email: <a href="mailto:support@foodios.it" style={{ color: '#6E0E1A' }}>support@foodios.it</a>
         </p>
 
         <h2 style={S.h2}>2. Dati raccolti</h2>
@@ -73,9 +73,9 @@ export default function PrivacyPolicy() {
         </ul>
         <p style={S.p}>
           Per esercitare i tuoi diritti scrivi a{' '}
-          <a href="mailto:support@foodios.it" style={{ color: '#8B1A1A' }}>support@foodios.it</a>.
+          <a href="mailto:support@foodios.it" style={{ color: '#6E0E1A' }}>support@foodios.it</a>.
           Risponderemo entro 30 giorni. Hai inoltre il diritto di proporre reclamo al Garante per la
-          Protezione dei Dati Personali (<a href="https://www.garanteprivacy.it" style={{ color: '#8B1A1A' }} target="_blank" rel="noreferrer">garanteprivacy.it</a>).
+          Protezione dei Dati Personali (<a href="https://www.garanteprivacy.it" style={{ color: '#6E0E1A' }} target="_blank" rel="noreferrer">garanteprivacy.it</a>).
         </p>
 
         <h2 style={S.h2}>6. Cookie</h2>
@@ -103,12 +103,12 @@ export default function PrivacyPolicy() {
         <h2 style={S.h2}>9. Contatti</h2>
         <p style={S.p}>
           Per qualsiasi domanda relativa alla presente Privacy Policy o al trattamento dei tuoi dati:{' '}
-          <a href="mailto:support@foodios.it" style={{ color: '#8B1A1A' }}>support@foodios.it</a>
+          <a href="mailto:support@foodios.it" style={{ color: '#6E0E1A' }}>support@foodios.it</a>
         </p>
 
         <div style={{ borderTop: '1px solid #E8DDD8', marginTop: 48, paddingTop: 20 }}>
           <p style={{ fontSize: 12, color: '#9C7B76' }}>
-            © 2026 FoodOS · <a href="/termini" style={{ color: '#8B1A1A' }}>Termini di Servizio</a>
+            © 2026 FoodOS · <a href="/termini" style={{ color: '#6E0E1A' }}>Termini di Servizio</a>
           </p>
         </div>
       </div>

@@ -77,7 +77,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
 
         {!token ? (
           <button onClick={rigenera}
-            style={{ padding: '10px 18px', background: '#8B1A1A', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ padding: '10px 18px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             Genera link TV
           </button>
         ) : (
@@ -113,7 +113,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
                 Rigenera token
               </button>
               <button onClick={revoca}
-                style={{ padding: '8px 16px', background: '#FFF5F5', color: '#8B1A1A', border: '1px solid #FCA5A5', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ padding: '8px 16px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                 Revoca
               </button>
             </div>

@@ -50,12 +50,12 @@ export default function ReferralPanel({ auth }) {
     textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block',
   }
   const btn = {
-    padding: '8px 14px', background: '#8B1A1A', color: '#FFF',
+    padding: '8px 14px', background: '#6E0E1A', color: '#FFF',
     border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
     whiteSpace: 'nowrap', flexShrink: 0,
   }
   const btnGhost = {
-    ...btn, background: 'transparent', color: '#8B1A1A', border: '1px solid #8B1A1A',
+    ...btn, background: 'transparent', color: '#6E0E1A', border: '1px solid #6E0E1A',
   }
 
   if (loading) return null
@@ -75,7 +75,7 @@ export default function ReferralPanel({ auth }) {
             display: 'inline-flex', alignItems: 'center',
             background: '#FEF2F2', border: '2px solid #FECACA', borderRadius: 10,
             padding: '10px 18px', fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 22, fontWeight: 900,
-            color: '#8B1A1A', letterSpacing: '0.12em',
+            color: '#6E0E1A', letterSpacing: '0.12em',
           }}>
             {data.codice}
           </div>
@@ -108,7 +108,7 @@ export default function ReferralPanel({ auth }) {
       {/* Statistiche */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
         <div style={{ textAlign: 'center', padding: '16px 12px', background: '#FEF2F2', borderRadius: 10 }}>
-          <div style={{ fontSize: 30, fontWeight: 900, color: '#8B1A1A', lineHeight: 1 }}>
+          <div style={{ fontSize: 30, fontWeight: 900, color: '#6E0E1A', lineHeight: 1 }}>
             {data.utilizzi}
           </div>
           <div style={{ fontSize: 11, color: '#9C7B76', fontWeight: 600, marginTop: 6 }}>
