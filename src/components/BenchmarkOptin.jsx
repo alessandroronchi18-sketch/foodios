@@ -6,7 +6,7 @@ export const BMK_KEY = 'pasticceria-benchmark-optin-v1'
 const SK_CHIUS = 'pasticceria-chiusure-v1'
 const SK_GIOR = 'pasticceria-giornaliero-v1'
 
-const card = { background: '#FFF', borderRadius: 14, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 
 function annoMeseCorrente() {
   const d = new Date()
@@ -123,7 +123,7 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
         </div>
 
         {optin && (
-          <div style={{ marginTop: 16, padding: 14, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 9 }}>
+          <div style={{ marginTop: 16, padding: 14, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8 }}>
             <div style={{ fontSize: 12, color: '#166534', marginBottom: 8 }}>
               Contributo automatico al mese corrente. Puoi forzarlo ora:
             </div>

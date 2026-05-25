@@ -74,13 +74,13 @@ export function NovitaModal({ onClose, onVediTutte }) {
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           <button onClick={onVediTutte} style={{
             flex: 1, padding: '10px 16px', background: C.redLight, color: C.red,
-            border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
           }}>
             Vedi tutte le novità
           </button>
           <button onClick={onClose} style={{
             flex: 1, padding: '10px 16px', background: C.red, color: '#fff',
-            border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
           }}>
             Inizia →
           </button>
@@ -119,7 +119,7 @@ export default function ChangelogView() {
             }} />
 
             <div style={{
-              background: C.white, borderRadius: 14,
+              background: C.white, borderRadius: 12,
               padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
               border: idx === 0 ? `1px solid rgba(110,14,26,0.15)` : `1px solid ${C.border}`,
             }}>

@@ -373,7 +373,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                 {!has && !selDetail.isFuture && (
                   <button onClick={()=>setView(v)} style={{
                     fontSize:10, fontWeight:700, color:'#6E0E1A', background:'none',
-                    border:'1px solid #6E0E1A', borderRadius:6, padding:'3px 8px', cursor:'pointer',
+                    border:'1px solid #6E0E1A', borderRadius:8, padding:'3px 8px', cursor:'pointer',
                   }}>Vai →</button>
                 )}
               </div>

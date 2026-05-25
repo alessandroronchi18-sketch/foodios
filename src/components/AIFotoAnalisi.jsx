@@ -37,7 +37,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
         </div>
         <button onClick={onRianalizza} style={{
           padding: '6px 12px', background: '#FFF', border: '1px solid #E2E8F0',
-          borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#64748B'
+          borderRadius: 8, fontSize: 12, cursor: 'pointer', color: '#64748B'
         }}>
           Rianalizza
         </button>
@@ -106,14 +106,14 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
               </select>
               <button
                 onClick={() => rimuoviIngrediente(i)}
-                style={{ width: 28, height: 28, background: '#FEE2E2', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#DC2626', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 28, height: 28, background: '#FEE2E2', border: 'none', borderRadius: 8, cursor: 'pointer', color: '#DC2626', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >×</button>
             </div>
           ))}
         </div>
         <button
           onClick={aggiungiIngrediente}
-          style={{ marginTop: 8, padding: '6px 12px', background: '#FFF', border: '1px dashed #CBD5E1', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#64748B', width: '100%' }}
+          style={{ marginTop: 8, padding: '6px 12px', background: '#FFF', border: '1px dashed #CBD5E1', borderRadius: 8, cursor: 'pointer', fontSize: 12, color: '#64748B', width: '100%' }}
         >
           + Aggiungi ingrediente
         </button>

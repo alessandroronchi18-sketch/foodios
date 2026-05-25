@@ -271,11 +271,11 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
     }
   }
 
-  const card = { background: '#FFF', borderRadius: 14, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+  const card = { background: '#FFF', borderRadius: 12, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
   const secBtn = (col = '#FFF', bg = R) => ({
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '9px 16px', background: bg, color: col, border: 'none',
-    borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+    borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
     opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s',
   })
 
@@ -351,10 +351,10 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
               <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF0EE', borderRadius: 8, border: '1px solid #FCA5A5', fontSize: 12, color: '#7F1D1D' }}>
                 <strong>⚠️ Attenzione</strong> — Questo sovrascriverà i dati attuali. Continuare?
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button onClick={() => setImportConfirm(true)} style={{ padding: '7px 16px', background: R, color: '#FFF', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  <button onClick={() => setImportConfirm(true)} style={{ padding: '7px 16px', background: R, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                     Sì, ripristina
                   </button>
-                  <button onClick={() => { setImportFile(null); setImportPreview(null) }} style={{ padding: '7px 12px', background: 'transparent', border: `1px solid ${BOR}`, borderRadius: 7, fontSize: 12, color: SOFT, cursor: 'pointer' }}>
+                  <button onClick={() => { setImportFile(null); setImportPreview(null) }} style={{ padding: '7px 12px', background: 'transparent', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: 12, color: SOFT, cursor: 'pointer' }}>
                     Annulla
                   </button>
                 </div>

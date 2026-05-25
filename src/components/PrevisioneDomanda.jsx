@@ -116,7 +116,7 @@ function RicettaForecast({ ric, giornaliero, calcolaFC, ingCosti, ricettario, ge
             <CartesianGrid strokeDasharray="3 3" stroke="#F0EDE8"/>
             <XAxis dataKey="mese" tick={{ fontSize:8, fill:C.textSoft }}/>
             <YAxis tick={{ fontSize:8, fill:C.textSoft }}/>
-            <Tooltip contentStyle={{ fontSize:10, borderRadius:6 }} formatter={(v,_,p)=>[`${v} stampi`, p.payload.tipo==="previsione"?"Previsione":"Storico"]}/>
+            <Tooltip contentStyle={{ fontSize:10, borderRadius:8 }} formatter={(v,_,p)=>[`${v} stampi`, p.payload.tipo==="previsione"?"Previsione":"Storico"]}/>
             <Line type="monotone" dataKey="stampi" stroke={C.red} strokeWidth={2} dot={(p)=>{
               if (p.payload.tipo==="previsione") return <circle key={p.key} cx={p.cx} cy={p.cy} r={5} fill={C.amber} stroke={C.white} strokeWidth={2}/>
               return <circle key={p.key} cx={p.cx} cy={p.cy} r={3} fill={C.red}/>
@@ -223,7 +223,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, ingCosti, c
                 <CartesianGrid strokeDasharray="3 3" stroke="#F0EDE8"/>
                 <XAxis dataKey="label" tick={{ fontSize:9, fill:C.textSoft }}/>
                 <YAxis tick={{ fontSize:9, fill:C.textSoft }}/>
-                <Tooltip contentStyle={{ fontSize:10, borderRadius:6 }} formatter={(v)=>[`${v} stampi`,"Produzione"]}/>
+                <Tooltip contentStyle={{ fontSize:10, borderRadius:8 }} formatter={(v)=>[`${v} stampi`,"Produzione"]}/>
                 <Line type="monotone" dataKey="stampi" stroke={C.red} strokeWidth={2.5} dot={{ fill:C.red, r:4 }}/>
               </LineChart>
             </ResponsiveContainer>
@@ -266,7 +266,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, ingCosti, c
       {modeView === "ricette" && (
         <div>
           <input value={filtroRic} onChange={e=>setFiltroRic(e.target.value)} placeholder="Filtra ricetta…"
-            style={{ width:"100%", padding:"9px 14px", borderRadius:9, border:`1px solid ${C.borderStr}`, fontSize:12, marginBottom:16, color:C.text }}/>
+            style={{ width:"100%", padding:"9px 14px", borderRadius: 8, border:`1px solid ${C.borderStr}`, fontSize:12, marginBottom:16, color:C.text }}/>
           {filtrate.map(ric => (
             <RicettaForecast key={ric.nome} ric={ric} giornaliero={giornaliero}
               calcolaFC={calcolaFC} ingCosti={ingCosti} ricettario={ricettario} getR={getR}/>
@@ -289,8 +289,8 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, ingCosti, c
             return (
               <div key={d} style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
                 <div style={{ width:36, fontSize:12, fontWeight:700, color:C.text }}>{d}</div>
-                <div style={{ flex:1, height:18, background:"#F0EDE8", borderRadius:9, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${pct}%`, background:C.red, borderRadius:9, transition:"width 0.4s" }}/>
+                <div style={{ flex:1, height:18, background:"#F0EDE8", borderRadius: 8, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${pct}%`, background:C.red, borderRadius: 8, transition:"width 0.4s" }}/>
                 </div>
                 <div style={{ width:60, fontSize:11, fontWeight:700, color:C.text, textAlign:"right" }}>{v.toFixed(1)} stampi</div>
               </div>

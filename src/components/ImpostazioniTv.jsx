@@ -3,7 +3,7 @@ import { sload, ssave } from '../lib/storage'
 
 const TV_KEY = 'pasticceria-tv-token-v1'
 
-const card = { background:'#FFF', borderRadius:14, padding:'24px 28px', boxShadow:'0 1px 4px rgba(0,0,0,0.07)', marginBottom:20 }
+const card = { background:'#FFF', borderRadius: 12, padding:'24px 28px', boxShadow:'0 1px 4px rgba(0,0,0,0.07)', marginBottom:20 }
 const label = { fontSize:11, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8, display:'block' }
 
 function generaToken() {
@@ -77,7 +77,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
 
         {!token ? (
           <button onClick={rigenera}
-            style={{ padding: '10px 18px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ padding: '10px 18px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             Genera link TV
           </button>
         ) : (
@@ -86,7 +86,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
               <div style={{ marginBottom: 14 }}>
                 <label style={label}>Sede da mostrare (opzionale)</label>
                 <select value={sedeSel} onChange={e => setSedeSel(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none' }}>
+                  style={{ width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none' }}>
                   <option value="">Tutte le sedi</option>
                   {sedi.map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` — ${s.citta}` : ''}</option>)}
                 </select>
@@ -96,24 +96,24 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
             <label style={label}>Link da aprire sulla TV</label>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               <input readOnly value={fullUrl} onFocus={e => e.target.select()}
-                style={{ flex: 1, padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 12, color: '#0F172A', background: '#F1F5F9', fontFamily: 'monospace' }} />
+                style={{ flex: 1, padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, color: '#0F172A', background: '#F1F5F9', fontFamily: 'monospace' }} />
               <button onClick={copia}
-                style={{ padding: '10px 18px', background: '#0F172A', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                style={{ padding: '10px 18px', background: '#0F172A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 Copia
               </button>
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
               <a href={fullUrl} target="_blank" rel="noreferrer"
-                style={{ padding: '8px 16px', background: '#10B981', color: '#FFF', borderRadius: 9, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                style={{ padding: '8px 16px', background: '#10B981', color: '#FFF', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
                 Apri in nuova scheda →
               </a>
               <button onClick={rigenera}
-                style={{ padding: '8px 16px', background: '#FFFBEB', color: '#92400E', border: '1px solid #FDE68A', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ padding: '8px 16px', background: '#FFFBEB', color: '#92400E', border: '1px solid #FDE68A', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                 Rigenera token
               </button>
               <button onClick={revoca}
-                style={{ padding: '8px 16px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ padding: '8px 16px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                 Revoca
               </button>
             </div>

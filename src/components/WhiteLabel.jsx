@@ -5,9 +5,9 @@ export const WL_KEY = 'pasticceria-white-label-v1'
 
 const PIANI_CHAIN = new Set(['enterprise', 'chain'])
 
-const card = { background: '#FFF', borderRadius: 14, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
-const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
+const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
 
 const MAX_LOGO_BYTES = 500_000 // 500 KB inline base64 in JSON
 
@@ -133,15 +133,15 @@ export default function WhiteLabel({ orgId, piano, notify }) {
         <div style={{ marginBottom: 20 }}>
           <label style={lbl}>Logo (max 500 KB, PNG/SVG/JPG)</label>
           {logoData && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 10, background: '#F8FAFC', borderRadius: 9, border: '1px solid #E2E8F0', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 10, background: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0', marginBottom: 10 }}>
               <img src={logoData} alt="logo" style={{ maxHeight: 56, maxWidth: 120, objectFit: 'contain' }} />
               <button onClick={() => setLogoData(null)}
-                style={{ marginLeft: 'auto', padding: '6px 12px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ marginLeft: 'auto', padding: '6px 12px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                 Rimuovi
               </button>
             </div>
           )}
-          <label style={{ display: 'inline-block', padding: '10px 18px', background: '#FFFBEB', border: '1px dashed #FDE68A', borderRadius: 9, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#92400E' }}>
+          <label style={{ display: 'inline-block', padding: '10px 18px', background: '#FFFBEB', border: '1px dashed #FDE68A', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#92400E' }}>
             📂 Carica logo
             <input type="file" accept="image/png,image/svg+xml,image/jpeg" style={{ display: 'none' }}
               onChange={e => e.target.files?.[0] && handleLogo(e.target.files[0])} />
@@ -150,11 +150,11 @@ export default function WhiteLabel({ orgId, piano, notify }) {
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={salva} disabled={saving}
-            style={{ padding: '10px 22px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.5 : 1 }}>
+            style={{ padding: '10px 22px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.5 : 1 }}>
             {saving ? '…' : 'Salva personalizzazione'}
           </button>
           <button onClick={reset} disabled={saving}
-            style={{ padding: '10px 18px', background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ padding: '10px 18px', background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             Ripristina default
           </button>
         </div>
@@ -167,7 +167,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
             {logoData ? (
               <img src={logoData} alt="logo" style={{ height: 36, maxWidth: 80, objectFit: 'contain' }} />
             ) : (
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: colorePrimario, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 800 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: colorePrimario, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 800 }}>
                 {(nomeApp || 'F').slice(0, 1).toUpperCase()}
               </div>
             )}

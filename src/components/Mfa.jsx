@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const card = { background: '#FFF', borderRadius: 14, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
-const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
+const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
 
 // Componente "Sicurezza" in Impostazioni: gestisce enroll/verify/unenroll del 2FA TOTP
 // via Supabase Auth MFA. Mostra QR code per Google Authenticator / Authy / 1Password.
@@ -162,7 +162,7 @@ export default function MfaSection({ notify }) {
 
         {verifiedFactors.length === 0 && !enrolling && (
           <button onClick={startEnroll}
-            style={{ padding: '10px 22px', background: '#0F172A', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ padding: '10px 22px', background: '#0F172A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             Attiva 2FA
           </button>
         )}
@@ -181,11 +181,11 @@ export default function MfaSection({ notify }) {
                 Oppure inserisci manualmente questa chiave:
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <code style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 7, padding: '8px 12px', fontSize: 13, fontFamily: 'monospace', color: '#0F172A', letterSpacing: '0.05em', wordBreak: 'break-all' }}>
+                <code style={{ background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 8, padding: '8px 12px', fontSize: 13, fontFamily: 'monospace', color: '#0F172A', letterSpacing: '0.05em', wordBreak: 'break-all' }}>
                   {enrolling.secret}
                 </code>
                 <button onClick={copySecret}
-                  style={{ padding: '7px 12px', background: '#0F172A', color: '#FFF', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                  style={{ padding: '7px 12px', background: '#0F172A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                   Copia
                 </button>
               </div>
@@ -200,11 +200,11 @@ export default function MfaSection({ notify }) {
             </div>
             <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
               <button onClick={verifyEnroll} disabled={verifying || code.length !== 6}
-                style={{ padding: '10px 22px', background: code.length === 6 ? '#6E0E1A' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: code.length === 6 ? 'pointer' : 'not-allowed' }}>
+                style={{ padding: '10px 22px', background: code.length === 6 ? '#6E0E1A' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: code.length === 6 ? 'pointer' : 'not-allowed' }}>
                 {verifying ? '…' : 'Conferma e attiva'}
               </button>
               <button onClick={cancelEnroll}
-                style={{ padding: '10px 18px', background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ padding: '10px 18px', background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 Annulla
               </button>
             </div>
@@ -247,11 +247,11 @@ export default function MfaSection({ notify }) {
               style={{ ...inp, maxWidth: 200, fontSize: 18, letterSpacing: '0.3em', textAlign: 'center', fontFamily: 'monospace' }} />
             <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
               <button onClick={doUnenroll} disabled={confirmCode.length !== 6}
-                style={{ padding: '10px 22px', background: confirmCode.length === 6 ? '#6E0E1A' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: confirmCode.length === 6 ? 'pointer' : 'not-allowed' }}>
+                style={{ padding: '10px 22px', background: confirmCode.length === 6 ? '#6E0E1A' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: confirmCode.length === 6 ? 'pointer' : 'not-allowed' }}>
                 Disattiva 2FA
               </button>
               <button onClick={() => { setUnenrolling(null); setConfirmCode('') }}
-                style={{ padding: '10px 18px', background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ padding: '10px 18px', background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 Annulla
               </button>
             </div>

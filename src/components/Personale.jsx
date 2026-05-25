@@ -83,7 +83,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   function initEdit(d) { setForm({ nome:d.nome, ruolo:d.ruolo||"", tipo_contratto:d.tipo_contratto||"Full-time", costo_orario:d.costo_orario||"", ore_settimana:d.ore_settimana||40, note:d.note||"", sede_id: d.sede_id || "" }); setEditId(d.id); if (isMobile) setShowForm(true) }
 
   const costoMeseTot = lista.reduce((s,d)=>s+(d.costo_orario||0)*(d.ore_settimana||0)*4.33, 0)
-  const inputSt = { width:"100%", padding: isMobile ? "12px 14px" : "9px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
+  const inputSt = { width:"100%", height: 40, padding: "0 12px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color:C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
   const formVisible = !isMobile || showForm
 
   return (
@@ -204,8 +204,8 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             </div>
             {d.note && <div style={{ fontSize:11, color:C.textSoft, marginTop:6, fontStyle:"italic" }}>{d.note}</div>}
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
-              <button onClick={()=>initEdit(d)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:6, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
-              <button onClick={()=>disattiva(d.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:6, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Archivia</button>
+              <button onClick={()=>initEdit(d)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
+              <button onClick={()=>disattiva(d.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Archivia</button>
             </div>
           </div>
         )) : lista.map(d=>(
@@ -230,8 +230,8 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
                 {d.note && <div style={{ fontSize:10, color:C.textSoft, marginTop:3, fontStyle:"italic" }}>{d.note}</div>}
               </div>
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
-                <button onClick={()=>initEdit(d)} style={{ padding:"5px 10px", borderRadius:6, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}>✏️</button>
-                <button onClick={()=>disattiva(d.id)} style={{ padding:"5px 10px", borderRadius:6, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>📦</button>
+                <button onClick={()=>initEdit(d)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}>✏️</button>
+                <button onClick={()=>disattiva(d.id)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>📦</button>
               </div>
             </div>
           </div>
@@ -325,7 +325,7 @@ function TurniTab({ orgId, notify, isMobile }) {
   function prevWeek() { const d=new Date(week); d.setDate(d.getDate()-7); setWeek(d.toISOString().slice(0,10)) }
   function nextWeek() { const d=new Date(week); d.setDate(d.getDate()+7); setWeek(d.toISOString().slice(0,10)) }
 
-  const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius:7, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
+  const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
 
   function apriNuovoTurno(dataIso) {
     setForm({ dipendente_id:"", data: dataIso || week, ora_inizio:"08:00", ora_fine:"16:00", note:"" })
@@ -440,7 +440,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                     <button onClick={()=>eliminaTurno(t.id)} style={{ background:"none", border:"none", color:C.red, cursor:"pointer", fontSize:20, padding:"4px 8px" }}>×</button>
                   </div>
                 ))}
-                <button onClick={()=>apriNuovoTurno(dIso)} style={{ width:"100%", padding:"8px", background:C.bg, border:`1px dashed ${C.borderStr}`, borderRadius:6, fontSize:11, color:C.textSoft, cursor:"pointer", marginTop:4 }}>
+                <button onClick={()=>apriNuovoTurno(dIso)} style={{ width:"100%", padding:"8px", background:C.bg, border:`1px dashed ${C.borderStr}`, borderRadius:8, fontSize:11, color:C.textSoft, cursor:"pointer", marginTop:4 }}>
                   + Aggiungi turno
                 </button>
               </div>
@@ -468,7 +468,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                   return (
                     <div key={d} style={{ padding:"6px 4px", borderLeft:`1px solid ${C.border}`, minHeight:48 }}>
                       {t && (
-                        <div style={{ background:C.redLight, borderRadius:6, padding:"5px 7px", border:`1px solid ${C.red}30` }}>
+                        <div style={{ background:C.redLight, borderRadius:8, padding:"5px 7px", border:`1px solid ${C.red}30` }}>
                           <div style={{ fontSize:9, fontWeight:700, color:C.red }}>{t.ora_inizio}–{t.ora_fine}</div>
                           <div style={{ fontSize:9, color:C.textSoft }}>{fmtH(t.ore||0)}</div>
                           <button onClick={()=>eliminaTurno(t.id)} style={{ fontSize:7, color:C.red, background:"transparent", border:"none", cursor:"pointer", padding:0, marginTop:2 }}>✕</button>

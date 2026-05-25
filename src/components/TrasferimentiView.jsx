@@ -404,7 +404,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {riceviModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
           onClick={() => setRiceviModal(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 14, padding: 24, maxWidth: 480, width: '100%' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%' }}>
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text }}>📦 Conferma ricezione</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>
               <strong>{riceviModal.t.prodotto}</strong> · {fmtQty(riceviModal.t.quantita, riceviModal.t.unita)} inviati da {sediMap[riceviModal.t.sede_da]?.nome || '—'}
@@ -481,21 +481,21 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                     {t.stato === 'bozza' && (
                       <>
                         <button onClick={() => azInvia(t)} disabled={busy} title="Invia"
-                          style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                           🚚 Invia
                         </button>
                         <button onClick={() => azElimina(t)} disabled={busy} title="Elimina bozza"
-                          style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
                       </>
                     )}
                     {t.stato === 'inviato' && (
                       <>
                         <button onClick={() => apriRicevi(t)} disabled={busy} title="Conferma ricezione"
-                          style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: C.green, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                           ✓ Ricevuto
                         </button>
                         <button onClick={() => azAnnulla(t)} disabled={busy} title="Annulla (rollback stock)"
-                          style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>⊘</button>
+                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>⊘</button>
                       </>
                     )}
                     {(t.stato === 'ricevuto' || t.stato === 'completato') && (
@@ -503,7 +503,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                     )}
                     {t.stato === 'annullato' && (
                       <button onClick={() => azElimina(t)} title="Elimina"
-                        style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                        style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
                     )}
                   </div>
                 </div>

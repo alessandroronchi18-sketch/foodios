@@ -312,7 +312,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                     <input
                       value={secondaSede[key]}
                       onChange={e => setSecondaSede(s => ({ ...s, [key]: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, color: '#1C0A0A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#1C0A0A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }}
                       placeholder={placeholder}
                     />
                   </div>

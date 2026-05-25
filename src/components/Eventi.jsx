@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
+import { color as T, radius as R } from '../lib/theme'
 
 export const SK_EVENTI = 'pasticceria-eventi-v1'
 
-const card = { background: '#FFF', borderRadius: 14, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 16 }
-const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
-const inp  = { width: '100%', padding: '9px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
-const btn = (bg, fg) => ({ padding: '9px 16px', background: bg, color: fg, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' })
+const card = { background: T.bgCard, borderRadius: R.xl, padding: '18px 20px', border: `1px solid ${T.border}`, boxShadow: '0 1px 2px rgba(15,23,42,0.04)', marginBottom: 16 }
+const lbl  = { fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
+const inp  = { width: '100%', height: 40, padding: '0 12px', border: `1px solid ${T.borderStr}`, borderRadius: R.md, fontSize: 13, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
+const btn = (bg, fg) => ({ height: 36, padding: '0 14px', background: bg, color: fg, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em', whiteSpace: 'nowrap', transition: 'background 120ms ease, opacity 120ms ease', fontFamily: 'inherit' })
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36) }
 function fmtEur(n) { return `€ ${Number(n || 0).toFixed(2)}` }
@@ -391,7 +392,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   {isMobile && <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>FC tot</span>}
                   <div style={{ fontSize: 11, color: '#64748B', flex: 1 }} title="Costo ingredienti totale (quantità × food cost ricetta)">{fmtEur(fcStampo * Number(r.qty || 0))}</div>
                   <button onClick={() => rimuoviRiga(r.id)} aria-label="Rimuovi riga"
-                    style={{ padding: '6px 10px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                    style={{ padding: '6px 10px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                     ×
                   </button>
                 </div>
@@ -475,15 +476,15 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
               <button onClick={() => modifica(ev)}
-                style={{ padding: '6px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#64748B', cursor: 'pointer' }}>
+                style={{ padding: '6px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#64748B', cursor: 'pointer' }}>
                 Modifica
               </button>
               <button onClick={() => exportPreventivoPDF(ev, ricetteMap, null, nomeAttivita)}
-                style={{ padding: '6px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#1E40AF', cursor: 'pointer' }}>
+                style={{ padding: '6px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#1E40AF', cursor: 'pointer' }}>
                 📄 Esporta PDF
               </button>
               <button onClick={() => elimina(ev.id)}
-                style={{ padding: '6px 12px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, fontWeight: 700, color: '#6E0E1A', cursor: 'pointer' }}>
+                style={{ padding: '6px 12px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#6E0E1A', cursor: 'pointer' }}>
                 Elimina
               </button>
             </div>

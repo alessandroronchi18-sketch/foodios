@@ -42,7 +42,7 @@ export default function ReferralPanel({ auth }) {
   }
 
   const card = {
-    background: '#FFF', borderRadius: 14, padding: '24px 28px',
+    background: '#FFF', borderRadius: 12, padding: '24px 28px',
     boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20,
   }
   const label = {

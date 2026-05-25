@@ -91,7 +91,7 @@ export default function BackgroundToast() {
                 onClick={() => backgroundManager.retry(job.id)}
                 style={{
                   marginTop: 6, width: '100%', padding: '4px 0',
-                  background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6,
+                  background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8,
                   color: '#DC2626', fontSize: 11, fontWeight: 600, cursor: 'pointer',
                 }}
               >

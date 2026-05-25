@@ -232,7 +232,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       ) : (
         // ─── DESKTOP: tabella ──────────────────────────────────────────────
         <div style={{ overflowX: 'auto', marginTop: 28 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: CARD, borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: CARD, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
                 <th style={{ ...headerStyle, textAlign: 'left', width: 220 }}>KPI</th>

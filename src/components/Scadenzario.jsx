@@ -353,11 +353,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11, color: T.brand, fontWeight: 700 }}>Sicuro?</span>
           <button onClick={() => eliminaFattura(f.id)}
-            style={{ padding: '4px 10px', background: T.brand, color: T.white, border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ padding: '4px 10px', background: T.brand, color: T.white, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
             Sì, elimina
           </button>
           <button onClick={() => setEliminandoId(null)}
-            style={{ padding: '4px 9px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+            style={{ padding: '4px 9px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
             Annulla
           </button>
         </div>
@@ -368,9 +368,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       return (
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
           <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
-            style={{ padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 6, fontSize: 11, color: T.text }} />
+            style={{ padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: T.text }} />
           <button onClick={() => segnaComePagata(f.id)}
-            style={{ padding: '4px 9px', background: T.green, color: T.white, border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
+            style={{ padding: '4px 9px', background: T.green, color: T.white, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
           <button onClick={() => setPagandoId(null)}
             style={{ padding: '4px 7px', background: 'transparent', color: T.textSoft, border: 'none', fontSize: 12, cursor: 'pointer' }}>✕</button>
         </div>
@@ -388,13 +388,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </span>
         ) : (
           <button onClick={() => { setPagandoId(f.id); setEliminandoId(null); setDataPag(new Date().toISOString().slice(0,10)) }}
-            style={{ padding: compact ? '4px 9px' : '5px 10px', background: '#F0FDF4', color: T.green, border: `1px solid ${T.green}`, borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ padding: compact ? '4px 9px' : '5px 10px', background: '#F0FDF4', color: T.green, border: `1px solid ${T.green}`, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
             ✓ Segna pagata
           </button>
         )}
         <button onClick={() => chiediElimina(f.id)}
           aria-label="Elimina fattura" title="Elimina"
-          style={{ padding: '5px 7px', background: 'transparent', color: T.textSoft, border: 'none', cursor: 'pointer', borderRadius: 6, display: 'inline-flex', alignItems: 'center' }}
+          style={{ padding: '5px 7px', background: 'transparent', color: T.textSoft, border: 'none', cursor: 'pointer', borderRadius: 8, display: 'inline-flex', alignItems: 'center' }}
           onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = T.brand }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textSoft }}>
           <svg width={compact ? 12 : 14} height={compact ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -454,7 +454,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <td style={{ padding: '9px 12px' }}>
           <span style={{
             background: cfg.pillBg, color: cfg.pillFg,
-            padding: '3px 9px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+            padding: '3px 9px', borderRadius: 8, fontSize: 10, fontWeight: 700,
             letterSpacing: '0.04em', whiteSpace: 'nowrap',
           }}>{cfg.label}</span>
         </td>
@@ -486,7 +486,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </div>
           <span style={{
             background: cfg.pillBg, color: cfg.pillFg,
-            padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+            padding: '2px 8px', borderRadius: 8, fontSize: 10, fontWeight: 700,
             letterSpacing: '0.04em', whiteSpace: 'nowrap',
           }}>{cfg.label}</span>
         </div>
@@ -553,7 +553,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <span style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              width: 24, height: 24, borderRadius: 6, background: cfg.pillBg, color: cfg.pillFg,
+              width: 24, height: 24, borderRadius: 8, background: cfg.pillBg, color: cfg.pillFg,
               fontSize: 11, fontWeight: 700,
             }}>{items.length}</span>
             <div style={{ minWidth: 0 }}>
@@ -614,7 +614,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     <div style={{ maxWidth: 1180, padding: isMobile ? 12 : 0, paddingBottom: isMobile ? 80 : 0 }}>
       {/* Toast */}
       {toast && (
-        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 999, background: toast.ok ? T.green : T.brand, color: T.white, padding: '10px 20px', borderRadius: 9, fontSize: 12, fontWeight: 700, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
+        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 999, background: toast.ok ? T.green : T.brand, color: T.white, padding: '10px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
           {toast.msg}
         </div>
       )}

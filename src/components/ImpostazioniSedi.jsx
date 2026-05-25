@@ -84,7 +84,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
   }
 
   return (
-    <div style={{ background: '#FFFBEB', border: '2px dashed #FCD34D', borderRadius: 14, padding: 20, marginBottom: 18 }}>
+    <div style={{ background: '#FFFBEB', border: '2px dashed #FCD34D', borderRadius: 12, padding: 20, marginBottom: 18 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
         🧭 Come lavora la tua attività?
       </div>
@@ -356,23 +356,23 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                 <button onClick={() => { setEditing(sede.id); setEditForm({ nome: sede.nome, indirizzo: sede.indirizzo || '', citta: sede.citta || '' }) }}
-                  style={{ padding: '5px 10px', background: '#F8FAFC', border: `1px solid ${BOR}`, borderRadius: 7, fontSize: 11, cursor: 'pointer', color: MID }}>
+                  style={{ padding: '5px 10px', background: '#F8FAFC', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: 11, cursor: 'pointer', color: MID }}>
                   Modifica
                 </button>
                 {!sede.is_default && sede.attiva !== false && (
                   <button onClick={() => handleSetDefault(sede.id)}
-                    style={{ padding: '5px 10px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 7, fontSize: 11, cursor: 'pointer', color: '#92400E' }}>
+                    style={{ padding: '5px 10px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, fontSize: 11, cursor: 'pointer', color: '#92400E' }}>
                     Default
                   </button>
                 )}
                 {sede.attiva !== false ? (
                   <button onClick={() => handleDisattiva(sede.id)}
-                    style={{ padding: '5px 10px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 7, fontSize: 11, cursor: 'pointer', color: R }}>
+                    style={{ padding: '5px 10px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, cursor: 'pointer', color: R }}>
                     Disattiva
                   </button>
                 ) : (
                   <button onClick={() => handleRiattiva(sede.id)}
-                    style={{ padding: '5px 10px', background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 7, fontSize: 11, cursor: 'pointer', color: '#166534' }}>
+                    style={{ padding: '5px 10px', background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 8, fontSize: 11, cursor: 'pointer', color: '#166534' }}>
                     Riattiva
                   </button>
                 )}

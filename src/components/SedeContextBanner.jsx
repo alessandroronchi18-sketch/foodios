@@ -56,7 +56,7 @@ export default function SedeContextBanner({ sedeAttiva, sedi = [], onChange, sco
       {onChange && (
         <button onClick={onChange} style={{
           padding: '4px 10px', background: 'rgba(255,255,255,0.6)',
-          border: '1px solid #FCD34D', borderRadius: 6,
+          border: '1px solid #FCD34D', borderRadius: 8,
           color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer',
         }}>Cambia sede</button>
       )}

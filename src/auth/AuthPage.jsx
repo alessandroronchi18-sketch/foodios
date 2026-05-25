@@ -799,7 +799,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' 
                   background: mode === id ? T.paper : 'transparent',
                   color: mode === id ? T.ink : T.textMid,
                   fontFamily: SANS, fontWeight: mode === id ? 700 : 500, fontSize: 13,
-                  borderRadius: 9,
+                  borderRadius: 8,
                   boxShadow: mode === id ? '0 2px 8px rgba(15,9,7,0.06)' : 'none',
                   transition: 'all 0.18s ease', letterSpacing: '-0.005em',
                 }}>{lbl}</button>

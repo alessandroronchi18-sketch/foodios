@@ -501,7 +501,7 @@ export default function Integrazioni({ orgId }) {
       {toast && (
         <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 999,
           background: toast.ok ? C.green : C.red, color: C.white,
-          padding: '10px 20px', borderRadius: 9, fontSize: 12, fontWeight: 700,
+          padding: '10px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
           boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
           {toast.msg}
         </div>
@@ -586,7 +586,7 @@ export default function Integrazioni({ orgId }) {
                             <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>URL WEBHOOK</div>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                               <code style={{ flex: 1, fontSize: 11, background: C.white, border: `1px solid ${C.border}`,
-                                borderRadius: 6, padding: '7px 10px', color: C.text, display: 'block', wordBreak: 'break-all',
+                                borderRadius: 8, padding: '7px 10px', color: C.text, display: 'block', wordBreak: 'break-all',
                                 minWidth: 0 }}>
                                 {window.location.origin}/api/webhook-zucchetti
                               </code>
@@ -601,14 +601,14 @@ export default function Integrazioni({ orgId }) {
                           <div>
                             <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>HEADERS RICHIESTI</div>
                             <code style={{ fontSize: 10, background: C.white, border: `1px solid ${C.border}`,
-                              borderRadius: 6, padding: '9px 12px', color: C.textMid, display: 'block', lineHeight: 2 }}>
+                              borderRadius: 8, padding: '9px 12px', color: C.textMid, display: 'block', lineHeight: 2 }}>
                               x-organization-id: {orgId}<br />
                               x-zucchetti-secret: {'<ZUCCHETTI_WEBHOOK_SECRET da Vercel env>'}<br />
                               Content-Type: application/json
                             </code>
                           </div>
                           <div style={{ fontSize: 11, color: C.amber, padding: '8px 10px', background: C.amberLight,
-                            borderRadius: 6 }}>
+                            borderRadius: 8 }}>
                             ⚠️ Imposta <code>ZUCCHETTI_WEBHOOK_SECRET</code> nelle variabili d'ambiente Vercel per proteggere l'endpoint.
                           </div>
                         </div>

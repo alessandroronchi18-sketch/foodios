@@ -70,7 +70,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   function resetForm() { setForm({ nome:"", contatto:"", email:"", telefono:"", note:"", sede_id: sedeId || "" }); setEditId(null); setShowForm(false) }
   function initEdit(f) { setForm({ nome:f.nome, contatto:f.contatto||"", email:f.email||"", telefono:f.telefono||"", note:f.note||"", sede_id: f.sede_id || "" }); setEditId(f.id); if (isMobile) setShowForm(true) }
 
-  const inputSt = { width:"100%", padding: isMobile ? "12px 14px" : "9px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
+  const inputSt = { width:"100%", height: 40, padding: "0 12px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color:C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
   const formVisible = !isMobile || showForm
 
   return (
@@ -162,8 +162,8 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             {f.telefono && <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>📞 <a href={`tel:${f.telefono}`} style={{ color:C.red }}>{f.telefono}</a></div>}
             {f.note && <div style={{ fontSize:11, color:C.textSoft, marginTop:6, fontStyle:"italic" }}>{f.note}</div>}
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
-              <button onClick={()=>initEdit(f)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:6, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
-              <button onClick={()=>elimina(f.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:6, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Elimina</button>
+              <button onClick={()=>initEdit(f)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
+              <button onClick={()=>elimina(f.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Elimina</button>
             </div>
           </div>
         )) : lista.map(f => (
@@ -186,8 +186,8 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
                 {f.note && <div style={{ fontSize:10, color:C.textSoft, marginTop:4, fontStyle:"italic" }}>{f.note}</div>}
               </div>
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
-                <button onClick={()=>initEdit(f)} style={{ padding:"5px 10px", borderRadius:6, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}>✏️</button>
-                <button onClick={()=>elimina(f.id)} style={{ padding:"5px 10px", borderRadius:6, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>🗑</button>
+                <button onClick={()=>initEdit(f)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}>✏️</button>
+                <button onClick={()=>elimina(f.id)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>🗑</button>
               </div>
             </div>
           </div>
@@ -279,7 +279,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
   const updateRiga = (i, field, val) => setRighe(r=>r.map((x,j)=>j===i?{...x,[field]:val}:x))
 
   const statoColor = { bozza:"#94A3B8", inviato:"#2563EB", ricevuto:"#16A34A", annullato:"#DC2626" }
-  const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius:7, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
+  const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
 
   return (
     <div style={{ paddingBottom: isMobile ? 80 : 0 }}>
@@ -352,7 +352,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
                       {["kg","g","l","pz","cf"].map(u=><option key={u}>{u}</option>)}
                     </select>
                     <input type="number" value={r.prezzo_unitario} onChange={e=>updateRiga(i,"prezzo_unitario",e.target.value)} placeholder="€/u" style={inputSt}/>
-                    <button onClick={()=>removeRiga(i)} style={{ padding:"8px 10px", borderRadius:6, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:14, cursor:"pointer" }}>✕</button>
+                    <button onClick={()=>removeRiga(i)} style={{ padding:"8px 10px", borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:14, cursor:"pointer" }}>✕</button>
                   </div>
                 </div>
               ) : (
@@ -363,11 +363,11 @@ function OrdiniTab({ orgId, notify, isMobile }) {
                     {["kg","g","l","pz","cf"].map(u=><option key={u}>{u}</option>)}
                   </select>
                   <input type="number" value={r.prezzo_unitario} onChange={e=>updateRiga(i,"prezzo_unitario",e.target.value)} placeholder="0.00" style={inputSt}/>
-                  <button onClick={()=>removeRiga(i)} style={{ padding:"4px 8px", borderRadius:6, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:10, cursor:"pointer" }}>✕</button>
+                  <button onClick={()=>removeRiga(i)} style={{ padding:"4px 8px", borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:10, cursor:"pointer" }}>✕</button>
                 </div>
               )
             ))}
-            <button onClick={addRiga} style={{ padding: isMobile ? "10px 14px" : "6px 14px", background:C.white, border:`1px solid ${C.borderStr}`, borderRadius:7, fontSize: isMobile ? 13 : 11, color:C.textMid, cursor:"pointer", width: isMobile ? "100%" : "auto" }}>+ Riga</button>
+            <button onClick={addRiga} style={{ padding: isMobile ? "10px 14px" : "6px 14px", background:C.white, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize: isMobile ? 13 : 11, color:C.textMid, cursor:"pointer", width: isMobile ? "100%" : "auto" }}>+ Riga</button>
           </div>
           <div style={{ marginBottom:14 }}>
             <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Note</div>
@@ -397,12 +397,12 @@ function OrdiniTab({ orgId, notify, isMobile }) {
               {o.note && <div style={{ fontSize:11, color:C.textSoft, fontStyle:"italic", marginBottom:8 }}>{o.note}</div>}
               <div style={{ display:"flex", gap:6 }}>
                 {o.stato !== "ricevuto" && (
-                  <button onClick={()=>aggiornaStato(o.id,"ricevuto")} style={{ flex:1, padding:"10px", background:C.greenLight, border:`1px solid ${C.green}40`, borderRadius:6, fontSize:12, color:C.green, cursor:"pointer", fontWeight:700 }}>
+                  <button onClick={()=>aggiornaStato(o.id,"ricevuto")} style={{ flex:1, padding:"10px", background:C.greenLight, border:`1px solid ${C.green}40`, borderRadius:8, fontSize:12, color:C.green, cursor:"pointer", fontWeight:700 }}>
                     Segna ricevuto
                   </button>
                 )}
                 <select value={o.stato} onChange={e=>aggiornaStato(o.id,e.target.value)}
-                  style={{ flex:1, padding:"10px", borderRadius:6, border:`1px solid ${C.borderStr}`, fontSize:16, color:C.text, cursor:"pointer", background:C.white }}>
+                  style={{ flex:1, padding:"10px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:16, color:C.text, cursor:"pointer", background:C.white }}>
                   {["bozza","inviato","ricevuto","annullato"].map(s=><option key={s}>{s}</option>)}
                 </select>
               </div>
@@ -424,7 +424,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                   <span style={{ fontWeight:900, fontSize:15, color:C.text, ...tnum }}>{fmt(o.totale)}</span>
                   <select value={o.stato} onChange={e=>aggiornaStato(o.id,e.target.value)}
-                    style={{ padding:"5px 8px", borderRadius:7, border:`1px solid ${C.borderStr}`, fontSize:11, color:C.text, cursor:"pointer" }}>
+                    style={{ padding:"5px 8px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:11, color:C.text, cursor:"pointer" }}>
                     {["bozza","inviato","ricevuto","annullato"].map(s=><option key={s}>{s}</option>)}
                   </select>
                 </div>

@@ -2,9 +2,9 @@ import React, { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sloadAllSedi } from '../lib/storage'
 
-const card = { background: '#FFF', borderRadius: 14, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
-const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 9, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
+const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
 
 const SK_CHIUS = 'pasticceria-chiusure-v1'
 const IVA_DEFAULT_PCT = 10 // alimenti d'asporto: 10% — modificabile in UI
@@ -277,7 +277,7 @@ export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, noti
     background: active ? '#94A3B8' : color,
     color: '#FFF',
     border: 'none',
-    borderRadius: 9,
+    borderRadius: 8,
     fontSize: 13,
     fontWeight: 700,
     cursor: active ? 'wait' : 'pointer',
