@@ -15,13 +15,11 @@
     "api/cron-giornaliero.js": { "maxDuration": 60 },
     "api/stripe-checkout.js":  { "maxDuration": 10 },
     "api/stripe-portal.js":    { "maxDuration": 10 },
-    "api/stripe-webhook.js":   { "maxDuration": 15 },
-    "api/cron-whatsapp.js":    { "maxDuration": 60 }
+    "api/stripe-webhook.js":   { "maxDuration": 15 }
   },
   "crons": [
     { "path": "/api/sync-delivery",    "schedule": "0 2 * * *" },
-    { "path": "/api/cron-giornaliero", "schedule": "0 7 * * *" },
-    { "path": "/api/cron-whatsapp",    "schedule": "0 20 * * *" }
+    { "path": "/api/cron-giornaliero", "schedule": "0 7 * * *" }
   ],
   "headers": [
     {
