@@ -824,6 +824,54 @@ export default function LandingPage({ onLogin, onRegister }) {
         </div>
       </section>
 
+      {/* VIDEO — Loom demo 90 secondi */}
+      <section style={{ padding: isMobile ? '60px 24px' : '100px 24px', background: T.cream }}>
+        <div style={{ maxWidth: 980, margin: '0 auto' }}>
+          <Reveal>
+            <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 32px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>
+                90 secondi
+              </div>
+              <h2 style={{
+                fontFamily: SERIF, fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 500,
+                color: T.ink, letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0,
+              }}>
+                Guarda FoodOS <em style={{ fontStyle: 'italic', color: T.red }}>in azione</em>.
+              </h2>
+            </div>
+          </Reveal>
+          <Reveal delay={100}>
+            <div style={{
+              position: 'relative', borderRadius: 18, overflow: 'hidden',
+              boxShadow: '0 30px 80px rgba(15,9,7,0.18), 0 8px 24px rgba(15,9,7,0.08)',
+              border: `1px solid ${T.border}`, aspectRatio: '16 / 9',
+              background: `linear-gradient(135deg, ${T.inkSoft} 0%, ${T.ink} 100%)`,
+            }}>
+              {/* PLACEHOLDER — sostituire con <iframe src="https://www.loom.com/embed/XXXXX" .../> quando il video è pronto */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18,
+                color: T.textOnDark,
+              }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: '50%',
+                  background: T.red, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 20px 40px rgba(110,14,26,0.4)', cursor: 'pointer',
+                }}>
+                  <Icon name="play" size={28} color="#FFF"/>
+                </div>
+                <div style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em' }}>
+                  Demo FoodOS · 90 secondi
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.7, padding: '6px 14px', border: `1px solid ${T.textOnDark}33`, borderRadius: 999 }}>
+                  Video in arrivo — sostituire con embed Loom
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* PROBLEMS */}
       <section style={{ padding: isMobile ? '80px 24px' : '120px 24px', background: T.cream }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -1012,14 +1060,124 @@ export default function LandingPage({ onLogin, onRegister }) {
         </div>
       </section>
 
-      {/* ROI — desktop only */}
-      {!isMobile && (
-        <section style={{ padding: '40px 24px 120px', background: T.cream }}>
-          <div style={{ maxWidth: 980, margin: '0 auto' }}>
-            <Reveal><RoiCalculator/></Reveal>
+      {/* PER CHI È FOODOS */}
+      <section style={{ padding: isMobile ? '80px 24px' : '120px 24px', background: T.cream }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+          <Reveal>
+            <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto 64px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+                Per chi è FoodOS
+              </div>
+              <h2 style={{
+                fontFamily: SERIF, fontSize: 'clamp(30px, 4.5vw, 46px)', fontWeight: 500,
+                color: T.ink, letterSpacing: '-0.03em', lineHeight: 1.1, margin: 0,
+              }}>
+                Un solo strumento per <em style={{ fontStyle: 'italic', color: T.red }}>tutta la ristorazione</em>.
+              </h2>
+            </div>
+          </Reveal>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+            gap: 16,
+          }}>
+            {[
+              { emoji:'🍰', t:'Pasticcerie', d:'Food cost per ricetta, gestione semilavorati, scheda allergeni.' },
+              { emoji:'☕', t:'Bar & caffè', d:'Cassa, magazzino, scontrini OCR e P&L mensile.' },
+              { emoji:'🍦', t:'Gelaterie', d:'Calcolo costo per gusto, stagionalità, previsione domanda.' },
+              { emoji:'🍝', t:'Ristoranti', d:'Menù dinamico, food cost a porzione, gestione personale.' },
+            ].map((item, i) => (
+              <Reveal key={item.t} delay={i * 80}>
+                <div style={{
+                  background: T.paper, border: `1px solid ${T.border}`,
+                  borderRadius: 18, padding: '28px 24px',
+                  height: '100%', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 48, marginBottom: 14 }}>{item.emoji}</div>
+                  <h3 style={{
+                    fontFamily: SERIF, fontSize: 20, fontWeight: 600,
+                    color: T.ink, letterSpacing: '-0.02em', margin: '0 0 8px',
+                  }}>{item.t}</h3>
+                  <p style={{ fontSize: 13, color: T.textMid, lineHeight: 1.55, margin: 0 }}>{item.d}</p>
+                </div>
+              </Reveal>
+            ))}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
+
+      {/* ROI — visibile su tutti i device */}
+      <section style={{ padding: isMobile ? '60px 24px' : '40px 24px 120px', background: T.cream }}>
+        <div style={{ maxWidth: 980, margin: '0 auto' }}>
+          <Reveal><RoiCalculator/></Reveal>
+        </div>
+      </section>
+
+      {/* TESTIMONIANZE (placeholder — sostituire con quelle reali) */}
+      <section style={{ padding: isMobile ? '80px 24px' : '120px 24px', background: T.paper, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+          <Reveal>
+            <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto 56px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
+                Le storie dei clienti
+              </div>
+              <h2 style={{
+                fontFamily: SERIF, fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 500,
+                color: T.ink, letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0,
+              }}>
+                Cosa dicono i ristoratori che <em style={{ fontStyle: 'italic', color: T.red }}>l'hanno già provato</em>.
+              </h2>
+            </div>
+          </Reveal>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+            gap: 20,
+          }}>
+            {[
+              { q: '"In due mesi ho recuperato 4 punti di margine sulla pasticceria. Niente Excel, solo numeri veri."', n: 'Cliente 1', r: 'Pasticceria · Nord Italia' },
+              { q: '"Chiudo la giornata in tre minuti dal cellulare. P&L sempre aggiornato, senza aspettare il commercialista."', n: 'Cliente 2', r: 'Bistrot · Centro Italia' },
+              { q: '"Ho caricato 47 ricette in mezza mattinata. Da subito vedo cosa rende e cosa no."', n: 'Cliente 3', r: 'Trattoria · Sud Italia' },
+            ].map((t, i) => (
+              <Reveal key={i} delay={i * 80}>
+                <div style={{
+                  background: T.cream, border: `1px solid ${T.border}`,
+                  borderRadius: 20, padding: '32px 28px', height: '100%',
+                  display: 'flex', flexDirection: 'column',
+                }}>
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 18 }}>
+                    {[0,1,2,3,4].map(s => <Icon key={s} name="star" size={14} color={T.amber}/>)}
+                  </div>
+                  <p style={{
+                    fontFamily: SERIF, fontSize: 17, fontWeight: 400, fontStyle: 'italic',
+                    color: T.ink, lineHeight: 1.5, letterSpacing: '-0.01em',
+                    margin: '0 0 22px', flex: 1,
+                  }}>{t.q}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderTop: `1px solid ${T.borderSoft}`, paddingTop: 16 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 999,
+                      background: T.creamDeep, color: T.textMid,
+                      fontFamily: SERIF, fontWeight: 600, fontSize: 14,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>{i+1}</div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>{t.n}</div>
+                      <div style={{ fontSize: 11, color: T.textSoft, marginTop: 1 }}>{t.r}</div>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={300}>
+            <p style={{ fontSize: 11, color: T.textSoft, textAlign: 'center', marginTop: 24, fontStyle: 'italic' }}>
+              Placeholder — sostituire con testimonianze reali appena disponibili.
+            </p>
+          </Reveal>
+        </div>
+      </section>
 
       {/* PRICING */}
       <section style={{
