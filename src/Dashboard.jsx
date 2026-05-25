@@ -50,6 +50,7 @@ import AIAssistant from './components/AIAssistant'
 import ImportaDatiView from './components/ImportaDati'
 import AbbonamentoPanel from './components/AbbonamentoPanel'
 import HaccpView from './components/Haccp'
+import WhatsAppReportPanel from './components/WhatsAppReportPanel'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -8418,6 +8419,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
   const TABS = [
     ["generale", "⚙️ Generale"],
     ["abbonamento", "💳 Abbonamento"],
+    ["whatsapp", "📱 WhatsApp"],
     ["sicurezza", "🔐 Sicurezza"],
     ["rese", "🔢 Rese"],
     ["sedi", "🏪 Sedi"],
@@ -8624,6 +8626,11 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
       {/* ── TAB: Abbonamento (Stripe) ── */}
       {tab === "abbonamento" && (
         <AbbonamentoPanel org={auth?.org} notify={notify}/>
+      )}
+
+      {/* ── TAB: WhatsApp report serale ── */}
+      {tab === "whatsapp" && (
+        <WhatsAppReportPanel org={auth?.org} orgId={orgId} notify={notify} onRefresh={() => auth?.refreshOrg?.()} />
       )}
 
       {/* ── TAB: Sicurezza (2FA + audit) ── */}
