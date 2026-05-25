@@ -48,6 +48,7 @@ import PrevisioneDomanda from './components/PrevisioneDomanda'
 import AIFotoAnalisi from './components/AIFotoAnalisi'
 import AIAssistant from './components/AIAssistant'
 import ImportaDatiView from './components/ImportaDati'
+import AbbonamentoPanel from './components/AbbonamentoPanel'
 
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -8415,6 +8416,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
   const TABS = [
     ["generale", "⚙️ Generale"],
+    ["abbonamento", "💳 Abbonamento"],
     ["sicurezza", "🔐 Sicurezza"],
     ["rese", "🔢 Rese"],
     ["sedi", "🏪 Sedi"],
@@ -8616,6 +8618,11 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── TAB: Abbonamento (Stripe) ── */}
+      {tab === "abbonamento" && (
+        <AbbonamentoPanel org={auth?.org} notify={notify}/>
       )}
 
       {/* ── TAB: Sicurezza (2FA + audit) ── */}

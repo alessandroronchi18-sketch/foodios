@@ -11,6 +11,7 @@ import LandingPage from './pages/LandingPage'
 import TvDashboard from './pages/TvDashboard'
 import Logo from './components/Logo'
 import { MfaChallenge } from './components/Mfa'
+import AbbonamentoPanel from './components/AbbonamentoPanel'
 import { supabase } from './lib/supabase'
 
 function SplashScreen() {
@@ -31,54 +32,32 @@ function SplashScreen() {
   )
 }
 
-function TrialScadutoPage({ org }) {
+function TrialScadutoPage({ org, onSignOut }) {
   return (
     <div style={{
       minHeight: '100vh',
       background: '#F8FAFC',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+      padding: '40px 20px',
+      fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-      <div style={{ maxWidth: 480, textAlign: 'center', padding: 40 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
-        <h1 style={{ color: '#1C0A0A', marginBottom: 12 }}>
-          La tua prova gratuita è terminata
-        </h1>
-        <p style={{ color: '#6B4C44', lineHeight: 1.7, marginBottom: 32 }}>
-          Hai usato FoodOS per 3 mesi. Per continuare ad accedere ai tuoi dati
-          e alle analisi, attiva il tuo abbonamento.
-        </p>
-        <div style={{
-          background: '#FFF',
-          border: '2px solid #6E0E1A',
-          borderRadius: 16,
-          padding: 24,
-          marginBottom: 24,
-        }}>
-          <div style={{ fontSize: 32, fontWeight: 900, color: '#6E0E1A' }}>€39/mese</div>
-          <div style={{ fontSize: 13, color: '#6B4C44', marginTop: 4 }}>
-            Piano Base · disdici quando vuoi
-          </div>
+      <div style={{ maxWidth: 880, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <Logo size={56} style={{ display: 'inline-block', borderRadius: 14, boxShadow: '0 10px 30px rgba(110,14,26,0.30)', marginBottom: 16 }} />
+          <h1 style={{ color: '#1C0A0A', margin: '0 0 8px', fontSize: 26, letterSpacing: '-0.02em' }}>
+            Prova gratuita terminata
+          </h1>
+          <p style={{ color: '#6B4C44', lineHeight: 1.6, fontSize: 14, margin: 0 }}>
+            Attiva un abbonamento per continuare ad accedere ai tuoi dati e alle analisi di {org?.nome || 'la tua attività'}.
+          </p>
         </div>
-        <a
-          href={`mailto:support@foodios.it?subject=Attivazione%20abbonamento%20-%20${encodeURIComponent(org?.nome || '')}`}
-          style={{
-            display: 'inline-block',
-            padding: '14px 32px',
-            background: '#6E0E1A',
-            color: '#FFF',
-            borderRadius: 10,
-            fontWeight: 800,
-            textDecoration: 'none',
-            fontSize: 15,
-          }}
-        >
-          Contattaci per attivare →
-        </a>
-        <p style={{ fontSize: 11, color: '#9C7B76', marginTop: 16 }}>
-          I tuoi dati sono al sicuro e ti aspettano.
-        </p>
+        <AbbonamentoPanel org={org} isInline />
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <button onClick={onSignOut} style={{
+            padding: '10px 20px', background: 'transparent', color: '#6B4C44',
+            border: '1px solid #E8DDD8', borderRadius: 10, fontSize: 13, cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}>Esci dall'account</button>
+        </div>
       </div>
     </div>
   )
@@ -215,7 +194,7 @@ export default function App() {
   }
 
   // Trial scaduto
-  if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} />
+  if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} onSignOut={auth.signOut} />
 
   // Onboarding al primo accesso
   if (auth.orgId && onboardingVisto === false) {
