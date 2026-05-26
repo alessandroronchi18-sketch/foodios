@@ -2,6 +2,13 @@ node_modules
 dist
 .env.local
 .env.*.local
+.env.test
 .DS_Store
 *.local
 .vercel
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/blob-report/
