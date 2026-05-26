@@ -33,6 +33,32 @@ export const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "
 // Colore margine: verde ≥60, ambra 40-60, brand <40
 export const margColor = pct => pct >= 60 ? C.green : pct >= 40 ? C.amber : C.red
 
+// Formattazione valuta / percentuale
+export const fmt = v => `€ ${Number(v).toFixed(2)}`
+export const fmtp = v => `${Number(v).toFixed(1)}%`
+
+// KPI card grande (usata da Magazzino, Chiusura, Produzione, ecc.)
+export function KPI({ label, value, sub, color, highlight, icon }) {
+  return (
+    <div style={{
+      background: highlight ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
+      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 14,
+      padding: '20px 22px',
+      boxShadow: highlight ? '0 12px 28px rgba(110,14,26,0.34), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.05), 0 4px 12px rgba(15,23,42,0.04)',
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
+        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 10 }}>
+        {icon && <span style={{ marginRight: 6 }}>{icon}</span>}{label}
+      </div>
+      <div style={{ fontSize: 30, fontWeight: 700, color: highlight ? T.textOnDark : color || T.text,
+        letterSpacing: '-0.03em', lineHeight: 1.05, ...TNUM }}>
+        {value}
+      </div>
+      {sub && <div style={{ fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500 }}>{sub}</div>}
+    </div>
+  )
+}
+
 export function Badge({ label, color = 'green' }) {
   const s = {
     green: { bg: C.greenLight, c: C.green },
