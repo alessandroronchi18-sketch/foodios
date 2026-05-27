@@ -485,9 +485,9 @@ export function ResetPasswordPage({ onDone }) {
   )
 }
 
-export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '' }) {
+export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '', initialMode = null }) {
   const isMobile = useIsMobile()
-  const [mode, setMode] = useState(initialReferralCode ? 'registrati' : 'login')
+  const [mode, setMode] = useState(initialMode || (initialReferralCode ? 'registrati' : 'login'))
   const [regStep, setRegStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [errore, setErrore] = useState('')

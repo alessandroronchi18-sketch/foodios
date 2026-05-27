@@ -156,7 +156,7 @@ export default function App() {
   if (!auth.user) {
     const initialReferralCode = localStorage.getItem('referral_code_pendente') || ''
     if (path === '/login' || path === '/register') {
-      return <AuthPage onSignIn={auth.signIn} onSignUp={auth.signUp} initialReferralCode={initialReferralCode} />
+      return <AuthPage onSignIn={auth.signIn} onSignUp={auth.signUp} initialReferralCode={initialReferralCode} initialMode={path === '/register' ? 'registrati' : 'login'} />
     }
     return (
       <LandingPage
