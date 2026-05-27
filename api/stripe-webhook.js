@@ -132,6 +132,47 @@ export default async function handler(req, res) {
         break
       }
 
+      case 'invoice.payment_succeeded': {
+        // Traccia l'utilizzo di codici sconto: ogni fattura pagata che riporta
+        // un discount → incrementa redemptions del codice corrispondente.
+        const inv = event.data.object
+        try {
+          const discounts = inv.discount ? [inv.discount] : (inv.discounts || [])
+          for (const d of discounts) {
+            if (!d || !d.coupon) continue
+            const couponId = typeof d.coupon === 'string' ? d.coupon : d.coupon.id
+            const promoCodeId = typeof d.promotion_code === 'string' ? d.promotion_code : d.promotion_code?.id
+            const { data: cod } = await supabase
+              .from('discount_codes').select('id, codice')
+              .or(`stripe_coupon_id.eq.${couponId}${promoCodeId ? `,stripe_promo_code_id.eq.${promoCodeId}` : ''}`)
+              .maybeSingle()
+            if (!cod) continue
+            const { data: orgRow } = await supabase
+              .from('organizations').select('id').eq('stripe_customer_id', inv.customer).maybeSingle()
+            const ammontareScontato = inv.total_discount_amounts?.reduce?.((s, x) => s + (x.amount || 0), 0) || 0
+            await supabase.from('discount_redemptions').insert({
+              discount_code_id: cod.id,
+              codice: cod.codice,
+              organization_id: orgRow?.id || null,
+              stripe_customer_id: inv.customer,
+              stripe_subscription_id: inv.subscription || null,
+              stripe_invoice_id: inv.id,
+              ammontare_scontato_cents: ammontareScontato,
+            })
+            await supabase.rpc('increment_discount_redemption', { p_id: cod.id })
+              .catch(async () => {
+                // Fallback: increment manuale
+                const { data: cur } = await supabase
+                  .from('discount_codes').select('redemptions').eq('id', cod.id).single()
+                await supabase.from('discount_codes')
+                  .update({ redemptions: (cur?.redemptions || 0) + 1 })
+                  .eq('id', cod.id)
+              })
+          }
+        } catch (e) { console.error('[stripe-webhook] discount tracking', e) }
+        break
+      }
+
       case 'invoice.payment_failed': {
         const inv = event.data.object
         const { data: org } = await supabase.from('organizations')

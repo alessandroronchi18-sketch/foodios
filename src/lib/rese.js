@@ -1,39 +1,8 @@
 // Resa ingredienti: resa = frazione del peso lordo che diventa peso netto utilizzabile.
-// Es. uova 85% → 100g lordi → 85g netti. Il costo per grammo netto = costoG_lordo / resa.
-// Default 100% (resa piena) per ogni ingrediente non configurato.
+// Default 100% per ogni ingrediente: ogni utente può personalizzare il valore.
+// Es. impostando uova al 85% → 100g lordi diventano 85g netti.
 
-const RESE_DEFAULT = {
-  'uova':            0.85,
-  'uovo':            0.85,
-  'uova intere':     0.85,
-  'arancia':         0.70,
-  'arance':          0.70,
-  'limone':          0.72,
-  'limoni':          0.72,
-  'fragola':         0.90,
-  'fragole':         0.90,
-  'lampone':         0.95,
-  'lamponi':         0.95,
-  'mirtilli':        0.96,
-  'amarene':         0.85,
-  'ciliegie':        0.82,
-  'noci':            0.48,
-  'nocciole':        0.98,
-  'mandorle':        0.98,
-  'pistacchi':       0.98,
-  'carote':          0.80,
-  'mele':            0.80,
-  'burro':           1.00,
-  'farina':          1.00,
-  'zucchero':        1.00,
-  'latte':           1.00,
-  'panna':           1.00,
-  'cioccolato':      1.00,
-  'cacao':           1.00,
-  'lievito':         1.00,
-  'sale':            1.00,
-  'vaniglia':        1.00,
-};
+const RESE_DEFAULT = {};
 
 const _store = {};
 

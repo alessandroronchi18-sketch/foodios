@@ -9,6 +9,7 @@ import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ssave as _ssave } from '../lib/storage'
 import { normIng, getR, translateIngredienteEN } from '../lib/foodcost'
+import { onEnterAutoComplete } from '../lib/autocomplete'
 import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
 import FotoOCR from '../components/FotoOCR'
 import {
@@ -163,10 +164,17 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
                       {r.updated_at ? new Date(r.updated_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                      <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '' })} disabled={q <= 0}
-                        style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 11, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer' }}>
+                      <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false })} disabled={q <= 0}
+                        style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 11, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer', marginRight: 4 }}>
                         Scarto
                       </button>
+                      {q > 0 && (
+                        <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: q, note: 'Azzeramento stock (dato fantasma o reset)', azzera: true })}
+                          title="Porta a zero lo stock di questo prodotto"
+                          style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.red}`, background: '#FFF5F5', color: C.red, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          Azzera
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )
@@ -242,6 +250,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
   const [editVal, setEditVal] = useState('')
   const [confirmKey, setConfirmKey] = useState(null)
   const [confirmVal, setConfirmVal] = useState(null)
+  const [confirmDecorre, setConfirmDecorre] = useState(() => new Date().toISOString().slice(0, 10))
   const [showLog, setShowLog] = useState(false)
 
   const ingredienti = useMemo(() => {
@@ -274,12 +283,15 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
     if (v === row.prezzoKg) { cancelEdit(); return }
     setConfirmKey(row.key)
     setConfirmVal(v)
+    setConfirmDecorre(new Date().toISOString().slice(0, 10))
   }
 
   const confermaSalva = async () => {
     const row = ingredienti.find(i => i.key === confirmKey)
     if (!row) { setConfirmKey(null); return }
-    await onUpdatePrezzo(row.nome, confirmVal)
+    // Decorrenza alle 00:00:00 del giorno scelto
+    const decorreISO = confirmDecorre ? new Date(confirmDecorre + 'T00:00:00').toISOString() : new Date().toISOString()
+    await onUpdatePrezzo(row.nome, confirmVal, decorreISO)
     setConfirmKey(null); setConfirmVal(null)
     cancelEdit()
   }
@@ -426,9 +438,21 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                   </span>
                 </div>
               </div>
+              {/* Decorrenza: data da cui il prezzo entra in vigore */}
+              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                  Decorrenza nuovo prezzo
+                </div>
+                <input type="date" value={confirmDecorre} onChange={e => setConfirmDecorre(e.target.value)}
+                  style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.white, outline: 'none' }}/>
+                <div style={{ fontSize: 10, color: C.textSoft, marginTop: 6, lineHeight: 1.5 }}>
+                  Il nuovo prezzo si applica dalla data scelta in poi. Le produzioni precedenti mantengono il <b>prezzo storico</b> per i calcoli P&amp;L.
+                  Es. cambiando il prezzo dal <b>01/01</b>, le produzioni del 31/12 useranno ancora il prezzo vecchio.
+                </div>
+              </div>
               {deltaPct != null && Math.abs(deltaPct) > 50 && (
                 <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', marginBottom: 16, fontSize: 11, color: '#78350F', lineHeight: 1.5 }}>
-                  <b>⚠ Variazione importante</b> — la modifica del {Math.abs(deltaPct).toFixed(0)}% influenzerà il food cost di tutte le ricette che usano questo ingrediente.
+                  <b>⚠ Variazione importante</b> — la modifica del {Math.abs(deltaPct).toFixed(0)}% influenzerà il food cost di tutte le ricette che usano questo ingrediente (a partire dalla decorrenza scelta).
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -765,7 +789,13 @@ export default function MagazzinoView({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Ingrediente</div>
-                <input type="text" value={formIng} onChange={e => setFormIng(e.target.value)} placeholder="es. burro"
+                <input type="text" value={formIng}
+                  onChange={e => setFormIng(e.target.value)}
+                  onKeyDown={onEnterAutoComplete(tuttiIngNomi, formIng, setFormIng, () => {
+                    const qtyEl = document.getElementById('mag-qty-input')
+                    if (qtyEl) qtyEl.focus()
+                  })}
+                  placeholder="es. burro"
                   list="ing-list" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text }}/>
               </div>
               <div>

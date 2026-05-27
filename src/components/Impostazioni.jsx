@@ -579,7 +579,6 @@ export default function Impostazioni(props) {
           </p>
         </div>
         <div style={{ position: 'relative', minWidth: isMobile ? '100%' : 280 }}>
-          <Icon name="search" size={15} color={T.textSoft}/>
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}

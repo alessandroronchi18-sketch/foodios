@@ -699,6 +699,103 @@ export function buildIngCosti(fromFile) {
   return out
 }
 
+// ─── STORICO PREZZI ─────────────────────────────────────────────────────────
+// Il logPrezzi è un array di entry, ordinato dal più recente al più vecchio.
+// Ogni entry: { id, data, ingrediente, prezzoVecchio, prezzoNuovo, decorre_da?, ... }
+//   - `data`        = quando la modifica è stata fatta (audit)
+//   - `decorre_da`  = data effettiva di applicazione del nuovo prezzo (opzionale).
+//                     Se assente, fallback su `data` (compat retroattiva con log esistenti).
+//
+// Esempio: se "farina" passa da 1€ a 2€ il 31/12 alle 23:59 con decorre_da=2026-01-01,
+// allora getPrezzoStoricoAt('farina', '2025-12-31') ritorna 1€ e
+// getPrezzoStoricoAt('farina', '2026-01-01') ritorna 2€.
+
+function _entryDecorrenza(entry) {
+  // Quando il nuovo prezzo entra in vigore.
+  return entry?.decorre_da || entry?.data || null
+}
+
+/**
+ * Trova il prezzo €/kg di un ingrediente valido a una data specifica.
+ * @param {Array}    logPrezzi  storico modifiche (ordinato newest→oldest)
+ * @param {string}   nomeIng    nome ingrediente (normalizzato o no)
+ * @param {Date|string} when    data di riferimento (default: oggi)
+ * @returns {number|null}       €/kg al momento, o null se non noto
+ */
+export function getPrezzoStoricoKg(logPrezzi, nomeIng, when) {
+  if (!Array.isArray(logPrezzi) || logPrezzi.length === 0) return null
+  const target = when ? new Date(when).getTime() : Date.now()
+  if (!Number.isFinite(target)) return null
+  const ingKey = normIng((nomeIng || '').toLowerCase().trim())
+
+  // Filtra le entry per questo ingrediente, ordinate per decorrenza desc.
+  const entries = logPrezzi
+    .filter(e => normIng((e.ingrediente || '').toLowerCase().trim()) === ingKey)
+    .map(e => ({ ...e, _t: new Date(_entryDecorrenza(e)).getTime() }))
+    .filter(e => Number.isFinite(e._t))
+    .sort((a, b) => b._t - a._t)
+  if (entries.length === 0) return null
+
+  // Trova la prima entry con decorrenza <= target (cioè era già attiva al target).
+  for (const e of entries) {
+    if (e._t <= target) return Number(e.prezzoNuovo) || null
+  }
+  // Tutte le modifiche sono successive a `target`: usa il prezzo PRIMA della
+  // prima modifica (il "vecchio prezzo" dell'entry più vecchia).
+  const piuVecchia = entries[entries.length - 1]
+  return Number(piuVecchia.prezzoVecchio) || null
+}
+
+/**
+ * Calcola food cost di una ricetta a una data specifica, usando lo storico prezzi
+ * quando disponibile. Cade sul prezzo "corrente" (ingCosti) per ingredienti senza storico.
+ *
+ * Serve a calcolare il food cost STORICO di una produzione: il P&L del 31/12 deve
+ * vedere il food cost a prezzi di quel giorno, anche se oggi i prezzi sono cambiati.
+ */
+export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when, _depth) {
+  const depth = _depth || 0
+  const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""]
+  let tot = 0, mancanti = []
+  for (const ing of (ricetta?.ingredienti || [])) {
+    const nomeNorm = normIng((ing.nome || '').toLowerCase().trim())
+    if (SKIP_ING.includes(nomeNorm)) continue
+    const qty = ing.qty1stampo || 0
+    if (!qty) continue
+
+    if (depth < 3 && ricettario) {
+      const semiKey = Object.keys(ricettario.ricette || {}).find(k => {
+        const r = ricettario.ricette[k]
+        if (r.tipo !== 'semilavorato') return false
+        return normIng(k.toLowerCase()) === nomeNorm ||
+               normIng((r.nome || '').toLowerCase()) === nomeNorm
+      })
+      if (semiKey) {
+        const semiRic = ricettario.ricette[semiKey]
+        const { tot: semiTot } = calcolaFCStorico(semiRic, ingCosti, ricettario, logPrezzi, when, depth + 1)
+        const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
+        const costoG = semiPeso > 0 ? semiTot / semiPeso : 0
+        tot += qty * costoG
+        continue
+      }
+    }
+
+    // 1. Cerca prezzo storico al momento `when`
+    const prezzoKgStorico = getPrezzoStoricoKg(logPrezzi, ing.nome, when)
+    let costoG = null
+    if (prezzoKgStorico != null && prezzoKgStorico > 0) {
+      costoG = prezzoKgStorico / 1000
+    } else {
+      // 2. Fallback su prezzo corrente
+      const c = ingCosti[normIng(ing.nome)]
+      if (!c) { mancanti.push(ing.nome); continue }
+      costoG = c.costoG
+    }
+    tot += qty * costoNettoPerG(costoG, nomeNorm)
+  }
+  return { tot: parseFloat(tot.toFixed(3)), mancanti }
+}
+
 // Calcola food cost totale di una ricetta. Ricorsivo per gestire semilavorati (max 3 livelli).
 export function calcolaFC(ricetta, ingCosti, ricettario, _depth) {
   const depth = _depth || 0

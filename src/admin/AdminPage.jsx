@@ -357,6 +357,207 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
   )
 }
 
+function NuovoCodiceScontoModal({ onClose, onCreato }) {
+  const [codice, setCodice] = useState('')
+  const [descrizione, setDescrizione] = useState('')
+  const [tipoSconto, setTipoSconto] = useState('percent')
+  const [valore, setValore] = useState(100)
+  const [durata, setDurata] = useState('once')
+  const [durataMesi, setDurataMesi] = useState(1)
+  const [maxRedemptions, setMaxRedemptions] = useState('')
+  const [scadenza, setScadenza] = useState('')
+  const [pianiValidi, setPianiValidi] = useState([])
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const codNorm = codice.toUpperCase().replace(/[^A-Z0-9_-]/g, '')
+
+  async function submit() {
+    if (codNorm.length < 3) { setErr('Codice: minimo 3 caratteri'); return }
+    setBusy(true); setErr('')
+    try {
+      await onCreato({
+        codice: codNorm,
+        descrizione,
+        tipo_sconto: tipoSconto,
+        valore_sconto: tipoSconto === 'amount' ? Math.round(parseFloat(valore) * 100) : parseInt(valore, 10),
+        durata,
+        durata_mesi: durata === 'repeating' ? parseInt(durataMesi, 10) : null,
+        max_redemptions: maxRedemptions === '' ? null : parseInt(maxRedemptions, 10),
+        scade_il: scadenza || null,
+        piani_validi: pianiValidi.length > 0 ? pianiValidi : null,
+      })
+      onClose()
+    } catch (e) {
+      setErr(e.message); setBusy(false)
+    }
+  }
+
+  const lbl = { display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }
+  const inp = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box' }
+
+  return (
+    <Modal title="🎟 Nuovo codice sconto" onClose={onClose} width={620}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div>
+          <label style={lbl}>Codice</label>
+          <input value={codice} onChange={e => setCodice(e.target.value)}
+            placeholder="Es. FOODIOS2026"
+            style={{ ...inp, fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.06em' }}/>
+          <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 4 }}>
+            {codNorm ? `Sarà salvato come: ${codNorm}` : 'Solo lettere, numeri, - e _'}
+          </div>
+        </div>
+        <div>
+          <label style={lbl}>Descrizione interna</label>
+          <input value={descrizione} onChange={e => setDescrizione(e.target.value)}
+            placeholder="Es. Beta tester, Influencer X" style={inp}/>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div>
+          <label style={lbl}>Tipo sconto</label>
+          <select value={tipoSconto} onChange={e => setTipoSconto(e.target.value)} style={inp}>
+            <option value="percent">Percentuale (%)</option>
+            <option value="amount">Importo fisso (€)</option>
+          </select>
+        </div>
+        <div>
+          <label style={lbl}>Valore {tipoSconto === 'percent' ? '(1-100)' : '(€)'}</label>
+          <input type="number" min="1" max={tipoSconto === 'percent' ? 100 : 10000}
+            value={valore} onChange={e => setValore(e.target.value)}
+            style={{ ...inp, fontWeight: 700 }}/>
+          {tipoSconto === 'percent' && valore == 100 && (
+            <div style={{ fontSize: 11, color: '#059669', fontWeight: 700, marginTop: 4 }}>
+              🎁 Sconto 100% = abbonamento gratis
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: durata === 'repeating' ? '1fr 1fr' : '1fr', gap: 12, marginBottom: 12 }}>
+        <div>
+          <label style={lbl}>Durata applicazione</label>
+          <select value={durata} onChange={e => setDurata(e.target.value)} style={inp}>
+            <option value="once">Solo prima fattura</option>
+            <option value="repeating">Per N mesi</option>
+            <option value="forever">Per sempre</option>
+          </select>
+        </div>
+        {durata === 'repeating' && (
+          <div>
+            <label style={lbl}>Mesi</label>
+            <input type="number" min="1" max="60" value={durataMesi}
+              onChange={e => setDurataMesi(e.target.value)} style={inp}/>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div>
+          <label style={lbl}>Utilizzi massimi (vuoto = illimitato)</label>
+          <input type="number" min="1" value={maxRedemptions}
+            onChange={e => setMaxRedemptions(e.target.value)}
+            placeholder="es. 50" style={inp}/>
+        </div>
+        <div>
+          <label style={lbl}>Scade il (opzionale)</label>
+          <input type="datetime-local" value={scadenza}
+            onChange={e => setScadenza(e.target.value)} style={inp}/>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={lbl}>Piani applicabili (lascia vuoto per tutti)</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['pro', 'chain'].map(p => {
+            const selected = pianiValidi.includes(p)
+            return (
+              <button key={p} type="button"
+                onClick={() => setPianiValidi(prev => selected ? prev.filter(x => x !== p) : [...prev, p])}
+                style={{
+                  padding: '6px 14px', borderRadius: 99, fontSize: 12, fontWeight: 700,
+                  border: `1px solid ${selected ? '#6E0E1A' : '#E2E8F0'}`,
+                  background: selected ? '#FEF7F5' : '#FFF',
+                  color: selected ? '#6E0E1A' : '#64748B', cursor: 'pointer',
+                }}>
+                {selected && '✓ '}{p === 'pro' ? 'Pro (€89)' : 'Chain (€149)'}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {err && (
+        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: 12, marginBottom: 12 }}>⚠️ {err}</div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <Btn kind="neutral" onClick={onClose} disabled={busy}>Annulla</Btn>
+        <Btn kind="primary" onClick={submit} disabled={busy || codNorm.length < 3}>
+          {busy ? 'Creazione…' : 'Crea codice'}
+        </Btn>
+      </div>
+    </Modal>
+  )
+}
+
+function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
+  const [mesi, setMesi] = useState(1)
+  const [codiceRif, setCodiceRif] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function submit() {
+    setBusy(true); setErr('')
+    try { await onRegala({ mesi, codice: codiceRif }); onClose() }
+    catch (e) { setErr(e.message); setBusy(false) }
+  }
+
+  return (
+    <Modal title={`🎁 Regala mesi · ${cliente.nome_attivita}`} onClose={onClose} width={500}>
+      <div style={{ fontSize: 13, color: '#64748B', marginBottom: 14, lineHeight: 1.55 }}>
+        Estende la subscription Stripe (o il trial interno) per <strong>{cliente.nome_attivita}</strong> senza addebiti.
+        Se l'utente ha già un abbonamento attivo, Stripe applicherà <code>trial_end</code> alla data calcolata.
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+          Mesi da regalare (1-60)
+        </label>
+        <input type="number" min="1" max="60" value={mesi}
+          onChange={e => setMesi(parseInt(e.target.value, 10) || 1)}
+          style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 14, fontWeight: 700, boxSizing: 'border-box' }}/>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+          Codice associato (opzionale, per audit)
+        </label>
+        <select value={codiceRif} onChange={e => setCodiceRif(e.target.value)}
+          style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 13, background: '#FFF', boxSizing: 'border-box' }}>
+          <option value="">— Nessuno (regalo manuale) —</option>
+          {(codici || []).filter(c => c.attivo).map(c => (
+            <option key={c.id} value={c.codice}>{c.codice} ({c.descrizione || 'senza descrizione'})</option>
+          ))}
+        </select>
+      </div>
+
+      {err && (
+        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: 12, marginBottom: 12 }}>⚠️ {err}</div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <Btn kind="neutral" onClick={onClose} disabled={busy}>Annulla</Btn>
+        <Btn kind="success" onClick={submit} disabled={busy || mesi < 1}>
+          {busy ? 'Applicazione…' : `🎁 Regala ${mesi} mesi`}
+        </Btn>
+      </div>
+    </Modal>
+  )
+}
+
 function ImpersonaModal({ cliente, link, onClose }) {
   const [copiato, setCopiato] = useState(false)
   async function copia() {
@@ -406,6 +607,10 @@ export default function AdminPage() {
   const [deleteFor, setDeleteFor] = useState(null)
   const [impersona, setImpersona] = useState(null) // { cliente, link }
   const [demoFor, setDemoFor] = useState(null)     // { cliente, matches }
+  const [regalaFor, setRegalaFor] = useState(null) // cliente target del regalo mesi
+  const [codici, setCodici] = useState([])
+  const [codiciLoading, setCodiciLoading] = useState(false)
+  const [showNuovoCodice, setShowNuovoCodice] = useState(false)
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
   const apiCall = useCallback(async (path, opts = {}) => {
@@ -456,7 +661,21 @@ export default function AdminPage() {
     } catch { /* non bloccare */ }
   }, [apiCall])
 
-  useEffect(() => { fetchData(); fetchAudit() }, [fetchData, fetchAudit])
+  const fetchCodici = useCallback(async () => {
+    setCodiciLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=codici_sconto')
+      const data = await res.json()
+      setCodici(data.codici || [])
+    } catch (err) {
+      // non bloccare la pagina
+      console.error('codici sconto:', err.message)
+    } finally {
+      setCodiciLoading(false)
+    }
+  }, [apiCall])
+
+  useEffect(() => { fetchData(); fetchAudit(); fetchCodici() }, [fetchData, fetchAudit, fetchCodici])
 
   // ── Azioni ──────────────────────────────────────────────────────────
   const azione = useCallback(async (orgId, tipo, payload = {}) => {
@@ -892,6 +1111,9 @@ export default function AdminPage() {
                             <Btn kind="neutral" size="sm" onClick={() => handleResetPassword(c)} disabled={inAzione('reset_password')} title="Reset password">
                               🔁
                             </Btn>
+                            <Btn kind="success" size="sm" onClick={() => setRegalaFor(c)} title="Regala mesi gratis">
+                              🎁
+                            </Btn>
                             <Btn kind="neutral" size="sm" onClick={() => handlePulisciDemo(c)} disabled={inAzione('pulisci_demo_fatture')} title="Pulisci fatture demo">
                               🧹
                             </Btn>
@@ -966,6 +1188,126 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ── Codici sconto ────────────────────────────────────────── */}
+        <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <strong style={{ fontSize: 14 }}>🎟 Codici sconto</strong>
+              <span style={{ fontSize: 12, color: COLORS.textMute }}>
+                {codici.length} codici · {codici.filter(c => c.attivo).length} attivi · {codici.reduce((s, c) => s + (c.redemptions || 0), 0)} utilizzi totali
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Btn kind="neutral" size="sm" onClick={fetchCodici} disabled={codiciLoading}>
+                {codiciLoading ? '…' : '🔄'}
+              </Btn>
+              <Btn kind="primary" size="sm" onClick={() => setShowNuovoCodice(true)}>
+                + Nuovo codice
+              </Btn>
+            </div>
+          </div>
+          {codici.length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              Nessun codice sconto creato. Crea il primo per regalare o scontare abbonamenti.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
+                    <th style={th()}>Codice</th>
+                    <th style={th()}>Sconto</th>
+                    <th style={th()}>Durata</th>
+                    <th style={th()}>Utilizzi</th>
+                    <th style={th()}>Scade</th>
+                    <th style={th()}>Stato</th>
+                    <th style={th()}>Descrizione</th>
+                    <th style={th()}>Azioni</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {codici.map((c, i) => {
+                    const usato = c.redemptions || 0
+                    const limiteRaggiunto = c.max_redemptions && usato >= c.max_redemptions
+                    const scaduto = c.scade_il && new Date(c.scade_il) < new Date()
+                    return (
+                      <tr key={c.id} style={{ background: i % 2 === 0 ? COLORS.card : COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
+                        <td style={td()}>
+                          <div style={{ fontFamily: 'monospace', fontWeight: 800, color: COLORS.text, letterSpacing: '0.04em' }}>{c.codice}</div>
+                          {c.piani_validi && (
+                            <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                              Solo: {c.piani_validi.join(', ')}
+                            </div>
+                          )}
+                        </td>
+                        <td style={td()}>
+                          <span style={{ fontWeight: 700, color: c.valore_sconto === 100 && c.tipo_sconto === 'percent' ? '#059669' : COLORS.accent }}>
+                            {c.tipo_sconto === 'percent' ? `-${c.valore_sconto}%` : `-€${(c.valore_sconto / 100).toFixed(2)}`}
+                          </span>
+                          {c.valore_sconto === 100 && c.tipo_sconto === 'percent' && (
+                            <div style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>🎁 Gratis</div>
+                          )}
+                        </td>
+                        <td style={{ ...td(), color: COLORS.textSoft }}>
+                          {c.durata === 'once' ? '1ª fattura'
+                            : c.durata === 'forever' ? 'Sempre'
+                            : `${c.durata_mesi} mesi`}
+                        </td>
+                        <td style={{ ...td(), textAlign: 'center', color: COLORS.textSoft, fontWeight: 600 }}>
+                          {usato}{c.max_redemptions ? ` / ${c.max_redemptions}` : ''}
+                        </td>
+                        <td style={{ ...td(), color: COLORS.textSoft, whiteSpace: 'nowrap' }}>
+                          {c.scade_il ? fmtData(c.scade_il) : '—'}
+                        </td>
+                        <td style={td()}>
+                          {!c.attivo ? <StatoBadge stato="bloccato" />
+                            : scaduto ? <span style={{ background: '#FEE2E2', color: '#991B1B', padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>Scaduto</span>
+                            : limiteRaggiunto ? <span style={{ background: '#FEF3C7', color: '#92400E', padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>Esaurito</span>
+                            : <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>Attivo</span>}
+                        </td>
+                        <td style={{ ...td(), color: COLORS.textSoft, fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.descrizione || ''}>
+                          {c.descrizione || '—'}
+                        </td>
+                        <td style={td()}>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <Btn kind="neutral" size="sm" onClick={() => { navigator.clipboard.writeText(c.codice).catch(() => {}) }} title="Copia codice">
+                              📋
+                            </Btn>
+                            {c.attivo && (
+                              <Btn kind="warn" size="sm"
+                                onClick={async () => {
+                                  if (!confirm(`Disattivare il codice ${c.codice}? Non potrà più essere usato (ma le subscription già scontate restano).`)) return
+                                  try {
+                                    await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'disattiva_codice_sconto', id: c.id }) })
+                                    fetchCodici()
+                                  } catch (e) { alert(e.message) }
+                                }}
+                                title="Disattiva">
+                                ⏸
+                              </Btn>
+                            )}
+                            <Btn kind="danger" size="sm"
+                              onClick={async () => {
+                                if (!confirm(`Eliminare definitivamente il codice ${c.codice}?\n${usato > 0 ? '⚠️ Ha già ' + usato + ' utilizzi.' : ''}`)) return
+                                try {
+                                  await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'elimina_codice_sconto', id: c.id }) })
+                                  fetchCodici()
+                                } catch (e) { alert(e.message) }
+                              }}
+                              title="Elimina">
+                              🗑
+                            </Btn>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
         {/* ── Log attività ───────────────────────────────────────── */}
         <Card style={{ padding: 0, marginBottom: 30 }}>
           <div style={{
@@ -1035,6 +1377,34 @@ export default function AdminPage() {
           cliente={impersona.cliente}
           link={impersona.link}
           onClose={() => setImpersona(null)}
+        />
+      )}
+      {showNuovoCodice && (
+        <NuovoCodiceScontoModal
+          onClose={() => setShowNuovoCodice(false)}
+          onCreato={async body => {
+            await apiCall('/api/admin', {
+              method: 'POST',
+              body: JSON.stringify({ tipo: 'crea_codice_sconto', ...body }),
+            })
+            fetchCodici(); fetchAudit()
+          }}
+        />
+      )}
+      {regalaFor && (
+        <RegalaMesiModal
+          cliente={regalaFor}
+          codici={codici}
+          onClose={() => setRegalaFor(null)}
+          onRegala={async ({ mesi, codice }) => {
+            await apiCall('/api/admin', {
+              method: 'POST',
+              body: JSON.stringify({ orgId: regalaFor.org_id, tipo: 'regala_mesi', mesi, codice }),
+            })
+            await fetchData()
+            fetchAudit()
+            setTimeout(() => alert(`✓ ${mesi} mese/i regalati a ${regalaFor.nome_attivita}`), 0)
+          }}
         />
       )}
       {demoFor && (

@@ -59,9 +59,12 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId }) {
 
   if (loading) return null
 
-  const totPezzi = stock.reduce((s, r) => s + Number(r.quantita || 0), 0)
-  const top3 = [...stock].sort((a, b) => Number(b.quantita) - Number(a.quantita)).slice(0, 3)
-  const hasStock = stock.length > 0
+  // Solo prodotti realmente disponibili (qty > 0): evita di mostrare "fantasmi"
+  // con 0 pezzi (es. una ricetta mai prodotta che ha lasciato una riga stock a 0).
+  const inStock = stock.filter(r => Number(r.quantita || 0) > 0)
+  const totPezzi = inStock.reduce((s, r) => s + Number(r.quantita || 0), 0)
+  const top3 = [...inStock].sort((a, b) => Number(b.quantita) - Number(a.quantita)).slice(0, 3)
+  const hasStock = inStock.length > 0
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (inArrivo > 0 ? '1.6fr 1fr' : '1fr'), gap: isMobile ? 12 : 14, marginBottom: isMobile ? 20 : 28 }}>
@@ -72,7 +75,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId }) {
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft }}>
             {viewAggregato ? 'Stock vetrina · tutte le sedi' : 'Stock vetrina · sede attiva'}
           </div>
-          <span style={{ fontSize: 11, color: T.textSoft }}>{stock.length} prodotti</span>
+          <span style={{ fontSize: 11, color: T.textSoft }}>{inStock.length} prodotti</span>
         </div>
         {hasStock ? (
           <>
@@ -149,7 +152,14 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
 
   const sessioniOggi = (giornEff || []).filter(s => s.data === today)
   const hasProdOggi = sessioniOggi.some(s => (s.prodotti || []).length > 0)
-  const prodCount = sessioniOggi.reduce((acc, s) => acc + (s.prodotti || []).reduce((a, p) => a + p.stampi, 0), 0)
+  // Pezzi al banco prodotti oggi = Σ(stampi × pezzi-per-stampo). Coerente con lo
+  // "Stock vetrina · pezzi disponibili": sommare gli stampi qui mostrerebbe un
+  // numero molto più piccolo della vetrina e genera confusione (1 stampo → N pezzi).
+  const prodCount = sessioniOggi.reduce((acc, s) => acc + (s.prodotti || []).reduce((a, p) => {
+    const reg = getR(p.nome, ricettario?.ricette?.[p.nome])
+    const u = Number(reg?.unita)
+    return a + (p.stampi || 0) * (Number.isFinite(u) && u > 0 ? u : 1)
+  }, 0), 0)
   const costoStimato = sessioniOggi.reduce((tot, sess) => tot + (sess.prodotti || []).reduce((a, p) => {
     const { tot: fc } = calcolaFC(ricettario?.ricette?.[p.nome] || { name: p.nome, ingredienti: [] }, ingCosti, ricettario)
     return a + fc * p.stampi

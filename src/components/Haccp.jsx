@@ -415,39 +415,85 @@ function AllergeniTab({ ricettario, isMobile }) {
       </div>
 
       <div style={card}>
-        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:12 }}>📋 Ricette con allergeni</div>
+        <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:6 }}>📋 Matrice allergeni × prodotti</div>
+        <div style={{ fontSize:11, color:T.textSoft, marginBottom:10, lineHeight:1.45 }}>
+          Riga: allergene · Colonna: prodotto · "●" = presente. Scorri orizzontalmente se ci sono molti prodotti.
+        </div>
         {ricette.length === 0 ? (
-          <div style={{ padding:16, color:T.textSoft, fontSize:13, textAlign:'center' }}>
+          <div style={{ padding:14, color:T.textSoft, fontSize:12, textAlign:'center' }}>
             Nessuna ricetta nel ricettario.
           </div>
         ) : (
-          <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'separate', borderSpacing:0, fontSize:13 }}>
+          <div style={{ overflowX:'auto', border:`1px solid ${T.borderSoft}`, borderRadius:R.md }}>
+            <table style={{ borderCollapse:'collapse', fontSize:10, tableLayout:'fixed' }}>
+              <colgroup>
+                <col style={{ width: 150 }}/>
+                {ricette.map(r => <col key={r.nome} style={{ width: 36 }}/>)}
+              </colgroup>
               <thead>
-                <tr style={{ background:T.bgSubtle }}>
-                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Ricetta</th>
-                  <th style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.06em' }}>Allergeni</th>
+                <tr>
+                  <th style={{ padding:'4px 8px', textAlign:'left', fontSize:9, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', background:T.bgSubtle, borderBottom:`1px solid ${T.borderSoft}`, position:'sticky', left:0, zIndex:2 }}>
+                    Allergene \ Prodotto
+                  </th>
+                  {ricette.map(r => (
+                    <th key={r.nome}
+                      title={r.nome}
+                      style={{
+                        padding:'4px 2px', fontSize:9, fontWeight:700, color:T.text,
+                        background:T.bgSubtle, borderBottom:`1px solid ${T.borderSoft}`,
+                        borderLeft:`1px solid ${T.borderSoft}`,
+                        height: 96, verticalAlign:'bottom', whiteSpace:'nowrap',
+                      }}>
+                      <div style={{
+                        transform:'rotate(-60deg)', transformOrigin:'left bottom',
+                        width: 24, overflow:'visible', textAlign:'left',
+                        lineHeight: 1, paddingLeft: 8,
+                      }}>
+                        {r.nome.length > 16 ? r.nome.slice(0, 14) + '…' : r.nome}
+                      </div>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {ricette.map(r => {
-                  const al = r.allergeni || []
+                {ALLERGENI.map(a => {
+                  const ricetteCol = ricette.map(r => (r.allergeni || []).includes(a.id))
+                  const totale = ricetteCol.filter(Boolean).length
+                  if (totale === 0) return null // riga vuota: omessa per compattezza
                   return (
-                    <tr key={r.nome} style={{ borderTop:`1px solid ${T.borderSoft}` }}>
-                      <td style={{ padding:'10px 14px', color:T.text, fontWeight:600 }}>{r.nome}</td>
-                      <td style={{ padding:'10px 14px' }}>
-                        {al.length === 0 ? <span style={{ color:T.textSoft, fontSize:12 }}>—</span> : (
-                          <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                            {al.map(aId => {
-                              const a = ALLERGENI.find(x => x.id === aId)
-                              return <span key={aId} style={{ fontSize:11, padding:'2px 8px', borderRadius:999, background:T.brandLight, color:T.brand, fontWeight:600 }}>{a?.label || aId}</span>
-                            })}
-                          </div>
-                        )}
+                    <tr key={a.id}>
+                      <td style={{
+                        padding:'4px 8px', color:T.text, fontWeight:600, fontSize:10,
+                        background:T.bgCard, borderBottom:`1px solid ${T.borderSoft}`,
+                        position:'sticky', left:0, zIndex:1, whiteSpace:'nowrap',
+                      }}>
+                        <span style={{ marginRight:4 }}>{a.emoji || '⚠️'}</span>{a.label}
+                        <span style={{ marginLeft:6, color:T.textSoft, fontWeight:500 }}>({totale})</span>
                       </td>
+                      {ricetteCol.map((presente, i) => (
+                        <td key={i} title={`${ricette[i].nome} · ${a.label}: ${presente ? 'presente' : 'assente'}`}
+                          style={{
+                            textAlign:'center',
+                            background: presente ? T.brandLight : T.bgCard,
+                            color: presente ? T.brand : T.borderSoft,
+                            fontWeight: 700, fontSize: 11, lineHeight: 1,
+                            padding:'4px 0',
+                            borderLeft:`1px solid ${T.borderSoft}`,
+                            borderBottom:`1px solid ${T.borderSoft}`,
+                          }}>
+                          {presente ? '●' : ''}
+                        </td>
+                      ))}
                     </tr>
                   )
                 })}
+                {ALLERGENI.every(a => !ricette.some(r => (r.allergeni || []).includes(a.id))) && (
+                  <tr>
+                    <td colSpan={ricette.length + 1} style={{ padding:14, color:T.textSoft, fontSize:12, textAlign:'center' }}>
+                      Nessun allergene rilevato in nessuna ricetta.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

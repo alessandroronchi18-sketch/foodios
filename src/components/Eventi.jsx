@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R } from '../lib/theme'
+import { onEnterAutoComplete } from '../lib/autocomplete'
 
 export const SK_EVENTI = 'pasticceria-eventi-v1'
 
@@ -89,6 +90,8 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
   const [draft, setDraft] = useState(null)
   const [tab, setTab] = useState('attivi') // 'attivi' | 'archivio'
   const [filterMese, setFilterMese] = useState('') // 'YYYY-MM' o ''
+  const [eliminaId, setEliminaId] = useState(null) // evento in attesa di conferma elimina
+  const [eliminaPin, setEliminaPin] = useState('') // testo digitato per conferma
 
   // Mappa ricette + costi per il calcolo FC
   const ricetteMap = useMemo(() => {
@@ -162,10 +165,27 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
     notify?.('✓ Evento salvato')
   }
 
-  async function elimina(id) {
-    if (!confirm('Eliminare questo evento?')) return
-    await salvaTutti(eventi.filter(e => e.id !== id))
-    notify?.('✓ Evento eliminato')
+  async function archivia(id) {
+    const next = eventi.map(e => e.id === id ? { ...e, archiviato: true, archiviato_at: new Date().toISOString() } : e)
+    await salvaTutti(next)
+    notify?.('✓ Evento archiviato')
+  }
+
+  async function ripristina(id) {
+    const next = eventi.map(e => e.id === id ? { ...e, archiviato: false, archiviato_at: undefined } : e)
+    await salvaTutti(next)
+    notify?.('✓ Evento ripristinato')
+  }
+
+  async function confermaEliminazione() {
+    if (!eliminaId) return
+    if (eliminaPin !== 'ELIMINA') {
+      notify?.('⚠ Scrivi ELIMINA in maiuscolo per confermare', false)
+      return
+    }
+    await salvaTutti(eventi.filter(e => e.id !== eliminaId))
+    setEliminaId(null); setEliminaPin('')
+    notify?.('✓ Evento eliminato definitivamente')
   }
 
   function calcolaTotali(ev) {
@@ -185,16 +205,18 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
 
   const ricetteList = Object.values(ricettario?.ricette || {}).map(r => r.nome).sort()
 
-  // Split attivi (data >= oggi) vs archivio (data < oggi)
+  // Split attivi vs archivio: un evento è in archivio se è stato archiviato manualmente
+  // OPPURE se ha data passata. In caso di archiviazione manuale, è in archivio anche se la
+  // data è ancora futura (es. evento annullato).
   const oggi = new Date(); oggi.setHours(0, 0, 0, 0)
-  const eventiAttivi = eventi.filter(ev => {
-    if (!ev.data) return true
-    return new Date(ev.data + 'T23:59:59') >= oggi
-  })
-  const eventiPassati = eventi.filter(ev => {
-    if (!ev.data) return false
-    return new Date(ev.data + 'T23:59:59') < oggi
-  }).sort((a, b) => (b.data || '').localeCompare(a.data || ''))
+  function isArchiviato(ev) {
+    if (ev.archiviato) return true
+    if (ev.data && new Date(ev.data + 'T23:59:59') < oggi) return true
+    return false
+  }
+  const eventiAttivi = eventi.filter(ev => !isArchiviato(ev))
+  const eventiPassati = eventi.filter(isArchiviato)
+    .sort((a, b) => (b.data || '').localeCompare(a.data || ''))
 
   // Mesi disponibili nell'archivio (per il filtro)
   const mesiDisponibili = [...new Set(eventiPassati.map(e => (e.data || '').slice(0, 7)).filter(Boolean))]
@@ -362,6 +384,14 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                       const found = ricetteMap[nome]
                       aggiornaRiga(r.id, { nome, prezzo: r.prezzo || Number(found?.reg?.prezzo || 0) })
                     }}
+                    onKeyDown={onEnterAutoComplete(
+                      ricetteList,
+                      r.nome,
+                      (v) => {
+                        const found = ricetteMap[v]
+                        aggiornaRiga(r.id, { nome: v, prezzo: r.prezzo || Number(found?.reg?.prezzo || 0) })
+                      }
+                    )}
                     placeholder="Es. Torta della nonna" style={inp} />
                 </div>
                 <div>
@@ -450,14 +480,16 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
       {editing == null && eventiCorrentiTab.map(ev => {
         const t = calcolaTotali(ev)
         const saldo = t.totRicavo - Number(ev.acconto || 0)
-        const isPassato = new Date(ev.data + 'T23:59:59') < new Date()
+        const isArch = isArchiviato(ev)
+        const inArchivioTab = tab === 'archivio'
+        const isInDeleteConfirm = eliminaId === ev.id
         return (
-          <div key={ev.id} style={{ ...card, opacity: isPassato ? 0.7 : 1 }}>
+          <div key={ev.id} style={{ ...card, opacity: isArch ? 0.75 : 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 16, fontWeight: 800, color: '#0F172A' }}>{ev.cliente || 'Cliente —'}</span>
-                  {isPassato && <span style={{ fontSize: 10, background: '#F1F5F9', color: '#94A3B8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>PASSATO</span>}
+                  {isArch && <span style={{ fontSize: 10, background: '#F1F5F9', color: '#94A3B8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{ev.archiviato ? 'ARCHIVIATO' : 'PASSATO'}</span>}
                 </div>
                 <div style={{ fontSize: 12, color: '#64748B' }}>
                   📅 {fmtDate(ev.data)} · {(ev.righe || []).length} prodotti
@@ -483,11 +515,53 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 style={{ padding: '6px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#1E40AF', cursor: 'pointer' }}>
                 📄 Esporta PDF
               </button>
-              <button onClick={() => elimina(ev.id)}
-                style={{ padding: '6px 12px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#6E0E1A', cursor: 'pointer' }}>
-                Elimina
-              </button>
+              {!inArchivioTab && (
+                <button onClick={() => archivia(ev.id)}
+                  title="Sposta in archivio (riportabile in qualsiasi momento)"
+                  style={{ padding: '6px 12px', background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#92400E', cursor: 'pointer' }}>
+                  📦 Archivia
+                </button>
+              )}
+              {inArchivioTab && ev.archiviato && (
+                <button onClick={() => ripristina(ev.id)}
+                  title="Riporta l'evento tra gli attivi"
+                  style={{ padding: '6px 12px', background: '#ECFDF5', border: '1px solid #10B981', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#065F46', cursor: 'pointer' }}>
+                  ↩ Ripristina
+                </button>
+              )}
+              {inArchivioTab && (
+                <button onClick={() => { setEliminaId(ev.id); setEliminaPin('') }}
+                  style={{ padding: '6px 12px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#6E0E1A', cursor: 'pointer' }}>
+                  🗑 Elimina definitivamente
+                </button>
+              )}
             </div>
+
+            {isInDeleteConfirm && (
+              <div style={{ marginTop: 12, padding: '14px 16px', background: '#FFF5F5', border: '2px solid #FCA5A5', borderRadius: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#6E0E1A', marginBottom: 6 }}>
+                  ⚠️ Eliminazione definitiva di "{ev.cliente || 'evento'}"
+                </div>
+                <div style={{ fontSize: 11, color: '#64748B', marginBottom: 8, lineHeight: 1.5 }}>
+                  Questa azione è irreversibile: i dati dell'evento e il preventivo verranno rimossi per sempre.
+                  Per confermare scrivi <b style={{ color: '#6E0E1A', letterSpacing: '0.06em' }}>ELIMINA</b> qui sotto.
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <input value={eliminaPin}
+                    onChange={e => setEliminaPin(e.target.value)}
+                    placeholder="ELIMINA"
+                    style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${eliminaPin === 'ELIMINA' ? '#6E0E1A' : '#FCA5A5'}`, fontSize: 13, fontWeight: 700, color: '#6E0E1A', letterSpacing: '0.08em', background: '#FFF' }} />
+                  <button onClick={confermaEliminazione} disabled={eliminaPin !== 'ELIMINA'}
+                    style={{ padding: '8px 16px', background: eliminaPin === 'ELIMINA' ? '#6E0E1A' : '#E5E7EB', color: eliminaPin === 'ELIMINA' ? '#FFF' : '#9CA3AF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: eliminaPin === 'ELIMINA' ? 'pointer' : 'not-allowed' }}>
+                    Elimina
+                  </button>
+                  <button onClick={() => { setEliminaId(null); setEliminaPin('') }}
+                    style={{ padding: '8px 12px', background: '#FFF', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    Annulla
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )
       })}

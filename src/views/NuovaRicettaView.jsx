@@ -1,10 +1,12 @@
 // NuovaRicettaView — Editor ricetta (crea/modifica). Estratta da Dashboard.jsx.
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, getR, isRicettaValida, normIng, REGOLE, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, mergeAllergeni } from '../lib/allergeni'
+import { onEnterAutoComplete } from '../lib/autocomplete'
 import FotoOCR from '../components/FotoOCR'
+import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import { C, fmt, fmtp, margColor, margBadge } from './_shared'
 
 export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed }) {
@@ -469,7 +471,9 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             <div style={{display:"grid",gridTemplateColumns:"1fr 100px auto",gap:8,alignItems:"flex-end"}}>
               <div>
                 <div style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>Ingrediente</div>
-                <input value={newIngNome} onChange={e=>setNewIngNome(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addIng()}
+                <input value={newIngNome}
+                  onChange={e=>setNewIngNome(e.target.value)}
+                  onKeyDown={onEnterAutoComplete(tuttiIng, newIngNome, setNewIngNome, () => { if (newIngQty) addIng() })}
                   placeholder="es. burro" list="ing-autocomplete"
                   style={{width:"100%",padding:"8px 10px",borderRadius:7,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text}}/>
                 <datalist id="ing-autocomplete">{tuttiIng.map(k=><option key={k} value={k}/>)}</datalist>

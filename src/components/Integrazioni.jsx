@@ -246,6 +246,61 @@ const INTEGRAZIONI_CFG = [
   },
 ]
 
+function StatoConnessioni({ notify }) {
+  const [stato, setStato] = useState(null) // { db, latencyMs, ts } | null
+  const [busy, setBusy] = useState(false)
+
+  async function verifica() {
+    setBusy(true)
+    try {
+      const t0 = performance.now()
+      const r = await fetch('/api/health', { method: 'GET' })
+      const j = await r.json().catch(() => ({}))
+      const elapsed = Math.round(performance.now() - t0)
+      setStato({ ...j, latencyMs: elapsed })
+      if (j.status === 'ok') notify('✓ Backend FoodOS online')
+      else notify('⚠ Backend degradato — controlla configurazione', false)
+    } catch (e) {
+      setStato({ status: 'down', error: e.message })
+      notify('⚠ Backend non raggiungibile: ' + e.message, false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  useEffect(() => { verifica() }, [])
+
+  const isOk = stato?.status === 'ok'
+  const isDegraded = stato?.status === 'degraded'
+  const color = isOk ? C.green : isDegraded ? C.amber : C.red
+  const bg = isOk ? C.greenLight : isDegraded ? C.amberLight : C.redLight
+
+  return (
+    <div style={{ background: bg, border: `1px solid ${color}30`, borderRadius: 10,
+      padding: '12px 16px', marginBottom: 20, fontSize: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ fontWeight: 700, color, marginBottom: 2 }}>
+          {isOk ? '🟢 Backend FoodOS operativo'
+            : isDegraded ? '🟡 Backend degradato (DB rallentato)'
+            : '🔴 Backend non raggiungibile'}
+        </div>
+        <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.5 }}>
+          {stato ? (
+            <>
+              Latenza: <b>{stato.latencyMs}ms</b> · DB Supabase: <b>{stato.db ? 'OK' : 'KO'}</b>
+              {stato.ts && <> · {new Date(stato.ts).toLocaleTimeString('it-IT')}</>}
+            </>
+          ) : 'Controllo in corso…'}
+        </div>
+      </div>
+      <button onClick={verifica} disabled={busy}
+        style={{ padding: '7px 14px', background: '#FFF', color: C.text, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: busy ? 'wait' : 'pointer' }}>
+        {busy ? '…' : '🔄 Verifica ora'}
+      </button>
+    </div>
+  )
+}
+
 function StatoBadge({ stato, errore, lastSync }) {
   if (!lastSync) {
     return (
@@ -527,6 +582,8 @@ export default function Integrazioni({ orgId }) {
         </div>
       </div>
 
+      <StatoConnessioni notify={notify}/>
+
       {categorie.map(cat => (
         <div key={cat} style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase',
@@ -712,13 +769,30 @@ export default function Integrazioni({ orgId }) {
           <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
             {[
               ['📑', 'Fatture in Cloud (API)', 'serve API key cliente'],
-              ['🏛', 'TeamSystem export XML', 'spec import del cliente'],
+              ['🏛', 'TeamSystem (TS Digital)', 'spec import del cliente'],
               ['📒', 'Danea Easyfatt', 'serve file campione CSV'],
+              ['📒', 'Aruba Fatture', 'serve account business'],
               ['🧾', 'Epson RT / Custom RT / Ditron', 'servono XML esempi'],
-              ['🛒', 'Metro / Transgourmet / Europastry', 'serve listino campione'],
+              ['🛒', 'Metro Italia', 'serve listino campione'],
+              ['🛒', 'Marr / Transgourmet / Selex', 'cataloghi B2B'],
+              ['🥬', 'Eataly Wholesale', 'sblocco con accordo'],
+              ['🍞', 'Europastry / Bridor / Délifrance', 'fornitori panificazione'],
               ['👥', 'Zucchetti HR / TeamSystem HR', 'serve formato richiesto'],
+              ['👥', 'TeamSystem Buste Paga', 'export contributi'],
               ['🌡', 'Sensori HACCP (Govee, SensorPush, Inkbird)', 'servono API key cliente'],
-              ['📦', 'Amazon Fresh', 'sblocco con accordo commerciale'],
+              ['🎟', 'Edenred Buoni Pasto', 'API merchant'],
+              ['🎟', 'Pellegrini / Day / UpDejeuner', 'CSV chiusura buoni'],
+              ['💳', 'Nexi / Worldline / Axerve', 'estratto POS'],
+              ['💳', 'Stripe (pagamenti online)', 'API key cliente'],
+              ['💳', 'PayPal Business', 'CSV statement'],
+              ['💳', 'Scalapay / Klarna', 'BNPL merchant CSV'],
+              ['🛵', 'Mooney / FoodCity', 'delivery locali'],
+              ['📊', 'Google Reviews / Trustpilot', 'monitoring reputazione'],
+              ['🛒', 'Shopify POS', 'oltre al canale e-commerce'],
+              ['🛒', 'Vendrive / iCubed POS / Lightspeed', 'casse cloud'],
+              ['📦', 'Amazon Fresh / Glovo Quick', 'sblocco commerciale'],
+              ['📞', 'TheFork / Restworld', 'prenotazioni & staff'],
+              ['🧮', 'Agyo (Cassa in Cloud)', 'cassa Cloud TS'],
             ].map(([icon, nome, why]) => (
               <div key={nome} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', background: '#FFF', borderRadius: 8, border: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 18 }}>{icon}</span>
@@ -728,6 +802,19 @@ export default function Integrazioni({ orgId }) {
                 </div>
               </div>
             ))}
+          </div>
+          <div style={{ marginTop: 14, padding: '12px 14px', background: '#FEF7F5', border: `1px dashed ${C.red}55`, borderRadius: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 4 }}>
+              💡 Manca un'integrazione che ti serve?
+            </div>
+            <div style={{ fontSize: 11, color: C.textMid, marginBottom: 8, lineHeight: 1.55 }}>
+              Scrivici e attiviamo la sincronizzazione: di solito serve un file CSV/Excel campione o le credenziali API.
+              Le integrazioni con catena distributiva &amp; gestionali italiani sono in alta priorità.
+            </div>
+            <a href={`mailto:support@foodios.it?subject=${encodeURIComponent('Richiesta integrazione FoodOS')}&body=${encodeURIComponent('Vorrei attivare l\'integrazione con:\n\n[Nome software/fornitore]\n\nUso questo software per:\n- ...\n\nVolume previsto (transazioni/mese):\n- ...\n')}`}
+              style={{ display: 'inline-block', padding: '7px 14px', background: C.red, color: '#FFF', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+              ✉️ Richiedi una nuova integrazione
+            </a>
           </div>
         </div>
       </div>

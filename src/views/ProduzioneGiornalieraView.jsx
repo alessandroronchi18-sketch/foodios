@@ -248,8 +248,16 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 420 }}>
                     <thead>
                       <tr style={{ background: '#F8F4F2' }}>
-                        {['Prodotto', 'FC/stampo', 'Prodotti oggi', 'Vendibili oggi'].map((h, i) => (
-                          <th key={i} style={{ padding: '10px 14px', textAlign: i < 2 ? 'left' : 'center', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                        {[
+                          { h: 'Prodotto', sub: 'ricetta · pezzi/stampo' },
+                          { h: 'FC/stampo', sub: 'costo materie prime' },
+                          { h: 'Stampi prodotti', sub: 'quanti stampi/teglie' },
+                          { h: 'Pezzi al banco', sub: 'esposti per la vendita' },
+                        ].map(({ h, sub }, i) => (
+                          <th key={i} style={{ padding: '10px 14px', textAlign: i < 2 ? 'left' : 'center', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>
+                            <div>{h}</div>
+                            <div style={{ fontSize: 7, color: C.textSoft, fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2, opacity: 0.75 }}>{sub}</div>
+                          </th>
                         ))}
                       </tr>
                     </thead>
@@ -264,8 +272,15 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           <tr key={ric.nome} style={{ borderBottom: `1px solid ${C.border}`, background: (q > 0 || vq > 0) ? '#FFF9F9' : i % 2 === 0 ? C.white : '#FDFAF7' }}>
                             <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>
                               {ric.nome}
-                              <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: 9, color: C.textSoft }}>{reg.unita} {reg.tipo === 'fetta' ? 'fette' : 'pezzi'} × {fmt(reg.prezzo)}</span>
+                              <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+                                <span style={{ fontSize: 9, color: C.textSoft }}>
+                                  1 stampo → <b style={{ color: C.text }}>{reg.unita} {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</b> × {fmt(reg.prezzo)}
+                                </span>
+                                {q > 0 && reg.unita > 0 && (
+                                  <span style={{ fontSize: 8, fontWeight: 700, background: '#FEF7F5', color: C.red, padding: '1px 6px', borderRadius: 3 }}>
+                                    {q} × {reg.unita} = {q * reg.unita} pezzi al banco
+                                  </span>
+                                )}
                                 {cong && <span style={{ fontSize: 8, fontWeight: 700, background: '#E8F4FF', color: '#2980B9', padding: '1px 6px', borderRadius: 3 }}>❄ congelabile</span>}
                               </div>
                             </td>
@@ -328,10 +343,20 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                     {ricette.filter(r => qtaMap[r.nome] > 0).map(ric => {
                       const reg = getR(ric.nome, ric)
                       const q = qtaMap[ric.nome]
+                      const qv = vendibileMap[ric.nome] != null ? vendibileMap[ric.nome] : q
+                      const pezziVetrina = qv * (reg.unita || 1)
                       return (
-                        <div key={ric.nome} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
-                          <span style={{ color: C.textMid }}>{q}× {ric.nome}</span>
-                          <span style={{ fontWeight: 700, color: C.green }}>{fmt(q * reg.unita * reg.prezzo)}</span>
+                        <div key={ric.nome} style={{ fontSize: 11, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <span style={{ color: C.text, fontWeight: 700 }}>{q} stampi · {ric.nome}</span>
+                            <span style={{ fontWeight: 700, color: C.green }}>{fmt(qv * reg.unita * reg.prezzo)}</span>
+                          </div>
+                          {reg.unita > 1 && (
+                            <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>
+                              → <b style={{ color: C.red }}>{pezziVetrina} {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</b> al banco
+                              {q !== qv && <span style={{ color: '#92400E', marginLeft: 6 }}>({qv} vendibili oggi, {q - qv} in freezer)</span>}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -344,6 +369,27 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   </div>
                 )}
               </div>
+
+              {hasQta && (
+                <div style={{ background: '#FEF7F5', border: `1px solid ${C.red}30`, borderRadius: 12, padding: '14px 16px' }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.red, marginBottom: 8 }}>🍰 Stock vetrina dopo la sessione</div>
+                  <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.55, marginBottom: 8 }}>
+                    Una volta confermata, questi pezzi finiscono nello stock vetrina disponibile per la vendita:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {ricette.filter(r => (vendibileMap[r.nome] != null ? vendibileMap[r.nome] : qtaMap[r.nome] || 0) > 0).map(ric => {
+                      const reg = getR(ric.nome, ric)
+                      const qv = vendibileMap[ric.nome] != null ? vendibileMap[ric.nome] : (qtaMap[ric.nome] || 0)
+                      const pezzi = qv * (reg.unita || 1)
+                      return (
+                        <span key={ric.nome} style={{ fontSize: 11, padding: '5px 10px', borderRadius: 6, background: C.white, border: `1px solid ${C.red}25`, color: C.text, fontWeight: 700 }}>
+                          {ric.nome} <span style={{ color: C.red }}>+{pezzi}</span> <span style={{ fontWeight: 500, color: C.textSoft }}>{reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</span>
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {hasQta && (
                 <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>

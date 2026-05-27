@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
+import { supabase } from '../lib/supabase'
 
 export const WL_KEY = 'pasticceria-white-label-v1'
 
@@ -43,12 +44,53 @@ export default function WhiteLabel({ orgId, piano, notify }) {
     })
   }, [orgId])
 
+  async function upgradeChain() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) throw new Error('Sessione scaduta. Ricarica la pagina.')
+      const r = await fetch('/api/stripe-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ plan: 'chain' }),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error || 'Errore checkout')
+      window.location.href = j.url
+    } catch (e) {
+      notify?.('⚠ ' + (e.message || 'Errore'), false)
+    }
+  }
+
   if (!piaIsChain) return (
     <div style={card}>
       <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8 }}>🎨 Personalizzazione</div>
-      <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6 }}>
-        La personalizzazione completa (logo, colore primario, nome app) è inclusa nel piano <strong>Chain</strong>.
-        Contatta <a href="mailto:support@foodios.it" style={{ color: '#6E0E1A' }}>support@foodios.it</a> per aggiornare il piano.
+      <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
+        Sì, FoodOS permette di applicare il tuo <strong>logo, il nome dell'app e il colore del brand</strong> all'interfaccia:
+        compaiono nella sidebar e nell'intestazione, e il nome custom sostituisce "FoodOS" anche nel titolo del browser.
+        È incluso nel piano <strong>Chain</strong> — puoi attivarlo subito senza dover scrivere a nessuno.
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 14 }}>
+        <ul style={{ flex: '1 1 240px', margin: 0, padding: '0 0 0 18px', fontSize: 12, color: '#475569', lineHeight: 1.7 }}>
+          <li>Logo nella sidebar e nell'intestazione dell'app</li>
+          <li>Nome app al posto di "FoodOS" (sidebar + titolo del browser)</li>
+          <li>Colore del brand sulla navigazione attiva</li>
+          <li>Configurabile da Impostazioni → Personalizzazione</li>
+          <li>Attivo per tutti gli utenti della tua organizzazione</li>
+        </ul>
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button onClick={upgradeChain}
+          style={{ padding: '10px 22px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          Passa al piano Chain
+        </button>
+        <a href="mailto:support@foodios.it?subject=Personalizzazione%20FoodOS"
+          style={{ padding: '10px 18px', background: '#FFF', color: '#6E0E1A', border: '1px solid #6E0E1A', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}>
+          Parla con noi prima
+        </a>
+      </div>
+      <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 12 }}>
+        Pagamento sicuro via Stripe · puoi disdire in qualsiasi momento · fattura automatica via email.
       </div>
     </div>
   )
@@ -109,7 +151,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       <div style={card}>
         <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6 }}>🎨 Personalizzazione</div>
         <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, lineHeight: 1.6 }}>
-          Esclusiva piano Chain. Applica logo, colore e nome custom a tutta l'interfaccia per gli utenti della tua organizzazione.
+          Esclusiva piano Chain. Applica logo, nome app e colore del brand all'interfaccia (sidebar, intestazione, navigazione e titolo del browser) per gli utenti della tua organizzazione.
         </div>
 
         <div style={{ marginBottom: 16 }}>

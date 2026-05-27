@@ -3,10 +3,10 @@ import React, { useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
-import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
+import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'
 import { C, KPI, SH, margColor, margBadge, fmt, fmtp } from './_shared'
 
-export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure }) {
+export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [] }) {
   const isMobile = useIsMobile();
   const [vista, setVista]   = useState("giornaliero"); // "giornaliero" | "settimana" | "mese"
   const [tab, setTab]       = useState("produzione"); // "produzione" | "vendite" | "confronto"
@@ -57,7 +57,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       for (const prod of (sess.prodotti||[])) {
         const ric = ricettario?.ricette?.[prod.nome];
         const reg = getR(prod.nome, ric);
-        const {tot:fc} = ric?calcolaFC(ric, ingCosti, ricettario):{tot:0};
+        // Food cost STORICO: usa il prezzo materie prime valido nella data della sessione,
+        // così le produzioni passate non vengono "rivalutate" se i prezzi cambiano oggi.
+        const {tot:fc} = ric
+          ? calcolaFCStorico(ric, ingCosti, ricettario, logPrezzi, sess.data + 'T12:00:00')
+          : {tot:0};
         const rv = prod.stampi*reg.unita*reg.prezzo;
         map[k].stampiTot  += prod.stampi;
         map[k].ricavoTot  += rv;

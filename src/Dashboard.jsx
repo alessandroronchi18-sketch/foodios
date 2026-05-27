@@ -72,6 +72,7 @@ import ProduzioneGiornalieraView from './views/ProduzioneGiornalieraView'
 import AzioniView from './views/AzioniView'
 import NuovaRicettaView from './views/NuovaRicettaView'
 import StoricoProduzioneView from './views/StoricoProduzioneView'
+import DiscrepanzeView from './views/DiscrepanzeView'
 import SemilavoratiView from './views/SemilavoratiView'
 
 // React hooks are imported above — no need for global destructuring
@@ -1228,12 +1229,16 @@ export default function Dashboard({
   }, [sidebarSec]);
   const toggleSec = (id) => setSidebarSec(s => ({ ...s, [id]: !s[id] }));
 
+  // Ricerca dentro la sidebar — filtra le voci del menu in tempo reale.
+  const [sidebarSearch, setSidebarSearch] = useState('');
+  const sidebarQuery = sidebarSearch.trim().toLowerCase();
+
   // Mappa view → gruppo della sidebar (per auto-aprire il gruppo della view attiva)
   const VIEW_TO_SEC = useMemo(() => ({
     giornaliero:'oggi', chiusura:'oggi', eventi:'oggi', calendario:'oggi',
     ricettario:'ricette', semilavorati:'ricette', 'nuova-ricetta':'ricette',
     'scheda-allergeni':'ricette', menu:'ricette',
-    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri',
+    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', discrepanze:'numeri',
     magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'importa-dati':'acquisti',
     personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
@@ -1268,6 +1273,16 @@ export default function Dashboard({
 
   const appName = whiteLabel?.nomeApp || 'FoodOS';
   const customLogo = whiteLabel?.logoDataUrl || null;
+  // Gradiente brand per la voce di navigazione attiva: usa il colore custom
+  // (piano Chain) se valido, altrimenti il bordeaux FoodOS di default.
+  const brandGrad = (() => {
+    const c = whiteLabel?.colorePrimario;
+    if (!c || !/^#[0-9A-Fa-f]{6}$/.test(c)) return 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)';
+    const n = parseInt(c.slice(1), 16);
+    const dark = '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+      .map(x => Math.round(x * 0.62).toString(16).padStart(2, '0')).join('');
+    return `linear-gradient(135deg, ${c} 0%, ${dark} 100%)`;
+  })();
 
   const notify=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
   // Espone notify globalmente per i call site che non l'hanno in scope (es. export PDF rate-limited)
@@ -1505,40 +1520,85 @@ export default function Dashboard({
   }, [notify]);
 
   // Aggiornamento manuale singolo prezzo ingrediente — usato dalla tabella "Prezzi" in Magazzino.
-  // Salva il vecchio prezzo nel log per audit/storico.
-  const handleUpdatePrezzoIng = useCallback(async (nomeIng, nuovoPrezzoKg) => {
+  // Salva il vecchio prezzo nel log per audit/storico, con decorrenza opzionale.
+  // Se `decorreDa` è una data futura, applichiamo subito al ricettario MA il log
+  // mantiene la decorrenza per i calcoli storici/futuri (es. cambio prezzo dal 01/01).
+  const handleUpdatePrezzoIng = useCallback(async (nomeIng, nuovoPrezzoKg, decorreDa) => {
     if (!ricettario) return;
     const key = normIng(nomeIng);
     const old = ricettario.ingredienti_costi?.[key] || { costoKg: 0, costoG: 0 };
     const prevKg = Number(old.costoKg) || 0;
     const newKg  = Number(nuovoPrezzoKg) || 0;
     if (prevKg === newKg) return;
-    const nuovoRic = {
-      ...ricettario,
-      ingredienti_costi: {
-        ...(ricettario.ingredienti_costi||{}),
-        [key]: { costoKg: parseFloat(newKg.toFixed(4)), costoG: parseFloat((newKg/1000).toFixed(6)) },
-      },
-    };
-    setRic(nuovoRic);
-    await ssave(SK_RIC, nuovoRic);
 
-    // Log audit
+    const now = new Date();
+    const decorre = decorreDa ? new Date(decorreDa) : now;
+    const isFuture = decorre > now;
+
+    // Se la decorrenza è oggi/passato, applichiamo subito al ricettario corrente.
+    // Se è futura, NON aggiorniamo `ingredienti_costi` ora: lascia il prezzo
+    // attuale finché la data arriva (un job semplice o il calcolo storico lo gestirà).
+    if (!isFuture) {
+      const nuovoRic = {
+        ...ricettario,
+        ingredienti_costi: {
+          ...(ricettario.ingredienti_costi||{}),
+          [key]: { costoKg: parseFloat(newKg.toFixed(4)), costoG: parseFloat((newKg/1000).toFixed(6)) },
+        },
+      };
+      setRic(nuovoRic);
+      await ssave(SK_RIC, nuovoRic);
+    }
+
+    // Log audit + storico per i calcoli retroattivi
     const entry = {
       id: `lp-${Date.now()}`,
-      data: new Date().toISOString(),
+      data: now.toISOString(),                       // quando salvato
+      decorre_da: decorre.toISOString(),             // quando entra in vigore
       ingrediente: nomeIng,
       prezzoVecchio: prevKg,
       prezzoNuovo:   newKg,
       delta:         newKg - prevKg,
       deltaPct:      prevKg > 0 ? ((newKg - prevKg) / prevKg * 100) : null,
       utente:        auth?.user?.email || null,
+      pianificato:   isFuture || undefined,
     };
     const nextLog = [entry, ...(logPrezzi||[])].slice(0, 500); // tieni gli ultimi 500
     setLogPrezzi(nextLog);
     await ssave(SK_LOG_PRZ, nextLog);
-    notify(`✓ Prezzo "${nomeIng}" aggiornato a €${newKg.toFixed(2)}/kg`);
+    const msg = isFuture
+      ? `✓ Prezzo "${nomeIng}" programmato a €${newKg.toFixed(2)}/kg dal ${decorre.toLocaleDateString('it-IT')}`
+      : `✓ Prezzo "${nomeIng}" aggiornato a €${newKg.toFixed(2)}/kg`;
+    notify(msg);
   }, [ricettario, logPrezzi, auth?.user?.email]);
+
+  // Applica le modifiche prezzi PIANIFICATE la cui decorrenza è ormai passata.
+  // Eseguita all'avvio e quando logPrezzi cambia: idempotente perché toglie il flag `pianificato`.
+  useEffect(() => {
+    if (!ricettario || !Array.isArray(logPrezzi) || logPrezzi.length === 0) return;
+    const ora = Date.now();
+    const daApplicare = logPrezzi.filter(e =>
+      e?.pianificato === true &&
+      e?.decorre_da && new Date(e.decorre_da).getTime() <= ora
+    );
+    if (daApplicare.length === 0) return;
+
+    let nuoviCosti = { ...(ricettario.ingredienti_costi || {}) };
+    for (const e of daApplicare) {
+      const k = normIng(e.ingrediente);
+      const newKg = Number(e.prezzoNuovo) || 0;
+      nuoviCosti[k] = { costoKg: parseFloat(newKg.toFixed(4)), costoG: parseFloat((newKg/1000).toFixed(6)) };
+    }
+    const nuovoRic = { ...ricettario, ingredienti_costi: nuoviCosti };
+    setRic(nuovoRic);
+    ssave(SK_RIC, nuovoRic).catch(() => {});
+
+    const idsApplicati = new Set(daApplicare.map(e => e.id));
+    const nextLog = logPrezzi.map(e => idsApplicati.has(e.id) ? { ...e, pianificato: false, applicato_il: new Date().toISOString() } : e);
+    setLogPrezzi(nextLog);
+    ssave(SK_LOG_PRZ, nextLog).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ricettario, logPrezzi.length]);
 
   const handleImportPrezzi=useCallback(files=>{
     // Fire-and-forget: each file runs independently via uploadManager.
@@ -1753,24 +1813,28 @@ export default function Dashboard({
         };
 
         const navItem = (id, iconKey, label, badge=0, alert=false) => {
+          // Filtro ricerca: se la query non matcha id né label, nascondiamo
+          if (sidebarQuery && !label.toLowerCase().includes(sidebarQuery) && !id.toLowerCase().includes(sidebarQuery)) {
+            return null;
+          }
           const active = view === id;
           return (
             <button key={id} onClick={()=>{setView(id);if(isMobile)setSidebarOpen(false);}}
-              style={{width:"calc(100% - 16px)",padding:"11px 14px",margin:"0 8px 3px",
+              style={{width:"calc(100% - 16px)",padding:"10px 14px 10px 26px",margin:"0 8px 2px",
                 borderRadius:10,
                 border:"none",cursor:"pointer",textAlign:"left",
-                background:active?"linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)":"transparent",
-                color:active?"#FFFFFF":"rgba(255,255,255,0.74)",
-                fontWeight:active?600:500,fontSize:14,
+                background:active?brandGrad:"transparent",
+                color:active?"#FFFFFF":"rgba(255,255,255,0.70)",
+                fontWeight:active?600:400,fontSize:13,
                 letterSpacing:"-0.005em",
-                display:"flex",alignItems:"center",gap:12,
+                display:"flex",alignItems:"center",gap:11,
                 position:"relative",
                 boxShadow:active?"0 4px 12px rgba(110,14,26,0.34), inset 0 1px 0 rgba(255,255,255,0.12)":"none",
                 transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, box-shadow ${M.durBase} ${M.ease}`}}
-              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.07)";e.currentTarget.style.color="#FFFFFF";}}}
-              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.74)";}}}
+              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.color="#FFFFFF";}}}
+              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.70)";}}}
             >
-              <span style={{color:active?"#FFFFFF":"rgba(255,255,255,0.82)",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey],17)}</span>
+              <span style={{color:active?"#FFFFFF":"rgba(255,255,255,0.55)",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey],15)}</span>
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
               {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#6E0E1A",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
               {alert&&badge===0&&<span style={{width:8,height:8,borderRadius:"50%",background:"#E84B3A",flexShrink:0,boxShadow:"0 0 0 0 rgba(232,75,58,0.6)",animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
@@ -1785,27 +1849,40 @@ export default function Dashboard({
           </div>
         );
 
-        // Gruppo collassabile: header cliccabile + lista voci dentro.
-        // - Mostra badge/alert sull'header quando chiuso (la voce è nascosta)
-        // - Highlight della sezione attiva (chevron e label più chiari)
+        // Gruppo collassabile (macrosezione): header cliccabile + lista voci dentro.
+        // - Differenziato visivamente dalle sezioni (voci): background più caldo,
+        //   border-left brand, font più marcato.
+        // - Quando una ricerca è attiva il gruppo si auto-apre se ha figli visibili,
+        //   e viene completamente nascosto se non ha nessun figlio visibile.
+        // - Mostra badge/alert sull'header quando chiuso (la voce è nascosta).
         const Group = ({ id, iconKey, label, badge=0, alert=false, children }) => {
-          const isOpen = sidebarSec[id] !== false;
+          const visibleChildren = React.Children.toArray(children).filter(c => c !== null && c !== false);
+          // Se è attiva una ricerca e nessun figlio matcha, nascondi tutto il gruppo
+          if (sidebarQuery && visibleChildren.length === 0) return null;
+          const isOpen = sidebarQuery ? true : sidebarSec[id] !== false;
           const hasActive = VIEW_TO_SEC[view] === id;
-          const textColor = hasActive ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.52)";
-          const iconColor = hasActive ? "#FFFFFF" : "rgba(255,255,255,0.55)";
+          const textColor = hasActive ? "#FFFFFF" : "rgba(255,255,255,0.78)";
+          const iconColor = hasActive ? "#FFFFFF" : "rgba(255,255,255,0.72)";
+          const accent = hasActive ? "#E84B3A" : "rgba(232,75,58,0.45)";
           return (
-            <div style={{ marginBottom: 2 }}>
+            <div style={{ marginBottom: 4 }}>
               <button onClick={() => toggleSec(id)}
-                style={{ width:"calc(100% - 16px)", margin:"0 8px 2px", padding:"9px 12px",
-                  background: hasActive ? "rgba(255,255,255,0.04)" : "transparent",
-                  border:"none", cursor:"pointer", textAlign:"left",
+                disabled={!!sidebarQuery}
+                style={{ width:"calc(100% - 16px)", margin:"4px 8px 4px", padding:"10px 12px 10px 14px",
+                  background: hasActive
+                    ? "linear-gradient(90deg, rgba(232,75,58,0.18), rgba(232,75,58,0.06) 60%, transparent)"
+                    : "rgba(255,255,255,0.035)",
+                  border:"none",
+                  borderLeft:`3px solid ${accent}`,
+                  cursor: sidebarQuery ? "default" : "pointer",
+                  textAlign:"left",
                   borderRadius:8, display:"flex", alignItems:"center", gap:10,
-                  color: textColor, fontSize:11, fontWeight:700,
-                  letterSpacing:"0.08em", textTransform:"uppercase",
+                  color: textColor, fontSize:11.5, fontWeight:800,
+                  letterSpacing:"0.1em", textTransform:"uppercase",
                   transition:`color ${M.durFast} ${M.ease}, background ${M.durFast} ${M.ease}` }}
-                onMouseEnter={e=>{e.currentTarget.style.color="rgba(255,255,255,0.85)"; if(!hasActive) e.currentTarget.style.background="rgba(255,255,255,0.04)";}}
-                onMouseLeave={e=>{e.currentTarget.style.color=textColor; if(!hasActive) e.currentTarget.style.background="transparent";}}>
-                {iconKey && <span style={{ color: iconColor, display:"flex" }}>{ic(ICONS[iconKey],13)}</span>}
+                onMouseEnter={e=>{ if (sidebarQuery) return; e.currentTarget.style.color="#FFFFFF"; if(!hasActive) e.currentTarget.style.background="rgba(255,255,255,0.07)";}}
+                onMouseLeave={e=>{ if (sidebarQuery) return; e.currentTarget.style.color=textColor; if(!hasActive) e.currentTarget.style.background="rgba(255,255,255,0.035)";}}>
+                {iconKey && <span style={{ color: iconColor, display:"flex" }}>{ic(ICONS[iconKey],14)}</span>}
                 <span style={{ flex:1, whiteSpace:"nowrap" }}>{label}</span>
                 {badge>0 && !isOpen && (
                   <span style={{ background: alert ? "#E84B3A" : "rgba(255,255,255,0.16)",
@@ -1817,7 +1894,7 @@ export default function Dashboard({
                     flexShrink:0, boxShadow:"0 0 0 0 rgba(232,75,58,0.6)", animation:"_sp_pulse 1.6s ease-in-out infinite" }}/>
                 )}
                 <span style={{ display:"flex", transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)",
-                  transition:`transform ${M.durBase} ${M.ease}`, opacity: hasActive ? 0.75 : 0.45 }}>
+                  transition:`transform ${M.durBase} ${M.ease}`, opacity: hasActive ? 0.85 : 0.55 }}>
                   {ic(ICONS.chevron, 12)}
                 </span>
               </button>
@@ -1875,8 +1952,36 @@ export default function Dashboard({
 
             <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />
 
+            {/* Search nel menu — filtra le voci della sidebar in tempo reale */}
+            <div style={{padding:"10px 14px 8px",position:"relative"}}>
+              <span style={{position:"absolute", left: 24, top: "50%", transform:"translateY(-50%)", display:"flex", pointerEvents:"none", color:"rgba(255,255,255,0.45)"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </span>
+              <input
+                value={sidebarSearch}
+                onChange={e => setSidebarSearch(e.target.value)}
+                placeholder="Cerca nel menu…"
+                style={{
+                  width:"100%", height:34, padding:"0 28px 0 32px",
+                  background:"rgba(255,255,255,0.06)",
+                  border:`1px solid ${T.borderOnDark}`,
+                  borderRadius:8, color:"#FFFFFF", fontSize:12.5,
+                  outline:"none", fontFamily:"inherit", boxSizing:"border-box",
+                  letterSpacing:"-0.005em",
+                }}
+                onFocus={e => { e.target.style.background="rgba(255,255,255,0.10)"; e.target.style.borderColor="rgba(232,75,58,0.55)"; }}
+                onBlur={e => { e.target.style.background="rgba(255,255,255,0.06)"; e.target.style.borderColor=T.borderOnDark; }}
+              />
+              {sidebarSearch && (
+                <button onClick={() => setSidebarSearch('')} aria-label="Cancella ricerca"
+                  style={{position:"absolute", right: 22, top: "50%", transform:"translateY(-50%)", background:"none", border:"none", color:"rgba(255,255,255,0.6)", cursor:"pointer", padding:4, display:"flex"}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                </button>
+              )}
+            </div>
+
             {/* Nav — gruppi collassabili, ottimizzati per utenti non tecnici */}
-            <div style={{flex:1,overflowY:"auto",paddingTop:10,paddingBottom:10}}>
+            <div style={{flex:1,overflowY:"auto",paddingTop:4,paddingBottom:10}}>
 
               {/* Sempre visibile in cima: la Dashboard */}
               {navItem("home","home","Dashboard")}
@@ -1902,6 +2007,7 @@ export default function Dashboard({
                 {navItem("pl","trendUp","Profitti (P&L)")}
                 {navItem("storico","activity","Storico")}
                 {navItem("previsione","forecast","Previsioni")}
+                {navItem("discrepanze","fileText","Discrepanze & Sprechi")}
               </Group>
 
               <Group id="acquisti" iconKey="shopping" label="Magazzino & Acquisti"
@@ -2248,7 +2354,8 @@ export default function Dashboard({
         {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId}/>}
-        {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure}/>}
+        {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi}/>}
+        {view==="discrepanze"&&<DiscrepanzeView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId}/>}
         {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}

@@ -227,7 +227,9 @@ function PrimaryBtn({ children, disabled, type = 'submit', onClick, style }) {
 function CittaInput({ value, onChange }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState(value)
+  const [hi, setHi] = useState(0)
   const ref = useRef(null)
+  const inputRef = useRef(null)
 
   useEffect(() => { setQ(value) }, [value])
 
@@ -246,6 +248,8 @@ function CittaInput({ value, onChange }) {
       })()
     : []
 
+  useEffect(() => { setHi(0) }, [q])
+
   useEffect(() => {
     function handler(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false)
@@ -254,8 +258,19 @@ function CittaInput({ value, onChange }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  function handleKey(e) {
+    if (!open || matches.length === 0) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(h + 1, matches.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(h - 1, 0)) }
+    else if (e.key === 'Enter') {
+      e.preventDefault()
+      const pick = matches[hi] || matches[0]
+      if (pick) { setQ(pick); onChange(pick); setOpen(false) }
+    } else if (e.key === 'Escape') { setOpen(false) }
+  }
+
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} style={{ position: 'relative' }} onKeyDown={handleKey}>
       <Input icon="map" value={q} placeholder="Es. Torino" required autoComplete="off"
         onChange={e => { setQ(e.target.value); onChange(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}/>
@@ -265,15 +280,16 @@ function CittaInput({ value, onChange }) {
           background: T.paper, border: `1px solid ${T.border}`, borderRadius: 12,
           boxShadow: '0 14px 40px rgba(15,9,7,0.12)', overflow: 'hidden',
         }}>
-          {matches.map(c => (
+          {matches.map((c, i) => (
             <div key={c}
               onMouseDown={e => { e.preventDefault(); setQ(c); onChange(c); setOpen(false) }}
+              onMouseEnter={() => setHi(i)}
               style={{
                 padding: '11px 16px', fontSize: 14, cursor: 'pointer',
-                color: T.ink, fontWeight: 500, transition: 'background 0.1s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = T.cream}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                color: T.ink, fontWeight: i === hi ? 700 : 500,
+                background: i === hi ? T.cream : 'transparent',
+                transition: 'background 0.1s',
+              }}>
               {c}
             </div>
           ))}
@@ -638,14 +654,40 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     return (reg.prefisso + reg.telefono.replace(/[^0-9]/g, '')).trim()
   }
 
+  // Regole nome/cognome: solo lettere (anche accentate), apostrofi e spazi, niente cifre.
+  const NAME_RX = /^[A-Za-zÀ-ÖØ-öø-ÿ' \-]+$/
+  function isNomeValido(s) {
+    const v = (s || '').trim()
+    return v.length >= 3 && NAME_RX.test(v)
+  }
+  function isCognomeValido(s) {
+    const v = (s || '').trim()
+    return v.length >= 2 && NAME_RX.test(v)
+  }
+  function isEmailValida(s) {
+    const v = (s || '').trim()
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)
+  }
+
   function regStep1Valid() {
-    return !!(reg.nome.trim() && reg.cognome.trim() && reg.email.trim() &&
+    return !!(isNomeValido(reg.nome) && isCognomeValido(reg.cognome) &&
+              isEmailValida(reg.email) &&
               isNumeroValido(reg.telefono) &&
               Object.values(checkPwd(reg.password)).every(Boolean))
+  }
+  function regStep2Valid() {
+    return !!(reg.nome_attivita.trim().length >= 2 && reg.citta.trim().length >= 2 && reg.tipo_attivita)
   }
 
   async function nextRegStep(e) {
     e.preventDefault(); clear()
+    if (!isNomeValido(reg.nome)) { setErrore('Il nome deve contenere almeno 3 lettere.'); return }
+    if (!isCognomeValido(reg.cognome)) { setErrore('Il cognome deve contenere almeno 2 lettere.'); return }
+    if (!isEmailValida(reg.email)) { setErrore('Inserisci un indirizzo email valido.'); return }
+    if (!isNumeroValido(reg.telefono)) { setErrore('Numero di telefono non valido (6-15 cifre).'); return }
+    if (!Object.values(checkPwd(reg.password)).every(Boolean)) {
+      setErrore('La password non soddisfa tutti i requisiti di sicurezza.'); return
+    }
     if (!regStep1Valid()) {
       setErrore('Compila tutti i campi e scegli una password sicura.'); return
     }
@@ -709,8 +751,17 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
   async function handleRegistrazione(e) {
     e.preventDefault(); clear()
-    if (!reg.nome_attivita.trim() || !reg.citta.trim()) {
-      setErrore("Inserisci nome attività e città."); return
+    if (!isNomeValido(reg.nome) || !isCognomeValido(reg.cognome)) {
+      setErrore('Nome (3+ lettere) e cognome (2+ lettere) sono obbligatori.'); return
+    }
+    if (reg.nome_attivita.trim().length < 2) {
+      setErrore("Inserisci il nome dell'attività (almeno 2 caratteri)."); return
+    }
+    if (reg.citta.trim().length < 2) {
+      setErrore('Inserisci la città.'); return
+    }
+    if (!reg.tipo_attivita) {
+      setErrore("Seleziona il tipo di attività."); return
     }
     setLoading(true)
     try {
@@ -954,14 +1005,17 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                 {regStep === 1 && (
                   <form onSubmit={nextRegStep}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
-                      <Field label="Nome">
-                        <Input icon="user" required value={reg.nome} onChange={setR('nome')} placeholder="Mario"/>
+                      <Field label="Nome"
+                        error={reg.nome && !isNomeValido(reg.nome) ? 'Almeno 3 lettere, niente cifre.' : null}>
+                        <Input icon="user" required value={reg.nome} onChange={setR('nome')} placeholder="Mario" autoComplete="given-name"/>
                       </Field>
-                      <Field label="Cognome">
-                        <Input icon="user" required value={reg.cognome} onChange={setR('cognome')} placeholder="Rossi"/>
+                      <Field label="Cognome"
+                        error={reg.cognome && !isCognomeValido(reg.cognome) ? 'Almeno 2 lettere, niente cifre.' : null}>
+                        <Input icon="user" required value={reg.cognome} onChange={setR('cognome')} placeholder="Rossi" autoComplete="family-name"/>
                       </Field>
                     </div>
-                    <Field label="Email">
+                    <Field label="Email"
+                      error={reg.email && !isEmailValida(reg.email) ? 'Email non valida.' : null}>
                       <Input icon="mail" type="email" required value={reg.email} onChange={setR('email')}
                         placeholder="tua@email.com" autoComplete="email"/>
                     </Field>
@@ -1087,7 +1141,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         <Icon name="arrowL" size={14} color={T.textMid}/>
                       </button>
                       <div style={{ flex: 1 }}>
-                        <PrimaryBtn disabled={loading || !reg.nome_attivita.trim() || !reg.citta.trim()}>
+                        <PrimaryBtn disabled={loading || !regStep2Valid()}>
                           {loading ? 'Creazione account…' : <>Crea il mio account <Icon name="arrowR" size={15} color="#FFF"/></>}
                         </PrimaryBtn>
                       </div>

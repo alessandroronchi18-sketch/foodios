@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
+import { onEnterAutoComplete } from '../lib/autocomplete'
 import FotoOCR from '../components/FotoOCR'
 import { C, Badge, TNUM } from './_shared'
 
@@ -375,8 +376,9 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
                 ))}
                 <div style={{display:"flex",gap:6,marginTop:6}}>
                   <div style={{flex:2}}>
-                    <input value={newIngNome} onChange={e=>setNewIngNome(e.target.value)}
-                      onKeyDown={e=>e.key==="Enter"&&addIng()}
+                    <input value={newIngNome}
+                      onChange={e=>setNewIngNome(e.target.value)}
+                      onKeyDown={onEnterAutoComplete(tuttiIng, newIngNome, setNewIngNome, () => { if (newIngQty) addIng() })}
                       placeholder="ingrediente" list="semi-ing-list"
                       style={{width:"100%",padding:"6px 8px",borderRadius:6,border:`1px solid ${C.borderStr}`,fontSize:11,boxSizing:"border-box"}}/>
                     <datalist id="semi-ing-list">{tuttiIng.map(k=><option key={k} value={k}/>)}</datalist>
