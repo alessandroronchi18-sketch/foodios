@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
-import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
+import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import FotoOCR from '../components/FotoOCR'
 import { C, Badge, TNUM } from './_shared'
