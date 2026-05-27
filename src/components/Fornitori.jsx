@@ -22,22 +22,28 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [scopeSede, setScopeSede] = useState('attiva') // 'attiva' | 'tutte'
+  const [vista, setVista] = useState('attivi') // 'attivi' | 'archivio'
+  const [archCount, setArchCount] = useState(0)
 
   const haPiuSedi = (sedi || []).filter(s => s.attiva !== false).length > 1
   const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
+  const inArchivio = vista === 'archivio'
 
-  useEffect(() => { carica() }, [orgId, sedeId, scopeSede])
+  useEffect(() => { carica() }, [orgId, sedeId, scopeSede, vista])
 
   async function carica() {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
-    let q = supabase.from("fornitori").select("*").eq("organization_id", orgId).order("nome")
+    let q = supabase.from("fornitori").select("*").eq("organization_id", orgId).eq("attivo", !inArchivio).order("nome")
     if (scopeSede === 'attiva' && sedeId) {
       q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
     }
     const { data, error } = await q
     if (error) notify?.("⚠ Errore caricamento fornitori: " + error.message, false)
     setLista(data || [])
+    const { count } = await supabase.from("fornitori").select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId).eq("attivo", false)
+    setArchCount(count || 0)
     setLoading(false)
   }
 
@@ -59,11 +65,27 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     carica()
   }
 
-  async function elimina(id) {
-    if (!confirm("Eliminare questo fornitore?")) return
-    const { error } = await supabase.from("fornitori").delete().eq("id", id)
-    if (error) { notify("⚠ Errore eliminazione: " + error.message, false); return }
-    notify("✓ Fornitore eliminato")
+  async function archivia(id) {
+    if (!confirm("Archiviare questo fornitore? Potrai riattivarlo dall'archivio quando vuoi.")) return
+    const { error } = await supabase.from("fornitori").update({ attivo: false }).eq("id", id).eq("organization_id", orgId)
+    if (error) { notify("⚠ Errore archiviazione: " + error.message, false); return }
+    notify("✓ Fornitore archiviato")
+    carica()
+  }
+
+  async function riattiva(id) {
+    const { error } = await supabase.from("fornitori").update({ attivo: true }).eq("id", id).eq("organization_id", orgId)
+    if (error) { notify("⚠ Errore riattivazione: " + error.message, false); return }
+    notify("✓ Fornitore riattivato")
+    carica()
+  }
+
+  async function elimina(f) {
+    // Eliminazione definitiva: solo dall'archivio, con conferma esplicita.
+    if (!confirm(`Eliminare DEFINITIVAMENTE "${f.nome}"? L'operazione è irreversibile.\n\nSe il fornitore ha ordini collegati, archivialo invece di eliminarlo.`)) return
+    const { error } = await supabase.from("fornitori").delete().eq("id", f.id).eq("organization_id", orgId)
+    if (error) { notify("⚠ Impossibile eliminare (forse ha ordini collegati): " + error.message, false); return }
+    notify("✓ Fornitore eliminato definitivamente")
     carica()
   }
 
@@ -133,6 +155,15 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
 
       {/* Lista */}
       <div>
+        {/* Toggle Attivi / Archivio */}
+        <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
+          {[['attivi', '🚚 Attivi'], ['archivio', `📦 Archivio${archCount > 0 ? ` (${archCount})` : ''}`]].map(([id, lbl]) => (
+            <button key={id} onClick={() => setVista(id)}
+              style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`,
+                background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid,
+                fontSize: 11, fontWeight: vista === id ? 800 : 600, cursor: 'pointer' }}>{lbl}</button>
+          ))}
+        </div>
         {haPiuSedi && (
           <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
             {[['attiva','📍 Solo sede attiva'], ['tutte','🏢 Tutte le sedi']].map(([id,lbl]) => (
@@ -144,7 +175,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
           </div>
         )}
         {loading ? <div style={{ color:C.textSoft, fontSize:13, padding:20 }}>Caricamento…</div> : lista.length === 0 ? (
-          <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun fornitore ancora.</div>
+          <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>{inArchivio ? "Nessun fornitore archiviato." : "Nessun fornitore ancora."}</div>
         ) : isMobile ? lista.map(f => (
           <div key={f.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -163,7 +194,14 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             {f.note && <div style={{ fontSize:11, color:C.textSoft, marginTop:6, fontStyle:"italic" }}>{f.note}</div>}
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
               <button onClick={()=>initEdit(f)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
-              <button onClick={()=>elimina(f.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Elimina</button>
+              {inArchivio ? (
+                <>
+                  <button onClick={()=>riattiva(f.id)} style={{ flex:1, padding:"10px", background:"#ECFDF5", border:"1px solid #10B981", borderRadius:8, fontSize:12, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩ Riattiva</button>
+                  <button onClick={()=>elimina(f)} style={{ padding:"10px 12px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>🗑</button>
+                </>
+              ) : (
+                <button onClick={()=>archivia(f.id)} style={{ flex:1, padding:"10px", background:"#FEF3C7", border:"1px solid #F59E0B", borderRadius:8, fontSize:12, color:"#92400E", cursor:"pointer", fontWeight:700 }}>📦 Archivia</button>
+              )}
             </div>
           </div>
         )) : lista.map(f => (
@@ -187,7 +225,14 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
               </div>
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
                 <button onClick={()=>initEdit(f)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}>✏️</button>
-                <button onClick={()=>elimina(f.id)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>🗑</button>
+                {inArchivio ? (
+                  <>
+                    <button onClick={()=>riattiva(f.id)} title="Riattiva" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #10B981", background:"#ECFDF5", fontSize:10, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩</button>
+                    <button onClick={()=>elimina(f)} title="Elimina definitivamente" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>🗑</button>
+                  </>
+                ) : (
+                  <button onClick={()=>archivia(f.id)} title="Archivia" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #F59E0B", background:"#FEF3C7", fontSize:10, color:"#92400E", cursor:"pointer" }}>📦</button>
+                )}
               </div>
             </div>
           </div>

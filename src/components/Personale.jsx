@@ -23,16 +23,19 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [scopeSede, setScopeSede] = useState('attiva')
+  const [vista, setVista] = useState('attivi') // 'attivi' | 'archivio'
+  const [archCount, setArchCount] = useState(0)
 
   const haPiuSedi = (sedi || []).filter(s => s.attiva !== false).length > 1
   const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
+  const inArchivio = vista === 'archivio'
 
-  useEffect(() => { carica() }, [orgId, sedeId, scopeSede])
+  useEffect(() => { carica() }, [orgId, sedeId, scopeSede, vista])
 
   async function carica() {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
-    let q = supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true).order("nome")
+    let q = supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", !inArchivio).order("nome")
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (scopeSede === 'attiva' && sedeId && UUID_RE.test(sedeId)) {
       q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
@@ -40,6 +43,10 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     const { data, error } = await q
     if (error) notify?.("⚠ Errore caricamento dipendenti: " + error.message, false)
     setLista(data || [])
+    // Conteggio archiviati per il badge del toggle
+    const { count } = await supabase.from("dipendenti").select("id", { count: "exact", head: true })
+      .eq("organization_id", orgId).eq("attivo", false)
+    setArchCount(count || 0)
     setLoading(false)
   }
 
@@ -72,10 +79,18 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
 
   async function disattiva(id) {
     if (!orgId) return
-    if (!confirm("Archiviare questo dipendente?")) return
+    if (!confirm("Archiviare questo dipendente? Potrai riattivarlo dall'archivio quando vuoi.")) return
     const { error } = await supabase.from("dipendenti").update({ attivo: false }).eq("id", id).eq("organization_id", orgId)
     if (error) { notify("⚠ Errore archiviazione: " + error.message, false); return }
     notify("✓ Dipendente archiviato")
+    carica()
+  }
+
+  async function riattiva(id) {
+    if (!orgId) return
+    const { error } = await supabase.from("dipendenti").update({ attivo: true }).eq("id", id).eq("organization_id", orgId)
+    if (error) { notify("⚠ Errore riattivazione: " + error.message, false); return }
+    notify("✓ Dipendente riattivato")
     carica()
   }
 
@@ -166,6 +181,15 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
 
       {/* Lista */}
       <div>
+        {/* Toggle Attivi / Archivio */}
+        <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
+          {[['attivi', '👥 Attivi'], ['archivio', `📦 Archivio${archCount > 0 ? ` (${archCount})` : ''}`]].map(([id, lbl]) => (
+            <button key={id} onClick={() => setVista(id)}
+              style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`,
+                background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid,
+                fontSize: 11, fontWeight: vista === id ? 800 : 600, cursor: 'pointer' }}>{lbl}</button>
+          ))}
+        </div>
         {haPiuSedi && (
           <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
             {[['attiva','📍 Solo sede attiva'], ['tutte','🏢 Tutte le sedi']].map(([id,lbl]) => (
@@ -176,7 +200,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             ))}
           </div>
         )}
-        {costoMeseTot > 0 && (
+        {!inArchivio && costoMeseTot > 0 && (
           <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "14px 20px", marginBottom:16, display: isMobile ? "grid" : "flex", gridTemplateColumns: isMobile ? "1fr 1fr" : undefined, alignItems:"center", gap: isMobile ? 8 : 20 }}>
             <div>
               <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Costo lavoro / mese</div>
@@ -189,7 +213,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
           </div>
         )}
         {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : lista.length === 0 ? (
-          <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun dipendente ancora.</div>
+          <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>{inArchivio ? "Nessun dipendente archiviato." : "Nessun dipendente ancora."}</div>
         ) : isMobile ? lista.map(d=>(
           <div key={d.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
@@ -205,7 +229,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             {d.note && <div style={{ fontSize:11, color:C.textSoft, marginTop:6, fontStyle:"italic" }}>{d.note}</div>}
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
               <button onClick={()=>initEdit(d)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
-              <button onClick={()=>disattiva(d.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Archivia</button>
+              {inArchivio
+                ? <button onClick={()=>riattiva(d.id)} style={{ flex:1, padding:"10px", background:"#ECFDF5", border:"1px solid #10B981", borderRadius:8, fontSize:12, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩ Riattiva</button>
+                : <button onClick={()=>disattiva(d.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Archivia</button>}
             </div>
           </div>
         )) : lista.map(d=>(
@@ -231,7 +257,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
               </div>
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
                 <button onClick={()=>initEdit(d)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}>✏️</button>
-                <button onClick={()=>disattiva(d.id)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>📦</button>
+                {inArchivio
+                  ? <button onClick={()=>riattiva(d.id)} title="Riattiva" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #10B981", background:"#ECFDF5", fontSize:10, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩ Riattiva</button>
+                  : <button onClick={()=>disattiva(d.id)} title="Archivia" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>📦</button>}
               </div>
             </div>
           </div>
