@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Logo from '../components/Logo'
+import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -568,6 +569,7 @@ function FeatureVisual({ index }) {
    MAIN
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function LandingPage({ onLogin, onRegister }) {
+  const prezzi = usePlanPricing()
   const [openFaq, setOpenFaq] = useState(0)
   const [scrolled, setScrolled] = useState(false)
   const [heroIn, setHeroIn] = useState(false)
@@ -1239,7 +1241,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontFamily: SERIF, fontSize: 72, fontWeight: 600, color: '#FFF', letterSpacing: '-0.045em', lineHeight: 1 }}>€89</span>
+                  <span style={{ fontFamily: SERIF, fontSize: 72, fontWeight: 600, color: '#FFF', letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.pro)}</span>
                   <span style={{ fontSize: 16, color: 'rgba(244,236,227,0.55)' }}>/ mese</span>
                 </div>
                 <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.5)', marginBottom: 28 }}>
@@ -1291,7 +1293,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontFamily: SERIF, fontSize: 56, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€149</span>
+                  <span style={{ fontFamily: SERIF, fontSize: 56, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.chain)}</span>
                   <span style={{ fontSize: 14, color: T.textSoft }}>/ mese</span>
                 </div>
                 <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 24 }}>

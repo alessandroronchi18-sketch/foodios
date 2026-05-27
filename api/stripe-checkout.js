@@ -35,12 +35,20 @@ export default async function handler(req, res) {
   }
 
   const { plan } = req.body || {}
-  const priceId = PLAN_PRICE_MAP[plan]
-  if (!priceId) return res.status(400).json({ error: `Piano non valido: ${plan}` })
+  if (plan !== 'pro' && plan !== 'chain') return res.status(400).json({ error: `Piano non valido: ${plan}` })
 
   const { default: Stripe } = await import('stripe')
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' })
   const supabase = auth.supabase
+
+  // Price ID: priorità alla configurazione admin (plan_pricing), fallback su env.
+  let priceId = PLAN_PRICE_MAP[plan]
+  try {
+    const { data: pp } = await supabase
+      .from('plan_pricing').select('stripe_price_id').eq('plan', plan).maybeSingle()
+    if (pp?.stripe_price_id) priceId = pp.stripe_price_id
+  } catch { /* usa fallback env */ }
+  if (!priceId) return res.status(400).json({ error: `Prezzo non configurato per il piano ${plan}` })
 
   try {
     // Recupera org + email user

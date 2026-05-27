@@ -611,6 +611,11 @@ export default function AdminPage() {
   const [codici, setCodici] = useState([])
   const [codiciLoading, setCodiciLoading] = useState(false)
   const [showNuovoCodice, setShowNuovoCodice] = useState(false)
+  const [pricing, setPricing] = useState([])
+  const [pricingLoading, setPricingLoading] = useState(false)
+  const [priceDraft, setPriceDraft] = useState(null) // { plan, euro, stripe_price_id }
+  const [priceConfirm, setPriceConfirm] = useState(false)
+  const [priceSaving, setPriceSaving] = useState(false)
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
   const apiCall = useCallback(async (path, opts = {}) => {
@@ -675,7 +680,45 @@ export default function AdminPage() {
     }
   }, [apiCall])
 
-  useEffect(() => { fetchData(); fetchAudit(); fetchCodici() }, [fetchData, fetchAudit, fetchCodici])
+  const fetchPricing = useCallback(async () => {
+    setPricingLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=plan_pricing')
+      const data = await res.json()
+      setPricing(data.piani || [])
+    } catch (err) {
+      console.error('plan pricing:', err.message)
+    } finally {
+      setPricingLoading(false)
+    }
+  }, [apiCall])
+
+  // Salvataggio prezzo piano con conferma esplicita (guard anti-errore: 2 step).
+  const salvaPrezzo = useCallback(async () => {
+    if (!priceDraft) return
+    const cents = Math.round(parseFloat(String(priceDraft.euro).replace(',', '.')) * 100)
+    if (!Number.isFinite(cents) || cents < 0) { alert('Prezzo non valido'); return }
+    setPriceSaving(true)
+    try {
+      await apiCall('/api/admin', {
+        method: 'POST',
+        body: JSON.stringify({
+          tipo: 'set_plan_pricing',
+          plan: priceDraft.plan,
+          prezzo_mese_cents: cents,
+          stripe_price_id: priceDraft.stripe_price_id || '',
+        }),
+      })
+      setPriceDraft(null); setPriceConfirm(false)
+      await fetchPricing()
+    } catch (err) {
+      alert('Errore: ' + err.message)
+    } finally {
+      setPriceSaving(false)
+    }
+  }, [priceDraft, apiCall, fetchPricing])
+
+  useEffect(() => { fetchData(); fetchAudit(); fetchCodici(); fetchPricing() }, [fetchData, fetchAudit, fetchCodici, fetchPricing])
 
   // ── Azioni ──────────────────────────────────────────────────────────
   const azione = useCallback(async (orgId, tipo, payload = {}) => {
@@ -1187,6 +1230,82 @@ export default function AdminPage() {
             </Card>
           </div>
         )}
+
+        {/* ── Prezzi piani ─────────────────────────────────────────── */}
+        <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <strong style={{ fontSize: 14 }}>💶 Prezzi piani</strong>
+              <span style={{ fontSize: 12, color: COLORS.textMute }}>display landing + pannello abbonamento · checkout</span>
+            </div>
+            <Btn kind="neutral" size="sm" onClick={fetchPricing} disabled={pricingLoading}>{pricingLoading ? '…' : '🔄'}</Btn>
+          </div>
+          <div style={{ padding: '14px 18px' }}>
+            <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 12, lineHeight: 1.5 }}>
+              Modifica il prezzo mostrato. Per cambiare l'importo <b>realmente addebitato</b>, crea un nuovo Price su Stripe
+              e incolla qui il suo ID (<code>price_…</code>): il checkout userà quello. Ogni modifica richiede una conferma esplicita.
+            </div>
+            {['pro', 'chain'].map(plan => {
+              const row = pricing.find(p => p.plan === plan) || { plan, prezzo_mese_cents: plan === 'pro' ? 8900 : 14900, stripe_price_id: null }
+              const inEdit = priceDraft?.plan === plan
+              const euroAttuale = (row.prezzo_mese_cents / 100).toFixed(2)
+              return (
+                <div key={plan} style={{ border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 10, background: inEdit ? '#FFFBEB' : COLORS.card }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <div>
+                      <strong style={{ fontSize: 13, textTransform: 'capitalize' }}>{plan}</strong>
+                      <span style={{ marginLeft: 10, fontSize: 18, fontWeight: 800, color: COLORS.accent }}>€{euroAttuale}</span>
+                      <span style={{ fontSize: 11, color: COLORS.textMute }}>/mese</span>
+                      <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                        Stripe price: <code>{row.stripe_price_id || '— (usa env)'}</code>
+                      </div>
+                    </div>
+                    {!inEdit && (
+                      <Btn kind="neutral" size="sm" onClick={() => { setPriceDraft({ plan, euro: euroAttuale, stripe_price_id: row.stripe_price_id || '' }); setPriceConfirm(false) }}>
+                        ✏️ Modifica
+                      </Btn>
+                    )}
+                  </div>
+                  {inEdit && (
+                    <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: 11, color: COLORS.textSoft }}>
+                          Prezzo €/mese
+                          <input type="number" min="0" step="0.01" value={priceDraft.euro}
+                            onChange={e => { setPriceDraft(d => ({ ...d, euro: e.target.value })); setPriceConfirm(false) }}
+                            style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 14, fontWeight: 700, width: 120 }} />
+                        </label>
+                        <label style={{ fontSize: 11, color: COLORS.textSoft, flex: 1, minWidth: 200 }}>
+                          Stripe price ID (opzionale)
+                          <input type="text" value={priceDraft.stripe_price_id} placeholder="price_..."
+                            onChange={e => { setPriceDraft(d => ({ ...d, stripe_price_id: e.target.value })); setPriceConfirm(false) }}
+                            style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontFamily: 'monospace', width: '100%', boxSizing: 'border-box' }} />
+                        </label>
+                      </div>
+                      {!priceConfirm ? (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <Btn kind="primary" size="sm" onClick={() => setPriceConfirm(true)}>Salva…</Btn>
+                          <Btn kind="neutral" size="sm" onClick={() => { setPriceDraft(null); setPriceConfirm(false) }}>Annulla</Btn>
+                        </div>
+                      ) : (
+                        <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 12, color: '#7F1D1D', marginBottom: 8 }}>
+                            Confermi il prezzo del piano <b>{plan}</b>: <b>€{euroAttuale}</b> → <b>€{(parseFloat(String(priceDraft.euro).replace(',', '.')) || 0).toFixed(2)}</b>/mese?
+                            {priceDraft.stripe_price_id && <> Il checkout userà <code>{priceDraft.stripe_price_id}</code>.</>}
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Btn kind="primary" size="sm" onClick={salvaPrezzo} disabled={priceSaving}>{priceSaving ? 'Salvataggio…' : '✓ Conferma e salva'}</Btn>
+                            <Btn kind="neutral" size="sm" onClick={() => setPriceConfirm(false)}>← Indietro</Btn>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </Card>
 
         {/* ── Codici sconto ────────────────────────────────────────── */}
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
