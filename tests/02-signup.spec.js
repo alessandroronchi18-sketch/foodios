@@ -18,8 +18,10 @@ test.describe('Signup nuovo utente', () => {
     await page.goto('/register')
 
     // STEP 1: dati personali + telefono (obbligatorio) + password
-    await page.getByPlaceholder('Mario').fill('Test')
-    await page.getByPlaceholder('Rossi').fill('E2E')
+    // Nome/cognome devono essere solo lettere (validazione: nome>=3, cognome>=2,
+    // niente cifre) — niente "E2E" perché contiene un numero.
+    await page.getByPlaceholder('Mario').fill('Mario')
+    await page.getByPlaceholder('Rossi').fill('Esposito')
     await page.getByPlaceholder('tua@email.com').first().fill(email)
     await page.locator('input[type="tel"]').first().fill('3331234567')
     await page.locator('input[type="password"]').first().fill(password)
