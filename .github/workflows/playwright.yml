@@ -29,6 +29,9 @@ jobs:
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
           TEST_SIGNUP_DOMAIN: ${{ vars.TEST_SIGNUP_DOMAIN }}
+          # global-setup.js usa la service key per seminare ricetta + leggere orgId
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: npx playwright test
 
       - name: Upload Playwright report

@@ -1,72 +1,47 @@
 // @ts-check
 import { test, expect } from '@playwright/test'
-import { login, TEST_EMAIL, TEST_PASSWORD } from './helpers/auth.js'
+import { login, navTo, TEST_EMAIL, TEST_PASSWORD } from './helpers/auth.js'
+
+const euroFromCard = async (card) => {
+  const txt = await card.innerText()
+  const m = txt.match(/Food Cost[^0-9]*([0-9]+[.,][0-9]+)/i)
+  return m ? m[1].replace(',', '.') : null
+}
 
 test.describe('Food cost', () => {
-  test('cambia prezzo ingrediente → food cost % si aggiorna', async ({ page }) => {
+  test('cambia prezzo ingrediente -> food cost ricetta cambia', async ({ page }) => {
     test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'TEST_EMAIL / TEST_PASSWORD non impostati')
 
     await login(page)
 
-    // 1. Vai a Magazzino (è lì che si modificano i prezzi degli ingredienti).
-    await page.getByText(/^magazzino$/i).first().click()
-    await page.waitForLoadState('networkidle').catch(() => {})
+    // 1. Food cost iniziale della ricetta seed.
+    await navTo(page, 'Ricettario')
+    const seedCard = page.locator('div').filter({ hasText: 'SEED TORTA TEST' }).filter({ hasText: 'Food Cost' }).last()
+    await seedCard.waitFor({ state: 'visible', timeout: 15000 })
+    const fcBefore = await euroFromCard(seedCard)
 
-    // 2. Cattura il food cost % corrente da Ricettario (apri una ricetta, leggi il %).
-    await page.getByText(/^ricettario$/i).first().click()
-    await page.waitForLoadState('networkidle').catch(() => {})
+    // 2. Magazzino -> Prezzi ingredienti -> modifica farina.
+    await navTo(page, 'Magazzino')
+    await page.getByRole('button', { name: /prezzi ingredienti/i }).first().evaluate((el) => el.click())
+    await page.waitForTimeout(500)
+    const search = page.getByPlaceholder(/cerca ingrediente/i)
+    if (await search.count()) await search.fill('farina')
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: /modifica/i }).first().evaluate((el) => el.click())
+    const priceInput = page.locator('input[type="number"]').first()
+    await priceInput.fill('7.50')
+    await page.getByRole('button', { name: /^salva$/i }).first().evaluate((el) => el.click())
+    await page.getByRole('button', { name: /conferma e salva/i }).first().evaluate((el) => el.click())
+    await page.waitForTimeout(1000)
 
-    // Apri la prima ricetta (riga con costo / fc visibile)
-    const firstRicetta = page.locator('[class*="ricettario"] [role="button"], [class*="ricettario"] button, [class*="ricettario"] a')
-      .filter({ hasText: /\w+/ })
-      .first()
+    // 3. Ricettario: il food cost deve essere cambiato.
+    await navTo(page, 'Ricettario')
+    const seedCard2 = page.locator('div').filter({ hasText: 'SEED TORTA TEST' }).filter({ hasText: 'Food Cost' }).last()
+    await seedCard2.waitFor({ state: 'visible', timeout: 15000 })
+    const fcAfter = await euroFromCard(seedCard2)
 
-    if (await firstRicetta.count() === 0) {
-      test.skip(true, 'Nessuna ricetta presente per testare food cost — popola dati di test')
-    }
-
-    await firstRicetta.click().catch(() => {})
-    await page.waitForLoadState('networkidle').catch(() => {})
-
-    // Estrai food cost % visibile (formato "XX,X%" o "XX.X%")
-    const fcRegex = /(\d+[.,]\d+)\s*%/
-    const bodyText1 = await page.locator('body').innerText()
-    const match1 = bodyText1.match(fcRegex)
-    const fcBefore = match1 ? match1[1] : null
-
-    // 3. Torna in Magazzino e cambia il prezzo del primo ingrediente.
-    await page.getByText(/^magazzino$/i).first().click()
-    await page.waitForLoadState('networkidle').catch(() => {})
-
-    // I prezzi sono input numerici nella tabella magazzino.
-    const priceInputs = page.locator('input[type="number"]')
-    const nPrices = await priceInputs.count()
-    if (nPrices === 0) {
-      test.skip(true, 'Nessun ingrediente prezzabile presente')
-    }
-
-    const firstPrice = priceInputs.first()
-    const oldVal = await firstPrice.inputValue()
-    const newVal = (parseFloat(oldVal || '1') * 2 + 1).toFixed(2)
-
-    await firstPrice.fill(newVal)
-    await firstPrice.press('Tab')
-    await page.waitForTimeout(800)
-
-    // 4. Torna su Ricettario e verifica che il fc % sia cambiato.
-    await page.getByText(/^ricettario$/i).first().click()
-    await page.waitForLoadState('networkidle').catch(() => {})
-
-    const bodyText2 = await page.locator('body').innerText()
-    const match2 = bodyText2.match(fcRegex)
-    const fcAfter = match2 ? match2[1] : null
-
-    // Almeno una delle due letture deve essere stata possibile e devono differire.
-    if (fcBefore && fcAfter) {
-      expect(fcAfter).not.toBe(fcBefore)
-    } else {
-      // Fallback: verifica solo che la pagina ricettario sia ancora funzionante.
-      await expect(page.getByText(/food\s*cost/i).first()).toBeVisible()
-    }
+    expect(fcBefore, 'food cost iniziale leggibile').not.toBeNull()
+    expect(fcAfter, 'food cost finale leggibile').not.toBeNull()
+    expect(fcAfter).not.toBe(fcBefore)
   })
 })

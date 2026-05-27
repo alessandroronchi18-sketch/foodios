@@ -12,3 +12,4 @@ dist
 /playwright-report/
 /playwright/.cache/
 /blob-report/
+tests/.seed-state.json

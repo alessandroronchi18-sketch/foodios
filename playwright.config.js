@@ -5,6 +5,7 @@ const BASE_URL = process.env.BASE_URL || 'https://foodios-rose.vercel.app'
 
 export default defineConfig({
   testDir: './tests',
+  globalSetup: './global-setup.js',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
