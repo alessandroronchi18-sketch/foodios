@@ -1,46 +1,34 @@
 -- =================================================================
--- Ruolo 'dipendente' - restrizioni lato server (RLS).
---
--- L'app gia nasconde le viste sensibili a un dipendente (Dashboard +
--- DIPENDENTE_VIEWS), ma la UI da sola non e una garanzia di sicurezza: un
--- client compromesso potrebbe comunque tentare scritture. Qui mettiamo le
--- restrizioni vere lato Postgres:
---   - un dipendente puo SCRIVERE solo le chiavi operative di user_data
---     (magazzino, produzione, giornaliero, chiusure, logrif);
---   - NON puo modificare ricettario / prezzi / regole / config societaria;
---   - NON puo modificare organizations (piano, billing, impostazioni) ne sedi;
---   - NON puo promuovere se stesso (cambiare ruolo/approvato sul profilo).
---
--- I titolari (ruolo 'titolare' o NULL) mantengono pieno accesso. Il service_role
--- (edge functions, Stripe, admin) bypassa sempre la RLS.
+-- Ruolo dipendente - restrizioni lato server (RLS).
+-- La UI gia nasconde le viste sensibili al dipendente, ma qui mettiamo
+-- le restrizioni vere lato Postgres. I titolari (ruolo titolare o NULL)
+-- mantengono pieno accesso; il service_role bypassa sempre la RLS.
 -- Idempotente: safe da rieseguire.
 -- =================================================================
 
--- Helper SECURITY DEFINER: il ruolo dell'utente corrente.
+-- Helper SECURITY DEFINER: ruolo dell utente corrente.
 create or replace function public.get_user_ruolo()
 returns text
 language sql
 security definer
 stable
 set search_path = public
-as $$
+as $fn$
   select ruolo from public.profiles where id = auth.uid()
-$$;
+$fn$;
 revoke all on function public.get_user_ruolo() from public;
 grant execute on function public.get_user_ruolo() to anon, authenticated;
 
--- Helper booleano: true se l'utente corrente e un dipendente.
--- Lo usiamo nelle policy (NOT public.is_dipendente()) per evitare di ripetere
--- l'espressione di confronto in ogni clausola.
+-- Helper booleano: true se utente corrente e un dipendente.
 create or replace function public.is_dipendente()
 returns boolean
 language sql
 security definer
 stable
 set search_path = public
-as $$
+as $fn$
   select coalesce((select ruolo from public.profiles where id = auth.uid()), '') = 'dipendente'
-$$;
+$fn$;
 revoke all on function public.is_dipendente() from public;
 grant execute on function public.is_dipendente() to anon, authenticated;
 
@@ -55,7 +43,7 @@ drop policy if exists "data_delete_own" on public.user_data;
 create policy "data_select_own" on public.user_data
   for select using (organization_id = public.get_user_org_id());
 
--- Chiavi che un dipendente puo scrivere (allow-list: default-deny per chiavi nuove).
+-- Chiavi scrivibili da un dipendente (allow-list, default-deny per chiavi nuove).
 create policy "data_insert_own" on public.user_data
   for insert with check (
     organization_id = public.get_user_org_id()
@@ -102,7 +90,7 @@ create policy "data_delete_own" on public.user_data
     )
   );
 
--- ---- organizations: solo il titolare modifica (piano/billing/impostazioni) ---
+-- ---- organizations: solo il titolare modifica -------------------------------
 drop policy if exists "org_update_own" on public.organizations;
 create policy "org_update_own" on public.organizations
   for update using (
@@ -112,7 +100,7 @@ create policy "org_update_own" on public.organizations
     id = public.get_user_org_id() and not public.is_dipendente()
   );
 
--- ---- sedi: SELECT per tutti, scrittura solo titolare -------------------------
+-- ---- sedi: SELECT per tutti, scrittura solo titolare ------------------------
 drop policy if exists "sedi_own"        on public.sedi;
 drop policy if exists "sedi_select_own" on public.sedi;
 drop policy if exists "sedi_write_own"  on public.sedi;
@@ -126,15 +114,14 @@ create policy "sedi_write_own" on public.sedi
     organization_id = public.get_user_org_id() and not public.is_dipendente()
   );
 
--- ---- profiles: impedisci l'escalation (dipendente che si promuove) -----------
--- La policy profile_own resta (un utente vede/aggiorna i profili della sua org),
--- ma un trigger blocca la modifica di ruolo/approvato da parte di un dipendente.
+-- ---- profiles: blocca auto-promozione del dipendente ------------------------
+-- Un dipendente non puo cambiare ruolo o approvato (proprio o altrui).
 create or replace function public.guard_profile_escalation()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $guard$
 begin
   if public.is_dipendente()
      and (new.ruolo is distinct from old.ruolo or new.approvato is distinct from old.approvato) then
@@ -142,7 +129,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$guard$;
 
 drop trigger if exists trg_guard_profile_escalation on public.profiles;
 create trigger trg_guard_profile_escalation
