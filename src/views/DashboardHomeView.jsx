@@ -5,7 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sloadAllSedi } from '../lib/storage'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { C, TNUM } from './_shared'
@@ -122,6 +122,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId }) {
 // ─── DashboardHomeView ───────────────────────────────────────────────────────
 export default function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView, orgId, sedeId, nomeAttivita, isTrialAttivo, auth, sedi = [], sedeAttiva = null }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const now = new Date()
   const today = now.toISOString().slice(0, 10)
   const ora = now.getHours()
@@ -253,7 +254,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14, marginBottom: isMobile ? 20 : 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14, marginBottom: isMobile ? 20 : 28 }}>
         <KpiCard label="Ricavi" value={fmt(ricaviOggi)} empty={!cassaOggi} sub={cassaOggi ? 'oggi' : 'non ancora registrati'} onClick={() => setView('chiusura')}/>
         <KpiCard label="Food Cost" value={`${(fcMedio * 100).toFixed(1)}%`} valueColor={fcColor} accent={ricette.length > 0 ? fcAccent : null} empty={ricette.length === 0} sub={ricette.length > 0 ? 'medio ricettario' : 'non disponibile'} onClick={() => setView('simulatore')}/>
         <KpiCard label="Produzione" value={<>{prodCount}<span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 500, color: T.textSoft, marginLeft: 6 }}>pz</span></>} empty={!hasProdOggi} sub={hasProdOggi ? 'registrata oggi' : 'non registrata'} onClick={() => setView('giornaliero')}/>

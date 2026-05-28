@@ -1,4 +1,5 @@
 import React from 'react'
+import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 
 const S = {
   wrap: { minHeight: '100vh', background: '#FDFAF7', fontFamily: "'Inter', system-ui, sans-serif", color: '#1C0A0A' },
@@ -14,6 +15,7 @@ const S = {
 }
 
 export default function TerminiServizio() {
+  const prezzi = usePlanPricing()
   return (
     <div style={S.wrap}>
       <div style={S.header}>
@@ -48,7 +50,7 @@ export default function TerminiServizio() {
         <div style={S.piani}>
           <div style={S.pianoCard}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7B76', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piano Pro</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: '#6E0E1A', marginBottom: 4 }}>€89<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: '#6E0E1A', marginBottom: 4 }}>€{fmtPrezzo(prezzi.pro)}<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
             <ul style={{ ...S.ul, margin: '12px 0 0', paddingLeft: 16 }}>
               <li>Sedi illimitate</li>
               <li>Ricettario illimitato</li>
@@ -61,7 +63,7 @@ export default function TerminiServizio() {
           </div>
           <div style={{ ...S.pianoCard, border: '2px solid #6E0E1A' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#6E0E1A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piano Chain</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: '#6E0E1A', marginBottom: 4 }}>€149<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: '#6E0E1A', marginBottom: 4 }}>€{fmtPrezzo(prezzi.chain)}<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
             <ul style={{ ...S.ul, margin: '12px 0 0', paddingLeft: 16 }}>
               <li>Tutto il piano Pro</li>
               <li>Utenti multipli per sede</li>

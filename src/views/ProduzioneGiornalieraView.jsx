@@ -15,7 +15,7 @@ import { gateExport, getExportCtx } from '../lib/exportGuard'
 import FotoOCR from '../components/FotoOCR'
 import { C, margColor, fmt, PageHeader } from './_shared'
 
-export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify, sedi = [], sedeAttiva = null, orgId, sedeId }) {
+export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify, sedi = [], sedeAttiva = null, orgId, sedeId, isDipendente = false }) {
   const isMobile = useIsMobile()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ricette = Object.values(ricettario?.ricette || {}).filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
@@ -86,7 +86,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       }
     }
     return { ings, fcTot, ricavoTot }
-  }, [qtaMap, ricette, ingCosti])
+  }, [qtaMap, vendibileMap, ricette, ingCosti, ricettario])
 
   const problemi = useMemo(() => {
     return Object.entries(riepilogo.ings).filter(([k, qty]) => {
@@ -166,10 +166,14 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         action={(giornaliero || []).length > 0 && (
           <button onClick={() => {
             const sess = (giornaliero || [])[0]
-            const items = Object.entries(sess?.qtaMap || {}).flatMap(([nome, qty]) => {
-              const r = ricettario?.ricette?.[nome] || ricettario?.ricette?.[nome.toUpperCase()]
+            // Le sessioni sono salvate con un array `prodotti` [{nome, stampi, ...}],
+            // non con una mappa `qtaMap` (che non viene mai persistita) → senza questo
+            // l'export PDF produceva sempre un documento vuoto.
+            const items = (sess?.prodotti || []).flatMap(p => {
+              const qty = p.stampi || 0
+              const r = ricettario?.ricette?.[p.nome] || ricettario?.ricette?.[(p.nome || '').toUpperCase()]
               const { tot: fcR } = r ? calcolaFC(r, ingCosti, ricettario) : { tot: 0 }
-              return qty > 0 ? [{ nome, quantita: qty, unita: 'stampi', costo: fcR, categoria: r?.categoria || 'Altro' }] : []
+              return qty > 0 ? [{ nome: p.nome, quantita: qty, unita: 'stampi', costo: fcR, categoria: r?.categoria || 'Altro' }] : []
             })
             const c = getExportCtx()
             gateExport('produzione', { data: sess?.data }, window.__foodos_notify).then(ok => { if (ok) exportProduzione(items, sess?.data, c.nomeAttivita, c.email) })
@@ -349,7 +353,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         <div key={ric.nome} style={{ fontSize: 11, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                             <span style={{ color: C.text, fontWeight: 700 }}>{q} stampi · {ric.nome}</span>
-                            <span style={{ fontWeight: 700, color: C.green }}>{fmt(qv * reg.unita * reg.prezzo)}</span>
+                            {!isDipendente && <span style={{ fontWeight: 700, color: C.green }}>{fmt(qv * reg.unita * reg.prezzo)}</span>}
                           </div>
                           {reg.unita > 1 && (
                             <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>
@@ -360,12 +364,16 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         </div>
                       )
                     })}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.red }}>
-                      <span>Food cost totale</span><span style={{ fontWeight: 700 }}>−{fmt(riepilogo.fcTot)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 900, color: margColor(margPct), borderTop: `2px solid ${C.border}`, paddingTop: 8 }}>
-                      <span>Margine lordo</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(riepilogo.ricavoTot - riepilogo.fcTot)}</span>
-                    </div>
+                    {!isDipendente && (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.red }}>
+                          <span>Food cost totale</span><span style={{ fontWeight: 700 }}>−{fmt(riepilogo.fcTot)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 900, color: margColor(margPct), borderTop: `2px solid ${C.border}`, paddingTop: 8 }}>
+                          <span>Margine lordo</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(riepilogo.ricavoTot - riepilogo.fcTot)}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -465,10 +473,12 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       {sess.note && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{sess.note}</div>}
                     </div>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <div style={{ display: 'flex', gap: 16, textAlign: 'right' }}>
-                        <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Ricavo pot.</div><div style={{ fontSize: 14, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(sess.ricavoTot || 0)}</div></div>
-                        <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Food cost</div><div style={{ fontSize: 14, fontWeight: 800, color: C.red, fontVariantNumeric: 'tabular-nums' }}>{fmt(sess.fcTot || 0)}</div></div>
-                      </div>
+                      {!isDipendente && (
+                        <div style={{ display: 'flex', gap: 16, textAlign: 'right' }}>
+                          <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Ricavo pot.</div><div style={{ fontSize: 14, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(sess.ricavoTot || 0)}</div></div>
+                          <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Food cost</div><div style={{ fontSize: 14, fontWeight: 800, color: C.red, fontVariantNumeric: 'tabular-nums' }}>{fmt(sess.fcTot || 0)}</div></div>
+                        </div>
+                      )}
                       <button onClick={() => { setDeleteSessConf(sess); setDeleteSessPin('') }}
                         style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>🗑 Elimina</button>
                     </div>

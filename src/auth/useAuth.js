@@ -140,7 +140,7 @@ export function useAuth() {
 
   function setSedeAttiva(sede) {
     setSedeAttivaState(sede)
-    if (profile?.organization_id) {
+    if (sede?.id && profile?.organization_id) {
       localStorage.setItem(`sede_attiva_${profile.organization_id}`, sede.id)
     }
   }
@@ -195,6 +195,10 @@ export function useAuth() {
   const isTrialAttivo  = org && trialEnd && trialEnd > now   // indipendente da approvato
   const isTrialScaduto = org && !isPagante && (!trialEnd || trialEnd <= now)
   const isAdmin        = user?.email === import.meta.env.VITE_ADMIN_EMAIL
+  // Ruolo dell'utente nell'organizzazione: 'titolare' (default) o 'dipendente'.
+  // Il dipendente ha accesso solo alle viste operative (vedi Dashboard).
+  const ruolo          = profile?.ruolo || 'titolare'
+  const isDipendente   = ruolo === 'dipendente'
 
   return {
     user,
@@ -213,6 +217,8 @@ export function useAuth() {
     isTrialScaduto,
     isPagante,
     isAdmin,
+    ruolo,
+    isDipendente,
     orgId: profile?.organization_id || null,
     sedeId: sedeAttiva?.id || null,
   }

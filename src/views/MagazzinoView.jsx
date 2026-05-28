@@ -750,8 +750,13 @@ export default function MagazzinoView({
               const nomeIT = translateIngredienteEN(rawIng.nome || '')
               const ing = { ...rawIng, nome: nomeIT }
               const k = normIng(ing.nome)
-              nm[k] = { nome: ing.nome.trim(), giacenza_g: (nm[k]?.giacenza_g || 0) + ing.quantita_g, soglia_g: nm[k]?.soglia_g || 0, ultimoRifornimento: now }
-              newLogs.push({ id: `r-${Date.now()}-${k}`, data: now, ingrediente: ing.nome.trim(), quantita_g: ing.quantita_g, note: 'da foto' })
+              // Guard NaN: se l'OCR omette la quantità, `0 + undefined = NaN`
+              // verrebbe persistito corrompendo per sempre quella giacenza.
+              const qg = Number(ing.quantita_g)
+              const qtaG = Number.isFinite(qg) ? qg : 0
+              if (qtaG <= 0) continue
+              nm[k] = { nome: ing.nome.trim(), giacenza_g: (nm[k]?.giacenza_g || 0) + qtaG, soglia_g: nm[k]?.soglia_g || 0, ultimoRifornimento: now }
+              newLogs.push({ id: `r-${Date.now()}-${k}`, data: now, ingrediente: ing.nome.trim(), quantita_g: qtaG, note: 'da foto' })
             }
             setMagazzino(nm)
             const updLogs = [...newLogs, ...(logRif || [])]

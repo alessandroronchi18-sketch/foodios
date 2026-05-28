@@ -487,6 +487,58 @@ async function applicaCodiceManuale(supabase, orgId, codice, mesi) {
   return { mesi: nMesi }
 }
 
+// ─── PREZZI PIANI ──────────────────────────────────────────────────────────
+async function getPlanPricing(supabase) {
+  const { data, error } = await supabase
+    .from('plan_pricing')
+    .select('plan, prezzo_mese_cents, valuta, stripe_price_id, label, aggiornato_da, aggiornato_il')
+    .order('plan')
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
+async function setPlanPricing(supabase, body, adminEmail) {
+  const plan = body.plan === 'chain' ? 'chain' : body.plan === 'pro' ? 'pro' : null
+  if (!plan) throw new Error('Piano non valido (pro|chain)')
+
+  // Importo in centesimi: intero positivo, max 100.000 €/mese (sanity guard).
+  const cents = parseInt(body.prezzo_mese_cents, 10)
+  if (!Number.isFinite(cents) || cents < 0 || cents > 10_000_000) {
+    throw new Error('Prezzo non valido')
+  }
+  // stripe_price_id opzionale: deve sembrare un price_id Stripe se presente.
+  let stripePriceId = (body.stripe_price_id || '').toString().trim()
+  if (stripePriceId && !/^price_[A-Za-z0-9]+$/.test(stripePriceId)) {
+    throw new Error('stripe_price_id non valido (atteso "price_...")')
+  }
+  stripePriceId = stripePriceId || null
+
+  const { data: prev } = await supabase
+    .from('plan_pricing').select('prezzo_mese_cents').eq('plan', plan).maybeSingle()
+
+  const { data: row, error } = await supabase
+    .from('plan_pricing')
+    .upsert({
+      plan,
+      prezzo_mese_cents: cents,
+      stripe_price_id: stripePriceId,
+      label: plan === 'chain' ? 'Chain' : 'Pro',
+      aggiornato_da: adminEmail,
+      aggiornato_il: new Date().toISOString(),
+    }, { onConflict: 'plan' })
+    .select().single()
+  if (error) throw new Error(error.message)
+
+  await supabase.from('plan_pricing_log').insert({
+    plan,
+    prezzo_vecchio: prev?.prezzo_mese_cents ?? null,
+    prezzo_nuovo: cents,
+    stripe_price_id: stripePriceId,
+    aggiornato_da: adminEmail,
+  })
+  return row
+}
+
 async function azPulisciDemoFatture(supabase, orgId, valore) {
   // STRICT VALIDATION: solo 'preview' (sola lettura) o 'esegui' (cancellazione).
   // Qualunque altro valore (anche vuoto) viene trattato come preview per evitare cancellazioni accidentali.
@@ -611,6 +663,11 @@ export default async function handler(req) {
         return json({ codici }, 200, req)
       }
 
+      if (action === 'plan_pricing') {
+        const piani = await getPlanPricing(supabase)
+        return json({ piani }, 200, req)
+      }
+
       if (action === 'esporta_csv') {
         await logAdmin(supabase, user.email, 'esporta_csv', null, ip, ua)
         const clienti = await getClienti(supabase)
@@ -658,6 +715,7 @@ export default async function handler(req) {
       'crea_codice_sconto',
       'disattiva_codice_sconto',
       'elimina_codice_sconto',
+      'set_plan_pricing',
     ]
     if (!tipo) return json({ error: 'Parametro tipo mancante' }, 400, req)
     if (!azioniSenzaOrgId.includes(tipo)) {
@@ -697,6 +755,8 @@ export default async function handler(req) {
           await eliminaCodiceSconto(supabase, sanitizeStrict(body.id || '', 36)); break
         case 'regala_mesi':
           result = { ok: true, ...(await applicaCodiceManuale(supabase, orgId, body.codice || '', body.mesi)) }; break
+        case 'set_plan_pricing':
+          result = { ok: true, piano: await setPlanPricing(supabase, body, user.email) }; break
         default:
           return json({ error: 'Azione non riconosciuta' }, 400, req)
       }

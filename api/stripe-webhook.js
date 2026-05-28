@@ -65,6 +65,25 @@ export default async function handler(req, res) {
 
   const supabase = await getSupabase()
 
+  // Idempotenza: Stripe ritenta i webhook su risposte non-2xx/timeout. Registriamo
+  // event.id; se è già presente l'evento è già stato elaborato → rispondiamo 200 e
+  // ci fermiamo, evitando doppi conteggi (es. redemptions codici sconto).
+  try {
+    const { error: dupErr } = await supabase
+      .from('stripe_webhook_events')
+      .insert({ event_id: event.id, type: event.type })
+    if (dupErr) {
+      if (dupErr.code === '23505') {
+        return res.status(200).json({ received: true, duplicate: true })
+      }
+      // Errore non-duplicato (es. tabella non ancora migrata): logghiamo e
+      // proseguiamo (fail-open) per non perdere eventi legittimi.
+      console.error('[stripe-webhook] idempotency insert error', dupErr.message)
+    }
+  } catch (e) {
+    console.error('[stripe-webhook] idempotency check failed', e?.message)
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {

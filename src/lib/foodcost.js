@@ -668,6 +668,18 @@ export const REGOLE = {
   "PASTA FROLLA":        { unita:0, prezzo:0, tipo:"semilavorato" },
 }
 
+// Chiavi built-in di REGOLE, catturate all'import. Servono a ripulire le regole
+// runtime iniettate da un'org quando si cambia organizzazione/sede nella stessa
+// sessione (es. impersonation admin): senza reset, unita/prezzo/tipo di un'org
+// resterebbero in questo singleton di modulo e inquinerebbero i calcoli dell'altra.
+const _REGOLE_BUILTIN_KEYS = new Set(Object.keys(REGOLE))
+
+export function resetRegoleRuntime() {
+  for (const k of Object.keys(REGOLE)) {
+    if (!_REGOLE_BUILTIN_KEYS.has(k)) delete REGOLE[k]
+  }
+}
+
 export const getR = (nome, ricetta) => {
   if (REGOLE[nome]) return REGOLE[nome]
   // Ricette manuali: leggi da dentro l'oggetto ricetta se presente
@@ -775,7 +787,9 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
         const { tot: semiTot } = calcolaFCStorico(semiRic, ingCosti, ricettario, logPrezzi, when, depth + 1)
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         const costoG = semiPeso > 0 ? semiTot / semiPeso : 0
-        tot += qty * costoG
+        // Coerenza con il ramo foglia: applica l'eventuale resa anche al
+        // semilavorato (default 1.0 = nessuna variazione).
+        tot += qty * costoNettoPerG(costoG, nomeNorm)
         continue
       }
     }
@@ -820,7 +834,9 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth) {
         const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, depth + 1)
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         const costoG = semiPeso > 0 ? semiTot / semiPeso : 0
-        tot += qty * costoG
+        // Coerenza con il ramo foglia: applica l'eventuale resa anche al
+        // semilavorato (default 1.0 = nessuna variazione).
+        tot += qty * costoNettoPerG(costoG, nomeNorm)
         continue
       }
     }

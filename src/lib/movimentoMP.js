@@ -12,13 +12,14 @@
 // Se il secondo fallisce, l'errore è chiaro all'utente e può registrare a mano.
 
 import { sload, ssave } from './storage'
+import { normIng } from './foodcost'
 
 const SK_MAG = 'pasticceria-magazzino-v1'
 
-// Normalizza nome ingrediente (stesso schema della Dashboard).
-function normIng(nome) {
-  return (nome || '').toString().trim().toLowerCase()
-}
+// NB: usiamo lo STESSO normIng di foodcost.js (con normalizzazione singolare/
+// plurale). La produzione scala il magazzino con quelle chiavi: se qui usassimo
+// una normalizzazione diversa, "uova" (magazzino) e "uovo" (ricetta) non
+// combacerebbero e i trasferimenti mancherebbero la voce giusta.
 
 // Restituisce la giacenza disponibile per un ingrediente in una sede.
 export async function getGiacenzaMP(orgId, sedeId, nomeIng) {
@@ -30,7 +31,7 @@ export async function getGiacenzaMP(orgId, sedeId, nomeIng) {
 // Sposta materia prima da sedeDa a sedeA.
 // quantita in grammi (convenzione esistente del magazzino).
 // throws se non disponibile in sedeDa.
-export async function spostaMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, quantita }) {
+export async function spostaMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, quantita, consentiNegativo = false }) {
   if (!orgId) throw new Error('orgId mancante')
   if (!sedeDa || !sedeA) throw new Error('Sedi non specificate')
   if (sedeDa === sedeA) throw new Error('Sede origine e destinazione coincidono')
@@ -46,7 +47,9 @@ export async function spostaMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, 
   ])
 
   const giacDa = Number(magDa[k]?.giacenza_g || 0)
-  if (giacDa < quantita) {
+  // `consentiNegativo` serve al rollback: annullare un movimento già avvenuto
+  // deve riuscire anche se la sede destinazione ha già consumato parte della MP.
+  if (!consentiNegativo && giacDa < quantita) {
     throw new Error(`Disponibilità insufficiente in sede di partenza: ${giacDa}g disponibili, richiesti ${quantita}g`)
   }
 
@@ -55,7 +58,7 @@ export async function spostaMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, 
     ...magDa,
     [k]: {
       ...magDa[k],
-      giacenza_g: giacDa - quantita,
+      giacenza_g: Math.max(0, giacDa - quantita),
       ultimoMovimento: new Date().toISOString(),
     },
   }
@@ -86,7 +89,9 @@ export async function spostaMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, 
 
 // Rollback di un movimento già eseguito (per annullamento trasferimento).
 export async function rollbackMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, quantita }) {
-  return spostaMaterialePrima({ orgId, sedeDa: sedeA, sedeA: sedeDa, ingrediente, quantita })
+  // Movimento inverso forzato: deve riuscire anche se la destinazione originale
+  // ha già consumato parte della materia ricevuta (consentiNegativo).
+  return spostaMaterialePrima({ orgId, sedeDa: sedeA, sedeA: sedeDa, ingrediente, quantita, consentiNegativo: true })
 }
 
 // Scarico di MP da una sede (per workflow trasferimento step 1: invio).
