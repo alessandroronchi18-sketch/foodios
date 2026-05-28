@@ -41,6 +41,22 @@ async function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 }
 
+// Decodifica un claim dal payload di un JWT senza verifica firma.
+// Sicuro qui perche' chiamato solo DOPO supabase.auth.getUser(token) che
+// verifica la firma; serve solo a estrarre claim non esposti dall'API.
+function decodeJwtClaim(token, claim) {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (b64.length % 4) b64 += '='
+    const payload = JSON.parse(atob(b64))
+    return payload[claim] ?? null
+  } catch {
+    return null
+  }
+}
+
 async function verificaAdmin(req, supabase) {
   // Fail-closed: senza ADMIN_EMAIL configurato, nessuno è admin.
   if (!ADMIN_EMAIL) return { user: null, reason: 'admin_email_not_configured' }
@@ -60,21 +76,25 @@ async function verificaAdmin(req, supabase) {
       return { user: null, reason: `not_admin:${user.email}` }
     }
     // ── Enforce MFA per admin ────────────────────────────────────────────
-    // L'admin è target ad alto valore: MFA è obbligatoria. Se la sessione è
-    // solo aal1 (password), rifiutiamo: l'admin deve completare il challenge TOTP.
-    try {
-      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel({ jwt: token })
-      const currentLevel = aal?.currentLevel || null
-      const nextLevel = aal?.nextLevel || null
-      // currentLevel='aal2' = già autenticato con MFA → OK
-      // currentLevel='aal1' && nextLevel='aal2' = ha MFA ma non l'ha usata in questa sessione → BLOCCA
-      // nextLevel='aal1' = non ha MFA configurata → BLOCCA (admin DEVE avere MFA)
-      if (currentLevel !== 'aal2') {
-        return { user: null, reason: nextLevel === 'aal2' ? 'mfa_required' : 'mfa_not_enrolled' }
-      }
-    } catch (mfaErr) {
-      // Se la API MFA non risponde, fail-closed (blocca l'admin)
-      return { user: null, reason: 'mfa_check_failed' }
+    // L'admin e' target ad alto valore: MFA e' obbligatoria salvo override
+    // esplicito via DISABLE_ADMIN_MFA=true (utile in fase pre-revenue prima
+    // di configurare TOTP; rimuovere appena MFA e' attiva).
+    if ((process.env.DISABLE_ADMIN_MFA || '').toLowerCase() === 'true') {
+      return { user, reason: 'ok_mfa_disabled' }
+    }
+    // La AAL e' un claim del JWT (gia' verificato da getUser sopra), quindi
+    // possiamo leggerla decodificando il payload — piu' robusto che
+    // supabase.auth.mfa.getAuthenticatorAssuranceLevel(), che richiede una
+    // sessione utente sul client e con service_role lancia eccezione.
+    const aalLevel = decodeJwtClaim(token, 'aal')
+    if (aalLevel !== 'aal2') {
+      // Distingue "ha MFA ma non l'ha usata" da "MFA non configurata".
+      let hasVerifiedFactor = false
+      try {
+        const { data: f } = await supabase.auth.admin.mfa.listFactors({ userId: user.id })
+        hasVerifiedFactor = (f?.factors || []).some(x => x.status === 'verified')
+      } catch { /* se la query factor fallisce, conservativo: mfa_required */ hasVerifiedFactor = true }
+      return { user: null, reason: hasVerifiedFactor ? 'mfa_required' : 'mfa_not_enrolled' }
     }
     return { user, reason: 'ok' }
   } catch (err) {
