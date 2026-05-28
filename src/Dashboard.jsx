@@ -51,6 +51,7 @@ import ImportaDatiView from './components/ImportaDati'
 import AbbonamentoPanel from './components/AbbonamentoPanel'
 import HaccpView from './components/Haccp'
 import FormatiVendita from './components/FormatiVendita'
+import RegistroAttivita from './components/RegistroAttivita'
 import WhatsAppReportPanel from './components/WhatsAppReportPanel'
 import Impostazioni from './components/Impostazioni'
 import {
@@ -2051,6 +2052,7 @@ export default function Dashboard({
               <Group id="azienda" iconKey="briefcase" label="Azienda">
                 {navItem("personale","users","Personale")}
                 {navItem("haccp","shield","HACCP")}
+                {navItem("registro-attivita","fileText","Registro attività")}
                 {(sedi||[]).length>1 && navItem("confronto-sedi","building","Confronto sedi")}
                 {(sedi||[]).length>1 && navItem("trasferimenti","truck","Trasferimenti tra sedi")}
               </Group>
@@ -2362,6 +2364,9 @@ export default function Dashboard({
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
         {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify}/>}
+
+        {/* Registro attività — solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
+        {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
 
         {/* Ricettario — mostra upload se non ancora caricato */}
         {view==="ricettario"&&!ricettario&&(
