@@ -52,6 +52,7 @@ import AbbonamentoPanel from './components/AbbonamentoPanel'
 import HaccpView from './components/Haccp'
 import FormatiVendita from './components/FormatiVendita'
 import RegistroAttivita from './components/RegistroAttivita'
+import SpreciOmaggi from './components/SpreciOmaggi'
 import WhatsAppReportPanel from './components/WhatsAppReportPanel'
 import Impostazioni from './components/Impostazioni'
 import {
@@ -1174,9 +1175,10 @@ function SchedaAllergeniView({ ricettario }) {
 // espone ricette, food cost, marginalità, dati societari o impostazioni resta
 // riservato al titolare. Vedi anche la RLS in 20260605_ruolo_dipendente.sql.
 const DIPENDENTE_VIEWS = new Set([
-  'giornaliero',  // Produzione — "caricare i prodotti"
-  'chiusura',     // Cassa
-  'magazzino',    // Stock e rifornimenti
+  'giornaliero',     // Produzione — "caricare i prodotti"
+  'chiusura',        // Cassa
+  'magazzino',       // Stock e rifornimenti
+  'sprechi-omaggi',  // Operativo: sia titolare sia dipendente registrano
   'eventi',
   'calendario',
   'haccp',
@@ -2044,6 +2046,7 @@ export default function Dashboard({
               <Group id="acquisti" iconKey="shopping" label="Magazzino & Acquisti"
                 badge={criticeMag} alert={criticeMag>0}>
                 {navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0)}
+                {navItem("sprechi-omaggi","sparkles","Sprechi e omaggi")}
                 {navItem("scadenzario","fileText","Scadenzario")}
                 {navItem("fornitori","truck","Fornitori")}
                 {navItem("importa-dati","download","Importa dati")}
@@ -2367,6 +2370,9 @@ export default function Dashboard({
 
         {/* Registro attività — solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
         {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
+
+        {/* Sprechi e omaggi — titolare e dipendente, per-sede */}
+        {view==="sprechi-omaggi"&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} auth={auth} notify={notify}/>}
 
         {/* Ricettario — mostra upload se non ancora caricato */}
         {view==="ricettario"&&!ricettario&&(

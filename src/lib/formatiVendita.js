@@ -11,13 +11,17 @@
 //   • una CATEGORIA di ricette (es. "Gelato") → da cui stimiamo il food cost
 //     come media del FC/grammo dei gusti di quella categoria;
 //   • una quantità di base consumata per unità venduta (baseQtaG, in grammi);
-//   • un costo fisso del contenitore/packaging (cono, vaschetta, pane…).
+//   • una DISTINTA di componenti consumabili (cono cialda, vaschetta, fazzoletto,
+//     coppetta, cucchiaino, …) ognuno con quantità e costo unitario in €.
 //
 // Così:
 //   ricavo  = totale battuto sullo scontrino (esatto)
-//   FC      = costoContenitore + baseQtaG × (FC medio €/g della categoria)
+//   FC      = Σ (componente.qta × componente.costo) + baseQtaG × FC_medio_categoria
 //   sell-through = a livello di CATEGORIA (g prodotti vs g venduti), perché
 //                  senza il gusto non possiamo riconciliare per singola ricetta.
+//
+// Retrocompat: i formati legacy con `costoContenitore: N` vengono trattati come
+// avessero un singolo componente {nome:'Contenitore', qta:1, costo:N}.
 
 import { calcolaFC, getR, isRicettaValida, normIng } from './foodcost'
 
@@ -36,9 +40,33 @@ export function nuovoFormato() {
     alias: [],
     categoria: '',
     baseQtaG: 0,
-    costoContenitore: 0,
+    componenti: [], // [{nome:'Cono cialda', qta:1, costo:0.06}, ...]
     prezzoDefault: 0,
   }
+}
+
+// Restituisce i componenti del formato in forma normalizzata. Se il formato e'
+// in formato legacy (solo costoContenitore), lo trasforma in un singolo componente
+// "Contenitore" — cosi' il resto del codice puo' lavorare solo con componenti[].
+export function componentiNormalizzati(formato) {
+  if (Array.isArray(formato?.componenti) && formato.componenti.length > 0) {
+    return formato.componenti.map(c => ({
+      nome: String(c?.nome || ''),
+      qta: Number(c?.qta) || 0,
+      costo: Number(c?.costo) || 0,
+    }))
+  }
+  const legacy = Number(formato?.costoContenitore) || 0
+  if (legacy > 0) {
+    return [{ nome: 'Contenitore', qta: 1, costo: legacy }]
+  }
+  return []
+}
+
+// Costo totale dei materiali consumabili per UNA unita' venduta del formato.
+export function costoComponentiUnita(formato) {
+  return componentiNormalizzati(formato)
+    .reduce((s, c) => s + c.qta * c.costo, 0)
 }
 
 // Trova il formato che corrisponde al nome battuto sullo scontrino.
@@ -91,11 +119,12 @@ export function avgFCperGCategoria(categoria, ricettario, ingCosti) {
 }
 
 // FC stimato (€) di UNA unità venduta di un formato.
+// = Σ (componente.qta × componente.costo) + baseQtaG × FC_medio_categoria
 export function fcStimatoFormato(formato, avgFCperG) {
-  const contenitore = Number(formato.costoContenitore) || 0
+  const componenti = costoComponentiUnita(formato)
   const baseG = Number(formato.baseQtaG) || 0
   const perG = Number(avgFCperG) || 0
-  return contenitore + baseG * perG
+  return componenti + baseG * perG
 }
 
 /**
