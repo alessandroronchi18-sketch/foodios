@@ -13,8 +13,9 @@ import useIsMobile from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { scaricoVenditaPF } from '../lib/stockPF'
-import { SK_CHIUS, SK_FORMATI } from '../lib/storageKeys'
+import { SK_CHIUS, SK_FORMATI, SK_MOV } from '../lib/storageKeys'
 import { riconciliaFormati } from '../lib/formatiVendita'
+import { aggregaGiorno } from '../lib/movimentiSpeciali'
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from '../lib/importDelivery'
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/importCassa'
 import { C, KPI, PageHeader, margColor, fmt, fmtp } from './_shared'
@@ -45,6 +46,15 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
     sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormati(Array.isArray(v) ? v : []) })
     return () => { alive = false }
   }, [orgId])
+
+  // Sprechi e omaggi della sede (movimenti speciali del giorno).
+  const [movimenti, setMovimenti] = useState([])
+  useEffect(() => {
+    let alive = true
+    if (!orgId || !sedeId) return
+    sload(SK_MOV, orgId, sedeId).then(v => { if (alive) setMovimenti(Array.isArray(v) ? v : []) })
+    return () => { alive = false }
+  }, [orgId, sedeId])
 
   const today = new Date().toISOString().slice(0, 10)
   const [dataFiltro, setDataFiltro] = useState(today)
@@ -249,14 +259,31 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     riconciliaFormati(venduto || [], formati, sessione, ricettario, ingCosti, matchedRecipeNames)
   , [venduto, formati, sessione, ricettario, ingCosti, matchedRecipeNames])
 
+  // Sprechi e omaggi del giorno per la sede attiva.
+  const aggMov = useMemo(() => aggregaGiorno(movimenti, dataFiltro), [movimenti, dataFiltro])
+
+  // Drift porzioni per categoria: prodotto - venduto teorico - omaggi - sprechi.
+  // Drift positivo = consumo reale piu' alto del teorico (mano abbondante / residui non gestiti).
+  // Drift negativo = consumo reale piu' basso (mano stretta / vendite non registrate).
+  const driftPerCategoria = useMemo(() => formatiRiconc.categorie.map(c => {
+    const mov = aggMov.perCategoria[c.categoria] || { gSpreco: 0, gOmaggio: 0 }
+    const consumatoTeorico = c.gVenduti + mov.gOmaggio + mov.gSpreco
+    const drift = c.gProdotti - consumatoTeorico
+    const driftPct = c.gProdotti > 0 ? (drift / c.gProdotti) * 100 : null
+    return { ...c, gOmaggio: mov.gOmaggio, gSpreco: mov.gSpreco, consumatoTeorico, drift, driftPct }
+  }), [formatiRiconc.categorie, aggMov])
+
   // I totali includono SIA le ricette riconosciute per nome SIA i formati generici,
-  // così cassa e produzione coincidono anche senza il dettaglio del gusto.
+  // SIA il food cost di sprechi/omaggi (sono costi reali per l'azienda).
+  // Cosi' cassa e produzione coincidono anche senza il dettaglio del gusto, e il
+  // margine giornaliero riflette l'impatto reale delle perdite.
   const fmtV = formatiRiconc.righe.reduce((s, r) => s + r.rv, 0)
   const fmtFC = formatiRiconc.righe.reduce((s, r) => s + r.fcV, 0)
+  const movFC = (aggMov.tot.eurSpreco || 0) + (aggMov.tot.eurOmaggio || 0)
   const totV = confronto.reduce((s, r) => s + r.rv, 0) + fmtV
-  const totFC = confronto.reduce((s, r) => s + r.fcV, 0) + fmtFC
-  const totM = confronto.reduce((s, r) => s + r.marg, 0) + (fmtV - fmtFC)
-  const totS = confronto.reduce((s, r) => s + r.spreco, 0)
+  const totFC = confronto.reduce((s, r) => s + r.fcV, 0) + fmtFC + movFC
+  const totM = totV - totFC
+  const totS = confronto.reduce((s, r) => s + r.spreco, 0) + (aggMov.tot.eurSpreco || 0)
   const totMP = totV > 0 ? (totM / totV * 100) : 0
   const stL = confronto.filter(r => r.st !== null)
   const avgST = stL.length > 0 ? stL.reduce((s, r) => s + r.st, 0) / stL.length : 0
@@ -690,18 +717,42 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                   </tbody>
                 </table>
               </div>
-              {formatiRiconc.categorie.some(c => c.st !== null) && (
-                <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.border}`, background: '#FBFAF8' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Riconciliazione per categoria · prodotto vs venduto</div>
-                  {formatiRiconc.categorie.filter(c => c.st !== null).map(c => (
-                    <div key={c.categoria} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, marginBottom: 5, flexWrap: 'wrap' }}>
-                      <span style={{ width: 120, fontWeight: 700, color: C.text }}>{c.categoria}</span>
-                      <span style={{ color: C.textMid }}>venduto {fmtKg(c.gVenduti)} · prodotto {fmtKg(c.gProdotti)}</span>
-                      <span style={{ fontWeight: 800, color: stC(c.st) }}>{c.st.toFixed(0)}% sell-through</span>
+              {driftPerCategoria.some(c => c.st !== null || c.gProdotti > 0) && (() => {
+                const driftColor = (pct) => {
+                  if (pct == null) return C.textSoft
+                  const a = Math.abs(pct)
+                  return a < 5 ? C.green : a < 10 ? C.amber : C.red
+                }
+                return (
+                  <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.border}`, background: '#FBFAF8' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      Riconciliazione per categoria · prodotto − venduto − sprechi − omaggi
                     </div>
-                  ))}
-                </div>
-              )}
+                    {driftPerCategoria.filter(c => c.gProdotti > 0 || c.gVenduti > 0).map(c => (
+                      <div key={c.categoria} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '120px 1fr auto', gap: 10, fontSize: 11, marginBottom: 6, alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, color: C.text }}>{c.categoria}</span>
+                        <span style={{ color: C.textMid }}>
+                          prodotto {fmtKg(c.gProdotti)} · venduto {fmtKg(c.gVenduti)}
+                          {c.gOmaggio > 0 && <> · omaggi {fmtKg(c.gOmaggio)}</>}
+                          {c.gSpreco > 0 && <> · sprechi {fmtKg(c.gSpreco)}</>}
+                        </span>
+                        <span style={{ fontWeight: 800, color: driftColor(c.driftPct), whiteSpace: 'nowrap' }}>
+                          {c.driftPct == null ? '—' : (
+                            <>
+                              drift {c.drift >= 0 ? '+' : ''}{fmtKg(c.drift)} ({c.driftPct >= 0 ? '+' : ''}{c.driftPct.toFixed(0)}%)
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                    <div style={{ marginTop: 8, fontSize: 10, color: C.textSoft, lineHeight: 1.6 }}>
+                      Drift positivo: hai consumato piu' del teorico (mano abbondante o residui non gestiti).
+                      Drift negativo: hai consumato meno (mano stretta o vendite non scontrinate).
+                      |drift| &lt; 5% = ok · 5-10% = da monitorare · &gt; 10% = da approfondire.
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           )}
 

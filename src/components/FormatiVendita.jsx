@@ -11,7 +11,10 @@ import { color as T } from '../lib/theme'
 import { sload, ssave } from '../lib/storage'
 import { SK_FORMATI } from '../lib/storageKeys'
 import { buildIngCosti, isRicettaValida, getR } from '../lib/foodcost'
-import { nuovoFormato, avgFCperGCategoria, fcStimatoFormato } from '../lib/formatiVendita'
+import {
+  nuovoFormato, avgFCperGCategoria, fcStimatoFormato,
+  componentiNormalizzati, costoComponentiUnita,
+} from '../lib/formatiVendita'
 import useIsMobile from '../lib/useIsMobile'
 
 const C = {
@@ -59,14 +62,21 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
   const salva = async () => {
     if (!form.nome.trim()) { notify?.('⚠ Dai un nome al formato (es. "Cono piccolo")', false); return }
     if (!form.categoria.trim()) { notify?.('⚠ Scegli la categoria di ricette collegata', false); return }
+    const componenti = (Array.isArray(form.componenti) ? form.componenti : [])
+      .map(c => ({
+        nome: String(c?.nome || '').trim(),
+        qta:  Number(c?.qta) || 0,
+        costo: Number(c?.costo) || 0,
+      }))
+      .filter(c => c.nome && c.qta > 0)
     const pulito = {
-      ...form,
+      id: form.id,
       nome: form.nome.trim(),
       categoria: form.categoria.trim(),
       alias: (Array.isArray(form.alias) ? form.alias : String(form.alias || '').split(','))
         .map(a => a.trim()).filter(Boolean),
       baseQtaG: Number(form.baseQtaG) || 0,
-      costoContenitore: Number(form.costoContenitore) || 0,
+      componenti,
       prezzoDefault: Number(form.prezzoDefault) || 0,
     }
     const idx = formati.findIndex(f => f.id === pulito.id)
@@ -74,6 +84,12 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
     await persist(arr)
     setForm(null)
     notify?.(`✓ Formato "${pulito.nome}" salvato`)
+  }
+
+  // Quando si apre il form (nuovo o modifica), normalizza i componenti (anche da
+  // formato legacy con solo costoContenitore).
+  const apriEditor = (base) => {
+    setForm({ ...base, componenti: componentiNormalizzati(base) })
   }
 
   const elimina = async (id) => {
@@ -85,7 +101,9 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
   const previewFC = useMemo(() => {
     if (!form || !form.categoria) return null
     const avg = avgFCperGCategoria(form.categoria, ricettario, ingCosti)
-    return { avg, fcUnit: fcStimatoFormato({ ...form, baseQtaG: Number(form.baseQtaG) || 0, costoContenitore: Number(form.costoContenitore) || 0 }, avg || 0) }
+    const fcUnit = fcStimatoFormato(form, avg || 0)
+    const fcComponenti = costoComponentiUnita(form)
+    return { avg, fcUnit, fcComponenti }
   }, [form, ricettario, ingCosti])
 
   if (loading) return <div style={{ padding: 24, color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
@@ -101,7 +119,7 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>Formati di vendita <span style={{ color: C.textSoft, fontWeight: 600 }}>({formati.length})</span></div>
         {!form && (
-          <button onClick={() => setForm(nuovoFormato())}
+          <button onClick={() => apriEditor(nuovoFormato())}
             style={{ padding: '8px 16px', background: C.red, color: '#fff', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>+ Nuovo formato</button>
         )}
       </div>
@@ -128,22 +146,49 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
               <input style={inputStyle} type="number" min="0" value={form.baseQtaG} onChange={e => setForm({ ...form, baseQtaG: e.target.value })} placeholder="80" />
             </div>
             <div>
-              <label style={labelStyle}>Costo contenitore / packaging (€)</label>
-              <input style={inputStyle} type="number" min="0" step="0.01" value={form.costoContenitore} onChange={e => setForm({ ...form, costoContenitore: e.target.value })} placeholder="0.08" />
-            </div>
-            <div>
               <label style={labelStyle}>Prezzo di vendita (€, informativo)</label>
               <input style={inputStyle} type="number" min="0" step="0.01" value={form.prezzoDefault} onChange={e => setForm({ ...form, prezzoDefault: e.target.value })} placeholder="2.60" />
+            </div>
+          </div>
+
+          {/* Distinta materiali consumabili (cono, vaschetta, fazzoletto, cucchiaino, ...) */}
+          <div style={{ marginTop: 18 }}>
+            <label style={labelStyle}>Materiali consumabili per unità</label>
+            <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 8 }}>
+              Tutto cio che va con la vendita: contenitore + accessori (cono cialda, fazzoletto, palettina, coppetta, cucchiaino…). Il food cost del formato somma queste voci.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {(form.componenti || []).map((c, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 70px 90px auto', gap: 8, alignItems: 'center' }}>
+                  <input style={inputStyle} value={c.nome || ''} placeholder="Cono cialda piccolo"
+                    onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, nome: e.target.value } : x) }))}/>
+                  <input style={inputStyle} type="number" min="0" step="0.01" value={c.qta ?? ''} placeholder="qta"
+                    onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, qta: e.target.value } : x) }))}/>
+                  <input style={inputStyle} type="number" min="0" step="0.001" value={c.costo ?? ''} placeholder="€/unita"
+                    onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, costo: e.target.value } : x) }))}/>
+                  <button onClick={() => setForm(f => ({ ...f, componenti: f.componenti.filter((_, j) => j !== i) }))}
+                    style={{ padding: '6px 10px', background: C.redLight, color: C.red, border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>×</button>
+                </div>
+              ))}
+              <button onClick={() => setForm(f => ({ ...f, componenti: [...(f.componenti || []), { nome: '', qta: 1, costo: 0 }] }))}
+                style={{ alignSelf: 'flex-start', marginTop: 4, padding: '6px 12px', background: 'transparent', color: C.textMid, border: `1px dashed ${C.border}`, borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                + Aggiungi materiale
+              </button>
             </div>
           </div>
 
           {previewFC && (
             <div style={{ marginTop: 14, padding: '10px 14px', background: previewFC.avg == null ? C.amberLight : C.greenLight, borderRadius: 9, fontSize: 12, color: C.textMid }}>
               {previewFC.avg == null ? (
-                <span>⚠ Nessuna ricetta con categoria <b>“{form.categoria}”</b> (con peso definito): il food cost sarà solo il contenitore. Assegna la categoria ai gusti nel Ricettario.</span>
+                <span>⚠ Nessuna ricetta con categoria <b>“{form.categoria}”</b> (con peso definito): il food cost coprira solo i materiali. Assegna la categoria ai gusti nel Ricettario.</span>
               ) : (
-                <span>FC medio categoria <b>“{form.categoria}”</b>: {fmt(previewFC.avg * 1000)}/kg → food cost stimato per unità: <b style={{ color: C.green }}>{fmt(previewFC.fcUnit)}</b>
-                  {Number(form.prezzoDefault) > 0 && <> · margine stimato <b>{((1 - previewFC.fcUnit / Number(form.prezzoDefault)) * 100).toFixed(0)}%</b></>}</span>
+                <span>
+                  FC categoria <b>“{form.categoria}”</b>: {fmt(previewFC.avg * 1000)}/kg ·
+                  materiali: <b>{fmt(previewFC.fcComponenti)}</b> ·
+                  base ({Number(form.baseQtaG) || 0}g): <b>{fmt((Number(form.baseQtaG) || 0) * previewFC.avg)}</b>
+                  {' '}→ FC stimato per unità: <b style={{ color: C.green }}>{fmt(previewFC.fcUnit)}</b>
+                  {Number(form.prezzoDefault) > 0 && previewFC.fcUnit > 0 && <> · margine stimato <b>{((1 - previewFC.fcUnit / Number(form.prezzoDefault)) * 100).toFixed(0)}%</b></>}
+                </span>
               )}
             </div>
           )}
@@ -169,7 +214,7 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{f.nome}</div>
                   <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>
-                    Categoria: <b style={{ color: C.textMid }}>{f.categoria || '—'}</b> · base {f.baseQtaG || 0}g · contenitore {fmt(f.costoContenitore)}
+                    Categoria: <b style={{ color: C.textMid }}>{f.categoria || '—'}</b> · base {f.baseQtaG || 0}g · materiali {fmt(costoComponentiUnita(f))} ({componentiNormalizzati(f).length})
                     {f.alias?.length > 0 && <> · alias: {f.alias.join(', ')}</>}
                   </div>
                 </div>
@@ -178,7 +223,7 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
                   <div style={{ fontSize: 14, fontWeight: 800, color: avg == null ? C.amber : C.red }}>{fmt(fcUnit)}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => setForm({ ...f })} style={{ padding: '6px 12px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Modifica</button>
+                  <button onClick={() => apriEditor(f)} style={{ padding: '6px 12px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Modifica</button>
                   <button onClick={() => elimina(f.id)} style={{ padding: '6px 12px', background: C.redLight, color: C.red, border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Elimina</button>
                 </div>
               </div>
