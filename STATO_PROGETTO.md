@@ -225,6 +225,13 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 - [x] Drift porzioni in Chiusura cassa (calcolo prodotti+sprechi+omaggi vs vendite)
 - [x] Aggregazione per categoria/prodotto + totali in €
 
+### Admin tier 1: note CRM + activation + feedback + banner (branch `feat/admin-tier1` – mig. `20260608`)
+- [x] **Note CRM** per cliente: campo `note_admin` su `organizations`, textarea nella modale Dettaglio con autosave debounced 1.5s, visibile solo all'admin
+- [x] **Activation score** per cliente: 6 step (email verificata, sede creata, ricettario popolato, prima chiusura cassa, prima fattura, attivo ultimi 7gg) calcolati al volo, indicatore progress bar + chip leggibili nella modale
+- [x] **Feedback inbox** in-app: bottone floating 💬 in `Dashboard` (via `FeedbackButton`), tabella `feedback` (RLS: insert proprio org via policy, lettura solo service_role), nuova endpoint `api/feedback.js`, sezione admin "📨 Feedback dai clienti" con filtro "da gestire" + sentiment (bug/idea/feedback/complimento) + segna gestito
+- [x] **Banner globali**: tabella `app_banners` (RLS: read se attivo+non scaduto), componente `AppBanner` in cima al Dashboard (dismissable per sessione via sessionStorage), sezione admin "📢 Banner globali" con form crea + lista + disattiva/elimina, 4 severity (info/warn/critical/success)
+- [x] Refresh banner ogni 5 minuti (l'admin pubblica → utenti vedono entro 5min senza reload)
+
 ### Vista cliente arricchita in admin (branch `feat/admin-vista-cliente-arricchita`)
 - [x] Nuova action `cliente_dettaglio` in `api/admin.js`: aggrega sedi, uso per `data_key` (count + ultimo update + n. sedi coinvolte), audit_log filtrato per org_id (ultimi 25 eventi), dati Stripe da `organizations`
 - [x] Modale `ClienteDettaglioModal` in `AdminPage.jsx`: header con stato/salute/piano/KPI/Stripe, sedi (badge), uso per area (operative vs altre), eventi recenti

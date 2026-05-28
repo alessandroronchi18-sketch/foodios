@@ -218,7 +218,8 @@ async function getAuditLog(supabase) {
 }
 
 async function getClienteDettaglio(supabase, orgId) {
-  const [sediRes, dataRes, eventiRes, orgRes] = await Promise.all([
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+  const [sediRes, dataRes, eventiRes, orgRes, fattureCntRes, dipendentiCntRes, profileRes] = await Promise.all([
     supabase
       .from('sedi')
       .select('id, nome, attiva, is_default')
@@ -237,8 +238,22 @@ async function getClienteDettaglio(supabase, orgId) {
       .limit(25),
     supabase
       .from('organizations')
-      .select('stripe_customer_id, stripe_subscription_id, stripe_status, stripe_current_period_end, trial_ends_at, mesi_bonus')
+      .select('stripe_customer_id, stripe_subscription_id, stripe_status, stripe_current_period_end, trial_ends_at, mesi_bonus, note_admin')
       .eq('id', orgId)
+      .maybeSingle(),
+    supabase
+      .from('fatture')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', orgId),
+    supabase
+      .from('dipendenti')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', orgId),
+    supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('organization_id', orgId)
+      .eq('ruolo', 'titolare')
       .maybeSingle(),
   ])
 
@@ -265,12 +280,140 @@ async function getClienteDettaglio(supabase, orgId) {
     sede_id: e.new_data?.sede_id || null,
   }))
 
+  // Activation: 6 step concreti che mappano il percorso "primo valore".
+  // Done = true se la condizione e' soddisfatta nello stato attuale del DB.
+  const hasKey = k => (usageMap[k]?.conteggio || 0) > 0
+  const nFatture = fattureCntRes.count || 0
+  const nDipendenti = dipendentiCntRes.count || 0
+  // Email confermata: query separata su auth.users via admin API (best-effort).
+  let emailConfermata = false
+  if (profileRes.data?.id) {
+    try {
+      const { data: u } = await supabase.auth.admin.getUserById(profileRes.data.id)
+      emailConfermata = !!u?.user?.email_confirmed_at
+    } catch { /* ignore */ }
+  }
+  // Ultimo accesso negli ultimi 7gg: usiamo ultimo evento utente piu' recente
+  // dal subset usage (chiave operativa) come proxy, oppure last_sign_in tramite
+  // l'admin API (gia' chiamata sopra non lo include). Qui usiamo l'ultimo
+  // updated_at su user_data come proxy "attivita' recente".
+  const ultimoAggiornamentoIso = usage.reduce((acc, u) => u.ultimo && u.ultimo > (acc || '') ? u.ultimo : acc, null)
+  const attivo7gg = ultimoAggiornamentoIso ? ultimoAggiornamentoIso > sevenDaysAgo : false
+
+  const activation = {
+    steps: [
+      { key: 'email_verificata',   label: 'Email verificata',        done: emailConfermata },
+      { key: 'sede_creata',        label: 'Sede creata',             done: (sediRes.data || []).length > 0 },
+      { key: 'ricettario',         label: 'Ricettario popolato',     done: hasKey('pasticceria-ricettario-v1') },
+      { key: 'prima_chiusura',     label: 'Prima chiusura cassa',    done: hasKey('pasticceria-chiusure-v1') },
+      { key: 'prima_fattura',      label: 'Prima fattura caricata',  done: nFatture > 0 },
+      { key: 'attivo_7gg',         label: 'Attivo ultimi 7 giorni',  done: attivo7gg },
+    ],
+  }
+  activation.score = activation.steps.filter(s => s.done).length
+  activation.totale = activation.steps.length
+
   return {
     sedi: sediRes.data || [],
     usage,
     eventi,
     org: orgRes.data || null,
+    activation,
+    counts: { fatture: nFatture, dipendenti: nDipendenti },
   }
+}
+
+// ─── Note CRM admin ──────────────────────────────────────────────────────
+async function azSalvaNoteAdmin(supabase, orgId, nota) {
+  // Limite 5000 char per evitare abusi.
+  const testo = sanitize(nota || '', 5000)
+  const { error } = await supabase
+    .from('organizations')
+    .update({ note_admin: testo || null })
+    .eq('id', orgId)
+  if (error) throw new Error(error.message)
+}
+
+// ─── Feedback inbox ──────────────────────────────────────────────────────
+async function getFeedback(supabase, soloDaGestire) {
+  let q = supabase
+    .from('feedback')
+    .select('id, organization_id, user_email, ruolo, view_corrente, messaggio, sentiment, url, gestito, gestito_at, gestito_by, created_at')
+    .order('created_at', { ascending: false })
+    .limit(200)
+  if (soloDaGestire) q = q.eq('gestito', false)
+  const { data, error } = await q
+  if (error) throw new Error(error.message)
+
+  // Arricchisci con nome attivita' (lookup organizations).
+  const orgIds = Array.from(new Set((data || []).map(f => f.organization_id).filter(Boolean)))
+  let orgMap = {}
+  if (orgIds.length > 0) {
+    const { data: orgs } = await supabase
+      .from('organizations')
+      .select('id, nome')
+      .in('id', orgIds)
+    for (const o of orgs || []) orgMap[o.id] = o.nome
+  }
+  return (data || []).map(f => ({ ...f, nome_attivita: orgMap[f.organization_id] || null }))
+}
+
+async function azFeedbackMarcaGestito(supabase, id, adminEmail, gestito) {
+  const { error } = await supabase
+    .from('feedback')
+    .update({
+      gestito: !!gestito,
+      gestito_at: gestito ? new Date().toISOString() : null,
+      gestito_by: gestito ? adminEmail : null,
+    })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+// ─── Banner globali ──────────────────────────────────────────────────────
+async function getBanners(supabase) {
+  const { data, error } = await supabase
+    .from('app_banners')
+    .select('id, messaggio, tipo, attivo, scade_il, creato_da, creato_il')
+    .order('creato_il', { ascending: false })
+    .limit(100)
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
+async function azBannerCrea(supabase, body, adminEmail) {
+  const messaggio = sanitize(body.messaggio || '', 500)
+  if (!messaggio) throw new Error('Messaggio obbligatorio')
+  // Il campo `tipo` nel body e' gia' usato per dispatchare l'action,
+  // quindi qui leggiamo `severity` (info/warn/critical/success).
+  const severity = ['info', 'warn', 'critical', 'success'].includes(body.severity) ? body.severity : 'info'
+  let scadeIl = null
+  if (body.scade_il) {
+    const d = new Date(body.scade_il)
+    if (!isNaN(d.getTime()) && d > new Date()) scadeIl = d.toISOString()
+  }
+  const { data, error } = await supabase
+    .from('app_banners')
+    .insert({ messaggio, tipo: severity, scade_il: scadeIl, creato_da: adminEmail, attivo: true })
+    .select().single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+async function azBannerDisattiva(supabase, id) {
+  const { error } = await supabase
+    .from('app_banners')
+    .update({ attivo: false })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+async function azBannerElimina(supabase, id) {
+  const { error } = await supabase
+    .from('app_banners')
+    .delete()
+    .eq('id', id)
+  if (error) throw new Error(error.message)
 }
 
 // ─── azioni POST ───────────────────────────────────────────────────────────
@@ -741,6 +884,17 @@ export default async function handler(req) {
         return json(dettaglio, 200, req)
       }
 
+      if (action === 'feedback') {
+        const soloDaGestire = url.searchParams.get('solo_da_gestire') === '1'
+        const list = await getFeedback(supabase, soloDaGestire)
+        return json({ feedback: list }, 200, req)
+      }
+
+      if (action === 'banners') {
+        const list = await getBanners(supabase)
+        return json({ banners: list }, 200, req)
+      }
+
       if (action === 'codici_sconto') {
         await logAdmin(supabase, user.email, 'lista_codici_sconto', null, ip, ua)
         const codici = await getCodiciSconto(supabase)
@@ -800,6 +954,10 @@ export default async function handler(req) {
       'disattiva_codice_sconto',
       'elimina_codice_sconto',
       'set_plan_pricing',
+      'feedback_marca_gestito',
+      'banner_crea',
+      'banner_disattiva',
+      'banner_elimina',
     ]
     if (!tipo) return json({ error: 'Parametro tipo mancante' }, 400, req)
     if (!azioniSenzaOrgId.includes(tipo)) {
@@ -841,6 +999,16 @@ export default async function handler(req) {
           result = { ok: true, ...(await applicaCodiceManuale(supabase, orgId, body.codice || '', body.mesi)) }; break
         case 'set_plan_pricing':
           result = { ok: true, piano: await setPlanPricing(supabase, body, user.email) }; break
+        case 'salva_note_admin':
+          await azSalvaNoteAdmin(supabase, orgId, body.nota); break
+        case 'feedback_marca_gestito':
+          await azFeedbackMarcaGestito(supabase, sanitizeStrict(body.id || '', 36), user.email, !!body.gestito); break
+        case 'banner_crea':
+          result = { ok: true, banner: await azBannerCrea(supabase, body, user.email) }; break
+        case 'banner_disattiva':
+          await azBannerDisattiva(supabase, sanitizeStrict(body.id || '', 36)); break
+        case 'banner_elimina':
+          await azBannerElimina(supabase, sanitizeStrict(body.id || '', 36)); break
         default:
           return json({ error: 'Azione non riconosciuta' }, 400, req)
       }

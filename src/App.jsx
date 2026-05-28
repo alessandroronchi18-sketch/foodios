@@ -12,6 +12,8 @@ import TvDashboard from './pages/TvDashboard'
 import Logo from './components/Logo'
 import { MfaChallenge } from './components/Mfa'
 import AbbonamentoPanel from './components/AbbonamentoPanel'
+import AppBanner from './components/AppBanner'
+import FeedbackButton from './components/FeedbackButton'
 import { supabase } from './lib/supabase'
 
 function SplashScreen() {
@@ -216,21 +218,25 @@ export default function App() {
     )
   }
 
-  // Dashboard
+  // Dashboard — wrap con banner globale (annunci admin) e bottone feedback.
   return (
-    <Dashboard
-      auth={auth}
-      orgId={auth.orgId}
-      sedeId={auth.sedeId}
-      sedi={auth.sedi}
-      sedeAttiva={auth.sedeAttiva}
-      onSetSedeAttiva={auth.setSedeAttiva}
-      nomeAttivita={auth.org?.nome || 'La mia attività'}
-      tipoAttivita={auth.org?.tipo || 'bar'}
-      piano={auth.org?.piano || 'trial'}
-      isTrialAttivo={auth.isTrialAttivo}
-      onSignOut={auth.signOut}
-    />
+    <>
+      <AppBanner />
+      <Dashboard
+        auth={auth}
+        orgId={auth.orgId}
+        sedeId={auth.sedeId}
+        sedi={auth.sedi}
+        sedeAttiva={auth.sedeAttiva}
+        onSetSedeAttiva={auth.setSedeAttiva}
+        nomeAttivita={auth.org?.nome || 'La mia attività'}
+        tipoAttivita={auth.org?.tipo || 'bar'}
+        piano={auth.org?.piano || 'trial'}
+        isTrialAttivo={auth.isTrialAttivo}
+        onSignOut={auth.signOut}
+      />
+      <FeedbackButton />
+    </>
   )
 }
 // test Lun 11 Mag 2026 23:41:57 HST
