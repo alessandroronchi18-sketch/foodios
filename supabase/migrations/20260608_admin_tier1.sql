@@ -3,15 +3,15 @@
 -- =======================================================================
 
 -- ─── 1. Note admin per organizzazione (CRM lite) ─────────────────────────
--- Campo di testo libero per appunti dell'admin sul cliente. Mai visibile
--- al cliente: solo l'admin (via /api/admin) legge/scrive questa colonna.
+-- Campo di testo libero per appunti del admin sul cliente. Mai visibile
+-- al cliente: solo lo admin (via /api/admin) legge/scrive questa colonna.
 alter table public.organizations
   add column if not exists note_admin text;
 
 -- ─── 2. Feedback inbox in-app ────────────────────────────────────────────
 -- Tabella per i feedback inviati dai clienti tramite il bottone in app.
 -- Insert da utenti autenticati (per la loro stessa organization), lettura
--- e update solo dall'admin via service_role.
+-- e update solo dal admin via service_role.
 create table if not exists public.feedback (
   id              uuid default gen_random_uuid() primary key,
   organization_id uuid references public.organizations(id) on delete cascade,
@@ -41,9 +41,9 @@ create policy "feedback_insert_own"
     )
   );
 
--- Niente policy SELECT/UPDATE per authenticated: l'utente NON deve vedere
--- ne' i propri feedback (per non creare aspettative sulle risposte) ne'
--- quelli altrui. L'admin legge tutto via service_role bypassando RLS.
+-- Niente policy SELECT/UPDATE per authenticated: lo utente NON deve vedere
+-- ne i propri feedback (per non creare aspettative sulle risposte) ne
+-- quelli altrui. Lo admin legge tutto via service_role bypassando RLS.
 revoke select, update, delete on public.feedback from anon, authenticated;
 grant select, update on public.feedback to service_role;
 
@@ -53,7 +53,7 @@ create index if not exists idx_feedback_gestito
   where gestito = false;
 
 -- ─── 3. Banner globali per annunci ───────────────────────────────────────
--- Tabella per messaggi mostrati a tutti gli utenti in cima all'app.
+-- Tabella per messaggi mostrati a tutti gli utenti in cima alla app.
 -- Lettura da tutti gli autenticati (solo attivi + non scaduti).
 -- Scrittura solo service_role (admin).
 create table if not exists public.app_banners (
