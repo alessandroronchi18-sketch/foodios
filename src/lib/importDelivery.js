@@ -24,10 +24,32 @@ function parseItalianDate(str) {
   return null;
 }
 
+// Parser numerico tollerante ai formati italiani ed esteri.
+//   "1.234,56" → 1234.56   "1,234.56" → 1234.56   "12,50" → 12.5
+//   "1.234"    → 1234 (punto = migliaia)
+// Regola: con due tipi di separatore, l'ULTIMO è il decimale; con un solo
+// separatore seguito da esattamente 3 cifre è migliaia, altrimenti decimale.
 function parseNum(str) {
   if (str === undefined || str === null || str === '') return 0;
-  if (typeof str === 'number') return str;
-  return parseFloat(String(str).replace(/[^\d.,-]/g, '').replace(',', '.')) || 0;
+  if (typeof str === 'number') return Number.isFinite(str) ? str : 0;
+  let s = String(str).trim().replace(/[^\d.,-]/g, '');
+  if (!s || s === '-') return 0;
+  const neg = s.startsWith('-');
+  s = s.replace(/-/g, '');
+  const nC = (s.match(/,/g) || []).length;
+  const nD = (s.match(/\./g) || []).length;
+  if (nC && nD) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
+    else s = s.replace(/,/g, '');
+  } else if (nC + nD === 1) {
+    const sep = nC ? ',' : '.';
+    const after = s.slice(s.indexOf(sep) + 1);
+    s = after.length === 3 ? s.replace(sep, '') : s.replace(sep, '.');
+  } else if (nC + nD > 1) {
+    s = s.replace(/[.,]/g, '');
+  }
+  const n = parseFloat(s);
+  return (Number.isFinite(n) ? n : 0) * (neg ? -1 : 1);
 }
 
 // Rileva separatore CSV automaticamente

@@ -64,9 +64,17 @@ function TrialScadutoPage({ org, onSignOut }) {
 }
 
 export default function App() {
+  // ⚠️ TUTTI gli hook DEVONO stare qui in cima, prima di qualsiasi `return`
+  // condizionale. Le pagine statiche (/privacy, /termini, /tv) tornavano prima
+  // di useAuth(): navigando da/verso quelle pagine il numero di hook cambiava
+  // tra un render e l'altro → "Rendered fewer hooks than expected" (crash).
   const [path, setPath] = useState(window.location.pathname)
   // Splash solo al primissimo caricamento — non a ogni eventuale loading transitorio
   const [primoCaricamento, setPrimoCaricamento] = useState(true)
+  const auth = useAuth()
+  const [onboardingVisto, setOnboardingVisto] = useState(null)
+  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [mfaRequired, setMfaRequired] = useState(false)
 
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname)
@@ -74,23 +82,16 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
-  // Static pages — no auth needed
-  if (path === '/privacy') return <PrivacyPolicy />
-  if (path === '/termini') return <TerminiServizio />
-  if (path === '/tv') return <TvDashboard />
-
-  // Intercetta /r/CODICE — salva codice in localStorage e pulisce l'URL
-  const referralMatch = path.match(/^\/r\/([A-Za-z0-9]+)$/)
-  if (referralMatch) {
-    localStorage.setItem('referral_code_pendente', referralMatch[1].toUpperCase())
-    window.history.replaceState(null, '', '/')
-    setPath('/')
-  }
-
-  const auth = useAuth()
-  const [onboardingVisto, setOnboardingVisto] = useState(null)
-  const [showResetPassword, setShowResetPassword] = useState(false)
-  const [mfaRequired, setMfaRequired] = useState(false)
+  // Intercetta /r/CODICE — salva codice referral in localStorage e pulisce l'URL.
+  // In un effect (non durante il render) per non chiamare setState in fase di render.
+  useEffect(() => {
+    const m = path.match(/^\/r\/([A-Za-z0-9]+)$/)
+    if (m) {
+      localStorage.setItem('referral_code_pendente', m[1].toUpperCase())
+      window.history.replaceState(null, '', '/')
+      setPath('/')
+    }
+  }, [path])
 
   // MFA: se l'utente ha un fattore TOTP verificato (aal2) ma la sessione corrente
   // è ferma a aal1 (solo password), serve completare il challenge prima di proseguire.
@@ -127,6 +128,13 @@ export default function App() {
     if (auth.orgId) localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1')
     setOnboardingVisto(true)
   }
+
+  // ─── Da qui in poi SOLO return condizionali: nessun hook sotto questa riga. ───
+
+  // Static pages — no auth needed
+  if (path === '/privacy') return <PrivacyPolicy />
+  if (path === '/termini') return <TerminiServizio />
+  if (path === '/tv') return <TvDashboard />
 
   // Reset password — intercetta PRIMA del check auth.loading/auth.user
   if (showResetPassword) {

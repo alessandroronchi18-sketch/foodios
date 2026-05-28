@@ -50,12 +50,13 @@ import AIAssistant from './components/AIAssistant'
 import ImportaDatiView from './components/ImportaDati'
 import AbbonamentoPanel from './components/AbbonamentoPanel'
 import HaccpView from './components/Haccp'
+import FormatiVendita from './components/FormatiVendita'
 import WhatsAppReportPanel from './components/WhatsAppReportPanel'
 import Impostazioni from './components/Impostazioni'
 import {
   PREZZI_HORECA, SING_PLUR, normIng,
   EN_IT_PRODOTTI, EN_IT_INGREDIENTI, translateProdottoEN, translateIngredienteEN,
-  NOMI_SKIP, isRicettaValida, REGOLE, getR, isSemilavorato,
+  NOMI_SKIP, isRicettaValida, REGOLE, getR, isSemilavorato, resetRegoleRuntime,
   buildIngCosti, calcolaFC,
 } from './lib/foodcost'
 import { SK_RIC, SK_PROD, SK_ACT, SK_AI, SK_MAG, SK_GIOR, SK_CHIUS, SK_EXCL, SK_RESE, SK_LOG_PRZ } from './lib/storageKeys'
@@ -1168,6 +1169,19 @@ function SchedaAllergeniView({ ricettario }) {
   );
 }
 
+// Viste operative consentite a un utente con ruolo 'dipendente'. Tutto ciò che
+// espone ricette, food cost, marginalità, dati societari o impostazioni resta
+// riservato al titolare. Vedi anche la RLS in 20260605_ruolo_dipendente.sql.
+const DIPENDENTE_VIEWS = new Set([
+  'giornaliero',  // Produzione — "caricare i prodotti"
+  'chiusura',     // Cassa
+  'magazzino',    // Stock e rifornimenti
+  'eventi',
+  'calendario',
+  'haccp',
+  'changelog',
+]);
+
 export default function Dashboard({
   auth,
   orgId = null,
@@ -1206,6 +1220,15 @@ export default function Dashboard({
   useEffect(() => {
     try { sessionStorage.setItem(`foodios_view_${orgId||'_'}`, view); } catch {}
   }, [view, orgId]);
+
+  // Ruolo utente. Il dipendente vede solo le viste operative (DIPENDENTE_VIEWS).
+  const ruolo = auth?.ruolo || 'titolare';
+  const isDip = ruolo === 'dipendente';
+  // Defense-in-depth: se un dipendente finisce su una vista non consentita (es.
+  // ripristinata da sessionStorage o via link), riportalo alla produzione.
+  useEffect(() => {
+    if (isDip && !DIPENDENTE_VIEWS.has(view)) setView('giornaliero');
+  }, [isDip, view]);
   // Quando si clicca "Modifica" su una card ricetta, salviamo qui il nome
   // così NuovaRicettaView lo carica nel form al mount.
   const [editingRicetta,setEditingRicetta]=useState(null);
@@ -1359,6 +1382,9 @@ export default function Dashboard({
         setRic(ric);
         bkWriteLS(SK_RIC, ric, orgId, null);
         try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: ric, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
+        // Ripulisci le regole runtime della precedente org prima di applicare
+        // quelle di questa (evita leakage cross-org nel singleton REGOLE).
+        resetRegoleRuntime();
         for(const r of Object.values(ric.ricette||{})){
           if(r.unita!=null && !REGOLE[r.nome]){
             REGOLE[r.nome]={ unita:r.unita, prezzo:r.prezzo, tipo:r.tipo||"fetta" };
@@ -1813,6 +1839,8 @@ export default function Dashboard({
         };
 
         const navItem = (id, iconKey, label, badge=0, alert=false) => {
+          // Ruolo dipendente: mostra solo le voci operative consentite.
+          if (isDip && !DIPENDENTE_VIEWS.has(id)) return null;
           // Filtro ricerca: se la query non matcha id né label, nascondiamo
           if (sidebarQuery && !label.toLowerCase().includes(sidebarQuery) && !id.toLowerCase().includes(sidebarQuery)) {
             return null;
@@ -1857,8 +1885,9 @@ export default function Dashboard({
         // - Mostra badge/alert sull'header quando chiuso (la voce è nascosta).
         const Group = ({ id, iconKey, label, badge=0, alert=false, children }) => {
           const visibleChildren = React.Children.toArray(children).filter(c => c !== null && c !== false);
-          // Se è attiva una ricerca e nessun figlio matcha, nascondi tutto il gruppo
-          if (sidebarQuery && visibleChildren.length === 0) return null;
+          // Nascondi l'intero gruppo se non ha voci visibili (per ricerca attiva
+          // o perché un dipendente non ha accesso a nessuna voce del gruppo).
+          if (visibleChildren.length === 0) return null;
           const isOpen = sidebarQuery ? true : sidebarSec[id] !== false;
           const hasActive = VIEW_TO_SEC[view] === id;
           const textColor = hasActive ? "#FFFFFF" : "rgba(255,255,255,0.78)";
@@ -1998,6 +2027,7 @@ export default function Dashboard({
                 {navItem("ricettario","book","Ricettario")}
                 {navItem("semilavorati","layers","Semilavorati")}
                 {navItem("nuova-ricetta","pencil","Nuova ricetta")}
+                {navItem("formati-vendita","coins","Formati di vendita")}
                 {navItem("scheda-allergeni","shield","Allergeni")}
                 {navItem("menu","menu","Menù del giorno")}
               </Group>
@@ -2094,7 +2124,7 @@ export default function Dashboard({
               {id:"chiusura",    icon:"creditCard", label:"Cassa",      alert:cassaMancante},
               {id:"magazzino",   icon:"pkg",        label:"Magazzino",  badge:criticeMag},
               {id:"__more",      icon:"menu",       label:"Altro"},
-            ];
+            ].filter(item => item.id === "__more" || !isDip || DIPENDENTE_VIEWS.has(item.id));
             return (
               <nav style={{position:"fixed",bottom:0,left:0,right:0,zIndex:Z.bottomNav,
                 background:"rgba(255,255,255,0.94)",
@@ -2330,6 +2360,9 @@ export default function Dashboard({
         {/* Home dashboard */}
         {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva}/>}
 
+        {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
+        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify}/>}
+
         {/* Ricettario — mostra upload se non ancora caricato */}
         {view==="ricettario"&&!ricettario&&(
           <div style={{maxWidth:500,margin:"80px auto",textAlign:"center"}}>
@@ -2353,11 +2386,11 @@ export default function Dashboard({
         {view==="haccp"&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
         {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
-        {view==="chiusura"&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId}/>}
+        {view==="chiusura"&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi}/>}
         {view==="discrepanze"&&<DiscrepanzeView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId}/>}
-        {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId}/>}
+        {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="importa-dati"&&<ImportaDatiView

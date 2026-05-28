@@ -15,10 +15,32 @@ function parseItalianDate(str) {
   return null;
 }
 
+// Parser numerico tollerante ai formati italiani ed esteri.
+//   "1.234,56" → 1234.56   "1,234.56" → 1234.56   "12,50" → 12.5
+//   "1.234"    → 1234 (punto = migliaia)   "100.000" → 100000
+// Regola: con due tipi di separatore, l'ULTIMO è il decimale; con un solo
+// separatore seguito da esattamente 3 cifre è migliaia, altrimenti decimale.
 function parseNum(str) {
   if (str === undefined || str === null || str === '') return 0;
-  if (typeof str === 'number') return str;
-  return parseFloat(String(str).replace(/[^\d.,-]/g, '').replace(',', '.')) || 0;
+  if (typeof str === 'number') return Number.isFinite(str) ? str : 0;
+  let s = String(str).trim().replace(/[^\d.,-]/g, '');
+  if (!s || s === '-') return 0;
+  const neg = s.startsWith('-');
+  s = s.replace(/-/g, '');
+  const nC = (s.match(/,/g) || []).length;
+  const nD = (s.match(/\./g) || []).length;
+  if (nC && nD) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
+    else s = s.replace(/,/g, '');
+  } else if (nC + nD === 1) {
+    const sep = nC ? ',' : '.';
+    const after = s.slice(s.indexOf(sep) + 1);
+    s = after.length === 3 ? s.replace(sep, '') : s.replace(sep, '.');
+  } else if (nC + nD > 1) {
+    s = s.replace(/[.,]/g, ''); // più separatori dello stesso tipo = migliaia
+  }
+  const n = parseFloat(s);
+  return (Number.isFinite(n) ? n : 0) * (neg ? -1 : 1);
 }
 
 function detectSeparator(text) {
@@ -254,12 +276,19 @@ export function mergeInChiusureCassa(chiusure = [], importati = [], fonte = '') 
     const idx = nuove.findIndex(c => c.data === riga.data);
     const cassaEntry = { ...riga, importatoAt: new Date().toISOString() };
     if (idx >= 0) {
+      // Il totale cassa fiscale è la fonte di verità per il ricavo del giorno:
+      // sovrascrive il totale (anche se è minore di uno stimato da scontrino OCR),
+      // mantenendo il food cost già calcolato dal confronto produzione/venduto.
+      const totFC = nuove[idx].kpi?.totFC || 0;
+      const importo = Number(riga.importo) || 0;
       nuove[idx] = {
         ...nuove[idx],
         cassaImport: [...(nuove[idx].cassaImport || []).filter(c => c.fonte !== fonte), cassaEntry],
         kpi: {
           ...(nuove[idx].kpi || {}),
-          totV: Math.max(nuove[idx].kpi?.totV || 0, riga.importo),
+          totV: importo,
+          totM: importo - totFC,
+          totMP: importo > 0 ? ((importo - totFC) / importo) * 100 : 0,
         },
       };
     } else {

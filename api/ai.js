@@ -8,6 +8,15 @@ const MAX_BODY_BYTES = 10_485_760 // 10 MB — foto compresse client-side stanno
 const MAX_MESSAGES = 20
 const MIN_RESPONSE_MS = 200
 
+// Modelli consentiti al proxy: impedisce a un client di selezionare un modello
+// arbitrario/più costoso. Aggiornare qui se si introduce un nuovo modello.
+const DEFAULT_MODEL = 'claude-sonnet-4-6'
+const ALLOWED_MODELS = new Set([
+  'claude-sonnet-4-6',
+  'claude-opus-4-7',
+  'claude-haiku-4-5-20251001',
+])
+
 function errResponse(error, status, req) {
   return new Response(JSON.stringify({ error }), {
     status,
@@ -96,14 +105,23 @@ export default async function handler(req) {
     if (sanitizedMessages.length === 0) {
       return errResponse('Messages: nessun ruolo user/assistant valido', 400, req)
     }
+    // Allow-list esplicita: NON fare spread di `body` (un client compromesso
+    // potrebbe iniettare tools, stop_sequences, metadata, o un model arbitrario
+    // — es. il più costoso). Costruiamo solo i campi che ci servono davvero.
+    const model = ALLOWED_MODELS.has(body.model) ? body.model : DEFAULT_MODEL
     const safeBody = {
-      ...body,
-      model: body.model || 'claude-sonnet-4-6',
+      model,
       max_tokens: Math.min(Math.max(parseInt(body.max_tokens) || 1000, 1), 4000),
       messages: sanitizedMessages,
     }
-    // Rimuovi eventuale organization_id dal body inoltrato ad Anthropic (era solo per zero-trust check)
-    delete safeBody.organization_id
+    // `system` è usato legittimamente da AIAssistant/AzioniView: lo accettiamo
+    // solo se stringa e di lunghezza ragionevole.
+    if (typeof body.system === 'string' && body.system.length <= 20000) {
+      safeBody.system = body.system
+    }
+    if (Number.isFinite(body.temperature) && body.temperature >= 0 && body.temperature <= 1) {
+      safeBody.temperature = body.temperature
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

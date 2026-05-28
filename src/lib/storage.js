@@ -10,6 +10,7 @@ export const SHARED_KEYS = [
   'pasticceria-regole-v1',
   'pasticceria-semilavorati-v1',
   'pasticceria-scenario-operativo-v1',
+  'pasticceria-formati-vendita-v1',
 ]
 
 export function isSharedKey(key) {

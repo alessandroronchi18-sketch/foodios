@@ -6,14 +6,15 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { ssave as _ssave } from '../lib/storage'
+import { ssave as _ssave, sload } from '../lib/storage'
 import { backgroundManager, uploadManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { scaricoVenditaPF } from '../lib/stockPF'
-import { SK_CHIUS } from '../lib/storageKeys'
+import { SK_CHIUS, SK_FORMATI } from '../lib/storageKeys'
+import { riconciliaFormati } from '../lib/formatiVendita'
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from '../lib/importDelivery'
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/importCassa'
 import { C, KPI, PageHeader, margColor, fmt, fmtp } from './_shared'
@@ -21,7 +22,7 @@ import { C, KPI, PageHeader, margColor, fmt, fmtp } from './_shared'
 // Persiste fra unmount/remount durante l'analisi AI di uno scontrino
 const _receiptPending = { current: null }
 
-export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId }) {
+export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId, isDipendente = false }) {
   const isMobile = useIsMobile()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
@@ -34,6 +35,16 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
     }
     return out
   }, [ricettario])
+
+  // Formati di vendita (config shared): mappano le righe scontrino senza dettaglio
+  // gusto/ripieno (cono, vaschetta, panino…) a una categoria di ricette.
+  const [formati, setFormati] = useState([])
+  useEffect(() => {
+    let alive = true
+    if (!orgId) return
+    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormati(Array.isArray(v) ? v : []) })
+    return () => { alive = false }
+  }, [orgId])
 
   const today = new Date().toISOString().slice(0, 10)
   const [dataFiltro, setDataFiltro] = useState(today)
@@ -232,20 +243,33 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     })
   }, [venduto, sessione, ricetteNote, ingCosti])
 
-  const totV = confronto.reduce((s, r) => s + r.rv, 0)
-  const totFC = confronto.reduce((s, r) => s + r.fcV, 0)
-  const totM = confronto.reduce((s, r) => s + r.marg, 0)
+  // Righe generiche (cono/vaschetta/panino) riconciliate via formati di vendita.
+  const matchedRecipeNames = useMemo(() => new Set(confronto.map(r => r.nomeScont)), [confronto])
+  const formatiRiconc = useMemo(() =>
+    riconciliaFormati(venduto || [], formati, sessione, ricettario, ingCosti, matchedRecipeNames)
+  , [venduto, formati, sessione, ricettario, ingCosti, matchedRecipeNames])
+
+  // I totali includono SIA le ricette riconosciute per nome SIA i formati generici,
+  // così cassa e produzione coincidono anche senza il dettaglio del gusto.
+  const fmtV = formatiRiconc.righe.reduce((s, r) => s + r.rv, 0)
+  const fmtFC = formatiRiconc.righe.reduce((s, r) => s + r.fcV, 0)
+  const totV = confronto.reduce((s, r) => s + r.rv, 0) + fmtV
+  const totFC = confronto.reduce((s, r) => s + r.fcV, 0) + fmtFC
+  const totM = confronto.reduce((s, r) => s + r.marg, 0) + (fmtV - fmtFC)
   const totS = confronto.reduce((s, r) => s + r.spreco, 0)
   const totMP = totV > 0 ? (totM / totV * 100) : 0
   const stL = confronto.filter(r => r.st !== null)
   const avgST = stL.length > 0 ? stL.reduce((s, r) => s + r.st, 0) / stL.length : 0
   const stC = st => st >= 85 ? C.green : st >= 65 ? C.amber : C.red
+  const fmtKg = g => g >= 1000 ? `${(g / 1000).toFixed(2)} kg` : `${Math.round(g)} g`
 
   const handleSalva = async () => {
-    if (!venduto || confronto.length === 0) return
+    if (!venduto || (confronto.length === 0 && formatiRiconc.righe.length === 0)) return
     const rec = {
       id: `ch-${dataFiltro}`, data: dataFiltro, salvatoAt: new Date().toISOString(), venduto,
       confronto: confronto.map(r => ({ nome: r.nome, stampiP: r.stampiP, unitaP: r.unitaP, unitaV: r.unitaV, unitaR: r.unitaR, st: r.st, rv: r.rv, fcV: r.fcV, marg: r.marg, spreco: r.spreco, inProd: r.inProd })),
+      // Righe generiche riconciliate via formati di vendita (categoria, no gusto).
+      formati: formatiRiconc.righe.map(r => ({ nome: r.nome, categoria: r.categoria, unitaV: r.unitaV, rv: r.rv, fcV: r.fcV, marg: r.marg })),
       kpi: { totV, totFC, totM, totS, totMP, avgST },
     }
     const eraGiaChiusa = !!chiusuraSalvata
@@ -539,10 +563,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                     ))}
                   </div>
                   {!salvato ? (
-                    confronto.length > 0 ? (
+                    (confronto.length > 0 || formatiRiconc.righe.length > 0) ? (
                       <button onClick={handleSalva} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>💾 Salva chiusura nello storico</button>
                     ) : (
-                      <div style={{ fontSize: 10, color: C.amber }}>⚠ Nessun prodotto del ricettario trovato — verifica i nomi</div>
+                      <div style={{ fontSize: 10, color: C.amber }}>⚠ Nessun prodotto del ricettario o formato di vendita trovato — verifica i nomi</div>
                     )
                   ) : (
                     <div style={{ padding: '9px 14px', background: C.greenLight, borderRadius: 8, fontSize: 11, fontWeight: 700, color: C.green }}>✓ Chiusura salvata nello storico</div>
@@ -554,10 +578,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         )}
       </div>
 
-      {confronto.length > 0 && (
+      {(confronto.length > 0 || formatiRiconc.righe.length > 0) && (
         <>
           {(() => {
-            const matched = new Set(confronto.map(r => r.nomeScont))
+            const matched = new Set([...matchedRecipeNames, ...formatiRiconc.nomiMatchati])
             const nonRic = (venduto || []).filter(v => !matched.has(v.nome))
             if (nonRic.length === 0) return null
             return (
@@ -567,14 +591,15 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               </div>
             )
           })()}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(5,1fr)', gap: 10, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : `repeat(${isDipendente ? 2 : 5},1fr)`, gap: 10, marginBottom: 24 }}>
             <KPI icon="💰" label="Ricavo reale" value={fmt(totV)} highlight/>
-            <KPI icon="📈" label="Margine" value={fmt(totM)} color={margColor(totMP)} sub={fmtp(totMP)}/>
-            <KPI icon="🧾" label="Food cost" value={fmt(totFC)} color={C.red}/>
+            {!isDipendente && <KPI icon="📈" label="Margine" value={fmt(totM)} color={margColor(totMP)} sub={fmtp(totMP)}/>}
+            {!isDipendente && <KPI icon="🧾" label="Food cost" value={fmt(totFC)} color={C.red}/>}
             <KPI icon="🎯" label="Sell-through" value={fmtp(avgST)} color={stC(avgST)} sub="% vendute"/>
-            <KPI icon="🗑" label="Spreco" value={fmt(totS)} color={totS > 5 ? C.red : C.green} sub="FC perso"/>
+            {!isDipendente && <KPI icon="🗑" label="Spreco" value={fmt(totS)} color={totS > 5 ? C.red : C.green} sub="FC perso"/>}
           </div>
 
+          {confronto.length > 0 && (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             <div style={{ padding: '13px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Produzione vs Venduto · {new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}</div>
@@ -584,7 +609,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
-                    {['Prodotto', 'Prodotte', 'Vendute', 'Rimaste', 'Sell-T%', 'Ricavo reale', 'FC venduto', 'Margine', 'Spreco FC'].map((h, i) => (
+                    {[
+                      'Prodotto', 'Prodotte', 'Vendute', 'Rimaste', 'Sell-T%', 'Ricavo reale',
+                      ...(isDipendente ? [] : ['FC venduto', 'Margine', 'Spreco FC']),
+                    ].map((h, i) => (
                       <th key={i} style={{ padding: '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -610,9 +638,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                         ) : '—'}
                       </td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.rv)}</td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', color: C.red }}>{fmt(r.fcV)}</td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 800, color: margColor(r.rv > 0 ? (r.marg / r.rv * 100) : 0), fontVariantNumeric: 'tabular-nums' }}>{fmt(r.marg)}</td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', color: r.spreco > 2 ? C.red : C.textSoft, fontWeight: r.spreco > 2 ? 700 : 400 }}>{r.spreco > 0.01 ? fmt(r.spreco) : '—'}</td>
+                      {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: C.red }}>{fmt(r.fcV)}</td>}
+                      {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 800, color: margColor(r.rv > 0 ? (r.marg / r.rv * 100) : 0), fontVariantNumeric: 'tabular-nums' }}>{fmt(r.marg)}</td>}
+                      {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: r.spreco > 2 ? C.red : C.textSoft, fontWeight: r.spreco > 2 ? 700 : 400 }}>{r.spreco > 0.01 ? fmt(r.spreco) : '—'}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -620,16 +648,64 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                   <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
                     <td colSpan={5} style={{ padding: '9px 12px', fontWeight: 900, color: C.text, fontSize: 12 }}>TOTALE GIORNATA</td>
                     <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, color: C.green, fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{fmt(totV)}</td>
-                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.red }}>{fmt(totFC)}</td>
-                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, color: margColor(totMP), fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{fmt(totM)}</td>
-                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: totS > 5 ? C.red : C.textSoft }}>{fmt(totS)}</td>
+                    {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.red }}>{fmt(totFC)}</td>}
+                    {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, color: margColor(totMP), fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{fmt(totM)}</td>}
+                    {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: totS > 5 ? C.red : C.textSoft }}>{fmt(totS)}</td>}
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
+          )}
 
-          {confronto.filter(r => r.spreco > 2).length > 0 && (
+          {formatiRiconc.righe.length > 0 && (
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div style={{ padding: '13px 20px', borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Formati di vendita</div>
+                <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>Righe senza dettaglio gusto/ripieno · food cost stimato sulla media della categoria</div>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ background: '#F8F4F2' }}>
+                      {['Formato', 'Categoria', 'Vendute', 'Ricavo', ...(isDipendente ? [] : ['FC stimato', 'Margine'])].map((h, i) => (
+                        <th key={i} style={{ padding: '9px 12px', textAlign: i <= 1 ? 'left' : 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {formatiRiconc.righe.map((r, i) => (
+                      <tr key={r.formatoId} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                        <td style={{ padding: '9px 12px', fontWeight: 700, color: C.text }}>
+                          {r.nome}
+                          {!r.fcStimato && <span style={{ marginLeft: 5, fontSize: 8, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>no gusti in categoria</span>}
+                        </td>
+                        <td style={{ padding: '9px 12px', color: C.textMid }}>{r.categoria || '—'}</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.text }}>{r.unitaV}</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.rv)}</td>
+                        {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: C.red }}>{fmt(r.fcV)}</td>}
+                        {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 800, color: margColor(r.rv > 0 ? (r.marg / r.rv * 100) : 0), fontVariantNumeric: 'tabular-nums' }}>{fmt(r.marg)}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {formatiRiconc.categorie.some(c => c.st !== null) && (
+                <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.border}`, background: '#FBFAF8' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Riconciliazione per categoria · prodotto vs venduto</div>
+                  {formatiRiconc.categorie.filter(c => c.st !== null).map(c => (
+                    <div key={c.categoria} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, marginBottom: 5, flexWrap: 'wrap' }}>
+                      <span style={{ width: 120, fontWeight: 700, color: C.text }}>{c.categoria}</span>
+                      <span style={{ color: C.textMid }}>venduto {fmtKg(c.gVenduti)} · prodotto {fmtKg(c.gProdotti)}</span>
+                      <span style={{ fontWeight: 800, color: stC(c.st) }}>{c.st.toFixed(0)}% sell-through</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isDipendente && confronto.filter(r => r.spreco > 2).length > 0 && (
             <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}30`, borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 10 }}>💡 Ottimizza la produzione di domani</div>
               {confronto.filter(r => r.spreco > 2).map(r => (
@@ -640,6 +716,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             </div>
           )}
 
+          {confronto.length > 0 && (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 16 }}>Sell-through per prodotto</div>
             {confronto.filter(r => r.st !== null).sort((a, b) => b.st - a.st).map(r => (
@@ -663,14 +740,15 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               ))}
             </div>
           </div>
+          )}
         </>
       )}
 
-      {venduto && confronto.length === 0 && !loading && (
+      {venduto && confronto.length === 0 && formatiRiconc.righe.length === 0 && !loading && (
         <div style={{ textAlign: 'center', padding: '36px', background: C.bgCard, borderRadius: 12, border: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 30, marginBottom: 10 }}>🔍</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun prodotto del ricettario trovato</div>
-          <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 8 }}>I nomi sullo scontrino non corrispondono alle ricette. Verifica i nomi nel ricettario.</div>
+          <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 8 }}>I nomi sullo scontrino non corrispondono alle ricette. Se la cassa batte prodotti generici (cono, vaschetta, panino…), configura i <b>Formati di vendita</b>.</div>
           <div style={{ fontSize: 10, color: C.textSoft }}>Letti: {venduto.map(p => p.nome).join(', ')}</div>
         </div>
       )}

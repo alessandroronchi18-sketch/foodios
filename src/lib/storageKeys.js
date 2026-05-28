@@ -13,3 +13,4 @@ export const SK_EXCL     = 'pasticceria-esclusi-v1'      // shared
 export const SK_RESE     = 'pasticceria-rese-v1'         // shared (localStorage)
 export const SK_LOG_PRZ  = 'pasticceria-log-prezzi-v1'   // shared
 export const SK_LOGRIF   = 'pasticceria-logrif-v1'       // shared (log rifornimenti magazzino)
+export const SK_FORMATI  = 'pasticceria-formati-vendita-v1' // shared (formati di vendita generici)
