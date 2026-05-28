@@ -197,6 +197,62 @@ async function getAuditLog(supabase) {
   }))
 }
 
+async function getClienteDettaglio(supabase, orgId) {
+  const [sediRes, dataRes, eventiRes, orgRes] = await Promise.all([
+    supabase
+      .from('sedi')
+      .select('id, nome, attiva, is_default')
+      .eq('organization_id', orgId)
+      .order('is_default', { ascending: false })
+      .order('nome'),
+    supabase
+      .from('user_data')
+      .select('data_key, sede_id, updated_at')
+      .eq('organization_id', orgId),
+    supabase
+      .from('audit_log')
+      .select('id, created_at, user_email, table_name, operation, new_data')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: false })
+      .limit(25),
+    supabase
+      .from('organizations')
+      .select('stripe_customer_id, stripe_subscription_id, stripe_status, stripe_current_period_end, trial_ends_at, mesi_bonus')
+      .eq('id', orgId)
+      .maybeSingle(),
+  ])
+
+  const usageMap = {}
+  for (const r of dataRes.data || []) {
+    const u = usageMap[r.data_key] || { conteggio: 0, ultimo: null, n_sedi: new Set() }
+    u.conteggio++
+    if (r.sede_id) u.n_sedi.add(r.sede_id)
+    if (!u.ultimo || (r.updated_at && r.updated_at > u.ultimo)) u.ultimo = r.updated_at
+    usageMap[r.data_key] = u
+  }
+  const usage = Object.entries(usageMap)
+    .map(([data_key, v]) => ({ data_key, conteggio: v.conteggio, ultimo: v.ultimo, n_sedi: v.n_sedi.size }))
+    .sort((a, b) => (b.ultimo || '').localeCompare(a.ultimo || ''))
+
+  const eventi = (eventiRes.data || []).map(e => ({
+    id: e.id,
+    when: e.created_at,
+    user_email: e.user_email,
+    table_name: e.table_name,
+    operation: e.operation,
+    label: e.new_data?.label || null,
+    ruolo: e.new_data?.ruolo || null,
+    sede_id: e.new_data?.sede_id || null,
+  }))
+
+  return {
+    sedi: sediRes.data || [],
+    usage,
+    eventi,
+    org: orgRes.data || null,
+  }
+}
+
 // ─── azioni POST ───────────────────────────────────────────────────────────
 
 async function azApprova(supabase, orgId, req) {
@@ -655,6 +711,14 @@ export default async function handler(req) {
       if (action === 'audit') {
         const log = await getAuditLog(supabase)
         return json({ log }, 200, req)
+      }
+
+      if (action === 'cliente_dettaglio') {
+        const orgId = sanitizeStrict(url.searchParams.get('org_id') || '', 36)
+        if (!orgId || !validateUUID(orgId)) return json({ error: 'org_id non valido' }, 400, req)
+        await logAdmin(supabase, user.email, 'dettaglio_cliente', orgId, ip, ua)
+        const dettaglio = await getClienteDettaglio(supabase, orgId)
+        return json(dettaglio, 200, req)
       }
 
       if (action === 'codici_sconto') {
