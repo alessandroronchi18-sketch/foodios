@@ -1,5 +1,5 @@
 # FoodOS — Stato del Progetto
-> Aggiornato: 2026-05-20 (post-commit `179b546`)
+> Aggiornato: 2026-05-28 (post-merge PR #7 — commit `f4a31a8`)
 
 ---
 
@@ -147,12 +147,22 @@ foodios/
 **Chiavi condivise tra sedi** (sede_id = NULL):
 `pasticceria-ricettario-v1`, `pasticceria-ai-v1`, `pasticceria-actions-v1`,
 `pasticceria-esclusi-v1`, `pasticceria-prezzi-importati-v1`,
-`pasticceria-regole-v1`, `pasticceria-semilavorati-v1`
+`pasticceria-regole-v1`, `pasticceria-semilavorati-v1`,
+`pasticceria-formati-vendita-v1` (SK_FORMATI)
 
 **Chiavi per sede** (sede_id = UUID sede):
 `pasticceria-magazzino-v1`, `pasticceria-produzione-v1`,
 `pasticceria-giornaliero-v1`, `pasticceria-chiusure-v1`,
-`pasticceria-logrif-v1`
+`pasticceria-logrif-v1`, `pasticceria-movimenti-speciali-v1` (SK_MOV)
+
+**Chiavi operative** (scrivibili anche da `dipendente` via `is_chiave_operativa`):
+`pasticceria-magazzino-v1`, `pasticceria-produzione-v1`,
+`pasticceria-giornaliero-v1`, `pasticceria-chiusure-v1`,
+`pasticceria-logrif-v1`, `pasticceria-movimenti-speciali-v1`
+
+### `audit_log` (registro attività)
+Riempita dai trigger `trg_log_user_data/profile/sede/org` (mig. `20260606`).
+Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro attività.
 
 ---
 
@@ -192,6 +202,37 @@ foodios/
 - [x] Stock prodotti finiti per sede (`stock_prodotti_finiti`) — produzione e vendita aggiornano stock automaticamente
 - [x] Scenario operativo A/B/C/D (laboratorio centrale / sedi autonome / più produttori / rete distribuita)
 
+### Ruoli & Permessi (PR #5 – mig. `20260605`)
+- [x] Campo `profiles.ruolo` ∈ {`titolare` (default/null), `dipendente`}
+- [x] RLS: dipendente può scrivere solo le 6 chiavi operative (helper `is_chiave_operativa`)
+- [x] UI gating via `DIPENDENTE_VIEWS` in `Dashboard.jsx` (dipendente vede: Produzione, Cassa, Magazzino, Sprechi/omaggi, Eventi, Calendario, HACCP, Scadenzario)
+
+### Pagamenti & Billing (PR #5 – mig. `20260604`)
+- [x] Webhook Stripe idempotente (`stripe_webhook_events`)
+
+### Formati di vendita (PR #5 + PR #7)
+- [x] Vista `FormatiVendita.jsx` (shared, SK_FORMATI)
+- [x] Componenti distinta materiali per formato: `componenti:[{nome,qta,costo}]`
+
+### Registro attività (PR #6 – mig. `20260606`)
+- [x] Audit log multi-utente (chi, cosa, quando) via trigger DB
+- [x] Vista in Azienda → Registro attività (solo titolare)
+- [x] Label leggibili per ogni chiave operativa
+
+### Sprechi & Omaggi (PR #7 – mig. `20260607`)
+- [x] Vista `SpreciOmaggi.jsx` per-sede (titolare + dipendente)
+- [x] Causali predefinite spreco/omaggio + qta in g o pz + food cost e ricavo mancato
+- [x] Drift porzioni in Chiusura cassa (calcolo prodotti+sprechi+omaggi vs vendite)
+- [x] Aggregazione per categoria/prodotto + totali in €
+
+### Vista cliente arricchita in admin (branch `feat/admin-vista-cliente-arricchita`)
+- [x] Nuova action `cliente_dettaglio` in `api/admin.js`: aggrega sedi, uso per `data_key` (count + ultimo update + n. sedi coinvolte), audit_log filtrato per org_id (ultimi 25 eventi), dati Stripe da `organizations`
+- [x] Modale `ClienteDettaglioModal` in `AdminPage.jsx`: header con stato/salute/piano/KPI/Stripe, sedi (badge), uso per area (operative vs altre), eventi recenti
+- [x] Click sul nome attività nella tabella clienti apre la modale (no nuova colonna)
+- [x] Health score: 🟢 ≤2gg / 🟡 3-7gg / 🔴 >7gg dall'ultimo accesso
+- [x] Azioni rapide nella modale: 🔑 impersona · 📧 email · 🎁 regala mesi · 🔁 reset password
+- [ ] Niente DB migration (riusa `user_data`, `sedi`, `audit_log`, `organizations`)
+
 ### Deploy
 - [x] Vercel deploy manuale (`vercel --prod`) funzionante
 - [x] GitHub → Vercel autodeploy connesso e funzionante (verificato)
@@ -224,9 +265,10 @@ foodios/
 
 2. **Email transazionali** — `api/send-email.js` con Resend è scaffolded, configurare `RESEND_API_KEY` su Vercel
 3. **Approvazione admin** — il pannello admin ha già i bottoni, ma il workflow di notifica email all'admin quando si registra un nuovo utente non è completo
-4. **Dipendenti** — ruolo `dipendente` nel profilo ma nessuna UI specifica per loro
-5. **Piano Chain — gate feature premium** — sedi illimitate sono ora in tutti i piani. Da implementare: gate su utenti multipli, API access, white-label per il piano Chain (vedi sezione Piani)
-6. **Mobile responsive** — perfezionamenti residui (la maggior parte delle view usa già `useIsMobile`, ma alcune sezioni di Dashboard.jsx vanno ancora rifinite)
+4. **Piano Chain — gate feature premium** — sedi illimitate sono ora in tutti i piani. Da implementare: gate su utenti multipli, API access, white-label per il piano Chain (vedi sezione Piani)
+5. **Mobile responsive** — perfezionamenti residui (la maggior parte delle view usa già `useIsMobile`, ma alcune sezioni di Dashboard.jsx vanno ancora rifinite)
+6. **Dependabot triage** — 4 PR aperte (patch-deps, recharts 3.8.1, resend 6.12.3, supabase-js 2.106.1). Da valutare almeno supabase-js e resend che toccano integrazioni live.
+7. **Refactoring `Dashboard.jsx`** — monolitico ~6700 righe, in scorporo progressivo verso `src/views/` (es. `ChiusuraView.jsx` già estratta).
 
 ---
 

@@ -9,6 +9,31 @@ import { color as T, radius as R, shadow as S, motion as M, tnum as _tnum, typo 
 const PIANI = ['trial', 'base', 'pro', 'enterprise']
 const PIANO_PREZZO = { trial: 0, base: 39, pro: 89, enterprise: 199 }
 
+// Etichette per le chiavi di user_data — allineate ai label scritti dai trigger
+// di audit (mig. 20260606). Tenere in sync se cambiano lì.
+const LABEL_CHIAVE = {
+  'pasticceria-magazzino-v1':            'Magazzino',
+  'pasticceria-giornaliero-v1':          'Produzione giornaliera',
+  'pasticceria-produzione-v1':           'Produzione',
+  'pasticceria-chiusure-v1':             'Chiusure cassa',
+  'pasticceria-logrif-v1':               'Rifornimenti',
+  'pasticceria-movimenti-speciali-v1':   'Sprechi / Omaggi',
+  'pasticceria-ricettario-v1':           'Ricettario',
+  'pasticceria-semilavorati-v1':         'Semilavorati',
+  'pasticceria-formati-vendita-v1':      'Formati di vendita',
+  'pasticceria-prezzi-importati-v1':     'Prezzi ingredienti',
+  'pasticceria-regole-v1':               'Regole vendita',
+  'pasticceria-esclusi-v1':              'Esclusioni',
+  'pasticceria-actions-v1':              'Azioni AI',
+  'pasticceria-ai-v1':                   'Assistente AI',
+  'pasticceria-scenario-operativo-v1':   'Scenario operativo',
+}
+const CHIAVI_OPERATIVE_SET = new Set([
+  'pasticceria-magazzino-v1', 'pasticceria-giornaliero-v1',
+  'pasticceria-chiusure-v1', 'pasticceria-logrif-v1',
+  'pasticceria-movimenti-speciali-v1', 'pasticceria-produzione-v1',
+])
+
 const COLORS = {
   bg: T.bg,
   card: T.bgCard,
@@ -585,6 +610,208 @@ function ImpersonaModal({ cliente, link, onClose }) {
   )
 }
 
+function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione }) {
+  const stato = statoCliente(cliente)
+  const giorni = giorniRimanenti(cliente)
+
+  const giorniDa = iso => {
+    if (!iso) return null
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  }
+
+  const healthBadge = (() => {
+    const ref = cliente.ultimo_accesso || cliente.registrata_il
+    const d = giorniDa(ref)
+    if (d == null) return { bg: COLORS.blockedBg, fg: COLORS.blocked, lbl: '— Sconosciuto' }
+    if (d <= 2) return { bg: COLORS.okBg, fg: COLORS.ok, lbl: '🟢 Attivo' }
+    if (d <= 7) return { bg: COLORS.warnBg, fg: COLORS.warn, lbl: `🟡 A rischio (${d}gg)` }
+    return { bg: COLORS.errBg, fg: COLORS.err, lbl: `🔴 Dormiente (${d}gg)` }
+  })()
+
+  const sedi = dettaglio?.sedi || []
+  const usage = dettaglio?.usage || []
+  const eventi = dettaglio?.eventi || []
+  const org = dettaglio?.org || null
+
+  const usageOperativo = usage.filter(u => CHIAVI_OPERATIVE_SET.has(u.data_key))
+  const usageAltro = usage.filter(u => !CHIAVI_OPERATIVE_SET.has(u.data_key))
+
+  return (
+    <Modal title={`📋 ${cliente.nome_attivita}`} onClose={onClose} width={780}>
+      {/* Header: stato + KPI in linea */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10,
+        padding: '12px 14px', background: COLORS.rowAlt, borderRadius: 10, marginBottom: 16,
+      }}>
+        <div>
+          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stato</div>
+          <StatoBadge stato={stato} giorni={giorni} />
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Salute</div>
+          <span style={{ background: healthBadge.bg, color: healthBadge.fg, padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{healthBadge.lbl}</span>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Piano</div>
+          <div style={{ fontWeight: 700, fontSize: 14, textTransform: 'capitalize' }}>{cliente.piano || 'trial'}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Sedi · Record</div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{cliente.num_sedi || 0} · {cliente.num_record || 0}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Registrata</div>
+          <div style={{ fontSize: 12, color: COLORS.text }}>{fmtData(cliente.registrata_il)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Ultimo accesso</div>
+          <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.ultimo_accesso ? fmtDataOra(cliente.ultimo_accesso) : '—'}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Trial scade</div>
+          <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.trial_ends_at ? fmtData(cliente.trial_ends_at) : '—'}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stripe</div>
+          <div style={{ fontSize: 11, color: COLORS.text }}>
+            {org?.stripe_subscription_id
+              ? <><b>{org.stripe_status || 'attivo'}</b>{org.stripe_current_period_end ? <> · al {fmtData(org.stripe_current_period_end)}</> : null}</>
+              : <span style={{ color: COLORS.textMute }}>— (nessuna sub)</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Azioni rapide */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+        <Btn kind="warn" size="sm" onClick={() => onAzione('impersona')}>🔑 Impersona</Btn>
+        <Btn kind="neutral" size="sm" onClick={() => onAzione('email')}>📧 Email</Btn>
+        <Btn kind="success" size="sm" onClick={() => onAzione('regala')}>🎁 Regala mesi</Btn>
+        <Btn kind="neutral" size="sm" onClick={() => onAzione('reset_password')}>🔁 Reset password</Btn>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMute }}>Caricamento dettaglio…</div>
+      ) : (
+        <>
+          {/* Sedi */}
+          <section style={{ marginBottom: 18 }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+              🏢 Sedi ({sedi.length})
+            </h3>
+            {sedi.length === 0 ? (
+              <div style={{ fontSize: 12, color: COLORS.textMute }}>Nessuna sede registrata</div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {sedi.map(s => (
+                  <span key={s.id} style={{
+                    padding: '4px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600,
+                    background: s.attiva ? COLORS.okBg : COLORS.blockedBg,
+                    color: s.attiva ? COLORS.ok : COLORS.blocked,
+                    border: `1px solid ${s.attiva ? COLORS.ok : COLORS.border}`,
+                  }}>
+                    {s.is_default && '★ '}{s.nome}{!s.attiva && ' (inattiva)'}
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Uso per area */}
+          <section style={{ marginBottom: 18 }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+              📊 Uso per area
+            </h3>
+            {usage.length === 0 ? (
+              <div style={{ fontSize: 12, color: COLORS.textMute, padding: '12px 0' }}>
+                Nessun dato salvato — il cliente non ha mai inserito nulla.
+              </div>
+            ) : (
+              <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: COLORS.rowAlt }}>
+                      <th style={{ padding: '7px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Area</th>
+                      <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Record</th>
+                      <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sedi</th>
+                      <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ultimo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...usageOperativo, ...usageAltro].map((u, i) => {
+                      const d = giorniDa(u.ultimo)
+                      const fresca = d != null && d <= 7
+                      return (
+                        <tr key={u.data_key} style={{
+                          borderTop: i === 0 ? 'none' : `1px solid ${COLORS.border}`,
+                          background: COLORS.card,
+                        }}>
+                          <td style={{ padding: '7px 10px' }}>
+                            <span style={{ fontWeight: 600, color: COLORS.text }}>
+                              {LABEL_CHIAVE[u.data_key] || u.data_key}
+                            </span>
+                            {CHIAVI_OPERATIVE_SET.has(u.data_key) && (
+                              <span style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px', borderRadius: 4, background: COLORS.blueBg, color: COLORS.blue, fontWeight: 700, textTransform: 'uppercase' }}>op</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '7px 10px', textAlign: 'right', color: COLORS.textSoft, fontWeight: 600 }}>{u.conteggio}</td>
+                          <td style={{ padding: '7px 10px', textAlign: 'right', color: COLORS.textMute }}>{u.n_sedi || '—'}</td>
+                          <td style={{ padding: '7px 10px', textAlign: 'right', color: fresca ? COLORS.ok : COLORS.textMute, whiteSpace: 'nowrap', fontWeight: fresca ? 600 : 400 }}>
+                            {u.ultimo ? fmtDataOra(u.ultimo) : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* Eventi recenti */}
+          <section>
+            <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+              🕒 Eventi recenti ({eventi.length})
+            </h3>
+            {eventi.length === 0 ? (
+              <div style={{ fontSize: 12, color: COLORS.textMute, padding: '12px 0' }}>
+                Nessun evento registrato per questo cliente.
+              </div>
+            ) : (
+              <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, overflow: 'hidden', maxHeight: 260, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <tbody>
+                    {eventi.map((e, i) => (
+                      <tr key={e.id} style={{
+                        borderTop: i === 0 ? 'none' : `1px solid ${COLORS.border}`,
+                        background: COLORS.card,
+                      }}>
+                        <td style={{ padding: '6px 10px', color: COLORS.textMute, whiteSpace: 'nowrap', width: 130 }}>
+                          {fmtDataOra(e.when)}
+                        </td>
+                        <td style={{ padding: '6px 10px', color: COLORS.textSoft, fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.user_email || ''}>
+                          {e.user_email || '—'}
+                          {e.ruolo === 'dipendente' && <span style={{ marginLeft: 4, fontSize: 9, padding: '1px 4px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700 }}>dip</span>}
+                        </td>
+                        <td style={{ padding: '6px 10px', color: COLORS.text }}>
+                          {e.label || `${e.table_name} · ${e.operation}`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+        <Btn kind="neutral" onClick={onClose}>Chiudi</Btn>
+      </div>
+    </Modal>
+  )
+}
+
 // ─── Componente principale ─────────────────────────────────────────────────
 export default function AdminPage() {
   const [clienti, setClienti] = useState([])
@@ -616,6 +843,9 @@ export default function AdminPage() {
   const [priceDraft, setPriceDraft] = useState(null) // { plan, euro, stripe_price_id }
   const [priceConfirm, setPriceConfirm] = useState(false)
   const [priceSaving, setPriceSaving] = useState(false)
+  const [dettaglioFor, setDettaglioFor] = useState(null)  // cliente target del dettaglio
+  const [dettaglio, setDettaglio] = useState(null)
+  const [dettaglioLoading, setDettaglioLoading] = useState(false)
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
   const apiCall = useCallback(async (path, opts = {}) => {
@@ -719,6 +949,22 @@ export default function AdminPage() {
   }, [priceDraft, apiCall, fetchPricing])
 
   useEffect(() => { fetchData(); fetchAudit(); fetchCodici(); fetchPricing() }, [fetchData, fetchAudit, fetchCodici, fetchPricing])
+
+  const apriDettaglio = useCallback(async c => {
+    setDettaglioFor(c)
+    setDettaglio(null)
+    setDettaglioLoading(true)
+    try {
+      const res = await apiCall(`/api/admin?action=cliente_dettaglio&org_id=${encodeURIComponent(c.org_id)}`)
+      const data = await res.json()
+      setDettaglio(data)
+    } catch (err) {
+      alert(`Errore caricamento dettaglio: ${err.message}`)
+      setDettaglioFor(null)
+    } finally {
+      setDettaglioLoading(false)
+    }
+  }, [apiCall])
 
   // ── Azioni ──────────────────────────────────────────────────────────
   const azione = useCallback(async (orgId, tipo, payload = {}) => {
@@ -1092,8 +1338,10 @@ export default function AdminPage() {
                         onMouseEnter={e => e.currentTarget.style.background = COLORS.rowHover}
                         onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? COLORS.card : COLORS.rowAlt}
                       >
-                        <td style={td()}>
-                          <div style={{ fontWeight: 700, color: COLORS.text }}>{c.nome_attivita || '—'}</div>
+                        <td style={{ ...td(), cursor: 'pointer' }} onClick={() => apriDettaglio(c)} title="Apri dettaglio cliente">
+                          <div style={{ fontWeight: 700, color: COLORS.accent, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}>
+                            {c.nome_attivita || '—'}
+                          </div>
                           {c.nome_completo && <div style={{ fontSize: 11, color: COLORS.textMute }}>{c.nome_completo}</div>}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft, textTransform: 'capitalize' }}>{c.tipo || '—'}</td>
@@ -1523,6 +1771,22 @@ export default function AdminPage() {
             await fetchData()
             fetchAudit()
             setTimeout(() => alert(`✓ ${mesi} mese/i regalati a ${regalaFor.nome_attivita}`), 0)
+          }}
+        />
+      )}
+      {dettaglioFor && (
+        <ClienteDettaglioModal
+          cliente={dettaglioFor}
+          dettaglio={dettaglio}
+          loading={dettaglioLoading}
+          onClose={() => { setDettaglioFor(null); setDettaglio(null) }}
+          onAzione={tipo => {
+            const c = dettaglioFor
+            setDettaglioFor(null); setDettaglio(null)
+            if (tipo === 'impersona') handleImpersona(c)
+            else if (tipo === 'email') setEmailFor(c)
+            else if (tipo === 'regala') setRegalaFor(c)
+            else if (tipo === 'reset_password') handleResetPassword(c)
           }}
         />
       )}
