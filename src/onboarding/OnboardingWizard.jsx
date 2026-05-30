@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { parseRicettario } from '../lib/parseRicettario'
+import { ssave } from '../lib/storage'
 
 async function downloadTemplate() {
   const XLSX = await new Promise((resolve, reject) => {
@@ -86,14 +88,39 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
   const [step, setStep] = useState(1)
   const [fileCaricato, setFileCaricato] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [parsing, setParsing] = useState(false)
+  const [parseError, setParseError] = useState(null)
+  const [parseStats, setParseStats] = useState(null) // { nRicette, nIngredienti }
   const [secondaSede, setSecondaSede] = useState({ nome: '', indirizzo: '', citta: '' })
   const [addingSecondaSede, setAddingSecondaSede] = useState(false)
   const [sedeSaving, setSedeSaving] = useState(false)
 
-  function handleFile(file) {
-    if (!file) return
+  // Step 2: carica + PARSI + SALVA il ricettario nella chiave shared.
+  // Prima il parser non era collegato — l'utente caricava il file ma non
+  // veniva importato. Ora salviamo davvero in `pasticceria-ricettario-v1`.
+  async function handleFile(file) {
+    if (!file || !orgId) return
     setFileCaricato(true)
-    setTimeout(() => setStep(3), 800)
+    setParsing(true)
+    setParseError(null)
+    setParseStats(null)
+    try {
+      const parsed = await parseRicettario(file)
+      const nRicette = Object.keys(parsed?.ricette || {}).length
+      const nIngredienti = Object.keys(parsed?.ingredienti_costi || {}).length
+      if (nRicette === 0 && nIngredienti === 0) {
+        throw new Error('Nessuna ricetta riconosciuta nel file. Verifica il formato del template.')
+      }
+      // SHARED key: sede_id = null
+      await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
+      setParseStats({ nRicette, nIngredienti })
+      setTimeout(() => setStep(3), 1200)
+    } catch (e) {
+      setParseError(e.message || 'Errore durante l\'analisi del file')
+      setFileCaricato(false)
+    } finally {
+      setParsing(false)
+    }
   }
 
   async function handleAggiungiSecondaSede() {
@@ -212,11 +239,17 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                 transition: 'all 0.2s',
               }}
             >
-              <div style={{ fontSize: 40, marginBottom: 12 }}>{fileCaricato ? '✅' : '📊'}</div>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>
+                {parseError ? '⚠️' : (parseStats ? '✅' : (parsing ? '⏳' : '📊'))}
+              </div>
               <p style={{ color: '#6B4C44', fontSize: 14, margin: 0 }}>
-                {fileCaricato
-                  ? 'File caricato! Analisi in corso…'
-                  : 'Trascina qui il file Excel, o clicca per selezionarlo'
+                {parseError
+                  ? parseError
+                  : parseStats
+                    ? `Importate ${parseStats.nRicette} ricette · ${parseStats.nIngredienti} prezzi ingredienti`
+                    : parsing
+                      ? 'Analisi del file in corso…'
+                      : 'Trascina qui il file Excel, o clicca per selezionarlo'
                 }
               </p>
               <input
@@ -224,6 +257,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                 type="file"
                 accept=".xlsx,.xls,.csv"
                 style={{ display: 'none' }}
+                disabled={parsing}
                 onChange={e => handleFile(e.target.files[0])}
               />
             </div>

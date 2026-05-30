@@ -101,8 +101,14 @@ Estrai queste informazioni dallo scontrino:
    Per ogni riga prodotto estrai: nome esatto come scritto, quantita venduta (numero prima del nome), prezzo totale riga (numero a destra).
    Calcola prezzoUnitario = totale / quantita.
    Ignora righe di sconto (es "sconto 30%"), totali di categoria, intestazioni, e prodotti di altre categorie (GELATO, BIBITE, ecc).
+3. REGOLE OBBLIGATORIE — saranno verificate dal client:
+   - Ogni prodotto DEVE avere qta > 0 (intero).
+   - Ogni prodotto DEVE avere totale > 0 (euro, due decimali).
+   - prezzoUnitario = totale / qta, calcolato fino a 2 decimali.
+   - Se il prezzo NON e' leggibile (sbiadito, tagliato, dubbio), NON inventarlo:
+     metti il prodotto in "incerti" con nome e qta, NON in "prodotti".
 Rispondi SOLO JSON valido senza markdown ne testi extra:
-{"data":"YYYY-MM-DD o null","prodotti":[{"nome":"NOME","qta":numero,"totale":euro_numero,"prezzoUnitario":euro_numero}]}`
+{"data":"YYYY-MM-DD o null","prodotti":[{"nome":"NOME","qta":numero,"totale":euro_numero,"prezzoUnitario":euro_numero}],"incerti":[{"nome":"NOME","qta":numero,"motivo":"prezzo non leggibile"}]}`
 
   const [batchMode, setBatchMode] = useState(false)
   const [batchFiles, setBatchFiles] = useState([])
@@ -153,9 +159,39 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         ] }],
       }),
     })
+    if (r.status === 401) throw new Error('Sessione scaduta. Esci e rientra per riprovare.')
+    if (r.status === 429) throw new Error('Troppe richieste AI in poco tempo. Riprova fra un minuto.')
+    if (!r.ok) throw new Error(`Errore servizio AI (${r.status}). Riprova fra qualche istante.`)
     const d = await r.json()
     const text = d.content?.find(b => b.type === 'text')?.text || '{}'
-    return JSON.parse(text.replace(/```json|```/g, '').trim())
+    const obj = JSON.parse(text.replace(/```json|```/g, '').trim())
+
+    // Validazione lato client: filtra prodotti senza prezzo / qta valida e
+    // sposta gli incerti dichiarati dall'AI + quelli che non passano le
+    // verifiche numeriche su una lista separata visibile in UI.
+    const incerti = Array.isArray(obj.incerti) ? [...obj.incerti] : []
+    const prodottiOk = []
+    for (const p of (obj.prodotti || [])) {
+      const qta = Number(p?.qta || 0)
+      const tot = Number(p?.totale || 0)
+      const nome = (p?.nome || '').trim()
+      if (!nome) continue
+      if (!Number.isFinite(qta) || qta <= 0) {
+        incerti.push({ nome, qta: qta || null, motivo: 'quantita mancante o non valida' })
+        continue
+      }
+      if (!Number.isFinite(tot) || tot <= 0) {
+        incerti.push({ nome, qta, motivo: 'prezzo totale mancante (rv sarebbe 0 → margine falso)' })
+        continue
+      }
+      const prezzoUnitario = Number((tot / qta).toFixed(2))
+      if (!Number.isFinite(prezzoUnitario) || prezzoUnitario <= 0) {
+        incerti.push({ nome, qta, motivo: 'prezzo unitario non calcolabile' })
+        continue
+      }
+      prodottiOk.push({ nome, qta, totale: Number(tot.toFixed(2)), prezzoUnitario })
+    }
+    return { data: obj.data || null, prodotti: prodottiOk, incerti }
   }
 
   const handleAnalizza = () => {
@@ -265,13 +301,23 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   // Drift porzioni per categoria: prodotto - venduto teorico - omaggi - sprechi.
   // Drift positivo = consumo reale piu' alto del teorico (mano abbondante / residui non gestiti).
   // Drift negativo = consumo reale piu' basso (mano stretta / vendite non registrate).
+  // Severity: |drift%| >= 20 e' anomalia significativa, >= 10 e' da monitorare.
   const driftPerCategoria = useMemo(() => formatiRiconc.categorie.map(c => {
     const mov = aggMov.perCategoria[c.categoria] || { gSpreco: 0, gOmaggio: 0 }
     const consumatoTeorico = c.gVenduti + mov.gOmaggio + mov.gSpreco
     const drift = c.gProdotti - consumatoTeorico
     const driftPct = c.gProdotti > 0 ? (drift / c.gProdotti) * 100 : null
-    return { ...c, gOmaggio: mov.gOmaggio, gSpreco: mov.gSpreco, consumatoTeorico, drift, driftPct }
+    const driftAbs = driftPct != null ? Math.abs(driftPct) : 0
+    const severity = driftAbs >= 20 ? 'critical' : driftAbs >= 10 ? 'warning' : 'ok'
+    return { ...c, gOmaggio: mov.gOmaggio, gSpreco: mov.gSpreco, consumatoTeorico, drift, driftPct, severity }
   }), [formatiRiconc.categorie, aggMov])
+
+  // Anomalie drift > 20% (mano abbondante o vendite non registrate): notifica
+  // l'utente al salvataggio della chiusura. Si attiva solo se ci sono > 50g di
+  // produzione (sotto questa soglia il rumore e' alto).
+  const anomalieDrift = useMemo(() =>
+    driftPerCategoria.filter(c => c.severity === 'critical' && c.gProdotti > 50)
+  , [driftPerCategoria])
 
   // I totali includono SIA le ricette riconosciute per nome SIA i formati generici,
   // SIA il food cost di sprechi/omaggi (sono costi reali per l'azienda).
@@ -318,6 +364,19 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       }
     }
     notify(`✓ Chiusura del ${new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT')} salvata nello storico`)
+
+    // Alert su drift anomalo: >=20% su almeno una categoria con produzione >50g.
+    // L'utente lo vede subito senza dover scrollare. Solo segnaletico, non blocca.
+    if (anomalieDrift.length > 0) {
+      const peggiore = [...anomalieDrift].sort((a, b) => Math.abs(b.driftPct) - Math.abs(a.driftPct))[0]
+      const segno = peggiore.driftPct > 0 ? '+' : ''
+      const tipo = peggiore.driftPct > 0
+        ? 'mano abbondante o residui non registrati'
+        : 'vendite non registrate o errore inserimento'
+      setTimeout(() => {
+        notify(`⚠ Drift critico ${peggiore.categoria}: ${segno}${peggiore.driftPct.toFixed(0)}% — ${tipo}${anomalieDrift.length > 1 ? ` (e altre ${anomalieDrift.length - 1} categorie)` : ''}`, false)
+      }, 1200)
+    }
   }
 
   const handleImportDeliveryFile = (e) => {
