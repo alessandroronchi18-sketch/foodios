@@ -225,6 +225,13 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 - [x] Drift porzioni in Chiusura cassa (calcolo prodotti+sprechi+omaggi vs vendite)
 - [x] Aggregazione per categoria/prodotto + totali in €
 
+### Admin tier 2: Stripe MRR/events + errori produzione + bulk actions (branch `feat/admin-tier2` – mig. `20260609`)
+- [x] **MRR reale da Stripe**: nuova action `stripe_mrr` paginazione subs + breakdown active/trialing/past_due/canceled, charge falliti ultimi 30gg; KPI card prima delle Azioni rapide
+- [x] **Stripe events feed**: nuova action `stripe_events`, 14 tipi filtrati (subscription/charge/invoice/checkout/customer), card con timeline colorata (verde succeeded, rosso failed, giallo updated/trial), badge `test` per non-livemode
+- [x] **Errori produzione** (alternativa Sentry): nuova tabella `error_log` (service_role only, RLS attivo), `safeError()` esteso con param `supabase` opzionale per insert fire-and-forget; sezione admin "🐛 Errori produzione" sotto Log attività con endpoint/operation/code/status/message/hint
+- [x] **Bulk actions** sulla tabella clienti: checkbox per riga + select-all in header con stato indeterminato, toolbar attiva su selezione ≥1 con Email/Estendi trial/Export CSV/Deseleziona, nuovo `BulkEmailModal` con template var `{{nome_completo}}` `{{nome_attivita}}` e progress bar
+- [x] safeError calls in admin.js + feedback.js aggiornate per persistere errori su DB
+
 ### Admin tier 1: note CRM + activation + feedback + banner (branch `feat/admin-tier1` – mig. `20260608`)
 - [x] **Note CRM** per cliente: campo `note_admin` su `organizations`, textarea nella modale Dettaglio con autosave debounced 1.5s, visibile solo all'admin
 - [x] **Activation score** per cliente: 6 step (email verificata, sede creata, ricettario popolato, prima chiusura cassa, prima fattura, attivo ultimi 7gg) calcolati al volo, indicatore progress bar + chip leggibili nella modale

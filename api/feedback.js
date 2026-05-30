@@ -73,7 +73,7 @@ export default async function handler(req) {
     if (error) throw error
     return json({ ok: true }, 200, req)
   } catch (err) {
-    const safe = safeError(err, { endpoint: 'feedback', userId: user.id })
+    const safe = safeError(err, { endpoint: 'feedback', userId: user.id }, 500, supabase)
     return json(safe.body, safe.status, req)
   }
 }

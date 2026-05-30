@@ -416,6 +416,134 @@ async function azBannerElimina(supabase, id) {
   if (error) throw new Error(error.message)
 }
 
+// ─── Stripe: MRR reale e eventi recenti ─────────────────────────────────
+// Calcolo MRR dalle subscription attive (non dalla stima paganti × prezzo).
+// Considera solo subscription in status 'active' o 'trialing' (Stripe le
+// fattura entrambe quando finisce il trial). Le altre (canceled, past_due,
+// incomplete) NON contribuiscono al MRR.
+async function getStripeMrr() {
+  const stripe = await getStripe()
+
+  // Pagina su tutte le subscription (limite max 100 per call).
+  const considerati = ['active', 'trialing']
+  const buckets = { active: 0, trialing: 0, past_due: 0, canceled: 0, incomplete: 0 }
+  let mrrCents = 0
+  let mrrTrialingCents = 0
+  let cursor = null
+  let pagine = 0
+  while (true) {
+    const page = await stripe.subscriptions.list({
+      limit: 100, status: 'all', ...(cursor ? { starting_after: cursor } : {}),
+    })
+    for (const sub of page.data) {
+      if (buckets[sub.status] != null) buckets[sub.status]++
+      if (!considerati.includes(sub.status)) continue
+      // Somma items: ognuno e' un prezzo. amount_decimal o unit_amount × qty.
+      for (const it of sub.items?.data || []) {
+        const price = it.price
+        const qty = it.quantity || 1
+        if (!price?.unit_amount) continue
+        const amt = price.unit_amount * qty
+        // Normalizza a mensile in base a recurring.interval.
+        const interval = price.recurring?.interval || 'month'
+        const intervalCount = price.recurring?.interval_count || 1
+        let perMonth = amt
+        if (interval === 'year') perMonth = Math.round(amt / 12 / intervalCount)
+        else if (interval === 'week') perMonth = Math.round(amt * 4.33 / intervalCount)
+        else if (interval === 'day') perMonth = Math.round(amt * 30 / intervalCount)
+        else perMonth = Math.round(amt / intervalCount)
+        if (sub.status === 'trialing') mrrTrialingCents += perMonth
+        else mrrCents += perMonth
+      }
+    }
+    pagine++
+    if (!page.has_more || pagine >= 10) break
+    cursor = page.data[page.data.length - 1]?.id
+    if (!cursor) break
+  }
+
+  // Failed payments ultimi 30 giorni
+  let failedCnt = 0
+  try {
+    const since = Math.floor((Date.now() - 30 * 86400000) / 1000)
+    const charges = await stripe.charges.list({ limit: 100, created: { gte: since } })
+    failedCnt = (charges.data || []).filter(c => c.status === 'failed').length
+  } catch { /* ignore */ }
+
+  return {
+    mrr_cents: mrrCents,
+    mrr_trialing_cents: mrrTrialingCents,
+    mrr_totale_cents: mrrCents + mrrTrialingCents,
+    sub_active: buckets.active,
+    sub_trialing: buckets.trialing,
+    sub_past_due: buckets.past_due,
+    sub_canceled: buckets.canceled,
+    sub_incomplete: buckets.incomplete,
+    failed_30d: failedCnt,
+    valuta: 'EUR',
+  }
+}
+
+// Ultimi N eventi Stripe (subscription/charge/invoice). Filtra per tipi
+// rilevanti per il monitoring revenue, scarta il resto (verbosi).
+const STRIPE_EVENT_TYPES = [
+  'invoice.payment_succeeded',
+  'invoice.payment_failed',
+  'invoice.finalized',
+  'invoice.upcoming',
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+  'customer.subscription.trial_will_end',
+  'charge.succeeded',
+  'charge.failed',
+  'charge.refunded',
+  'checkout.session.completed',
+  'customer.created',
+  'customer.deleted',
+]
+async function getStripeEvents() {
+  const stripe = await getStripe()
+  const events = await stripe.events.list({
+    limit: 100,
+    types: STRIPE_EVENT_TYPES,
+  })
+  return (events.data || []).map(e => {
+    const obj = e.data?.object || {}
+    // Email customer: alcuni eventi hanno customer email, altri customer id.
+    const customerEmail = obj.customer_email || obj.receipt_email || null
+    const customerId = (typeof obj.customer === 'string') ? obj.customer : obj.customer?.id || null
+    const amount =
+      obj.amount_paid != null ? obj.amount_paid :
+      obj.amount_due != null ? obj.amount_due :
+      obj.amount != null ? obj.amount :
+      obj.total != null ? obj.total : null
+    return {
+      id: e.id,
+      created: e.created * 1000,
+      type: e.type,
+      livemode: e.livemode,
+      customer_id: customerId,
+      customer_email: customerEmail,
+      amount_cents: amount,
+      currency: obj.currency || null,
+      status: obj.status || null,
+      sub_status: obj.status, // alias di lettura
+    }
+  })
+}
+
+// ─── Errori recenti (alternativa Sentry) ─────────────────────────────────
+async function getErroriRecenti(supabase, limit = 100) {
+  const { data, error } = await supabase
+    .from('error_log')
+    .select('id, endpoint, operation, org_id, user_id, code, status, message, hint, context, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
 // ─── azioni POST ───────────────────────────────────────────────────────────
 
 async function azApprova(supabase, orgId, req) {
@@ -895,6 +1023,22 @@ export default async function handler(req) {
         return json({ banners: list }, 200, req)
       }
 
+      if (action === 'stripe_mrr') {
+        const data = await getStripeMrr()
+        return json(data, 200, req)
+      }
+
+      if (action === 'stripe_events') {
+        const events = await getStripeEvents()
+        return json({ events }, 200, req)
+      }
+
+      if (action === 'errori_recenti') {
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '100', 10) || 100, 500)
+        const errori = await getErroriRecenti(supabase, limit)
+        return json({ errori }, 200, req)
+      }
+
       if (action === 'codici_sconto') {
         await logAdmin(supabase, user.email, 'lista_codici_sconto', null, ip, ua)
         const codici = await getCodiciSconto(supabase)
@@ -934,7 +1078,7 @@ export default async function handler(req) {
 
       return json({ error: 'Action non riconosciuta' }, 400, req)
     } catch (err) {
-      const safe = safeError(err, { endpoint: 'admin', method: 'GET', action })
+      const safe = safeError(err, { endpoint: 'admin', method: 'GET', action }, 500, supabase)
       return json(safe.body, safe.status, req)
     }
   }
@@ -1016,7 +1160,7 @@ export default async function handler(req) {
       await logAdmin(supabase, user.email, tipo, orgId || null, ip, ua)
       return json(result, 200, req)
     } catch (err) {
-      const safe = safeError(err, { endpoint: 'admin', method: 'POST', tipo, orgId })
+      const safe = safeError(err, { endpoint: 'admin', method: 'POST', tipo, orgId }, 500, supabase)
       // L'admin_log internamente registra il dettaglio reale; al client va il safe
       await logAdmin(supabase, user.email, `${tipo}_errore:${(err.message || '').slice(0, 80)}`, orgId || null, ip, ua)
       return json(safe.body, safe.status, req)

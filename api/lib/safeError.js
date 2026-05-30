@@ -61,17 +61,46 @@ export function publicErrorMessage(error) {
 }
 
 /**
+ * Persiste l'errore nella tabella public.error_log (fire-and-forget).
+ * Best-effort: se la query fallisce, ignoriamo (non vogliamo loop di errori).
+ * supabase deve essere un client con service_role (no RLS check).
+ */
+function persistToDb(supabase, error, context) {
+  if (!supabase) return
+  try {
+    const row = {
+      endpoint: context.endpoint || null,
+      operation: context.op || context.tipo || context.action || null,
+      org_id: context.orgId || context.org_id || null,
+      user_id: context.userId || context.user_id || null,
+      code: error?.code ? String(error.code).slice(0, 80) : null,
+      status: typeof error?.status === 'number' ? error.status : null,
+      message: (error?.message || '').slice(0, 1000),
+      hint: error?.hint ? String(error.hint).slice(0, 500) : null,
+      stack: (error?.stack || '').slice(0, 2000),
+      context: context,
+    }
+    // .then chain con catch per silenziare promise rejection unhandled
+    supabase.from('error_log').insert(row).then(() => {}, () => {})
+  } catch { /* ignore */ }
+}
+
+/**
  * Costruisce un body { error } pronto da serializzare.
  * Logga l'errore reale al monitoring, ritorna solo il messaggio safe.
  *
  * USAGE:
  *   try { ... } catch (e) {
- *     const { body, status } = safeError(e, { endpoint: 'admin', op: 'approva', orgId })
+ *     const { body, status } = safeError(e, { endpoint: 'admin', op: 'approva', orgId }, 500, supabase)
  *     return new Response(JSON.stringify(body), { status, headers: ... })
  *   }
+ *
+ * Se passi `supabase` (service_role), l'errore viene anche persistito su
+ * public.error_log per visualizzazione nel pannello admin.
  */
-export function safeError(error, context = {}, fallbackStatus = 500) {
+export function safeError(error, context = {}, fallbackStatus = 500, supabase = null) {
   captureForMonitoring(error, context)
+  persistToDb(supabase, error, context)
   const status = error?.status || error?.statusCode || fallbackStatus
   return {
     body: { error: publicErrorMessage(error) },
