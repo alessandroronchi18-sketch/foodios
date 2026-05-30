@@ -16,6 +16,7 @@
     "api/stripe-checkout.js":  { "maxDuration": 10 },
     "api/stripe-portal.js":    { "maxDuration": 10 },
     "api/stripe-webhook.js":   { "maxDuration": 15 },
+    "api/sdi-emit-invoice.js": { "maxDuration": 30 },
     "api/cron-whatsapp.js":    { "maxDuration": 60 },
     "api/whatsapp-test.js":    { "maxDuration": 10 }
   },

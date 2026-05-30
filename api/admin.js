@@ -1024,13 +1024,43 @@ export default async function handler(req) {
       }
 
       if (action === 'stripe_mrr') {
-        const data = await getStripeMrr()
-        return json(data, 200, req)
+        // Stripe puo' non essere configurato (pre-revenue) o avere errori di
+        // chiamata. Ritorniamo un payload "unavailable" parlante invece di un
+        // 500 generico — la UI mostra "Stripe non configurato" e l'admin sa
+        // cosa fare.
+        if (!process.env.STRIPE_SECRET_KEY) {
+          return json({
+            unavailable: true,
+            reason: 'STRIPE_SECRET_KEY non configurato su Vercel',
+            mrr_cents: 0, mrr_trialing_cents: 0,
+            sub_active: 0, sub_trialing: 0, sub_past_due: 0, sub_canceled: 0,
+            failed_30d: 0, valuta: 'EUR',
+          }, 200, req)
+        }
+        try {
+          const data = await getStripeMrr()
+          return json(data, 200, req)
+        } catch (e) {
+          return json({
+            unavailable: true,
+            reason: `Stripe API: ${(e?.message || 'errore sconosciuto').slice(0, 200)}`,
+            mrr_cents: 0, mrr_trialing_cents: 0,
+            sub_active: 0, sub_trialing: 0, sub_past_due: 0, sub_canceled: 0,
+            failed_30d: 0, valuta: 'EUR',
+          }, 200, req)
+        }
       }
 
       if (action === 'stripe_events') {
-        const events = await getStripeEvents()
-        return json({ events }, 200, req)
+        if (!process.env.STRIPE_SECRET_KEY) {
+          return json({ events: [], unavailable: true, reason: 'STRIPE_SECRET_KEY non configurato' }, 200, req)
+        }
+        try {
+          const events = await getStripeEvents()
+          return json({ events }, 200, req)
+        } catch (e) {
+          return json({ events: [], unavailable: true, reason: `Stripe API: ${(e?.message || '').slice(0, 200)}` }, 200, req)
+        }
       }
 
       if (action === 'errori_recenti') {

@@ -8,7 +8,7 @@
 // API: /api/referral (GET = info + auto-crea codice; POST = applica codice ricevuto)
 
 import React, { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { apiFetch } from '../lib/apiFetch'
 
 const APP_NAME = 'FoodOS'
 
@@ -47,14 +47,8 @@ export default function ReferralPanel({ auth }) {
   async function loadReferral() {
     setLoading(true); setErrore('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) throw new Error('Sessione non valida — ricarica la pagina')
-      const res = await fetch('/api/referral', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.error || `Errore ${res.status}`)
+      const res = await apiFetch('/api/referral')
+      const json = await res.json()
       setData(json)
     } catch (e) {
       setErrore(e.message)
@@ -101,15 +95,10 @@ export default function ReferralPanel({ auth }) {
     }
     setApplicaBusy(true); setApplicaMsg(null)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      const res = await fetch('/api/referral', {
+      await apiFetch('/api/referral', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ codice: codiceNorm }),
       })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.error || `Errore ${res.status}`)
       setApplicaMsg({ ok: true, txt: '✓ Codice applicato! Hai 60 giorni di trial gratis.' })
       setCodiceInput('')
     } catch (e) {

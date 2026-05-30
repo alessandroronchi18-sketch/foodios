@@ -233,6 +233,23 @@ export default async function handler(req, res) {
               })
           }
         } catch (e) { console.error('[stripe-webhook] discount tracking', e) }
+
+        // Emissione fattura elettronica SDI via Fatture in Cloud (fire-and-forget).
+        // Solo se configurato — senza FATTUREINCLOUD_API_TOKEN, skip silenzioso.
+        if (process.env.FATTUREINCLOUD_API_TOKEN && process.env.FATTUREINCLOUD_COMPANY_ID && process.env.INTERNAL_API_SECRET) {
+          try {
+            const base = new URL(req.url, `https://${req.headers.host}`).origin
+            // fire-and-forget, NON await: il webhook deve rispondere a Stripe entro 5s
+            fetch(`${base}/api/sdi-emit-invoice`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-internal-secret': process.env.INTERNAL_API_SECRET,
+              },
+              body: JSON.stringify({ stripe_invoice_id: inv.id }),
+            }).catch(e => console.error('[stripe-webhook] sdi-emit-invoice trigger failed', e?.message))
+          } catch (e) { console.error('[stripe-webhook] sdi trigger error', e?.message) }
+        }
         break
       }
 

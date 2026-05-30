@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
-import { supabase } from '../lib/supabase'
+import { apiFetch } from '../lib/apiFetch'
 
 export const BMK_KEY = 'pasticceria-benchmark-optin-v1'
 const SK_CHIUS = 'pasticceria-chiusure-v1'
@@ -32,23 +32,21 @@ async function calcolaFoodCostMeseCorrente(orgId, sedeId) {
 }
 
 async function inviaBenchmark({ orgId, tipoAttivita, citta, fcPct, anno_mese }) {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { stored: false, reason: 'sessione non disponibile' }
-  const r = await fetch('/api/benchmark', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({
-      organization_id: orgId,
-      tipo_attivita: (tipoAttivita || '').toLowerCase(),
-      citta: citta || null,
-      food_cost_pct: fcPct,
-      anno_mese,
-    }),
-  })
-  return r.json().catch(() => ({ stored: false }))
+  try {
+    const r = await apiFetch('/api/benchmark', {
+      method: 'POST',
+      body: JSON.stringify({
+        organization_id: orgId,
+        tipo_attivita: (tipoAttivita || '').toLowerCase(),
+        citta: citta || null,
+        food_cost_pct: fcPct,
+        anno_mese,
+      }),
+    })
+    return r.json().catch(() => ({ stored: false }))
+  } catch (e) {
+    return { stored: false, reason: e.message }
+  }
 }
 
 export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, notify }) {

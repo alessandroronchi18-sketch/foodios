@@ -1594,6 +1594,13 @@ export default function AdminPage() {
           </div>
           {stripeMrrLoading && !stripeMrr ? (
             <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Caricamento da Stripe…</div>
+          ) : stripeMrr?.unavailable ? (
+            <div style={{ padding: '10px 14px', background: COLORS.warnBg, border: `1px solid ${COLORS.warn}`, borderRadius: 8, color: COLORS.warn, fontSize: 12 }}>
+              ⏸ Stripe non disponibile: {stripeMrr.reason || 'configurazione mancante'}
+              <div style={{ fontSize: 11, marginTop: 6, opacity: 0.85 }}>
+                Pre-revenue: aspettato. Configura <code>STRIPE_SECRET_KEY</code> su Vercel quando passi a Stripe live.
+              </div>
+            </div>
           ) : stripeMrr?.error ? (
             <div style={{ padding: '10px 14px', background: COLORS.errBg, border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12 }}>
               ⚠️ Errore Stripe: {stripeMrr.error}
@@ -2374,6 +2381,32 @@ export default function AdminPage() {
           )}
         </Card>
       </div>
+
+        {/* ── Manutenzione: migra integrazioni legacy → encrypted ─────────── */}
+        <Card style={{ marginBottom: 20, padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800 }}>🔐 Migrazione integrazioni → AES-256-GCM</h3>
+              <div style={{ fontSize: 11, color: COLORS.textMute, maxWidth: 600 }}>
+                Cifra in batch tutte le righe <code>public.integrazioni</code> con <code>encryption_version=0</code> (legacy). Idempotente: ri-eseguire non tocca le righe gia' v=1. Richiede <code>INTEGRATIONS_ENCRYPTION_KEY</code> in Vercel.
+              </div>
+            </div>
+            <Btn kind="warn" size="sm"
+              onClick={async () => {
+                if (!confirm('Cifrare tutte le integrazioni legacy?\nL\'operazione e\' idempotente.')) return
+                try {
+                  const res = await apiCall('/api/admin?action=migrate_integrazioni')
+                  const data = await res.json()
+                  toast.success(`✓ Migrate ${data.migrated}/${data.total} integrazioni — errori: ${data.errors?.length || 0}`)
+                  if (data.errors?.length) console.error('migrate errors:', data.errors)
+                } catch (e) {
+                  toast.error(`Errore migrazione: ${e.message}`)
+                }
+              }}>
+              🔐 Esegui migrazione
+            </Btn>
+          </div>
+        </Card>
 
         {/* ── Errori produzione (alternativa Sentry, da public.error_log) ── */}
         <Card style={{ marginBottom: 30, overflow: 'hidden' }}>

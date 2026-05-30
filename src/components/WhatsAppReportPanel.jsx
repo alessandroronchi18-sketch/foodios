@@ -8,6 +8,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { apiFetch } from '../lib/apiFetch'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 
 const PREFISSI = [
@@ -72,13 +73,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
   async function inviaTest() {
     setTesting(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const r = await fetch('/api/whatsapp-test', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${session?.access_token}` },
-      })
-      const j = await r.json()
-      if (!r.ok) throw new Error(j.error || 'Errore')
+      await apiFetch('/api/whatsapp-test', { method: 'POST' })
       notify?.('✓ Messaggio di test inviato — controlla WhatsApp')
     } catch (e) { notify?.('⚠ ' + e.message, false) }
     finally { setTesting(false) }
