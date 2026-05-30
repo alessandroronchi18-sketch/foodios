@@ -2113,10 +2113,14 @@ export default function Dashboard({
                 {ic(ICONS.logOut)}
                 Esci
               </button>
-              <div style={{display:"flex",justifyContent:"center",gap:12,paddingTop:2}}>
-                <a href="/privacy" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank">Privacy</a>
+              <div style={{display:"flex",justifyContent:"center",gap:8,paddingTop:2,flexWrap:"wrap"}}>
+                <a href="/privacy" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Privacy</a>
                 <span style={{fontSize:10,color:"rgba(255,255,255,0.14)"}}>·</span>
-                <a href="/termini" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank">Termini</a>
+                <a href="/termini" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Termini</a>
+                <span style={{fontSize:10,color:"rgba(255,255,255,0.14)"}}>·</span>
+                <a href="/cookie" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Cookie</a>
+                <span style={{fontSize:10,color:"rgba(255,255,255,0.14)"}}>·</span>
+                <a href="/contatti" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Contatti</a>
               </div>
             </div>
           </div>

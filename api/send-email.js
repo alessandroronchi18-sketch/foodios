@@ -175,6 +175,24 @@ export default async function handler(req) {
       if (!validateEmail(email)) throw new Error('Email destinatario mancante')
       if (!oggetto || !messaggio) throw new Error('Oggetto e messaggio obbligatori')
 
+      // Safety guard: l'admin puo' inviare custom solo a destinatari registrati
+      // come profili nel DB. Impedisce uso come gateway phishing in caso di
+      // account admin compromesso. Il match e' case-insensitive.
+      const emailLow = email.toLowerCase()
+      const { data: profileMatch } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('email', emailLow)
+        .limit(1)
+        .maybeSingle()
+      if (!profileMatch) {
+        return new Response(JSON.stringify({
+          error: 'Destinatario non registrato: per ragioni anti-abuso le email custom possono andare solo a clienti esistenti.',
+        }), {
+          status: 422, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
+        })
+      }
+
       // Converte newline in <br> per leggibilità, escapa HTML
       const bodyHtml = escapeHtml(messaggio).replace(/\n/g, '<br>')
 

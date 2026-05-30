@@ -1109,6 +1109,39 @@ export default async function handler(req) {
       if (!validateUUID(orgId)) return json({ error: 'orgId non valido' }, 400, req)
     }
 
+    // Rate limit per-azione: oltre al limit globale 60/min, ogni azione "delicata"
+    // ha il suo limite stretto. Anche un admin compromesso non puo' cancellare
+    // 60 org/min ma solo le quote sotto.
+    const PER_ACTION_LIMITS = {
+      elimina:                       { max: 2,   windowSec: 60 },   // cancellazioni: 2/min
+      blocca:                        { max: 10,  windowSec: 60 },
+      riattiva:                      { max: 10,  windowSec: 60 },
+      regala_mesi:                   { max: 5,   windowSec: 60 },
+      cambia_piano:                  { max: 10,  windowSec: 60 },
+      estendi_trial:                 { max: 10,  windowSec: 60 },
+      impersona:                     { max: 5,   windowSec: 60 },
+      reset_password:                { max: 5,   windowSec: 60 },
+      invia_email:                   { max: 30,  windowSec: 60 },   // 30 email manuali/min ok
+      pulisci_demo_fatture:          { max: 5,   windowSec: 60 },
+      crea_codice_sconto:            { max: 10,  windowSec: 60 },
+      disattiva_codice_sconto:       { max: 20,  windowSec: 60 },
+      elimina_codice_sconto:         { max: 5,   windowSec: 60 },
+      set_plan_pricing:              { max: 5,   windowSec: 60 },
+      salva_note_admin:              { max: 60,  windowSec: 60 },   // autosave debounced
+      feedback_marca_gestito:        { max: 60,  windowSec: 60 },
+      banner_crea:                   { max: 10,  windowSec: 60 },
+      banner_disattiva:              { max: 10,  windowSec: 60 },
+      banner_elimina:                { max: 10,  windowSec: 60 },
+    }
+    const perAction = PER_ACTION_LIMITS[tipo]
+    if (perAction) {
+      const rlAction = await checkRateLimit(supabase, `admin:${user.email}:${tipo}`, perAction.max, perAction.windowSec)
+      if (!rlAction.allowed) {
+        await logAdmin(supabase, user.email, `rate_limit_per_action:${tipo}`, orgId || null, ip, ua)
+        return rateLimitResponse(rlAction.retryAfter)
+      }
+    }
+
     try {
       let result = { ok: true }
 
