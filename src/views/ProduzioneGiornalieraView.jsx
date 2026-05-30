@@ -2,12 +2,12 @@
 // Scala il magazzino, carica stock PF, gestisce trasferimenti auto verso altre sedi,
 // OCR foto appunto produzione. Richiede orgId/sedeId per persistenza e stock.
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { ssave as _ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateProdottoEN } from '../lib/foodcost'
-import { caricoProduzionePF } from '../lib/stockPF'
+import { caricoProduzionePF, scartoPF } from '../lib/stockPF'
 import { creaTrasferimento } from '../lib/trasferimenti'
 import { SK_GIOR, SK_MAG } from '../lib/storageKeys'
 import { exportProduzione } from '../lib/exportPDF'
@@ -24,23 +24,72 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   const [tab, setTab] = useState('nuova')
   const [deleteSessConf, setDeleteSessConf] = useState(null)
   const [deleteSessPin, setDeleteSessPin] = useState('')
+  const [deletingSess, setDeletingSess] = useState(false)
 
+  // Elimina sessione produzione:
+  // 1. Calcola magazzino post-reintegro ingredienti
+  // 2. Salva PRIMA su server (ssave) — se fallisce, abort senza toccare state
+  // 3. Stock prodotti finiti: scarta i pezzi della sessione (causale 'scarto').
+  //    Eccezione: se la sessione era con destinazione altra sede, il transfer
+  //    ha gia' mosso lo stock — non lo ritocchiamo, avvisiamo l'utente.
+  // 4. Aggiorna state locale solo dopo conferma server
   const handleDeleteSessione = async (sess) => {
-    if (deleteSessPin !== 'ELIMINA') return
+    if (deleteSessPin !== 'ELIMINA' || deletingSess) return
+    setDeletingSess(true)
+
     const ng = (giornaliero || []).filter(s => s.id !== sess.id)
-    setGiornaliero(ng)
-    await ssave(SK_GIOR, ng)
+    let nm = null
     if (sess.ingredientiUsati && Object.keys(sess.ingredientiUsati).length > 0) {
-      const nm = { ...magazzino }
+      nm = { ...magazzino }
       for (const [k, qty] of Object.entries(sess.ingredientiUsati)) {
         if (nm[k]) nm[k] = { ...nm[k], giacenza_g: (nm[k].giacenza_g || 0) + qty }
         else nm[k] = { nome: k, giacenza_g: qty, soglia_g: 0, ultimoRifornimento: null }
       }
-      setMagazzino(nm)
-      await ssave(SK_MAG, nm)
     }
-    setDeleteSessConf(null); setDeleteSessPin('')
-    notify('✓ Sessione eliminata — ingredienti restituiti al magazzino')
+
+    // SAVE FIRST: se fallisce, niente state mutation -> niente dati persi.
+    try {
+      await ssave(SK_GIOR, ng)
+      if (nm) await ssave(SK_MAG, nm)
+    } catch (e) {
+      setDeletingSess(false)
+      notify(`⚠ Impossibile eliminare la sessione: ${e.message || 'errore di rete'}. Riprova.`, false)
+      return
+    }
+
+    // Stock prodotti finiti: scarta i pezzi.
+    const sedeProduttiva = sedeAttiva?.id
+    const destDiversa = sess.destinazioneSedeId && sess.destinazioneSedeId !== sedeProduttiva
+    const scartoErrors = []
+    if (orgId && sedeProduttiva && !destDiversa) {
+      for (const p of (sess.prodotti || [])) {
+        const vendibile = Number(p.vendibile || 0) || Number(p.stampi || 0)
+        if (vendibile <= 0) continue
+        const ric = ricettario?.ricette?.[p.nome] || ricettario?.ricette?.[(p.nome || '').toUpperCase().trim()]
+        const reg = ric ? getR(p.nome, ric) : null
+        const unitaFactor = Number(reg?.unita)
+        const pezzi = vendibile * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
+        if (pezzi <= 0) continue
+        const prodottoKey = (p.nome || '').toUpperCase().trim()
+        try {
+          await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: `Annullo sessione del ${sess.data}` })
+        } catch (e) { scartoErrors.push(`${p.nome}: ${e.message}`) }
+      }
+    }
+
+    // Apply state mutations
+    setGiornaliero(ng)
+    if (nm) setMagazzino(nm)
+    setDeleteSessConf(null); setDeleteSessPin(''); setDeletingSess(false)
+
+    const baseMsg = '✓ Sessione eliminata — ingredienti restituiti al magazzino'
+    if (destDiversa) {
+      notify(`${baseMsg}. Stock prodotti finiti NON ritoccato: la sessione aveva destinazione altra sede — gestisci il trasferimento dalla view Trasferimenti.`, false)
+    } else if (scartoErrors.length > 0) {
+      notify(`${baseMsg}. Alcuni scarti stock falliti: ${scartoErrors.slice(0, 2).join('; ')}`, false)
+    } else {
+      notify(`${baseMsg} e stock vetrina aggiornato`)
+    }
   }
 
   const [data, setData] = useState(new Date().toISOString().slice(0, 10))
@@ -50,6 +99,20 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   const [prodottiNonRicettario, setProdottiNonRicettario] = useState([])
   const [destinazioneSedeId, setDestinazioneSedeId] = useState('')
   const [confermando, setConfermando] = useState(false)
+  const [salvando, setSalvando] = useState(false)  // distinto da `confermando` (UI conferma) per evitare double-submit
+
+  // Escape chiude la modal di delete se aperta (a meno che sia in corso una
+  // operazione che non possiamo annullare a meta').
+  useEffect(() => {
+    if (!deleteSessConf) return
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !deletingSess) {
+        setDeleteSessConf(null); setDeleteSessPin('')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [deleteSessConf, deletingSess])
 
   const sediAttive = (sedi || []).filter(s => s.attiva !== false)
   const haPiuSedi = sediAttive.length > 1
@@ -97,8 +160,17 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
   const hasQta = Object.values(qtaMap).some(v => v > 0) || Object.values(vendibileMap).some(v => v > 0)
 
+  // Conferma sessione produzione:
+  // 1. Calcola magazzino e sessione nuovi
+  // 2. SAVE FIRST: ssave SK_MAG + SK_GIOR. Se fallisce, abort senza state mutation
+  //    (evita data loss: l'UI non mostra "salvato" se in realta' non lo e').
+  // 3. Aggiorna state locale
+  // 4. RPC stock_pf (carico produzione + eventuale trasferimento auto). Errori
+  //    qui sono notificati ma non bloccano: la sessione e' gia' salvata.
   const handleConferma = async () => {
-    if (!hasQta) return
+    if (!hasQta || salvando) return
+    setSalvando(true)
+
     const nm = { ...magazzino }
     for (const [k, qty] of Object.entries(riepilogo.ings)) {
       if (nm[k]) nm[k] = { ...nm[k], giacenza_g: Math.max(0, (nm[k].giacenza_g || 0) - qty) }
@@ -113,9 +185,21 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       destinazioneSedeNome: destinazioneSedeId ? (sediMapProd[destinazioneSedeId]?.nome || null) : null,
     }
     const ng = [sess, ...(giornaliero || [])]
-    setMagazzino(nm); setGiornaliero(ng)
-    await ssave(SK_MAG, nm); await ssave(SK_GIOR, ng)
 
+    // SAVE FIRST: se ssave fallisce -> niente state mutation, niente reset form.
+    try {
+      await ssave(SK_MAG, nm)
+      await ssave(SK_GIOR, ng)
+    } catch (e) {
+      setSalvando(false)
+      notify(`⚠ Salvataggio fallito: ${e.message || 'errore di rete'}. I dati non sono stati persi, riprova.`, false)
+      return
+    }
+
+    // State mutations
+    setMagazzino(nm); setGiornaliero(ng)
+
+    // Stock prodotti finiti via RPC (best-effort: errori notificati ma non bloccanti)
     const sedeProduttiva = sedeAttiva?.id
     if (orgId && sedeProduttiva) {
       const stockErrors = []
@@ -139,7 +223,6 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
           } catch (e) {
             transferErrors.push(`${r.nome}: ${e.message}`)
             try {
-              const { scartoPF } = await import('../lib/stockPF')
               await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: 'Rollback trasferimento fallito' })
             } catch (rb) { console.error('Rollback carico fallito:', rb) }
           }
@@ -150,7 +233,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       }
     }
 
-    setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false)
+    setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false); setSalvando(false)
     const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id ? ` — trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}` : ''
     notify(`✓ Produzione registrata${msgDest} — magazzino e stock vetrina aggiornati`)
     setTab('storico')
@@ -439,8 +522,14 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   <div style={{ background: C.redLight, border: `1px solid ${C.red}30`, borderRadius: 10, padding: '16px' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 10 }}>Confermi? Il magazzino verrà scalato.</div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={handleConferma} style={{ flex: 1, padding: '10px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Sì, conferma</button>
-                      <button onClick={() => setConfermando(false)} style={{ flex: 1, padding: '10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Annulla</button>
+                      <button onClick={handleConferma} disabled={salvando}
+                        style={{ flex: 1, padding: '10px', background: salvando ? '#9C887F' : C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: salvando ? 'wait' : 'pointer', opacity: salvando ? 0.7 : 1 }}>
+                        {salvando ? 'Salvataggio…' : 'Sì, conferma'}
+                      </button>
+                      <button onClick={() => setConfermando(false)} disabled={salvando}
+                        style={{ flex: 1, padding: '10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1 }}>
+                        Annulla
+                      </button>
                     </div>
                   </div>
                 )
@@ -531,10 +620,11 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 7, border: `2px solid ${deleteSessPin === 'ELIMINA' ? C.red : '#DDD'}`, fontSize: 14, fontWeight: 800, color: C.red, letterSpacing: '0.1em', marginBottom: 16, outline: 'none' }}/>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => handleDeleteSessione(deleteSessConf)}
-                style={{ flex: 1, padding: '11px', background: deleteSessPin === 'ELIMINA' ? C.red : '#EEE', color: deleteSessPin === 'ELIMINA' ? C.white : '#AAA', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: deleteSessPin === 'ELIMINA' ? 'pointer' : 'not-allowed' }}>
-                Elimina e reintegra magazzino
+                disabled={deleteSessPin !== 'ELIMINA' || deletingSess}
+                style={{ flex: 1, padding: '11px', background: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.red : '#EEE', color: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.white : '#AAA', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: (deleteSessPin === 'ELIMINA' && !deletingSess) ? 'pointer' : 'not-allowed' }}>
+                {deletingSess ? 'Eliminazione…' : 'Elimina e reintegra magazzino'}
               </button>
-              <button onClick={() => { setDeleteSessConf(null); setDeleteSessPin('') }} style={{ flex: 1, padding: '11px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Annulla</button>
+              <button onClick={() => { setDeleteSessConf(null); setDeleteSessPin('') }} disabled={deletingSess} style={{ flex: 1, padding: '11px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: deletingSess ? 'not-allowed' : 'pointer', opacity: deletingSess ? 0.6 : 1 }}>Annulla</button>
             </div>
           </div>
         </div>

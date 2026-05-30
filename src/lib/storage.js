@@ -22,27 +22,71 @@ function applySedeFilter(q, sedeId) {
   return sedeId === null ? q.is('sede_id', null) : q.eq('sede_id', sedeId)
 }
 
+// Distingue errori transienti (rete, 5xx) — su cui ha senso ritentare — da
+// errori "permanenti" (constraint violations, RLS denial, validation).
+// Per i transienti il retry con backoff esponenziale recupera dropout brevi
+// senza imprigionare il chiamante in un loop infinito su errori veri.
+function isTransientError(e) {
+  if (!e) return false
+  const code = e.code || ''
+  // Postgres / PostgREST codes "deterministici" → mai ritentare
+  if (code.startsWith('23')) return false  // integrity (unique, fk, not null)
+  if (code.startsWith('42')) return false  // syntax / permissions
+  if (code === 'PGRST116') return false    // no rows
+  if (code === 'PGRST301') return false    // PGRST: row not found
+  // Status 4xx → fail fast (auth, permission, validation)
+  const status = Number(e.status || 0)
+  if (status >= 400 && status < 500) return false
+  if (status >= 500 && status < 600) return true
+  // Errori di rete senza codice/status → transient
+  const msg = (e.message || '').toLowerCase()
+  if (msg.includes('fetch') || msg.includes('network') || msg.includes('timeout') || msg.includes('failed to')) return true
+  // Default conservativo: NON transient (evita loop su errori sconosciuti)
+  return false
+}
+
+// Wrapper retry per Supabase calls. Esegue `fn` fino a `attempts` volte,
+// con backoff esponenziale partendo da `baseDelayMs`. Solo errori transienti.
+async function withRetry(fn, { attempts = 3, baseDelayMs = 300 } = {}) {
+  let lastErr = null
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      lastErr = e
+      if (!isTransientError(e) || i === attempts - 1) throw e
+      const wait = baseDelayMs * Math.pow(2, i)  // 300ms, 600ms, 1200ms
+      await new Promise(r => setTimeout(r, wait))
+    }
+  }
+  throw lastErr
+}
+
 export async function sload(key, orgId, sedeId) {
   if (!orgId) return null
   const isShared = SHARED_KEYS.includes(key)
   const effectiveSedeId = isShared ? null : (sedeId || null)
 
   // Resiliente ai duplicati: order by updated_at desc + limit 1.
-  // Senza limit/single, evitiamo PGRST116 quando ci sono righe duplicate
-  // legacy (NULL trattato come distinto dall'UNIQUE constraint).
-  let q = supabase
-    .from('user_data')
-    .select('data_value, updated_at')
-    .eq('organization_id', orgId)
-    .eq('data_key', key)
-  q = applySedeFilter(q, effectiveSedeId)
-  const { data, error } = await q.order('updated_at', { ascending: false }).limit(1)
-
-  if (error) {
-    console.error('sload error:', key, error)
-    return null
-  }
-  return data?.[0]?.data_value ?? null
+  return await withRetry(async () => {
+    let q = supabase
+      .from('user_data')
+      .select('data_value, updated_at')
+      .eq('organization_id', orgId)
+      .eq('data_key', key)
+    q = applySedeFilter(q, effectiveSedeId)
+    const { data, error } = await q.order('updated_at', { ascending: false }).limit(1)
+    if (error) {
+      console.error('sload error:', key, error)
+      // Per sload preferiamo restituire null su errore transient (sennò
+      // l'app si rompe a ogni hiccup di rete). Lo throw qui non finisce nel
+      // retry diretto, ma in pratica gli errori transient fanno ritentare.
+      const e = new Error(error.message || 'sload failed')
+      e.code = error.code; e.status = error.status
+      throw e
+    }
+    return data?.[0]?.data_value ?? null
+  }).catch(() => null)
 }
 
 export async function ssave(key, value, orgId, sedeId) {
@@ -56,62 +100,64 @@ export async function ssave(key, value, orgId, sedeId) {
   const payload = { organization_id: orgId, sede_id: effectiveSedeId, data_key: key, data_value: value, updated_at: new Date().toISOString() }
 
   // Strategia: SELECT id esistenti → UPDATE su tutti, oppure INSERT se non esiste.
-  // Questo è IDEMPOTENTE anche con sede_id=NULL e UNIQUE constraint mal configurato:
-  // se ci sono duplicati legacy, li aggiorniamo tutti (e il dedupe SQL li ripulirà).
-  // Evitiamo upsert con onConflict che fallisce silenziosamente quando il vincolo
-  // non considera NULL come uguale (bug PostgreSQL default).
-  let qSel = supabase
-    .from('user_data')
-    .select('id')
-    .eq('organization_id', orgId)
-    .eq('data_key', key)
-  qSel = applySedeFilter(qSel, effectiveSedeId)
-  const { data: existing, error: selErr } = await qSel
-
-  if (selErr) {
-    console.error('ssave SELECT fallito:', key, selErr)
-    throw selErr
-  }
-
-  if (existing && existing.length > 0) {
-    // UPDATE su TUTTE le righe (gestione duplicati legacy).
-    // Idempotente: anche se ci sono N righe duplicate, ognuna avrà lo stesso value.
-    let qUpd = supabase
+  // Idempotente anche con duplicati legacy. Wrappato in retry per resilienza rete.
+  return await withRetry(async () => {
+    let qSel = supabase
       .from('user_data')
-      .update({ data_value: value, updated_at: payload.updated_at })
+      .select('id')
       .eq('organization_id', orgId)
       .eq('data_key', key)
-    qUpd = applySedeFilter(qUpd, effectiveSedeId)
-    const { error: updErr } = await qUpd
-    if (updErr) {
-      console.error('ssave UPDATE fallito:', key, updErr)
-      throw updErr
+    qSel = applySedeFilter(qSel, effectiveSedeId)
+    const { data: existing, error: selErr } = await qSel
+    if (selErr) {
+      const e = new Error(selErr.message || 'ssave SELECT failed')
+      e.code = selErr.code; e.status = selErr.status
+      throw e
     }
-    return
-  }
 
-  // Nessuna riga: INSERT pulita.
-  const { error: insErr } = await supabase.from('user_data').insert(payload)
-  if (insErr) {
-    // Race condition possibile: tra il SELECT e l'INSERT un altro client ha inserito.
-    // In quel caso ritentiamo con UPDATE.
-    if (insErr.code === '23505') {
-      let qRetry = supabase
+    if (existing && existing.length > 0) {
+      // UPDATE su TUTTE le righe (gestione duplicati legacy).
+      let qUpd = supabase
         .from('user_data')
         .update({ data_value: value, updated_at: payload.updated_at })
         .eq('organization_id', orgId)
         .eq('data_key', key)
-      qRetry = applySedeFilter(qRetry, effectiveSedeId)
-      const { error: retryErr } = await qRetry
-      if (retryErr) {
-        console.error('ssave INSERT→UPDATE retry fallito:', key, retryErr)
-        throw retryErr
+      qUpd = applySedeFilter(qUpd, effectiveSedeId)
+      const { error: updErr } = await qUpd
+      if (updErr) {
+        const e = new Error(updErr.message || 'ssave UPDATE failed')
+        e.code = updErr.code; e.status = updErr.status
+        throw e
       }
       return
     }
-    console.error('ssave INSERT fallito:', key, insErr)
-    throw insErr
-  }
+
+    // Nessuna riga: INSERT pulita.
+    const { error: insErr } = await supabase.from('user_data').insert(payload)
+    if (insErr) {
+      // Race condition possibile: tra il SELECT e l'INSERT un altro client ha
+      // inserito. In quel caso ritentiamo con UPDATE (gestito inline, non e' un
+      // retry transient — e' una resolution di concorrenza).
+      if (insErr.code === '23505') {
+        let qRetry = supabase
+          .from('user_data')
+          .update({ data_value: value, updated_at: payload.updated_at })
+          .eq('organization_id', orgId)
+          .eq('data_key', key)
+        qRetry = applySedeFilter(qRetry, effectiveSedeId)
+        const { error: retryErr } = await qRetry
+        if (retryErr) {
+          const e = new Error(retryErr.message || 'ssave race UPDATE failed')
+          e.code = retryErr.code; e.status = retryErr.status
+          throw e
+        }
+        return
+      }
+      const e = new Error(insErr.message || 'ssave INSERT failed')
+      e.code = insErr.code; e.status = insErr.status
+      throw e
+    }
+  })
 }
 
 /**

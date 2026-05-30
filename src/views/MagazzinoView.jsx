@@ -12,6 +12,7 @@ import { normIng, getR, translateIngredienteEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
 import FotoOCR from '../components/FotoOCR'
+import { loadStockPF, loadMovimentiPF, scartoPF } from '../lib/stockPF'
 import {
   C, TNUM, PageHeader, useSortable, SortTH,
 } from './_shared'
@@ -77,7 +78,6 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
     if (!orgId || !sedeId) { setLoading(false); return }
     setLoading(true)
     try {
-      const { loadStockPF, loadMovimentiPF } = await import('../lib/stockPF')
       const [s, m] = await Promise.all([
         loadStockPF(orgId, sedeId),
         loadMovimentiPF(orgId, sedeId, { limit: 30 }),
@@ -94,7 +94,6 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
   const handleScarto = async () => {
     if (!scartoForm?.prodotto || !(scartoForm.qty > 0)) return
     try {
-      const { scartoPF } = await import('../lib/stockPF')
       await scartoPF({ sedeId, prodotto: scartoForm.prodotto, quantita: scartoForm.qty, note: scartoForm.note || null })
       notify('✓ Scarto registrato')
       setScartoForm(null)
@@ -649,7 +648,7 @@ export default function MagazzinoView({
             <button onClick={() => setShowAddIng(true)} style={{ padding: '7px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>+ Aggiungi ingrediente</button>
           </div>
           {showAddIng && (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 20px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end' }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 20px', marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end' }}>
               {[{ lbl: 'Nome ingrediente', val: newIngNome, set: setNewIngNome, ph: 'es. burro' },
                 { lbl: 'Giacenza (g)', val: newIngQty, set: setNewIngQty, ph: 'es. 1000', type: 'number' },
                 { lbl: 'Soglia alert (g)', val: newIngSoglia, set: setNewIngSoglia, ph: 'es. 500', type: 'number' }].map(({ lbl, val, set, ph, type }) => (
