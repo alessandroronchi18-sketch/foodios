@@ -1880,6 +1880,40 @@ export default function Dashboard({
           </div>
         );
 
+        // Voce di menu visualmente "macrosezione" (come l'header di Group)
+        // ma e' un leaf: niente chevron, niente collapse, click → setView.
+        // Usata per Dashboard, che e' una vista singola ma di importanza pari
+        // alle macrosezioni (Oggi, Ricette, Numeri, ...).
+        const macroNavItem = (id, iconKey, label) => {
+          if (sidebarQuery && !label.toLowerCase().includes(sidebarQuery) && !id.toLowerCase().includes(sidebarQuery)) return null;
+          const active = view === id;
+          const textColor = active ? "#FFFFFF" : "rgba(255,255,255,0.78)";
+          const iconColor = active ? "#FFFFFF" : "rgba(255,255,255,0.72)";
+          const accent = active ? "#E84B3A" : "rgba(232,75,58,0.45)";
+          return (
+            <div style={{ marginBottom: 4 }}>
+              <button onClick={()=>{setView(id);if(isMobile)setSidebarOpen(false);}}
+                style={{ width:"calc(100% - 16px)", margin:"4px 8px 4px", padding:"10px 12px 10px 14px",
+                  background: active
+                    ? "linear-gradient(90deg, rgba(232,75,58,0.18), rgba(232,75,58,0.06) 60%, transparent)"
+                    : "rgba(255,255,255,0.035)",
+                  border:"none",
+                  borderLeft:`3px solid ${accent}`,
+                  cursor:"pointer",
+                  textAlign:"left",
+                  borderRadius:8, display:"flex", alignItems:"center", gap:10,
+                  color: textColor, fontSize:11.5, fontWeight:800,
+                  letterSpacing:"0.1em", textTransform:"uppercase",
+                  transition:`color ${M.durFast} ${M.ease}, background ${M.durFast} ${M.ease}` }}
+                onMouseEnter={e=>{ e.currentTarget.style.color="#FFFFFF"; if(!active) e.currentTarget.style.background="rgba(255,255,255,0.07)";}}
+                onMouseLeave={e=>{ e.currentTarget.style.color=textColor; if(!active) e.currentTarget.style.background="rgba(255,255,255,0.035)";}}>
+                {iconKey && <span style={{ color: iconColor, display:"flex" }}>{ic(ICONS[iconKey],14)}</span>}
+                <span style={{ flex:1, whiteSpace:"nowrap" }}>{label}</span>
+              </button>
+            </div>
+          );
+        };
+
         // Gruppo collassabile (macrosezione): header cliccabile + lista voci dentro.
         // - Differenziato visivamente dalle sezioni (voci): background più caldo,
         //   border-left brand, font più marcato.
@@ -2015,8 +2049,8 @@ export default function Dashboard({
             {/* Nav — gruppi collassabili, ottimizzati per utenti non tecnici */}
             <div style={{flex:1,overflowY:"auto",paddingTop:4,paddingBottom:10}}>
 
-              {/* Sempre visibile in cima: la Dashboard */}
-              {navItem("home","home","Dashboard")}
+              {/* Sempre visibile in cima: la Dashboard (macrosezione visiva, leaf nav) */}
+              {macroNavItem("home","home","Dashboard")}
 
               <Group id="oggi" iconKey="today" label="Oggi"
                 alert={(!hasProdOggi && new Date().getHours()>=6) || cassaMancante}>

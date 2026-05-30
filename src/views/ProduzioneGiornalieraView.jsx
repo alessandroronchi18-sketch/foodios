@@ -7,7 +7,7 @@ import { ssave as _ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateProdottoEN } from '../lib/foodcost'
-import { caricoProduzionePF } from '../lib/stockPF'
+import { caricoProduzionePF, scartoPF } from '../lib/stockPF'
 import { creaTrasferimento } from '../lib/trasferimenti'
 import { SK_GIOR, SK_MAG } from '../lib/storageKeys'
 import { exportProduzione } from '../lib/exportPDF'
@@ -39,8 +39,40 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       setMagazzino(nm)
       await ssave(SK_MAG, nm)
     }
+    // Reverse stock prodotti finiti.
+    // Caso 1: produzione senza destinazione (o destinazione = sede attiva) →
+    //          i pezzi sono ancora nello stock di questa sede → scarto pulito.
+    // Caso 2: produzione con destinazione altra sede → il trasferimento ha
+    //          gia' spostato/sottratto lo stock di questa sede. Annullare
+    //          significherebbe toccare il trasferimento (che puo' essere stato
+    //          inviato/ricevuto/annullato): non lo facciamo automatico, avvisiamo.
+    const sedeProduttiva = sedeAttiva?.id
+    const destDiversa = sess.destinazioneSedeId && sess.destinazioneSedeId !== sedeProduttiva
+    let scartoErrors = []
+    if (orgId && sedeProduttiva && !destDiversa) {
+      for (const p of (sess.prodotti || [])) {
+        const vendibile = Number(p.vendibile || 0) || Number(p.stampi || 0)
+        if (vendibile <= 0) continue
+        const ric = ricettario?.ricette?.[p.nome] || ricettario?.ricette?.[(p.nome || '').toUpperCase().trim()]
+        const reg = ric ? getR(p.nome, ric) : null
+        const unitaFactor = Number(reg?.unita)
+        const pezzi = vendibile * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
+        if (pezzi <= 0) continue
+        const prodottoKey = (p.nome || '').toUpperCase().trim()
+        try {
+          await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: `Annullo sessione del ${sess.data}` })
+        } catch (e) { scartoErrors.push(`${p.nome}: ${e.message}`) }
+      }
+    }
     setDeleteSessConf(null); setDeleteSessPin('')
-    notify('✓ Sessione eliminata — ingredienti restituiti al magazzino')
+    const baseMsg = '✓ Sessione eliminata — ingredienti restituiti al magazzino'
+    if (destDiversa) {
+      notify(`${baseMsg}. Stock prodotti finiti NON ritoccato: la sessione aveva destinazione altra sede → controlla i Trasferimenti collegati e annullali manualmente se necessario.`, false)
+    } else if (scartoErrors.length > 0) {
+      notify(`${baseMsg}. Alcuni scarti stock falliti: ${scartoErrors.slice(0, 2).join('; ')}`, false)
+    } else {
+      notify(`${baseMsg} e stock vetrina aggiornato`)
+    }
   }
 
   const [data, setData] = useState(new Date().toISOString().slice(0, 10))
