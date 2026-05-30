@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import jsPDF from 'jspdf'
+// jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
@@ -255,7 +255,8 @@ function MenuPreview({ menuItems, nomeAttivita }) {
   const [editIdx, setEditIdx]   = useState(null)
   const [editDesc, setEditDesc] = useState("")
 
-  function esportaPDF() {
+  async function esportaPDF() {
+    const { default: jsPDF } = await import('jspdf')
     const doc = new jsPDF({ unit:'mm', format:'a4' })
     const pw = doc.internal.pageSize.getWidth()
     let y = 20

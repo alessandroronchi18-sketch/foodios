@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { apiFetch } from '../lib/apiFetch'
 
 // Bottone floating + modale per inviare feedback all'admin.
 // L'utente non vede una "casella feedback" dopo l'invio: e' uno strumento
@@ -24,12 +24,8 @@ export default function FeedbackButton({ viewCorrente }) {
     if (messaggio.trim().length < 3) { setErr('Scrivi almeno 3 caratteri'); return }
     setSending(true); setErr('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) throw new Error('Sessione scaduta — ricarica la pagina')
-      const res = await fetch('/api/feedback', {
+      await apiFetch('/api/feedback', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messaggio,
           sentiment,
@@ -37,10 +33,6 @@ export default function FeedbackButton({ viewCorrente }) {
           url: window.location.href,
         }),
       })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data?.error || `Errore ${res.status}`)
-      }
       setSent(true)
       setMessaggio('')
       setTimeout(() => { setOpen(false); setSent(false); setSentiment('feedback') }, 1500)

@@ -37,20 +37,39 @@ export default async function handler(req) {
   const rl = await checkRateLimit(supabase, rlKey, 60, 60, 300)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
-  // Trova organization tramite token salvato in user_data (chiave shared, sede_id NULL).
-  const { data: rows, error: tokErr } = await supabase
-    .from('user_data')
-    .select('organization_id, data_value')
-    .eq('data_key', TV_KEY)
-    .is('sede_id', null)
-    .limit(50)
+  // Lookup costant-time via SHA-256 del token: la row in user_data ha
+  // data_value.token_hash = sha256(token). Filtriamo direttamente in SQL,
+  // niente scan + plaintext compare (no timing attack).
+  // Fallback legacy: row senza token_hash → match plaintext (deprecated).
+  const tokenBuf = new TextEncoder().encode(token)
+  const tokenHashBuf = await crypto.subtle.digest('SHA-256', tokenBuf)
+  const tokenHash = Array.from(new Uint8Array(tokenHashBuf)).map(b => b.toString(16).padStart(2, '0')).join('')
 
-  if (tokErr) return errResponse('lookup token failed', 500, req)
-
-  const match = (rows || []).find(r => {
-    const t = r?.data_value?.token
-    return typeof t === 'string' && t === token
-  })
+  // Primo tentativo: hash-based lookup (versione 2026-05+).
+  let match = null
+  {
+    const { data: rows, error } = await supabase
+      .from('user_data')
+      .select('organization_id, data_value')
+      .eq('data_key', TV_KEY)
+      .is('sede_id', null)
+      .eq('data_value->>token_hash', tokenHash)
+      .limit(1)
+    if (error) return errResponse('lookup token failed', 500, req)
+    match = rows?.[0] || null
+  }
+  // Fallback legacy: row senza token_hash (utenti pre-fix). Scan limitato.
+  // Si auto-cura: appena l'utente rigenera il token, la row ha token_hash.
+  if (!match) {
+    const { data: rows } = await supabase
+      .from('user_data')
+      .select('organization_id, data_value')
+      .eq('data_key', TV_KEY)
+      .is('sede_id', null)
+      .is('data_value->>token_hash', null)
+      .limit(50)
+    match = (rows || []).find(r => r?.data_value?.token === token) || null
+  }
   if (!match) return errResponse('token non valido', 403, req)
 
   const orgId = match.organization_id

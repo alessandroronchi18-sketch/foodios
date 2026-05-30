@@ -14,6 +14,15 @@ function generaToken() {
   return Array.from(buf, b => chars[b % chars.length]).join('')
 }
 
+// SHA-256 hex del token. Salvato accanto al token in user_data.data_value
+// per permettere lookup costant-time lato edge function (no scan del DB,
+// no timing attack su match plaintext).
+async function sha256Hex(s) {
+  const buf = new TextEncoder().encode(s)
+  const h = await crypto.subtle.digest('SHA-256', buf)
+  return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 export default function ImpostazioniTv({ orgId, sedi, notify }) {
   const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -30,8 +39,9 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
   async function rigenera() {
     if (!confirm('Generare un nuovo link TV?\nIl link precedente non funzionerà più.')) return
     const nuovo = generaToken()
+    const hash = await sha256Hex(nuovo)
     try {
-      await ssave(TV_KEY, { token: nuovo, generato_il: new Date().toISOString() }, orgId, null)
+      await ssave(TV_KEY, { token: nuovo, token_hash: hash, generato_il: new Date().toISOString() }, orgId, null)
       setToken(nuovo)
       notify?.('✓ Nuovo link TV generato')
     } catch (e) {
