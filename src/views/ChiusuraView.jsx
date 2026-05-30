@@ -435,7 +435,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             {importPreview?.tipo === 'generic' && (
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.amber, marginBottom: 8 }}>📋 Mappa le colonne</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
                   {[['Data', 'data'], ['Importo', 'importo'], ['Commissione (opz.)', 'comm']].map(([label, key]) => (
                     <div key={key}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, marginBottom: 4 }}>{label}</div>

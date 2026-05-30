@@ -765,8 +765,9 @@ export function getPrezzoStoricoKg(logPrezzi, nomeIng, when) {
  * Serve a calcolare il food cost STORICO di una produzione: il P&L del 31/12 deve
  * vedere il food cost a prezzi di quel giorno, anche se oggi i prezzi sono cambiati.
  */
-export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when, _depth) {
+export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when, _depth, _path) {
   const depth = _depth || 0
+  const path = _path || []
   const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""]
   let tot = 0, mancanti = []
   for (const ing of (ricetta?.ingredienti || [])) {
@@ -775,7 +776,7 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
     const qty = ing.qty1stampo || 0
     if (!qty) continue
 
-    if (depth < 3 && ricettario) {
+    if (ricettario) {
       const semiKey = Object.keys(ricettario.ricette || {}).find(k => {
         const r = ricettario.ricette[k]
         if (r.tipo !== 'semilavorato') return false
@@ -783,8 +784,16 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
                normIng((r.nome || '').toLowerCase()) === nomeNorm
       })
       if (semiKey) {
+        if (path.includes(semiKey)) {
+          mancanti.push(`${ing.nome} (ciclo semilavorato rilevato)`)
+          continue
+        }
+        if (depth >= 3) {
+          mancanti.push(`${ing.nome} (semilavorato troppo annidato, max 3 livelli)`)
+          continue
+        }
         const semiRic = ricettario.ricette[semiKey]
-        const { tot: semiTot } = calcolaFCStorico(semiRic, ingCosti, ricettario, logPrezzi, when, depth + 1)
+        const { tot: semiTot } = calcolaFCStorico(semiRic, ingCosti, ricettario, logPrezzi, when, depth + 1, [...path, semiKey])
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         const costoG = semiPeso > 0 ? semiTot / semiPeso : 0
         // Coerenza con il ramo foglia: applica l'eventuale resa anche al
@@ -810,9 +819,14 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
   return { tot: parseFloat(tot.toFixed(3)), mancanti }
 }
 
-// Calcola food cost totale di una ricetta. Ricorsivo per gestire semilavorati (max 3 livelli).
-export function calcolaFC(ricetta, ingCosti, ricettario, _depth) {
+// Calcola food cost totale di una ricetta. Ricorsivo per gestire semilavorati
+// (max 3 livelli di annidamento). Se il limite viene raggiunto, il semilavorato
+// e' trattato come ingrediente "mancante" — segnalato in `mancanti` per UI
+// invece di tornare silenziosamente costo 0.
+// Param _path: lista nomi nel cammino di ricorsione, per ciclo-detect e logging.
+export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path) {
   const depth = _depth || 0
+  const path = _path || []
   const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""]
   let tot = 0, mancanti = []
   for (const ing of (ricetta?.ingredienti || [])) {
@@ -821,8 +835,8 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth) {
     const qty = ing.qty1stampo || 0
     if (!qty) continue
 
-    // Semilavorato? Ricorsione max 3 livelli
-    if (depth < 3 && ricettario) {
+    // Semilavorato? Ricorsione max 3 livelli, ciclo-detect via path
+    if (ricettario) {
       const semiKey = Object.keys(ricettario.ricette || {}).find(k => {
         const r = ricettario.ricette[k]
         if (r.tipo !== 'semilavorato') return false
@@ -830,8 +844,19 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth) {
                normIng((r.nome || '').toLowerCase()) === nomeNorm
       })
       if (semiKey) {
+        // Ciclo diretto/indiretto? Se il semilavorato e' gia' nel cammino di
+        // ricorsione, NON discendere — lo segnaliamo come mancante con un
+        // marker speciale che l'UI puo' riconoscere.
+        if (path.includes(semiKey)) {
+          mancanti.push(`${ing.nome} (ciclo semilavorato rilevato)`)
+          continue
+        }
+        if (depth >= 3) {
+          mancanti.push(`${ing.nome} (semilavorato troppo annidato, max 3 livelli)`)
+          continue
+        }
         const semiRic = ricettario.ricette[semiKey]
-        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, depth + 1)
+        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, depth + 1, [...path, semiKey])
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         const costoG = semiPeso > 0 ? semiTot / semiPeso : 0
         // Coerenza con il ramo foglia: applica l'eventuale resa anche al

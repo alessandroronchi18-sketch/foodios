@@ -225,6 +225,20 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 - [x] Drift porzioni in Chiusura cassa (calcolo prodotti+sprechi+omaggi vs vendite)
 - [x] Aggregazione per categoria/prodotto + totali in €
 
+### Audit improvements: bug critici + performance + reliability (branch `fix/audit-improvements`)
+- [x] **Data loss bug fix** in `ProduzioneGiornalieraView.handleConferma`: pattern `await ssave(...)` PRIMA di `setState`. Se save fallisce, niente state mutation + toast errore. Idem `handleDeleteSessione`.
+- [x] **Stock vetrina fantasma fix**: eliminare sessione produzione ora chiama `scartoPF` per ogni prodotto (causale 'scarto'). Se sessione era con destinazione altra sede, lasciamo trasferimento da gestire manualmente con warn esplicito.
+- [x] **Double-submit protection**: nuovo state `salvando` distinto da `confermando` (UI), bottoni `disabled` durante async; idem `deletingSess` per delete modal.
+- [x] **Modal Escape handler** nel delete confirm di Produzione.
+- [x] **Mobile responsive** fix: grid 3-col `ChiusuraView` (import delivery generic) e 4-col `MagazzinoView` (aggiungi ingrediente) ora `1fr` sotto la breakpoint.
+- [x] **Code splitting** via `vite.config.js` `manualChunks`: chunks separati per `react`, `react-dom`, `supabase`, `charts`, `pdf`. **Build prod: gzip iniziale ~540KB (era 663KB monolitico), 8 chunks vs 1, build time 18s vs 7m47s.**
+- [x] **stockPF imports unificati static**: rimossi 3 `import()` dinamici (`MagazzinoView`, `DashboardHomeView`) che invalidavano code splitting.
+- [x] **Console.log droppati in prod**: vite `esbuild.pure` rimuove `console.log/debug/info/trace`; preserva `console.error/warn` per logging.
+- [x] **Retry wrapper su ssave/sload**: errori transient (5xx, network, fetch timeout) → retry x3 con backoff esponenziale (300/600/1200ms). Errori "permanenti" (RLS 42501, integrity 23xxx, 4xx) → fail-fast.
+- [x] **Pricing endpoint rate limit**: `/api/pricing` con `checkRateLimit` 30/min/IP (era pubblico senza limit).
+- [x] **Semilavorato ciclo + depth warning**: `calcolaFC` e `calcolaFCStorico` tracciano il path di ricorsione, rilevano ciclo diretto/indiretto, e segnalano in `mancanti[]` con label leggibile invece di tornare silenziosamente 0.
+- [x] **`CLAUDE.md`**: documento di onboarding per dev nuovi con architettura, file map, pattern (save-first), common pitfalls.
+
 ### Go-live prep: legale + dati fatturazione + Stripe tax (branch `feat/go-live-prep` – mig. `20260610`)
 - [x] **Pagine legali complete e GDPR-compliant** (con placeholder umani da compilare): `PrivacyPolicy.jsx` (11 sezioni, sub-processors list, SCC, retention), `TerminiServizio.jsx` (16 sezioni B2B), `CookiePolicy.jsx` (technical-only, no banner necessario), `Rimborsi.jsx`, `Contatti.jsx`, `ChiSiamo.jsx` — layout condiviso `_LegalLayout.jsx`
 - [x] **Routing**: aggiunto `/cookie`, `/rimborsi`, `/contatti`, `/chi-siamo` in `App.jsx`

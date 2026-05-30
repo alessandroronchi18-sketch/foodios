@@ -8,6 +8,7 @@ import { sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
+import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { C, TNUM } from './_shared'
 
 const fmt = v => `€ ${Number(v).toFixed(2)}`
@@ -23,7 +24,6 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId }) {
     ;(async () => {
       if (!orgId) { setLoading(false); return }
       try {
-        const { loadStockPF, loadStockPFAllSedi } = await import('../lib/stockPF')
         let s
         if (viewAggregato) {
           const allSedi = await loadStockPFAllSedi(orgId)
