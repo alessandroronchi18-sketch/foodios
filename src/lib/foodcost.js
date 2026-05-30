@@ -704,8 +704,12 @@ export const isSemilavorato = (nome, ricettario) => {
 export function buildIngCosti(fromFile) {
   const fc = fromFile || {}
   const out = {}
+  // Applichiamo normIng anche alle chiavi di PREZZI_HORECA per simmetria con
+  // il loop su `fc`: garantisce che il lookup (normIng(input)) trovi sempre
+  // l'entry, anche per chiavi del dizionario che includono sinonimi mappati
+  // da SING_PLUR e non sarebbero raggiungibili altrimenti.
   for (const [k, v] of Object.entries(PREZZI_HORECA))
-    out[k] = { costoKg: v.costoKg, costoG: parseFloat((v.costoKg / 1000).toFixed(6)), isStima: true }
+    out[normIng(k)] = { costoKg: v.costoKg, costoG: parseFloat((v.costoKg / 1000).toFixed(6)), isStima: true }
   for (const [k, v] of Object.entries(fc))
     if (v.costoG > 0) out[normIng(k)] = { costoKg: v.costoKg, costoG: v.costoG, isStima: false }
   return out

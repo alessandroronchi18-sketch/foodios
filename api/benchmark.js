@@ -80,8 +80,15 @@ async function handlePost(req, user, supabase) {
   const anno_mese = String(body?.anno_mese || '').match(/^\d{4}-\d{2}$/) ? body.anno_mese : null
   if (!tipo || !anno_mese || fcPct === 0) return errResponse('payload incompleto', 400, req)
 
-  // Hash deterministico dell'org per evitare duplicati senza esporre org_id.
-  const enc = new TextEncoder().encode(`${orgId}|${anno_mese}`)
+  // Hash dell'org per evitare duplicati senza esporre org_id.
+  // Salt obbligatorio (env BENCHMARK_SALT, random 32+ char) per impedire
+  // reverse engineering del hash con dizionario di orgId noti.
+  const salt = process.env.BENCHMARK_SALT || ''
+  if (!salt || salt.length < 16) {
+    // Fail-closed: senza salt configurato, NON scriviamo (sarebbe reversibile).
+    return errResponse('benchmark non configurato (BENCHMARK_SALT mancante)', 503, req)
+  }
+  const enc = new TextEncoder().encode(`${orgId}|${anno_mese}|${salt}`)
   const hashBuf = await crypto.subtle.digest('SHA-256', enc)
   const hashArr = Array.from(new Uint8Array(hashBuf))
   const org_hash = hashArr.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32)

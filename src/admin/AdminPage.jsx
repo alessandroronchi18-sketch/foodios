@@ -4,6 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import { color as T, radius as R, shadow as S, motion as M, tnum as _tnum, typo } from '../lib/theme'
+import { useToast } from '../components/Toast'
 
 // ─── Costanti ──────────────────────────────────────────────────────────────
 const PIANI = ['trial', 'base', 'pro', 'enterprise']
@@ -994,6 +995,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
 
 // ─── Componente principale ─────────────────────────────────────────────────
 export default function AdminPage() {
+  const toast = useToast()
   const [clienti, setClienti] = useState([])
   const [stats, setStats] = useState(null)
   const [auditLog, setAuditLog] = useState([])
@@ -1124,7 +1126,7 @@ export default function AdminPage() {
   const salvaPrezzo = useCallback(async () => {
     if (!priceDraft) return
     const cents = Math.round(parseFloat(String(priceDraft.euro).replace(',', '.')) * 100)
-    if (!Number.isFinite(cents) || cents < 0) { alert('Prezzo non valido'); return }
+    if (!Number.isFinite(cents) || cents < 0) { toast.error('Prezzo non valido'); return }
     setPriceSaving(true)
     try {
       await apiCall('/api/admin', {
@@ -1139,7 +1141,7 @@ export default function AdminPage() {
       setPriceDraft(null); setPriceConfirm(false)
       await fetchPricing()
     } catch (err) {
-      alert('Errore: ' + err.message)
+      toast.error('Errore: ' + err.message)
     } finally {
       setPriceSaving(false)
     }
@@ -1250,7 +1252,7 @@ export default function AdminPage() {
       setNuovoBanner({ messaggio: '', tipo: 'info', scade_il: '' })
       await fetchBanners()
     } catch (err) {
-      alert('Errore creazione banner: ' + err.message)
+      toast.error('Errore creazione banner: ' + err.message)
     } finally {
       setBannerSaving(false)
     }
@@ -1265,7 +1267,7 @@ export default function AdminPage() {
       const data = await res.json()
       setDettaglio(data)
     } catch (err) {
-      alert(`Errore caricamento dettaglio: ${err.message}`)
+      toast.error(`Errore caricamento dettaglio: ${err.message}`)
       setDettaglioFor(null)
     } finally {
       setDettaglioLoading(false)
@@ -1286,7 +1288,7 @@ export default function AdminPage() {
       fetchAudit()
       return data
     } catch (err) {
-      alert(`Errore: ${err.message}`)
+      toast.error(`Errore: ${err.message}`)
       throw err
     } finally {
       setActionLoading(prev => ({ ...prev, [key]: false }))
@@ -1309,7 +1311,7 @@ export default function AdminPage() {
       const data = await res.json().catch(() => ({}))
       setDemoFor({ cliente: c, matches: data.matches || [] })
     } catch (err) {
-      alert(`Errore: ${err.message}`)
+      toast.error(`Errore: ${err.message}`)
     }
   }
 
@@ -1335,7 +1337,7 @@ export default function AdminPage() {
       document.body.appendChild(a); a.click(); a.remove()
       URL.revokeObjectURL(url)
     } catch (err) {
-      alert(`Errore export: ${err.message}`)
+      toast.error(`Errore export: ${err.message}`)
     }
   }
 
@@ -1345,7 +1347,7 @@ export default function AdminPage() {
       const g = giorniRimanenti(c)
       return g != null && g > 0 && g <= 7
     })
-    if (target.length === 0) { alert('Nessun trial in scadenza nei prossimi 7 giorni'); return }
+    if (target.length === 0) { toast.info('Nessun trial in scadenza nei prossimi 7 giorni'); return }
     if (!confirm(`Inviare email di promemoria scadenza a ${target.length} clienti?`)) return
 
     let ok = 0, ko = 0
@@ -1363,7 +1365,8 @@ export default function AdminPage() {
         ok++
       } catch { ko++ }
     }
-    alert(`Email inviate: ${ok} ok, ${ko} errori`)
+    if (ko === 0) toast.success(`Email inviate: ${ok}`)
+    else toast.warn(`Email inviate: ${ok} ok · ${ko} errori`)
   }
 
   // ── Bulk actions sulla tabella clienti ──────────────────────────────
@@ -1381,7 +1384,7 @@ export default function AdminPage() {
     const giorni = prompt(`Estendi trial di quanti giorni a ${selezionati.size} clienti selezionati?`, '30')
     if (!giorni) return
     const n = parseInt(giorni, 10)
-    if (!Number.isFinite(n) || n < 1) { alert('Giorni non validi'); return }
+    if (!Number.isFinite(n) || n < 1) { toast.error('Giorni non validi'); return }
     if (!confirm(`Confermi: estendere il trial di ${n}gg a ${selezionati.size} clienti?`)) return
     let ok = 0, ko = 0
     for (const orgId of selezionati) {
@@ -1389,7 +1392,8 @@ export default function AdminPage() {
       catch { ko++ }
     }
     setSelezionati(new Set())
-    alert(`Estensione trial: ${ok} ok, ${ko} errori`)
+    if (ko === 0) toast.success(`Trial esteso a ${ok} clienti`)
+    else toast.warn(`Trial esteso: ${ok} ok · ${ko} errori`)
   }
 
   function bulkExportCsv() {
@@ -2102,7 +2106,7 @@ export default function AdminPage() {
                                   try {
                                     await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'disattiva_codice_sconto', id: c.id }) })
                                     fetchCodici()
-                                  } catch (e) { alert(e.message) }
+                                  } catch (e) { toast.error(e.message) }
                                 }}
                                 title="Disattiva">
                                 ⏸
@@ -2114,7 +2118,7 @@ export default function AdminPage() {
                                 try {
                                   await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'elimina_codice_sconto', id: c.id }) })
                                   fetchCodici()
-                                } catch (e) { alert(e.message) }
+                                } catch (e) { toast.error(e.message) }
                               }}
                               title="Elimina">
                               🗑
@@ -2237,7 +2241,7 @@ export default function AdminPage() {
                             try {
                               await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'feedback_marca_gestito', id: f.id, gestito: false }) })
                               fetchFeedback()
-                            } catch (e) { alert(e.message) }
+                            } catch (e) { toast.error(e.message) }
                           }}>↩ Riapri</Btn>
                         </>
                       ) : (
@@ -2245,7 +2249,7 @@ export default function AdminPage() {
                           try {
                             await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'feedback_marca_gestito', id: f.id, gestito: true }) })
                             fetchFeedback()
-                          } catch (e) { alert(e.message) }
+                          } catch (e) { toast.error(e.message) }
                         }}>✓ Segna gestito</Btn>
                       )}
                     </div>
@@ -2336,7 +2340,7 @@ export default function AdminPage() {
                           try {
                             await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'banner_disattiva', id: b.id }) })
                             fetchBanners()
-                          } catch (e) { alert(e.message) }
+                          } catch (e) { toast.error(e.message) }
                         }}>⏸ Disattiva</Btn>
                       )}
                       <Btn kind="danger" size="sm" onClick={async () => {
@@ -2344,7 +2348,7 @@ export default function AdminPage() {
                         try {
                           await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'banner_elimina', id: b.id }) })
                           fetchBanners()
-                        } catch (e) { alert(e.message) }
+                        } catch (e) { toast.error(e.message) }
                       }}>🗑</Btn>
                     </div>
                   </div>
@@ -2505,7 +2509,7 @@ export default function AdminPage() {
             })
             await fetchData()
             fetchAudit()
-            setTimeout(() => alert(`✓ ${mesi} mese/i regalati a ${regalaFor.nome_attivita}`), 0)
+            toast.success(`✓ ${mesi} mese/i regalati a ${regalaFor.nome_attivita}`)
           }}
         />
       )}
@@ -2541,7 +2545,7 @@ export default function AdminPage() {
             fetchAudit()
             if (data?.deleted >= 0) {
               // un piccolo toast-like via alert per coerenza con le altre azioni
-              setTimeout(() => alert(`✓ Eliminate ${data.deleted} fatture demo`), 0)
+              toast.success(`✓ Eliminate ${data.deleted} fatture demo`)
             }
           }}
         />

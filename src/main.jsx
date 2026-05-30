@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import App from './App.jsx'
+import { ToastProvider, GlobalToastBridge } from './components/Toast.jsx'
 
 // ─── Sentry — SDK ufficiale con scrubber ───────────────────────────────────
 // DSN nel client è pubblico per design (rate-limited lato Sentry).
@@ -99,6 +100,9 @@ if (import.meta.env.DEV) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <ToastProvider>
+      <GlobalToastBridge />
+      <App />
+    </ToastProvider>
   </React.StrictMode>
 )
