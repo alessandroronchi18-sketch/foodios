@@ -1442,7 +1442,8 @@ export default function LandingPage({ onLogin, onRegister }) {
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Supporto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <a href="mailto:support@foodios.it" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Contatti</a>
+                  <a href="/contatti" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Contatti</a>
+                  <a href="/chi-siamo" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Chi siamo</a>
                   <a href="mailto:support@foodios.it" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>support@foodios.it</a>
                 </div>
               </div>
@@ -1452,6 +1453,8 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <a href="/privacy" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Privacy Policy</a>
                   <a href="/termini" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Termini di Servizio</a>
+                  <a href="/cookie" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Cookie Policy</a>
+                  <a href="/rimborsi" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Rimborsi</a>
                 </div>
               </div>
             </div>

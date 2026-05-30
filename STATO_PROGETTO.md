@@ -225,6 +225,16 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 - [x] Drift porzioni in Chiusura cassa (calcolo prodotti+sprechi+omaggi vs vendite)
 - [x] Aggregazione per categoria/prodotto + totali in €
 
+### Go-live prep: legale + dati fatturazione + Stripe tax (branch `feat/go-live-prep` – mig. `20260610`)
+- [x] **Pagine legali complete e GDPR-compliant** (con placeholder umani da compilare): `PrivacyPolicy.jsx` (11 sezioni, sub-processors list, SCC, retention), `TerminiServizio.jsx` (16 sezioni B2B), `CookiePolicy.jsx` (technical-only, no banner necessario), `Rimborsi.jsx`, `Contatti.jsx`, `ChiSiamo.jsx` — layout condiviso `_LegalLayout.jsx`
+- [x] **Routing**: aggiunto `/cookie`, `/rimborsi`, `/contatti`, `/chi-siamo` in `App.jsx`
+- [x] **Footer landing aggiornato**: link a tutte le pagine legali (Cookie, Rimborsi, Contatti, Chi siamo)
+- [x] **Consenso GDPR esplicito in registrazione**: checkbox `accept_terms` obbligatoria nel form signup, `regStep2Valid()` blocca submit senza consenso, link Termini + Privacy in nuova tab
+- [x] **Migration `20260610_business_info.sql`**: colonne `partita_iva`, `codice_destinatario`, `pec`, `ragione_sociale`, `indirizzo`, `cap`, `citta`, `provincia`, `nazione` su `organizations` con check constraint P.IVA (11 cifre IT) + codice destinatario SDI (7 char alfanumerici)
+- [x] **Stripe checkout esteso**: `tax_id_collection.enabled=true` + `billing_address_collection='required'` + `customer_update.name/address='auto'` → P.IVA + indirizzo raccolti nativamente da Stripe
+- [x] **Stripe webhook `customer.updated`**: sincronizza tax_id (anche listTaxIds fallback) + indirizzo su `organizations.{partita_iva, ragione_sociale, indirizzo, cap, citta, provincia, nazione, business_info_updated_at}`; normalizza P.IVA italiana rimuovendo prefisso "IT"
+- [x] **`NEXT_STEPS.md`**: roadmap puntuale di tutto quello che richiede chiavi/account esterni (dominio, Resend DKIM, Stripe Live, SDI provider, MFA admin, Supabase Pro, ecc.)
+
 ### Admin tier 2: Stripe MRR/events + errori produzione + bulk actions (branch `feat/admin-tier2` – mig. `20260609`)
 - [x] **MRR reale da Stripe**: nuova action `stripe_mrr` paginazione subs + breakdown active/trialing/past_due/canceled, charge falliti ultimi 30gg; KPI card prima delle Azioni rapide
 - [x] **Stripe events feed**: nuova action `stripe_events`, 14 tipi filtrati (subscription/charge/invoice/checkout/customer), card con timeline colorata (verde succeeded, rosso failed, giallo updated/trial), badge `test` per non-livemode

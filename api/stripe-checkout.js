@@ -83,6 +83,16 @@ export default async function handler(req, res) {
       metadata: { organization_id: org.id, plan },
       allow_promotion_codes: true,
       locale: 'it',
+      // Raccolta dati fiscali obbligatoria per B2B Italia.
+      // Stripe Checkout chiede P.IVA + indirizzo completo durante il flusso e li
+      // salva sul customer. Il webhook (customer.updated) li sincronizza poi su
+      // organizations.{partita_iva, indirizzo, ...} per la fatturazione SDI.
+      tax_id_collection: { enabled: true },
+      billing_address_collection: 'required',
+      customer_update: {
+        name: 'auto',
+        address: 'auto',
+      },
     })
 
     return res.status(200).json({ url: session.url })

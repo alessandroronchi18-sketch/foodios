@@ -3,9 +3,11 @@
 // Configura su Stripe Dashboard → Webhooks puntando a /api/stripe-webhook
 // con eventi:
 //   checkout.session.completed
+//   customer.updated                  (sync tax_id + address per SDI)
 //   customer.subscription.created
 //   customer.subscription.updated
 //   customer.subscription.deleted
+//   invoice.payment_succeeded         (track redemption codici sconto)
 //   invoice.payment_failed
 //
 // Aggiorna `organizations.approvato`, `.piano`, `.stripe_subscription_id`,
@@ -139,6 +141,48 @@ export default async function handler(req, res) {
           await supabase.from('organizations')
             .update(patch).eq('stripe_customer_id', sub.customer)
         }
+        break
+      }
+
+      case 'customer.updated': {
+        // Sync dati fatturazione (tax_id + address) raccolti durante il checkout
+        // su organizations. Usato per la fatturazione elettronica SDI.
+        const c = event.data.object
+        try {
+          const { data: org } = await supabase
+            .from('organizations').select('id').eq('stripe_customer_id', c.id).maybeSingle()
+          if (!org) break
+          const taxId = c.tax_ids?.data?.[0] || null
+          // Recupera l'eventuale tax_id (per i nuovi customer Stripe non lo
+          // mette in c.tax_ids ma richiede listTaxIds separato — best-effort).
+          let pivaFromList = null
+          try {
+            const tax = await stripe.customers.listTaxIds(c.id, { limit: 1 })
+            const it = (tax.data || []).find(t => t.type === 'eu_vat' || t.type === 'it_partita_iva')
+            if (it) pivaFromList = it.value
+          } catch { /* ignore */ }
+          const addr = c.address || {}
+          const patch = {
+            ragione_sociale: c.name || null,
+            partita_iva: pivaFromList || (taxId?.value || null),
+            indirizzo: [addr.line1, addr.line2].filter(Boolean).join(', ') || null,
+            cap: addr.postal_code || null,
+            citta: addr.city || null,
+            provincia: addr.state || null,
+            nazione: addr.country || 'IT',
+            business_info_updated_at: new Date().toISOString(),
+          }
+          // Sanitizza P.IVA italiana (puo' arrivare con prefisso IT)
+          if (patch.partita_iva && patch.nazione === 'IT') {
+            const cleaned = patch.partita_iva.replace(/^IT/i, '').replace(/[^0-9]/g, '')
+            if (cleaned.length === 11) patch.partita_iva = cleaned
+          }
+          // Aggiorna solo i campi non null (non sovrascrivere con null)
+          const filtered = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== null))
+          if (Object.keys(filtered).length > 1) {
+            await supabase.from('organizations').update(filtered).eq('id', org.id)
+          }
+        } catch (e) { console.error('[stripe-webhook] customer.updated sync', e) }
         break
       }
 
