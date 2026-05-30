@@ -1039,6 +1039,46 @@ export default async function handler(req) {
         return json({ errori }, 200, req)
       }
 
+      if (action === 'migrate_integrazioni') {
+        // One-shot: cifra tutte le row con encryption_version=0 e config jsonb non nullo.
+        // Idempotente: rieseguito non tocca le row gia' v=1.
+        const { encryptConfig } = await import('./lib/integrationsCrypto.js')
+        const { data: rows, error } = await supabase
+          .from('integrazioni')
+          .select('id, organization_id, tipo, config, encryption_version')
+          .or('encryption_version.is.null,encryption_version.eq.0')
+        if (error) return json({ error: error.message }, 500, req)
+        let migrated = 0
+        const errors = []
+        for (const r of (rows || [])) {
+          if (!r.config) {
+            // Niente da cifrare ma marca come migrata (avoid re-process)
+            await supabase.from('integrazioni').update({ encryption_version: 1, config: null }).eq('id', r.id)
+            migrated++
+            continue
+          }
+          try {
+            const enc = await encryptConfig(r.config)
+            const { error: updErr } = await supabase
+              .from('integrazioni')
+              .update({
+                config: null,
+                config_encrypted: enc.config_encrypted,
+                config_iv: enc.config_iv,
+                config_tag: enc.config_tag,
+                encryption_version: 1,
+              })
+              .eq('id', r.id)
+            if (updErr) errors.push({ id: r.id, tipo: r.tipo, error: updErr.message })
+            else migrated++
+          } catch (e) {
+            errors.push({ id: r.id, tipo: r.tipo, error: e.message })
+          }
+        }
+        await logAdmin(supabase, user.email, `migrate_integrazioni:${migrated}ok/${errors.length}err`, null, ip, ua)
+        return json({ migrated, errors, total: (rows || []).length }, 200, req)
+      }
+
       if (action === 'codici_sconto') {
         await logAdmin(supabase, user.email, 'lista_codici_sconto', null, ip, ua)
         const codici = await getCodiciSconto(supabase)

@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import { color as T, radius as R, shadow as S, motion as M, tnum as _tnum, typo } from '../lib/theme'
 import { useToast } from '../components/Toast'
+import { apiFetch } from '../lib/apiFetch'
 
 // ─── Costanti ──────────────────────────────────────────────────────────────
 const PIANI = ['trial', 'base', 'pro', 'enterprise']
@@ -1047,29 +1048,9 @@ export default function AdminPage() {
   const [bulkEmailFor, setBulkEmailFor] = useState(null) // array di clienti
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
-  const apiCall = useCallback(async (path, opts = {}) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.access_token
-    if (!token) throw new Error('Sessione non valida — ricarica la pagina')
-
-    const res = await fetch(path, {
-      ...opts,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
-        ...(opts.headers || {}),
-      },
-    })
-    if (!res.ok) {
-      let msg = `Errore ${res.status}`
-      try {
-        const data = await res.json()
-        if (data?.error) msg = data.error + (data.reason ? ` (${data.reason})` : '')
-      } catch { /* not json */ }
-      throw new Error(msg)
-    }
-    return res
-  }, [])
+  // Wrapper apiFetch gestisce gia' auth + retry 401 + redirect a /login se la
+  // sessione muore. Qui apiCall e' solo un alias per non cambiare i callsite.
+  const apiCall = useCallback((path, opts = {}) => apiFetch(path, opts), [])
 
   // ── Fetch principale (clienti + stats) ──────────────────────────────
   const fetchData = useCallback(async () => {

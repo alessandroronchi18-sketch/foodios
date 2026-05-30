@@ -31,7 +31,7 @@ export default async function handler(req) {
   // Carica tutte le integrazioni attive con API key
   const { data: integrazioni, error } = await supabase
     .from('integrazioni')
-    .select('*')
+    .select('id, organization_id, tipo, attiva, config, config_encrypted, config_iv, config_tag, encryption_version')
     .eq('attiva', true)
     .in('tipo', ['cassaincloud', 'sumup']);
 
@@ -39,13 +39,25 @@ export default async function handler(req) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
+  // Decifratura on-the-fly: le righe con encryption_version=1 hanno config in
+  // colonne separate (config_encrypted/iv/tag). Quelle legacy mantengono
+  // config jsonb plaintext. Il helper decryptConfig gestisce entrambi.
+  const { decryptConfig } = await import('./lib/integrationsCrypto.js');
+
   for (const integrazione of integrazioni || []) {
     try {
+      let config
+      try {
+        config = await decryptConfig(integrazione)
+      } catch (e) {
+        risultati.push({ org: integrazione.organization_id, tipo: integrazione.tipo, error: `decrypt: ${e.message}` })
+        continue
+      }
       let movimenti = [];
       if (integrazione.tipo === 'cassaincloud') {
-        movimenti = await syncCassaInCloud(integrazione.config?.api_key, dataIeri);
+        movimenti = await syncCassaInCloud(config?.api_key, dataIeri);
       } else if (integrazione.tipo === 'sumup') {
-        movimenti = await syncSumUp(integrazione.config?.access_token, dataIeri);
+        movimenti = await syncSumUp(config?.access_token, dataIeri);
       }
 
       if (movimenti.length > 0) {

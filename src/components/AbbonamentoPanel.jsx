@@ -8,6 +8,7 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
+import { apiFetch } from '../lib/apiFetch'
 
 const PIANI = [
   {
@@ -68,20 +69,11 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   async function abbonati(plan) {
     setLoading(plan)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) throw new Error('Sessione scaduta. Ricarica la pagina.')
-
-      const r = await fetch('/api/stripe-checkout', {
+      const r = await apiFetch('/api/stripe-checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({ plan }),
       })
       const j = await r.json()
-      if (!r.ok) throw new Error(j.error || 'Errore checkout')
       window.location.href = j.url
     } catch (e) {
       notify?.('⚠ ' + (e.message || 'Errore'), false)
@@ -92,19 +84,8 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   async function gestisci() {
     setLoading('portal')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) throw new Error('Sessione scaduta. Ricarica la pagina.')
-
-      const r = await fetch('/api/stripe-portal', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      })
+      const r = await apiFetch('/api/stripe-portal', { method: 'POST' })
       const j = await r.json()
-      if (!r.ok) throw new Error(j.error || 'Errore portal')
       window.location.href = j.url
     } catch (e) {
       notify?.('⚠ ' + (e.message || 'Errore'), false)

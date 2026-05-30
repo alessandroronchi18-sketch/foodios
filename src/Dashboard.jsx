@@ -1,6 +1,6 @@
 import React from 'react'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import jsPDF from 'jspdf'
+// jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
          Cell, PieChart, Pie, Legend, ReferenceLine, LineChart, Line,
          AreaChart, Area } from 'recharts'
@@ -122,6 +122,9 @@ Leggi con attenzione anche grafia difficile o scritte a mano. Se un valore non Ã
   };
   const session = await supabase.auth.getSession();
   const token = session.data.session?.access_token;
+  if (!token) {
+    throw new Error('Sessione scaduta. Ricarica la pagina e riprova.');
+  }
   const res = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -133,6 +136,17 @@ Leggi con attenzione anche grafia difficile o scritte a mano. Se un valore non Ã
       ]}]
     })
   });
+  if (res.status === 401) {
+    // Sessione scaduta â€” non e' un problema di foto.
+    throw new Error('Sessione scaduta durante l\'analisi. Esci e rientra per riprovare.');
+  }
+  if (res.status === 429) {
+    throw new Error('Troppe richieste AI in poco tempo. Riprova fra un minuto.');
+  }
+  if (!res.ok) {
+    // 5xx, 4xx generici
+    throw new Error(`Errore servizio AI (${res.status}). Riprova fra qualche istante.`);
+  }
   const data = await res.json();
   const testo = data.content?.find(b => b.type === 'text')?.text || '';
   try {
@@ -1046,7 +1060,8 @@ class ErrorBoundary extends React.Component {
 function SchedaAllergeniView({ ricettario }) {
   const ricette = Object.values(ricettario?.ricette||{}).filter(r=>r.tipo!=="semilavorato"&&r.tipo!=="interno");
 
-  const esportaPDF = () => {
+  const esportaPDF = async () => {
+    const { default: jsPDF } = await import('jspdf')
     const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
     const pw = doc.internal.pageSize.getWidth();
     const ph = doc.internal.pageSize.getHeight();

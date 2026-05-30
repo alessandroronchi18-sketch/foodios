@@ -225,6 +225,16 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 - [x] Drift porzioni in Chiusura cassa (calcolo prodotti+sprechi+omaggi vs vendite)
 - [x] Aggregazione per categoria/prodotto + totali in €
 
+### Audit final: re-auth 401 + encryption integrazioni + TV hash + test stubs + OCR 401 + JSPDF lazy (branch `fix/audit-final` – mig. `20260611`)
+- [x] **Auto re-auth on 401** (`src/lib/apiFetch.js`): wrapper unificato `apiFetch(path, opts)` con auto-iniezione Bearer token, refresh session su 401, redirect a `/login?reason=session_expired` se anche dopo refresh la sessione e' invalida. Applicato in `AdminPage`, `AbbonamentoPanel`, `FeedbackButton`.
+- [x] **Integrazioni encryption AES-256-GCM** (`api/lib/integrationsCrypto.js` + mig. `20260611_integrazioni_encryption.sql`): nuove colonne `config_encrypted`/`config_iv`/`config_tag` + `encryption_version`. Helper `encryptConfig`/`decryptConfig`/`loadIntegrazione`/`saveIntegrazione` via Web Crypto. Env `INTEGRATIONS_ENCRYPTION_KEY` 32-byte base64. `api/sync-delivery.js` aggiornato per decifratura on-the-fly con fallback legacy (encryption_version=0).
+- [x] **TV token hash** (lookup costant-time): `ImpostazioniTv` ora salva anche `data_value.token_hash = SHA-256(token)`. `api/tv.js` cerca per hash via SQL `data_value->>'token_hash' = ?` invece del scan di 50 row + plaintext compare (no timing attack). Fallback legacy per token pre-fix.
+- [x] **OCR 401 distinguished message**: in `Dashboard.jsx analizzaImmagineAI` e `FotoOCR.jsx analyzeOneImage`, ora 401 = "Sessione scaduta", 429 = "Troppe richieste", altri 4xx/5xx = "Errore servizio AI". Prima era tutto "Impossibile leggere".
+- [x] **JSPDF lazy in Dashboard + MenuDinamico**: rimossi `import jsPDF from 'jspdf'` static, sostituiti con `await import('jspdf')` solo al click di export. Riduce il main bundle anche senza manualChunks.
+- [x] **Test stubs gated** (skipped se env mancanti, ready-to-run):
+  - `tests/07-stripe-webhook.spec.js` — verifica `customer.subscription.updated` end-to-end con signature reale via `stripe.webhooks.generateTestHeaderString`
+  - `tests/08-stock-pf.spec.js` — produce → vendita → delete → stock=0
+
 ### Audit improvements: bug critici + performance + reliability (branch `fix/audit-improvements`)
 - [x] **Data loss bug fix** in `ProduzioneGiornalieraView.handleConferma`: pattern `await ssave(...)` PRIMA di `setState`. Se save fallisce, niente state mutation + toast errore. Idem `handleDeleteSessione`.
 - [x] **Stock vetrina fantasma fix**: eliminare sessione produzione ora chiama `scartoPF` per ogni prodotto (causale 'scarto'). Se sessione era con destinazione altra sede, lasciamo trasferimento da gestire manualmente con warn esplicito.

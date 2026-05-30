@@ -129,7 +129,9 @@ Instructions:
         }],
       }),
     })
-    if (!r.ok) throw new Error(`Errore API: ${r.status}`)
+    if (r.status === 401) throw new Error('Sessione scaduta. Esci e rientra per riprovare.')
+    if (r.status === 429) throw new Error('Troppe richieste AI in poco tempo. Riprova fra un minuto.')
+    if (!r.ok) throw new Error(`Errore servizio AI (${r.status}). Riprova fra qualche istante.`)
     const d = await r.json()
     if (d.error) throw new Error(d.error)
     const raw = d.content?.find(b => b.type === 'text')?.text || ''
