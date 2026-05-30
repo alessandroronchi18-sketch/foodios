@@ -1,173 +1,151 @@
 import React from 'react'
-import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
-
-const S = {
-  wrap: { minHeight: '100vh', background: '#FDFAF7', fontFamily: "'Inter', system-ui, sans-serif", color: '#1C0A0A' },
-  header: { background: '#1C0A0A', color: '#FFF', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  body: { maxWidth: 760, margin: '0 auto', padding: '48px 24px 80px' },
-  h1: { fontSize: 28, fontWeight: 900, color: '#1C0A0A', marginBottom: 8, marginTop: 0 },
-  h2: { fontSize: 16, fontWeight: 800, color: '#1C0A0A', marginTop: 36, marginBottom: 10 },
-  p: { fontSize: 14, lineHeight: 1.8, color: '#4B3832', marginBottom: 12 },
-  ul: { fontSize: 14, lineHeight: 1.9, color: '#4B3832', paddingLeft: 20, marginBottom: 12 },
-  badge: { display: 'inline-block', background: '#FEF2F2', color: '#6E0E1A', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, marginBottom: 24 },
-  piani: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, margin: '16px 0' },
-  pianoCard: { background: '#FFF', border: '1px solid #E8DDD8', borderRadius: 12, padding: '20px 24px' },
-}
+import LegalLayout, { LegalH2, LegalP, LegalUl, LegalLink } from './_LegalLayout'
 
 export default function TerminiServizio() {
-  const prezzi = usePlanPricing()
   return (
-    <div style={S.wrap}>
-      <div style={S.header}>
-        <span style={{ fontWeight: 900, fontSize: 18 }}>🍰 FoodOS</span>
-        <a href="/" style={{ color: '#FFF', fontSize: 13, opacity: 0.7, textDecoration: 'none' }}>← Torna all'app</a>
-      </div>
+    <LegalLayout title="Termini di Servizio" updated="2026-05-29" related={[['Privacy Policy', '/privacy'], ['Rimborsi', '/rimborsi']]}>
+      <LegalP>
+        I presenti Termini regolano l'utilizzo del servizio <strong>FoodOS</strong> ("il Servizio"),
+        fornito da <strong>[RAGIONE SOCIALE]</strong> ("Fornitore"). Utilizzando il Servizio
+        accetti integralmente le presenti condizioni.
+      </LegalP>
 
-      <div style={S.body}>
-        <h1 style={S.h1}>Termini di Servizio</h1>
-        <span style={S.badge}>Aggiornati: maggio 2026</span>
+      <LegalH2>1. Definizioni</LegalH2>
+      <LegalUl items={[
+        <><strong>Cliente:</strong> persona fisica o giuridica che si registra al Servizio per scopi di lavoro o professione (B2B).</>,
+        <><strong>Account:</strong> profilo personale del Cliente, accessibile tramite credenziali.</>,
+        <><strong>Piano:</strong> tipologia di abbonamento sottoscritta (Trial, Pro, Chain).</>,
+        <><strong>Periodo di prova (Trial):</strong> 3 mesi gratuiti dalla registrazione, senza richiesta di carta di credito.</>,
+      ]} />
 
-        <p style={S.p}>
-          I presenti Termini di Servizio ("Termini") regolano l'accesso e l'utilizzo di FoodOS,
-          il software gestionale per attività food artigianali. Utilizzando FoodOS accetti integralmente
-          i presenti Termini.
-        </p>
+      <LegalH2>2. Oggetto del contratto</LegalH2>
+      <LegalP>
+        Il Fornitore concede al Cliente, in modalita' Software-as-a-Service, il diritto non
+        esclusivo di accedere e utilizzare le funzionalita' del Servizio per la durata
+        dell'abbonamento sottoscritto. Le funzionalita' includono: gestione ricettario, food cost
+        analysis, produzione giornaliera, magazzino, casse, fatturazione fornitori, HACCP,
+        multi-sede, AI Assistant, integrazioni con sistemi terzi.
+      </LegalP>
 
-        <h2 style={S.h2}>1. Descrizione del servizio</h2>
-        <p style={S.p}>
-          FoodOS è un gestionale SaaS (Software as a Service) progettato per pasticcerie, panifici,
-          bar e attività food artigianali. Offre strumenti per la gestione di ricette, calcolo del food cost,
-          analisi P&L, gestione del magazzino, produzione giornaliera, chiusura di cassa e scadenzario fatture.
-        </p>
-        <p style={S.p}>
-          Il servizio viene erogato tramite accesso web all'indirizzo{' '}
-          <a href="https://foodios-rose.vercel.app" style={{ color: '#6E0E1A' }}>foodios-rose.vercel.app</a>{' '}
-          e non richiede installazione di software.
-        </p>
+      <LegalH2>3. Registrazione e account</LegalH2>
+      <LegalUl items={[
+        'La registrazione e\' riservata a maggiorenni titolari di un\'attivita\' commerciale (B2B).',
+        'Il Cliente garantisce la veridicita\' dei dati forniti.',
+        'Le credenziali sono personali e non cedibili. Il Cliente e\' responsabile delle attivita\' svolte sul proprio account.',
+        'In caso di sospetto accesso non autorizzato, il Cliente deve notificare immediatamente il Fornitore.',
+      ]} />
 
-        <h2 style={S.h2}>2. Piani e prezzi</h2>
+      <LegalH2>4. Periodo di prova e attivazione</LegalH2>
+      <LegalP>
+        Alla registrazione il Cliente ha diritto a <strong>3 mesi di prova gratuita</strong>. Al termine
+        del periodo di prova, l'accesso al Servizio richiede l'attivazione di un piano a pagamento.
+        I dati inseriti durante il trial vengono conservati per 12 mesi (vedi Privacy Policy).
+        Non e' richiesta carta di credito per attivare il trial.
+      </LegalP>
 
-        <div style={S.piani}>
-          <div style={S.pianoCard}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7B76', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piano Pro</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: '#6E0E1A', marginBottom: 4 }}>€{fmtPrezzo(prezzi.pro)}<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
-            <ul style={{ ...S.ul, margin: '12px 0 0', paddingLeft: 16 }}>
-              <li>Sedi illimitate</li>
-              <li>Ricettario illimitato</li>
-              <li>Food cost, P&L, Magazzino</li>
-              <li>Scadenzario fatture</li>
-              <li>AI Assistant</li>
-              <li>Export PDF & Excel</li>
-              <li>Supporto email</li>
-            </ul>
-          </div>
-          <div style={{ ...S.pianoCard, border: '2px solid #6E0E1A' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#6E0E1A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Piano Chain</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: '#6E0E1A', marginBottom: 4 }}>€{fmtPrezzo(prezzi.chain)}<span style={{ fontSize: 14, fontWeight: 400, color: '#9C7B76' }}>/mese</span></div>
-            <ul style={{ ...S.ul, margin: '12px 0 0', paddingLeft: 16 }}>
-              <li>Tutto il piano Pro</li>
-              <li>Utenti multipli per sede</li>
-              <li>API access</li>
-              <li>White-label (logo personalizzato)</li>
-              <li>Supporto prioritario dedicato</li>
-              <li>SLA garantito</li>
-            </ul>
-          </div>
-        </div>
+      <LegalH2>5. Piani e prezzi</LegalH2>
+      <LegalUl items={[
+        <><strong>Pro</strong> — €89/mese (IVA esclusa). Una sede fisica, utenti illimitati per la sede, tutte le funzionalita' core.</>,
+        <><strong>Chain</strong> — €149/mese (IVA esclusa). Sedi illimitate, gestione multi-sede, trasferimenti, consolidamento dati.</>,
+      ]} />
+      <LegalP>
+        I prezzi indicati sono per pagamento mensile in modalita' subscription. La fatturazione
+        avviene con periodicita' mensile, con addebito automatico sul metodo di pagamento registrato.
+        Il Fornitore si riserva il diritto di modificare i prezzi con preavviso di 30 giorni
+        comunicato via email; le modifiche non si applicano al periodo gia' pagato.
+      </LegalP>
 
-        <h2 style={S.h2}>3. Trial gratuito</h2>
-        <p style={S.p}>
-          FoodOS offre un <strong>periodo di prova gratuito di 30 giorni</strong> senza alcun obbligo.
-          Non è richiesta nessuna carta di credito per iniziare la prova. Al termine del periodo di prova,
-          l'accesso al servizio è sospeso automaticamente se non viene attivato un abbonamento a pagamento.
-          I dati inseriti durante il trial vengono conservati per 12 mesi dalla scadenza.
-        </p>
+      <LegalH2>6. Pagamenti e fatturazione</LegalH2>
+      <LegalUl items={[
+        'I pagamenti sono gestiti tramite Stripe Payments Europe (Irlanda), certificato PCI-DSS L1.',
+        'Il Cliente fornisce dati di fatturazione validi: ragione sociale, P.IVA, codice destinatario SDI o PEC, indirizzo completo.',
+        'Per ogni periodo di fatturazione viene emessa fattura elettronica trasmessa tramite Sistema di Interscambio (SDI).',
+        'In caso di mancato pagamento l\'account viene sospeso dopo 7 giorni di solleciti automatici. I dati restano conservati 12 mesi.',
+        'Il Cliente puo\' aggiornare il metodo di pagamento dalle Impostazioni > Abbonamento in qualsiasi momento.',
+      ]} />
 
-        <h2 style={S.h2}>4. Pagamento e fatturazione</h2>
-        <p style={S.p}>
-          L'abbonamento è a <strong>pagamento mensile anticipato</strong>. La fattura viene emessa all'inizio
-          di ogni periodo mensile. L'utente può disdire l'abbonamento in qualsiasi momento:
-          la disdetta ha effetto a partire dal periodo successivo a quello già pagato, senza rimborsi
-          per il periodo in corso.
-        </p>
-        <p style={S.p}>
-          In caso di mancato pagamento, FoodOS si riserva il diritto di sospendere l'accesso al servizio
-          previa notifica via email con almeno 7 giorni di preavviso.
-        </p>
+      <LegalH2>7. Diritto di recesso e rimborsi</LegalH2>
+      <LegalP>
+        Il Cliente, essendo soggetto B2B, NON e' un consumatore ai sensi del Codice del Consumo
+        (D.Lgs. 206/2005). Non si applicano pertanto i 14 giorni di recesso previsti per il B2C.
+        Tuttavia il Cliente puo' disdire l'abbonamento in qualsiasi momento dalle Impostazioni;
+        la disdetta diventa effettiva al termine del periodo gia' pagato (no proration di rimborso).
+        Per casi particolari (es. malfunzionamento prolungato del Servizio), il Fornitore valuta
+        rimborsi caso per caso — vedi <LegalLink href="/rimborsi">policy rimborsi</LegalLink>.
+      </LegalP>
 
-        <h2 style={S.h2}>5. Sospensione dell'account</h2>
-        <p style={S.p}>FoodOS può sospendere o terminare l'account in caso di:</p>
-        <ul style={S.ul}>
-          <li>Mancato pagamento oltre i termini di grazia (7 giorni)</li>
-          <li>Violazione dei presenti Termini</li>
-          <li>Utilizzo del servizio per finalità illecite o fraudolente</li>
-          <li>Richiesta esplicita dell'utente</li>
-        </ul>
-        <p style={S.p}>
-          In caso di sospensione per mancato pagamento, i dati sono conservati per 12 mesi
-          e possono essere ripristinati all'attivazione di un nuovo abbonamento.
-        </p>
+      <LegalH2>8. Livello di servizio (SLA)</LegalH2>
+      <LegalP>
+        Il Fornitore si impegna a garantire una disponibilita' indicativa del 99% su base mensile,
+        esclusi gli interventi di manutenzione programmata (comunicati con almeno 24 ore di preavviso
+        via banner in-app) e cause di forza maggiore. Eventuali interruzioni significative del
+        Servizio possono dar luogo a crediti commerciali da valutare caso per caso.
+      </LegalP>
 
-        <h2 style={S.h2}>6. Limitazione di responsabilità</h2>
-        <p style={S.p}>
-          FoodOS fornisce strumenti di analisi e supporto decisionale. <strong>FoodOS non è responsabile
-          delle decisioni aziendali prese dall'utente sulla base dei dati e delle analisi fornite
-          dal software.</strong> L'utente è il solo responsabile dell'accuratezza dei dati inseriti
-          e delle scelte gestionali adottate.
-        </p>
-        <p style={S.p}>
-          In nessun caso FoodOS sarà responsabile per danni indiretti, lucro cessante, perdita di dati
-          o danni consequenziali derivanti dall'utilizzo o dall'impossibilità di utilizzo del servizio.
-          La responsabilità massima di FoodOS è limitata all'importo pagato dall'utente nell'ultimo
-          mese di abbonamento.
-        </p>
+      <LegalH2>9. Proprieta' dei dati</LegalH2>
+      <LegalP>
+        Tutti i dati inseriti dal Cliente (ricette, ingredienti, fatture, dati di produzione, dati
+        del personale, ecc.) restano <strong>di proprieta' esclusiva del Cliente</strong>. Il Fornitore
+        agisce esclusivamente come responsabile del trattamento ex art. 28 GDPR. Il Cliente puo'
+        esportare i propri dati in qualsiasi momento (formato JSON/CSV) tramite l'apposita
+        funzionalita' in Impostazioni > Esporta dati.
+      </LegalP>
 
-        <h2 style={S.h2}>7. Proprietà intellettuale</h2>
-        <p style={S.p}>
-          FoodOS e tutti i suoi componenti (software, design, testi, algoritmi) sono di proprietà
-          esclusiva di FoodOS. È vietata la riproduzione, modifica, distribuzione o reverse engineering
-          del software senza autorizzazione scritta.
-        </p>
-        <p style={S.p}>
-          I <strong>dati inseriti dall'utente</strong> (ricette, prezzi, dati operativi) rimangono
-          di proprietà dell'utente. FoodOS non rivendica alcun diritto su tali contenuti e li tratta
-          esclusivamente per l'erogazione del servizio.
-        </p>
+      <LegalH2>10. Proprieta' del Servizio</LegalH2>
+      <LegalP>
+        Codice sorgente, design, marchi, contenuti del sito e della piattaforma sono di proprieta'
+        esclusiva del Fornitore. Al Cliente e' concessa solo una licenza d'uso non esclusiva, non
+        cedibile e revocabile, limitata alla durata dell'abbonamento.
+      </LegalP>
 
-        <h2 style={S.h2}>8. Disponibilità del servizio</h2>
-        <p style={S.p}>
-          FoodOS si impegna a garantire la disponibilità del servizio per almeno il 99% del tempo
-          su base mensile. Manutenzioni programmate vengono comunicate via email con almeno 24 ore
-          di anticipo. FoodOS non è responsabile per interruzioni dovute a cause di forza maggiore
-          o a guasti dei provider di infrastruttura terzi.
-        </p>
+      <LegalH2>11. Uso accettabile</LegalH2>
+      <LegalP>Il Cliente si impegna a NON:</LegalP>
+      <LegalUl items={[
+        'utilizzare il Servizio per attivita\' illecite o in violazione di legge;',
+        'caricare contenuti che violino diritti di terzi (proprieta\' intellettuale, dati personali, ecc.);',
+        'tentare di accedere a dati di altri Clienti o aggirare le misure di sicurezza;',
+        'effettuare reverse engineering, decompilare o copiare il codice del Servizio;',
+        'rivendere o cedere a terzi le funzionalita\' del Servizio;',
+        'utilizzare le API in modo anomalo (es. scraping aggressivo, rate limit abuse).',
+      ]} />
+      <LegalP>
+        La violazione di queste regole comporta sospensione immediata dell'account senza
+        diritto a rimborso.
+      </LegalP>
 
-        <h2 style={S.h2}>9. Modifiche ai Termini</h2>
-        <p style={S.p}>
-          FoodOS si riserva il diritto di modificare i presenti Termini con un preavviso di almeno
-          30 giorni via email. L'utilizzo continuato del servizio dopo tale periodo costituisce
-          accettazione dei nuovi Termini.
-        </p>
+      <LegalH2>12. Limitazione di responsabilita'</LegalH2>
+      <LegalP>
+        Il Servizio e' fornito "as is". Nei limiti consentiti dalla legge, il Fornitore non
+        risponde di danni indiretti, perdita di profitti, perdita di dati derivante da uso
+        improprio o da forza maggiore. La responsabilita' complessiva del Fornitore verso il
+        Cliente, per qualsiasi causa, e' limitata all'importo pagato dal Cliente nei 12 mesi
+        precedenti l'evento dannoso.
+      </LegalP>
 
-        <h2 style={S.h2}>10. Foro competente e legge applicabile</h2>
-        <p style={S.p}>
-          I presenti Termini sono regolati dalla <strong>legge italiana</strong>. Per qualsiasi
-          controversia relativa all'interpretazione o all'esecuzione dei presenti Termini è
-          competente in via esclusiva il <strong>Foro di Torino</strong>.
-        </p>
+      <LegalH2>13. Riservatezza</LegalH2>
+      <LegalP>
+        Entrambe le parti si impegnano a non divulgare a terzi informazioni riservate apprese
+        nel corso del rapporto contrattuale, fatte salve le comunicazioni richieste per legge.
+      </LegalP>
 
-        <h2 style={S.h2}>11. Contatti</h2>
-        <p style={S.p}>
-          Per qualsiasi domanda sui presenti Termini:{' '}
-          <a href="mailto:support@foodios.it" style={{ color: '#6E0E1A' }}>support@foodios.it</a>
-        </p>
+      <LegalH2>14. Modifica dei Termini</LegalH2>
+      <LegalP>
+        Il Fornitore puo' modificare i presenti Termini con preavviso di 30 giorni via email. In
+        caso di modifiche sostanziali non gradite il Cliente puo' disdire l'abbonamento prima
+        dell'entrata in vigore senza penalita'.
+      </LegalP>
 
-        <div style={{ borderTop: '1px solid #E8DDD8', marginTop: 48, paddingTop: 20 }}>
-          <p style={{ fontSize: 12, color: '#9C7B76' }}>
-            © 2026 FoodOS · <a href="/privacy" style={{ color: '#6E0E1A' }}>Privacy Policy</a>
-          </p>
-        </div>
-      </div>
-    </div>
+      <LegalH2>15. Legge applicabile e foro competente</LegalH2>
+      <LegalP>
+        Il presente contratto e' regolato dalla legge italiana. Per ogni controversia il foro
+        competente in via esclusiva e' quello di <strong>[CITTA' SEDE LEGALE]</strong>.
+      </LegalP>
+
+      <LegalH2>16. Contatti</LegalH2>
+      <LegalP>
+        Per richieste contrattuali, commerciali o di supporto:{' '}
+        <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.
+      </LegalP>
+    </LegalLayout>
   )
 }

@@ -527,6 +527,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     nome: '', cognome: '', prefisso: '+39', telefono: '', nome_attivita: '',
     tipo_attivita: 'Pasticceria', citta: '',
     email: '', password: '', codice_invito: initialReferralCode,
+    accept_terms: false,
   })
   const [otpCode, setOtpCode]   = useState('')
   const [otpSent, setOtpSent]   = useState(false)
@@ -676,7 +677,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
               Object.values(checkPwd(reg.password)).every(Boolean))
   }
   function regStep2Valid() {
-    return !!(reg.nome_attivita.trim().length >= 2 && reg.citta.trim().length >= 2 && reg.tipo_attivita)
+    return !!(reg.nome_attivita.trim().length >= 2 && reg.citta.trim().length >= 2 && reg.tipo_attivita && reg.accept_terms)
   }
 
   async function nextRegStep(e) {
@@ -1129,7 +1130,28 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         placeholder="Lascia vuoto se non ce l'hai"/>
                     </Field>
 
-                    <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                    <label style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 16, marginBottom: 4,
+                      padding: '12px 14px', border: `1.5px solid ${reg.accept_terms ? T.ink : T.border}`,
+                      borderRadius: 10, cursor: 'pointer', fontFamily: SANS, background: reg.accept_terms ? T.cream : 'transparent',
+                      transition: 'all 0.15s ease',
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={!!reg.accept_terms}
+                        onChange={e => setReg(p => ({ ...p, accept_terms: e.target.checked }))}
+                        style={{ marginTop: 3, flexShrink: 0, cursor: 'pointer', accentColor: T.red }}
+                      />
+                      <span style={{ fontSize: 12.5, color: T.textMid, lineHeight: 1.55 }}>
+                        Confermo di aver letto e di accettare i{' '}
+                        <a href="/termini" target="_blank" rel="noreferrer" style={{ color: T.red, textDecoration: 'underline', fontWeight: 600 }}>Termini di servizio</a>
+                        {' '}e la{' '}
+                        <a href="/privacy" target="_blank" rel="noreferrer" style={{ color: T.red, textDecoration: 'underline', fontWeight: 600 }}>Privacy Policy</a>.
+                        Dichiaro di essere maggiorenne e di registrarmi per finalita' professionali (B2B).
+                      </span>
+                    </label>
+
+                    <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                       <button type="button" onClick={() => { setRegStep(1); clear() }} style={{
                         padding: '14px 18px',
                         background: 'transparent', color: T.textMid,
@@ -1146,13 +1168,6 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         </PrimaryBtn>
                       </div>
                     </div>
-
-                    <p style={{
-                      fontSize: 11, color: T.textSoft, textAlign: 'center',
-                      marginTop: 16, lineHeight: 1.6,
-                    }}>
-                      Registrandoti accetti i nostri <a href="/termini" style={{ color: T.textMid, textDecoration: 'underline' }}>Termini</a> e la <a href="/privacy" style={{ color: T.textMid, textDecoration: 'underline' }}>Privacy Policy</a>.
-                    </p>
                   </form>
                 )}
               </>

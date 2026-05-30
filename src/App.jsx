@@ -7,6 +7,10 @@ import AdminPage from './admin/AdminPage'
 import OnboardingWizard from './onboarding/OnboardingWizard'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TerminiServizio from './pages/TerminiServizio'
+import CookiePolicy from './pages/CookiePolicy'
+import Rimborsi from './pages/Rimborsi'
+import Contatti from './pages/Contatti'
+import ChiSiamo from './pages/ChiSiamo'
 import LandingPage from './pages/LandingPage'
 import TvDashboard from './pages/TvDashboard'
 import Logo from './components/Logo'
@@ -136,6 +140,10 @@ export default function App() {
   // Static pages — no auth needed
   if (path === '/privacy') return <PrivacyPolicy />
   if (path === '/termini') return <TerminiServizio />
+  if (path === '/cookie') return <CookiePolicy />
+  if (path === '/rimborsi') return <Rimborsi />
+  if (path === '/contatti') return <Contatti />
+  if (path === '/chi-siamo') return <ChiSiamo />
   if (path === '/tv') return <TvDashboard />
 
   // Reset password — intercetta PRIMA del check auth.loading/auth.user
