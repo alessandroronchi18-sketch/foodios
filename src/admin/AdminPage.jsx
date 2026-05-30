@@ -610,9 +610,34 @@ function ImpersonaModal({ cliente, link, onClose }) {
   )
 }
 
-function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione }) {
+function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione, onSalvaNote }) {
   const stato = statoCliente(cliente)
   const giorni = giorniRimanenti(cliente)
+
+  // Note CRM con autosave debounced (1.5s).
+  const [nota, setNota] = useState('')
+  const [notaStatus, setNotaStatus] = useState('idle') // idle | dirty | saving | saved | error
+  const [notaSync, setNotaSync] = useState(false)
+  useEffect(() => {
+    if (dettaglio?.org && !notaSync) {
+      setNota(dettaglio.org.note_admin || '')
+      setNotaSync(true)
+    }
+  }, [dettaglio, notaSync])
+  useEffect(() => {
+    if (!notaSync || notaStatus !== 'dirty') return
+    const t = setTimeout(async () => {
+      setNotaStatus('saving')
+      try {
+        await onSalvaNote(nota)
+        setNotaStatus('saved')
+        setTimeout(() => setNotaStatus(s => s === 'saved' ? 'idle' : s), 1500)
+      } catch {
+        setNotaStatus('error')
+      }
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [nota, notaStatus, notaSync, onSalvaNote])
 
   const giorniDa = iso => {
     if (!iso) return null
@@ -632,6 +657,8 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione 
   const usage = dettaglio?.usage || []
   const eventi = dettaglio?.eventi || []
   const org = dettaglio?.org || null
+  const activation = dettaglio?.activation || null
+  const counts = dettaglio?.counts || null
 
   const usageOperativo = usage.filter(u => CHIAVI_OPERATIVE_SET.has(u.data_key))
   const usageAltro = usage.filter(u => !CHIAVI_OPERATIVE_SET.has(u.data_key))
@@ -681,6 +708,42 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione 
         </div>
       </div>
 
+      {/* Activation: progressione "primo valore" */}
+      {activation && (
+        <section style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <h3 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+              🚀 Activation · {activation.score}/{activation.totale}
+            </h3>
+            <span style={{ fontSize: 10, color: COLORS.textMute }}>
+              {counts?.fatture != null && `${counts.fatture} fatture`}
+              {counts?.dipendenti != null && ` · ${counts.dipendenti} dipendenti`}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+            {activation.steps.map(s => (
+              <div key={s.key} title={s.label} style={{
+                flex: 1, height: 6, borderRadius: 3,
+                background: s.done ? COLORS.ok : COLORS.border,
+              }} />
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11 }}>
+            {activation.steps.map(s => (
+              <span key={s.key} style={{
+                padding: '2px 8px', borderRadius: 99,
+                background: s.done ? COLORS.okBg : COLORS.bg || '#F8FAFC',
+                color: s.done ? COLORS.ok : COLORS.textMute,
+                fontWeight: s.done ? 600 : 400,
+                border: `1px solid ${s.done ? COLORS.ok : COLORS.border}`,
+              }}>
+                {s.done ? '✓' : '○'} {s.label}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Azioni rapide */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
         <Btn kind="warn" size="sm" onClick={() => onAzione('impersona')}>🔑 Impersona</Btn>
@@ -688,6 +751,38 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione 
         <Btn kind="success" size="sm" onClick={() => onAzione('regala')}>🎁 Regala mesi</Btn>
         <Btn kind="neutral" size="sm" onClick={() => onAzione('reset_password')}>🔁 Reset password</Btn>
       </div>
+
+      {/* Note CRM (autosave 1.5s) */}
+      <section style={{ marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <h3 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+            📝 Note interne (solo admin)
+          </h3>
+          <span style={{ fontSize: 10, color:
+            notaStatus === 'saving' ? COLORS.textMute :
+            notaStatus === 'saved' ? COLORS.ok :
+            notaStatus === 'error' ? COLORS.err : COLORS.textMute,
+            fontWeight: 600,
+          }}>
+            {notaStatus === 'dirty'  && '○ modifiche non salvate'}
+            {notaStatus === 'saving' && '⏳ salvataggio…'}
+            {notaStatus === 'saved'  && '✓ salvato'}
+            {notaStatus === 'error'  && '⚠ errore salvataggio'}
+          </span>
+        </div>
+        <textarea
+          value={nota}
+          onChange={e => { setNota(e.target.value); setNotaStatus('dirty') }}
+          placeholder="Appunti, contesto conversazioni, decisioni in sospeso… Visibili solo a te."
+          rows={3}
+          style={{
+            width: '100%', padding: '8px 10px', borderRadius: 8,
+            border: `1px solid ${COLORS.border}`, fontSize: 12,
+            resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
+            background: '#FFFEF7',
+          }}
+        />
+      </section>
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMute }}>Caricamento dettaglio…</div>
@@ -846,6 +941,14 @@ export default function AdminPage() {
   const [dettaglioFor, setDettaglioFor] = useState(null)  // cliente target del dettaglio
   const [dettaglio, setDettaglio] = useState(null)
   const [dettaglioLoading, setDettaglioLoading] = useState(false)
+  // Tier 1: feedback inbox + banner globali
+  const [feedback, setFeedback] = useState([])
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
+  const [feedbackSoloDaGestire, setFeedbackSoloDaGestire] = useState(true)
+  const [banners, setBanners] = useState([])
+  const [bannersLoading, setBannersLoading] = useState(false)
+  const [nuovoBanner, setNuovoBanner] = useState({ messaggio: '', tipo: 'info', scade_il: '' })
+  const [bannerSaving, setBannerSaving] = useState(false)
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
   const apiCall = useCallback(async (path, opts = {}) => {
@@ -948,7 +1051,70 @@ export default function AdminPage() {
     }
   }, [priceDraft, apiCall, fetchPricing])
 
-  useEffect(() => { fetchData(); fetchAudit(); fetchCodici(); fetchPricing() }, [fetchData, fetchAudit, fetchCodici, fetchPricing])
+  // Tier 1: fetch feedback + banner
+  const fetchFeedback = useCallback(async () => {
+    setFeedbackLoading(true)
+    try {
+      const q = feedbackSoloDaGestire ? '&solo_da_gestire=1' : ''
+      const res = await apiCall(`/api/admin?action=feedback${q}`)
+      const data = await res.json()
+      setFeedback(data.feedback || [])
+    } catch (err) {
+      console.error('feedback:', err.message)
+    } finally {
+      setFeedbackLoading(false)
+    }
+  }, [apiCall, feedbackSoloDaGestire])
+
+  const fetchBanners = useCallback(async () => {
+    setBannersLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=banners')
+      const data = await res.json()
+      setBanners(data.banners || [])
+    } catch (err) {
+      console.error('banners:', err.message)
+    } finally {
+      setBannersLoading(false)
+    }
+  }, [apiCall])
+
+  useEffect(() => { fetchData(); fetchAudit(); fetchCodici(); fetchPricing(); fetchBanners() },
+    [fetchData, fetchAudit, fetchCodici, fetchPricing, fetchBanners])
+  useEffect(() => { fetchFeedback() }, [fetchFeedback])
+
+  // Salva nota CRM (chiamata dalla modale dettaglio).
+  const salvaNoteAdmin = useCallback(async (orgId, nota) => {
+    await apiCall('/api/admin', {
+      method: 'POST',
+      body: JSON.stringify({ orgId, tipo: 'salva_note_admin', nota }),
+    })
+    // Aggiorna anche la cache del dettaglio in memoria (la prossima riapertura riprende dal DB).
+    setDettaglio(d => d ? { ...d, org: { ...(d.org || {}), note_admin: nota } } : d)
+  }, [apiCall])
+
+  // Crea banner (severity = info/warn/critical/success).
+  const creaBanner = useCallback(async () => {
+    if (!nuovoBanner.messaggio.trim()) return
+    setBannerSaving(true)
+    try {
+      await apiCall('/api/admin', {
+        method: 'POST',
+        body: JSON.stringify({
+          tipo: 'banner_crea',
+          messaggio: nuovoBanner.messaggio,
+          severity: nuovoBanner.tipo,
+          scade_il: nuovoBanner.scade_il || null,
+        }),
+      })
+      setNuovoBanner({ messaggio: '', tipo: 'info', scade_il: '' })
+      await fetchBanners()
+    } catch (err) {
+      alert('Errore creazione banner: ' + err.message)
+    } finally {
+      setBannerSaving(false)
+    }
+  }, [nuovoBanner, apiCall, fetchBanners])
 
   const apriDettaglio = useCallback(async c => {
     setDettaglioFor(c)
@@ -1675,6 +1841,184 @@ export default function AdminPage() {
           )}
         </Card>
 
+        {/* ── Feedback inbox ─────────────────────────────────────── */}
+        <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <strong style={{ fontSize: 14 }}>📨 Feedback dai clienti</strong>
+              <span style={{ fontSize: 12, color: COLORS.textMute }}>
+                {feedback.length}{feedbackSoloDaGestire ? ' da gestire' : ' totali'}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label style={{ fontSize: 11, color: COLORS.textSoft, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <input type="checkbox" checked={feedbackSoloDaGestire} onChange={e => setFeedbackSoloDaGestire(e.target.checked)} />
+                Solo da gestire
+              </label>
+              <Btn kind="neutral" size="sm" onClick={fetchFeedback} disabled={feedbackLoading}>{feedbackLoading ? '…' : '🔄'}</Btn>
+            </div>
+          </div>
+          {feedback.length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              {feedbackSoloDaGestire ? 'Nessun feedback da gestire 🎉' : 'Nessun feedback ricevuto ancora'}
+            </div>
+          ) : (
+            <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+              {feedback.map(f => {
+                const sentMap = {
+                  bug:         { bg: COLORS.errBg,  fg: COLORS.err,  lbl: '🐛 Bug' },
+                  feature:     { bg: COLORS.blueBg, fg: COLORS.blue, lbl: '💡 Idea' },
+                  feedback:    { bg: COLORS.rowAlt, fg: COLORS.textSoft, lbl: '💬 Feedback' },
+                  complimento: { bg: COLORS.okBg,   fg: COLORS.ok,   lbl: '🎉 Complimento' },
+                }
+                const s = sentMap[f.sentiment] || sentMap.feedback
+                return (
+                  <div key={f.id} style={{
+                    padding: '12px 18px',
+                    borderBottom: `1px solid ${COLORS.border}`,
+                    background: f.gestito ? COLORS.rowAlt : COLORS.card,
+                    opacity: f.gestito ? 0.7 : 1,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <span style={{ background: s.bg, color: s.fg, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>{s.lbl}</span>
+                      <strong style={{ fontSize: 13, color: COLORS.text }}>{f.nome_attivita || '—'}</strong>
+                      <span style={{ fontSize: 11, color: COLORS.textMute }}>·</span>
+                      <span style={{ fontSize: 11, color: COLORS.textSoft }}>{f.user_email}</span>
+                      {f.ruolo === 'dipendente' && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>dip</span>}
+                      <span style={{ flex: 1 }} />
+                      <span style={{ fontSize: 11, color: COLORS.textMute }}>{fmtDataOra(f.created_at)}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: COLORS.text, whiteSpace: 'pre-wrap', lineHeight: 1.5, marginBottom: 8 }}>
+                      {f.messaggio}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: COLORS.textMute }}>
+                      {f.view_corrente && <span>📍 {f.view_corrente}</span>}
+                      {f.url && <a href={f.url} target="_blank" rel="noreferrer" style={{ color: COLORS.accent, textDecoration: 'none' }}>🔗 apri pagina</a>}
+                      <span style={{ flex: 1 }} />
+                      {f.gestito ? (
+                        <>
+                          <span style={{ color: COLORS.ok, fontWeight: 600 }}>✓ Gestito da {f.gestito_by} il {fmtData(f.gestito_at)}</span>
+                          <Btn kind="ghost" size="sm" onClick={async () => {
+                            try {
+                              await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'feedback_marca_gestito', id: f.id, gestito: false }) })
+                              fetchFeedback()
+                            } catch (e) { alert(e.message) }
+                          }}>↩ Riapri</Btn>
+                        </>
+                      ) : (
+                        <Btn kind="success" size="sm" onClick={async () => {
+                          try {
+                            await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'feedback_marca_gestito', id: f.id, gestito: true }) })
+                            fetchFeedback()
+                          } catch (e) { alert(e.message) }
+                        }}>✓ Segna gestito</Btn>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </Card>
+
+        {/* ── Banner globali ─────────────────────────────────────── */}
+        <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <strong style={{ fontSize: 14 }}>📢 Banner globali</strong>
+              <span style={{ fontSize: 12, color: COLORS.textMute }}>annuncio mostrato a tutti i clienti in cima all'app</span>
+            </div>
+            <Btn kind="neutral" size="sm" onClick={fetchBanners} disabled={bannersLoading}>{bannersLoading ? '…' : '🔄'}</Btn>
+          </div>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
+            <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 8 }}>Nuovo banner</div>
+            <textarea
+              value={nuovoBanner.messaggio}
+              onChange={e => setNuovoBanner(b => ({ ...b, messaggio: e.target.value }))}
+              placeholder="Es. Sabato dalle 22 manutenzione programmata, possibili disservizi di ~10 minuti."
+              rows={2}
+              style={{
+                width: '100%', padding: '8px 10px', borderRadius: 8,
+                border: `1px solid ${COLORS.border}`, fontSize: 13,
+                resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 8,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <select value={nuovoBanner.tipo} onChange={e => setNuovoBanner(b => ({ ...b, tipo: e.target.value }))}
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
+                <option value="info">ℹ️ info</option>
+                <option value="warn">⚠️ warn</option>
+                <option value="critical">🚨 critical</option>
+                <option value="success">✅ success</option>
+              </select>
+              <input type="datetime-local" value={nuovoBanner.scade_il}
+                onChange={e => setNuovoBanner(b => ({ ...b, scade_il: e.target.value }))}
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12 }}
+                title="Scadenza (opzionale)" />
+              <span style={{ fontSize: 10, color: COLORS.textMute }}>scadenza opzionale</span>
+              <span style={{ flex: 1 }} />
+              <Btn kind="primary" size="sm" onClick={creaBanner} disabled={bannerSaving || !nuovoBanner.messaggio.trim()}>
+                {bannerSaving ? 'Pubblicazione…' : 'Pubblica'}
+              </Btn>
+            </div>
+          </div>
+          {banners.length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              Nessun banner pubblicato finora
+            </div>
+          ) : (
+            <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+              {banners.map(b => {
+                const scaduto = b.scade_il && new Date(b.scade_il) < new Date()
+                const tipoMap = {
+                  info: { bg: '#EFF6FF', fg: '#1E3A8A', lbl: 'ℹ️ info' },
+                  warn: { bg: '#FEF9C3', fg: '#854D0E', lbl: '⚠️ warn' },
+                  critical: { bg: '#FEE2E2', fg: '#991B1B', lbl: '🚨 critical' },
+                  success: { bg: '#DCFCE7', fg: '#166534', lbl: '✅ success' },
+                }
+                const t = tipoMap[b.tipo] || tipoMap.info
+                return (
+                  <div key={b.id} style={{
+                    padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`,
+                    background: b.attivo && !scaduto ? COLORS.card : COLORS.rowAlt,
+                    opacity: !b.attivo || scaduto ? 0.6 : 1,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span style={{ background: t.bg, color: t.fg, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>{t.lbl}</span>
+                      {b.attivo && !scaduto && <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>● live</span>}
+                      {!b.attivo && <span style={{ background: COLORS.blockedBg, color: COLORS.blocked, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>spento</span>}
+                      {scaduto && <span style={{ background: COLORS.errBg, color: COLORS.err, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>scaduto</span>}
+                      <span style={{ flex: 1 }} />
+                      <span style={{ fontSize: 11, color: COLORS.textMute }}>{fmtDataOra(b.creato_il)}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: COLORS.text, marginBottom: 6 }}>{b.messaggio}</div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      {b.scade_il && <span style={{ fontSize: 11, color: COLORS.textMute }}>Scade: {fmtDataOra(b.scade_il)}</span>}
+                      <span style={{ flex: 1 }} />
+                      {b.attivo && (
+                        <Btn kind="warn" size="sm" onClick={async () => {
+                          if (!confirm('Disattivare questo banner? Sparirà dall\'app entro 5 minuti.')) return
+                          try {
+                            await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'banner_disattiva', id: b.id }) })
+                            fetchBanners()
+                          } catch (e) { alert(e.message) }
+                        }}>⏸ Disattiva</Btn>
+                      )}
+                      <Btn kind="danger" size="sm" onClick={async () => {
+                        if (!confirm('Eliminare definitivamente?')) return
+                        try {
+                          await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'banner_elimina', id: b.id }) })
+                          fetchBanners()
+                        } catch (e) { alert(e.message) }
+                      }}>🗑</Btn>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </Card>
+
         {/* ── Log attività ───────────────────────────────────────── */}
         <Card style={{ padding: 0, marginBottom: 30 }}>
           <div style={{
@@ -1788,6 +2132,7 @@ export default function AdminPage() {
             else if (tipo === 'regala') setRegalaFor(c)
             else if (tipo === 'reset_password') handleResetPassword(c)
           }}
+          onSalvaNote={nota => salvaNoteAdmin(dettaglioFor.org_id, nota)}
         />
       )}
       {demoFor && (
