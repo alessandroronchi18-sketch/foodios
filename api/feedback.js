@@ -71,6 +71,53 @@ export default async function handler(req) {
       user_agent: (req.headers.get('user-agent') || '').slice(0, 300),
     })
     if (error) throw error
+
+    // Notifica admin: best-effort fire-and-forget. Se ADMIN_EMAIL o
+    // INTERNAL_API_SECRET o RESEND_API_KEY non sono configurati, salta in
+    // silenzio (la riga DB e' stata scritta comunque → admin vedra' nel pannello).
+    const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase()
+    if (adminEmail && process.env.RESEND_API_KEY) {
+      const sentimentLabel = ({
+        bug: '🐛 Bug', feature: '💡 Idea', feedback: '💬 Feedback', complimento: '🎉 Complimento',
+      })[sentiment] || '💬 Feedback'
+
+      // Carica nome attivita' per la subject
+      let nomeAttivita = 'cliente'
+      try {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('nome')
+          .eq('id', profile.organization_id)
+          .single()
+        if (org?.nome) nomeAttivita = org.nome
+      } catch { /* ignore */ }
+
+      const base = new URL(req.url).origin
+      const internalHeaders = process.env.INTERNAL_API_SECRET
+        ? { 'x-internal-secret': process.env.INTERNAL_API_SECRET }
+        : {}
+      // Usa /api/send-email tipo='custom' tramite secret interno (bypassa
+      // l'auth admin che richiederebbe un JWT admin in questa chiamata).
+      fetch(`${base}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...internalHeaders },
+        body: JSON.stringify({
+          tipo: 'custom',
+          email: adminEmail,
+          oggetto: `${sentimentLabel} da ${nomeAttivita}`,
+          messaggio: [
+            `Cliente: ${nomeAttivita} (${profile.email || user.email || '—'})`,
+            viewCorrente ? `Vista: ${viewCorrente}` : null,
+            urlCorrente ? `URL: ${urlCorrente}` : null,
+            '',
+            messaggio,
+            '',
+            '— Apri il pannello admin → 📨 Feedback dai clienti per gestire.',
+          ].filter(Boolean).join('\n'),
+        }),
+      }).catch(e => console.error('[feedback] admin notify failed', e?.message))
+    }
+
     return json({ ok: true }, 200, req)
   } catch (err) {
     const safe = safeError(err, { endpoint: 'feedback', userId: user.id }, 500, supabase)

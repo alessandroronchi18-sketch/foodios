@@ -1,0 +1,86 @@
+// Parser ricettario Excel — estratto da Dashboard.jsx per essere riusabile
+// in OnboardingWizard, RicettarioView import, eventuale CLI.
+//
+// Formato atteso del file .xlsx:
+// - Un sheet per ricetta, oppure un sheet 'ingredient*' per i prezzi.
+// - Per i sheet ricetta:
+//     Row 0: [label, NomeRicetta, _, _, _, totImpasto1]
+//     Row 1: [label, numStampi]
+//     Row 2: [label, _, _, _, _, foodCost1]
+//     Rows 3-6: header/vuoti
+//     Row 7+: [nomeIngrediente, qty1stampo, costoPerG, costo1stampo]
+//
+// Output: { ricette: { [nome]: { ingredienti, ... } }, ingredienti_costi: {...} }
+
+import { loadXLSX } from './xlsx'
+import { normIng } from './foodcost'
+
+export async function parseRicettario(file) {
+  const XLSX = await loadXLSX()
+  const buf = await file.arrayBuffer()
+  const wb = XLSX.read(new Uint8Array(buf), { type: 'array' })
+  const num = v => (v !== null && v !== '' && !isNaN(v)) ? Number(v) : 0
+  const ricette = {}
+  const ingredienti_costi = {}
+
+  for (const sheetName of wb.SheetNames) {
+    const ws = wb.Sheets[sheetName]
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
+
+    // Sheet 'ingredient*' → tabella prezzi
+    if (sheetName.toLowerCase().includes('ingredient')) {
+      for (let i = 1; i < rows.length; i++) {
+        const nome = rows[i]?.[0]
+        if (nome && typeof nome === 'string' && nome.trim()) {
+          ingredienti_costi[normIng(nome.trim())] = {
+            costoKg: num(rows[i]?.[1]),
+            costoG: num(rows[i]?.[2]),
+          }
+        }
+      }
+      continue
+    }
+
+    const nomeRicetta = rows[0]?.[1] || rows[0]?.[0] || sheetName
+    if (!nomeRicetta || typeof nomeRicetta !== 'string' || !nomeRicetta.trim()) continue
+    const nome = String(nomeRicetta).trim()
+    const SKIP_NAMES = ['NaN', 'undefined', 'Nome ricetta', 'Nome Ricetta', 'NOME RICETTA', 'Ricetta']
+    if (SKIP_NAMES.includes(nome) || SKIP_NAMES.map(s => s.toLowerCase()).includes(nome.toLowerCase())) continue
+
+    const ingredienti = []
+    for (let i = 7; i < rows.length; i++) {
+      const ing = rows[i]?.[0]
+      if (!ing || typeof ing !== 'string' || !ing.trim()) continue
+      if (ing.includes('Totale') || ing.includes('Note')) break
+      const ingKey = ing.trim().toLowerCase()
+      if (['ingrediente', 'ingredient', 'ingredienti'].includes(ingKey)) continue
+      ingredienti.push({
+        nome: ing.trim(),
+        qty1stampo: num(rows[i]?.[1]),
+        costoPerG: num(rows[i]?.[2]),
+        costo1stampo: num(rows[i]?.[3]),
+      })
+    }
+
+    let note = ''
+    for (let i = Math.max(0, rows.length - 6); i < rows.length; i++) {
+      const v = rows[i]?.[0]
+      if (v && typeof v === 'string' && (v.includes('°') || v.includes('min'))) {
+        note = v.trim()
+        break
+      }
+    }
+
+    ricette[nome] = {
+      nome,
+      sheetName,
+      numStampi: num(rows[1]?.[1]) || 1,
+      totImpasto1: num(rows[0]?.[5]),
+      foodCost1: num(rows[2]?.[5]),
+      ingredienti,
+      note,
+    }
+  }
+
+  return { ricette, ingredienti_costi }
+}
