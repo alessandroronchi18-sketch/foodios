@@ -88,7 +88,7 @@ export default function TerminiServizio() {
         del personale, ecc.) restano <strong>di proprieta' esclusiva del Cliente</strong>. Il Fornitore
         agisce esclusivamente come responsabile del trattamento ex art. 28 GDPR. Il Cliente puo'
         esportare i propri dati in qualsiasi momento (formato JSON/CSV) tramite l'apposita
-        funzionalita' in Impostazioni > Esporta dati.
+        funzionalita' in Impostazioni → Esporta dati.
       </LegalP>
 
       <LegalH2>10. Proprieta' del Servizio</LegalH2>
