@@ -256,6 +256,91 @@ function EmailModal({ cliente, onClose, onInvia }) {
   )
 }
 
+function BulkEmailModal({ clienti, onClose, onInvia }) {
+  const [oggetto, setOggetto] = useState('')
+  const [messaggio, setMessaggio] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState({ ok: 0, ko: 0, tot: 0 })
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(false)
+
+  async function submit() {
+    if (!oggetto.trim() || !messaggio.trim()) { setErr('Oggetto e messaggio obbligatori'); return }
+    if (!confirm(`Invio email a ${clienti.length} clienti. Sei sicuro?`)) return
+    setBusy(true); setErr(''); setProgress({ ok: 0, ko: 0, tot: clienti.length })
+    let ok = 0, ko = 0
+    for (const c of clienti) {
+      const corpo = messaggio.replaceAll('{{nome_completo}}', c.nome_completo || '')
+                              .replaceAll('{{nome_attivita}}', c.nome_attivita || '')
+      try {
+        await onInvia({ destinatario: c.email, oggetto, messaggio: corpo })
+        ok++
+      } catch { ko++ }
+      setProgress({ ok, ko, tot: clienti.length })
+    }
+    setBusy(false)
+    setDone(true)
+  }
+
+  return (
+    <Modal title={`📧 Email a ${clienti.length} clienti`} onClose={busy ? () => {} : onClose} width={620}>
+      {done ? (
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ fontSize: 40 }}>{progress.ko === 0 ? '✅' : '⚠️'}</div>
+          <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 700, marginTop: 12 }}>
+            Inviate {progress.ok} email · {progress.ko} errori
+          </div>
+          <Btn kind="primary" onClick={onClose} style={{ marginTop: 16 }}>Chiudi</Btn>
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 10, lineHeight: 1.5 }}>
+            Destinatari: <strong style={{ color: COLORS.text }}>{clienti.length}</strong> ·
+            usa <code>{'{{nome_completo}}'}</code> e <code>{'{{nome_attivita}}'}</code> nel testo per personalizzare.
+          </div>
+
+          <input
+            value={oggetto} onChange={e => setOggetto(e.target.value)}
+            placeholder="Oggetto"
+            disabled={busy}
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 8,
+              border: `1px solid ${COLORS.border}`, fontSize: 13, marginBottom: 10,
+              boxSizing: 'border-box',
+            }}
+          />
+          <textarea
+            value={messaggio} onChange={e => setMessaggio(e.target.value)}
+            placeholder={`Ciao {{nome_completo}},\n\nun saluto da Alessandro di FoodOS.\nCome vanno le cose con {{nome_attivita}}?\n\nA presto.`}
+            rows={9}
+            disabled={busy}
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 8,
+              border: `1px solid ${COLORS.border}`, fontSize: 13, resize: 'vertical',
+              fontFamily: 'inherit', boxSizing: 'border-box',
+            }}
+          />
+          {err && (
+            <div style={{
+              marginTop: 10, padding: '8px 12px', background: COLORS.errBg,
+              border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12,
+            }}>⚠️ {err}</div>
+          )}
+          {busy && (
+            <div style={{ marginTop: 12, padding: '8px 12px', background: COLORS.blueBg, borderRadius: 8, color: COLORS.blue, fontSize: 12, fontWeight: 600, textAlign: 'center' }}>
+              ⏳ Invio in corso… {progress.ok + progress.ko} / {progress.tot} (ok {progress.ok} · errori {progress.ko})
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+            <Btn kind="neutral" onClick={onClose} disabled={busy}>Annulla</Btn>
+            <Btn kind="primary" onClick={submit} disabled={busy}>{busy ? 'Invio…' : `Invia a ${clienti.length}`}</Btn>
+          </div>
+        </>
+      )}
+    </Modal>
+  )
+}
+
 function DeleteModal({ cliente, onClose, onConferma }) {
   const [conferma, setConferma] = useState('')
   const [busy, setBusy] = useState(false)
@@ -949,6 +1034,15 @@ export default function AdminPage() {
   const [bannersLoading, setBannersLoading] = useState(false)
   const [nuovoBanner, setNuovoBanner] = useState({ messaggio: '', tipo: 'info', scade_il: '' })
   const [bannerSaving, setBannerSaving] = useState(false)
+  // Tier 2: Stripe MRR + events feed + errori produzione + bulk actions
+  const [stripeMrr, setStripeMrr] = useState(null)
+  const [stripeMrrLoading, setStripeMrrLoading] = useState(false)
+  const [stripeEvents, setStripeEvents] = useState([])
+  const [stripeEventsLoading, setStripeEventsLoading] = useState(false)
+  const [errori, setErrori] = useState([])
+  const [erroriLoading, setErroriLoading] = useState(false)
+  const [selezionati, setSelezionati] = useState(() => new Set())
+  const [bulkEmailFor, setBulkEmailFor] = useState(null) // array di clienti
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
   const apiCall = useCallback(async (path, opts = {}) => {
@@ -1079,9 +1173,55 @@ export default function AdminPage() {
     }
   }, [apiCall])
 
+  // Tier 2 fetches: Stripe MRR + events + errori produzione
+  const fetchStripeMrr = useCallback(async () => {
+    setStripeMrrLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=stripe_mrr')
+      const data = await res.json()
+      setStripeMrr(data)
+    } catch (err) {
+      console.error('stripe mrr:', err.message)
+      setStripeMrr({ error: err.message })
+    } finally {
+      setStripeMrrLoading(false)
+    }
+  }, [apiCall])
+
+  const fetchStripeEvents = useCallback(async () => {
+    setStripeEventsLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=stripe_events')
+      const data = await res.json()
+      setStripeEvents(data.events || [])
+    } catch (err) {
+      console.error('stripe events:', err.message)
+    } finally {
+      setStripeEventsLoading(false)
+    }
+  }, [apiCall])
+
+  const fetchErrori = useCallback(async () => {
+    setErroriLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=errori_recenti&limit=100')
+      const data = await res.json()
+      setErrori(data.errori || [])
+    } catch (err) {
+      console.error('errori:', err.message)
+    } finally {
+      setErroriLoading(false)
+    }
+  }, [apiCall])
+
   useEffect(() => { fetchData(); fetchAudit(); fetchCodici(); fetchPricing(); fetchBanners() },
     [fetchData, fetchAudit, fetchCodici, fetchPricing, fetchBanners])
   useEffect(() => { fetchFeedback() }, [fetchFeedback])
+  // Stripe MRR + events: caricamento on-demand (1 sola volta all'apertura
+  // pannello, refresh manuale). Stripe API ha rate limit 100/s ma chiamate
+  // ripetute hanno costo, meglio non spammare.
+  useEffect(() => { fetchStripeMrr(); fetchStripeEvents(); fetchErrori() },
+    [fetchStripeMrr, fetchStripeEvents, fetchErrori])
 
   // Salva nota CRM (chiamata dalla modale dettaglio).
   const salvaNoteAdmin = useCallback(async (orgId, nota) => {
@@ -1224,6 +1364,57 @@ export default function AdminPage() {
       } catch { ko++ }
     }
     alert(`Email inviate: ${ok} ok, ${ko} errori`)
+  }
+
+  // ── Bulk actions sulla tabella clienti ──────────────────────────────
+  const toggleSelezione = useCallback(orgId => {
+    setSelezionati(prev => {
+      const s = new Set(prev)
+      if (s.has(orgId)) s.delete(orgId)
+      else s.add(orgId)
+      return s
+    })
+  }, [])
+
+  async function bulkEstendiTrial() {
+    if (selezionati.size === 0) return
+    const giorni = prompt(`Estendi trial di quanti giorni a ${selezionati.size} clienti selezionati?`, '30')
+    if (!giorni) return
+    const n = parseInt(giorni, 10)
+    if (!Number.isFinite(n) || n < 1) { alert('Giorni non validi'); return }
+    if (!confirm(`Confermi: estendere il trial di ${n}gg a ${selezionati.size} clienti?`)) return
+    let ok = 0, ko = 0
+    for (const orgId of selezionati) {
+      try { await azione(orgId, 'estendi_trial', { valore: n }); ok++ }
+      catch { ko++ }
+    }
+    setSelezionati(new Set())
+    alert(`Estensione trial: ${ok} ok, ${ko} errori`)
+  }
+
+  function bulkExportCsv() {
+    if (selezionati.size === 0) return
+    const sel = clienti.filter(c => selezionati.has(c.org_id))
+    const header = 'Nome attivita,Tipo,Email,Nome completo,Piano,Stato,Sedi,Record,Registrata,Ultimo accesso,Trial scade'
+    const rows = sel.map(c => {
+      const stato = !c.attivo ? 'Bloccato'
+        : c.org_approvata ? 'Pagante'
+        : (c.trial_ends_at && new Date(c.trial_ends_at) > new Date()) ? 'Trial' : 'Scaduto'
+      const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`
+      return [
+        q(c.nome_attivita), q(c.tipo), q(c.email), q(c.nome_completo),
+        q(c.piano), q(stato), c.num_sedi || 0, c.num_record || 0,
+        q(c.registrata_il || ''), q(c.ultimo_accesso || ''), q(c.trial_ends_at || ''),
+      ].join(',')
+    })
+    const csv = '﻿' + [header, ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `clienti_selezionati_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
   }
 
   // ── Filtri + ordinamento ────────────────────────────────────────────
@@ -1405,6 +1596,56 @@ export default function AdminPage() {
           </Card>
         )}
 
+        {/* ── Stripe MRR reale ───────────────────────────────────── */}
+        <Card style={{ padding: 16, marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
+              💳 MRR reale (Stripe)
+              <span style={{ fontSize: 11, fontWeight: 500, color: COLORS.textMute, marginLeft: 10 }}>
+                calcolato dalle subscription Stripe, non da paganti × prezzo
+              </span>
+            </h3>
+            <Btn kind="neutral" size="sm" onClick={fetchStripeMrr} disabled={stripeMrrLoading}>{stripeMrrLoading ? '…' : '🔄'}</Btn>
+          </div>
+          {stripeMrrLoading && !stripeMrr ? (
+            <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Caricamento da Stripe…</div>
+          ) : stripeMrr?.error ? (
+            <div style={{ padding: '10px 14px', background: COLORS.errBg, border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12 }}>
+              ⚠️ Errore Stripe: {stripeMrr.error}
+            </div>
+          ) : stripeMrr ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+              <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR fatturato</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro((stripeMrr.mrr_cents || 0) / 100)}</div>
+                <div style={{ fontSize: 10, color: COLORS.ok, opacity: 0.8 }}>{stripeMrr.sub_active} sub active</div>
+              </div>
+              <div style={{ padding: '10px 12px', background: COLORS.warnBg, borderRadius: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.warn, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR in trial</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.warn }}>{fmtEuro((stripeMrr.mrr_trialing_cents || 0) / 100)}</div>
+                <div style={{ fontSize: 10, color: COLORS.warn, opacity: 0.8 }}>{stripeMrr.sub_trialing} sub trialing</div>
+              </div>
+              <div style={{ padding: '10px 12px', background: COLORS.errBg, borderRadius: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Past due</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.err }}>{stripeMrr.sub_past_due}</div>
+                <div style={{ fontSize: 10, color: COLORS.err, opacity: 0.8 }}>sub in arretrato</div>
+              </div>
+              <div style={{ padding: '10px 12px', background: COLORS.errBg, borderRadius: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.err, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Charge falliti 30gg</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.err }}>{stripeMrr.failed_30d}</div>
+                <div style={{ fontSize: 10, color: COLORS.err, opacity: 0.8 }}>da retrying / dunning</div>
+              </div>
+              <div style={{ padding: '10px 12px', background: COLORS.blockedBg, borderRadius: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Canceled</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.blocked }}>{stripeMrr.sub_canceled}</div>
+                <div style={{ fontSize: 10, color: COLORS.blocked, opacity: 0.8 }}>sub annullate</div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Nessun dato Stripe</div>
+          )}
+        </Card>
+
         {/* ── Azioni rapide ──────────────────────────────────────── */}
         <Card style={{ padding: 16, marginBottom: 20 }}>
           <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800 }}>⚡ Azioni rapide</h3>
@@ -1466,6 +1707,33 @@ export default function AdminPage() {
             </select>
           </div>
 
+          {/* Bulk action bar (appare quando >=1 selezione) */}
+          {selezionati.size > 0 && (
+            <div style={{
+              padding: '10px 18px',
+              background: COLORS.blueBg,
+              borderBottom: `1px solid ${COLORS.border}`,
+              display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+            }}>
+              <strong style={{ fontSize: 13, color: COLORS.blue }}>
+                {selezionati.size} selezionat{selezionati.size === 1 ? 'o' : 'i'}
+              </strong>
+              <span style={{ flex: 1 }} />
+              <Btn kind="primary" size="sm" onClick={() => setBulkEmailFor(clienti.filter(c => selezionati.has(c.org_id)))}>
+                📧 Email
+              </Btn>
+              <Btn kind="neutral" size="sm" onClick={bulkEstendiTrial}>
+                ⏱ Estendi trial
+              </Btn>
+              <Btn kind="neutral" size="sm" onClick={bulkExportCsv}>
+                📊 Export CSV
+              </Btn>
+              <Btn kind="ghost" size="sm" onClick={() => setSelezionati(new Set())}>
+                ✕ Deseleziona
+              </Btn>
+            </div>
+          )}
+
           {loading ? (
             <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMute }}>Caricamento…</div>
           ) : clientiVisibili.length === 0 ? (
@@ -1477,6 +1745,19 @@ export default function AdminPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
+                    <th style={{ ...th(), width: 32, paddingRight: 0 }}>
+                      <input
+                        type="checkbox"
+                        aria-label="Seleziona tutti i clienti visibili"
+                        title="Seleziona tutti i visibili"
+                        checked={clientiVisibili.length > 0 && clientiVisibili.every(c => selezionati.has(c.org_id))}
+                        ref={el => { if (el) el.indeterminate = clientiVisibili.some(c => selezionati.has(c.org_id)) && !clientiVisibili.every(c => selezionati.has(c.org_id)) }}
+                        onChange={e => {
+                          if (e.target.checked) setSelezionati(new Set(clientiVisibili.map(c => c.org_id)))
+                          else setSelezionati(new Set())
+                        }}
+                      />
+                    </th>
                     <th style={th()}><HeaderSort field="nome_attivita">Attività</HeaderSort></th>
                     <th style={th()}><HeaderSort field="tipo">Tipo</HeaderSort></th>
                     <th style={th()}><HeaderSort field="email">Email</HeaderSort></th>
@@ -1504,6 +1785,14 @@ export default function AdminPage() {
                         onMouseEnter={e => e.currentTarget.style.background = COLORS.rowHover}
                         onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? COLORS.card : COLORS.rowAlt}
                       >
+                        <td style={{ ...td(), width: 32, paddingRight: 0 }} onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            aria-label={`Seleziona ${c.nome_attivita}`}
+                            checked={selezionati.has(c.org_id)}
+                            onChange={() => toggleSelezione(c.org_id)}
+                          />
+                        </td>
                         <td style={{ ...td(), cursor: 'pointer' }} onClick={() => apriDettaglio(c)} title="Apri dettaglio cliente">
                           <div style={{ fontWeight: 700, color: COLORS.accent, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}>
                             {c.nome_attivita || '—'}
@@ -1841,6 +2130,52 @@ export default function AdminPage() {
           )}
         </Card>
 
+        {/* ── Stripe events feed ─────────────────────────────────── */}
+        <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <strong style={{ fontSize: 14 }}>🔔 Eventi Stripe recenti</strong>
+              <span style={{ fontSize: 12, color: COLORS.textMute }}>{stripeEvents.length} eventi · subscription, charge, invoice, checkout</span>
+            </div>
+            <Btn kind="neutral" size="sm" onClick={fetchStripeEvents} disabled={stripeEventsLoading}>{stripeEventsLoading ? '…' : '🔄'}</Btn>
+          </div>
+          {stripeEvents.length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              {stripeEventsLoading ? 'Caricamento…' : 'Nessun evento Stripe recente'}
+            </div>
+          ) : (
+            <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <tbody>
+                  {stripeEvents.map(e => {
+                    const typeColor = e.type.includes('failed') || e.type.includes('deleted') ? COLORS.err
+                      : e.type.includes('succeeded') || e.type.includes('completed') || e.type.includes('created') ? COLORS.ok
+                      : e.type.includes('updated') || e.type.includes('trial') ? COLORS.warn
+                      : COLORS.textSoft
+                    return (
+                      <tr key={e.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                        <td style={{ padding: '8px 18px', color: COLORS.textMute, whiteSpace: 'nowrap', width: 140 }}>
+                          {fmtDataOra(new Date(e.created).toISOString())}
+                        </td>
+                        <td style={{ padding: '8px 0', color: typeColor, fontWeight: 600, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, whiteSpace: 'nowrap' }}>
+                          {e.type}
+                          {!e.livemode && <span style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>test</span>}
+                        </td>
+                        <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontSize: 11 }}>
+                          {e.customer_email || (e.customer_id ? <code>{e.customer_id.slice(0, 16)}…</code> : '—')}
+                        </td>
+                        <td style={{ padding: '8px 18px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          {e.amount_cents != null ? `${(e.amount_cents / 100).toFixed(2)} ${(e.currency || 'EUR').toUpperCase()}` : ''}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
         {/* ── Feedback inbox ─────────────────────────────────────── */}
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
@@ -2055,6 +2390,50 @@ export default function AdminPage() {
         </Card>
       </div>
 
+        {/* ── Errori produzione (alternativa Sentry, da public.error_log) ── */}
+        <Card style={{ marginBottom: 30, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <strong style={{ fontSize: 14 }}>🐛 Errori produzione</strong>
+              <span style={{ fontSize: 12, color: COLORS.textMute }}>
+                {errori.length} eventi · raccolti via safeError(supabase) da edge functions
+              </span>
+            </div>
+            <Btn kind="neutral" size="sm" onClick={fetchErrori} disabled={erroriLoading}>{erroriLoading ? '…' : '🔄'}</Btn>
+          </div>
+          {errori.length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              {erroriLoading ? 'Caricamento…' : '✅ Nessun errore catturato. Bene così.'}
+            </div>
+          ) : (
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+              {errori.map(e => (
+                <div key={e.id} style={{ padding: '10px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, padding: '1px 6px', background: COLORS.rowAlt, borderRadius: 4, color: COLORS.text, fontWeight: 600 }}>
+                      {e.endpoint || '—'}{e.operation ? `:${e.operation}` : ''}
+                    </span>
+                    {e.code && <span style={{ fontSize: 10, padding: '1px 5px', background: COLORS.errBg, color: COLORS.err, borderRadius: 4, fontWeight: 700 }}>{e.code}</span>}
+                    {e.status && <span style={{ fontSize: 10, padding: '1px 5px', background: COLORS.warnBg, color: COLORS.warn, borderRadius: 4, fontWeight: 700 }}>{e.status}</span>}
+                    <span style={{ flex: 1 }} />
+                    <span style={{ fontSize: 11, color: COLORS.textMute }}>{fmtDataOra(e.created_at)}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: COLORS.text, fontFamily: "'JetBrains Mono', ui-monospace, monospace", lineHeight: 1.5, marginBottom: 4 }}>
+                    {e.message || '(nessun messaggio)'}
+                  </div>
+                  {(e.org_id || e.user_id || e.hint) && (
+                    <div style={{ fontSize: 10, color: COLORS.textMute, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                      {e.org_id && <>org: {e.org_id.slice(0, 8)}… </>}
+                      {e.user_id && <>user: {e.user_id.slice(0, 8)}… </>}
+                      {e.hint && <>· hint: {e.hint}</>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
       {/* ── Modali ──────────────────────────────────────────────── */}
       {emailFor && (
         <EmailModal
@@ -2066,6 +2445,18 @@ export default function AdminPage() {
               body: JSON.stringify({ tipo: 'invia_email', ...payload }),
             })
             fetchAudit()
+          }}
+        />
+      )}
+      {bulkEmailFor && (
+        <BulkEmailModal
+          clienti={bulkEmailFor}
+          onClose={() => { setBulkEmailFor(null); setSelezionati(new Set()); fetchAudit() }}
+          onInvia={async payload => {
+            await apiCall('/api/admin', {
+              method: 'POST',
+              body: JSON.stringify({ tipo: 'invia_email', ...payload }),
+            })
           }}
         />
       )}
