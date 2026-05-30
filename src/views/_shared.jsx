@@ -61,6 +61,25 @@ export function KPI({ label, value, sub, color, highlight, icon }) {
   )
 }
 
+// Tooltip Recharts condiviso (era inline in Dashboard.jsx).
+// Importato da StoricoProduzioneView, PLView, ecc. — senza questo modulo dedicato
+// le view post-code-split sbattevano contro `ChartTip is not defined`.
+export const ChartTip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background: C.white, border: `1px solid ${C.border}`, borderRadius: 8,
+      padding: '10px 14px', fontSize: 11,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+    }}>
+      <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{label}</div>
+      {payload.map((p, i) => (
+        <div key={i} style={{ color: p.color || C.red }}>{p.name}: <b>{p.value}</b></div>
+      ))}
+    </div>
+  )
+}
+
 export function Badge({ label, color = 'green' }) {
   const s = {
     green: { bg: C.greenLight, c: C.green },

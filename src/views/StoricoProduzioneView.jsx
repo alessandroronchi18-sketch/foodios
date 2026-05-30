@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import useIsMobile from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'
-import { C, KPI, SH, margColor, margBadge, fmt, fmtp } from './_shared'
+import { C, KPI, SH, margColor, margBadge, fmt, fmtp, ChartTip } from './_shared'
 
 export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [] }) {
   const isMobile = useIsMobile();
