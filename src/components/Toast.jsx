@@ -3,14 +3,17 @@
 // Stack: i toast si impilano dal basso, auto-dismiss 4-6s, click su X chiude.
 
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react'
+import { color as T, z as Z } from '../lib/theme'
 
 const ToastCtx = createContext(null)
 
+// Palette toast allineata al theme.js (era hardcoded con tonalità Tailwind
+// che non matchavano il resto dell'app).
 const VARIANTS = {
-  success: { bg: '#0F7A48',     fg: '#FFFFFF', border: '#0E5C36', icon: '✓' },
-  error:   { bg: '#B91C1C',     fg: '#FFFFFF', border: '#7F1D1D', icon: '!' },
-  warn:    { bg: '#A16207',     fg: '#FFFFFF', border: '#854D0E', icon: '⚠' },
-  info:    { bg: '#1E40AF',     fg: '#FFFFFF', border: '#1E3A8A', icon: 'i' },
+  success: { bg: T.green, fg: T.white, border: '#0C7C56', icon: '✓' },
+  error:   { bg: T.brand, fg: T.white, border: T.brandDarker, icon: '!' },
+  warn:    { bg: T.amber, fg: T.white, border: '#A65906',    icon: '⚠' },
+  info:    { bg: T.blue,  fg: T.white, border: '#1E40AF',    icon: 'i' },
 }
 
 let _idSeq = 0
@@ -60,7 +63,7 @@ function ToastStack({ toasts, dismiss }) {
     <div
       role="region" aria-live="polite" aria-label="Notifiche"
       style={{
-        position: 'fixed', bottom: 20, right: 20, zIndex: 9999,
+        position: 'fixed', bottom: 20, right: 20, zIndex: Z.toast,
         display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 'calc(100vw - 40px)',
         pointerEvents: 'none',
       }}

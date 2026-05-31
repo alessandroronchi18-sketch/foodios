@@ -10,16 +10,25 @@
     <meta property="og:description" content="Calcola il food cost di ogni ricetta, gestisci il magazzino e analizza i margini. Prova gratuita 3 mesi." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://foodios-rose.vercel.app" />
-    <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="FoodOS — Gestionale Food Cost" />
     <meta name="twitter:description" content="Gestionale food cost per pasticcerie italiane. Prova gratis 3 mesi." />
     <meta property="og:image" content="https://foodios-rose.vercel.app/logo.svg" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://foodios-rose.vercel.app/logo.svg" />
+    <!-- PWA + mobile-app -->
+    <meta name="theme-color" content="#6E0E1A" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FoodOS" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate icon" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Preload Inter 400+600 (più usati) per evitare FOIT -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+          href="https://fonts.gstatic.com/s/inter/v18/UcCo3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc2tysFlYrwg.woff2">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&display=swap" rel="stylesheet">
     <style>
       *, *::before, *::after { box-sizing: border-box; }
@@ -48,6 +57,54 @@
       @media (max-width: 767px) {
         input, textarea, select { font-size: 16px !important; }
         table { width: 100%; }
+      }
+
+      /* ───────────────────────────────────────────────────────────────
+         A11Y: focus-visible globale per utenti tastiera.
+         Solo quando l'elemento riceve focus via tastiera (non click).
+      */
+      :focus-visible {
+        outline: 2px solid #6E0E1A;
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      /* Bottoni/anchor con focus mouse: niente outline (UX coerente) */
+      button:focus:not(:focus-visible),
+      a:focus:not(:focus-visible),
+      input:focus:not(:focus-visible),
+      textarea:focus:not(:focus-visible),
+      select:focus:not(:focus-visible) {
+        outline: none;
+      }
+
+      /* ───────────────────────────────────────────────────────────────
+         iOS Safari: rispetta safe-area (notch, home indicator).
+      */
+      @supports (padding: env(safe-area-inset-bottom)) {
+        body { padding-bottom: env(safe-area-inset-bottom, 0); }
+      }
+
+      /* Scroll smooth nativo (Safari supporta da v15.4) */
+      html { scroll-behavior: smooth; }
+
+      /* Selezione testo: usa brand bordeaux invece di blu sistema */
+      ::selection { background: rgba(110, 14, 26, 0.18); color: #1C0A0A; }
+
+      /* Prevenire highlight blu su tap mobile (UX nativa) */
+      * { -webkit-tap-highlight-color: rgba(110, 14, 26, 0.06); }
+
+      /* Anti-flash bianco se l'utente ha dark mode (placeholder per il futuro) */
+      @media (prefers-color-scheme: dark) {
+        html, body { background: #F8FAFC; color: #0E1726; }
+      }
+
+      /* Touch target minimo 44px su mobile per bottoni standalone (icon-only).
+         I bottoni in form usano lo style del componente. */
+      @media (max-width: 767px) {
+        button[aria-label]:not([class*="inline"]) {
+          min-width: 44px;
+          min-height: 44px;
+        }
       }
     </style>
   </head>

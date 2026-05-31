@@ -1,0 +1,27 @@
+{
+  "name": "FoodOS — Gestionale Food Cost",
+  "short_name": "FoodOS",
+  "description": "Gestionale food cost per pasticcerie e ristorazione artigianale italiana.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#6E0E1A",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "it-IT",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "food"]
+}
