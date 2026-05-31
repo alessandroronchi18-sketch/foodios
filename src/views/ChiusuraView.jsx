@@ -282,9 +282,14 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       const unitaR = Math.max(0, unitaP - unitaV)
       const st = unitaP > 0 ? (unitaV / unitaP * 100) : null
       const rv = v.totale || (v.prezzoUnitario * v.qta) || 0
-      const fcV = unitaP > 0 ? (unitaV / unitaP) * fc * stampiP : (unitaV / reg.unita) * fc
+      // Guard reg.unita > 0: una ricetta malformata con unita=0 propaga NaN
+      // in fcV → totals corrotti su tutta la vista chiusura.
+      const unitaPerStampo = Number(reg.unita) > 0 ? Number(reg.unita) : 0
+      const fcV = unitaP > 0
+        ? (unitaV / unitaP) * fc * stampiP
+        : (unitaPerStampo > 0 ? (unitaV / unitaPerStampo) * fc : 0)
       const marg = rv - fcV
-      const spreco = unitaR > 0 ? (unitaR / reg.unita) * fc : 0
+      const spreco = unitaR > 0 && unitaPerStampo > 0 ? (unitaR / unitaPerStampo) * fc : 0
       return [{ nome: mk, nomeScont: v.nome, stampiP, unitaP, unitaV, unitaR, st, rv, fcV, marg, spreco, reg, fc, inProd: stampiP > 0 }]
     })
   }, [venduto, sessione, ricetteNote, ingCosti])
@@ -414,7 +419,14 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       righe = applyGenericMapping(importPreview.rows, importGenericMapping.data, importGenericMapping.importo, importGenericMapping.comm, 'Generico')
     }
     const nuove = mergeInChiusure(chiusure || [], righe, importPiattaforma)
-    setChiusure(nuove); await ssave(SK_CHIUS, nuove)
+    // SAVE FIRST per evitare data-loss su import delivery.
+    try {
+      await ssave(SK_CHIUS, nuove)
+    } catch (e) {
+      notify(`⚠ Errore salvataggio import: ${e.message || 'rete'}. Riprova.`, false)
+      return
+    }
+    setChiusure(nuove)
     notify(`✓ ${righe.length} giorni importati da ${importPiattaforma}`)
     setImportModal(null); setImportPreview(null)
   }
@@ -437,7 +449,14 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const handleConfirmCassa = async () => {
     if (!importPreview?.righe) return
     const nuove = mergeInChiusureCassa(chiusure || [], importPreview.righe, importSistema)
-    setChiusure(nuove); await ssave(SK_CHIUS, nuove)
+    // SAVE FIRST per evitare data-loss su import cassa.
+    try {
+      await ssave(SK_CHIUS, nuove)
+    } catch (e) {
+      notify(`⚠ Errore salvataggio import: ${e.message || 'rete'}. Riprova.`, false)
+      return
+    }
+    setChiusure(nuove)
     notify(`✓ ${importPreview.righe.length} giorni importati da ${importSistema}`)
     setImportModal(null); setImportPreview(null)
   }

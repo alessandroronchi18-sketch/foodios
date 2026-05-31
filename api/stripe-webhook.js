@@ -70,6 +70,13 @@ export default async function handler(req, res) {
   // Idempotenza: Stripe ritenta i webhook su risposte non-2xx/timeout. Registriamo
   // event.id; se è già presente l'evento è già stato elaborato → rispondiamo 200 e
   // ci fermiamo, evitando doppi conteggi (es. redemptions codici sconto).
+  //
+  // Policy errori:
+  //   23505 = duplicate (atteso, è il caso happy: 200 + duplicate=true).
+  //   42P01 = tabella non esiste (setup issue noto pre-migration). Fail-open
+  //           per non perdere eventi durante il deploy iniziale.
+  //   Altri = sospetto (permission denied, schema corrotto). Fail-CLOSED: 503
+  //           così Stripe ritenta automaticamente quando lo stato è ripristinato.
   try {
     const { error: dupErr } = await supabase
       .from('stripe_webhook_events')
@@ -78,12 +85,16 @@ export default async function handler(req, res) {
       if (dupErr.code === '23505') {
         return res.status(200).json({ received: true, duplicate: true })
       }
-      // Errore non-duplicato (es. tabella non ancora migrata): logghiamo e
-      // proseguiamo (fail-open) per non perdere eventi legittimi.
-      console.error('[stripe-webhook] idempotency insert error', dupErr.message)
+      if (dupErr.code === '42P01') {
+        console.warn('[stripe-webhook] idempotency table missing — proceeding (FIX: applicare migration)')
+      } else {
+        console.error('[stripe-webhook] idempotency check failed, returning 503 for Stripe retry', dupErr.code, dupErr.message)
+        return res.status(503).json({ error: 'idempotency check failed', code: dupErr.code })
+      }
     }
   } catch (e) {
-    console.error('[stripe-webhook] idempotency check failed', e?.message)
+    console.error('[stripe-webhook] idempotency exception, returning 503', e?.message)
+    return res.status(503).json({ error: 'idempotency check exception' })
   }
 
   try {

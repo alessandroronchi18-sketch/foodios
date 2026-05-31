@@ -172,7 +172,7 @@ export function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita, emai
     tableWidth: 90,
   })
 
-  const afterInfo = doc.lastAutoTable.finalY + 10
+  const afterInfo = (doc.lastAutoTable?.finalY ?? 60) + 10
 
   // Tabella ingredienti
   doc.setFontSize(11)
@@ -192,7 +192,7 @@ export function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita, emai
     margin: { left: 14, right: 14 },
   })
 
-  const afterTable = doc.lastAutoTable.finalY + 10
+  const afterTable = (doc.lastAutoTable?.finalY ?? 60) + 10
 
   // Riepilogo
   const costoTotale = fcTot
@@ -250,7 +250,7 @@ export function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtente) {
     margin: { left: 14, right: 14 },
   })
 
-  const y2 = doc.lastAutoTable.finalY + 12
+  const y2 = (doc.lastAutoTable?.finalY ?? 60) + 12
 
   // Tabella costi materie prime
   doc.setFontSize(11)
@@ -272,7 +272,7 @@ export function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtente) {
     margin: { left: 14, right: 14 },
   })
 
-  const y3 = doc.lastAutoTable.finalY + 12
+  const y3 = (doc.lastAutoTable?.finalY ?? 60) + 12
 
   // Riepilogo totali
   const margine = totRicavi - totCosti
@@ -386,7 +386,7 @@ export function exportPLCompleto(dati, nomeAttivita, emailUtente) {
       },
       margin: { left: 14, right: 14 },
     })
-    y = doc.lastAutoTable.finalY + 8
+    y = (doc.lastAutoTable?.finalY ?? 60) + 8
   }
 
   // Tabella P&L dettagliata per prodotto
@@ -445,7 +445,7 @@ export function exportPLCompleto(dati, nomeAttivita, emailUtente) {
   })
 
   // Sensitivity: FC +10% / +20%
-  let y2 = doc.lastAutoTable.finalY + 10
+  let y2 = (doc.lastAutoTable?.finalY ?? 60) + 10
   if (y2 > 240) { doc.addPage(); y2 = 20 }
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
@@ -470,7 +470,7 @@ export function exportPLCompleto(dati, nomeAttivita, emailUtente) {
 
   // Top ingredienti (se forniti)
   if (Array.isArray(dati.topIngredienti) && dati.topIngredienti.length) {
-    let y3 = doc.lastAutoTable.finalY + 10
+    let y3 = (doc.lastAutoTable?.finalY ?? 60) + 10
     if (y3 > 240) { doc.addPage(); y3 = 20 }
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
@@ -563,7 +563,7 @@ export function exportSimulatorePrezzi(dati, nomeAttivita, emailUtente) {
       columnStyles: { 0: { cellWidth: 6, textColor: RED, fontStyle: 'bold' }, 1: { textColor: DARK } },
       margin: { left: 14, right: 14 },
     })
-    y = doc.lastAutoTable.finalY + 8
+    y = (doc.lastAutoTable?.finalY ?? 60) + 8
   }
 
   // Scenario dettagliato per prodotto (mostra solo quelli con modifiche se ce ne sono, altrimenti tutti)
@@ -662,7 +662,7 @@ export function exportProduzione(dati, data, nomeAttivita, emailUtente) {
       columnStyles: { 3: { halign: 'right' }, 4: { halign: 'right' } },
       margin: { left: 14, right: 14 },
     })
-    curY = doc.lastAutoTable.finalY + 8
+    curY = (doc.lastAutoTable?.finalY ?? 60) + 8
   }
 
   // Totale
@@ -733,7 +733,7 @@ export function exportScadenzario(fatture, nomeAttivita, emailUtente) {
       columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } },
       margin: { left: 14, right: 14 },
     })
-    startY = doc.lastAutoTable.finalY + 8
+    startY = (doc.lastAutoTable?.finalY ?? 60) + 8
   }
 
   // Totali

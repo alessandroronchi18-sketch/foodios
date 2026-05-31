@@ -6,6 +6,10 @@ import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'
 import { C, KPI, SH, margColor, margBadge, fmt, fmtp, ChartTip } from './_shared'
 
+// Nomi mese italiani per fmtKey (vista="mese"). L'index 0 è vuoto perché
+// k.slice(5) restituisce mesi 01-12 e parseInt('01') = 1.
+const MN = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+
 export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [] }) {
   const isMobile = useIsMobile();
   const [vista, setVista]   = useState("giornaliero"); // "giornaliero" | "settimana" | "mese"
@@ -562,32 +566,9 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             );
           })()}
 
-              {batchResults.length > 0 && (
-                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                  <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:12}}>
-                    📊 Batch completato — {batchResults.filter(r=>r.salvato).length}/{batchResults.length} chiusure salvate
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                    {batchResults.map((r,i)=>(
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 12px",
-                        background:r.salvato?C.greenLight:C.redLight,borderRadius:8,
-                        border:`1px solid ${r.salvato?C.green+"40":C.red+"40"}`}}>
-                        <span style={{fontSize:14}}>{r.salvato?"✅":"❌"}</span>
-                        <div style={{flex:1}}>
-                          <span style={{fontSize:11,fontWeight:700,color:C.text}}>
-                            {r.data!=="?" ? new Date(r.data+"T12:00").toLocaleDateString("it-IT",{weekday:"short",day:"numeric",month:"long",year:"numeric"}) : "Data non trovata"}
-                          </span>
-                          {r.salvato&&<span style={{fontSize:10,color:C.textSoft,marginLeft:8}}>{r.prodotti.length} prodotti</span>}
-                          {r.error&&<span style={{fontSize:10,color:C.red,marginLeft:8}}>{r.error}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button onClick={()=>setBatchResults([])} style={{marginTop:10,padding:"5px 12px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,fontSize:10,color:C.textSoft,cursor:"pointer"}}>
-                    Chiudi riepilogo
-                  </button>
-                </div>
-              )}
+              {/* Blocco 'batchResults' rimosso: era codice orfano (state mai
+                  dichiarato) residuo di una feature import batch non
+                  completata. Causava ReferenceError sulla tab chiusure. */}
 
               {/* Tabella chiusure */}
               <SH sub="Ogni giornata chiusa con scontrino">Storico Chiusure</SH>

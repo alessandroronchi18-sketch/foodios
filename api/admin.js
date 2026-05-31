@@ -1227,7 +1227,12 @@ export default async function handler(req) {
         case 'estendi_trial':
           await azEstendiTrial(supabase, orgId, body.valore); break
         case 'impersona':
-          result = { ok: true, ...(await azImpersona(supabase, orgId)) }; break
+          result = { ok: true, ...(await azImpersona(supabase, orgId)) }
+          // Audit speciale: tracciamo email impersonata (anti-frode). Il log
+          // generico a fondo loop registra solo l'azione 'impersona', qui
+          // arricchiamo con la mail del titolare il cui account è stato aperto.
+          await logAdmin(supabase, user.email, `impersona_target:${result.email}`, orgId || null, ip, ua)
+          break
         case 'reset_password':
           result = { ok: true, ...(await azResetPassword(supabase, orgId)) }; break
         case 'invia_email':

@@ -799,7 +799,11 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
         const semiRic = ricettario.ricette[semiKey]
         const { tot: semiTot } = calcolaFCStorico(semiRic, ingCosti, ricettario, logPrezzi, when, depth + 1, [...path, semiKey])
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
-        const costoG = semiPeso > 0 ? semiTot / semiPeso : 0
+        if (semiPeso <= 0) {
+          mancanti.push(`${ing.nome} (semilavorato senza peso totale)`)
+          continue
+        }
+        const costoG = semiTot / semiPeso
         // Coerenza con il ramo foglia: applica l'eventuale resa anche al
         // semilavorato (default 1.0 = nessuna variazione).
         tot += qty * costoNettoPerG(costoG, nomeNorm)
@@ -862,7 +866,15 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path) {
         const semiRic = ricettario.ricette[semiKey]
         const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, depth + 1, [...path, semiKey])
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
-        const costoG = semiPeso > 0 ? semiTot / semiPeso : 0
+        // Se semiPeso=0 (semilavorato senza ingredienti o ingredienti senza
+        // qty1stampo) il costoG sarebbe 0 e il padre risulterebbe gratis →
+        // margine gonfiato. Lo segnaliamo come ingrediente mancante invece
+        // di silenziare il bug.
+        if (semiPeso <= 0) {
+          mancanti.push(`${ing.nome} (semilavorato senza peso totale: serve almeno un ingrediente con qty1stampo > 0)`)
+          continue
+        }
+        const costoG = semiTot / semiPeso
         // Coerenza con il ramo foglia: applica l'eventuale resa anche al
         // semilavorato (default 1.0 = nessuna variazione).
         tot += qty * costoNettoPerG(costoG, nomeNorm)
