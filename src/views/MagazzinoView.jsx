@@ -490,6 +490,16 @@ export default function MagazzinoView({
   const [newIngQty, setNewIngQty] = useState('')
   const [newIngSoglia, setNewIngSoglia] = useState('')
 
+  // ESC chiude il modal di delete (UX coerente con ProduzioneGiornalieraView).
+  useEffect(() => {
+    if (!deleteIngConf) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') { setDeleteIngConf(null); setDeleteIngPin('') }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [deleteIngConf])
+
   // ssave locale che usa orgId/sedeId props (sostituisce la wrapper Dashboard.jsx)
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
 
@@ -888,10 +898,11 @@ export default function MagazzinoView({
       )}
 
       {deleteIngConf && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          role="dialog" aria-modal="true" aria-labelledby="delete-ing-title"
           onClick={e => { if (e.target === e.currentTarget) { setDeleteIngConf(null); setDeleteIngPin('') } }}>
           <div style={{ background: C.white, borderRadius: 14, padding: '28px 32px', maxWidth: 420, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8 }}>🗑 Elimina ingrediente</div>
+            <div id="delete-ing-title" style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8 }}>🗑 Elimina ingrediente</div>
             <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>
               Stai per eliminare <b style={{ textTransform: 'capitalize' }}>{magazzino?.[deleteIngConf]?.nome || deleteIngConf}</b> dal magazzino.
             </div>

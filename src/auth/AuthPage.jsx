@@ -854,9 +854,10 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
             <div style={{
               display: 'inline-flex', padding: 4, marginBottom: 28,
               background: T.creamDeep, borderRadius: 12, gap: 4,
-            }}>
+            }} role="tablist" aria-label="Scegli login o registrazione">
               {[['login', 'Accedi'], ['registrati', 'Registrati']].map(([id, lbl]) => (
-                <button key={id} onClick={() => { setMode(id); setRegStep(1); clear(); setSuccesso(false) }} style={{
+                <button key={id} role="tab" aria-selected={mode === id}
+                  onClick={() => { setMode(id); setRegStep(1); clear(); setSuccesso(false) }} style={{
                   padding: '9px 22px', border: 'none', cursor: 'pointer',
                   background: mode === id ? T.paper : 'transparent',
                   color: mode === id ? T.ink : T.textMid,

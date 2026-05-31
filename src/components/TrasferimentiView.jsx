@@ -403,7 +403,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
       {/* Modal Ricezione */}
       {riceviModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 }}
+          role="dialog" aria-modal="true"
           onClick={() => setRiceviModal(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%' }}>
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text }}>📦 Conferma ricezione</h3>
