@@ -122,11 +122,14 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Controlla localStorage quando l'orgId è disponibile
+  // Controlla localStorage quando l'orgId è disponibile.
+  // Onboarding wizard disattivato per ora (richiesta founder 2026-05-30):
+  // saltiamo lo step di tutorial al primo login e portiamo l'utente
+  // direttamente nella Dashboard. Per riattivarlo basta rimuovere la
+  // forzatura `setOnboardingVisto(true)` qui sotto.
   useEffect(() => {
     if (auth.orgId && onboardingVisto === null) {
-      const visto = !!localStorage.getItem(`onboarding_seen_${auth.orgId}`)
-      setOnboardingVisto(visto)
+      setOnboardingVisto(true)
     }
   }, [auth.orgId, onboardingVisto])
 

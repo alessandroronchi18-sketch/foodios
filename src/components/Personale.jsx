@@ -200,18 +200,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             ))}
           </div>
         )}
-        {!inArchivio && costoMeseTot > 0 && (
-          <div style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "14px 20px", marginBottom:16, display: isMobile ? "grid" : "flex", gridTemplateColumns: isMobile ? "1fr 1fr" : undefined, alignItems:"center", gap: isMobile ? 8 : 20 }}>
-            <div>
-              <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Costo lavoro / mese</div>
-              <div style={{ fontSize: isMobile ? 18 : 24, fontWeight:900, color:C.red, ...tnum }}>{fmt(costoMeseTot)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Dipendenti attivi</div>
-              <div style={{ fontSize: isMobile ? 18 : 24, fontWeight:900, color:C.text }}>{lista.length}</div>
-            </div>
-          </div>
-        )}
+        {/* KPI strip rimossa: ora i totali stanno nell'header globale di Personale. */}
         {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : lista.length === 0 ? (
           <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>{inArchivio ? "Nessun dipendente archiviato." : "Nessun dipendente ancora."}</div>
         ) : isMobile ? lista.map(d=>(
@@ -603,30 +592,106 @@ function AnalisiCostoTab({ orgId, isMobile }) {
   )
 }
 
+// Header sezione + KPI strip globale.
+// Carichiamo qui il count dipendenti attivi + costo lavoro stimato per dare
+// al titolare un'idea immediata della scala (sopra le tab) senza dover entrare
+// in un singolo sotto-tab.
+function HeaderPersonale({ orgId, isMobile }) {
+  const [dipAttivi, setDipAttivi] = useState(0)
+  const [costoLavoro, setCostoLavoro] = useState(0)
+  const [oreSetTot, setOreSetTot] = useState(0)
+
+  useEffect(() => {
+    if (!orgId) return
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase.from('dipendenti')
+        .select('costo_orario, ore_settimana')
+        .eq('organization_id', orgId).eq('attivo', true)
+      if (cancelled) return
+      const lista = data || []
+      setDipAttivi(lista.length)
+      setCostoLavoro(lista.reduce((s, d) => s + (d.costo_orario || 0) * (d.ore_settimana || 0) * 4.33, 0))
+      setOreSetTot(lista.reduce((s, d) => s + (d.ore_settimana || 0), 0))
+    })()
+    return () => { cancelled = true }
+  }, [orgId])
+
+  const kpis = [
+    { lbl: 'Dipendenti attivi', val: dipAttivi, color: T.text },
+    { lbl: 'Ore settimana tot.', val: fmtH(oreSetTot), color: T.text },
+    { lbl: 'Costo lavoro / mese', val: fmt(costoLavoro), color: T.brand, hi: true },
+  ]
+
+  return (
+    <div style={{ marginBottom: isMobile ? 20 : 28 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 26, fontWeight: 700, color: T.text, letterSpacing: '-0.025em', lineHeight: 1.15 }}>
+            Personale
+          </h1>
+          <p style={{ margin: '6px 0 0', fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 560 }}>
+            Dipendenti, turni settimanali, costo del lavoro. Sotto controllo in tempo reale.
+          </p>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,1fr)' : 'repeat(3,minmax(200px,1fr))', gap: 10 }}>
+        {kpis.map((k, i) => (
+          <div key={i} style={{
+            background: k.hi ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
+            border: `1px solid ${k.hi ? '#4A0612' : T.border}`,
+            borderRadius: R.xl, padding: isMobile ? '14px 14px' : '18px 22px',
+            boxShadow: k.hi ? '0 8px 22px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : S.sm,
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: k.hi ? 'rgba(255,255,255,0.72)' : T.textSoft, marginBottom: 8 }}>{k.lbl}</div>
+            <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 700, letterSpacing: '-0.02em',
+              color: k.hi ? T.textOnDark : k.color, lineHeight: 1.1, ...tnum }}>{k.val}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Personale({ orgId, sedeId, sedi = [], notify }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState("dipendenti")
-  const TABS = [["dipendenti","Dipendenti"],["turni","Turni"],["analisi","Analisi costo"]]
+  const TABS = [
+    ["dipendenti", "Dipendenti", "👥"],
+    ["turni",      "Turni",      "📅"],
+    ["analisi",    "Analisi costo", "📊"],
+  ]
 
   return (
-    <div style={{ maxWidth:1040, margin:"0 auto", padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: isMobile ? 16 : 20 }}>
-        <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Gestisci dipendenti, turni e monitora il costo del lavoro nel tempo.</p>
-      </div>
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: isMobile ? 12 : 0 }}>
+      <HeaderPersonale orgId={orgId} isMobile={isMobile}/>
 
-      <div style={{ display:"flex", gap:2, marginBottom: isMobile ? 16 : 24, borderBottom:`1px solid ${T.border}`, overflowX: isMobile ? "auto" : "visible" }}>
-        {TABS.map(([id,lbl])=>(
-          <button key={id} onClick={()=>setTab(id)}
-            style={{ padding:"10px 16px", border:"none", background:"transparent", cursor:"pointer",
-              fontSize:13, fontWeight:tab===id?600:500, color:tab===id?T.text:T.textSoft,
-              borderBottom:tab===id?`2px solid ${T.brand}`:"2px solid transparent",
-              marginBottom:-1, letterSpacing:"-0.005em", whiteSpace:"nowrap",
-              transition:`color ${M.durFast} ${M.ease}` }}
-            onMouseEnter={e=>{if(tab!==id)e.currentTarget.style.color=T.textMid;}}
-            onMouseLeave={e=>{if(tab!==id)e.currentTarget.style.color=T.textSoft;}}>
-            {lbl}
-          </button>
-        ))}
+      {/* Tab pill moderni — sostituiscono il vecchio underline tab */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: isMobile ? 18 : 26,
+        padding: 4, background: T.bgSubtle, borderRadius: R.lg,
+        border: `1px solid ${T.borderSoft}`, width: 'fit-content',
+        overflowX: isMobile ? 'auto' : 'visible', maxWidth: '100%' }}>
+        {TABS.map(([id, lbl, icon]) => {
+          const active = tab === id
+          return (
+            <button key={id} onClick={() => setTab(id)}
+              style={{ padding: '8px 16px', border: 'none', cursor: 'pointer',
+                background: active ? T.bgCard : 'transparent',
+                color: active ? T.text : T.textSoft,
+                fontSize: 13, fontWeight: active ? 600 : 500,
+                borderRadius: R.md, letterSpacing: '-0.005em',
+                boxShadow: active ? S.sm : 'none',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                whiteSpace: 'nowrap',
+                transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}, box-shadow ${M.durFast} ${M.ease}` }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.color = T.textMid }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = T.textSoft }}>
+              <span style={{ fontSize: 13, opacity: active ? 1 : 0.7 }}>{icon}</span>
+              {lbl}
+            </button>
+          )
+        })}
       </div>
 
       {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}

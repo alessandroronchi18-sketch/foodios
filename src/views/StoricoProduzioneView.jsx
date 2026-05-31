@@ -1,6 +1,6 @@
 // StoricoProduzioneView — Storico produzioni con grafici. Estratta da Dashboard.jsx.
 import React, { useState, useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'

@@ -1889,7 +1889,7 @@ export default function Dashboard({
         };
 
         const Sep = ({label}) => (
-          <div style={{padding:"18px 20px 8px",fontSize:10,fontWeight:600,
+          <div style={{padding:"16px 20px 6px",fontSize:10,fontWeight:600,
             letterSpacing:"0.1em",textTransform:"uppercase",color:"rgba(255,255,255,0.36)"}}>
             {label}
           </div>
@@ -1981,15 +1981,15 @@ export default function Dashboard({
             {/* Brand accent strip */}
             <div style={{height:3, background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)", flexShrink:0}}/>
 
-            {/* Logo */}
-            <div style={{padding:"22px 20px 18px",borderBottom:`1px solid ${T.borderOnDark}`}}>
+            {/* Logo header: padding uniforme 20 px, logo bordeaux invariante */}
+            <div style={{padding:"20px 20px 18px",borderBottom:`1px solid ${T.borderOnDark}`}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 {customLogo
                   ? <img src={customLogo} alt={appName} style={{height:38,maxWidth:60,objectFit:'contain',borderRadius:10}}/>
                   : <Logo size={38} style={{borderRadius:10,boxShadow:"0 8px 22px rgba(110,14,26,0.42)"}}/>}
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:17,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",lineHeight:1.1}}>{appName}</div>
-                  <div style={{fontSize:12,color:T.textOnDarkSoft,fontWeight:400,marginTop:2,
+                  <div style={{fontSize:16,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",lineHeight:1.15}}>{appName}</div>
+                  <div style={{fontSize:11.5,color:T.textOnDarkSoft,fontWeight:400,marginTop:3,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.005em"}}>
                     {nomeAttivita || "La mia attività"}
                   </div>
@@ -2000,8 +2000,8 @@ export default function Dashboard({
             <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />
 
             {/* Search nel menu — filtra le voci della sidebar in tempo reale */}
-            <div style={{padding:"10px 14px 8px",position:"relative"}}>
-              <span style={{position:"absolute", left: 24, top: "50%", transform:"translateY(-50%)", display:"flex", pointerEvents:"none", color:"rgba(255,255,255,0.45)"}}>
+            <div style={{padding:"12px 16px 10px",position:"relative"}}>
+              <span style={{position:"absolute", left: 26, top: "50%", transform:"translateY(-50%)", display:"flex", pointerEvents:"none", color:"rgba(255,255,255,0.45)"}}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </span>
               <input
@@ -2021,7 +2021,7 @@ export default function Dashboard({
               />
               {sidebarSearch && (
                 <button onClick={() => setSidebarSearch('')} aria-label="Cancella ricerca"
-                  style={{position:"absolute", right: 22, top: "50%", transform:"translateY(-50%)", background:"none", border:"none", color:"rgba(255,255,255,0.6)", cursor:"pointer", padding:4, display:"flex"}}>
+                  style={{position:"absolute", right: 24, top: "50%", transform:"translateY(-50%)", background:"none", border:"none", color:"rgba(255,255,255,0.6)", cursor:"pointer", padding:4, display:"flex"}}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
                 </button>
               )}
@@ -2030,8 +2030,37 @@ export default function Dashboard({
             {/* Nav — gruppi collassabili, ottimizzati per utenti non tecnici */}
             <div style={{flex:1,overflowY:"auto",paddingTop:4,paddingBottom:10}}>
 
-              {/* Sempre visibile in cima: la Dashboard */}
-              {navItem("home","home","Dashboard")}
+              {/* Sempre visibile in cima: la Dashboard.
+                  Render visivamente coerente con i Group header (stesso padding,
+                  border-left brand, font uppercase letterspaced) ma è una
+                  singola voce cliccabile, senza chevron né children. */}
+              {(() => {
+                const active = view === "home"
+                if (isDip && !DIPENDENTE_VIEWS.has("home")) return null
+                if (sidebarQuery && !"dashboard".includes(sidebarQuery)) return null
+                const textColor = active ? "#FFFFFF" : "rgba(255,255,255,0.78)"
+                const iconColor = active ? "#FFFFFF" : "rgba(255,255,255,0.72)"
+                const accent    = active ? "#E84B3A" : "rgba(232,75,58,0.45)"
+                return (
+                  <button onClick={() => { setView("home"); if (isMobile) setSidebarOpen(false) }}
+                    style={{ width: "calc(100% - 16px)", margin: "4px 8px 4px", padding: "10px 12px 10px 14px",
+                      background: active
+                        ? "linear-gradient(90deg, rgba(232,75,58,0.18), rgba(232,75,58,0.06) 60%, transparent)"
+                        : "rgba(255,255,255,0.035)",
+                      border: "none",
+                      borderLeft: `3px solid ${accent}`,
+                      cursor: "pointer", textAlign: "left",
+                      borderRadius: 8, display: "flex", alignItems: "center", gap: 10,
+                      color: textColor, fontSize: 11.5, fontWeight: 800,
+                      letterSpacing: "0.1em", textTransform: "uppercase",
+                      transition: `color ${M.durFast} ${M.ease}, background ${M.durFast} ${M.ease}` }}
+                    onMouseEnter={e => { e.currentTarget.style.color = "#FFFFFF"; if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.07)" }}
+                    onMouseLeave={e => { e.currentTarget.style.color = textColor; if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.035)" }}>
+                    <span style={{ color: iconColor, display: "flex" }}>{ic(ICONS.home, 14)}</span>
+                    <span style={{ flex: 1, whiteSpace: "nowrap" }}>Dashboard</span>
+                  </button>
+                )
+              })()}
 
               <Group id="oggi" iconKey="today" label="Oggi"
                 alert={(!hasProdOggi && new Date().getHours()>=6) || cassaMancante}>
@@ -2078,7 +2107,8 @@ export default function Dashboard({
               <Group id="strumenti" iconKey="tool" label="Strumenti"
                 badge={azioniAperte}>
                 {navItem("azioni","sparkles","AI Assistant",azioniAperte)}
-                {navItem("integrazioni","integ","Integrazioni")}
+                {/* "Integrazioni" nascosta ai clienti su richiesta founder (2026-05-30).
+                    La view resta disponibile internamente via setView('integrazioni'). */}
               </Group>
 
               {/* In fondo, senza gruppo: impostazioni e novità */}
@@ -2089,7 +2119,7 @@ export default function Dashboard({
             </div>
 
             {/* Footer */}
-            <div style={{padding:"12px 12px 14px",borderTop:`1px solid ${T.borderOnDark}`}}>
+            <div style={{padding:"14px 16px 16px",borderTop:`1px solid ${T.borderOnDark}`}}>
               {auth?.user?.email&&(
                 <div style={{display:"flex",alignItems:"center",gap:10,padding:"4px 6px 12px",overflow:"hidden"}}>
                   <div style={{width:30,height:30,borderRadius:R.md,background:"linear-gradient(135deg,#3B4252 0%,#1F2430 100%)",
@@ -2239,26 +2269,37 @@ export default function Dashboard({
           const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
           return (
             <div style={{position:"sticky",top:0,zIndex:Z.topbar,
-              background:"rgba(247,248,250,0.82)",
-              backdropFilter:"saturate(180%) blur(16px)",WebkitBackdropFilter:"saturate(180%) blur(16px)",
+              background:"rgba(247,248,250,0.88)",
+              backdropFilter:"saturate(180%) blur(18px)",WebkitBackdropFilter:"saturate(180%) blur(18px)",
               borderBottom:`1px solid ${C.borderSoft}`,
-              padding:"14px 32px",display:"flex",alignItems:"center",gap:14}}>
+              padding:"16px 32px",display:"flex",alignItems:"center",gap:16}}>
+              {/* Sezione attiva: indicatore visivo brand a sinistra */}
+              <div style={{width:4,height:34,borderRadius:3,
+                background:"linear-gradient(180deg, #6E0E1A 0%, #E84B3A 100%)",
+                boxShadow:"0 2px 8px rgba(110,14,26,0.28)",flexShrink:0}}/>
+              {/* Titolo + breadcrumb */}
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:11,color:T.textSoft,fontWeight:500,letterSpacing:"-0.005em",display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                  <span style={{maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomeAttivita||"FoodOS"}</span>
-                  {group&&<><span style={{color:T.borderStr}}>›</span><span>{group}</span></>}
+                <div style={{fontSize:10.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                  <span style={{maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.textMid}}>{nomeAttivita||"FoodOS"}</span>
+                  {group&&<>
+                    <span style={{color:T.borderStr,fontSize:11}}>›</span>
+                    <span style={{color:T.textSoft,letterSpacing:"0.05em"}}>{group}</span>
+                  </>}
                 </div>
-                <div style={{fontSize:19,fontWeight:600,color:T.text,letterSpacing:"-0.02em",lineHeight:1.2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</div>
+                <div style={{fontSize:22,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</div>
               </div>
               {sedeCorrente&&(
-                <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",
+                <div style={{display:"flex",alignItems:"center",gap:9,padding:"8px 14px",
                   background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.lg,boxShadow:S.sm}}>
-                  <span style={{width:7,height:7,borderRadius:"50%",background:T.green,boxShadow:"0 0 0 2px rgba(14,159,110,0.18)"}}/>
-                  <span style={{fontSize:12,color:T.textMid,fontWeight:500,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sedeCorrente.nome||"Sede"}</span>
+                  <span style={{width:7,height:7,borderRadius:"50%",background:T.green,boxShadow:"0 0 0 3px rgba(14,159,110,0.16)",flexShrink:0}}/>
+                  <div style={{display:"flex",flexDirection:"column",lineHeight:1.15}}>
+                    <span style={{fontSize:9.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Sede</span>
+                    <span style={{fontSize:12.5,color:T.text,fontWeight:600,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.005em"}}>{sedeCorrente.nome||"—"}</span>
+                  </div>
                 </div>
               )}
               <button onClick={()=>setShowNotifiche(o=>!o)} aria-label="Notifiche"
-                style={{position:"relative",width:38,height:38,border:`1px solid ${T.border}`,
+                style={{position:"relative",width:40,height:40,border:`1px solid ${T.border}`,
                   background:T.bgCard,borderRadius:R.lg,cursor:"pointer",display:"flex",alignItems:"center",
                   justifyContent:"center",color:T.textMid,boxShadow:S.sm,
                   transition:`background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}
@@ -2267,15 +2308,15 @@ export default function Dashboard({
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
                 </svg>
-                {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:T.brand,color:"#fff",borderRadius:"50%",minWidth:17,height:17,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #FFF",lineHeight:1}}>{nonLette>99?"99+":nonLette}</span>}
+                {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:T.brand,color:"#fff",borderRadius:"50%",minWidth:18,height:18,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #FFF",lineHeight:1}}>{nonLette>99?"99+":nonLette}</span>}
               </button>
               <div title={auth?.user?.email||""}
-                style={{width:38,height:38,borderRadius:"50%",
+                style={{width:40,height:40,borderRadius:"50%",
                   background:T.brandGradient,
                   display:"flex",alignItems:"center",justifyContent:"center",
-                  color:"#fff",fontSize:13,fontWeight:600,letterSpacing:0,
+                  color:"#fff",fontSize:14,fontWeight:700,letterSpacing:0,
                   boxShadow:S.brandSoft,cursor:"default",userSelect:"none",
-                  border:"2px solid rgba(255,255,255,0.9)"}}>
+                  border:"2px solid rgba(255,255,255,0.92)"}}>
                 {initial}
               </div>
             </div>
