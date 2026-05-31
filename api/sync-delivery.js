@@ -94,7 +94,11 @@ async function syncCassaInCloud(apiKey, data) {
   for (const v of vendite) {
     const d = (v.date || v.data || data).slice(0, 10);
     if (!byData[d]) byData[d] = { importo: 0, righe: 0 };
-    byData[d].importo += parseFloat(v.total || v.totale || 0);
+    // Guard NaN/Infinity: API esterna corrotta non deve propagare 'Infinity'
+    // o NaN nel DB importo (rovinerebbe ogni report).
+    const amount = parseFloat(v.total || v.totale || 0);
+    if (!Number.isFinite(amount) || amount < 0 || amount > 1_000_000) continue;
+    byData[d].importo += amount;
     byData[d].righe += 1;
   }
   return Object.entries(byData).map(([d, v]) => ({

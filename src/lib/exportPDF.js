@@ -1,5 +1,18 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+// jsPDF + autoTable caricati lazy SOLO quando l'utente clicca un export.
+// Senza questo lazy-load il chunk pdf (649KB) veniva fetchato al mount.
+let _jsPDF = null
+let _autoTable = null
+async function ensurePdf() {
+  if (!_jsPDF) {
+    const [{ default: JsPDF }, autoTableMod] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ])
+    _jsPDF = JsPDF
+    _autoTable = autoTableMod.default
+  }
+  return { jsPDF: _jsPDF, autoTable: _autoTable }
+}
 
 const RED    = [192, 57, 43]
 const DARK   = [28, 10, 10]
@@ -119,7 +132,8 @@ function fmt(v) {
 //   - ricetta.ingredienti è un array [{ nome, qty1stampo (grammi), ... }]
 //   - foodCost: { tot, perc } come passato dai chiamanti in Dashboard.jsx
 //   - ingCosti: mappa { [normIng(nome)]: { costoKg, costoG } }
-export function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita, emailUtente) {
+export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita, emailUtente) {
+  const { jsPDF, autoTable } = await ensurePdf()
   // Backwards-compat: se qualcuno chiama ancora con (ricetta, foodCost, nomeAttivita) come stringa
   if (typeof ingCosti === 'string' && nomeAttivita === undefined) {
     nomeAttivita = ingCosti
@@ -223,7 +237,8 @@ export function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita, emai
 }
 
 // ─── 2. P&L mensile ───────────────────────────────────────────────────────────
-export function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtente) {
+export async function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtente) {
+  const { jsPDF, autoTable } = await ensurePdf()
   const doc = new jsPDF()
   const label = mese && anno ? `${mese} ${anno}` : 'Report mensile'
   addHeader(doc, 'Report P&L', label, nomeAttivita)
@@ -316,7 +331,8 @@ export function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtente) {
 //     insights?:       [{ tipo: 'ok'|'warn'|'critical', testo: string }],
 //     mese?:           string, anno?: string,
 //   }
-export function exportPLCompleto(dati, nomeAttivita, emailUtente) {
+export async function exportPLCompleto(dati, nomeAttivita, emailUtente) {
+  const { jsPDF, autoTable } = await ensurePdf()
   const doc = new jsPDF()
   const rows = dati.rows || []
   const label = dati.mese && dati.anno ? `${dati.mese} ${dati.anno}` : `${rows.length} prodotti`
@@ -511,7 +527,8 @@ export function exportPLCompleto(dati, nomeAttivita, emailUtente) {
 //     fcAvgPct?: number,
 //     raccomandazioni?: [string],
 //   }
-export function exportSimulatorePrezzi(dati, nomeAttivita, emailUtente) {
+export async function exportSimulatorePrezzi(dati, nomeAttivita, emailUtente) {
+  const { jsPDF, autoTable } = await ensurePdf()
   const doc = new jsPDF()
   setPdfMetadata(doc, { titolo: 'Simulatore prezzi & food cost', emailUtente, nomeAttivita })
   addHeader(doc, 'Simulatore prezzi', `Proiezione a ${dati.orizzonteGiorni || 30} giorni`, nomeAttivita)
@@ -621,7 +638,8 @@ export function exportSimulatorePrezzi(dati, nomeAttivita, emailUtente) {
 }
 
 // ─── 3. Produzione giornaliera ────────────────────────────────────────────────
-export function exportProduzione(dati, data, nomeAttivita, emailUtente) {
+export async function exportProduzione(dati, data, nomeAttivita, emailUtente) {
+  const { jsPDF, autoTable } = await ensurePdf()
   const doc = new jsPDF()
   const dataLabel = data ? new Date(data).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) : ''
   addHeader(doc, 'Produzione Giornaliera', dataLabel, nomeAttivita)
@@ -682,7 +700,8 @@ export function exportProduzione(dati, data, nomeAttivita, emailUtente) {
 }
 
 // ─── 4. Scadenzario fatture ───────────────────────────────────────────────────
-export function exportScadenzario(fatture, nomeAttivita, emailUtente) {
+export async function exportScadenzario(fatture, nomeAttivita, emailUtente) {
+  const { jsPDF, autoTable } = await ensurePdf()
   const doc = new jsPDF({ orientation: 'landscape' })
   addHeader(doc, 'Scadenzario Fatture', `${fatture.length} fatture`, nomeAttivita)
 

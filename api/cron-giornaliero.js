@@ -73,6 +73,19 @@ export default async function handler(req) {
     ))
   }
 
+  // 4) Cleanup audit_log (retention 365 giorni — protegge crescita tabella).
+  results.push(await runStep('cleanup-audit-log', async () => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+      const { data, error } = await supabase.rpc('cleanup_audit_log', { retain_days: 365 })
+      if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ ok: true, removed: data }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, error: e.message || 'exception' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+    }
+  }))
+
   return new Response(JSON.stringify({
     ok: true,
     triggered_at: now.toISOString(),

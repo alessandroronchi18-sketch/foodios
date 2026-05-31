@@ -3,16 +3,19 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from './auth/useAuth'
 import AuthPage, { ResetPasswordPage } from './auth/AuthPage'
 import Dashboard from './Dashboard'
-import AdminPage from './admin/AdminPage'
-import OnboardingWizard from './onboarding/OnboardingWizard'
-import PrivacyPolicy from './pages/PrivacyPolicy'
-import TerminiServizio from './pages/TerminiServizio'
-import CookiePolicy from './pages/CookiePolicy'
-import Rimborsi from './pages/Rimborsi'
-import Contatti from './pages/Contatti'
-import ChiSiamo from './pages/ChiSiamo'
-import LandingPage from './pages/LandingPage'
-import TvDashboard from './pages/TvDashboard'
+// Lazy: AdminPage 2581 righe, OnboardingWizard usato solo first-login
+const AdminPage = React.lazy(() => import('./admin/AdminPage'))
+const OnboardingWizard = React.lazy(() => import('./onboarding/OnboardingWizard'))
+// Lazy: pagine legali caricate solo se path corrispondente
+const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'))
+const TerminiServizio = React.lazy(() => import('./pages/TerminiServizio'))
+const CookiePolicy = React.lazy(() => import('./pages/CookiePolicy'))
+const Rimborsi = React.lazy(() => import('./pages/Rimborsi'))
+const Contatti = React.lazy(() => import('./pages/Contatti'))
+const ChiSiamo = React.lazy(() => import('./pages/ChiSiamo'))
+// Lazy: pagine pubbliche caricate solo se path corrispondente
+const LandingPage = React.lazy(() => import('./pages/LandingPage'))
+const TvDashboard = React.lazy(() => import('./pages/TvDashboard'))
 import Logo from './components/Logo'
 import { MfaChallenge } from './components/Mfa'
 import AbbonamentoPanel from './components/AbbonamentoPanel'
@@ -142,14 +145,18 @@ export default function App() {
 
   // ─── Da qui in poi SOLO return condizionali: nessun hook sotto questa riga. ───
 
-  // Static pages — no auth needed
-  if (path === '/privacy') return <PrivacyPolicy />
-  if (path === '/termini') return <TerminiServizio />
-  if (path === '/cookie') return <CookiePolicy />
-  if (path === '/rimborsi') return <Rimborsi />
-  if (path === '/contatti') return <Contatti />
-  if (path === '/chi-siamo') return <ChiSiamo />
-  if (path === '/tv') return <TvDashboard />
+  // Helper: wrappa qualsiasi componente lazy con Suspense + SplashScreen
+  // fallback. Tutti i lazy load passano da qui per UX coerente.
+  const sus = (el) => <React.Suspense fallback={<SplashScreen/>}>{el}</React.Suspense>
+
+  // Static pages — no auth needed (tutte lazy)
+  if (path === '/privacy') return sus(<PrivacyPolicy />)
+  if (path === '/termini') return sus(<TerminiServizio />)
+  if (path === '/cookie') return sus(<CookiePolicy />)
+  if (path === '/rimborsi') return sus(<Rimborsi />)
+  if (path === '/contatti') return sus(<Contatti />)
+  if (path === '/chi-siamo') return sus(<ChiSiamo />)
+  if (path === '/tv') return sus(<TvDashboard />)
 
   // Reset password — intercetta PRIMA del check auth.loading/auth.user
   if (showResetPassword) {
@@ -181,7 +188,7 @@ export default function App() {
     if (path === '/login' || path === '/register') {
       return <AuthPage onSignIn={auth.signIn} onSignUp={auth.signUp} initialReferralCode={initialReferralCode} initialMode={path === '/register' ? 'registrati' : 'login'} />
     }
-    return (
+    return sus(
       <LandingPage
         onLogin={() => { window.history.pushState(null, '', '/login'); window.dispatchEvent(new PopStateEvent('popstate')) }}
         onRegister={() => { window.history.pushState(null, '', '/register'); window.dispatchEvent(new PopStateEvent('popstate')) }}
@@ -190,7 +197,7 @@ export default function App() {
   }
 
   // Admin — fallback se VITE_ADMIN_EMAIL non è configurato in Vercel
-  if (auth.isAdmin || (!auth.orgId && !auth.org && auth.user?.email === 'alessandroar@maradeiboschi.com')) return <AdminPage />
+  if (auth.isAdmin || (!auth.orgId && !auth.org && auth.user?.email === 'alessandroar@maradeiboschi.com')) return sus(<AdminPage />)
 
   // Profilo non caricabile (es. RLS recursion) — mostra errore invece di Dashboard rotto
   if (auth.profileError) {
@@ -221,7 +228,7 @@ export default function App() {
 
   // Onboarding al primo accesso
   if (auth.orgId && onboardingVisto === false) {
-    return (
+    return sus(
       <OnboardingWizard
         nomeAttivita={auth.org?.nome}
         orgId={auth.orgId}

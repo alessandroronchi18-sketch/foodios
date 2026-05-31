@@ -24,6 +24,17 @@ export function validateAmount(amount) {
   return !isNaN(n) && isFinite(n) && n >= 0 && n < 1_000_000
 }
 
+// Whitelist protocol per URL salvati e poi mostrati in email/admin UI.
+// Rifiuta javascript: vbscript: data: file: ftp: e ogni schema non http(s).
+// Best ulteriore difesa contro XSS via click in admin inbox.
+export function validateUrl(url) {
+  if (typeof url !== 'string' || url.length === 0 || url.length > 2048) return false
+  try {
+    const u = new URL(url)
+    return u.protocol === 'https:' || u.protocol === 'http:'
+  } catch { return false }
+}
+
 // Rimuove caratteri di controllo e normalizza spazi
 export function sanitizeStrict(str, maxLen = 200) {
   return sanitize(str, maxLen)

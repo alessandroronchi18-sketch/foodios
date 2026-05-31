@@ -2,7 +2,7 @@ export const config = { runtime: 'edge' }
 
 import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { handleOptions, json, getClientIP } from './lib/cors.js'
-import { sanitize, sanitizeStrict } from './lib/validate.js'
+import { sanitize, sanitizeStrict, validateUrl } from './lib/validate.js'
 import { safeError } from './lib/safeError.js'
 
 async function getSupabase() {
@@ -46,7 +46,11 @@ export default async function handler(req) {
   }
   const sentiment = SENTIMENT_VALIDI.includes(body.sentiment) ? body.sentiment : 'feedback'
   const viewCorrente = sanitizeStrict(body.view_corrente || '', 80)
-  const urlCorrente = sanitize(body.url || '', 500)
+  // URL utente: sanitize + valida protocol (http/https). Difesa anti-XSS
+  // contro javascript:/data:/vbscript: che ne admin inbox potrebbero
+  // diventare click malicious.
+  const urlRaw = sanitize(body.url || '', 500)
+  const urlCorrente = validateUrl(urlRaw) ? urlRaw : ''
 
   // Recupera org + ruolo del profilo per arricchire la riga.
   const { data: profile } = await supabase
