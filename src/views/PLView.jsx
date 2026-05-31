@@ -10,7 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng,
@@ -298,7 +298,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
 
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '24px', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
         {hasChanges && (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 24, padding: '16px 20px', background: '#F8F4F2', borderRadius: 10, border: `1px solid ${C.border}` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 24, padding: '16px 20px', background: '#F8F4F2', borderRadius: 10, border: `1px solid ${C.border}` }}>
             {[
               { lbl: 'Ricavo base', val: euro(totRicavoBase), c: C.textMid },
               { lbl: 'Ricavo scenario', val: euro(totRicavoScen), c: totRicavoScen >= totRicavoBase ? C.green : C.red, sub: (totRicavoScen - totRicavoBase) !== 0 ? (totRicavoScen > totRicavoBase ? '+' : '') + euro(totRicavoScen - totRicavoBase) : null },
@@ -515,6 +515,7 @@ function SensTable({ rows, euro, pct }) {
 // ─── PLView ──────────────────────────────────────────────────────────────────
 export default function PLView({ ricettario, onUpdateRegola }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ricette = Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
@@ -673,7 +674,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
       )}
 
       {/* KPI STRIP */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(6,1fr)', gap: 10, marginBottom: 36 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(3,1fr)' : 'repeat(6,1fr)', gap: 10, marginBottom: 36 }}>
         {[
           { lbl: 'Prodotti', val: rows.length, sub: 'nel listino', hi: true },
           { lbl: 'Ricavo/stampo', val: euro(totRicavo), sub: 'somma tutti i prodotti', color: T.green },

@@ -254,7 +254,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   const margPct = riepilogo.ricavoTot > 0 ? ((riepilogo.ricavoTot - riepilogo.fcTot) / riepilogo.ricavoTot * 100) : 0
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1200 }}>
       <PageHeader
         subtitle={`${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} · Il magazzino si aggiorna automaticamente`}
         action={(giornaliero || []).length > 0 && (

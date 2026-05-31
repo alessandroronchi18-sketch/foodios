@@ -162,7 +162,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   };
 
   return (
-    <div style={{maxWidth:1040,margin:"0 auto"}}>
+    <div style={{maxWidth: 1200,margin:"0 auto"}}>
       <div style={{marginBottom:24,display:"flex",alignItems:"center",gap:14}}>
         <div style={{width:48,height:48,borderRadius:R.lg,background:T.brandLight,
           display:"flex",alignItems:"center",justifyContent:"center",color:T.brand,flexShrink:0}}>

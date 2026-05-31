@@ -224,7 +224,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   }
 
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ marginBottom: isMobile ? 28 : 40 }}>
         <div style={{ fontSize: 13, color: T.textSoft, textTransform: 'capitalize', fontWeight: 500, marginBottom: 8 }}>
           {giornoLabel}

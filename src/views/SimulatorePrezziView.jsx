@@ -3,7 +3,7 @@
 // con proiezione a N giorni basata sullo storico stampi prodotti.
 
 import React, { useMemo, useState } from 'react'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { BenchmarkBadge } from '../components/BenchmarkOptin'
@@ -31,6 +31,7 @@ function PageHeader({ subtitle, action }) {
 
 export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita, sedi }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ricette = Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
@@ -244,7 +245,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
 
       {/* KPI comparazione — appare solo con modifiche */}
       {hasChanges && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 14, marginBottom: 28 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 14, marginBottom: 28 }}>
           {[
             { lbl: 'Ricavo/stampo base',    val: euro(totBaseRicavo), sub: 'prezzi attuali', c: T.textMid },
             { lbl: 'Ricavo/stampo scenario', val: euro(totScenRicavo), sub: `${totScenRicavo > totBaseRicavo ? '+' : ''}${euro(totScenRicavo - totBaseRicavo)} vs base`, c: totScenRicavo >= totBaseRicavo ? T.green : T.brand },

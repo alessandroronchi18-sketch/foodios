@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase'
 import { ssave as _ssave, sload } from '../lib/storage'
 import { backgroundManager, uploadManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { scaricoVenditaPF } from '../lib/stockPF'
@@ -26,6 +26,7 @@ const _receiptPending = { current: null }
 
 export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId, isDipendente = false }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
 
@@ -463,7 +464,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   }
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1200 }}>
       <PageHeader
         subtitle="Chiudi la giornata — foto scontrino, import delivery o manuale"
         action={
@@ -704,7 +705,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               </div>
             )
           })()}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : `repeat(${isDipendente ? 2 : 5},1fr)`, gap: 10, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? `repeat(${isDipendente ? 2 : 3},1fr)` : `repeat(${isDipendente ? 2 : 5},1fr)`, gap: 10, marginBottom: 24 }}>
             <KPI icon="💰" label="Ricavo reale" value={fmt(totV)} highlight/>
             {!isDipendente && <KPI icon="📈" label="Margine" value={fmt(totM)} color={margColor(totMP)} sub={fmtp(totMP)}/>}
             {!isDipendente && <KPI icon="🧾" label="Food cost" value={fmt(totFC)} color={C.red}/>}

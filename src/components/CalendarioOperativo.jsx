@@ -168,7 +168,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: isMobile ? 'block' : 'flex', gap:24, alignItems:'flex-start', maxWidth:1100 }}>
+    <div style={{ display: isMobile ? 'block' : 'flex', gap:24, alignItems:'flex-start', maxWidth: 1200 }}>
 
       {/* ── MAIN CALENDAR ─────────────────────────────────────────────── */}
       <div style={{ flex:1, minWidth:0 }}>

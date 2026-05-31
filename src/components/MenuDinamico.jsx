@@ -446,7 +446,7 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
   ]
 
   return (
-    <div style={{ maxWidth:1040, margin:"0 auto", animation:`fos_pageIn ${M.durSlow} ${M.ease}` }}>
+    <div style={{ maxWidth: 1200, margin:"0 auto", animation:`fos_pageIn ${M.durSlow} ${M.ease}` }}>
 
       {/* Header */}
       <div style={{ marginBottom:24, display:"flex", alignItems:"center", gap:14 }}>

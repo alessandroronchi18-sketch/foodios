@@ -566,7 +566,7 @@ export default function Fornitori({ orgId, sedeId, sedi = [], notify }) {
   const TABS = [["fornitori","Fornitori"],["ordini","Ordini"],["spesa","Spesa"]]
 
   return (
-    <div style={{ maxWidth:1040, margin:"0 auto", padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1200, margin:"0 auto", padding: isMobile ? 12 : 0 }}>
       <div style={{ marginBottom: isMobile ? 16 : 20 }}>
         <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Gestisci fornitori, ordini e analizza la spesa nel tempo.</p>
       </div>

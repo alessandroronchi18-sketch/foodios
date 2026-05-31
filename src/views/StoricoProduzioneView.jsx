@@ -150,7 +150,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   );
 
   return (
-    <div style={{maxWidth:1100}}>
+    <div style={{maxWidth: 1200}}>
       {/* Header + toggle */}
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
          <div>

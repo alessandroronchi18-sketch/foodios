@@ -155,7 +155,7 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify }) {
   const inp  = { width: '100%', height: 40, padding: '0 12px', border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: 13, color: C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
 
   return (
-    <div style={{ maxWidth: 1100, padding: isMobile ? 8 : 0 }}>
+    <div style={{ maxWidth: 1200, padding: isMobile ? 8 : 0 }}>
       {/* Header */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.5 }}>

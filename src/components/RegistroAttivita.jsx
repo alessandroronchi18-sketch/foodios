@@ -12,7 +12,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, tnum } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 
@@ -126,6 +126,7 @@ const PRESET_PERIODS = [
 
 export default function RegistroAttivita({ orgId, sedi = [], notify }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const sediMap = useMemo(
     () => Object.fromEntries((sedi || []).map(s => [s.id, s])),
     [sedi]
@@ -321,7 +322,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
         </div>
 
         {/* KPI STRIP */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
           {[
             { lbl: 'Azioni nel periodo', val: stats.total, sub: `${dataDa} → ${dataA}`, color: T.text, hi: true },
             { lbl: 'Azioni oggi',        val: stats.oggi,  sub: stats.oggi === 0 ? 'Nessuna attività' : 'modifiche registrate', color: T.text },

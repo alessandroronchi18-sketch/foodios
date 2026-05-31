@@ -228,7 +228,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
   const costoGLive = pesoLive > 0 ? fcLive / pesoLive : 0;
 
   return (
-    <div style={{maxWidth:1120,margin:"0 auto"}}>
+    <div style={{maxWidth: 1200,margin:"0 auto"}}>
       <div style={{marginBottom:24,display:"flex",alignItems:"center",gap:14}}>
         <div style={{width:48,height:48,borderRadius:R.lg,background:"#F5EBFB",
           display:"flex",alignItems:"center",justifyContent:"center",color:"#8E44AD",flexShrink:0}}>

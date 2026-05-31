@@ -662,7 +662,7 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
   ]
 
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
       <div style={{ marginBottom: isMobile ? 16 : 20 }}>
         <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5 }}>
           Registro HACCP — temperature, pulizie e allergeni. Strumento di supporto per ispezioni ASL.

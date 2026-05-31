@@ -5,7 +5,7 @@
 // (prima usava la wrapper locale di Dashboard.jsx che leggeva _ctx_*).
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ssave as _ssave } from '../lib/storage'
 import { todayLocal } from '../lib/dateLocal'
@@ -123,7 +123,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
         <KPI icon="📦" label="Prodotti in stock" value={stock.length}/>
         <KPI icon="🧮" label="Pezzi totali" value={totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0 })}/>
         <KPI icon="⚠️" label="Sotto soglia" value={sottoSoglia.length} color={sottoSoglia.length > 0 ? C.amber : C.green}/>
@@ -475,6 +475,7 @@ export default function MagazzinoView({
   orgId, sedeId,
 }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [tab, setTab] = useState('giacenze')
   const [deleteIngConf, setDeleteIngConf] = useState(null)
   const [deleteIngPin, setDeleteIngPin] = useState('')
@@ -612,7 +613,7 @@ export default function MagazzinoView({
   const fmtG = g => g >= 1000 ? `${(g / 1000).toFixed(2)} kg` : `${Math.round(g)} g`
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1200 }}>
       <PageHeader
         subtitle={`${tuttiIngNomi.length} ingredienti · ${righe.filter(r => r.stato === 'esaurito' || r.stato === 'critico').length} critici`}
         action={onImportPrezzi && (
@@ -650,7 +651,7 @@ export default function MagazzinoView({
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 28 }}>
         <KPI icon="📦" label="Ingredienti" value={righe.length} highlight/>
         <KPI icon="🚨" label="Critici" value={critici.length} color={critici.length > 0 ? C.red : C.green} sub={critici.length > 0 ? 'riordino urgente' : 'tutto ok'}/>
         <KPI icon="⚠️" label="In esaurimento" value={attenzione.length} color={attenzione.length > 0 ? C.amber : C.green} sub={attenzione.length > 0 ? '< 7 giorni' : 'ok'}/>

@@ -361,7 +361,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
 
   return (
     <div onContextMenu={e => e.preventDefault()} onDragStart={e => e.preventDefault()}
-      style={{ maxWidth: 1120, margin: '0 auto', userSelect: 'none' }}>
+      style={{ maxWidth: 1200, margin: '0 auto', userSelect: 'none' }}>
       <div style={{ marginBottom: isMobile ? 16 : 24 }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
           <div style={{ flex: 1 }}>
