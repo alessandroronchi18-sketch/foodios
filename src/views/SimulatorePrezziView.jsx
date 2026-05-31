@@ -7,6 +7,8 @@ import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { BenchmarkBadge } from '../components/BenchmarkOptin'
+import { exportSimulatorePrezzi } from '../lib/exportPDF'
+import { gateExport, getExportCtx } from '../lib/exportGuard'
 
 // Palette locale compatibile con il vecchio C.* del monolite
 const C = {
@@ -114,13 +116,94 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   })()
   const cittaDefault = (sedi || []).find(s => s.is_default)?.citta || (sedi || [])[0]?.citta || null
 
+  // Raccomandazioni automatiche (computed dal listino base, indipendenti dalle modifiche)
+  const raccomandazioni = useMemo(() => {
+    const out = []
+    const critici = baseRows.filter(r => r.margPct < 40)
+    const altoFC  = baseRows.filter(r => {
+      const fcPct = r.ricavo > 0 ? (r.fc / r.ricavo * 100) : 0
+      return fcPct > 40
+    })
+    const vulnerabili = baseRows.filter(r => r.fc > 0 && ((r.ricavo / r.fc - 1) * 100) < 25)
+
+    if (critici.length) {
+      const top = critici.sort((a, b) => a.margPct - b.margPct).slice(0, 3).map(r => r.nome).join(', ')
+      out.push(`Margine sotto 40% su ${critici.length} ${critici.length === 1 ? 'prodotto' : 'prodotti'} (${top}): valuta aumento prezzo del 8–15%.`)
+    }
+    if (altoFC.length) {
+      const top = altoFC.sort((a, b) => b.fc/b.ricavo - a.fc/a.ricavo).slice(0, 3).map(r => r.nome).join(', ')
+      out.push(`Food cost sopra il 40% su ${altoFC.length} ${altoFC.length === 1 ? 'prodotto' : 'prodotti'} (${top}): rivedi ingredienti o porzioni.`)
+    }
+    if (vulnerabili.length) {
+      out.push(`${vulnerabili.length} ${vulnerabili.length === 1 ? 'prodotto va' : 'prodotti vanno'} in perdita con +20% materie prime — alza prezzo o blocca contratto fornitore.`)
+    }
+    if (baseRows.length && !critici.length && !altoFC.length && !vulnerabili.length) {
+      out.push('Listino in salute: nessun prodotto sotto la soglia critica. Mantieni e monitora trimestralmente.')
+    }
+    if (hasStorico && totProiDiff > 0) {
+      out.push(`Con le modifiche attuali guadagneresti ${euro(totProiDiff)} in più nei prossimi ${orizzonteGiorni} giorni — applicale se il mercato lo regge.`)
+    } else if (hasStorico && totProiDiff < 0) {
+      out.push(`Le modifiche attuali ti costano ${euro(Math.abs(totProiDiff))} nei prossimi ${orizzonteGiorni} giorni — rivedi prima di applicare.`)
+    }
+    return out
+  }, [baseRows, hasStorico, totProiDiff, orizzonteGiorni])
+
+  const handleExportPdf = async () => {
+    if (!(await gateExport('simulatore_prezzi', { n_items: baseRows.length }, window.__foodos_notify))) return
+    const c = getExportCtx()
+    exportSimulatorePrezzi({
+      orizzonteGiorni,
+      scenRows,
+      totBaseRicavo, totScenRicavo,
+      totBaseMarg, totScenMarg,
+      totProiBase, totProiScen, totProiDiff,
+      fcAvgPct,
+      raccomandazioni,
+    }, c.nomeAttivita, c.email)
+  }
+
+  const exportBtn = (
+    <button onClick={handleExportPdf}
+      style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
+        fontSize: 13, fontWeight: 500, color: T.textMid, cursor: 'pointer', letterSpacing: '-0.005em',
+        display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.sm }}>
+      📄 Esporta PDF
+    </button>
+  )
+
   return (
     <div style={{ maxWidth: 1200 }}>
-      <PageHeader subtitle={`Simulatore prezzi e proiezioni${hasStorico ? ' · ' + String((giornaliero || []).length) + ' sessioni' : ''}`}/>
+      <PageHeader
+        subtitle={`Simulatore prezzi e proiezioni${hasStorico ? ' · ' + String((giornaliero || []).length) + ' sessioni' : ''}`}
+        action={exportBtn}
+      />
 
       {tipoAttivita && (
         <div style={{ marginBottom: 18 }}>
           <BenchmarkBadge tipoAttivita={tipoAttivita} miaFcPct={fcAvgPct} citta={cittaDefault}/>
+        </div>
+      )}
+
+      {/* RACCOMANDAZIONI AUTOMATICHE */}
+      {raccomandazioni.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Raccomandazioni</h2>
+              <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Suggerimenti generati dall'analisi del listino e dello storico</div>
+            </div>
+          </div>
+          <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: '16px 20px', boxShadow: S.sm }}>
+            <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+              {raccomandazioni.map((r, i) => (
+                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 0', borderBottom: i < raccomandazioni.length - 1 ? `1px dashed ${T.borderSoft}` : 'none' }}>
+                  <span style={{ color: C.red, fontWeight: 900, flexShrink: 0, fontSize: 13, lineHeight: 1.5 }}>›</span>
+                  <span style={{ fontSize: 12, color: T.text, lineHeight: 1.55 }}>{r}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
 

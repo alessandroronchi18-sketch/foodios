@@ -299,6 +299,327 @@ export function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtente) {
   doc.save(`pl-${(mese || 'mensile').toLowerCase()}-${anno || ''}.pdf`)
 }
 
+// ─── 2b. P&L COMPLETO (data-analyst export) ──────────────────────────────────
+// Multi-pagina: executive summary + KPI + dettaglio per prodotto + ingredienti
+// + sensitivity + insights/raccomandazioni. Sostituisce gradualmente exportPLMensile
+// per i contesti dove serve la versione "ricca".
+//
+// Input atteso (dati):
+//   {
+//     rows:            [{ nome, reg:{unita,prezzo,tipo}, ricavo, fc, margine, margPct, fcPct, fcUnita, mrgUnita }],
+//     topIngredienti?: [{ nome, costoTot, perc }],          // opzionale
+//     fcAvg:           number,
+//     avgMarg:         number,
+//     totRicavo:       number,
+//     totFC:           number,
+//     totMargine:      number,
+//     insights?:       [{ tipo: 'ok'|'warn'|'critical', testo: string }],
+//     mese?:           string, anno?: string,
+//   }
+export function exportPLCompleto(dati, nomeAttivita, emailUtente) {
+  const doc = new jsPDF()
+  const rows = dati.rows || []
+  const label = dati.mese && dati.anno ? `${dati.mese} ${dati.anno}` : `${rows.length} prodotti`
+  setPdfMetadata(doc, { titolo: 'Report P&L completo', emailUtente, nomeAttivita })
+  addHeader(doc, 'P&L Analitico', label, nomeAttivita)
+
+  // KPI strip (4 grandi numeri)
+  const startY = 52
+  const fcAvg     = Number(dati.fcAvg || 0)
+  const avgMarg   = Number(dati.avgMarg || 0)
+  const totRicavo = Number(dati.totRicavo || 0)
+  const totFC     = Number(dati.totFC || 0)
+  const totMargine= Number(dati.totMargine || 0)
+  const kpis = [
+    ['Ricavo/stampo',   fmt(totRicavo),    'somma listino'],
+    ['Food cost tot.',  fmt(totFC),        `FC ratio ${fcAvg.toFixed(1)}%`],
+    ['Margine lordo',   fmt(totMargine),   `${avgMarg.toFixed(1)}% medio`],
+    ['Prodotti',        String(rows.length), 'nel listino'],
+  ]
+  const cardW = (210 - 14 - 14 - 9) / 4
+  kpis.forEach((k, i) => {
+    const x = 14 + i * (cardW + 3)
+    doc.setFillColor(...LIGHT)
+    doc.setDrawColor(...BORDER)
+    doc.roundedRect(x, startY, cardW, 26, 2, 2, 'FD')
+    doc.setFontSize(7)
+    doc.setTextColor(...GRAY)
+    doc.setFont('helvetica', 'bold')
+    doc.text(k[0].toUpperCase(), x + 4, startY + 7)
+    doc.setFontSize(14)
+    doc.setTextColor(...DARK)
+    doc.text(k[1], x + 4, startY + 16)
+    doc.setFontSize(7)
+    doc.setTextColor(...GRAY)
+    doc.setFont('helvetica', 'normal')
+    doc.text(k[2], x + 4, startY + 22)
+  })
+
+  // Executive insights (se presenti)
+  let y = startY + 26 + 8
+  const insights = Array.isArray(dati.insights) ? dati.insights : []
+  if (insights.length) {
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...DARK)
+    doc.text('Insights chiave', 14, y)
+    autoTable(doc, {
+      startY: y + 4,
+      head: [['', 'Insight']],
+      body: insights.map(ins => [
+        ins.tipo === 'critical' ? 'CRITICO' : ins.tipo === 'warn' ? 'ATTENZIONE' : 'OK',
+        ins.testo,
+      ]),
+      theme: 'plain',
+      bodyStyles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 28, fontSize: 8 },
+        1: { textColor: DARK },
+      },
+      didParseCell: (data) => {
+        if (data.column.index === 0) {
+          const t = insights[data.row.index]?.tipo
+          if (t === 'critical') data.cell.styles.textColor = RED
+          else if (t === 'warn') data.cell.styles.textColor = [184, 134, 11]
+          else data.cell.styles.textColor = [27, 122, 62]
+        }
+      },
+      margin: { left: 14, right: 14 },
+    })
+    y = doc.lastAutoTable.finalY + 8
+  }
+
+  // Tabella P&L dettagliata per prodotto
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...DARK)
+  doc.text('P&L per prodotto (per stampo)', 14, y)
+  const sorted = [...rows].sort((a, b) => (b.margPct || 0) - (a.margPct || 0))
+  autoTable(doc, {
+    startY: y + 4,
+    head: [['Prodotto', 'Un./st.', '€/un.', 'Ricavo', 'Food cost', 'FC %', 'Margine', 'Marg. %']],
+    body: sorted.map(r => [
+      r.nome,
+      String(r.reg?.unita ?? '—'),
+      fmt(r.reg?.prezzo),
+      fmt(r.ricavo),
+      fmt(r.fc),
+      `${(r.fcPct || 0).toFixed(1)}%`,
+      fmt(r.margine),
+      `${(r.margPct || 0).toFixed(1)}%`,
+    ]).concat([
+      [
+        { content: 'TOTALE / MEDIA', colSpan: 3, styles: { fontStyle: 'bold' } },
+        { content: fmt(totRicavo), styles: { fontStyle: 'bold' } },
+        { content: fmt(totFC),     styles: { fontStyle: 'bold' } },
+        { content: `${fcAvg.toFixed(1)}%`, styles: { fontStyle: 'bold' } },
+        { content: fmt(totMargine), styles: { fontStyle: 'bold' } },
+        { content: `${avgMarg.toFixed(1)}%`, styles: { fontStyle: 'bold' } },
+      ],
+    ]),
+    theme: 'striped',
+    headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
+    bodyStyles: { fontSize: 8 },
+    alternateRowStyles: { fillColor: LIGHT },
+    columnStyles: {
+      0: { fontStyle: 'bold' },
+      1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' },
+      4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.row.index < sorted.length) {
+        const r = sorted[data.row.index]
+        if (data.column.index === 5) {
+          const p = r.fcPct || 0
+          data.cell.styles.textColor = p < 30 ? [27, 122, 62] : p < 40 ? [184, 134, 11] : RED
+          data.cell.styles.fontStyle = 'bold'
+        }
+        if (data.column.index === 7) {
+          const p = r.margPct || 0
+          data.cell.styles.textColor = p >= 60 ? [27, 122, 62] : p >= 40 ? [184, 134, 11] : RED
+          data.cell.styles.fontStyle = 'bold'
+        }
+      }
+    },
+    margin: { left: 14, right: 14 },
+  })
+
+  // Sensitivity: FC +10% / +20%
+  let y2 = doc.lastAutoTable.finalY + 10
+  if (y2 > 240) { doc.addPage(); y2 = 20 }
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...DARK)
+  doc.text('Sensitivity: cosa succede se i costi salgono', 14, y2)
+  autoTable(doc, {
+    startY: y2 + 4,
+    head: [['Prodotto', 'Marg. attuale', 'FC +10% → marg.', 'FC +20% → marg.', 'Headroom FC']],
+    body: sorted.map(r => {
+      const m10 = (r.ricavo || 0) - (r.fc || 0) * 1.10
+      const m20 = (r.ricavo || 0) - (r.fc || 0) * 1.20
+      const headroom = r.fc > 0 ? ((r.ricavo / r.fc - 1) * 100) : 0
+      return [r.nome, fmt(r.margine), fmt(m10), fmt(m20), `+${headroom.toFixed(0)}%`]
+    }),
+    theme: 'striped',
+    headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
+    bodyStyles: { fontSize: 8 },
+    alternateRowStyles: { fillColor: LIGHT },
+    columnStyles: { 0: { fontStyle: 'bold' }, 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+    margin: { left: 14, right: 14 },
+  })
+
+  // Top ingredienti (se forniti)
+  if (Array.isArray(dati.topIngredienti) && dati.topIngredienti.length) {
+    let y3 = doc.lastAutoTable.finalY + 10
+    if (y3 > 240) { doc.addPage(); y3 = 20 }
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...DARK)
+    doc.text('Top ingredienti per costo annuo proiettato', 14, y3)
+    autoTable(doc, {
+      startY: y3 + 4,
+      head: [['#', 'Ingrediente', 'Costo totale', 'Peso % FC']],
+      body: dati.topIngredienti.slice(0, 12).map((ing, i) => [
+        String(i + 1),
+        ing.nome,
+        fmt(ing.costoTot || ing.costo),
+        `${(ing.perc || 0).toFixed(1)}%`,
+      ]),
+      theme: 'striped',
+      headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: LIGHT },
+      columnStyles: { 0: { halign: 'right', cellWidth: 12 }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+      margin: { left: 14, right: 14 },
+    })
+  }
+
+  addDiagonalWatermark(doc, emailUtente)
+  addFooter(doc, { emailUtente, nomeAttivita })
+  doc.save(`pl-completo-${new Date().toISOString().slice(0, 10)}.pdf`)
+}
+
+// ─── 2c. Simulatore prezzi (food cost what-if) ───────────────────────────────
+// Esporta scenario corrente del SimulatorePrezziView: prezzo base vs nuovo,
+// delta margine per stampo + proiezione su orizzonte selezionato.
+//
+// Input:
+//   {
+//     orizzonteGiorni: number,
+//     scenRows: [{ nome, reg, fc, margine, margPct, newPrezzo, delta, newRicavo, newMarg, newMargPct, diffMarg, proiBase, proiScen, proiDiff, mediaStampi, changed }],
+//     totBaseRicavo, totScenRicavo, totBaseMarg, totScenMarg, totProiBase, totProiScen, totProiDiff,
+//     fcAvgPct?: number,
+//     raccomandazioni?: [string],
+//   }
+export function exportSimulatorePrezzi(dati, nomeAttivita, emailUtente) {
+  const doc = new jsPDF()
+  setPdfMetadata(doc, { titolo: 'Simulatore prezzi & food cost', emailUtente, nomeAttivita })
+  addHeader(doc, 'Simulatore prezzi', `Proiezione a ${dati.orizzonteGiorni || 30} giorni`, nomeAttivita)
+
+  const startY = 52
+  const changed = (dati.scenRows || []).filter(r => r.changed)
+  const totDiffMarg = (dati.totScenMarg || 0) - (dati.totBaseMarg || 0)
+
+  // KPI strip 3 card
+  const kpis = [
+    ['Margine/st. base',     fmt(dati.totBaseMarg || 0), 'prezzi attuali'],
+    ['Margine/st. scenario', fmt(dati.totScenMarg || 0), `${totDiffMarg >= 0 ? '+' : ''}${fmt(totDiffMarg)} vs base`],
+    ['Δ margine proiettato', `${(dati.totProiDiff || 0) >= 0 ? '+' : ''}${fmt(dati.totProiDiff || 0)}`, `${dati.orizzonteGiorni || 30} gg`],
+  ]
+  const cardW = (210 - 14 - 14 - 6) / 3
+  kpis.forEach((k, i) => {
+    const x = 14 + i * (cardW + 3)
+    doc.setFillColor(i === 2 ? DARK[0] : LIGHT[0], i === 2 ? DARK[1] : LIGHT[1], i === 2 ? DARK[2] : LIGHT[2])
+    doc.setDrawColor(...BORDER)
+    doc.roundedRect(x, startY, cardW, 26, 2, 2, 'FD')
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(i === 2 ? 200 : GRAY[0], i === 2 ? 150 : GRAY[1], i === 2 ? 130 : GRAY[2])
+    doc.text(k[0].toUpperCase(), x + 4, startY + 7)
+    doc.setFontSize(14)
+    doc.setTextColor(i === 2 ? 255 : DARK[0], i === 2 ? 255 : DARK[1], i === 2 ? 255 : DARK[2])
+    doc.text(k[1], x + 4, startY + 16)
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(i === 2 ? 200 : GRAY[0], i === 2 ? 150 : GRAY[1], i === 2 ? 130 : GRAY[2])
+    doc.text(k[2], x + 4, startY + 22)
+  })
+
+  let y = startY + 26 + 8
+
+  // Raccomandazioni automatiche
+  const rec = Array.isArray(dati.raccomandazioni) ? dati.raccomandazioni : []
+  if (rec.length) {
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...DARK)
+    doc.text('Raccomandazioni', 14, y)
+    autoTable(doc, {
+      startY: y + 4,
+      head: [],
+      body: rec.map(r => ['•', r]),
+      theme: 'plain',
+      bodyStyles: { fontSize: 9, cellPadding: 2.5 },
+      columnStyles: { 0: { cellWidth: 6, textColor: RED, fontStyle: 'bold' }, 1: { textColor: DARK } },
+      margin: { left: 14, right: 14 },
+    })
+    y = doc.lastAutoTable.finalY + 8
+  }
+
+  // Scenario dettagliato per prodotto (mostra solo quelli con modifiche se ce ne sono, altrimenti tutti)
+  const display = changed.length ? changed : (dati.scenRows || [])
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...DARK)
+  doc.text(changed.length ? `Scenario per prodotto (${changed.length} modificati)` : 'Listino corrente', 14, y)
+  autoTable(doc, {
+    startY: y + 4,
+    head: [['Prodotto', 'Prezzo base', 'Prezzo scen.', 'Δ %', 'Marg. base', 'Marg. scen.', 'Δ marg./st.', `Δ ${dati.orizzonteGiorni || 30}g`]],
+    body: display.map(r => [
+      r.nome,
+      fmt(r.reg?.prezzo),
+      fmt(r.newPrezzo),
+      r.changed ? `${r.delta > 0 ? '+' : ''}${(r.delta || 0).toFixed(1)}%` : '—',
+      fmt(r.margine),
+      fmt(r.newMarg),
+      r.changed ? `${r.diffMarg > 0 ? '+' : ''}${fmt(r.diffMarg)}` : '—',
+      r.changed ? `${r.proiDiff > 0 ? '+' : ''}${fmt(r.proiDiff)}` : '—',
+    ]),
+    theme: 'striped',
+    headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
+    bodyStyles: { fontSize: 8 },
+    alternateRowStyles: { fillColor: LIGHT },
+    columnStyles: {
+      0: { fontStyle: 'bold' },
+      1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' },
+      4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' },
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body') {
+        const r = display[data.row.index]
+        if (!r) return
+        if (data.column.index === 3 && r.changed) {
+          data.cell.styles.textColor = r.delta > 0 ? [27, 122, 62] : RED
+          data.cell.styles.fontStyle = 'bold'
+        }
+        if (data.column.index === 6 && r.changed) {
+          data.cell.styles.textColor = r.diffMarg > 0 ? [27, 122, 62] : RED
+          data.cell.styles.fontStyle = 'bold'
+        }
+        if (data.column.index === 7 && r.changed) {
+          data.cell.styles.textColor = r.proiDiff > 0 ? [27, 122, 62] : RED
+          data.cell.styles.fontStyle = 'bold'
+        }
+      }
+    },
+    margin: { left: 14, right: 14 },
+  })
+
+  addDiagonalWatermark(doc, emailUtente)
+  addFooter(doc, { emailUtente, nomeAttivita })
+  doc.save(`simulatore-prezzi-${new Date().toISOString().slice(0, 10)}.pdf`)
+}
+
 // ─── 3. Produzione giornaliera ────────────────────────────────────────────────
 export function exportProduzione(dati, data, nomeAttivita, emailUtente) {
   const doc = new jsPDF()

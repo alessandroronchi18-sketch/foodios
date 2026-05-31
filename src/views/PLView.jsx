@@ -15,7 +15,7 @@ import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng,
 } from '../lib/foodcost'
-import { exportPLMensile } from '../lib/exportPDF'
+import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
   C, TNUM, margColor, margBadge, Badge, Tip, PageHeader, TD, TH,
@@ -560,6 +560,60 @@ export default function PLView({ ricettario, onUpdateRegola }) {
   const worst = rows[rows.length - 1]
   const fcAvg = totRicavo > 0 ? (totFC / totRicavo * 100) : 0
 
+  // Top ingredienti per costo (aggregato, riusato per PDF export)
+  const topIngredienti = useMemo(() => {
+    const ingMap = {}
+    for (const ric of Object.values(ricettario?.ricette || {})) {
+      if (!isRicettaValida(ric.nome) || getR(ric.nome, ric).tipo === 'interno') continue
+      for (const ing of (ric.ingredienti || [])) {
+        const k = normIng(ing.nome)
+        const c = ingCosti[k]
+        const costoStampo = c ? ing.qty1stampo * c.costoG : 0
+        if (!ingMap[k]) ingMap[k] = { nome: ing.nome, costoTot: 0 }
+        ingMap[k].costoTot += costoStampo
+      }
+    }
+    const total = Object.values(ingMap).reduce((s, i) => s + i.costoTot, 0)
+    return Object.values(ingMap)
+      .filter(i => i.costoTot > 0)
+      .map(i => ({ ...i, perc: total > 0 ? (i.costoTot / total * 100) : 0 }))
+      .sort((a, b) => b.costoTot - a.costoTot)
+  }, [ricettario, ingCosti])
+
+  // Insights automatici (computed, mostrati in UI + esportati nel PDF)
+  const insights = useMemo(() => {
+    const out = []
+    const eccellenti = rows.filter(r => r.margPct >= 60).length
+    const critici    = rows.filter(r => r.margPct < 40).length
+    const vulnerabili = rows.filter(r => r.fc > 0 && ((r.ricavo / r.fc - 1) * 100) < 25)
+    const topContrib = [...rows].sort((a, b) => b.margine - a.margine)[0]
+    const worstFC    = [...rows].sort((a, b) => b.fcPct - a.fcPct)[0]
+    const ricsotto    = rows.filter(r => r.fcPct > 40).length
+
+    if (eccellenti > 0) {
+      out.push({ tipo: 'ok', testo: `${eccellenti} ${eccellenti === 1 ? 'prodotto ha' : 'prodotti hanno'} margine ≥ 60% (eccellente).` })
+    }
+    if (critici > 0) {
+      out.push({ tipo: 'critical', testo: `${critici} ${critici === 1 ? 'prodotto è' : 'prodotti sono'} sotto il 40% di margine — rivedere prezzo o ricetta.` })
+    }
+    if (ricsotto > 0) {
+      out.push({ tipo: 'warn', testo: `${ricsotto} ${ricsotto === 1 ? 'prodotto ha' : 'prodotti hanno'} food cost > 40% (benchmark pasticceria: 28–30%).` })
+    }
+    if (topContrib) {
+      out.push({ tipo: 'ok', testo: `Top contributore margine: ${topContrib.nome} (${euro(topContrib.margine)}/stampo, ${pct(topContrib.margPct)}).` })
+    }
+    if (worstFC && worstFC.fcPct > 35) {
+      out.push({ tipo: 'warn', testo: `${worstFC.nome} ha il food cost più alto (${pct(worstFC.fcPct)}) — valuta ingredienti alternativi o aumento prezzo.` })
+    }
+    if (vulnerabili.length > 0) {
+      out.push({ tipo: 'critical', testo: `${vulnerabili.length} ${vulnerabili.length === 1 ? 'prodotto ha' : 'prodotti hanno'} headroom < 25%: con un aumento del 10–20% delle materie prime vanno in perdita.` })
+    }
+    if (topIngredienti[0] && topIngredienti[0].perc > 25) {
+      out.push({ tipo: 'warn', testo: `${topIngredienti[0].nome} pesa ${topIngredienti[0].perc.toFixed(0)}% del food cost totale — concentrazione alta su un singolo ingrediente.` })
+    }
+    return out
+  }, [rows, topIngredienti])
+
   return (
     <div style={{ maxWidth: 1200 }}>
       <PageHeader
@@ -568,10 +622,12 @@ export default function PLView({ ricettario, onUpdateRegola }) {
           <button onClick={async () => {
             if (!(await gateExport('pl', { n_items: rows.length }, window.__foodos_notify))) return
             const c = getExportCtx()
-            exportPLMensile({
-              ricavi: rows.map(r => ({ categoria: r.nome, quantita: r.reg.unita, ricavo: r.ricavo })),
-              costi: rows.map(r => ({ categoria: r.nome, costo: r.fc, perc: r.fcPct })),
-            }, null, null, c.nomeAttivita, c.email)
+            exportPLCompleto({
+              rows,
+              topIngredienti: topIngredienti.slice(0, 12),
+              insights,
+              fcAvg, avgMarg, totRicavo, totFC, totMargine,
+            }, c.nomeAttivita, c.email)
           }}
             style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
               fontSize: 13, fontWeight: 500, color: T.textMid, cursor: 'pointer', letterSpacing: '-0.005em',
@@ -580,6 +636,41 @@ export default function PLView({ ricettario, onUpdateRegola }) {
           </button>
         }
       />
+
+      {/* INSIGHTS AUTOMATICI */}
+      {insights.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
+            <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Insights chiave</h2>
+              <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Cosa dicono i tuoi dati, generato in automatico</div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2,1fr)', gap: 10 }}>
+            {insights.map((ins, i) => {
+              const palette = ins.tipo === 'critical'
+                ? { bg: C.redLight, bd: C.red, fg: C.red, lbl: 'CRITICO' }
+                : ins.tipo === 'warn'
+                ? { bg: C.amberLight, bd: C.amber, fg: C.amber, lbl: 'ATTENZIONE' }
+                : { bg: C.greenLight, bd: C.green, fg: C.green, lbl: 'OK' }
+              return (
+                <div key={i} style={{
+                  background: palette.bg, border: `1px solid ${palette.bd}40`, borderRadius: 10,
+                  padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 10,
+                }}>
+                  <span style={{
+                    fontSize: 9, fontWeight: 800, letterSpacing: '0.08em',
+                    color: palette.fg, background: C.white, border: `1px solid ${palette.fg}40`,
+                    padding: '3px 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0,
+                  }}>{palette.lbl}</span>
+                  <div style={{ fontSize: 12, color: C.text, lineHeight: 1.5, fontWeight: 500 }}>{ins.testo}</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* KPI STRIP */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(6,1fr)', gap: 10, marginBottom: 36 }}>
