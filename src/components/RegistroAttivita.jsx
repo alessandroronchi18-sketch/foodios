@@ -14,6 +14,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, tnum } from '../lib/theme'
+import { todayLocal } from '../lib/dateLocal'
 
 const PAGE = 50
 
@@ -130,8 +131,11 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     [sedi]
   )
 
-  const today    = new Date().toISOString().slice(0, 10)
-  const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
+  const today    = todayLocal()
+  const sevenAgo = (() => {
+    const d = new Date(Date.now() - 7 * 86400000)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
   const [periodo, setPeriodo] = useState('7gg')
   const [utente,  setUtente]  = useState('')
   const [tabella, setTabella] = useState('')

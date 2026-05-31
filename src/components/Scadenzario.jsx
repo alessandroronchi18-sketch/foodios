@@ -99,7 +99,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [scopeSede, setScopeSede]         = useState('attiva')
   const [toast, setToast]                 = useState(null)
   const [pagandoId, setPagandoId]         = useState(null)
-  const [dataPag, setDataPag]             = useState(new Date().toISOString().slice(0, 10))
+  // Data locale del browser (not UTC): toISOString() darebbe il giorno
+  // precedente per chiunque sia a UTC+ tra le 00:00 e le 00:59 locali.
+  const [dataPag, setDataPag]             = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })
   const [eliminandoId, setEliminandoId]   = useState(null)
 
   const haPiuSedi = (sedi || []).filter(s => s.attiva !== false).length > 1

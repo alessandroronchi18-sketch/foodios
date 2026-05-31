@@ -18,6 +18,7 @@ import { riconciliaFormati } from '../lib/formatiVendita'
 import { aggregaGiorno } from '../lib/movimentiSpeciali'
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from '../lib/importDelivery'
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/importCassa'
+import { todayLocal } from '../lib/dateLocal'
 import { C, KPI, PageHeader, margColor, fmt, fmtp } from './_shared'
 
 // Persiste fra unmount/remount durante l'analisi AI di uno scontrino
@@ -56,7 +57,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
     return () => { alive = false }
   }, [orgId, sedeId])
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
   const [dataFiltro, setDataFiltro] = useState(today)
 
   const sessione = useMemo(() =>

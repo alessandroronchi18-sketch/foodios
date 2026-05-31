@@ -1072,7 +1072,7 @@ export default async function handler(req) {
       if (action === 'migrate_integrazioni') {
         // One-shot: cifra tutte le row con encryption_version=0 e config jsonb non nullo.
         // Idempotente: rieseguito non tocca le row gia' v=1.
-        const { encryptConfig } = await import('./lib/integrationsCrypto.js')
+        const { encryptConfig, decryptConfig } = await import('./lib/integrationsCrypto.js')
         const { data: rows, error } = await supabase
           .from('integrazioni')
           .select('id, organization_id, tipo, config, encryption_version')
@@ -1089,6 +1089,24 @@ export default async function handler(req) {
           }
           try {
             const enc = await encryptConfig(r.config)
+            // Sanity check post-encrypt: decifriamo subito quanto cifrato e
+            // verifichiamo che ritorni l'oggetto originale. Se la
+            // decryption fallisce ora, fallirebbe anche al prossimo read
+            // della integrazione → preferiamo notare ora e abortire la
+            // singola row invece di sovrascrivere il jsonb plaintext.
+            try {
+              const roundTrip = await decryptConfig({
+                config_encrypted: enc.config_encrypted,
+                config_iv: enc.config_iv,
+                config_tag: enc.config_tag,
+              })
+              if (!roundTrip || JSON.stringify(roundTrip) !== JSON.stringify(r.config)) {
+                throw new Error('round-trip mismatch')
+              }
+            } catch (cryptoErr) {
+              errors.push({ id: r.id, tipo: r.tipo, error: `sanity check failed: ${cryptoErr.message}` })
+              continue
+            }
             const { error: updErr } = await supabase
               .from('integrazioni')
               .update({

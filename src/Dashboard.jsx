@@ -32,6 +32,7 @@ import ConfrontoSedi from './components/ConfrontoSedi'
 import TrasferimentiView from './components/TrasferimentiView'
 import EsportaDati from './components/EsportaDati'
 import { exportRicettaPDF, exportProduzione } from './lib/exportPDF'
+import { todayLocal } from './lib/dateLocal'
 import { setExportCtx, getExportCtx, gateExport } from './lib/exportGuard'
 import { CHANGELOG } from './lib/changelog'
 import ChangelogView, { NovitaModal } from './components/Changelog'
@@ -1815,7 +1816,7 @@ export default function Dashboard({
 
       {/* SIDEBAR */}
       {(()=>{
-        const today2 = new Date().toISOString().slice(0,10);
+        const today2 = todayLocal();
         const criticeMag  = Object.values(magazzino||{}).filter(m=>m.giacenza_g===0||(m.soglia_g>0&&m.giacenza_g<=m.soglia_g)).length;
         const azioniAperte= (actions||[]).filter(a=>a.stato!=="chiusa").length;
         const hasProdOggi = (giornaliero||[]).some(s=>s.data===today2&&(s.prodotti||[]).length>0);

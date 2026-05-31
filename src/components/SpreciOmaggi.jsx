@@ -7,6 +7,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
+import { todayLocal } from '../lib/dateLocal'
 import {
   CAUSALI_SPRECO, CAUSALI_OMAGGIO,
   nuovoMovimento, caricaMovimenti, aggiungiMovimento, eliminaMovimento,
@@ -33,7 +34,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(null)
   const [filtroTipo, setFiltroTipo] = useState('tutti')
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
   const sevenAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)
   const [dataDa, setDataDa] = useState(sevenAgo)
   const [dataA,  setDataA]  = useState(today)

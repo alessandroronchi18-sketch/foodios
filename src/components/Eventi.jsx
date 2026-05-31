@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R } from '../lib/theme'
+import { todayLocal } from '../lib/dateLocal'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 
 export const SK_EVENTI = 'pasticceria-eventi-v1'
@@ -128,7 +129,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
     setDraft({
       id: uid(),
       cliente: '',
-      data: new Date().toISOString().slice(0, 10),
+      data: todayLocal(),
       righe: [],
       acconto: 0,
       note: '',

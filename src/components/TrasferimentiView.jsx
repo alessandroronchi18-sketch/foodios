@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, motion as M } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
+import { todayLocal } from '../lib/dateLocal'
 import {
   loadTrasferimenti, creaTrasferimento,
   inviaTrasferimento, riceviTrasferimento, annullaTrasferimento,
@@ -41,7 +42,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   const [riceviModal, setRiceviModal] = useState(null) // { t, qtyRic, note }
 
   const [form, setForm] = useState(() => ({
-    data: new Date().toISOString().slice(0, 10),
+    data: todayLocal(),
     tipo: 'prodotto',
     sede_da: sedeAttiva?.id || '',
     sede_a: '',

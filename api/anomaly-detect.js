@@ -74,7 +74,8 @@ async function detectExportBursts(supabase) {
     .from('audit_log')
     .select('organization_id, user_id, user_email, operation, created_at')
     .gte('created_at', oneHourAgo)
-    .like('operation', 'export_%')
+    // ilike case-insensitive: copre anche 'EXPORT_ricettario' / 'Export_*'.
+    .ilike('operation', 'export_%')
   if (error || !events?.length) return []
 
   const counter = {}

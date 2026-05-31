@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ssave as _ssave } from '../lib/storage'
+import { todayLocal } from '../lib/dateLocal'
 import { normIng, getR, translateIngredienteEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
@@ -249,7 +250,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
   const [editVal, setEditVal] = useState('')
   const [confirmKey, setConfirmKey] = useState(null)
   const [confirmVal, setConfirmVal] = useState(null)
-  const [confirmDecorre, setConfirmDecorre] = useState(() => new Date().toISOString().slice(0, 10))
+  const [confirmDecorre, setConfirmDecorre] = useState(() => todayLocal())
   const [showLog, setShowLog] = useState(false)
 
   const ingredienti = useMemo(() => {
@@ -282,7 +283,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
     if (v === row.prezzoKg) { cancelEdit(); return }
     setConfirmKey(row.key)
     setConfirmVal(v)
-    setConfirmDecorre(new Date().toISOString().slice(0, 10))
+    setConfirmDecorre(todayLocal())
   }
 
   const confermaSalva = async () => {

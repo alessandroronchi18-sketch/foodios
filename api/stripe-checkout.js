@@ -43,12 +43,24 @@ export default async function handler(req, res) {
 
   // Price ID: priorità alla configurazione admin (plan_pricing), fallback su env.
   let priceId = PLAN_PRICE_MAP[plan]
+  let lookupErr = null
   try {
-    const { data: pp } = await supabase
+    const { data: pp, error } = await supabase
       .from('plan_pricing').select('stripe_price_id').eq('plan', plan).maybeSingle()
+    if (error) lookupErr = error.message
     if (pp?.stripe_price_id) priceId = pp.stripe_price_id
-  } catch { /* usa fallback env */ }
-  if (!priceId) return res.status(400).json({ error: `Prezzo non configurato per il piano ${plan}` })
+  } catch (e) { lookupErr = e?.message || 'exception' }
+  if (!priceId) {
+    // Errore diagnostico: distinguere lookup DB fallito vs env var missing.
+    const envVar = `STRIPE_${plan.toUpperCase()}_PRICE_ID`
+    console.error('[stripe-checkout] prezzo non trovato', { plan, envVar, envSet: !!PLAN_PRICE_MAP[plan], lookupErr })
+    return res.status(400).json({
+      error: `Prezzo non configurato per il piano ${plan}`,
+      hint: lookupErr
+        ? `plan_pricing lookup fallito (${lookupErr})`
+        : `${envVar} non impostata su Vercel — configurala in Settings → Environment Variables`,
+    })
+  }
 
   try {
     // Recupera org + email user

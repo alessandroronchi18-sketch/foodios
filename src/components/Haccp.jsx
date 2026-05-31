@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ALLERGENI } from '../lib/allergeni'
+import { todayLocal } from '../lib/dateLocal'
 
 const TIPI_APPARECCHIO = [
   { id: 'frigo',        label: 'Frigorifero',     min:0,  max:8  },
@@ -508,7 +509,7 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
   const [from, setFrom] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10)
   })
-  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10))
+  const [to, setTo] = useState(() => todayLocal())
   const [busy, setBusy] = useState(false)
 
   async function esporta() {

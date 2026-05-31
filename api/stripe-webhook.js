@@ -183,10 +183,13 @@ export default async function handler(req, res) {
             nazione: addr.country || 'IT',
             business_info_updated_at: new Date().toISOString(),
           }
-          // Sanitizza P.IVA italiana (puo' arrivare con prefisso IT)
+          // Sanitizza P.IVA italiana: rimuovi prefisso IT, valida formato.
+          // Se la P.IVA non e' 11 cifre la scartiamo (null) invece di
+          // salvare un valore malformato che farebbe poi fallire l'emissione
+          // SDI con un errore poco diagnosticabile a valle.
           if (patch.partita_iva && patch.nazione === 'IT') {
-            const cleaned = patch.partita_iva.replace(/^IT/i, '').replace(/[^0-9]/g, '')
-            if (cleaned.length === 11) patch.partita_iva = cleaned
+            const cleaned = String(patch.partita_iva).replace(/^IT/i, '').replace(/[^0-9]/g, '')
+            patch.partita_iva = /^[0-9]{11}$/.test(cleaned) ? cleaned : null
           }
           // Aggiorna solo i campi non null (non sovrascrivere con null)
           const filtered = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== null))

@@ -12,6 +12,7 @@ import { creaTrasferimento } from '../lib/trasferimenti'
 import { SK_GIOR, SK_MAG } from '../lib/storageKeys'
 import { exportProduzione } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
+import { todayLocal } from '../lib/dateLocal'
 import FotoOCR from '../components/FotoOCR'
 import { C, margColor, fmt, PageHeader } from './_shared'
 
@@ -99,7 +100,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     }
   }
 
-  const [data, setData] = useState(new Date().toISOString().slice(0, 10))
+  const [data, setData] = useState(todayLocal())
   const [qtaMap, setQtaMap] = useState({})
   const [vendibileMap, setVendMap] = useState({})
   const [sessNote, setSessNote] = useState('')

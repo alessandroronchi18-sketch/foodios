@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { todayLocal } from '../lib/dateLocal'
 
 const C = {
   bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight, redDark: T.brandDark,
@@ -256,7 +257,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
   const [fornitori, setFornitori] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ fornitore_id:"", data_ordine: new Date().toISOString().slice(0,10), note:"", stato:"bozza" })
+  const [form, setForm] = useState({ fornitore_id:"", data_ordine: todayLocal(), note:"", stato:"bozza" })
   const [righe, setRighe] = useState([{ prodotto:"", quantita:"", unita:"kg", prezzo_unitario:"" }])
   const [saving, setSaving] = useState(false)
 
@@ -306,7 +307,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
     }
     notify("✓ Ordine salvato")
     setShowForm(false)
-    setForm({ fornitore_id:"", data_ordine: new Date().toISOString().slice(0,10), note:"", stato:"bozza" })
+    setForm({ fornitore_id:"", data_ordine: todayLocal(), note:"", stato:"bozza" })
     setRighe([{ prodotto:"", quantita:"", unita:"kg", prezzo_unitario:"" }])
     setSaving(false)
     carica()

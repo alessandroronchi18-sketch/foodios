@@ -727,8 +727,18 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
         type: 'sms',
       })
       if (error) throw error
-      // Verifica OK: sign out del sessione OTP per non interferire col signUp email+password
-      await supabase.auth.signOut().catch(() => {})
+      // Verifica OK: sign out della sessione OTP per non interferire col signUp
+      // email+password. Se il signOut fallisce il signup successivo userebbe
+      // l'utente OTP (telefono-only) come parent — bloccato in fase di insert
+      // sui profili. Loggiamo + abortiamo invece di silenziare.
+      try {
+        const { error: outErr } = await supabase.auth.signOut()
+        if (outErr) throw outErr
+      } catch (e) {
+        console.error('[OTP signOut]', e?.message)
+        setErrore('Errore interno (logout sessione OTP). Ricarica la pagina e riprova.')
+        return
+      }
       setOtpVerified(true)
       setRegStep(2)
     } catch (err) {
