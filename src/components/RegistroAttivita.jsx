@@ -10,7 +10,7 @@
 // - Quick filters per periodo (oggi/7gg/30gg/personalizzato)
 // - Mobile ottimizzato (lista verticale invece di tabella overflow)
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, tnum } from '../lib/theme'
@@ -147,6 +147,13 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
   const [utenti, setUtenti]   = useState([])
   const [stats,  setStats]    = useState({ total: 0, oggi: 0, topUser: null, topTable: null })
 
+  // `notify` arriva dal parent ricreato ad ogni render del Dashboard:
+  // non possiamo metterlo nelle deps degli effect (riaccende la query in loop
+  // e fa "tiltare" l'app). Lo conserviamo in un ref aggiornato per riferirci
+  // sempre alla versione corrente senza scatenare re-run.
+  const notifyRef = useRef(notify)
+  useEffect(() => { notifyRef.current = notify }, [notify])
+
   // Cambio preset periodo → aggiorna le date
   function applicaPeriodo(id) {
     setPeriodo(id)
@@ -188,7 +195,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     qb.then(({ data, error }) => {
       if (!alive) return
       if (error) {
-        notify?.(`Errore lettura registro: ${error.message}`, false)
+        notifyRef.current?.(`Errore lettura registro: ${error.message}`, false)
         setRows([]); setHasMore(false)
       } else {
         let list = data || []
@@ -207,7 +214,11 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
       setLoading(false)
     })
     return () => { alive = false }
-  }, [orgId, utente, tabella, dataDa, dataA, sedeId, q, page, notify])
+    // notify NON va nelle deps (vedi notifyRef sopra). today è ricalcolato
+    // come stringa primitiva uguale, quindi Object.is gestisce — ma per
+    // sicurezza lo escludiamo pure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, utente, tabella, dataDa, dataA, sedeId, q, page])
 
   // Reset pagination al cambio filtro
   useEffect(() => { setPage(0) }, [utente, tabella, dataDa, dataA, sedeId, q])

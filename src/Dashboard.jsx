@@ -2027,8 +2027,11 @@ export default function Dashboard({
               )}
             </div>
 
-            {/* Nav — gruppi collassabili, ottimizzati per utenti non tecnici */}
-            <div style={{flex:1,overflowY:"auto",paddingTop:4,paddingBottom:10}}>
+            {/* Nav — gruppi collassabili, ottimizzati per utenti non tecnici.
+                overflowAnchor:none impedisce al browser di ri-scrollare la
+                sidebar quando un Group si espande/collassa (lo scroll anchoring
+                automatico spostava la view in alto). */}
+            <div style={{flex:1,overflowY:"auto",overflowAnchor:"none",paddingTop:4,paddingBottom:10}}>
 
               {/* Sempre visibile in cima: la Dashboard.
                   Render visivamente coerente con i Group header (stesso padding,
