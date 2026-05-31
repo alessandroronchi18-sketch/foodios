@@ -63,9 +63,14 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify }) {
   }, [orgId, sedeId])
 
   async function salvaTutti(next) {
+    // SAVE FIRST: niente state mutation se ssave fallisce.
+    try {
+      await ssave(SK_DISCREPANZE, next, orgId, sedeId || null)
+    } catch (e) {
+      notify?.('⚠ Errore salvataggio discrepanze: ' + (e.message || 'rete'), false)
+      return
+    }
     setItems(next)
-    try { await ssave(SK_DISCREPANZE, next, orgId, sedeId || null) }
-    catch (e) { notify?.('⚠ Errore salvataggio: ' + e.message, false) }
   }
 
   function nuovo(tipo = 'regalo') {

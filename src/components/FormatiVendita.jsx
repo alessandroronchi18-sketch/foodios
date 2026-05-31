@@ -55,8 +55,14 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
   }, [orgId])
 
   const persist = async (arr) => {
+    // SAVE FIRST per evitare data-loss.
+    try {
+      await ssave(SK_FORMATI, arr, orgId, null)
+    } catch (e) {
+      notify?.('⚠ Errore salvataggio formati: ' + (e.message || 'rete'), false)
+      return
+    }
     setFormati(arr)
-    try { await ssave(SK_FORMATI, arr, orgId, null) } catch (e) { notify?.('⚠ Errore salvataggio: ' + e.message, false) }
   }
 
   const salva = async () => {

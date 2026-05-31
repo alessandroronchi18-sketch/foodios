@@ -1590,8 +1590,10 @@ export default function Dashboard({
           [key]: { costoKg: parseFloat(newKg.toFixed(4)), costoG: parseFloat((newKg/1000).toFixed(6)) },
         },
       };
+      // SAVE FIRST per evitare data-loss su update prezzo.
+      try { await ssave(SK_RIC, nuovoRic); }
+      catch (e) { notify(`⚠ Errore salvataggio prezzo: ${e.message || 'rete'}`, false); return; }
       setRic(nuovoRic);
-      await ssave(SK_RIC, nuovoRic);
     }
 
     // Log audit + storico per i calcoli retroattivi
@@ -1608,8 +1610,9 @@ export default function Dashboard({
       pianificato:   isFuture || undefined,
     };
     const nextLog = [entry, ...(logPrezzi||[])].slice(0, 500); // tieni gli ultimi 500
+    try { await ssave(SK_LOG_PRZ, nextLog); }
+    catch (e) { notify(`⚠ Errore log prezzi: ${e.message || 'rete'}`, false); return; }
     setLogPrezzi(nextLog);
-    await ssave(SK_LOG_PRZ, nextLog);
     const msg = isFuture
       ? `✓ Prezzo "${nomeIng}" programmato a €${newKg.toFixed(2)}/kg dal ${decorre.toLocaleDateString('it-IT')}`
       : `✓ Prezzo "${nomeIng}" aggiornato a €${newKg.toFixed(2)}/kg`;
@@ -1682,7 +1685,9 @@ export default function Dashboard({
     const meteo=await fetchMeteo(m,y);
     if(meteo) mese.meteo=meteo;
     const np={...produzione,[k]:mese};
-    setProd(np);await ssave(SK_PROD,np);
+    try { await ssave(SK_PROD,np); }
+    catch (e) { notify(`⚠ Creazione mese fallita: ${e.message || 'rete'}`, false); return; }
+    setProd(np);
     setView(k);setShowMese(false);
     notify(`📅 ${mese.label} creato`);
   },[produzione]);
@@ -1699,8 +1704,9 @@ export default function Dashboard({
         [nome]: { ...(ricettario?.ricette?.[nome]||{}), prezzo, unita, ...(congelabile!==undefined?{congelabile}:{}) }
       }
     };
+    try { await ssave(SK_RIC, nuovoRic); }
+    catch (e) { notify(`⚠ Aggiornamento ricetta fallito: ${e.message || 'rete'}`, false); return; }
     setRic(nuovoRic);
-    await ssave(SK_RIC, nuovoRic);
     const cong = congelabile!==undefined ? congelabile : ricettario?.ricette?.[nome]?.congelabile;
     notify(`✓ ${nome}: ${unita} ${REGOLE[nome]?.tipo==="fetta"?"fette":"pezzi"} × ${fmt(prezzo)}${cong?" · ❄ congelabile":""}`);
   }, [ricettario]);

@@ -347,8 +347,15 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     }
     const eraGiaChiusa = !!chiusuraSalvata
     const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), rec]
+    // SAVE FIRST per evitare data-loss: se ssave fallisce, non aggiorniamo lo
+    // state (l'UI deve restare allineata al DB).
+    try {
+      await ssave(SK_CHIUS, nuove)
+    } catch (e) {
+      notify(`⚠ Errore salvataggio chiusura: ${e.message || 'rete'}. Riprova.`, false)
+      return
+    }
     setChiusure(nuove)
-    await ssave(SK_CHIUS, nuove)
     setSalvato(true)
 
     // Scarico automatico stock PF (solo prima chiusura del giorno)
@@ -357,7 +364,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         const venduti = Number(row.unitaV || 0)
         if (venduti <= 0) continue
         try {
-          await scaricoVenditaPF({ sedeId, prodotto: row.nome, quantita: venduti, unita: 'pz', note: `Chiusura ${dataFiltro}` })
+          await scaricoVenditaPF({ sedeId, prodotto: (row.nome || '').toUpperCase().trim(), quantita: venduti, unita: 'pz', note: `Chiusura ${dataFiltro}` })
         } catch (e) {
           console.error('Errore scarico vendita PF:', row.nome, e?.message)
         }

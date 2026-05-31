@@ -113,9 +113,15 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
   }, [orgId, sedeId])
 
   async function salvaTutti(next) {
+    // SAVE FIRST: se ssave fallisce non aggiorniamo lo state, l'utente vede
+    // il vecchio elenco e può riprovare senza credere che sia stato salvato.
+    try {
+      await ssave(SK_EVENTI, next, orgId, sedeId || null)
+    } catch (e) {
+      notify?.('⚠ Errore salvataggio eventi: ' + (e.message || 'rete'), false)
+      return
+    }
     setEventi(next)
-    try { await ssave(SK_EVENTI, next, orgId, sedeId || null) }
-    catch (e) { notify?.('⚠ Errore salvataggio: ' + e.message, false) }
   }
 
   function nuovo() {

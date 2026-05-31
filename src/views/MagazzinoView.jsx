@@ -549,8 +549,14 @@ export default function MagazzinoView({
     }
     const logEntry = { id: `r-${Date.now()}`, data: now, ingrediente: formIng.trim(), quantita_g: formMode === 'scarico' ? -qty : qty, note: formNote || (formMode === 'scarico' ? 'scarico manuale' : '') }
     const log = [logEntry, ...(logRif || [])]
+    // SAVE FIRST: se ssave fallisce non vogliamo state desincronizzato dal DB.
+    try {
+      await ssave(SK_MAG, nm); await ssave(SK_LOGRIF, log)
+    } catch (e) {
+      notify(`⚠ Salvataggio magazzino fallito: ${e.message || 'rete'}. Riprova.`, false)
+      return
+    }
     setMagazzino(nm); setLogRif(log)
-    await ssave(SK_MAG, nm); await ssave(SK_LOGRIF, log)
     const segno = formMode === 'scarico' ? '−' : '+'
     notify(`✓ ${segno}${qty}g di ${formIng} — giacenza: ${Math.round(nuova)}g`)
     setFormIng(''); setFormQty(''); setFormNote(''); setQuickLoad(null)
@@ -558,7 +564,13 @@ export default function MagazzinoView({
 
   const handleSoglia = async (k, val) => {
     const nm = { ...magazzino, [k]: { ...(magazzino?.[k] || {}), nome: k, soglia_g: parseFloat(val) || 0 } }
-    setMagazzino(nm); await ssave(SK_MAG, nm)
+    try {
+      await ssave(SK_MAG, nm)
+    } catch (e) {
+      notify(`⚠ Errore soglia: ${e.message || 'rete'}`, false)
+      return
+    }
+    setMagazzino(nm)
     setEditSoglia(null)
   }
 
@@ -566,12 +578,18 @@ export default function MagazzinoView({
     if (!newIngNome) return
     const k = normIng(newIngNome)
     const nm = { ...magazzino, [k]: { nome: newIngNome.trim(), giacenza_g: parseFloat(newIngQty) || 0, soglia_g: parseFloat(newIngSoglia) || 0, ultimoRifornimento: new Date().toISOString() } }
-    setMagazzino(nm); await ssave(SK_MAG, nm)
+    try {
+      await ssave(SK_MAG, nm)
+    } catch (e) {
+      notify(`⚠ Errore aggiunta ingrediente: ${e.message || 'rete'}`, false)
+      return
+    }
+    setMagazzino(nm)
     if (esclusi.has(k)) {
       const nuoviEsclusi = new Set(esclusi)
       nuoviEsclusi.delete(k)
+      try { await ssave(SK_EXCL, [...nuoviEsclusi]) } catch { /* low impact */ }
       if (setEsclusi) setEsclusi(nuoviEsclusi)
-      await ssave(SK_EXCL, [...nuoviEsclusi])
     }
     notify('✓ ' + newIngNome + ' aggiunto al magazzino')
     setShowAddIng(false); setNewIngNome(''); setNewIngQty(''); setNewIngSoglia('')
@@ -757,11 +775,16 @@ export default function MagazzinoView({
               nm[k] = { nome: ing.nome.trim(), giacenza_g: (nm[k]?.giacenza_g || 0) + qtaG, soglia_g: nm[k]?.soglia_g || 0, ultimoRifornimento: now }
               newLogs.push({ id: `r-${Date.now()}-${k}`, data: now, ingrediente: ing.nome.trim(), quantita_g: qtaG, note: 'da foto' })
             }
-            setMagazzino(nm)
             const updLogs = [...newLogs, ...(logRif || [])]
+            try {
+              await ssave(SK_MAG, nm)
+              await ssave(SK_LOGRIF, updLogs)
+            } catch (e) {
+              notify(`⚠ Salvataggio OCR fallito: ${e.message || 'rete'}. Riprova.`, false)
+              return
+            }
+            setMagazzino(nm)
             setLogRif(updLogs)
-            await ssave(SK_MAG, nm)
-            await ssave(SK_LOGRIF, updLogs)
             notify(`📷 Caricati ${(res.ingredienti || []).length} ingredienti in magazzino`)
           }}/>
           <FotoOCR mode="prezzi" notify={notify} ricettario={ricettario} onResult={async res => {

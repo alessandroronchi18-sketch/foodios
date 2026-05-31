@@ -86,7 +86,14 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     if (destDiversa) {
       notify(`${baseMsg}. Stock prodotti finiti NON ritoccato: la sessione aveva destinazione altra sede — gestisci il trasferimento dalla view Trasferimenti.`, false)
     } else if (scartoErrors.length > 0) {
-      notify(`${baseMsg}. Alcuni scarti stock falliti: ${scartoErrors.slice(0, 2).join('; ')}`, false)
+      // Ghost stock: il giornaliero è aggiornato (su Supabase + locale) ma alcuni
+      // pezzi sono ancora in stock_prodotti_finiti. L'utente deve correggere
+      // manualmente dal pannello Magazzino → tab Prodotti finiti, altrimenti
+      // le vendite future scaricheranno da uno stock fantasma.
+      notify(
+        `⚠ Sessione eliminata e magazzino aggiornato MA alcuni prodotti finiti non sono stati scaricati dalla vetrina: ${scartoErrors.slice(0, 3).map(s => s.split(':')[0]).join(', ')}. Vai in Magazzino → Prodotti finiti per correggere a mano.`,
+        false,
+      )
     } else {
       notify(`${baseMsg} e stock vetrina aggiornato`)
     }
@@ -97,7 +104,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   const [vendibileMap, setVendMap] = useState({})
   const [sessNote, setSessNote] = useState('')
   const [prodottiNonRicettario, setProdottiNonRicettario] = useState([])
-  const [destinazioneSedeId, setDestinazioneSedeId] = useState('')
+  // Inizializzato a null (non ''): tutti i check downstream sono ` && val`,
+  // quindi gestiscono entrambi i casi, ma null e' la rappresentazione canonica
+  // di "nessuna destinazione" e ssave persiste null in `sess.destinazioneSedeId`.
+  const [destinazioneSedeId, setDestinazioneSedeId] = useState(null)
   const [confermando, setConfermando] = useState(false)
   const [salvando, setSalvando] = useState(false)  // distinto da `confermando` (UI conferma) per evitare double-submit
 
@@ -407,7 +417,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   {haPiuSedi && (
                     <div style={{ flex: '1 1 200px' }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Destinazione</div>
-                      <select value={destinazioneSedeId} onChange={e => setDestinazioneSedeId(e.target.value)}
+                      <select value={destinazioneSedeId || ''} onChange={e => setDestinazioneSedeId(e.target.value || null)}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, background: C.bgCard, boxSizing: 'border-box' }}>
                         <option value="">📍 Questa sede ({sedeAttiva?.nome || '—'})</option>
                         {sediAttive.filter(s => s.id !== sedeAttiva?.id).map(s => (
