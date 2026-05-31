@@ -1,5 +1,12 @@
 # FoodOS — Stato del Progetto
-> Aggiornato: 2026-05-28 (post-merge PR #7 — commit `f4a31a8`)
+> Aggiornato: 2026-05-31 (post 7 wave audit — commit `ec51635`)
+>
+> **Δ ultimi 3 giorni**: 65+ bug/issue fixati. Bundle main JS: 1.155MB → **246KB** (-78%).
+> 0 bug CRITICAL/HIGH noti. WCAG AA ~85%. PWA-ready (manifest + theme-color).
+> 27 migration SQL applicate (ultime: audit_log GRANT, db_hardening con cleanup_audit_log).
+>
+> Architettura: code splitting completo (44 component lazy-loaded), tablet 3-tier
+> responsive, theme tokens centralizzati, ICONS modulo dedicato, safeStorage Safari-safe.
 
 ---
 
