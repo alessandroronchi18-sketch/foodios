@@ -171,7 +171,7 @@ function Modal({ title, onClose, children, width = 520 }) {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: COLORS.text }}>{title}</h2>
-          <button onClick={onClose} style={{
+          <button onClick={onClose} aria-label="Chiudi modale" style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
             fontSize: 22, color: COLORS.textMute, lineHeight: 1,
           }}>×</button>

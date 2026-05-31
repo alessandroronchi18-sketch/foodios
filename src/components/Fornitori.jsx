@@ -119,7 +119,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             {editId ? "✏️ Modifica fornitore" : "➕ Nuovo fornitore"}
           </div>
           {isMobile && (
-            <button onClick={resetForm} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
+            <button onClick={resetForm} aria-label="Chiudi form fornitore" style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
           )}
         </div>
         {[["Nome *","nome","text"],["Referente","contatto","text"],["Email","email","email"],["Telefono","telefono","tel"]].map(([lbl,key,type])=>(
@@ -149,7 +149,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             style={{ flex:1, padding: isMobile ? "14px" : "10px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer" }}>
             {saving ? "…" : editId ? "Salva modifiche" : "Aggiungi"}
           </button>
-          {editId && <button onClick={resetForm} style={{ padding: isMobile ? "14px" : "10px 14px", background:C.white, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize: isMobile ? 14 : 12, color:C.textMid, cursor:"pointer" }}>✕</button>}
+          {editId && <button onClick={resetForm} aria-label="Annulla modifica fornitore" style={{ padding: isMobile ? "14px" : "10px 14px", background:C.white, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize: isMobile ? 14 : 12, color:C.textMid, cursor:"pointer" }}>✕</button>}
         </div>
       </div>
       )}

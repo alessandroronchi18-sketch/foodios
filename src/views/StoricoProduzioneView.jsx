@@ -142,10 +142,12 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const hasVend = chiusure?.length>0;
 
   if (!hasProd && !hasVend) return (
-    <div style={{maxWidth:700,margin:"80px auto",textAlign:"center"}}>
-      <div style={{fontSize:36,marginBottom:14}}>📊</div>
-      <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:8}}>Nessun dato storico</div>
-      <div style={{fontSize:12,color:C.textSoft}}>Registra la produzione e le chiusure giornaliere per vedere lo storico.</div>
+    <div style={{maxWidth:560,margin:"80px auto",textAlign:"center",padding:'32px 24px',background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,boxShadow:'0 1px 4px rgba(15,23,42,0.04)'}}>
+      <div style={{fontSize:42,marginBottom:14,opacity:0.6}}>📊</div>
+      <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:8,letterSpacing:'-0.01em'}}>Nessun dato storico</div>
+      <div style={{fontSize:13,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:'0 auto'}}>
+        Lo storico si popola automaticamente con le sessioni di <b>Produzione</b> e le <b>Chiusure cassa</b> registrate. Apri quelle sezioni dal menu a sinistra per iniziare.
+      </div>
     </div>
   );
 
@@ -199,7 +201,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {/* ─── TAB PRODUZIONE ─── */}
       {tab==="produzione"&&(
         <>
-          {!hasProd&&<div style={{textAlign:"center",padding:"40px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,color:C.textSoft,fontSize:12}}>Nessuna produzione registrata</div>}
+          {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,color:C.textSoft,fontSize:13,lineHeight:1.5}}><div style={{fontSize:32,marginBottom:10,opacity:0.5}}>🍰</div>Nessuna produzione registrata.<br/><span style={{fontSize:11,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
           {hasProd&&(
             <>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
