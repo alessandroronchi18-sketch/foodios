@@ -93,7 +93,7 @@ export default function App() {
   useEffect(() => {
     const m = path.match(/^\/r\/([A-Za-z0-9]+)$/)
     if (m) {
-      localStorage.setItem('referral_code_pendente', m[1].toUpperCase())
+      try { localStorage.setItem('referral_code_pendente', m[1].toUpperCase()) } catch {}
       window.history.replaceState(null, '', '/')
       setPath('/')
     }
@@ -134,7 +134,9 @@ export default function App() {
   }, [auth.orgId, onboardingVisto])
 
   function completaOnboarding() {
-    if (auth.orgId) localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1')
+    if (auth.orgId) {
+      try { localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1') } catch {}
+    }
     setOnboardingVisto(true)
   }
 

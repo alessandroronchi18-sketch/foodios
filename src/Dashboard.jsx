@@ -808,14 +808,14 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
     const v = Math.max(1, Math.min(100, parseFloat(val)||100)) / 100;
     setResaIngrediente(nomeNorm, v);
     const nuoveRese = getStoreRese();
-    localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese));
+    try { localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese)); } catch {}
     setReseState(getAllRese());
     notify("✓ Resa aggiornata");
   };
   const resetRese = (nomeNorm) => {
     setResaIngrediente(nomeNorm, 1.0);
     const nuoveRese = getStoreRese();
-    localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese));
+    try { localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese)); } catch {}
     setReseState(getAllRese());
     notify("✓ Resa ripristinata al 100%");
   };
@@ -1776,12 +1776,25 @@ export default function Dashboard({
     setConfDel(null);notify("Mese eliminato");
   },[produzione]);
 
+  // Azioni AI Assistant: SAVE FIRST per evitare data-loss (l'utente vede
+  // l'azione tracciata anche se ssave fallisce → fantasma al refresh).
   const handleAddAct=useCallback(async({label,azione,fonte,meseSorgente})=>{
     const a={id:`a-${Date.now()}`,label,azione,fonte,meseSorgente,stato:"aperta",createdAt:new Date().toISOString()};
-    const u=[a,...actions];setAct(u);await ssave(SK_ACT,u);notify("✅ Azione tracciata");
+    const u=[a,...actions];
+    try { await ssave(SK_ACT,u); }
+    catch(e) { notify(`⚠ Errore tracciamento azione: ${e.message||'rete'}`,false); return; }
+    setAct(u); notify("✅ Azione tracciata");
   },[actions]);
-  const handleUpdAct=useCallback(async(id,ch)=>{const u=actions.map(a=>a.id===id?{...a,...ch}:a);setAct(u);await ssave(SK_ACT,u);},[actions]);
-  const handleDelAct=useCallback(async id=>{const u=actions.filter(a=>a.id!==id);setAct(u);await ssave(SK_ACT,u);},[actions]);
+  const handleUpdAct=useCallback(async(id,ch)=>{
+    const u=actions.map(a=>a.id===id?{...a,...ch}:a);
+    try { await ssave(SK_ACT,u); } catch(e) { notify(`⚠ Errore: ${e.message||'rete'}`,false); return; }
+    setAct(u);
+  },[actions]);
+  const handleDelAct=useCallback(async id=>{
+    const u=actions.filter(a=>a.id!==id);
+    try { await ssave(SK_ACT,u); } catch(e) { notify(`⚠ Errore: ${e.message||'rete'}`,false); return; }
+    setAct(u);
+  },[actions]);
 
   const sortedMesi=Object.keys(produzione).sort();
   const currentMese=produzione[view];
@@ -2244,7 +2257,7 @@ export default function Dashboard({
 
       {/* Novità modal */}
       <BackgroundToast />
-      {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');}} onVediTutte={()=>{setShowNovita(false);localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'');setView('changelog');}}/>}
+      {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}}} onVediTutte={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}setView('changelog');}}/>}
 
       {/* CONTENT */}
       <div style={{marginLeft:isMobile?0:L.sidebarWidth,flex:1,padding:0,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>

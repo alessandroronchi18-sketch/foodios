@@ -598,7 +598,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
       const next = loginAttempts + 1
       setLoginAttempts(next)
-      localStorage.setItem('foodios-login-attempts', String(next))
+      try { localStorage.setItem('foodios-login-attempts', String(next)) } catch {}
       let blockMs = 0
       if (next >= 10) blockMs = 60 * 60 * 1000
       else if (next >= 5) blockMs = 15 * 60 * 1000
@@ -606,7 +606,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
       if (blockMs > 0) {
         const until = Date.now() + blockMs
         setLockoutUntil(until)
-        localStorage.setItem('foodios-lockout-until', String(until))
+        try { localStorage.setItem('foodios-lockout-until', String(until)) } catch {}
         setErrore(getLockoutMessage(until))
       } else {
         setErrore(err.message)

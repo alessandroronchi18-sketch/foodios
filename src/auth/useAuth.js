@@ -141,7 +141,9 @@ export function useAuth() {
   function setSedeAttiva(sede) {
     setSedeAttivaState(sede)
     if (sede?.id && profile?.organization_id) {
-      localStorage.setItem(`sede_attiva_${profile.organization_id}`, sede.id)
+      try {
+        localStorage.setItem(`sede_attiva_${profile.organization_id}`, sede.id)
+      } catch { /* Safari private / quota piena: in-memory only ok */ }
     }
   }
 
