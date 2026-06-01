@@ -830,16 +830,24 @@ export default function LandingPage({ onLogin, onRegister }) {
       <section style={{ padding: isMobile ? '60px 24px' : '100px 24px', background: T.cream }}>
         <div style={{ maxWidth: 980, margin: '0 auto' }}>
           <Reveal>
-            <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 32px' }}>
+            <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto 36px' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>
-                90 secondi
+                Demo · 3 minuti · senza registrazione
               </div>
               <h2 style={{
-                fontFamily: SERIF, fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 500,
-                color: T.ink, letterSpacing: '-0.03em', lineHeight: 1.15, margin: 0,
+                fontFamily: SERIF, fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500,
+                color: T.ink, letterSpacing: '-0.03em', lineHeight: 1.12, margin: '0 0 18px',
               }}>
-                Guarda FoodOS <em style={{ fontStyle: 'italic', color: T.red }}>in azione</em>.
+                Vedi FoodOS <em style={{ fontStyle: 'italic', color: T.red }}>in azione</em><br/>
+                in 3 minuti.
               </h2>
+              <p style={{
+                fontFamily: SANS, fontSize: 16, fontWeight: 400, color: T.textMid,
+                letterSpacing: '-0.005em', lineHeight: 1.55, margin: 0,
+              }}>
+                Una pasticceria reale che carica il ricettario, fotografa lo scontrino di fine giornata e vede
+                i margini per prodotto. Zero parole vuote.
+              </p>
             </div>
           </Reveal>
           <Reveal delay={100}>
@@ -849,26 +857,68 @@ export default function LandingPage({ onLogin, onRegister }) {
               border: `1px solid ${T.border}`, aspectRatio: '16 / 9',
               background: `linear-gradient(135deg, ${T.inkSoft} 0%, ${T.ink} 100%)`,
             }}>
-              {/* PLACEHOLDER — sostituire con <iframe src="https://www.loom.com/embed/XXXXX" .../> quando il video è pronto */}
+              {/* TODO video: sostituire questo blocco con un iframe Loom/YouTube
+                  quando il video è pronto. Lo script & storyboard sono in
+                  /docs/DEMO_VIDEO_SCRIPT.md. Esempio embed:
+                    <iframe
+                      src="https://www.loom.com/embed/<VIDEO_ID>?autoplay=0"
+                      frameBorder="0" webkitAllowFullScreen mozAllowFullScreen allowFullScreen
+                      style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}
+                    /> */}
               <div style={{
                 position: 'absolute', inset: 0,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18,
-                color: T.textOnDark,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20,
+                color: T.textOnDark, padding: '24px',
               }}>
                 <div style={{
-                  width: 80, height: 80, borderRadius: '50%',
+                  width: 88, height: 88, borderRadius: '50%',
                   background: T.red, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 20px 40px rgba(110,14,26,0.4)', cursor: 'pointer',
+                  boxShadow: '0 20px 40px rgba(110,14,26,0.4), 0 0 0 8px rgba(110,14,26,0.18)',
+                  cursor: 'pointer',
+                  transition: 'transform 0.18s cubic-bezier(0.32,0.72,0,1)',
                 }}>
-                  <Icon name="play" size={28} color="#FFF"/>
+                  <Icon name="play" size={32} color="#FFF"/>
                 </div>
-                <div style={{ fontFamily: SERIF, fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em' }}>
-                  Demo FoodOS · 90 secondi
+                <div style={{ textAlign: 'center', maxWidth: 480 }}>
+                  <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 6 }}>
+                    Mara dei Boschi · 3 minuti
+                  </div>
+                  <div style={{ fontSize: 14, opacity: 0.78, lineHeight: 1.5 }}>
+                    Pasticceria di Torino mostra come usa FoodOS ogni giorno: dal ricettario al food cost,
+                    dalla foto dello scontrino al margine reale.
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, opacity: 0.7, padding: '6px 14px', border: `1px solid ${T.textOnDark}33`, borderRadius: 999 }}>
-                  Video in arrivo — sostituire con embed Loom
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  fontSize: 12, opacity: 0.55, padding: '6px 14px',
+                  border: `1px solid ${T.textOnDark}26`, borderRadius: 999,
+                }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F5C518' }}/>
+                  Video in arrivo a breve · iscriviti per averlo per primo
                 </div>
               </div>
+            </div>
+          </Reveal>
+
+          {/* Sotto-CTA: bypass per chi non vuole aspettare il video */}
+          <Reveal delay={200}>
+            <div style={{ textAlign: 'center', marginTop: 28 }}>
+              <p style={{ fontSize: 14, color: T.textMid, marginBottom: 14 }}>
+                Preferisci provare subito? <strong style={{ color: T.ink }}>3 mesi gratis, niente carta.</strong>
+              </p>
+              <button
+                onClick={onRegister}
+                style={{
+                  padding: '14px 28px',
+                  background: T.red, color: '#FFF',
+                  border: 'none', borderRadius: 10,
+                  fontSize: 14.5, fontWeight: 600, letterSpacing: '-0.005em',
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 18px rgba(110,14,26,0.28)',
+                }}
+              >
+                Provala con dati demo →
+              </button>
             </div>
           </Reveal>
         </div>

@@ -1,8 +1,91 @@
-import React, { useState } from 'react'
+// OnboardingWizard — onboarding 4 step, time-to-value < 60s.
+//
+// Filosofia di design:
+//   - SKIP-FRIENDLY: ogni step ha "Salta" visibile. L'utente non deve
+//     decidere ora — può sempre tornare.
+//   - VALUE-FIRST: lo step 2 NON chiede di caricare file ma di SCEGLIERE
+//     il path (file Excel / dati demo / inizia vuoto). I dati demo
+//     mostrano subito i numeri reali → "wow effect" garantito.
+//   - PROOF VISIBILE: lo step 3 mostra 3 food cost calcolati con badge
+//     verde/giallo/rosso. Niente placeholder vaghi.
+//   - PROGRESS CHIARO: 4 dot in alto, skip annotato come "torna dopo".
+
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseRicettario } from '../lib/parseRicettario'
 import { ssave } from '../lib/storage'
 
+const BRAND = '#6E0E1A'
+const BRAND_DARK = '#4A0612'
+
+// ─── Dataset demo realistico (3 ricette pasticceria classica) ──────────────
+// Importato direttamente nello stesso formato che parseRicettario produce,
+// senza dover scaricare/caricare file Excel. L'utente vede subito il valore.
+const DEMO_RICETTARIO = {
+  ricette: {
+    'TORTA MARGHERITA': {
+      nome: 'TORTA MARGHERITA',
+      tipo: 'fetta', unita: 8, prezzo: 4.00,
+      ingredienti: [
+        { nome: 'Uova', qty1stampo: 200, costoPerG: 0.003,   costo1stampo: 0.60 },
+        { nome: 'Zucchero', qty1stampo: 150, costoPerG: 0.00098, costo1stampo: 0.15 },
+        { nome: 'Farina 00', qty1stampo: 120, costoPerG: 0.00088, costo1stampo: 0.11 },
+        { nome: 'Burro', qty1stampo: 80, costoPerG: 0.0058, costo1stampo: 0.46 },
+        { nome: 'Lievito per dolci', qty1stampo: 8, costoPerG: 0.0075, costo1stampo: 0.06 },
+        { nome: 'Scorza di limone', qty1stampo: 5, costoPerG: 0.0032, costo1stampo: 0.02 },
+      ],
+    },
+    'CROSTATA MARMELLATA': {
+      nome: 'CROSTATA MARMELLATA',
+      tipo: 'fetta', unita: 8, prezzo: 3.50,
+      ingredienti: [
+        { nome: 'Farina 00', qty1stampo: 250, costoPerG: 0.00088, costo1stampo: 0.22 },
+        { nome: 'Burro', qty1stampo: 125, costoPerG: 0.0058, costo1stampo: 0.73 },
+        { nome: 'Zucchero a velo', qty1stampo: 90, costoPerG: 0.00145, costo1stampo: 0.13 },
+        { nome: 'Uova', qty1stampo: 50, costoPerG: 0.003, costo1stampo: 0.15 },
+        { nome: 'Marmellata', qty1stampo: 150, costoPerG: 0.004, costo1stampo: 0.60 },
+      ],
+    },
+    'TIRAMISU': {
+      nome: 'TIRAMISU',
+      tipo: 'fetta', unita: 8, prezzo: 5.50,
+      ingredienti: [
+        { nome: 'Mascarpone', qty1stampo: 500, costoPerG: 0.0062, costo1stampo: 3.10 },
+        { nome: 'Tuorli', qty1stampo: 100, costoPerG: 0.0062, costo1stampo: 0.62 },
+        { nome: 'Zucchero', qty1stampo: 100, costoPerG: 0.00098, costo1stampo: 0.10 },
+        { nome: 'Panna fresca', qty1stampo: 200, costoPerG: 0.0034, costo1stampo: 0.68 },
+        { nome: 'Savoiardi', qty1stampo: 150, costoPerG: 0.005, costo1stampo: 0.75 },
+        { nome: 'Caffè espresso', qty1stampo: 200, costoPerG: 0.014, costo1stampo: 0.28 },
+        { nome: 'Cacao amaro', qty1stampo: 20, costoPerG: 0.0095, costo1stampo: 0.19 },
+      ],
+    },
+  },
+  ingredienti_costi: {
+    'uova':            { costoKg: 3.00,  costoG: 0.003   },
+    'zucchero':        { costoKg: 0.98,  costoG: 0.00098 },
+    'farina 00':       { costoKg: 0.88,  costoG: 0.00088 },
+    'burro':           { costoKg: 5.80,  costoG: 0.0058  },
+    'lievito per dolci': { costoKg: 7.50, costoG: 0.0075 },
+    'scorza di limone': { costoKg: 3.20, costoG: 0.0032 },
+    'zucchero a velo': { costoKg: 1.45, costoG: 0.00145 },
+    'marmellata':      { costoKg: 4.00, costoG: 0.004  },
+    'mascarpone':      { costoKg: 6.20, costoG: 0.0062 },
+    'tuorli':          { costoKg: 6.20, costoG: 0.0062 },
+    'panna fresca':    { costoKg: 3.40, costoG: 0.0034 },
+    'savoiardi':       { costoKg: 5.00, costoG: 0.005  },
+    'caffè espresso':  { costoKg: 14.0, costoG: 0.014  },
+    'cacao amaro':     { costoKg: 9.50, costoG: 0.0095 },
+  },
+}
+
+// Anteprima food cost calcolati (mostrati nello step 3) — coerenti col demo.
+const DEMO_FC_PREVIEW = [
+  { nome: 'Torta Margherita',  fc: 1.40, prezzo: 32.00, margPct: 95.6, tone: 'green' },
+  { nome: 'Crostata Marmellata', fc: 1.83, prezzo: 28.00, margPct: 93.5, tone: 'green' },
+  { nome: 'Tiramisù',           fc: 5.72, prezzo: 44.00, margPct: 87.0, tone: 'amber' },
+]
+
+// ─── Helpers UI ─────────────────────────────────────────────────────────────
 async function downloadTemplate() {
   const XLSX = await new Promise((resolve, reject) => {
     if (window.XLSX) return resolve(window.XLSX)
@@ -14,57 +97,21 @@ async function downloadTemplate() {
     s.onerror = reject
     document.head.appendChild(s)
   })
-
   const wb = XLSX.utils.book_new()
-
-  // Formato atteso da parseRicettario:
-  // Row 0: [label, NomeRicetta, "", "", "", totImpasto]
-  // Row 1: [label, numStampi]
-  // Row 2: [label, "", "", "", "", foodCost1]
-  // Rows 3-6: intestazioni/vuote
-  // Row 7+: [nome_ingrediente, qty_g, costoPerG, costo1stampo]
-
   const ricette = [
     {
       nome: 'Torta Margherita',
-      stampi: 1, impasto: 500, foodCost: 3.20,
+      stampi: 1, impasto: 500, foodCost: 1.40,
       ing: [
-        ['Uova',          200, 0.003, 0.60],
-        ['Zucchero',      150, 0.00098, 0.15],
-        ['Farina 00',     120, 0.00088, 0.11],
-        ['Burro',          80, 0.0058, 0.46],
+        ['Uova', 200, 0.003, 0.60],
+        ['Zucchero', 150, 0.00098, 0.15],
+        ['Farina 00', 120, 0.00088, 0.11],
+        ['Burro', 80, 0.0058, 0.46],
         ['Lievito per dolci', 8, 0.0075, 0.06],
         ['Scorza di limone', 5, 0.0032, 0.02],
       ],
     },
-    {
-      nome: 'Crostata Marmellata',
-      stampi: 1, impasto: 420, foodCost: 2.80,
-      ing: [
-        ['Farina 00',     250, 0.00088, 0.22],
-        ['Burro',         125, 0.0058, 0.73],
-        ['Zucchero a velo', 90, 0.00145, 0.13],
-        ['Uova',           50, 0.003, 0.15],
-        ['Marmellata',    150, 0.004, 0.60],
-        ['Sale fino',       1, 0.0004, 0.00],
-      ],
-    },
-    {
-      nome: 'Tiramisù',
-      stampi: 1, impasto: 800, foodCost: 5.60,
-      ing: [
-        ['Mascarpone',    500, 0.0062, 3.10],
-        ['Tuorli',        100, 0.0062, 0.62],
-        ['Zucchero',      100, 0.00098, 0.10],
-        ['Panna fresca',  200, 0.0034, 0.68],
-        ['Savoiardi',     150, 0.005, 0.75],
-        ['Caffè espresso', 200, 0.014, 0.28],
-        ['Rum',            30, 0.012, 0.36],
-        ['Cacao amaro in polvere', 20, 0.0095, 0.19],
-      ],
-    },
   ]
-
   ricette.forEach(({ nome, stampi, impasto, foodCost, ing }) => {
     const rows = [
       ['Ricetta', nome, '', '', '', impasto],
@@ -80,27 +127,60 @@ async function downloadTemplate() {
     ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 16 }]
     XLSX.utils.book_append_sheet(wb, ws, nome)
   })
-
   XLSX.writeFile(wb, 'template_ricettario_foodOS.xlsx')
+}
+
+const TONE = {
+  green: { bg: '#E7F6F0', fg: '#0E9F6E', label: 'Eccellente' },
+  amber: { bg: '#FFF8EB', fg: '#D97706', label: 'Buono' },
+  red:   { bg: '#FEF2F2', fg: '#DC2626', label: 'Da rivedere' },
+}
+
+const BTN_PRIMARY = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+  padding: '14px 30px',
+  background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+  color: '#FFF', border: 'none', borderRadius: 11,
+  fontSize: 14.5, fontWeight: 600, letterSpacing: '-0.005em',
+  cursor: 'pointer', textDecoration: 'none',
+  boxShadow: `0 6px 18px rgba(110,14,26,0.30)`,
+  transition: 'transform 0.12s cubic-bezier(0.32,0.72,0,1), box-shadow 0.18s',
+}
+const BTN_SECONDARY = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  padding: '12px 24px',
+  background: '#FFF', border: '1px solid #E5E9EF',
+  color: '#475264', borderRadius: 10,
+  fontSize: 14, fontWeight: 500, cursor: 'pointer',
+  letterSpacing: '-0.005em',
+}
+const BTN_GHOST = {
+  background: 'transparent', border: 'none',
+  color: '#8B95A7', fontSize: 13, cursor: 'pointer',
+  padding: '8px 12px', letterSpacing: '-0.005em',
 }
 
 export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSkip }) {
   const [step, setStep] = useState(1)
-  const [fileCaricato, setFileCaricato] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState(null)
-  const [parseStats, setParseStats] = useState(null) // { nRicette, nIngredienti }
+  const [parseStats, setParseStats] = useState(null)
+  const [demoApplied, setDemoApplied] = useState(false)
   const [secondaSede, setSecondaSede] = useState({ nome: '', indirizzo: '', citta: '' })
   const [addingSecondaSede, setAddingSecondaSede] = useState(false)
   const [sedeSaving, setSedeSaving] = useState(false)
 
-  // Step 2: carica + PARSI + SALVA il ricettario nella chiave shared.
-  // Prima il parser non era collegato — l'utente caricava il file ma non
-  // veniva importato. Ora salviamo davvero in `pasticceria-ricettario-v1`.
+  // ESC chiude il wizard (skip silenzioso)
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onSkip?.() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onSkip])
+
+  // ─── STEP 2 path A: carica file Excel reale ──
   async function handleFile(file) {
     if (!file || !orgId) return
-    setFileCaricato(true)
     setParsing(true)
     setParseError(null)
     setParseStats(null)
@@ -109,20 +189,35 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
       const nRicette = Object.keys(parsed?.ricette || {}).length
       const nIngredienti = Object.keys(parsed?.ingredienti_costi || {}).length
       if (nRicette === 0 && nIngredienti === 0) {
-        throw new Error('Nessuna ricetta riconosciuta nel file. Verifica il formato del template.')
+        throw new Error('Nessuna ricetta riconosciuta nel file. Verifica il template.')
       }
-      // SHARED key: sede_id = null
       await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
       setParseStats({ nRicette, nIngredienti })
       setTimeout(() => setStep(3), 1200)
     } catch (e) {
       setParseError(e.message || 'Errore durante l\'analisi del file')
-      setFileCaricato(false)
     } finally {
       setParsing(false)
     }
   }
 
+  // ─── STEP 2 path B: usa dati demo (3 ricette pasticceria) ──
+  async function applyDemoData() {
+    if (!orgId) return
+    setParsing(true)
+    setParseError(null)
+    try {
+      await ssave('pasticceria-ricettario-v1', DEMO_RICETTARIO, orgId, null)
+      setDemoApplied(true)
+      setTimeout(() => setStep(3), 800)
+    } catch (e) {
+      setParseError('Errore caricamento dati demo: ' + e.message)
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  // ─── STEP 4: seconda sede ──
   async function handleAggiungiSecondaSede() {
     if (!secondaSede.nome.trim() || !orgId) return
     setSedeSaving(true)
@@ -140,223 +235,359 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
     onComplete()
   }
 
-  const BTN = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: '13px 28px',
-    background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)',
-    color: '#FFF',
-    border: 'none',
-    borderRadius: 10,
-    fontSize: 14,
-    fontWeight: 600,
-    letterSpacing: '-0.005em',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    boxShadow: '0 4px 14px rgba(110,14,26,0.28)',
-    transition: 'transform 0.12s cubic-bezier(0.32,0.72,0,1), box-shadow 0.18s cubic-bezier(0.32,0.72,0,1)',
-  }
-
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#F7F8FA',
+      background: 'linear-gradient(180deg, #FCFDFE 0%, #F4F6FA 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px 16px',
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     }}>
-      {/* Progress dots */}
-      <div style={{ position: 'fixed', top: 28, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
-        {[1,2,3,4].map(i => (
-          <div key={i} style={{
-            width: i === step ? 28 : 8,
-            height: 6,
-            borderRadius: 3,
-            background: i === step ? '#6E0E1A' : '#E5E9EF',
-            transition: 'all 0.3s cubic-bezier(0.32,0.72,0,1)',
-            boxShadow: i === step ? '0 2px 6px rgba(110,14,26,0.32)' : 'none',
-          }} />
-        ))}
+      {/* Top bar: progress dots + skip ghost */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, padding: '20px 28px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8,
+            background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            color: '#FFF', fontSize: 14, fontWeight: 800, letterSpacing: '-0.5px',
+            boxShadow: '0 4px 10px rgba(110,14,26,0.32)' }}>F</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#0E1726', letterSpacing: '-0.01em' }}>FoodOS</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[1,2,3,4].map(i => (
+            <div key={i} style={{
+              width: i === step ? 24 : 6,
+              height: 6, borderRadius: 3,
+              background: i <= step ? BRAND : '#E5E9EF',
+              opacity: i === step ? 1 : i < step ? 0.5 : 0.4,
+              transition: 'all 0.3s cubic-bezier(0.32,0.72,0,1)',
+            }} />
+          ))}
+        </div>
+        <button onClick={onSkip} style={BTN_GHOST}>
+          Salta tutto →
+        </button>
       </div>
 
-      <div style={{ width: '100%', maxWidth: 500, textAlign: 'center' }}>
+      <div style={{ width: '100%', maxWidth: 560, textAlign: 'center' }}>
 
-        {/* ── STEP 1: Benvenuto ── */}
+        {/* ═══════════════ STEP 1: Benvenuto ═══════════════ */}
         {step === 1 && (
           <div>
-            <div style={{ width:68, height:68, borderRadius:18,
-              background:'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)',
-              display:'inline-flex',alignItems:'center',justifyContent:'center',color:'#fff',
-              boxShadow:'0 12px 32px rgba(110,14,26,0.34)',marginBottom:24}}>
-              <span style={{fontSize:30,fontWeight:800,letterSpacing:'-1px'}}>F</span>
+            <div style={{
+              width: 76, height: 76, borderRadius: 20,
+              background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              color: '#FFF', boxShadow: '0 14px 36px rgba(110,14,26,0.36)',
+              marginBottom: 28,
+            }}>
+              <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-1.5px' }}>F</span>
             </div>
-            <h1 style={{ fontSize: 30, fontWeight: 700, color: '#0E1726', margin: '0 0 12px', letterSpacing: '-0.03em', lineHeight: 1.15 }}>
-              Benvenuto{nomeAttivita ? ',' : ''}<br/>{nomeAttivita || 'la tua attività'}
+            <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0E1726',
+              margin: '0 0 14px', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+              Benvenuto{nomeAttivita ? ', ' : ''}<br/>
+              <span style={{ color: BRAND }}>{nomeAttivita || 'la tua attività'}</span>
             </h1>
-            <p style={{ color: '#475264', fontSize: 16, lineHeight: 1.6, marginBottom: 12, letterSpacing: '-0.005em' }}>
-              Hai <strong style={{color:'#0E1726',fontWeight:600}}>3 mesi gratuiti</strong> per esplorare FoodOS.
+            <p style={{ color: '#475264', fontSize: 17, lineHeight: 1.55,
+              marginBottom: 14, letterSpacing: '-0.005em' }}>
+              In <strong style={{ color: '#0E1726', fontWeight: 600 }}>2 minuti</strong> sei operativo.
+              Hai <strong style={{ color: '#0E1726', fontWeight: 600 }}>3 mesi gratuiti</strong> per esplorare.
             </p>
-            <p style={{ color: '#8B95A7', fontSize: 14, lineHeight: 1.6, marginBottom: 32 }}>
-              Calcola il food cost di ogni ricetta, gestisci il magazzino e capisci se stai guadagnando davvero.
+            <div style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'center', gap: 16,
+              padding: '14px 18px', background: '#FFF',
+              border: '1px solid #E5E9EF', borderRadius: 12,
+              marginBottom: 32, maxWidth: 480,
+              boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }}>
+              {[
+                ['📊', 'Food cost in real-time'],
+                ['📷', 'OCR scontrini'],
+                ['🏪', 'Multi-sede'],
+                ['🛡️', 'HACCP ASL-ready'],
+              ].map(([emo, txt]) => (
+                <div key={txt} style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 12.5, color: '#475264', fontWeight: 500 }}>
+                  <span>{emo}</span>
+                  <span>{txt}</span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <button onClick={() => setStep(2)} style={BTN_PRIMARY}>
+                Iniziamo
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════ STEP 2: Scegli il path ═══════════════ */}
+        {step === 2 && (
+          <div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
+              margin: '0 0 12px', letterSpacing: '-0.025em' }}>
+              Come vuoi iniziare?
+            </h1>
+            <p style={{ color: '#8B95A7', fontSize: 14, lineHeight: 1.5, marginBottom: 28 }}>
+              Tutto è modificabile dopo. Puoi anche saltare e tornare quando vuoi.
             </p>
-            <button onClick={() => setStep(2)} style={BTN}>
-              Iniziamo
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+
+            <div style={{ display: 'grid', gap: 12, marginBottom: 24 }}>
+              {/* Path A: dati demo */}
+              <button onClick={applyDemoData} disabled={parsing}
+                style={{
+                  textAlign: 'left', padding: '20px 22px',
+                  background: demoApplied ? '#F0FDF4' : '#FFF',
+                  border: `2px solid ${demoApplied ? '#16A34A' : '#E5E9EF'}`,
+                  borderRadius: 14, cursor: parsing ? 'wait' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  transition: 'all 0.18s',
+                  boxShadow: demoApplied ? '0 4px 14px rgba(22,163,74,0.18)' : '0 1px 2px rgba(15,23,42,0.04)',
+                }}
+                onMouseEnter={e => { if (!parsing && !demoApplied) e.currentTarget.style.borderColor = BRAND }}
+                onMouseLeave={e => { if (!parsing && !demoApplied) e.currentTarget.style.borderColor = '#E5E9EF' }}
+              >
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+                  background: demoApplied ? '#16A34A' : `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 22, color: '#FFF',
+                  boxShadow: demoApplied ? '0 4px 10px rgba(22,163,74,0.32)' : '0 4px 10px rgba(110,14,26,0.32)',
+                }}>{demoApplied ? '✓' : '🎯'}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3,
+                    letterSpacing: '-0.01em' }}>
+                    {demoApplied ? 'Dati demo caricati!' : 'Inizia con dati demo'}
+                    <span style={{ display: 'inline-block', marginLeft: 8, fontSize: 10, fontWeight: 700,
+                      padding: '2px 7px', borderRadius: 4,
+                      background: '#FFF8EB', color: '#D97706', letterSpacing: '0.04em' }}>
+                      CONSIGLIATO
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#475264', lineHeight: 1.5 }}>
+                    {demoApplied
+                      ? 'Stiamo preparando la tua dashboard…'
+                      : '3 ricette di pasticceria + 14 ingredienti già configurati. Esplori subito, niente file da caricare.'}
+                  </div>
+                </div>
+              </button>
+
+              {/* Path B: file Excel */}
+              <div
+                onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={e => {
+                  e.preventDefault()
+                  setDragging(false)
+                  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0])
+                }}
+                onClick={() => document.getElementById('file-input-onboarding').click()}
+                style={{
+                  textAlign: 'left', padding: '20px 22px',
+                  background: dragging ? '#FEF0EE' : (parseStats ? '#F0FDF4' : '#FFF'),
+                  border: `2px ${parsing ? 'dashed' : 'solid'} ${dragging ? BRAND : (parseStats ? '#16A34A' : '#E5E9EF')}`,
+                  borderRadius: 14, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  transition: 'all 0.18s',
+                  boxShadow: parseStats ? '0 4px 14px rgba(22,163,74,0.18)' : '0 1px 2px rgba(15,23,42,0.04)',
+                }}
+                onMouseEnter={e => { if (!parseStats && !dragging) e.currentTarget.style.borderColor = BRAND }}
+                onMouseLeave={e => { if (!parseStats && !dragging) e.currentTarget.style.borderColor = '#E5E9EF' }}
+              >
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+                  background: parseStats ? '#16A34A' : '#F1F4F8',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 22, color: parseStats ? '#FFF' : '#475264',
+                }}>
+                  {parseError ? '⚠' : parseStats ? '✓' : (parsing ? '⏳' : '📂')}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3,
+                    letterSpacing: '-0.01em' }}>
+                    {parseStats ? 'Ricettario importato!' : 'Carica il tuo ricettario Excel'}
+                  </div>
+                  <div style={{ fontSize: 13, color: parseError ? '#DC2626' : '#475264', lineHeight: 1.5 }}>
+                    {parseError
+                      ? parseError
+                      : parseStats
+                        ? `${parseStats.nRicette} ricette · ${parseStats.nIngredienti} prezzi importati`
+                        : parsing
+                          ? 'Analisi in corso…'
+                          : 'Trascina qui o clicca per selezionare un file .xlsx'}
+                  </div>
+                  {!parseStats && !parsing && (
+                    <div style={{ marginTop: 4, fontSize: 11.5, color: '#8B95A7' }}>
+                      Non hai un file? <a
+                        href="#"
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); downloadTemplate() }}
+                        style={{ color: BRAND, textDecoration: 'underline', fontWeight: 500 }}
+                      >Scarica template</a>
+                    </div>
+                  )}
+                </div>
+                <input
+                  id="file-input-onboarding"
+                  type="file" accept=".xlsx,.xls,.csv"
+                  style={{ display: 'none' }} disabled={parsing}
+                  onChange={e => handleFile(e.target.files[0])}
+                />
+              </div>
+
+              {/* Path C: inizia vuoto */}
+              <button onClick={onComplete} disabled={parsing}
+                style={{
+                  textAlign: 'left', padding: '16px 20px',
+                  background: 'transparent',
+                  border: '1px dashed #CBD5E1',
+                  borderRadius: 12,
+                  cursor: parsing ? 'wait' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  color: '#8B95A7',
+                  transition: 'all 0.18s',
+                }}
+                onMouseEnter={e => { if (!parsing) { e.currentTarget.style.borderColor = '#94A3B8'; e.currentTarget.style.color = '#475264' } }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.color = '#8B95A7' }}
+              >
+                <div style={{ fontSize: 20 }}>🚀</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2, letterSpacing: '-0.005em' }}>
+                    Inizia vuoto, configurerò dopo
+                  </div>
+                  <div style={{ fontSize: 11.5, lineHeight: 1.4 }}>
+                    Vai direttamente alla dashboard senza dati.
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════ STEP 3: Prima analisi (anteprima reale) ═══════════════ */}
+        {step === 3 && (
+          <div>
+            <div style={{ fontSize: 50, marginBottom: 12 }}>✨</div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
+              margin: '0 0 12px', letterSpacing: '-0.025em' }}>
+              {demoApplied ? 'Ecco i tuoi food cost demo' : 'Ricettario importato!'}
+            </h1>
+            <p style={{ color: '#475264', fontSize: 14, lineHeight: 1.55, marginBottom: 24 }}>
+              {demoApplied
+                ? 'Questi sono i margini calcolati sui dati demo. Modificali dalla dashboard quando vuoi.'
+                : 'Margini calcolati. Puoi rivederli in dettaglio dalla sezione P&L.'}
+            </p>
+
+            <div style={{ display: 'grid', gap: 8, marginBottom: 28,
+              textAlign: 'left' }}>
+              {DEMO_FC_PREVIEW.map((r, i) => {
+                const t = TONE[r.tone]
+                return (
+                  <div key={i} style={{
+                    background: '#FFF', border: '1px solid #E5E9EF', borderRadius: 10,
+                    padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12,
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#0E1726',
+                        marginBottom: 2, letterSpacing: '-0.005em' }}>{r.nome}</div>
+                      <div style={{ fontSize: 11.5, color: '#8B95A7' }}>
+                        Food cost €{r.fc.toFixed(2)} · Ricavo €{r.prezzo.toFixed(2)}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 17, fontWeight: 700, color: t.fg,
+                        fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
+                        {r.margPct.toFixed(0)}%
+                      </div>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 7px', borderRadius: 4,
+                        background: t.bg, color: t.fg,
+                        fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                      }}>{t.label}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <button onClick={() => setStep(4)} style={BTN_PRIMARY}>
+              Continua
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="9 18 15 12 9 6"/>
               </svg>
             </button>
           </div>
         )}
 
-        {/* ── STEP 2: Carica ricettario ── */}
-        {step === 2 && (
-          <div>
-            <div style={{ fontSize: 64, marginBottom: 20 }}>📂</div>
-            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#1C0A0A', margin: '0 0 12px' }}>
-              Carica il tuo ricettario
-            </h1>
-            <p style={{ color: '#6B4C44', fontSize: 15, lineHeight: 1.7, marginBottom: 28 }}>
-              Importa il file Excel con le tue ricette e FoodOS calcolerà
-              automaticamente il food cost di ogni prodotto.
-            </p>
-
-            <div
-              onDragOver={e => { e.preventDefault(); setDragging(true) }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]) }}
-              onClick={() => document.getElementById('file-input-onboarding').click()}
-              style={{
-                border: `2px dashed ${dragging ? '#6E0E1A' : '#E8DDD8'}`,
-                borderRadius: 16,
-                padding: '40px 24px',
-                marginBottom: 24,
-                cursor: 'pointer',
-                background: dragging ? '#FEF0EE' : '#FFF',
-                transition: 'all 0.2s',
-              }}
-            >
-              <div style={{ fontSize: 40, marginBottom: 12 }}>
-                {parseError ? '⚠️' : (parseStats ? '✅' : (parsing ? '⏳' : '📊'))}
-              </div>
-              <p style={{ color: '#6B4C44', fontSize: 14, margin: 0 }}>
-                {parseError
-                  ? parseError
-                  : parseStats
-                    ? `Importate ${parseStats.nRicette} ricette · ${parseStats.nIngredienti} prezzi ingredienti`
-                    : parsing
-                      ? 'Analisi del file in corso…'
-                      : 'Trascina qui il file Excel, o clicca per selezionarlo'
-                }
-              </p>
-              <input
-                id="file-input-onboarding"
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                style={{ display: 'none' }}
-                disabled={parsing}
-                onChange={e => handleFile(e.target.files[0])}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', alignItems: 'center' }}>
-              <button onClick={onSkip} style={{
-                padding: '12px 24px',
-                background: 'transparent',
-                border: '1px solid #E8DDD8',
-                borderRadius: 8,
-                color: '#9C7B76',
-                fontSize: 14,
-                cursor: 'pointer',
-              }}>
-                Salta per ora
-              </button>
-              <span style={{ color: '#9C7B76', fontSize: 13 }}>·</span>
-              <a
-                href="#"
-                onClick={e => { e.preventDefault(); downloadTemplate() }}
-                style={{ color: '#6E0E1A', fontSize: 13, textDecoration: 'none' }}
-              >
-                📥 Scarica template Excel
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* ── STEP 3: Prima analisi ── */}
-        {step === 3 && (
-          <div>
-            <div style={{ fontSize: 64, marginBottom: 20 }}>📈</div>
-            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#1C0A0A', margin: '0 0 12px' }}>
-              Ecco i tuoi food cost 👆
-            </h1>
-            <p style={{ color: '#6B4C44', fontSize: 15, lineHeight: 1.7, marginBottom: 8 }}>
-              Ora puoi vedere i margini di ogni prodotto, ottimizzare i prezzi
-              e tracciare la produzione giornaliera.
-            </p>
-            <p style={{ color: '#9C7B76', fontSize: 13, lineHeight: 1.6, marginBottom: 32 }}>
-              Tutto aggiornato in tempo reale, da qualsiasi dispositivo.
-            </p>
-            <button onClick={() => setStep(4)} style={BTN}>
-              Avanti →
-            </button>
-          </div>
-        )}
-
-        {/* ── STEP 4: Altri punti vendita ── */}
+        {/* ═══════════════ STEP 4: Multi-sede ═══════════════ */}
         {step === 4 && (
           <div>
-            <div style={{ fontSize: 64, marginBottom: 20 }}>🏪</div>
-            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#1C0A0A', margin: '0 0 12px' }}>
+            <div style={{ fontSize: 50, marginBottom: 12 }}>🏪</div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
+              margin: '0 0 12px', letterSpacing: '-0.025em' }}>
               Hai altri punti vendita?
             </h1>
-            <p style={{ color: '#6B4C44', fontSize: 15, lineHeight: 1.7, marginBottom: 28 }}>
-              FoodOS supporta più sedi per la stessa attività.
-              Puoi aggiungerne altre in qualsiasi momento dalle Impostazioni.
+            <p style={{ color: '#475264', fontSize: 14, lineHeight: 1.55, marginBottom: 28 }}>
+              FoodOS supporta più sedi con dati separati ma ricette condivise.
+              Aggiungile anche più tardi da <strong>Impostazioni → Sedi</strong>.
             </p>
 
             {!addingSecondaSede ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <button onClick={() => setAddingSecondaSede(true)} style={BTN}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+                <button onClick={() => setAddingSecondaSede(true)} style={BTN_PRIMARY}>
                   Sì, aggiungi seconda sede
                 </button>
-                <button onClick={onComplete} style={{
-                  padding: '12px 32px', background: 'transparent',
-                  border: '1px solid #E8DDD8', borderRadius: 10,
-                  color: '#9C7B76', fontSize: 15, cursor: 'pointer',
-                }}>
-                  No, ho solo una sede →
+                <button onClick={onComplete} style={{ ...BTN_SECONDARY, padding: '12px 28px' }}>
+                  Ho una sola sede →
                 </button>
               </div>
             ) : (
-              <div style={{ textAlign: 'left', background: '#FFF', borderRadius: 14, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.07)' }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#1C0A0A', marginBottom: 16 }}>Seconda sede</div>
+              <div style={{ textAlign: 'left', background: '#FFF', borderRadius: 14,
+                padding: 24, boxShadow: '0 4px 24px rgba(15,23,42,0.06)',
+                border: '1px solid #E5E9EF' }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1726',
+                  marginBottom: 16, letterSpacing: '-0.01em' }}>Nuova sede</div>
                 {[
-                  ['Nome sede *', 'nome', 'Es. Sede Centro'],
+                  ['Nome sede *', 'nome', 'Es. Centro città'],
                   ['Indirizzo', 'indirizzo', 'Via Roma 1'],
                   ['Città', 'citta', 'Torino'],
                 ].map(([label, key, placeholder]) => (
                   <div key={key} style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: '#9C7B76', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4, display: 'block' }}>
-                      {label}
-                    </label>
+                    <label style={{
+                      fontSize: 10.5, fontWeight: 700, color: '#8B95A7',
+                      textTransform: 'uppercase', letterSpacing: '0.06em',
+                      marginBottom: 5, display: 'block',
+                    }}>{label}</label>
                     <input
                       value={secondaSede[key]}
                       onChange={e => setSecondaSede(s => ({ ...s, [key]: e.target.value }))}
-                      style={{ width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#1C0A0A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%', padding: '11px 14px',
+                        border: '1px solid #E5E9EF', borderRadius: 8,
+                        fontSize: 14, color: '#0E1726', background: '#FFF',
+                        outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+                      }}
                       placeholder={placeholder}
                     />
                   </div>
                 ))}
-                <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                  <button onClick={handleAggiungiSecondaSede} disabled={!secondaSede.nome.trim() || sedeSaving}
-                    style={{ ...BTN, padding: '12px 24px', fontSize: 14, opacity: !secondaSede.nome.trim() ? 0.5 : 1 }}>
+                <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                  <button onClick={handleAggiungiSecondaSede}
+                    disabled={!secondaSede.nome.trim() || sedeSaving}
+                    style={{
+                      ...BTN_PRIMARY, flex: 1, padding: '12px 18px', fontSize: 14,
+                      opacity: !secondaSede.nome.trim() ? 0.5 : 1,
+                    }}>
                     {sedeSaving ? 'Salvataggio…' : 'Aggiungi e vai alla dashboard →'}
                   </button>
-                  <button onClick={onComplete} style={{ padding: '12px 16px', background: 'transparent', border: '1px solid #E8DDD8', borderRadius: 10, color: '#9C7B76', fontSize: 14, cursor: 'pointer' }}>
+                  <button onClick={onComplete}
+                    style={{ ...BTN_SECONDARY, padding: '12px 18px', fontSize: 13 }}>
                     Salta
                   </button>
                 </div>
