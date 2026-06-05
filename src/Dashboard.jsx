@@ -1516,8 +1516,11 @@ export default function Dashboard({
   const handleImportPrezziOCR=useCallback(async (nuoviCosti) => {
     if (!ricettario) return;
     const nuovoRic = { ...ricettario, ingredienti_costi: { ...(ricettario.ingredienti_costi||{}), ...nuoviCosti } };
-    setRic(nuovoRic); await ssave(SK_RIC, nuovoRic);
-  }, [ricettario]);
+    // SAVE FIRST: se ssave fallisce non muto lo state (evita prezzi fantasma al refresh)
+    try { await ssave(SK_RIC, nuovoRic); }
+    catch (e) { notify(`⚠ Errore salvataggio prezzi: ${e.message||'rete'}`, false); return; }
+    setRic(nuovoRic);
+  }, [ricettario, notify]);
 
   // ── Importazioni globali usate dalla pagina "Importa dati" ────────────────
   // Delivery: auto-detect piattaforma in base alle prime righe del file
@@ -1535,7 +1538,7 @@ export default function Dashboard({
           continue;
         }
         const nuove = mergeInChiusure(chiusure||[], righe, piattaforma);
-        setChiusure(nuove); await ssave(SK_CHIUS, nuove);
+        await ssave(SK_CHIUS, nuove); setChiusure(nuove); // SAVE FIRST (il throw è gestito dal catch sotto)
         notify(`✓ ${righe.length} giorni importati da ${piattaforma}`);
       } catch (e) {
         notify(`⚠ ${f.name}: ${e.message}`, false);
@@ -1556,7 +1559,10 @@ export default function Dashboard({
         continue;
       }
       const nuove = mergeInChiusureCassa(chiusure||[], righe, sistema);
-      setChiusure(nuove); await ssave(SK_CHIUS, nuove);
+      // SAVE FIRST: questo loop non ha try/catch esterno, gestisco qui
+      try { await ssave(SK_CHIUS, nuove); }
+      catch (e) { notify(`⚠ ${f.name}: ${e.message||'rete'}`, false); continue; }
+      setChiusure(nuove);
       notify(`✓ ${righe.length} giorni importati da ${sistema}`);
     }
   }, [chiusure, notify]);
@@ -1767,17 +1773,23 @@ export default function Dashboard({
 
   const handleSave=useCallback(async(k,entries)=>{
     const np={...produzione,[k]:{...produzione[k],entries}};
-    setProd(np);await ssave(SK_PROD,np);
+    // SAVE FIRST: muto lo state solo se la produzione è persistita
+    try { await ssave(SK_PROD,np); }
+    catch(e){ notify(`⚠ Errore salvataggio: ${e.message||'rete'}`,false); return; }
+    setProd(np);
     notify("✓ Dati salvati");
-  },[produzione]);
+  },[produzione,notify]);
 
   const handleDel=useCallback(async k=>{
     const np={...produzione};delete np[k];
-    setProd(np);await ssave(SK_PROD,np);
+    // SAVE FIRST: non rimuovo dallo state se l'eliminazione non è persistita
+    try { await ssave(SK_PROD,np); }
+    catch(e){ notify(`⚠ Errore eliminazione: ${e.message||'rete'}`,false); return; }
+    setProd(np);
     const ks=Object.keys(np).sort();
     setView(ks.length?ks.at(-1):"ricettario");
     setConfDel(null);notify("Mese eliminato");
-  },[produzione]);
+  },[produzione,notify]);
 
   // Azioni AI Assistant: SAVE FIRST per evitare data-loss (l'utente vede
   // l'azione tracciata anche se ssave fallisce → fantasma al refresh).
