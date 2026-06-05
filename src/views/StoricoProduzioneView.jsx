@@ -1,6 +1,6 @@
 // StoricoProduzioneView — Storico produzioni con grafici. Estratta da Dashboard.jsx.
 import React, { useState, useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
+import { BarChart, Bar, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'
@@ -146,6 +146,35 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   });
   const seriesProd = [...topRicetteProd, ...(dataProdTop.some(d=>d["Altri"]>0)?["Altri"]:[])];
 
+  // Tooltip del grafico produzione: per OGNI periodo i prodotti ordinati per
+  // quantità desc (top 7). L'ordine può variare da un giorno all'altro.
+  const prodByDay = {};
+  for (const p of periodiProd) {
+    const sorted = Object.entries(p.byRicetta).sort((a,b)=>b[1]-a[1]);
+    prodByDay[p.label] = { top: sorted.slice(0,7), tot: sorted.reduce((s,[,v])=>s+v,0), extra: Math.max(0, sorted.length-7) };
+  }
+  const ProdTooltip = ({ active, label }) => {
+    const d = active && prodByDay[label];
+    if (!d) return null;
+    return (
+      <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', boxShadow:'0 8px 24px rgba(15,23,42,0.14)', minWidth:190 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', marginBottom:7, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
+          <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
+          <span style={{ fontSize:10.5, fontWeight:700, color:C.textSoft, fontVariantNumeric:'tabular-nums' }}>{d.tot} stampi</span>
+        </div>
+        {d.top.map(([nome,q],i)=>(
+          <div key={nome} style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', padding:'2px 0' }}>
+            <span style={{ fontSize:11, color:C.textMid, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:170 }}>
+              <span style={{ display:'inline-block', width:15, color:C.textSoft, fontWeight:700 }}>{i+1}</span>{nome}
+            </span>
+            <span style={{ fontSize:11, fontWeight:800, color:C.text, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{q}</span>
+          </div>
+        ))}
+        {d.extra>0 && <div style={{ fontSize:10, color:C.textSoft, marginTop:5 }}>+{d.extra} altri prodotti</div>}
+      </div>
+    );
+  };
+
   // KPI globali produzione
   const totRP=periodiProd.reduce((s,p)=>s+p.ricavoTot,0);
   const totFP=periodiProd.reduce((s,p)=>s+p.fcTot,0);
@@ -158,6 +187,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const totSV=periodiVend.reduce((s,p)=>s+p.sproTot,0);
   const totMV=totRV-totFV;
   const avgST=periodiVend.length>0?periodiVend.reduce((s,p)=>s+p.avgST,0)/periodiVend.length:0;
+
+  // Formattazione box grandi: arrotonda all'unità + separatore migliaia IT (1.000).
+  const eur0 = n => `€ ${Math.round(Number(n)||0).toLocaleString('it-IT')}`;
+  const n0   = n => `${Math.round(Number(n)||0).toLocaleString('it-IT')}`;
 
   const hasProd = giornaliero?.length>0;
   const hasVend = chiusure?.length>0;
@@ -226,11 +259,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           {hasProd&&(
             <>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
-                <KPI icon="📦" label="Stampi"     value={totMP}           highlight/>
-                <KPI icon="💰" label="Ricavi"     value={fmt(totRP)}      color={C.green}/>
-                <KPI icon="🧾" label="Food cost"  value={fmt(totFP)}      color={C.red}/>
-                <KPI icon="📈" label="Margine"    value={fmt(totRP-totFP)} color={margColor(totRP>0?((totRP-totFP)/totRP*100):0)}/>
-                <KPI icon="🏆" label="Top"        value={topP?topP[0].replace("TORTA DI ",""):"—"} sub={topP?`${topP[1]} stampi`:""} color={C.amber}/>
+                <KPI icon="📦" label="Stampi"     value={n0(totMP)}        highlight/>
+                <KPI icon="💰" label="Ricavi"     value={eur0(totRP)}      color={C.green}/>
+                <KPI icon="🧾" label="Food cost"  value={eur0(totFP)}      color={C.red}/>
+                <KPI icon="📈" label="Margine"    value={eur0(totRP-totFP)} color={margColor(totRP>0?((totRP-totFP)/totRP*100):0)}/>
+                <KPI icon="🏆" label="Top"        value={topP?topP[0].replace("TORTA DI ",""):"—"} sub={topP?`${n0(topP[1])} stampi`:""} color={C.amber}/>
               </div>
               <SH sub={`Stampi totali per ${vista==="giornaliero"?"giorno":vista} · top 5 prodotti + altri`}>Produzione per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
@@ -239,7 +272,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
                     <YAxis tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false} allowDecimals={false} label={{ value:'stampi', angle:-90, position:'insideLeft', fill:C.textSoft, fontSize:9, dy:20 }}/>
-                    <Tooltip content={<ChartTip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
+                    <Tooltip content={<ProdTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
                     {seriesProd.map((n,i)=>(
                       <Bar key={n} dataKey={n} stackId="a"
@@ -249,18 +282,18 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <SH sub={`Ogni barra = ricavo del periodo, diviso in food cost (rosso) e margine (verde)`}>Andamento Economico (stimato)</SH>
+              <SH sub={`Food cost (colonna) e margine (linea) per ${vista==="giornaliero"?"giorno":vista}`}>Andamento Economico (stimato)</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
                 <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={dataKPI} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="35%">
+                  <ComposedChart data={dataKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="35%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
                     <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
                     <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                    <Bar dataKey="FoodCost" stackId="e" name="Food cost" fill={C.red}   radius={[0,0,0,0]}/>
-                    <Bar dataKey="Margine"  stackId="e" name="Margine"   fill={C.green} radius={[4,4,0,0]}/>
-                  </BarChart>
+                    <Bar dataKey="FoodCost" name="Food cost" fill={C.red} radius={[4,4,0,0]} barSize={isMobile?18:30}/>
+                    <Line type="monotone" dataKey="Margine" name="Margine" stroke={C.green} strokeWidth={2.5} dot={{r:3,fill:C.green,strokeWidth:0}} activeDot={{r:5}}/>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
               <SH sub="Dettaglio per periodo">Riepilogo Periodi</SH>
@@ -310,11 +343,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           {hasVend&&(
             <>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
-                <KPI icon="💰" label="Ricavi reali"  value={fmt(totRV)}  highlight/>
-                <KPI icon="📈" label="Margine"       value={fmt(totMV)}  color={margColor(totRV>0?(totMV/totRV*100):0)} sub={fmtp(totRV>0?(totMV/totRV*100):0)}/>
-                <KPI icon="🧾" label="Food cost"     value={fmt(totFV)}  color={C.red}/>
+                <KPI icon="💰" label="Ricavi reali"  value={eur0(totRV)}  highlight/>
+                <KPI icon="📈" label="Margine"       value={eur0(totMV)}  color={margColor(totRV>0?(totMV/totRV*100):0)} sub={fmtp(totRV>0?(totMV/totRV*100):0)}/>
+                <KPI icon="🧾" label="Food cost"     value={eur0(totFV)}  color={C.red}/>
                 <KPI icon="🎯" label="Sell-through"  value={fmtp(avgST)} color={avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
-                <KPI icon="🗑" label="Spreco"        value={fmt(totSV)}  color={totSV>20?C.red:C.amber}/>
+                <KPI icon="🗑" label="Spreco"        value={eur0(totSV)}  color={totSV>20?C.red:C.amber}/>
               </div>
 
               <SH sub={`Ricavi reali da scontrini per ${vista}`}>Ricavi Reali per {vista==="settimana"?"Settimana":"Mese"}</SH>
