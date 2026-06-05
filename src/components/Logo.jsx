@@ -33,10 +33,16 @@ export default function Logo({
       aria-label="FoodOS"
       style={{ display: 'block', flexShrink: 0 }}
     >
+      {/* Quadrato bordeaux pieno + "F" BIANCA piena (non ritaglio): così il
+          logo è identico su qualsiasi sfondo (prima la F era trasparente e
+          assumeva il colore dietro — cremina sul login, nera in sidebar). */}
       <path
         fill={LOGO_COLOR}
-        fillRule="evenodd"
-        d="M 14 0 L 50 0 C 58 0 64 6 64 14 L 64 50 C 64 58 58 64 50 64 L 14 64 C 6 64 0 58 0 50 L 0 14 C 0 6 6 0 14 0 Z M 19 14 L 49 14 L 49 23 L 29 23 L 29 29 L 44 29 L 44 37 L 29 37 L 29 50 L 19 50 Z"
+        d="M 14 0 L 50 0 C 58 0 64 6 64 14 L 64 50 C 64 58 58 64 50 64 L 14 64 C 6 64 0 58 0 50 L 0 14 C 0 6 6 0 14 0 Z"
+      />
+      <path
+        fill="#FFFFFF"
+        d="M 19 14 L 49 14 L 49 23 L 29 23 L 29 29 L 44 29 L 44 37 L 29 37 L 29 50 L 19 50 Z"
       />
     </svg>
   )
