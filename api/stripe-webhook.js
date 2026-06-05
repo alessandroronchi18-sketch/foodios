@@ -16,6 +16,8 @@
 
 export const config = { runtime: 'nodejs', api: { bodyParser: false } }
 
+import { parseSdiCustomFields } from './lib/sdiFields.js'
+
 async function readRawBody(req) {
   const chunks = []
   for await (const c of req) chunks.push(c)
@@ -106,6 +108,16 @@ export default async function handler(req, res) {
         // La subscription esiste già; il webhook subscription.created arriverà a breve
         // (o è già arrivato). Qui aggiorniamo customer_id per sicurezza.
         const updates = { stripe_customer_id: s.customer }
+
+        // Codice destinatario SDI + PEC: raccolti via custom_fields del Checkout
+        // (P.IVA e indirizzo arrivano invece da customer.updated). Vivono solo
+        // sulla session, quindi li sincronizziamo qui su organizations.
+        const sdi = parseSdiCustomFields(s.custom_fields)
+        Object.assign(updates, sdi)
+        if (sdi.codice_destinatario || sdi.pec) {
+          updates.business_info_updated_at = new Date().toISOString()
+        }
+
         await supabase.from('organizations').update(updates).eq('id', orgId)
 
         // Email welcome (best-effort)

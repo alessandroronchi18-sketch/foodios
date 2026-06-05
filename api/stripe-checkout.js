@@ -105,6 +105,25 @@ export default async function handler(req, res) {
         name: 'auto',
         address: 'auto',
       },
+      // Codice destinatario SDI: Stripe NON lo raccoglie nativamente (tax_id =
+      // solo P.IVA), quindi lo chiediamo come custom field. 7 caratteri alfanum.
+      // (privati: 0000000). PEC come alternativa per chi non ha un codice SDI.
+      // Vivono sulla checkout session → li sincronizza checkout.session.completed.
+      custom_fields: [
+        {
+          key: 'codice_sdi',
+          label: { type: 'custom', custom: 'Codice destinatario SDI (7 caratteri)' },
+          type: 'text',
+          optional: true,
+          text: { minimum_length: 7, maximum_length: 7 },
+        },
+        {
+          key: 'pec',
+          label: { type: 'custom', custom: 'PEC (in alternativa al codice SDI)' },
+          type: 'text',
+          optional: true,
+        },
+      ],
     })
 
     return res.status(200).json({ url: session.url })
