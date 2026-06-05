@@ -146,6 +146,8 @@ function BCGMatrix({ menuItems }) {
 
   const quadrants = ["Star","Puzzle","Plow","Dog"]
   const byQ = quadrants.reduce((acc,q)=>({ ...acc, [q]: withBcg.filter(m=>m.bcg.q===q) }), {})
+  // Numerazione stabile (per margine desc) usata sia nei pallini sia nella legenda.
+  const ranked = [...withBcg].sort((a,b)=> b.margPct - a.margPct)
 
   const QUAD_META = {
     Star:   { title:"Star",   sub:"Alta % · Alta popolarità",   sample:{ margPct:70, volRel:0.8 } },
@@ -213,35 +215,45 @@ function BCGMatrix({ menuItems }) {
           <div style={{ fontSize:11, color:T.textSoft }}>margine % × popolarità</div>
         </div>
         <div style={{
-          position:"relative", width:"100%", paddingBottom:"50%",
-          background:T.bgSubtle, borderRadius:R.md, border:`1px solid ${T.borderSoft}`,
+          position:"relative", width:"100%", paddingBottom:"58%",
+          background:T.bgSubtle, borderRadius:R.md, border:`1px solid ${T.borderSoft}`, overflow:"hidden",
         }}>
-          {/* Quadrant lines */}
+          {/* Tinte quadranti */}
+          <div style={{ position:"absolute", top:0, left:0, width:"50%", height:"50%", background:"rgba(91,143,206,0.07)" }}/>
+          <div style={{ position:"absolute", top:0, right:0, width:"50%", height:"50%", background:"rgba(22,163,74,0.08)" }}/>
+          <div style={{ position:"absolute", bottom:0, left:0, width:"50%", height:"50%", background:"rgba(192,57,43,0.06)" }}/>
+          <div style={{ position:"absolute", bottom:0, right:0, width:"50%", height:"50%", background:"rgba(212,160,48,0.07)" }}/>
+          {/* Linee quadrante */}
           <div style={{ position:"absolute", left:"50%", top:0, bottom:0, width:1, background:T.border }}/>
           <div style={{ position:"absolute", top:"50%", left:0, right:0, height:1, background:T.border }}/>
-          <div style={{ position:"absolute", top:6, left:8,  fontSize:10, fontWeight:500, color:T.textSoft, letterSpacing:"0.04em" }}>Puzzle</div>
-          <div style={{ position:"absolute", top:6, right:8, fontSize:10, fontWeight:500, color:T.textSoft, letterSpacing:"0.04em" }}>Star</div>
-          <div style={{ position:"absolute", bottom:6, left:8,  fontSize:10, fontWeight:500, color:T.textSoft, letterSpacing:"0.04em" }}>Dog</div>
-          <div style={{ position:"absolute", bottom:6, right:8, fontSize:10, fontWeight:500, color:T.textSoft, letterSpacing:"0.04em" }}>Plow</div>
-          {withBcg.map(m => {
-            const x = (m.unita / maxVol) * 95 + 2.5
-            const y = 100 - (Math.min(100,m.margPct) / 100 * 95 + 2.5)
+          <div style={{ position:"absolute", top:6, left:8,  fontSize:10, fontWeight:700, color:T.blue }}>Puzzle</div>
+          <div style={{ position:"absolute", top:6, right:8, fontSize:10, fontWeight:700, color:T.green }}>★ Star</div>
+          <div style={{ position:"absolute", bottom:18, left:8,  fontSize:10, fontWeight:700, color:T.red }}>Dog</div>
+          <div style={{ position:"absolute", bottom:18, right:8, fontSize:10, fontWeight:700, color:T.amber }}>Plow</div>
+          {/* Captions assi */}
+          <div style={{ position:"absolute", bottom:3, left:"50%", transform:"translateX(-50%)", fontSize:9, color:T.textSoft }}>popolarità →</div>
+          <div style={{ position:"absolute", top:"50%", left:3, transform:"translateY(-50%) rotate(180deg)", writingMode:"vertical-rl", fontSize:9, color:T.textSoft }}>margine →</div>
+          {ranked.map((m,idx) => {
+            const x = (m.unita / maxVol) * 90 + 5
+            const y = 100 - (Math.min(100,m.margPct) / 100 * 90 + 5)
             return (
-              <div key={m.nome} title={`${m.nome}: ${fmtp(m.margPct)} margine`}
+              <div key={m.nome} title={`${m.nome}: ${fmtp(m.margPct)} margine · ${m.unita} vendite`}
                 style={{
                   position:"absolute", left:`${x}%`, top:`${y}%`, transform:"translate(-50%,-50%)",
-                  width:11, height:11, borderRadius:"50%", background:m.bcg.color,
-                  border:`2px solid ${T.bgCard}`,
-                  boxShadow:"0 1px 4px rgba(15,23,42,0.18)", cursor:"help",
-                }}/>
+                  width:22, height:22, borderRadius:"50%", background:m.bcg.color, color:"#fff",
+                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800,
+                  border:`2px solid ${T.bgCard}`, boxShadow:"0 2px 6px rgba(15,23,42,0.22)", cursor:"help",
+                }}>{idx+1}</div>
             )
           })}
         </div>
-        <div style={{ display:"flex", flexWrap:"wrap", gap:10, marginTop:14 }}>
-          {withBcg.map(m=>(
-            <div key={m.nome} style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, color:T.textMid, letterSpacing:"-0.005em" }}>
-              <span style={{ width:8, height:8, borderRadius:"50%", background:m.bcg.color, display:"inline-block" }}/>
-              {m.nome.length>18 ? m.nome.slice(0,17)+"…" : m.nome}
+        {/* Legenda numerata: numero → prodotto → margine */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:"6px 16px", marginTop:16 }}>
+          {ranked.map((m,idx)=>(
+            <div key={m.nome} style={{ display:"flex", alignItems:"center", gap:8, fontSize:11, color:T.textMid }}>
+              <span style={{ width:17, height:17, borderRadius:"50%", background:m.bcg.color, color:"#fff", fontSize:9, fontWeight:800, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{idx+1}</span>
+              <span style={{ flex:1, minWidth:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{m.nome}</span>
+              <span style={{ fontWeight:700, color:m.bcg.color, ...tnum }}>{fmtp(m.margPct)}</span>
             </div>
           ))}
         </div>
@@ -271,7 +283,7 @@ function MenuPreview({ menuItems, nomeAttivita }) {
 
     doc.setDrawColor(200); doc.line(14, y, pw-14, y); y += 8
 
-    const visibili = menuItems.filter(m=>m.visibile)
+    const visibili = menuItems.filter(m=>m.visibile).sort((a,b)=>a.nome.localeCompare(b.nome,'it'))
     for (const m of visibili) {
       if (y > 260) { doc.addPage(); y = 20 }
       doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.setTextColor(30)
