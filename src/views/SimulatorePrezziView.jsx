@@ -39,6 +39,9 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
 
   const euro = v => `€ ${Number(v).toFixed(2)}`
+  // Box riassuntivi (comparazione + proiezione): arrotonda all'unità con
+  // separatore migliaia IT (es. € 1.000) e gestisce il segno.
+  const euro0 = v => { const n = Math.round(Number(v) || 0); return `${n < 0 ? '−' : ''}€ ${Math.abs(n).toLocaleString('it-IT')}` }
   const pct  = v => `${Number(v).toFixed(1)}%`
 
   const baseRows = ricette.map(ric => {
@@ -251,9 +254,9 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       {hasChanges && (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 14, marginBottom: 28 }}>
           {[
-            { lbl: 'Ricavo/stampo base',    val: euro(totBaseRicavo), sub: 'prezzi attuali', c: T.textMid },
-            { lbl: 'Ricavo/stampo scenario', val: euro(totScenRicavo), sub: `${totScenRicavo > totBaseRicavo ? '+' : ''}${euro(totScenRicavo - totBaseRicavo)} vs base`, c: totScenRicavo >= totBaseRicavo ? T.green : T.brand },
-            { lbl: 'Margine/stampo scenario', val: euro(totScenMarg), sub: `${totScenMarg > totBaseMarg ? '+' : ''}${euro(totScenMarg - totBaseMarg)} vs base`, c: totScenMarg >= totBaseMarg ? T.green : T.brand, hi: true },
+            { lbl: 'Ricavo/stampo base',    val: euro0(totBaseRicavo), sub: 'prezzi attuali', c: T.textMid },
+            { lbl: 'Ricavo/stampo scenario', val: euro0(totScenRicavo), sub: `${totScenRicavo > totBaseRicavo ? '+' : ''}${euro0(totScenRicavo - totBaseRicavo)} vs base`, c: totScenRicavo >= totBaseRicavo ? T.green : T.brand },
+            { lbl: 'Margine/stampo scenario', val: euro0(totScenMarg), sub: `${totScenMarg > totBaseMarg ? '+' : ''}${euro0(totScenMarg - totBaseMarg)} vs base`, c: totScenMarg >= totBaseMarg ? T.green : T.brand, hi: true },
           ].map(({ lbl, val, sub, c, hi }) => (
             <div key={lbl} style={{ background: hi ? T.brand : T.bgCard, border: `1px solid ${hi ? T.brandDark : T.border}`,
               borderRadius: R.xl, padding: '18px 20px',
@@ -287,15 +290,15 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 20 }}>
             {[
-              { lbl: 'Margine atteso (prezzi base)',  val: euro(totProiBase), c: 'rgba(255,255,255,0.62)' },
-              { lbl: 'Margine atteso (scenario)',      val: euro(totProiScen), c: totProiScen >= totProiBase ? '#34D399' : '#FB7185' },
-              { lbl: 'Differenza margine nel periodo', val: (totProiDiff > 0 ? '+' : '') + euro(totProiDiff),
-                c: totProiDiff > 0 ? '#34D399' : '#FB7185', big: true },
-            ].map(({ lbl, val, c, big }) => (
+              { lbl: 'Margine atteso (prezzi base)',  val: euro0(totProiBase), c: 'rgba(255,255,255,0.62)' },
+              { lbl: 'Margine atteso (scenario)',      val: euro0(totProiScen), c: totProiScen >= totProiBase ? '#34D399' : '#FB7185' },
+              { lbl: 'Differenza margine nel periodo', val: (totProiDiff > 0 ? '+' : '') + euro0(totProiDiff),
+                c: totProiDiff > 0 ? '#34D399' : '#FB7185' },
+            ].map(({ lbl, val, c }) => (
               <div key={lbl}>
                 <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
-                  color: 'rgba(255,255,255,0.42)', marginBottom: 6 }}>{lbl}</div>
-                <div style={{ fontSize: big ? 28 : 20, fontWeight: 700, color: c, lineHeight: 1.1, letterSpacing: '-0.02em',
+                  color: 'rgba(255,255,255,0.42)', marginBottom: 8, minHeight: 26, lineHeight: 1.3 }}>{lbl}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: c, lineHeight: 1.1, letterSpacing: '-0.02em',
                   fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }}>{val}</div>
               </div>
             ))}
