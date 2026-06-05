@@ -145,6 +145,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     return row;
   });
   const seriesProd = [...topRicetteProd, ...(dataProdTop.some(d=>d["Altri"]>0)?["Altri"]:[])];
+  // Colore di ogni prodotto = quello della sua colonna nello stack (Altri = grigio).
+  const prodColor = {};
+  topRicetteProd.forEach((n,i)=>{ prodColor[n] = STACK_COLORS[i%STACK_COLORS.length]; });
+  const colorOf = n => prodColor[n] || ALTRI_COLOR;
 
   // Tooltip del grafico produzione: per OGNI periodo i prodotti ordinati per
   // quantità desc (top 7). L'ordine può variare da un giorno all'altro.
@@ -162,14 +166,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
           <span style={{ fontSize:10.5, fontWeight:700, color:C.textSoft, fontVariantNumeric:'tabular-nums' }}>{d.tot} stampi</span>
         </div>
-        {d.top.map(([nome,q],i)=>(
+        {d.top.map(([nome,q],i)=>{
+          const col = colorOf(nome);
+          return (
           <div key={nome} style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', padding:'2px 0' }}>
-            <span style={{ fontSize:11, color:C.textMid, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:170 }}>
+            <span style={{ fontSize:11, fontWeight:600, color:col, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:170 }}>
               <span style={{ display:'inline-block', width:15, color:C.textSoft, fontWeight:700 }}>{i+1}</span>{nome}
             </span>
-            <span style={{ fontSize:11, fontWeight:800, color:C.text, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{q}</span>
+            <span style={{ fontSize:11, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{q}</span>
           </div>
-        ))}
+        );})}
         {d.extra>0 && <div style={{ fontSize:10, color:C.textSoft, marginTop:5 }}>+{d.extra} altri prodotti</div>}
       </div>
     );
@@ -237,6 +243,28 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       </div>
     );
   };
+
+  // Riepilogo periodi: ordinamento per colonna (click sull'intestazione).
+  const [sortBy, setSortBy] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
+  const COLS_RIEP = [
+    { label:'Periodo',      key:'periodo',  get:p=>p.key,                 str:true, align:'left' },
+    { label:'Sessioni',     key:'sessioni', get:p=>p.sessioni.length },
+    { label:'Stampi',       key:'stampi',   get:p=>p.stampiTot },
+    { label:'Ricavo stim.', key:'ricavo',   get:p=>p.ricavoTot },
+    { label:'Food Cost',    key:'fc',       get:p=>p.fcTot },
+    { label:'Margine',      key:'margine',  get:p=>p.margine },
+    { label:'Marg%',        key:'margpct',  get:p=>p.margPct },
+    { label:`Top ${LEX.prodotto}`, key:'top', get:p=>{const t=Object.entries(p.byRicetta).sort((a,b)=>b[1]-a[1])[0];return t?t[0]:'';}, str:true },
+  ];
+  const sortedPeriodi = (() => {
+    const base = [...periodiProd];
+    if (!sortBy) return base.reverse(); // default: cronologico decrescente
+    const col = COLS_RIEP.find(c=>c.key===sortBy) || COLS_RIEP[0];
+    const dir = sortDir==='asc'?1:-1;
+    return base.sort((a,b)=>{ const va=col.get(a), vb=col.get(b); return (col.str?String(va).localeCompare(String(vb)):(va-vb))*dir; });
+  })();
+  const clickSort = key => { if (sortBy===key) setSortDir(d=>d==='asc'?'desc':'asc'); else { setSortBy(key); setSortDir(key==='periodo'||key==='top'?'asc':'desc'); } };
 
   const hasProd = giornaliero?.length>0;
   const hasVend = chiusure?.length>0;
@@ -327,7 +355,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <SH sub={`Food cost (colonna) e margine (linea) per ${vista==="giornaliero"?"giorno":vista}`}>Andamento Economico (stimato)</SH>
+              <SH sub={`Colonna: ricavo (sotto) + food cost (sopra) · linea: margine · per ${vista==="giornaliero"?"giorno":vista}`}>Andamento Economico (stimato)</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
                 <ResponsiveContainer width="100%" height={240}>
                   <ComposedChart data={dataKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="35%">
@@ -336,7 +364,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
                     <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                    <Bar dataKey="FoodCost" name="Food cost" fill={C.red} radius={[4,4,0,0]} barSize={isMobile?18:30}/>
+                    <Bar dataKey="Ricavo"   stackId="e" name="Ricavo"    fill="#5B8FCE" barSize={isMobile?20:34}/>
+                    <Bar dataKey="FoodCost" stackId="e" name="Food cost" fill={C.red} radius={[4,4,0,0]} barSize={isMobile?20:34}/>
                     <Line type="monotone" dataKey="Margine" name="Margine" stroke={C.green} strokeWidth={2.5} dot={{r:3,fill:C.green,strokeWidth:0}} activeDot={{r:5}}/>
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -346,13 +375,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
-                      {["Periodo","Sessioni","Stampi","Ricavo stim.","Food Cost","Margine","Marg%",`Top ${LEX.prodotto}`].map((h,i)=>(
-                        <th key={i} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                      {COLS_RIEP.map((c)=>(
+                        <th key={c.key} onClick={()=>clickSort(c.key)} title="Ordina"
+                          style={{padding:"10px 12px",textAlign:c.align==='left'?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:sortBy===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}}>
+                          {c.label}<span style={{opacity:sortBy===c.key?1:0.25}}> {sortBy===c.key?(sortDir==='asc'?'▲':'▼'):'↕'}</span>
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {[...periodiProd].reverse().map((p,i)=>{
+                    {sortedPeriodi.map((p,i)=>{
                       const top=Object.entries(p.byRicetta).sort((a,b)=>b[1]-a[1])[0];
                       return (
                         <tr key={p.key} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
