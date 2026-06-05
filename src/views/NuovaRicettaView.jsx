@@ -5,11 +5,12 @@ import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, getR, isRicettaValida, normIng, REGOLE, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, mergeAllergeni } from '../lib/allergeni'
 import { onEnterAutoComplete } from '../lib/autocomplete'
+import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import { C, fmt, fmtp, margColor, margBadge } from './_shared'
 
-export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed }) {
+export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed, LEX = lessico() }) {
   const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const tuttiIng = useMemo(()=>{
@@ -327,10 +328,10 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
           {/* Nome + tipo + vendita */}
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-            <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:16}}>📋 Informazioni prodotto</div>
+            <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:16}}>📋 Informazioni {LEX.prodotto}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               {[
-                {lbl:"Nome ricetta",span:2,el:<input value={form.nome} onChange={e=>setForm(f=>({...f,nome:e.target.value.toUpperCase()}))} placeholder="es. TORTA AL CIOCCOLATO" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:13,color:C.text,fontWeight:700}}/>},
+                {lbl:`Nome ${LEX.ricetta}`,span:2,el:<input value={form.nome} onChange={e=>setForm(f=>({...f,nome:e.target.value.toUpperCase()}))} placeholder="es. TORTA AL CIOCCOLATO" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:13,color:C.text,fontWeight:700}}/>},
                 {lbl:"Tipo unità",el:<>
                   <select value={form.tipo} onChange={e=>setForm(f=>({...f,tipo:e.target.value,unita:e.target.value==="semilavorato"||e.target.value==="interno"?0:f.unita,prezzo:e.target.value==="semilavorato"||e.target.value==="interno"?0:f.prezzo}))} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text,background:C.white}}>
                     <option value="fetta">Fetta</option><option value="pezzo">Pezzo</option><option value="interno">Uso interno</option><option value="semilavorato">🧁 Semilavorato (base/impasto)</option>
@@ -505,7 +506,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             </div>
           )}
           <button onClick={handleSave} style={{padding:"13px",background:C.red,color:C.white,border:"none",borderRadius:10,fontWeight:900,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(110,14,26,0.25)"}}>
-            💾 {editMode?"Salva modifiche a "+editMode:"Salva nuova ricetta"}
+            💾 {editMode?"Salva modifiche a "+editMode:`Salva ${LEX.nuovaRicetta.toLowerCase()}`}
           </button>
         </div>
 

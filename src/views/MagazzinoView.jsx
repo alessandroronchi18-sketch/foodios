@@ -12,6 +12,7 @@ import { todayLocal } from '../lib/dateLocal'
 import { normIng, getR, translateIngredienteEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
+import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import { loadStockPF, loadMovimentiPF, scartoPF } from '../lib/stockPF'
 import {
@@ -68,7 +69,7 @@ function calcolaFabbisognoSettimana(ricettario, giornaliero) {
 }
 
 // ─── ProdottiFinitiTab (stock prodotti finiti per sede) ──────────────────────
-function ProdottiFinitiTab({ notify, orgId, sedeId }) {
+function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const [stock, setStock] = useState([])
   const [loading, setLoading] = useState(true)
@@ -109,7 +110,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
     }
   }
 
-  if (!sedeId) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Seleziona una sede attiva per vedere lo stock prodotti finiti.</div>
+  if (!sedeId) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Seleziona una sede attiva per vedere lo stock {LEX.prodotti} finiti.</div>
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
 
   const totPezzi = stock.reduce((s, r) => s + Number(r.quantita || 0), 0)
@@ -129,7 +130,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
-        <KPI icon="📦" label="Prodotti in stock" value={stock.length}/>
+        <KPI icon="📦" label={`${LEX.Prodotti} in stock`} value={stock.length}/>
         <KPI icon="🧮" label="Pezzi totali" value={totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0 })}/>
         <KPI icon="⚠️" label="Sotto soglia" value={sottoSoglia.length} color={sottoSoglia.length > 0 ? C.amber : C.green}/>
         <KPI icon="🚨" label="Stock negativo" value={negativi.length} color={negativi.length > 0 ? C.red : C.green} sub={negativi.length > 0 ? 'vendite > carico' : ''}/>
@@ -146,7 +147,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
-                {['Prodotto', 'Disponibili', 'Soglia', 'Aggiornato', ''].map((h, i) => (
+                {[LEX.Prodotto, 'Disponibili', 'Soglia', 'Aggiornato', ''].map((h, i) => (
                   <th key={i} style={{ padding: '10px 14px', textAlign: i === 1 || i === 2 ? 'right' : 'left', fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                 ))}
               </tr>
@@ -223,7 +224,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
           onClick={() => setScartoForm(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 14, padding: 24, maxWidth: 420, width: '100%' }}>
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text }}>⚠️ Registra scarto</h3>
-            <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>Prodotto: <strong>{scartoForm.prodotto}</strong></p>
+            <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>{LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong></p>
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Quantità scartata (pz)</div>
               <input type="number" min="0" step="1" value={scartoForm.qty}
@@ -477,7 +478,7 @@ export default function MagazzinoView({
   ricettario, magazzino, setMagazzino, logRif, setLogRif,
   logPrezzi = [], onUpdatePrezzoIng, giornaliero, notify,
   esclusi = new Set(), setEsclusi, onImportPrezzi, onImportPrezziOCR,
-  orgId, sedeId,
+  orgId, sedeId, LEX = lessico(),
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -695,7 +696,7 @@ export default function MagazzinoView({
         ))}
       </div>
 
-      {tab === 'pf' && <ProdottiFinitiTab notify={notify} orgId={orgId} sedeId={sedeId}/>}
+      {tab === 'pf' && <ProdottiFinitiTab notify={notify} orgId={orgId} sedeId={sedeId} LEX={LEX}/>}
 
       {tab === 'giacenze' && (
         <div>

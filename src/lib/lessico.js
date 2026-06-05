@@ -34,6 +34,8 @@ const GENERICO = {
   // azione di produrre
   Produzione: 'Produzione',
   nuovaRicetta: 'Nuova ricetta',
+  // frase completa per gli empty-state (gestisce genere/accordo per categoria)
+  nessunaRicetta: 'Nessuna ricetta caricata',
 }
 
 // Override per categoria: solo le parole che cambiano davvero.
@@ -42,22 +44,26 @@ const PER_CATEGORIA = {
     prodotto: 'gusto', prodotti: 'gusti', Prodotto: 'Gusto', Prodotti: 'Gusti',
     Ricettario: 'Ricettario gusti', nuovaRicetta: 'Nuovo gusto',
     porzione: 'coppetta', porzioni: 'coppette',
+    nessunaRicetta: 'Nessun gusto caricato',
   },
   pizzeria: {
     prodotto: 'pizza', prodotti: 'pizze', Prodotto: 'Pizza', Prodotti: 'Pizze',
     ricetta: 'pizza', ricette: 'pizze', Ricetta: 'Pizza', Ricette: 'Pizze',
     Ricettario: 'Menù pizze', nuovaRicetta: 'Nuova pizza',
     porzione: 'pizza', porzioni: 'pizze',
+    nessunaRicetta: 'Nessuna pizza caricata',
   },
   ristorante: {
     prodotto: 'piatto', prodotti: 'piatti', Prodotto: 'Piatto', Prodotti: 'Piatti',
     ricetta: 'piatto', ricette: 'piatti', Ricetta: 'Piatto', Ricette: 'Piatti',
     Ricettario: 'Menù', nuovaRicetta: 'Nuovo piatto',
     porzione: 'coperto', porzioni: 'coperti',
+    nessunaRicetta: 'Nessun piatto caricato',
   },
   pasta_fresca: {
     prodotto: 'formato', prodotti: 'formati', Prodotto: 'Formato', Prodotti: 'Formati',
     Ricettario: 'Ricettario formati', nuovaRicetta: 'Nuovo formato',
+    nessunaRicetta: 'Nessun formato caricato',
   },
 }
 

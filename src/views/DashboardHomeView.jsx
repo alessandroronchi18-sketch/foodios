@@ -9,6 +9,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
+import { lessico } from '../lib/lessico'
 import { C, TNUM } from './_shared'
 
 const fmt = v => `€ ${Number(v).toFixed(2)}`
@@ -120,7 +121,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId }) {
 }
 
 // ─── DashboardHomeView ───────────────────────────────────────────────────────
-export default function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView, orgId, sedeId, nomeAttivita, isTrialAttivo, auth, sedi = [], sedeAttiva = null }) {
+export default function DashboardHomeView({ ricettario, magazzino, giornaliero, chiusure, actions, setView, orgId, sedeId, nomeAttivita, isTrialAttivo, auth, sedi = [], sedeAttiva = null, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const now = new Date()
@@ -266,12 +267,12 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 18 }}>
         <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: isMobile ? '16px 16px 12px' : '20px 22px 14px', boxShadow: S.sm }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: isMobile ? 12 : 16 }}>
-            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.text }}>Ultime ricette</h2>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.text }}>Ultime {LEX.ricette}</h2>
             {ultimeRicette.length > 0 && <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 500 }}>{Object.keys(ricettario?.ricette || {}).length} totali</span>}
           </div>
           {ultimeRicette.length === 0
             ? <div style={{ padding: '24px 12px', textAlign: 'center' }}>
-                <div style={{ fontSize: 13, color: T.textMid, fontWeight: 500 }}>Nessuna ricetta caricata</div>
+                <div style={{ fontSize: 13, color: T.textMid, fontWeight: 500 }}>{LEX.nessunaRicetta}</div>
                 <div style={{ fontSize: 12, color: T.textSoft, marginTop: 6 }}>Importa il tuo file Excel.</div>
               </div>
             : <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -305,7 +306,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
             style={{ marginTop: isMobile ? 12 : 16, padding: '10px 12px', background: 'transparent',
               border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, color: T.textMid,
               cursor: 'pointer', width: '100%' }}>
-            Apri il Ricettario →
+            Apri il {LEX.Ricettario} →
           </button>
         </div>
 

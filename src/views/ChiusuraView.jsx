@@ -19,12 +19,13 @@ import { aggregaGiorno } from '../lib/movimentiSpeciali'
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from '../lib/importDelivery'
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/importCassa'
 import { todayLocal } from '../lib/dateLocal'
+import { lessico } from '../lib/lessico'
 import { C, KPI, PageHeader, margColor, fmt, fmtp } from './_shared'
 
 // Persiste fra unmount/remount durante l'analisi AI di uno scontrino
 const _receiptPending = { current: null }
 
-export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId, isDipendente = false }) {
+export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId, isDipendente = false, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -729,7 +730,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {[
-                      'Prodotto', 'Prodotte', 'Vendute', 'Rimaste', 'Sell-T%', 'Ricavo reale',
+                      LEX.Prodotto, 'Prodotte', 'Vendute', 'Rimaste', 'Sell-T%', 'Ricavo reale',
                       ...(isDipendente ? [] : ['FC venduto', 'Margine', 'Spreco FC']),
                     ].map((h, i) => (
                       <th key={i} style={{ padding: '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
@@ -861,7 +862,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
           {confronto.length > 0 && (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 16 }}>Sell-through per prodotto</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 16 }}>Sell-through per {LEX.prodotto}</div>
             {confronto.filter(r => r.st !== null).sort((a, b) => b.st - a.st).map(r => (
               <div key={r.nome} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                 <div style={{ width: 160, fontSize: 11, fontWeight: 600, color: C.text, flexShrink: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>

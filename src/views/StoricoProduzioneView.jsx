@@ -4,13 +4,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import useIsMobile from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'
+import { lessico } from '../lib/lessico'
 import { C, KPI, SH, margColor, margBadge, fmt, fmtp, ChartTip } from './_shared'
 
 // Nomi mese italiani per fmtKey (vista="mese"). L'index 0 è vuoto perché
 // k.slice(5) restituisce mesi 01-12 e parseInt('01') = 1.
 const MN = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
-export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [] }) {
+export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], LEX = lessico() }) {
   const isMobile = useIsMobile();
   const [vista, setVista]   = useState("giornaliero"); // "giornaliero" | "settimana" | "mese"
   const [tab, setTab]       = useState("produzione"); // "produzione" | "vendite" | "confronto"
@@ -246,7 +247,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
-                      {["Periodo","Sessioni","Stampi","Ricavo stim.","Food Cost","Margine","Marg%","Top prodotto"].map((h,i)=>(
+                      {["Periodo","Sessioni","Stampi","Ricavo stim.","Food Cost","Margine","Marg%",`Top ${LEX.prodotto}`].map((h,i)=>(
                         <th key={i} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
                       ))}
                     </tr>
@@ -485,7 +486,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
                   {/* Top prodotti */}
                   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                    <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:10}}>🏆 Top prodotti per ricavo</div>
+                    <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:10}}>🏆 Top {LEX.prodotti} per ricavo</div>
                     {topProd.length===0 && <div style={{fontSize:10,color:C.textSoft}}>Dati non disponibili — salva chiusure con scontrino per vederli.</div>}
                     {topProd.map(([nome,d],i)=>(
                       <div key={nome} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
@@ -542,7 +543,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                       <thead>
                         <tr style={{background:"#F8F4F2"}}>
-                          {["Prodotto","Pz venduti","Ricavo tot.","Ricavo/gg","Spreco FC","% su totale"].map((h,i)=>(
+                          {[LEX.Prodotto,"Pz venduti","Ricavo tot.","Ricavo/gg","Spreco FC","% su totale"].map((h,i)=>(
                             <th key={h} style={{padding:"8px 12px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,
                               letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,
                               borderBottom:`1px solid ${C.border}`}}>{h}</th>

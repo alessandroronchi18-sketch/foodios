@@ -37,6 +37,14 @@ describe('lessico', () => {
     }
   })
 
+  it('nessunaRicetta: frase completa con accordo di genere per categoria', () => {
+    expect(lessico('pasticceria').nessunaRicetta).toBe('Nessuna ricetta caricata')
+    expect(lessico('gelateria').nessunaRicetta).toBe('Nessun gusto caricato')
+    expect(lessico('pizzeria').nessunaRicetta).toBe('Nessuna pizza caricata')
+    expect(lessico('ristorante').nessunaRicetta).toBe('Nessun piatto caricato')
+    expect(lessico('pasta_fresca').nessunaRicetta).toBe('Nessun formato caricato')
+  })
+
   it('haLessicoDedicato vero solo per le categorie con override', () => {
     expect(haLessicoDedicato('gelateria')).toBe(true)
     expect(haLessicoDedicato('pizzeria')).toBe(true)

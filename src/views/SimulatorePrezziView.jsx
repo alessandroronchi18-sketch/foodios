@@ -9,6 +9,7 @@ import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost
 import { BenchmarkBadge } from '../components/BenchmarkOptin'
 import { exportSimulatorePrezzi } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
+import { lessico } from '../lib/lessico'
 
 // Palette locale compatibile con il vecchio C.* del monolite
 const C = {
@@ -30,6 +31,7 @@ function PageHeader({ subtitle, action }) {
 }
 
 export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita, sedi }) {
+  const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -131,17 +133,17 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
 
     if (critici.length) {
       const top = critici.sort((a, b) => a.margPct - b.margPct).slice(0, 3).map(r => r.nome).join(', ')
-      out.push(`Margine sotto 40% su ${critici.length} ${critici.length === 1 ? 'prodotto' : 'prodotti'} (${top}): valuta aumento prezzo del 8–15%.`)
+      out.push(`Margine sotto 40% su ${critici.length} ${critici.length === 1 ? LEX.prodotto : LEX.prodotti} (${top}): valuta aumento prezzo del 8–15%.`)
     }
     if (altoFC.length) {
       const top = altoFC.sort((a, b) => b.fc/b.ricavo - a.fc/a.ricavo).slice(0, 3).map(r => r.nome).join(', ')
-      out.push(`Food cost sopra il 40% su ${altoFC.length} ${altoFC.length === 1 ? 'prodotto' : 'prodotti'} (${top}): rivedi ingredienti o porzioni.`)
+      out.push(`Food cost sopra il 40% su ${altoFC.length} ${altoFC.length === 1 ? LEX.prodotto : LEX.prodotti} (${top}): rivedi ingredienti o porzioni.`)
     }
     if (vulnerabili.length) {
-      out.push(`${vulnerabili.length} ${vulnerabili.length === 1 ? 'prodotto va' : 'prodotti vanno'} in perdita con +20% materie prime — alza prezzo o blocca contratto fornitore.`)
+      out.push(`${vulnerabili.length} ${vulnerabili.length === 1 ? `${LEX.prodotto} va` : `${LEX.prodotti} vanno`} in perdita con +20% materie prime — alza prezzo o blocca contratto fornitore.`)
     }
     if (baseRows.length && !critici.length && !altoFC.length && !vulnerabili.length) {
-      out.push('Listino in salute: nessun prodotto sotto la soglia critica. Mantieni e monitora trimestralmente.')
+      out.push(`Listino in salute: nessun ${LEX.prodotto} sotto la soglia critica. Mantieni e monitora trimestralmente.`)
     }
     if (hasStorico && totProiDiff > 0) {
       out.push(`Con le modifiche attuali guadagneresti ${euro(totProiDiff)} in più nei prossimi ${orizzonteGiorni} giorni — applicale se il mercato lo regge.`)
@@ -149,7 +151,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       out.push(`Le modifiche attuali ti costano ${euro(Math.abs(totProiDiff))} nei prossimi ${orizzonteGiorni} giorni — rivedi prima di applicare.`)
     }
     return out
-  }, [baseRows, hasStorico, totProiDiff, orizzonteGiorni])
+  }, [baseRows, hasStorico, totProiDiff, orizzonteGiorni, LEX])
 
   const handleExportPdf = async () => {
     if (!(await gateExport('simulatore_prezzi', { n_items: baseRows.length }, window.__foodos_notify))) return

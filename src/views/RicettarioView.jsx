@@ -9,6 +9,7 @@ import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, REGOLE,
 } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS } from '../lib/allergeni'
+import { lessico } from '../lib/lessico'
 import { exportRicettaPDF } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
@@ -321,7 +322,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 }
 
 // ─── RicettarioView ──────────────────────────────────────────────────────────
-export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta }) {
+export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ricette = useMemo(() => Object.values(ricettario?.ricette || {})
@@ -367,8 +368,8 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, color: T.textSoft, ...TNUM }}>
               {ricette.length > 0
-                ? <>{ricette.length} ricette · food cost medio <b style={{ color: T.textMid, fontWeight: 600 }}>{(fcMedio * 100).toFixed(1)}%</b></>
-                : 'Nessuna ricetta caricata'}
+                ? <>{ricette.length} {LEX.ricette} · food cost medio <b style={{ color: T.textMid, fontWeight: 600 }}>{(fcMedio * 100).toFixed(1)}%</b></>
+                : LEX.nessunaRicetta}
             </div>
           </div>
           {onUpload && (
@@ -378,7 +379,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              Aggiorna ricettario
+              Aggiorna {LEX.Ricettario.toLowerCase()}
               <input type="file" accept=".xlsx" multiple style={{ display: 'none' }} onChange={e => e.target.files.length && onUpload(Array.from(e.target.files))}/>
             </label>
           )}
@@ -387,7 +388,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isMobile ? 16 : 20, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Cerca ricetta…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`🔍 Cerca ${LEX.ricetta}…`}
             style={{ width: '100%', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: R.md,
               fontSize: 13, color: T.text, background: T.bgCard, outline: 'none', fontFamily: 'inherit',
               boxSizing: 'border-box', boxShadow: S.xs }}/>

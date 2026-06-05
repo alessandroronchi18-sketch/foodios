@@ -13,10 +13,11 @@ import { SK_GIOR, SK_MAG } from '../lib/storageKeys'
 import { exportProduzione } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { todayLocal } from '../lib/dateLocal'
+import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import { C, margColor, fmt, PageHeader } from './_shared'
 
-export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify, sedi = [], sedeAttiva = null, orgId, sedeId, isDipendente = false }) {
+export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify, sedi = [], sedeAttiva = null, orgId, sedeId, isDipendente = false, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ricette = Object.values(ricettario?.ricette || {}).filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
@@ -347,7 +348,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                     <thead>
                       <tr style={{ background: '#F8F4F2' }}>
                         {[
-                          { h: 'Prodotto', sub: 'ricetta · pezzi/stampo' },
+                          { h: LEX.Prodotto, sub: `${LEX.ricetta} · pezzi/stampo` },
                           { h: 'FC/stampo', sub: 'costo materie prime' },
                           { h: 'Stampi prodotti', sub: 'quanti stampi/teglie' },
                           { h: 'Pezzi al banco', sub: 'esposti per la vendita' },
@@ -400,7 +401,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                                   <button onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: 26, height: 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>+</button>
                                 </div>
                               ) : (
-                                <span style={{ fontSize: 11, color: C.textSoft }}>= prodotti</span>
+                                <span style={{ fontSize: 11, color: C.textSoft }}>= {LEX.prodotti}</span>
                               )}
                             </td>
                           </tr>

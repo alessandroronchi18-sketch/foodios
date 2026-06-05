@@ -12,6 +12,7 @@ import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, normIng } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
+import { lessico } from '../lib/lessico'
 import { C, fmt, fmtp, TNUM } from './_shared'
 
 export const SK_DISCREPANZE = 'pasticceria-discrepanze-v1'
@@ -28,7 +29,7 @@ const TIPI = [
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36) }
 
-export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify }) {
+export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -248,7 +249,7 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
-              <label style={lbl}>Prodotto / Ricetta</label>
+              <label style={lbl}>{LEX.Prodotto} / {LEX.Ricetta}</label>
               <input list="ricette-disc-list" value={draft.prodotto}
                 onChange={e => aggiorna({ prodotto: e.target.value })}
                 onKeyDown={onEnterAutoComplete(ricetteList, draft.prodotto, v => aggiorna({ prodotto: v }))}
