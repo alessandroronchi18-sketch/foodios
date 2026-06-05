@@ -172,23 +172,27 @@ export function riconciliaFormati(venduto, formati, sessione, ricettario, ingCos
   }
 
   // Riconciliazione a livello di categoria: grammi prodotti vs grammi venduti.
+  // Chiave normalizzata (trim+lowercase) per evitare che "Gelato" (formato) e
+  // "gelato" (ricetta) finiscano in bucket diversi → grammi prodotti persi e
+  // sell-through falsata. Il label originale resta in `categoria` per la UI.
   const byCat = {}
+  const catKey = c => String(c || '').trim().toLowerCase()
   for (const r of righe) {
-    const c = r.categoria
-    byCat[c] = byCat[c] || { categoria: c, gProdotti: 0, gVenduti: 0 }
+    const k = catKey(r.categoria)
+    byCat[k] = byCat[k] || { categoria: r.categoria, gProdotti: 0, gVenduti: 0 }
   }
   // grammi venduti = Σ unitaV × baseQtaG dei formati (per categoria)
   for (const r of righe) {
     const f = formati.find(x => x.id === r.formatoId)
-    byCat[r.categoria].gVenduti += r.unitaV * (Number(f?.baseQtaG) || 0)
+    byCat[catKey(r.categoria)].gVenduti += r.unitaV * (Number(f?.baseQtaG) || 0)
   }
   // grammi prodotti = Σ stampi × peso stampo delle ricette di quella categoria
   for (const p of (sessione?.prodotti || [])) {
     const ric = ricettario?.ricette?.[(p.nome || '').toUpperCase().trim()] || ricettario?.ricette?.[p.nome]
     if (!ric) continue
-    const cat = String(ric.categoria || '').trim()
-    if (!cat || !byCat[cat]) continue
-    byCat[cat].gProdotti += (Number(p.stampi) || 0) * pesoStampo(ric)
+    const k = catKey(ric.categoria)
+    if (!k || !byCat[k]) continue
+    byCat[k].gProdotti += (Number(p.stampi) || 0) * pesoStampo(ric)
   }
   const categorie = Object.values(byCat).map(c => ({
     ...c,

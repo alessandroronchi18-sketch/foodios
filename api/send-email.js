@@ -83,7 +83,8 @@ export default async function handler(req) {
     })
   }
 
-  const tipi_validi = ['benvenuto', 'approvazione', 'scadenza_trial', 'custom']
+  const tipi_validi = ['benvenuto', 'approvazione', 'scadenza_trial', 'custom',
+    'magazzino_sotto_soglia', 'fattura_in_scadenza', 'report_mensile']
   if (!tipi_validi.includes(tipo)) {
     return new Response(JSON.stringify({ error: 'Tipo non valido' }), {
       status: 400, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
@@ -101,6 +102,14 @@ export default async function handler(req) {
   // Gli altri tipi ('benvenuto', 'scadenza_trial') sono chiamati dal client autenticato
   // o da cron; il rate limit per IP basta come protezione anti-spam.
   if (tipo === 'approvazione' && !isInternal && !adminAuth) {
+    return new Response(JSON.stringify({ error: 'Solo chiamata interna' }), {
+      status: 403, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
+    })
+  }
+
+  // Notifiche cron (magazzino/fatture/report) sono server→server: solo secret
+  // interno o admin. Senza questo guard verrebbero respinte come 'Tipo non valido'.
+  if (['magazzino_sotto_soglia', 'fattura_in_scadenza', 'report_mensile'].includes(tipo) && !isInternal && !adminAuth) {
     return new Response(JSON.stringify({ error: 'Solo chiamata interna' }), {
       status: 403, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
     })
@@ -235,6 +244,100 @@ export default async function handler(req) {
               Hai domande? Scrivi a
               <a href="mailto:${SUPPORT}" style="color:#C0392B;">${SUPPORT}</a>
             </p>
+          </div>
+        `,
+      })
+    } else if (tipo === 'magazzino_sotto_soglia') {
+      if (!validateEmail(email)) throw new Error('Email destinatario mancante')
+      const ingredienti = Array.isArray(body.ingredienti) ? body.ingredienti : []
+      const righe = ingredienti.map(i => `
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#1C0A0A;font-size:14px;">${escapeHtml(i.nome || '—')}${i.sede ? ` <span style="color:#9C7B76;">(${escapeHtml(i.sede)})</span>` : ''}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#C0392B;font-size:14px;font-weight:700;text-align:right;">${escapeHtml(String(i.giacenza ?? ''))}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#6B4C44;font-size:14px;text-align:right;">${escapeHtml(String(i.soglia ?? ''))}</td>
+        </tr>`).join('')
+      await sendEmail({
+        to: email,
+        subject: `⚠️ ${ingredienti.length} ingrediente${ingredienti.length === 1 ? '' : 'i'} sotto soglia — FoodOS`,
+        html: `
+          <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
+            <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Scorte sotto soglia 📦</h1>
+            <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
+              <strong>${escapeHtml(nomeAttivita || 'La tua attività')}</strong> ha ${ingredienti.length} ingrediente${ingredienti.length === 1 ? '' : 'i'} da riordinare:
+            </p>
+            <table style="width:100%;border-collapse:collapse;background:#FFF;border:1px solid #E8DDD8;border-radius:8px;overflow:hidden;">
+              <thead><tr style="background:#F5EDE8;">
+                <th style="padding:8px 12px;text-align:left;font-size:11px;color:#9C7B76;text-transform:uppercase;">Ingrediente</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:#9C7B76;text-transform:uppercase;">Giacenza</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:#9C7B76;text-transform:uppercase;">Soglia</th>
+              </tr></thead>
+              <tbody>${righe}</tbody>
+            </table>
+            <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
+            <p style="color:#9C7B76;font-size:12px;">Notifica automatica FoodOS · <a href="mailto:${SUPPORT}" style="color:#C0392B;">${SUPPORT}</a></p>
+          </div>
+        `,
+      })
+    } else if (tipo === 'fattura_in_scadenza') {
+      if (!validateEmail(email)) throw new Error('Email destinatario mancante')
+      const fatture = Array.isArray(body.fatture) ? body.fatture : []
+      const righe = fatture.map(f => `
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#1C0A0A;font-size:14px;">${escapeHtml(f.fornitore || '—')}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#6B4C44;font-size:13px;">${escapeHtml(String(f.data_fattura || ''))}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#C0392B;font-size:14px;font-weight:700;text-align:right;">€ ${Number(f.totale || 0).toFixed(2)}</td>
+        </tr>`).join('')
+      await sendEmail({
+        to: email,
+        subject: `📄 ${fatture.length} fattur${fatture.length === 1 ? 'a' : 'e'} in scadenza — FoodOS`,
+        html: `
+          <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
+            <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Fatture in scadenza</h1>
+            <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
+              <strong>${escapeHtml(nomeAttivita || 'La tua attività')}</strong> ha ${fatture.length} fattur${fatture.length === 1 ? 'a' : 'e'} fornitore in scadenza entro 7 giorni:
+            </p>
+            <table style="width:100%;border-collapse:collapse;background:#FFF;border:1px solid #E8DDD8;border-radius:8px;overflow:hidden;">
+              <thead><tr style="background:#F5EDE8;">
+                <th style="padding:8px 12px;text-align:left;font-size:11px;color:#9C7B76;text-transform:uppercase;">Fornitore</th>
+                <th style="padding:8px 12px;text-align:left;font-size:11px;color:#9C7B76;text-transform:uppercase;">Scadenza</th>
+                <th style="padding:8px 12px;text-align:right;font-size:11px;color:#9C7B76;text-transform:uppercase;">Totale</th>
+              </tr></thead>
+              <tbody>${righe}</tbody>
+            </table>
+            <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
+            <p style="color:#9C7B76;font-size:12px;">Notifica automatica FoodOS · <a href="mailto:${SUPPORT}" style="color:#C0392B;">${SUPPORT}</a></p>
+          </div>
+        `,
+      })
+    } else if (tipo === 'report_mensile') {
+      if (!validateEmail(email)) throw new Error('Email destinatario mancante')
+      const mese = sanitize(body.mese || '', 50)
+      const ricavi = Number(body.ricaviTotali || 0)
+      const fcMedio = Number(body.foodCostMedio || 0)
+      const piuVenduto = sanitize(String(body.prodottoPiuVenduto || ''), 120)
+      const menoVenduto = sanitize(String(body.prodottoMenoVenduto || ''), 120)
+      const stat = (label, val) => `
+        <div style="flex:1;background:#FFF;border:1px solid #E8DDD8;border-radius:8px;padding:14px 16px;">
+          <div style="font-size:11px;color:#9C7B76;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">${label}</div>
+          <div style="font-size:18px;font-weight:800;color:#1C0A0A;">${val}</div>
+        </div>`
+      await sendEmail({
+        to: email,
+        subject: `📊 Report ${escapeHtml(mese)} — FoodOS`,
+        html: `
+          <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
+            <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Report di ${escapeHtml(mese)}</h1>
+            <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
+              Ecco il riepilogo del mese per <strong>${escapeHtml(nomeAttivita || 'la tua attività')}</strong>:
+            </p>
+            <div style="display:flex;gap:10px;margin-bottom:14px;">
+              ${stat('Ricavi', '€ ' + ricavi.toFixed(2))}
+              ${stat('Food cost medio', fcMedio.toFixed(1) + '%')}
+            </div>
+            ${piuVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 6px;">🥇 Più venduto: <strong>${escapeHtml(piuVenduto)}</strong></p>` : ''}
+            ${menoVenduto ? `<p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0;">🐢 Meno venduto: <strong>${escapeHtml(menoVenduto)}</strong></p>` : ''}
+            <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
+            <p style="color:#9C7B76;font-size:12px;">Report automatico FoodOS · <a href="mailto:${SUPPORT}" style="color:#C0392B;">${SUPPORT}</a></p>
           </div>
         `,
       })

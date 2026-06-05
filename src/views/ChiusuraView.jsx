@@ -75,6 +75,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const [venduto, setVenduto] = useState(null)
   const [error, setError] = useState(null)
   const [salvato, setSalvato] = useState(false)
+  const [salvando, setSalvando] = useState(false)
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -344,7 +345,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const fmtKg = g => g >= 1000 ? `${(g / 1000).toFixed(2)} kg` : `${Math.round(g)} g`
 
   const handleSalva = async () => {
+    if (salvando) return // evita doppio scarico stock PF su doppio click sincrono
     if (!venduto || (confronto.length === 0 && formatiRiconc.righe.length === 0)) return
+    setSalvando(true)
     const rec = {
       id: `ch-${dataFiltro}`, data: dataFiltro, salvatoAt: new Date().toISOString(), venduto,
       confronto: confronto.map(r => ({ nome: r.nome, stampiP: r.stampiP, unitaP: r.unitaP, unitaV: r.unitaV, unitaR: r.unitaR, st: r.st, rv: r.rv, fcV: r.fcV, marg: r.marg, spreco: r.spreco, inProd: r.inProd })),
@@ -360,6 +363,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       await ssave(SK_CHIUS, nuove)
     } catch (e) {
       notify(`⚠ Errore salvataggio chiusura: ${e.message || 'rete'}. Riprova.`, false)
+      setSalvando(false)
       return
     }
     setChiusure(nuove)
@@ -377,6 +381,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         }
       }
     }
+    setSalvando(false)
     notify(`✓ Chiusura del ${new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT')} salvata nello storico`)
 
     // Alert su drift anomalo: >=20% su almeno una categoria con produzione >50g.
@@ -678,7 +683,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                   </div>
                   {!salvato ? (
                     (confronto.length > 0 || formatiRiconc.righe.length > 0) ? (
-                      <button onClick={handleSalva} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>💾 Salva chiusura nello storico</button>
+                      <button onClick={handleSalva} disabled={salvando} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1 }}>{salvando ? '💾 Salvataggio…' : '💾 Salva chiusura nello storico'}</button>
                     ) : (
                       <div style={{ fontSize: 10, color: C.amber }}>⚠ Nessun prodotto del ricettario o formato di vendita trovato — verifica i nomi</div>
                     )

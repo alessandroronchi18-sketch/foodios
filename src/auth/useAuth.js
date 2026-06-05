@@ -101,7 +101,11 @@ export function useAuth() {
         setOrg(orgData)
         setSedi(sediData || [])
 
-        const savedId = localStorage.getItem(`sede_attiva_${prof.organization_id}`)
+        // try/catch: in Safari private mode / storage disabilitato getItem lancia.
+        // Senza guard l'eccezione risalirebbe al catch di loadProfile e bloccherebbe
+        // l'accesso (profileError) pur con sessione e profilo validi.
+        let savedId = null
+        try { savedId = localStorage.getItem(`sede_attiva_${prof.organization_id}`) } catch {}
         const defaultSede = (sediData || []).find(s => s.id === savedId)
                          || (sediData || []).find(s => s.is_default)
                          || (sediData || [])[0]

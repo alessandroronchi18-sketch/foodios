@@ -11,6 +11,10 @@ export const SHARED_KEYS = [
   'pasticceria-semilavorati-v1',
   'pasticceria-scenario-operativo-v1',
   'pasticceria-formati-vendita-v1',
+  // Log modifiche prezzi: audit trail UNICO per azienda (il ricettario/prezzi è
+  // shared, quindi anche il suo storico deve esserlo). Migration 20260616
+  // consolida le righe per-sede preesistenti in un'unica riga sede_id=NULL.
+  'pasticceria-log-prezzi-v1',
 ]
 
 export function isSharedKey(key) {

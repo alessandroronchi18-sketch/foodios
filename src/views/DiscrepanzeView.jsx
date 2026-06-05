@@ -35,6 +35,7 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify }) {
   const [tab, setTab] = useState('tutti') // 'tutti' | id tipo
   const [meseFiltro, setMeseFiltro] = useState(() => new Date().toISOString().slice(0, 7))
   const [draft, setDraft] = useState(null)
+  const [salvando, setSalvando] = useState(false)
 
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ricetteList = useMemo(
@@ -68,9 +69,10 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify }) {
       await ssave(SK_DISCREPANZE, next, orgId, sedeId || null)
     } catch (e) {
       notify?.('⚠ Errore salvataggio discrepanze: ' + (e.message || 'rete'), false)
-      return
+      return false
     }
     setItems(next)
+    return true
   }
 
   function nuovo(tipo = 'regalo') {
@@ -109,12 +111,16 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify }) {
   }
 
   async function salva() {
+    if (salvando) return
     if (!draft) return
     if (!draft.prodotto.trim()) return notify?.('Prodotto obbligatorio', false)
     if (!Number(draft.quantita)) return notify?.('Quantità deve essere > 0', false)
     const norm = { ...draft, _new: undefined, updated_at: new Date().toISOString() }
     const next = draft._new ? [norm, ...items] : items.map(i => i.id === draft.id ? norm : i)
-    await salvaTutti(next)
+    setSalvando(true)
+    const ok = await salvaTutti(next)
+    setSalvando(false)
+    if (!ok) return // salvaTutti ha già notificato l'errore: non chiudere né dare falso ok
     setDraft(null)
     notify?.('✓ Discrepanza registrata')
   }
@@ -287,9 +293,9 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify }) {
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={salva}
-              style={{ padding: '10px 18px', background: C.red, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-              Salva
+            <button onClick={salva} disabled={salvando}
+              style={{ padding: '10px 18px', background: C.red, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1 }}>
+              {salvando ? 'Salvataggio…' : 'Salva'}
             </button>
             <button onClick={() => setDraft(null)}
               style={{ padding: '10px 16px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
