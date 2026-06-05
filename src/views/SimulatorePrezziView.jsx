@@ -314,9 +314,11 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
               borderRadius: 12, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
               transition: 'border-color 0.2s' }}>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
+              <div style={{ display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '190px 184px minmax(0,1fr) 128px',
+                alignItems: 'center', gap: isMobile ? 14 : 20 }}>
                 {/* Nome + badge variazione */}
-                <div style={{ minWidth: 200, flexShrink: 0 }}>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 14, fontWeight: 900, color: C.text }}>{r.nome}</span>
                     {r.changed && (
@@ -334,7 +336,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                 </div>
 
                 {/* Input prezzo */}
-                <div style={{ flexShrink: 0 }}>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.textSoft, marginBottom: 6 }}>
                     Prezzo / {r.reg.tipo === 'fetta' ? 'fetta' : 'pezzo'}
                   </div>
@@ -359,8 +361,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                   </div>
                 </div>
 
-                {/* KPI per stampo */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: 1 }}>
+                {/* KPI per stampo — griglia 4 colonne così si allineano riga su riga */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
                   {[
                     { lbl: 'Ricavo/st.',  val: euro(r.newRicavo), c: C.text },
                     { lbl: 'Margine/st.', val: euro(r.newMarg),   c: mc, bold: true },
@@ -368,8 +370,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                       sub: r.changed ? (r.diffMargPct > 0 ? '+' : '') + r.diffMargPct.toFixed(1) + ' pp' : null },
                     { lbl: 'Marg./unità', val: euro(r.newPrezzo - r.fcUnita), c: mc },
                   ].map(({ lbl, val, c, bold, sub }) => (
-                    <div key={lbl} style={{ background: '#F8F4F2', borderRadius: 8, padding: '10px 14px', textAlign: 'center', minWidth: 90 }}>
-                      <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>{lbl}</div>
+                    <div key={lbl} style={{ background: '#F8F4F2', borderRadius: 8, padding: '10px 8px', textAlign: 'center', minWidth: 0 }}>
+                      <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3, whiteSpace: 'nowrap' }}>{lbl}</div>
                       <div style={{ fontSize: 13, fontWeight: bold ? 900 : 600, color: c, fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }}>{val}</div>
                       {sub && <div style={{ fontSize: 9, fontWeight: 800, color: c, marginTop: 2 }}>{sub}</div>}
                     </div>
@@ -377,8 +379,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                 </div>
 
                 {/* Δ margine */}
-                {r.changed && (
-                  <div style={{ padding: '10px 16px', borderRadius: 10, textAlign: 'center', flexShrink: 0,
+                {r.changed ? (
+                  <div style={{ padding: '10px 16px', borderRadius: 10, textAlign: 'center',
                     background: r.diffMarg > 0 ? C.greenLight : C.redLight,
                     border: `1px solid ${r.diffMarg > 0 ? C.green : C.red}30` }}>
                     <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
@@ -398,7 +400,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                       </>
                     )}
                   </div>
-                )}
+                ) : <div aria-hidden="true" />}
               </div>
             </div>
           )

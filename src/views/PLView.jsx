@@ -651,24 +651,27 @@ export default function PLView({ ricettario, onUpdateRegola }) {
               <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Cosa dicono i tuoi dati, generato in automatico</div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2,1fr)', gap: 10 }}>
-            {insights.map((ins, i) => {
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2,1fr)', gap: 12, alignItems: 'stretch' }}>
+            {[...insights].sort((a, b) => ({ critical: 0, warn: 1, ok: 2 }[a.tipo] - { critical: 0, warn: 1, ok: 2 }[b.tipo])).map((ins, i) => {
               const palette = ins.tipo === 'critical'
-                ? { bg: C.redLight, bd: C.red, fg: C.red, lbl: 'CRITICO' }
+                ? { bg: C.redLight, fg: C.red, lbl: 'CRITICO', icon: '⚠' }
                 : ins.tipo === 'warn'
-                ? { bg: C.amberLight, bd: C.amber, fg: C.amber, lbl: 'ATTENZIONE' }
-                : { bg: C.greenLight, bd: C.green, fg: C.green, lbl: 'OK' }
+                ? { bg: C.amberLight, fg: C.amber, lbl: 'ATTENZIONE', icon: '!' }
+                : { bg: C.greenLight, fg: C.green, lbl: 'OK', icon: '✓' }
               return (
                 <div key={i} style={{
-                  background: palette.bg, border: `1px solid ${palette.bd}40`, borderRadius: 10,
-                  padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 10,
+                  background: C.bgCard, border: `1px solid ${C.border}`, borderLeft: `3px solid ${palette.fg}`,
+                  borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12,
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
                 }}>
-                  <span style={{
-                    fontSize: 9, fontWeight: 800, letterSpacing: '0.08em',
-                    color: palette.fg, background: C.white, border: `1px solid ${palette.fg}40`,
-                    padding: '3px 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0,
-                  }}>{palette.lbl}</span>
-                  <div style={{ fontSize: 12, color: C.text, lineHeight: 1.5, fontWeight: 500 }}>{ins.testo}</div>
+                  <div style={{
+                    width: 26, height: 26, borderRadius: '50%', background: palette.bg, color: palette.fg,
+                    fontSize: 13, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>{palette.icon}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.08em', color: palette.fg, marginBottom: 3 }}>{palette.lbl}</div>
+                    <div style={{ fontSize: 12, color: C.text, lineHeight: 1.5, fontWeight: 500 }}>{ins.testo}</div>
+                  </div>
                 </div>
               )
             })}
