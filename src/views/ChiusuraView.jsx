@@ -127,6 +127,33 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const [importLoading, setImportLoading] = useState(false)
   const importFileRef = useRef(null)
 
+  // Inserimento prodotti venduti: 'foto' (OCR scontrino) o 'manuale' (digitazione).
+  const [inputMode, setInputMode] = useState('foto')
+  const [manualRows, setManualRows] = useState([{ nome: '', qta: '', prezzo: '' }])
+
+  // Nomi ricette per autocomplete del nome prodotto in modalità manuale.
+  const nomiRicette = useMemo(() => Object.values(ricettario?.ricette || {})
+    .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
+    .map(r => r.nome).sort(), [ricettario])
+
+  // Costruisce `venduto` dalle righe digitate (stessa shape dell'OCR).
+  // Prezzo non indicato → eredita il prezzo di listino della ricetta corrispondente.
+  const usaProdottiManuali = () => {
+    const righe = manualRows.map(r => {
+      const nome = (r.nome || '').toUpperCase().trim()
+      const qta = Number(String(r.qta).replace(',', '.')) || 0
+      if (!nome || qta <= 0) return null
+      let prezzo = Number(String(r.prezzo).replace(',', '.')) || 0
+      if (!prezzo) {
+        const match = Object.values(ricettario?.ricette || {}).find(x => (x.nome || '').toUpperCase().trim() === nome)
+        if (match) prezzo = Number(getR(match.nome, match).prezzo) || 0
+      }
+      return { nome, qta, prezzoUnitario: prezzo, totale: Math.round(qta * prezzo * 100) / 100 }
+    }).filter(Boolean)
+    if (!righe.length) { notify?.('⚠ Inserisci almeno un prodotto con quantità', false); return }
+    setVenduto(righe); setSalvato(false); setError(null)
+  }
+
   const readFile64 = f => new Promise(res => {
     const r = new FileReader()
     r.onload = ev => res({ data64: ev.target.result.split(',')[1], preview: ev.target.result, mediaType: f.type || 'image/jpeg' })
@@ -469,6 +496,33 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     setImportModal(null); setImportPreview(null)
   }
 
+  // Riepilogo prodotti venduti + salvataggio — condiviso tra modalità foto e manuale.
+  const vendutoBox = () => {
+    if (!venduto || loading) return null
+    return (
+      <div style={{ background: C.white, border: `1px solid ${C.green}30`, borderRadius: 10, padding: '14px' }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 8 }}>✓ {venduto.length} prodotti pronti per il confronto</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 180, overflowY: 'auto', marginBottom: 10 }}>
+          {venduto.map((p, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 8px', background: '#F8F4F2', borderRadius: 5 }}>
+              <span style={{ fontWeight: 600, color: C.text }}>{p.qta}× {p.nome}</span>
+              <span style={{ color: C.green, fontWeight: 700 }}>{fmt(p.totale || 0)}</span>
+            </div>
+          ))}
+        </div>
+        {!salvato ? (
+          (confronto.length > 0 || formatiRiconc.righe.length > 0) ? (
+            <button onClick={handleSalva} disabled={salvando} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1 }}>{salvando ? '💾 Salvataggio…' : '💾 Salva chiusura nello storico'}</button>
+          ) : (
+            <div style={{ fontSize: 10, color: C.amber }}>⚠ Nessun prodotto del ricettario o formato di vendita trovato — verifica i nomi</div>
+          )
+        ) : (
+          <div style={{ padding: '9px 14px', background: C.greenLight, borderRadius: 8, fontSize: 11, fontWeight: 700, color: C.green }}>✓ Chiusura salvata nello storico</div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div style={{ maxWidth: 1200 }}>
       <PageHeader
@@ -633,68 +687,97 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       </div>
 
       <div style={{ background: '#F8F4F2', border: `2px dashed ${C.borderStr}`, borderRadius: 14, padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>🧾 Foto scontrino di chiusura</div>
-          <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>Claude legge solo la sezione PASTICCERIA · Prodotti non nel ricettario vengono ignorati</div>
+        {/* Toggle: foto scontrino (OCR) vs inserimento manuale */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+          {[['foto', '📷 Foto scontrino'], ['manuale', '✍️ Inserimento manuale']].map(([id, lbl]) => (
+            <button key={id} onClick={() => { setInputMode(id); setVenduto(null); setSalvato(false); setError(null) }}
+              style={{ flex: 1, padding: '9px', borderRadius: 8, border: `1px solid ${inputMode === id ? C.red : C.border}`, background: inputMode === id ? C.redLight : C.white, color: inputMode === id ? C.red : C.textMid, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+              {lbl}
+            </button>
+          ))}
         </div>
-        {!preview ? (
-          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '22px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 10, cursor: 'pointer' }}>
-            <span style={{ fontSize: 28 }}>🧾</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>Tocca per fotografare lo scontrino</span>
-            <span style={{ fontSize: 10, color: C.textSoft }}>Seleziona più scontrini insieme — ogni data viene letta automaticamente</span>
-            <input ref={inputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile}/>
-          </label>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 20, alignItems: 'flex-start' }}>
-            <div style={{ position: 'relative' }}>
-              <img src={preview} alt="scontrino" style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.border}`, display: 'block' }}/>
-              <button onClick={() => { setPreview(null); setImg(null); setVenduto(null); setSalvato(false); if (inputRef.current) inputRef.current.value = '' }}
-                style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}>✕</button>
-              <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
+
+        {inputMode === 'foto' ? (
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>🧾 Foto scontrino di chiusura</div>
+              <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>Claude legge solo la sezione PASTICCERIA · Prodotti non nel ricettario vengono ignorati</div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {!venduto && !loading && !error && (
-                <button onClick={batchMode ? handleAnalizzaBatch : handleAnalizza} style={{ padding: '13px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 10px rgba(110,14,26,0.25)' }}>
-                  {batchMode ? `📊 Leggi tutti (${batchFiles.length} scontrini)` : '🔍 Leggi scontrino con AI'}
-                </button>
-              )}
-              {loading && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px', background: C.white, borderRadius: 9, border: `1px solid ${C.border}` }}>
-                  <style>{`@keyframes spinC{to{transform:rotate(360deg)}}`}</style>
-                  <div style={{ width: 16, height: 16, border: `2px solid ${C.redLight}`, borderTopColor: C.red, borderRadius: '50%', animation: 'spinC 0.8s linear infinite', flexShrink: 0 }}/>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{batchProgress ? `Scontrino ${batchProgress} in corso…` : 'Lettura scontrino in corso…'}</div>
+            {!preview ? (
+              <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '22px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 10, cursor: 'pointer' }}>
+                <span style={{ fontSize: 28 }}>🧾</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>Tocca per fotografare lo scontrino</span>
+                <span style={{ fontSize: 10, color: C.textSoft }}>Seleziona più scontrini insieme — ogni data viene letta automaticamente</span>
+                <input ref={inputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile}/>
+              </label>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 20, alignItems: 'flex-start' }}>
+                <div style={{ position: 'relative' }}>
+                  <img src={preview} alt="scontrino" style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.border}`, display: 'block' }}/>
+                  <button onClick={() => { setPreview(null); setImg(null); setVenduto(null); setSalvato(false); if (inputRef.current) inputRef.current.value = '' }}
+                    style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                  <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
                 </div>
-              )}
-              {error && (
-                <div style={{ padding: '12px', background: C.redLight, borderRadius: 9 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6 }}>⚠ {error}</div>
-                  <button onClick={handleAnalizza} style={{ padding: '6px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Riprova</button>
-                </div>
-              )}
-              {venduto && !loading && (
-                <div style={{ background: C.white, border: `1px solid ${C.green}30`, borderRadius: 10, padding: '14px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 8 }}>✓ {venduto.length} prodotti letti dalla sezione PASTICCERIA</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 180, overflowY: 'auto', marginBottom: 10 }}>
-                    {venduto.map((p, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 8px', background: '#F8F4F2', borderRadius: 5 }}>
-                        <span style={{ fontWeight: 600, color: C.text }}>{p.qta}× {p.nome}</span>
-                        <span style={{ color: C.green, fontWeight: 700 }}>{fmt(p.totale || 0)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {!salvato ? (
-                    (confronto.length > 0 || formatiRiconc.righe.length > 0) ? (
-                      <button onClick={handleSalva} disabled={salvando} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1 }}>{salvando ? '💾 Salvataggio…' : '💾 Salva chiusura nello storico'}</button>
-                    ) : (
-                      <div style={{ fontSize: 10, color: C.amber }}>⚠ Nessun prodotto del ricettario o formato di vendita trovato — verifica i nomi</div>
-                    )
-                  ) : (
-                    <div style={{ padding: '9px 14px', background: C.greenLight, borderRadius: 8, fontSize: 11, fontWeight: 700, color: C.green }}>✓ Chiusura salvata nello storico</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {!venduto && !loading && !error && (
+                    <button onClick={batchMode ? handleAnalizzaBatch : handleAnalizza} style={{ padding: '13px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 10px rgba(110,14,26,0.25)' }}>
+                      {batchMode ? `📊 Leggi tutti (${batchFiles.length} scontrini)` : '🔍 Leggi scontrino con AI'}
+                    </button>
                   )}
+                  {loading && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px', background: C.white, borderRadius: 9, border: `1px solid ${C.border}` }}>
+                      <style>{`@keyframes spinC{to{transform:rotate(360deg)}}`}</style>
+                      <div style={{ width: 16, height: 16, border: `2px solid ${C.redLight}`, borderTopColor: C.red, borderRadius: '50%', animation: 'spinC 0.8s linear infinite', flexShrink: 0 }}/>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{batchProgress ? `Scontrino ${batchProgress} in corso…` : 'Lettura scontrino in corso…'}</div>
+                    </div>
+                  )}
+                  {error && (
+                    <div style={{ padding: '12px', background: C.redLight, borderRadius: 9 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6 }}>⚠ {error}</div>
+                      <button onClick={handleAnalizza} style={{ padding: '6px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Riprova</button>
+                    </div>
+                  )}
+                  {vendutoBox()}
                 </div>
-              )}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>✍️ Inserisci i prodotti venduti</div>
+              <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>Digita nome e quantità · il prezzo si compila dal listino se lo lasci vuoto</div>
             </div>
-          </div>
+            <datalist id="ric-cassa-list">{nomiRicette.map(n => <option key={n} value={n}/>)}</datalist>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 92px 28px', gap: 6, fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 4px' }}>
+                <span>Prodotto</span><span style={{ textAlign: 'right' }}>Qtà</span><span style={{ textAlign: 'right' }}>€ cad.</span><span/>
+              </div>
+              {manualRows.map((row, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 64px 92px 28px', gap: 6, alignItems: 'center' }}>
+                  <input list="ric-cassa-list" value={row.nome} placeholder="es. SACHER"
+                    onChange={e => setManualRows(rows => rows.map((r, j) => j === i ? { ...r, nome: e.target.value } : r))}
+                    style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, fontWeight: 600 }}/>
+                  <input type="number" inputMode="decimal" value={row.qta} placeholder="0"
+                    onChange={e => setManualRows(rows => rows.map((r, j) => j === i ? { ...r, qta: e.target.value } : r))}
+                    style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right' }}/>
+                  <input type="number" inputMode="decimal" value={row.prezzo} placeholder="auto"
+                    onChange={e => setManualRows(rows => rows.map((r, j) => j === i ? { ...r, prezzo: e.target.value } : r))}
+                    style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right' }}/>
+                  <button onClick={() => setManualRows(rows => rows.length > 1 ? rows.filter((_, j) => j !== i) : rows)}
+                    title="Rimuovi riga" disabled={manualRows.length <= 1}
+                    style={{ width: 28, height: 32, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, color: manualRows.length <= 1 ? C.border : C.red, fontSize: 13, cursor: manualRows.length <= 1 ? 'not-allowed' : 'pointer', fontWeight: 700 }}>✕</button>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button onClick={() => setManualRows(rows => [...rows, { nome: '', qta: '', prezzo: '' }])}
+                  style={{ padding: '8px 14px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 8, fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>+ Aggiungi riga</button>
+                <button onClick={usaProdottiManuali}
+                  style={{ flex: 1, padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer', boxShadow: '0 2px 8px rgba(110,14,26,0.2)' }}>✓ Usa questi prodotti</button>
+              </div>
+            </div>
+            <div style={{ marginTop: 12 }}>{vendutoBox()}</div>
+          </>
         )}
       </div>
 

@@ -1066,6 +1066,19 @@ class ErrorBoundary extends React.Component {
 function SchedaAllergeniView({ ricettario }) {
   const ricette = Object.values(ricettario?.ricette||{}).filter(r=>r.tipo!=="semilavorato"&&r.tipo!=="interno");
 
+  // Allergeni effettivi per ricetta: usa quelli salvati se presenti, altrimenti
+  // li auto-rileva dagli ingredienti (le ricette importate da Excel spesso non
+  // hanno allergeni salvati → senza fallback la scheda risultava "vuota/non aggiornata").
+  const algMap = useMemo(() => {
+    const m = {};
+    for (const r of ricette) {
+      const salvati = Array.isArray(r.allergeni) ? r.allergeni : [];
+      const eff = salvati.length ? salvati : detectAllergeniFromIngredienti(r.ingredienti || []);
+      m[r.nome] = new Set(eff);
+    }
+    return m;
+  }, [ricette]);
+
   const esportaPDF = async () => {
     const { default: jsPDF } = await import('jspdf')
     const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
@@ -1102,7 +1115,7 @@ function SchedaAllergeniView({ ricettario }) {
       doc.setFontSize(7); doc.setFont(undefined,'normal');
       doc.text(`${a.emoji} ${a.label}`, startX, y+rowH*0.6);
       ricette.forEach((r,i)=>{
-        const has = (r.allergeni||[]).includes(a.id);
+        const has = algMap[r.nome]?.has(a.id);
         if(has){
           doc.setFillColor(220,50,50);
           doc.rect(startX+labW+i*cW+1, y+1, cW-2, rowH-2, 'F');
@@ -1165,7 +1178,7 @@ function SchedaAllergeniView({ ricettario }) {
                       </div>
                     </td>
                     {ricette.map(r=>{
-                      const has=(r.allergeni||[]).includes(a.id);
+                      const has=algMap[r.nome]?.has(a.id);
                       return (
                         <td key={r.nome} style={{padding:"10px 4px",textAlign:"center"}}>
                           {has ? (
