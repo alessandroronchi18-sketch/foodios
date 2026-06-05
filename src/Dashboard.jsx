@@ -1,6 +1,8 @@
 import React from 'react'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { lazyWithReload } from './lib/lazyWithReload'
+import UpgradeGate from './components/UpgradeGate'
+import { canAccessView } from './lib/planAccess'
 import { lessico } from './lib/lessico'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -1902,6 +1904,9 @@ export default function Dashboard({
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
               {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#6E0E1A",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
               {alert&&badge===0&&<span style={{width:8,height:8,borderRadius:"50%",background:"#E84B3A",flexShrink:0,boxShadow:"0 0 0 0 rgba(232,75,58,0.6)",animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
+              {!canAccessView(id, piano)&&<span title="Funzione del piano Chain" style={{flexShrink:0,display:"flex",color:"rgba(255,255,255,0.45)"}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>}
             </button>
           );
         };
@@ -2509,10 +2514,10 @@ export default function Dashboard({
           onImportCasse={handleImportCasseGlobal}
           onImportFatture={handleImportFattureGlobal}
           notify={notify}/>}
-        {view==="confronto-sedi"&&<ConfrontoSedi orgId={orgId} sedi={sedi}/>}
+        {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita}/>}
-        {view==="trasferimenti"&&<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>}
-        {view==="integrazioni"&&<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>}
+        {view==="trasferimenti"&&(canAccessView("trasferimenti",piano)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="integrazioni"&&(canAccessView("integrazioni",piano)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}
