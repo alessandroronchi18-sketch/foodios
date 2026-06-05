@@ -296,7 +296,7 @@ ${azioniStr}
                           {s==="aperta"?"Aperta":s==="in_corso"?"In corso":"✓ Chiudi"}
                         </button>
                       ))}
-                      <button onClick={()=>onDelete(a.id)} style={{padding:"4px 8px",borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
+                      <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding:"4px 8px",borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
                     </div>
                   </div>
                 ))}
@@ -310,7 +310,7 @@ ${azioniStr}
                 {chiuse.map(a=>(
                   <div key={a.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div style={{fontSize:11,fontWeight:600,color:C.text}}>✓ {a.label}</div>
-                    <button onClick={()=>onDelete(a.id)} style={{padding:"3px 8px",borderRadius:5,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
+                    <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding:"3px 8px",borderRadius:5,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
                   </div>
                 ))}
               </div>

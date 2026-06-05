@@ -716,7 +716,7 @@ export default function MagazzinoView({
               ))}
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={handleAddIngrediente} disabled={saving} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvataggio…' : 'Aggiungi'}</button>
-                <button onClick={() => setShowAddIng(false)} style={{ padding: '8px 12px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>✕</button>
+                <button aria-label="Chiudi" onClick={() => setShowAddIng(false)} style={{ padding: '8px 12px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>✕</button>
               </div>
             </div>
           )}

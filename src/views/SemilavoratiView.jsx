@@ -370,7 +370,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
                     <span style={{fontSize:10,color:"#6B2FA0",fontWeight:600}}>{ing.nome}</span>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                       <span style={{fontSize:10,fontWeight:700,color:"#8E44AD"}}>{ing.qty1stampo}g</span>
-                      <button onClick={()=>removeIng(i)} style={{background:"none",border:"none",color:C.textSoft,cursor:"pointer",fontSize:11,padding:"0 2px"}}>✕</button>
+                      <button aria-label="Rimuovi ingrediente" onClick={()=>removeIng(i)} style={{background:"none",border:"none",color:C.textSoft,cursor:"pointer",fontSize:11,padding:"0 2px"}}>✕</button>
                     </div>
                   </div>
                 ))}

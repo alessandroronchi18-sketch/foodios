@@ -409,7 +409,7 @@ function TurniTab({ orgId, notify, isMobile }) {
           {isMobile && (
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
               <div style={{ fontSize:14, fontWeight:800, color:C.text }}>Nuovo turno</div>
-              <button onClick={()=>setShowForm(false)} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
+              <button aria-label="Chiudi form turno" onClick={()=>setShowForm(false)} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
             </div>
           )}
           <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 100px 100px 1fr auto", gap: isMobile ? 12 : 10, alignItems: isMobile ? "stretch" : "end" }}>
@@ -454,7 +454,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                       <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{t.dipendenti?.nome || "—"}</div>
                       <div style={{ fontSize:11, color:C.textSoft, marginTop:2 }}>{t.ora_inizio} - {t.ora_fine} · {fmtH(t.ore||0)} · {fmt(t.costo)}</div>
                     </div>
-                    <button onClick={()=>eliminaTurno(t.id)} style={{ background:"none", border:"none", color:C.red, cursor:"pointer", fontSize:20, padding:"4px 8px" }}>×</button>
+                    <button aria-label="Elimina turno" onClick={()=>eliminaTurno(t.id)} style={{ background:"none", border:"none", color:C.red, cursor:"pointer", fontSize:20, padding:"4px 8px" }}>×</button>
                   </div>
                 ))}
                 <button onClick={()=>apriNuovoTurno(dIso)} style={{ width:"100%", padding:"8px", background:C.bg, border:`1px dashed ${C.borderStr}`, borderRadius:8, fontSize:11, color:C.textSoft, cursor:"pointer", marginTop:4 }}>
@@ -488,7 +488,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                         <div style={{ background:C.redLight, borderRadius:8, padding:"5px 7px", border:`1px solid ${C.red}30` }}>
                           <div style={{ fontSize:9, fontWeight:700, color:C.red }}>{t.ora_inizio}–{t.ora_fine}</div>
                           <div style={{ fontSize:9, color:C.textSoft }}>{fmtH(t.ore||0)}</div>
-                          <button onClick={()=>eliminaTurno(t.id)} style={{ fontSize:7, color:C.red, background:"transparent", border:"none", cursor:"pointer", padding:0, marginTop:2 }}>✕</button>
+                          <button aria-label="Elimina turno" onClick={()=>eliminaTurno(t.id)} style={{ fontSize:7, color:C.red, background:"transparent", border:"none", cursor:"pointer", padding:0, marginTop:2 }}>✕</button>
                         </div>
                       )}
                     </div>

@@ -253,7 +253,7 @@ Instructions:
           {preview && (
             <div style={{ position: 'relative' }}>
               <img src={preview} alt="preview" style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.border}`, display: 'block' }}/>
-              <button onClick={reset} style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}>✕</button>
+              <button aria-label="Rimuovi foto" onClick={reset} style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}>✕</button>
               {imgs.length > 1 && <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,0.7)', color: '#FFF', fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 10 }}>📷 {imgs.length} foto</div>}
               <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
             </div>

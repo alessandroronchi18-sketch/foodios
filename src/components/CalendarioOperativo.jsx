@@ -345,7 +345,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
               </div>
               {selDetail.isToday && <div style={{ fontSize:10, color:'#6E0E1A', fontWeight:700, marginTop:2 }}>OGGI</div>}
             </div>
-            <button onClick={()=>setSel(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9C7B76', fontSize:16, padding:2, lineHeight:1 }}>✕</button>
+            <button aria-label="Chiudi dettaglio" onClick={()=>setSel(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9C7B76', fontSize:16, padding:2, lineHeight:1 }}>✕</button>
           </div>
 
           {/* Sections */}

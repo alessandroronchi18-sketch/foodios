@@ -357,7 +357,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
             <div style={{ fontSize:13, fontWeight:800, color:C.text }}>Nuovo ordine</div>
             {isMobile && (
-              <button onClick={()=>setShowForm(false)} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
+              <button aria-label="Chiudi form ordine" onClick={()=>setShowForm(false)} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
             )}
           </div>
           <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap:12, marginBottom:16 }}>
@@ -398,7 +398,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
                       {["kg","g","l","pz","cf"].map(u=><option key={u}>{u}</option>)}
                     </select>
                     <input type="number" value={r.prezzo_unitario} onChange={e=>updateRiga(i,"prezzo_unitario",e.target.value)} placeholder="€/u" style={inputSt}/>
-                    <button onClick={()=>removeRiga(i)} style={{ padding:"8px 10px", borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:14, cursor:"pointer" }}>✕</button>
+                    <button aria-label="Rimuovi riga" onClick={()=>removeRiga(i)} style={{ padding:"8px 10px", borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:14, cursor:"pointer" }}>✕</button>
                   </div>
                 </div>
               ) : (
@@ -409,7 +409,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
                     {["kg","g","l","pz","cf"].map(u=><option key={u}>{u}</option>)}
                   </select>
                   <input type="number" value={r.prezzo_unitario} onChange={e=>updateRiga(i,"prezzo_unitario",e.target.value)} placeholder="0.00" style={inputSt}/>
-                  <button onClick={()=>removeRiga(i)} style={{ padding:"4px 8px", borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:10, cursor:"pointer" }}>✕</button>
+                  <button aria-label="Rimuovi riga" onClick={()=>removeRiga(i)} style={{ padding:"4px 8px", borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:10, cursor:"pointer" }}>✕</button>
                 </div>
               )
             ))}

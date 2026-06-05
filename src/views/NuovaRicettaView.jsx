@@ -459,7 +459,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                           </td>
                           <td style={{padding:"7px 10px",textAlign:"right",color:costo>0?C.red:C.textSoft,fontWeight:600}}>{costo>0?fmt(costo):"—"}</td>
                           <td style={{padding:"7px 6px",textAlign:"right"}}>
-                            <button onClick={()=>removeIng(i)} style={{padding:"2px 7px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
+                            <button aria-label="Rimuovi ingrediente" onClick={()=>removeIng(i)} style={{padding:"2px 7px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
                           </td>
                         </tr>
                       );
