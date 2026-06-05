@@ -1,12 +1,16 @@
 export function sanitizeString(str, maxLen = 500) {
   if (typeof str !== 'string') return ''
+  // Pre-cap difensivo contro input enormi (ReDoS), generoso: la sanitizzazione
+  // avviene PRIMA del taglio finale a maxLen, altrimenti un <script> troncato
+  // sopravvive e la rimozione viene vanificata.
   return str
-    .slice(0, maxLen)
+    .slice(0, Math.max(maxLen, 10000))
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/javascript:/gi, '')
     .replace(/data:text\/html/gi, '')
     .replace(/on\w+\s*=/gi, '')
     .trim()
+    .slice(0, maxLen)
 }
 
 export function sanitizeNumber(n, min = 0, max = 999999) {

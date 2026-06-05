@@ -8,18 +8,15 @@ function parseItalianDate(str) {
   str = str.trim();
   // ISO
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
-  // DD/MM/YYYY o DD-MM-YYYY
+  // DD/MM/YYYY o DD-MM-YYYY (default italiano). Se il 2° gruppo non può essere
+  // un mese (>12) ma il 1° sì, è formato US MM/DD/YYYY (SumUp) → li scambiamo.
   const m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
     const y = m[3].length === 2 ? `20${m[3]}` : m[3];
-    return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  }
-  // MM/DD/YYYY (SumUp style)
-  const m2 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m2) {
-    const [,a,b,y] = m2;
-    if (parseInt(a)>12) return `${y}-${b.padStart(2,'0')}-${a.padStart(2,'0')}`;
-    return `${y}-${a.padStart(2,'0')}-${b.padStart(2,'0')}`;
+    let d = parseInt(m[1], 10), mo = parseInt(m[2], 10);
+    if (mo > 12 && d <= 12) { const t = d; d = mo; mo = t; }
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   }
   return null;
 }

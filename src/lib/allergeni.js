@@ -89,6 +89,19 @@ export const ALLERGENI_MAPPING = {
   'wheat':            ['glutine'],
   'bread':            ['glutine'],
 
+  // ───── Farine naturalmente SENZA glutine ─────
+  // Mappate a [] di proposito: essendo più lunghe della chiave generica "farina",
+  // vengono matchate per prime e "consumano" il range, impedendo il falso glutine.
+  // (Es. "farina di riso" NON deve dichiarare glutine in una scheda allergeni.)
+  'farina di riso':           [],
+  'farina di mais':           [],
+  'farina di cocco':          [],
+  'farina di ceci':           [],
+  'farina di grano saraceno': [],
+  'grano saraceno':           [],
+  'farina di quinoa':         [],
+  'farina di tapioca':        [],
+
   // ───── Latte e derivati ─────
   'latte':            ['latte'],
   'latte intero':     ['latte'],
