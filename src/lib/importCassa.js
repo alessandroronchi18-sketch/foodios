@@ -20,7 +20,7 @@ function parseItalianDate(str) {
 //   "1.234"    → 1234 (punto = migliaia)   "100.000" → 100000
 // Regola: con due tipi di separatore, l'ULTIMO è il decimale; con un solo
 // separatore seguito da esattamente 3 cifre è migliaia, altrimenti decimale.
-function parseNum(str) {
+export function parseNum(str) {
   if (str === undefined || str === null || str === '') return 0;
   if (typeof str === 'number') return Number.isFinite(str) ? str : 0;
   let s = String(str).trim().replace(/[^\d.,-]/g, '');
