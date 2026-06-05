@@ -126,6 +126,26 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const dataVendKPI= periodiVend.map(p=>({ label:p.label, Ricavo:+p.rvTot.toFixed(2), FoodCost:+p.fcTot.toFixed(2), Margine:+p.margTot.toFixed(2), Spreco:+p.sproTot.toFixed(2) }));
   const dataST     = periodiVend.map(p=>({ label:p.label, "Sell-Through":+p.avgST.toFixed(1) }));
 
+  // Grafico produzione: top 5 ricette per stampi totali + "Altri". Impilare una
+  // serie per OGNI ricetta (decine) con pochi colori rendeva il grafico
+  // illeggibile; così l'altezza resta = stampi totali ma il mix è chiaro.
+  const ALTRI_COLOR = "#B8AEA8";
+  const topRicetteProd = (() => {
+    const tot = {};
+    for (const p of periodiProd) for (const [k,v] of Object.entries(p.byRicetta)) tot[k]=(tot[k]||0)+v;
+    return Object.entries(tot).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k])=>k);
+  })();
+  const dataProdTop = periodiProd.map(p=>{
+    const row = { label:p.label };
+    let altri = 0;
+    for (const [k,v] of Object.entries(p.byRicetta)) {
+      if (topRicetteProd.includes(k)) row[k]=v; else altri+=v;
+    }
+    if (altri>0) row["Altri"]=+altri.toFixed(0);
+    return row;
+  });
+  const seriesProd = [...topRicetteProd, ...(dataProdTop.some(d=>d["Altri"]>0)?["Altri"]:[])];
+
   // KPI globali produzione
   const totRP=periodiProd.reduce((s,p)=>s+p.ricavoTot,0);
   const totFP=periodiProd.reduce((s,p)=>s+p.fcTot,0);
@@ -212,33 +232,34 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <KPI icon="📈" label="Margine"    value={fmt(totRP-totFP)} color={margColor(totRP>0?((totRP-totFP)/totRP*100):0)}/>
                 <KPI icon="🏆" label="Top"        value={topP?topP[0].replace("TORTA DI ",""):"—"} sub={topP?`${topP[1]} stampi`:""} color={C.amber}/>
               </div>
-              <SH sub={`Stampi per ${vista} e per prodotto`}>Produzione per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
+              <SH sub={`Stampi totali per ${vista==="giornaliero"?"giorno":vista} · top 5 prodotti + altri`}>Produzione per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={dataProd} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="30%">
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={dataProdTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false} allowDecimals={false}/>
-                    <Tooltip content={<ChartTip/>}/>
+                    <YAxis tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false} allowDecimals={false} label={{ value:'stampi', angle:-90, position:'insideLeft', fill:C.textSoft, fontSize:9, dy:20 }}/>
+                    <Tooltip content={<ChartTip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                    {ricetteAttive.map((n,i)=>(
-                      <Bar key={n} dataKey={n} stackId="a" fill={STACK_COLORS[i%STACK_COLORS.length]} radius={i===ricetteAttive.length-1?[3,3,0,0]:[0,0,0,0]}/>
+                    {seriesProd.map((n,i)=>(
+                      <Bar key={n} dataKey={n} stackId="a"
+                        fill={n==="Altri"?ALTRI_COLOR:STACK_COLORS[i%STACK_COLORS.length]}
+                        radius={i===seriesProd.length-1?[4,4,0,0]:[0,0,0,0]}/>
                     ))}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <SH sub={`Ricavi stimati, FC e margine per ${vista}`}>Andamento Economico (stimato)</SH>
+              <SH sub={`Ogni barra = ricavo del periodo, diviso in food cost (rosso) e margine (verde)`}>Andamento Economico (stimato)</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                <ResponsiveContainer width="100%" height={220}>
+                <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={dataKPI} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="35%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
                     <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
-                    <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]}/>
+                    <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                    <Bar dataKey="Ricavo"   fill={C.green} opacity={0.25} radius={[3,3,0,0]}/>
-                    <Bar dataKey="FoodCost" fill={C.red}   opacity={0.85} radius={[3,3,0,0]}/>
-                    <Bar dataKey="Margine"  fill={C.green} opacity={0.85} radius={[3,3,0,0]}/>
+                    <Bar dataKey="FoodCost" stackId="e" name="Food cost" fill={C.red}   radius={[0,0,0,0]}/>
+                    <Bar dataKey="Margine"  stackId="e" name="Margine"   fill={C.green} radius={[4,4,0,0]}/>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
