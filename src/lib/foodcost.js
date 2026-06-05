@@ -16,7 +16,7 @@
 //   - buildIngCosti(fromFile)
 //   - calcolaFC(ricetta, ingCosti, ricettario, depth)
 
-import { costoNettoPerG } from './rese'
+import { costoNettoPerG, hasResaIngrediente } from './rese'
 
 // ─── PREZZI HORECA ────────────────────────────────────────────────────────────
 // Prezzi ingrosso aggiornati 2025 — usati come stima quando l'utente non ha
@@ -753,13 +753,19 @@ export function getPrezzoStoricoKg(logPrezzi, nomeIng, when) {
   if (entries.length === 0) return null
 
   // Trova la prima entry con decorrenza <= target (cioè era già attiva al target).
+  // NB: usiamo Number.isFinite e non `|| null`, così un prezzo legittimo di 0
+  // (ingrediente gratis/omaggio) NON viene scambiato per "prezzo sconosciuto".
   for (const e of entries) {
-    if (e._t <= target) return Number(e.prezzoNuovo) || null
+    if (e._t <= target) {
+      const n = Number(e.prezzoNuovo)
+      return Number.isFinite(n) ? n : null
+    }
   }
   // Tutte le modifiche sono successive a `target`: usa il prezzo PRIMA della
   // prima modifica (il "vecchio prezzo" dell'entry più vecchia).
   const piuVecchia = entries[entries.length - 1]
-  return Number(piuVecchia.prezzoVecchio) || null
+  const nv = Number(piuVecchia.prezzoVecchio)
+  return Number.isFinite(nv) ? nv : null
 }
 
 /**
@@ -769,7 +775,10 @@ export function getPrezzoStoricoKg(logPrezzi, nomeIng, when) {
  * Serve a calcolare il food cost STORICO di una produzione: il P&L del 31/12 deve
  * vedere il food cost a prezzi di quel giorno, anche se oggi i prezzi sono cambiati.
  */
-export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when, _depth, _path) {
+// _lordo: quando true i costi NON applicano la resa (calcolo a peso lordo). Usato
+// per i semilavorati con resa propria: la loro resa sostituisce quelle interne,
+// così il calo è applicato una sola volta (vedi ramo semilavorato sotto).
+export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when, _depth, _path, _lordo) {
   const depth = _depth || 0
   const path = _path || []
   const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""]
@@ -797,16 +806,22 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
           continue
         }
         const semiRic = ricettario.ricette[semiKey]
-        const { tot: semiTot } = calcolaFCStorico(semiRic, ingCosti, ricettario, logPrezzi, when, depth + 1, [...path, semiKey])
+        // La resa del semilavorato sostituisce quelle delle foglie: se il
+        // semilavorato ha una resa propria (o siamo già in lordo), ricorri in
+        // lordo così le foglie NON applicano la loro resa, e la applichiamo una
+        // volta sola qui sotto.
+        const semiHasResa = hasResaIngrediente(nomeNorm)
+        const recurseLordo = _lordo || semiHasResa
+        const { tot: semiTot } = calcolaFCStorico(semiRic, ingCosti, ricettario, logPrezzi, when, depth + 1, [...path, semiKey], recurseLordo)
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         if (semiPeso <= 0) {
           mancanti.push(`${ing.nome} (semilavorato senza peso totale)`)
           continue
         }
         const costoG = semiTot / semiPeso
-        // Coerenza con il ramo foglia: applica l'eventuale resa anche al
-        // semilavorato (default 1.0 = nessuna variazione).
-        tot += qty * costoNettoPerG(costoG, nomeNorm)
+        // Se _lordo, la resa la applica l'antenato che l'ha attivata; altrimenti
+        // costoNettoPerG applica la resa del semilavorato una volta sola (o 1.0).
+        tot += qty * (_lordo ? costoG : costoNettoPerG(costoG, nomeNorm))
         continue
       }
     }
@@ -814,7 +829,9 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
     // 1. Cerca prezzo storico al momento `when`
     const prezzoKgStorico = getPrezzoStoricoKg(logPrezzi, ing.nome, when)
     let costoG = null
-    if (prezzoKgStorico != null && prezzoKgStorico > 0) {
+    // >= 0: un prezzo storico di 0 è un costo reale (ingrediente gratis), non un
+    // "dato mancante" — solo null/undefined fa cadere sul prezzo corrente.
+    if (prezzoKgStorico != null && prezzoKgStorico >= 0) {
       costoG = prezzoKgStorico / 1000
     } else {
       // 2. Fallback su prezzo corrente
@@ -822,7 +839,7 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
       if (!c) { mancanti.push(ing.nome); continue }
       costoG = c.costoG
     }
-    tot += qty * costoNettoPerG(costoG, nomeNorm)
+    tot += qty * (_lordo ? costoG : costoNettoPerG(costoG, nomeNorm))
   }
   return { tot: parseFloat(tot.toFixed(3)), mancanti }
 }
@@ -832,7 +849,7 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
 // e' trattato come ingrediente "mancante" — segnalato in `mancanti` per UI
 // invece di tornare silenziosamente costo 0.
 // Param _path: lista nomi nel cammino di ricorsione, per ciclo-detect e logging.
-export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path) {
+export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) {
   const depth = _depth || 0
   const path = _path || []
   const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""]
@@ -864,7 +881,11 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path) {
           continue
         }
         const semiRic = ricettario.ricette[semiKey]
-        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, depth + 1, [...path, semiKey])
+        // La resa del semilavorato sostituisce quelle delle foglie (calo una
+        // volta sola): se ha resa propria (o siamo in lordo) ricorri in lordo.
+        const semiHasResa = hasResaIngrediente(nomeNorm)
+        const recurseLordo = _lordo || semiHasResa
+        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, depth + 1, [...path, semiKey], recurseLordo)
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         // Se semiPeso=0 (semilavorato senza ingredienti o ingredienti senza
         // qty1stampo) il costoG sarebbe 0 e il padre risulterebbe gratis →
@@ -875,16 +896,16 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path) {
           continue
         }
         const costoG = semiTot / semiPeso
-        // Coerenza con il ramo foglia: applica l'eventuale resa anche al
-        // semilavorato (default 1.0 = nessuna variazione).
-        tot += qty * costoNettoPerG(costoG, nomeNorm)
+        // Se _lordo, la resa la applica l'antenato; altrimenti costoNettoPerG
+        // applica la resa del semilavorato una volta sola (o 1.0 se assente).
+        tot += qty * (_lordo ? costoG : costoNettoPerG(costoG, nomeNorm))
         continue
       }
     }
 
     const c = ingCosti[normIng(ing.nome)]
     if (!c) { mancanti.push(ing.nome); continue }
-    tot += qty * costoNettoPerG(c.costoG, nomeNorm)
+    tot += qty * (_lordo ? c.costoG : costoNettoPerG(c.costoG, nomeNorm))
   }
   return { tot: parseFloat(tot.toFixed(3)), mancanti }
 }

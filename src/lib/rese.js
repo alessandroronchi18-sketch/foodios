@@ -12,6 +12,13 @@ export function getResaIngrediente(nomeNorm) {
   return 1.0;
 }
 
+// True se esiste una resa impostata (esplicita o di default) per questo nome.
+// Serve a far sì che la resa di un semilavorato SOSTITUISCA quelle delle foglie
+// (calo applicato una volta sola) invece di moltiplicarsi.
+export function hasResaIngrediente(nomeNorm) {
+  return _store[nomeNorm] !== undefined || RESE_DEFAULT[nomeNorm] !== undefined;
+}
+
 export function setResaIngrediente(nomeNorm, resa) {
   _store[nomeNorm] = Math.max(0.01, Math.min(1.0, parseFloat(resa)||1.0));
 }

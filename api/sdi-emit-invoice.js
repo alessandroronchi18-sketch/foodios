@@ -118,22 +118,61 @@ export default async function handler(req, res) {
     })
   }
 
-  // Idempotency check
+  // Idempotency claim-first (race-free): inserisce una riga 'pending' con chiave
+  // UNICA PRIMA di emettere. Chi vince l'insert emette; gli altri trovano la
+  // riga e fanno no-op. Evita la doppia fattura SDI anche sotto retry concorrenti
+  // del webhook (a differenza del vecchio check-then-emit) e copre il manual emit.
+  const idempotencyKey = (body.idempotency_key || '').toString().trim() ||
+    (stripeInvoiceId
+      ? `stripe:${stripeInvoiceId}`
+      : `manual:${orgId}:${Math.round(importoNetto * 100)}:${new Date().toISOString().slice(0, 7)}`)
+
+  let claimId = null
   try {
-    const { data: existingLog } = await supabase
+    const { data: claim } = await supabase
       .from('sdi_invoice_log')
-      .select('id, fic_invoice_id, status')
-      .eq('organization_id', orgId)
-      .eq('stripe_invoice_id', stripeInvoiceId || '')
+      .upsert({
+        organization_id: orgId,
+        stripe_invoice_id: stripeInvoiceId || null,
+        idempotency_key: idempotencyKey,
+        importo_netto_cents: Math.round(importoNetto * 100),
+        status: 'pending',
+        emessa_da: adminUser?.email || 'webhook',
+      }, { onConflict: 'idempotency_key', ignoreDuplicates: true })
+      .select('id')
       .maybeSingle()
-    if (existingLog?.fic_invoice_id) {
-      return res.status(200).json({
-        already_emitted: true,
-        fic_invoice_id: existingLog.fic_invoice_id,
-        status: existingLog.status,
+
+    if (!claim) {
+      // Chiave gia presente: emissione gia fatta o in corso.
+      const { data: existingLog } = await supabase
+        .from('sdi_invoice_log')
+        .select('fic_invoice_id, status')
+        .eq('idempotency_key', idempotencyKey)
+        .maybeSingle()
+      if (existingLog?.fic_invoice_id) {
+        return res.status(200).json({
+          already_emitted: true,
+          fic_invoice_id: existingLog.fic_invoice_id,
+          status: existingLog.status,
+        })
+      }
+      return res.status(409).json({
+        error: 'Emissione gia in corso per questa fattura, riprova tra poco',
+        status: existingLog?.status || 'pending',
       })
     }
-  } catch { /* tabella forse non ancora migrata, prosegui */ }
+    claimId = claim.id
+  } catch (e) {
+    // Senza claim non possiamo garantire l'idempotenza: fail-closed (meglio non
+    // emettere che rischiare la doppia fattura). Richiede la migration 20260617.
+    const safe = safeError(e, { endpoint: 'sdi-emit-invoice', op: 'idempotencyClaim', orgId }, 503, supabase)
+    return res.status(safe.status).json(safe.body)
+  }
+
+  // Rilascia il claim se l'emissione fallisce, così un retry puo' riprovare.
+  const rilasciaClaim = async () => {
+    try { await supabase.from('sdi_invoice_log').delete().eq('id', claimId) } catch { /* best-effort */ }
+  }
 
   // 1. Upsert cliente su FiC
   let cliente
@@ -151,6 +190,7 @@ export default async function handler(req, res) {
       pec: org.pec,
     })
   } catch (e) {
+    await rilasciaClaim()
     const safe = safeError(e, { endpoint: 'sdi-emit-invoice', op: 'upsertCliente', orgId }, 500, supabase)
     return res.status(safe.status).json(safe.body)
   }
@@ -169,23 +209,21 @@ export default async function handler(req, res) {
       stripeInvoiceId,
     })
   } catch (e) {
+    await rilasciaClaim()
     const safe = safeError(e, { endpoint: 'sdi-emit-invoice', op: 'emettiFattura', orgId, importoNetto }, 500, supabase)
     return res.status(safe.status).json(safe.body)
   }
 
-  // 3. Log per idempotenza (best-effort)
+  // 3. Completa il claim con i dati della fattura emessa (pending → emessa).
   try {
-    await supabase.from('sdi_invoice_log').insert({
-      organization_id: orgId,
-      stripe_invoice_id: stripeInvoiceId || null,
+    await supabase.from('sdi_invoice_log').update({
       fic_invoice_id: invoice.id,
       fic_cliente_id: cliente.id,
-      importo_netto_cents: Math.round(importoNetto * 100),
       status: 'emessa',
-      emessa_da: adminUser?.email || 'webhook',
-    })
+      updated_at: new Date().toISOString(),
+    }).eq('id', claimId)
   } catch (e) {
-    console.error('[sdi-emit-invoice] log insert failed', e.message)
+    console.error('[sdi-emit-invoice] claim update failed', e.message)
   }
 
   return res.status(200).json({
