@@ -649,9 +649,14 @@ export default function PLView({ ricettario, onUpdateRegola }) {
         const margC = inUtile ? C.green : C.red
         const gw = Math.max(0, Math.min(100, margPctTot))
         const num = { ...TNUM, fontVariantNumeric: 'tabular-nums' }
-        // celle della griglia: voce (sx) · % (dx) · importo (dx, bordo destro allineato)
-        const Cell = ({ children, align = 'left', color = C.text, size = 14, weight = 600, pad = '11px 0' }) => (
-          <div style={{ textAlign: align, color, fontSize: size, fontWeight: weight, padding: pad, alignSelf: 'baseline', ...(align !== 'left' ? num : {}) }}>{children}</div>
+        // Stili UNIFORMI: stessa dimensione per le 3 voci e per i 3 valori.
+        const cellP = { fontSize: 13, fontWeight: 700, padding: '10px 0', textAlign: 'right', alignSelf: 'center', ...num }
+        const cellA = { fontSize: 16, fontWeight: 800, padding: '10px 0', textAlign: 'right', alignSelf: 'center', ...num }
+        const Voce = ({ dot, children }) => (
+          <div style={{ fontSize: 14, fontWeight: 700, padding: '10px 0', display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <span style={{ width: 9, height: 9, borderRadius: 3, background: dot, flexShrink: 0 }}/>
+            <span style={{ color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{children}</span>
+          </div>
         )
         return (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16,
@@ -666,35 +671,26 @@ export default function PLView({ ricettario, onUpdateRegola }) {
               <span style={{ fontSize: 11, fontWeight: 600, color: C.textSoft, background: '#F8F4F2', padding: '4px 10px', borderRadius: 20 }}>a regime · prezzi di listino</span>
             </div>
 
-            {/* Statement: griglia 3 colonne — voce | % | importo (€ e % incolonnati) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', columnGap: isMobile ? 16 : 28, alignItems: 'baseline' }}>
+            {/* Statement: griglia 3 colonne — voce | % | importo, tutto incolonnato
+                con dimensioni IDENTICHE su tutte le righe. */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', columnGap: isMobile ? 18 : 36, alignItems: 'center' }}>
               {/* Ricavi */}
-              <Cell weight={700}>Ricavi</Cell>
-              <Cell align="right" color={C.textSoft} size={12} weight={600}>100%</Cell>
-              <Cell align="right" weight={700}>{euro(totRicavo)}</Cell>
+              <Voce dot="#C9BEB6">Ricavi</Voce>
+              <div style={{ ...cellP, color: C.textSoft }}>100.0%</div>
+              <div style={{ ...cellA, color: C.text }}>{euro(totRicavo)}</div>
 
               {/* Food cost */}
-              <Cell color={C.textMid}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: C.red, flexShrink: 0 }}/>
-                  Food cost <span style={{ color: C.textSoft, fontWeight: 500 }}>· materie prime</span>
-                </span>
-              </Cell>
-              <Cell align="right" color={C.red} size={12} weight={700}>{fcPct.toFixed(1)}%</Cell>
-              <Cell align="right" color={C.red} weight={700}>−{euro(totFC)}</Cell>
+              <Voce dot={C.red}>Food cost</Voce>
+              <div style={{ ...cellP, color: C.red }}>{fcPct.toFixed(1)}%</div>
+              <div style={{ ...cellA, color: C.red }}>−{euro(totFC)}</div>
 
               {/* Linea di chiusura (stile bilancio) */}
               <div style={{ gridColumn: '1 / -1', borderTop: `1px solid ${C.border}`, margin: '4px 0' }}/>
 
-              {/* Margine lordo — il totale, in evidenza */}
-              <Cell color={C.text} size={isMobile ? 15 : 16} weight={800} pad="13px 0 0">
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: margC, flexShrink: 0 }}/>
-                  Margine lordo
-                </span>
-              </Cell>
-              <Cell align="right" color={margC} size={13} weight={800} pad="13px 0 0">{margPctTot.toFixed(1)}%</Cell>
-              <Cell align="right" color={margC} size={isMobile ? 22 : 26} weight={900} pad="9px 0 0">{euro(totMargine)}</Cell>
+              {/* Margine lordo */}
+              <Voce dot={margC}>Margine lordo</Voce>
+              <div style={{ ...cellP, color: margC }}>{margPctTot.toFixed(1)}%</div>
+              <div style={{ ...cellA, color: margC }}>{euro(totMargine)}</div>
             </div>
 
             {/* Barra proporzione + legenda allineata */}
