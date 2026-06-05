@@ -501,12 +501,18 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     if (!venduto || loading) return null
     return (
       <div style={{ background: C.white, border: `1px solid ${C.green}30`, borderRadius: 10, padding: '14px' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 8 }}>✓ {venduto.length} prodotti pronti per il confronto</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 2 }}>✓ {venduto.length} prodotti pronti per il confronto</div>
+        {!salvato && <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 8 }}>Tocca ✕ per rimuovere una riga sbagliata prima di salvare</div>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 180, overflowY: 'auto', marginBottom: 10 }}>
           {venduto.map((p, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 8px', background: '#F8F4F2', borderRadius: 5 }}>
-              <span style={{ fontWeight: 600, color: C.text }}>{p.qta}× {p.nome}</span>
-              <span style={{ color: C.green, fontWeight: 700 }}>{fmt(p.totale || 0)}</span>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 11, padding: '3px 8px', background: '#F8F4F2', borderRadius: 5 }}>
+              <span style={{ fontWeight: 600, color: C.text, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.qta}× {p.nome}</span>
+              <span style={{ color: C.green, fontWeight: 700, flexShrink: 0 }}>{fmt(p.totale || 0)}</span>
+              {!salvato && (
+                <button aria-label={`Rimuovi ${p.nome}`} onClick={() => setVenduto(v => v.filter((_, j) => j !== i))}
+                  style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: 'none', background: 'transparent', color: C.textSoft, cursor: 'pointer', fontSize: 11, fontWeight: 700, lineHeight: 1 }}
+                  onMouseEnter={e => { e.currentTarget.style.color = C.red }} onMouseLeave={e => { e.currentTarget.style.color = C.textSoft }}>✕</button>
+              )}
             </div>
           ))}
         </div>
