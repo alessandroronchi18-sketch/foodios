@@ -3,19 +3,20 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from './auth/useAuth'
 import AuthPage, { ResetPasswordPage } from './auth/AuthPage'
 import Dashboard from './Dashboard'
+import { lazyWithReload } from './lib/lazyWithReload'
 // Lazy: AdminPage 2581 righe, OnboardingWizard usato solo first-login
-const AdminPage = React.lazy(() => import('./admin/AdminPage'))
-const OnboardingWizard = React.lazy(() => import('./onboarding/OnboardingWizard'))
+const AdminPage = lazyWithReload(() => import('./admin/AdminPage'))
+const OnboardingWizard = lazyWithReload(() => import('./onboarding/OnboardingWizard'))
 // Lazy: pagine legali caricate solo se path corrispondente
-const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'))
-const TerminiServizio = React.lazy(() => import('./pages/TerminiServizio'))
-const CookiePolicy = React.lazy(() => import('./pages/CookiePolicy'))
-const Rimborsi = React.lazy(() => import('./pages/Rimborsi'))
-const Contatti = React.lazy(() => import('./pages/Contatti'))
-const ChiSiamo = React.lazy(() => import('./pages/ChiSiamo'))
+const PrivacyPolicy = lazyWithReload(() => import('./pages/PrivacyPolicy'))
+const TerminiServizio = lazyWithReload(() => import('./pages/TerminiServizio'))
+const CookiePolicy = lazyWithReload(() => import('./pages/CookiePolicy'))
+const Rimborsi = lazyWithReload(() => import('./pages/Rimborsi'))
+const Contatti = lazyWithReload(() => import('./pages/Contatti'))
+const ChiSiamo = lazyWithReload(() => import('./pages/ChiSiamo'))
 // Lazy: pagine pubbliche caricate solo se path corrispondente
-const LandingPage = React.lazy(() => import('./pages/LandingPage'))
-const TvDashboard = React.lazy(() => import('./pages/TvDashboard'))
+const LandingPage = lazyWithReload(() => import('./pages/LandingPage'))
+const TvDashboard = lazyWithReload(() => import('./pages/TvDashboard'))
 import Logo from './components/Logo'
 import { MfaChallenge } from './components/Mfa'
 import AbbonamentoPanel from './components/AbbonamentoPanel'
