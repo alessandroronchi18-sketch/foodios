@@ -2,6 +2,38 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 
+// Mini-renderer markdown (l'AI risponde in markdown: **grassetto**, ##, elenchi).
+// Senza, gli asterischi/cancelletti apparivano letterali. Niente librerie esterne.
+function inlineMd(str) {
+  return String(str).split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
+    /^\*\*[^*]+\*\*$/.test(p) ? <strong key={i}>{p.slice(2, -2)}</strong> : <span key={i}>{p}</span>
+  )
+}
+function renderRich(text) {
+  return String(text || '').split('\n').map((raw, idx) => {
+    const t = raw.trim()
+    if (t === '') return <div key={idx} style={{ height: 6 }} />
+    if (/^---+$/.test(t)) return <div key={idx} style={{ borderTop: '1px solid rgba(0,0,0,0.10)', margin: '8px 0' }} />
+    const h = t.match(/^(#{1,4})\s+(.*)$/)
+    if (h) return <div key={idx} style={{ fontWeight: 800, fontSize: 13.5, margin: '6px 0 2px' }}>{inlineMd(h[2])}</div>
+    const b = t.match(/^[-*•]\s+(.*)$/)
+    if (b) return (
+      <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '1px 0' }}>
+        <span style={{ color: '#6E0E1A', fontWeight: 800, lineHeight: 1.5 }}>•</span>
+        <span style={{ flex: 1 }}>{inlineMd(b[1])}</span>
+      </div>
+    )
+    const n = t.match(/^(\d+)\.\s+(.*)$/)
+    if (n) return (
+      <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '1px 0' }}>
+        <span style={{ color: '#6E0E1A', fontWeight: 800, minWidth: 14 }}>{n[1]}.</span>
+        <span style={{ flex: 1 }}>{inlineMd(n[2])}</span>
+      </div>
+    )
+    return <div key={idx}>{inlineMd(t)}</div>
+  })
+}
+
 const SYSTEM_PROMPT = `Sei l'assistente di FoodOS, un gestionale food cost per la ristorazione italiana.
 Aiuta l'utente a capire come usare le funzionalità dell'app: ricettario, food cost, P&L, produzione giornaliera, cassa, magazzino, scadenzario, fornitori, personale, menù, previsioni, integrazioni delivery (Deliveroo, JustEat, Glovo), scheda allergeni, AI foto analisi ricette.
 
@@ -221,13 +253,13 @@ export default function AIAssistant() {
                   borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
                   fontSize: 13,
                   lineHeight: 1.5,
-                  whiteSpace: 'pre-wrap',
+                  whiteSpace: m.role === 'user' ? 'pre-wrap' : 'normal',
                   wordBreak: 'break-word',
                   boxShadow: m.role === 'user' ? '0 2px 8px rgba(110,14,26,0.18)' : '0 1px 2px rgba(15,23,42,0.04)',
                   animation: '_ai_pop 0.18s ease-out',
                 }}
               >
-                {m.content}
+                {m.role === 'assistant' ? renderRich(m.content) : m.content}
               </div>
             ))}
             {loading && (
