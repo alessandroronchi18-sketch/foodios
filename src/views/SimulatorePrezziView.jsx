@@ -76,7 +76,9 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const reset = () => setPrezzi(Object.fromEntries(baseRows.map(r => [r.nome, r.reg.prezzo.toFixed(2)])))
 
   const scenRows = baseRows.map(r => {
-    const newPrezzo = Math.max(0, parseFloat(prezzi[r.nome]) || 0)
+    // fallback al prezzo base: se il ricettario si carica async dopo il mount,
+    // prezzi[r.nome] è undefined e senza fallback il prezzo base proietterebbe a 0.
+    const newPrezzo = Math.max(0, parseFloat(prezzi[r.nome] ?? r.reg.prezzo) || 0)
     const delta     = r.reg.prezzo > 0 ? ((newPrezzo - r.reg.prezzo) / r.reg.prezzo * 100) : 0
     const newRicavo = parseFloat((r.reg.unita * newPrezzo).toFixed(2))
     const newMarg   = parseFloat((newRicavo - r.fc).toFixed(2))
@@ -344,7 +346,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: C.textMid }}>€</span>
                       <input type="number" min="0" step="0.10"
-                        value={prezzi[r.nome]}
+                        value={prezzi[r.nome] ?? r.reg.prezzo.toFixed(2)}
                         onChange={e => setP(r.nome, e.target.value)}
                         onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setP(r.nome, v.toFixed(2)) }}
                         style={{ width: 80, padding: '8px 10px', borderRadius: 8, textAlign: 'center',

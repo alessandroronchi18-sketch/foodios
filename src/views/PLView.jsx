@@ -539,20 +539,6 @@ export default function PLView({ ricettario, onUpdateRegola }) {
     }
   }).sort((a, b) => b.margPct - a.margPct)
 
-  if (!rows.length) return (
-    <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', padding: '32px 24px',
-      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, boxShadow: S.sm }}>
-      <div style={{ width: 48, height: 48, borderRadius: R.md, background: T.bgSubtle,
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: T.textSoft, marginBottom: 14 }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-        </svg>
-      </div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>Nessun dato P&amp;L</div>
-      <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5 }}>Carica il ricettario per vedere ricavi, food cost e margine per ogni prodotto.</div>
-    </div>
-  )
-
   const totRicavo = rows.reduce((s, r) => s + r.ricavo, 0)
   const totFC = rows.reduce((s, r) => s + r.fc, 0)
   const totMargine = rows.reduce((s, r) => s + r.margine, 0)
@@ -614,6 +600,23 @@ export default function PLView({ ricettario, onUpdateRegola }) {
     }
     return out
   }, [rows, topIngredienti])
+
+  // Early return DOPO tutti gli hook (Rules of Hooks): rows può passare da
+  // vuoto a popolato quando il ricettario si carica async — il return non deve
+  // mai precedere gli useMemo, altrimenti il numero di hook cambia tra render.
+  if (!rows.length) return (
+    <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', padding: '32px 24px',
+      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, boxShadow: S.sm }}>
+      <div style={{ width: 48, height: 48, borderRadius: R.md, background: T.bgSubtle,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: T.textSoft, marginBottom: 14 }}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+      </div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>Nessun dato P&amp;L</div>
+      <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5 }}>Carica il ricettario per vedere ricavi, food cost e margine per ogni prodotto.</div>
+    </div>
+  )
 
   return (
     <div style={{ maxWidth: 1200 }}>

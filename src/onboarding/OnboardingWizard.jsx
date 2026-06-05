@@ -170,6 +170,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
   const [secondaSede, setSecondaSede] = useState({ nome: '', indirizzo: '', citta: '' })
   const [addingSecondaSede, setAddingSecondaSede] = useState(false)
   const [sedeSaving, setSedeSaving] = useState(false)
+  const [sedeError, setSedeError] = useState(null)
 
   // ESC chiude il wizard (skip silenzioso)
   useEffect(() => {
@@ -221,8 +222,12 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
   async function handleAggiungiSecondaSede() {
     if (!secondaSede.nome.trim() || !orgId) return
     setSedeSaving(true)
+    setSedeError(null)
+    // NB: il client Supabase NON lancia su errore DB — restituisce { error }.
+    // Vanno controllati sia l'error sia eventuali eccezioni di rete.
+    let dbError = null
     try {
-      await supabase.from('sedi').insert({
+      const { error } = await supabase.from('sedi').insert({
         organization_id: orgId,
         nome: secondaSede.nome.trim(),
         indirizzo: secondaSede.indirizzo.trim() || null,
@@ -230,8 +235,17 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
         is_default: false,
         attiva: true,
       })
-    } catch {}
+      dbError = error
+    } catch (e) {
+      dbError = e
+    }
     setSedeSaving(false)
+    if (dbError) {
+      // Non chiamare onComplete: l'utente crederebbe la sede creata. Mostra errore
+      // e lascia ritentare (o usare "Salta"). La sede comparirà al prossimo reload.
+      setSedeError(dbError.message || 'Errore durante il salvataggio della sede. Riprova.')
+      return
+    }
     onComplete()
   }
 
@@ -577,6 +591,11 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                     />
                   </div>
                 ))}
+                {sedeError && (
+                  <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13, lineHeight: 1.5 }}>
+                    ⚠ {sedeError}
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
                   <button onClick={handleAggiungiSecondaSede}
                     disabled={!secondaSede.nome.trim() || sedeSaving}

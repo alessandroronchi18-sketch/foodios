@@ -187,7 +187,10 @@ export default function App() {
 
   // Non loggato
   if (!auth.user) {
-    const initialReferralCode = localStorage.getItem('referral_code_pendente') || ''
+    // try/catch: in Safari private mode getItem può lanciare durante il render,
+    // crashando l'intera pagina (nessun error boundary su questo path in prod).
+    let initialReferralCode = ''
+    try { initialReferralCode = localStorage.getItem('referral_code_pendente') || '' } catch {}
     if (path === '/login' || path === '/register') {
       return <AuthPage onSignIn={auth.signIn} onSignUp={auth.signUp} initialReferralCode={initialReferralCode} initialMode={path === '/register' ? 'registrati' : 'login'} />
     }

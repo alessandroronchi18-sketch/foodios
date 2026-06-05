@@ -74,6 +74,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
   const [loading, setLoading] = useState(true)
   const [scartoForm, setScartoForm] = useState(null)
   const [movimenti, setMovimenti] = useState([])
+  const [saving, setSaving] = useState(false)
 
   const carica = useCallback(async () => {
     if (!orgId || !sedeId) { setLoading(false); return }
@@ -93,7 +94,9 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
   useEffect(() => { carica() }, [carica])
 
   const handleScarto = async () => {
+    if (saving) return // evita doppio scarico stock su doppio click
     if (!scartoForm?.prodotto || !(scartoForm.qty > 0)) return
+    setSaving(true)
     try {
       await scartoPF({ sedeId, prodotto: scartoForm.prodotto, quantita: scartoForm.qty, note: scartoForm.note || null })
       notify('✓ Scarto registrato')
@@ -101,6 +104,8 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
       await carica()
     } catch (e) {
       notify('Errore: ' + e.message, false)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -234,7 +239,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId }) {
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setScartoForm(null)} style={{ padding: '10px 18px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Annulla</button>
-              <button onClick={handleScarto} style={{ padding: '10px 18px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Registra scarto</button>
+              <button onClick={handleScarto} disabled={saving} style={{ padding: '10px 18px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Registrazione…' : 'Registra scarto'}</button>
             </div>
           </div>
         </div>
@@ -490,6 +495,7 @@ export default function MagazzinoView({
   const [newIngNome, setNewIngNome] = useState('')
   const [newIngQty, setNewIngQty] = useState('')
   const [newIngSoglia, setNewIngSoglia] = useState('')
+  const [saving, setSaving] = useState(false)
 
   // ESC chiude il modal di delete (UX coerente con ProduzioneGiornalieraView).
   useEffect(() => {
@@ -504,16 +510,27 @@ export default function MagazzinoView({
   // ssave locale che usa orgId/sedeId props (sostituisce la wrapper Dashboard.jsx)
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
 
-  const handleDeleteIng = (k) => {
+  const handleDeleteIng = async (k) => {
+    if (saving) return // evita doppia esecuzione su Enter+click
     const nm = { ...magazzino }
     delete nm[k]
-    setMagazzino(nm)
-    ssave(SK_MAG, nm)
     const nuoviEsclusi = new Set(esclusi)
     nuoviEsclusi.add(k)
+    // SAVE FIRST: muto lo state solo dopo che entrambe le scritture sono persistite,
+    // altrimenti l'ingrediente sparisce dall'UI ma resta nel DB (riappare al refresh).
+    setSaving(true)
+    try {
+      await ssave(SK_MAG, nm)
+      await ssave(SK_EXCL, [...nuoviEsclusi])
+    } catch (e) {
+      notify(`⚠ Eliminazione fallita: ${e.message || 'rete'}. Riprova.`, false)
+      setSaving(false)
+      return
+    }
+    setMagazzino(nm)
     if (setEsclusi) setEsclusi(nuoviEsclusi)
-    ssave(SK_EXCL, [...nuoviEsclusi])
     setDeleteIngConf(null); setDeleteIngPin('')
+    setSaving(false)
     notify('✓ Ingrediente eliminato dal sistema')
   }
 
@@ -548,6 +565,7 @@ export default function MagazzinoView({
   const attenzione = righe.filter(r => r.stato === 'attenzione')
 
   const handleCarica = async () => {
+    if (saving) return
     if (!formIng || !formQty) return
     const k = normIng(formIng.toLowerCase().trim())
     const qty = parseFloat(formQty)
@@ -562,16 +580,19 @@ export default function MagazzinoView({
     const logEntry = { id: `r-${Date.now()}`, data: now, ingrediente: formIng.trim(), quantita_g: formMode === 'scarico' ? -qty : qty, note: formNote || (formMode === 'scarico' ? 'scarico manuale' : '') }
     const log = [logEntry, ...(logRif || [])]
     // SAVE FIRST: se ssave fallisce non vogliamo state desincronizzato dal DB.
+    setSaving(true)
     try {
       await ssave(SK_MAG, nm); await ssave(SK_LOGRIF, log)
     } catch (e) {
       notify(`⚠ Salvataggio magazzino fallito: ${e.message || 'rete'}. Riprova.`, false)
+      setSaving(false)
       return
     }
     setMagazzino(nm); setLogRif(log)
     const segno = formMode === 'scarico' ? '−' : '+'
     notify(`✓ ${segno}${qty}g di ${formIng} — giacenza: ${Math.round(nuova)}g`)
     setFormIng(''); setFormQty(''); setFormNote(''); setQuickLoad(null)
+    setSaving(false)
   }
 
   const handleSoglia = async (k, val) => {
@@ -587,13 +608,16 @@ export default function MagazzinoView({
   }
 
   const handleAddIngrediente = async () => {
+    if (saving) return
     if (!newIngNome) return
     const k = normIng(newIngNome)
     const nm = { ...magazzino, [k]: { nome: newIngNome.trim(), giacenza_g: parseFloat(newIngQty) || 0, soglia_g: parseFloat(newIngSoglia) || 0, ultimoRifornimento: new Date().toISOString() } }
+    setSaving(true)
     try {
       await ssave(SK_MAG, nm)
     } catch (e) {
       notify(`⚠ Errore aggiunta ingrediente: ${e.message || 'rete'}`, false)
+      setSaving(false)
       return
     }
     setMagazzino(nm)
@@ -605,6 +629,7 @@ export default function MagazzinoView({
     }
     notify('✓ ' + newIngNome + ' aggiunto al magazzino')
     setShowAddIng(false); setNewIngNome(''); setNewIngQty(''); setNewIngSoglia('')
+    setSaving(false)
   }
 
   const statoColor = s => s === 'esaurito' ? C.red : s === 'critico' ? C.red : s === 'attenzione' ? C.amber : C.green
@@ -689,7 +714,7 @@ export default function MagazzinoView({
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={handleAddIngrediente} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Aggiungi</button>
+                <button onClick={handleAddIngrediente} disabled={saving} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvataggio…' : 'Aggiungi'}</button>
                 <button onClick={() => setShowAddIng(false)} style={{ padding: '8px 12px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>✕</button>
               </div>
             </div>
@@ -850,11 +875,11 @@ export default function MagazzinoView({
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text }}/>
               </div>
               <datalist id="ing-list">{tuttiIngNomi.map(k => <option key={k} value={k}/>)}</datalist>
-              <button onClick={handleCarica} disabled={!formIng || !formQty}
-                style={{ padding: '12px', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: formIng && formQty ? 'pointer' : 'default',
-                  background: formIng && formQty ? (formMode === 'scarico' ? C.amber : C.red) : '#DDD',
-                  color: formIng && formQty ? C.white : '#999' }}>
-                {formMode === 'scarico' ? '➖ Rimuovi dal magazzino' : '➕ Aggiungi al magazzino'}
+              <button onClick={handleCarica} disabled={!formIng || !formQty || saving}
+                style={{ padding: '12px', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: (formIng && formQty && !saving) ? 'pointer' : 'default',
+                  background: (formIng && formQty && !saving) ? (formMode === 'scarico' ? C.amber : C.red) : '#DDD',
+                  color: (formIng && formQty && !saving) ? C.white : '#999' }}>
+                {saving ? 'Salvataggio…' : (formMode === 'scarico' ? '➖ Rimuovi dal magazzino' : '➕ Aggiungi al magazzino')}
               </button>
             </div>
           </div>
@@ -914,9 +939,9 @@ export default function MagazzinoView({
               placeholder="ELIMINA"
               style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 7, border: `2px solid ${deleteIngPin === 'ELIMINA' ? C.red : '#DDD'}`, fontSize: 14, fontWeight: 800, color: C.red, letterSpacing: '0.1em', marginBottom: 16, outline: 'none' }}/>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { if (deleteIngPin === 'ELIMINA') handleDeleteIng(deleteIngConf) }}
-                style={{ flex: 1, padding: '11px', background: deleteIngPin === 'ELIMINA' ? C.red : '#EEE', color: deleteIngPin === 'ELIMINA' ? C.white : '#AAA', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: deleteIngPin === 'ELIMINA' ? 'pointer' : 'not-allowed' }}>
-                Elimina definitivamente
+              <button onClick={() => { if (deleteIngPin === 'ELIMINA') handleDeleteIng(deleteIngConf) }} disabled={saving}
+                style={{ flex: 1, padding: '11px', background: deleteIngPin === 'ELIMINA' && !saving ? C.red : '#EEE', color: deleteIngPin === 'ELIMINA' && !saving ? C.white : '#AAA', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: deleteIngPin === 'ELIMINA' && !saving ? 'pointer' : 'not-allowed' }}>
+                {saving ? 'Eliminazione…' : 'Elimina definitivamente'}
               </button>
               <button onClick={() => { setDeleteIngConf(null); setDeleteIngPin('') }} style={{ flex: 1, padding: '11px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Annulla</button>
             </div>

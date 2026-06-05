@@ -368,7 +368,7 @@ function LogTable({ logs }) {
   )
 }
 
-export default function Integrazioni({ orgId }) {
+export default function Integrazioni({ orgId, sedeId }) {
   const [logs, setLogs] = useState({})
   const [loading, setLoading] = useState(true)
   const [importLoading, setImportLoading] = useState(null)
@@ -483,7 +483,7 @@ export default function Integrazioni({ orgId }) {
           setRisultato({ tipo: 'kassa', chiusure: chiusure_giornaliere, cfgId: cfg.id })
 
         } else if (['sumup','satispay','square','deliveroo','justeat','uber_eats','glovo','shopify','woocommerce'].includes(cfg.id)) {
-          // Pattern unificato: parser → aggregati per giorno → merge in chiusure (SK_CHIUS shared)
+          // Pattern unificato: parser → aggregati per giorno → merge in chiusure (SK_CHIUS per-sede)
           let aggregati = []
           if (cfg.id === 'sumup')         aggregati = parseSumUp(await file.text())
           else if (cfg.id === 'satispay') aggregati = parseSatispay(await file.text())
@@ -495,13 +495,15 @@ export default function Integrazioni({ orgId }) {
           else if (cfg.id === 'shopify')  aggregati = parseShopifyOrders(await file.text())
           else if (cfg.id === 'woocommerce') aggregati = parseWooCommerceOrders(await file.text())
 
-          // Merge nelle chiusure cassa (SK_CHIUS) — chiave shared
-          const chiusureAttuali = (await sload(SK_CHIUS, orgId, null)) || []
+          // Merge nelle chiusure cassa (SK_CHIUS) — chiave PER-SEDE: usare sedeId,
+          // non null, altrimenti i dati finiscono nel bucket shared e ChiusuraView
+          // (che legge per-sede) non li vede mai.
+          const chiusureAttuali = (await sload(SK_CHIUS, orgId, sedeId)) || []
           const fonteLabel = cfg.nome
           const nuove = ['shopify','woocommerce'].includes(cfg.id)
             ? mergeOrdiniInChiusure(chiusureAttuali, aggregati, fonteLabel)
             : mergeInChiusure(chiusureAttuali, aggregati, fonteLabel)
-          await ssave(SK_CHIUS, nuove, orgId, null)
+          await ssave(SK_CHIUS, nuove, orgId, sedeId)
           imported += aggregati.length
           setRisultato({
             tipo: 'aggregato',

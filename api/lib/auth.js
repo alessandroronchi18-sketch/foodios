@@ -82,6 +82,69 @@ export async function rallentaSeNecessario(startTime, minMs = 200) {
   }
 }
 
+// ── Admin check condiviso ──────────────────────────────────────────────────
+// ADMIN_EMAIL letto a module-load (come admin.js / send-email.js).
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase()
+
+// Decodifica un claim dal payload JWT senza verifica firma. Sicuro perche'
+// chiamato solo DOPO supabase.auth.getUser(token) (che verifica la firma).
+function decodeJwtClaim(token, claim) {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (b64.length % 4) b64 += '='
+    const payload = JSON.parse(atob(b64))
+    return payload[claim] ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Verifica che il Bearer token appartenga all'admin, con MFA (aal2) obbligatoria
+ * salvo override DISABLE_ADMIN_MFA=true. Ritorna { user, reason }.
+ * Fail-closed: senza ADMIN_EMAIL configurato nessuno e' admin.
+ *
+ * NB: api/admin.js mantiene una copia locale identica (per non rischiare
+ * regressioni sul pannello admin live). Consolidare qui quando si productionizza
+ * il flusso SDI — che e' l'unico altro consumer (api/sdi-emit-invoice.js).
+ */
+export async function verificaAdmin(req, supabase) {
+  if (!ADMIN_EMAIL) return { user: null, reason: 'admin_email_not_configured' }
+
+  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { user: null, reason: 'no_bearer' }
+  }
+  const token = authHeader.replace('Bearer ', '').trim()
+  if (!token) return { user: null, reason: 'empty_token' }
+
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    if (error) return { user: null, reason: `getUser_error:${error.message}` }
+    if (!user) return { user: null, reason: 'no_user' }
+    if ((user.email || '').toLowerCase() !== ADMIN_EMAIL) {
+      return { user: null, reason: `not_admin:${user.email}` }
+    }
+    if ((process.env.DISABLE_ADMIN_MFA || '').toLowerCase() === 'true') {
+      return { user, reason: 'ok_mfa_disabled' }
+    }
+    const aalLevel = decodeJwtClaim(token, 'aal')
+    if (aalLevel !== 'aal2') {
+      let hasVerifiedFactor = false
+      try {
+        const { data: f } = await supabase.auth.admin.mfa.listFactors({ userId: user.id })
+        hasVerifiedFactor = (f?.factors || []).some(x => x.status === 'verified')
+      } catch { hasVerifiedFactor = true }
+      return { user: null, reason: hasVerifiedFactor ? 'mfa_required' : 'mfa_not_enrolled' }
+    }
+    return { user, reason: 'ok' }
+  } catch (err) {
+    return { user: null, reason: `exception:${err.message}` }
+  }
+}
+
 /**
  * Log di azioni sensibili sull'audit_log.
  * Non blocca in caso di errore.

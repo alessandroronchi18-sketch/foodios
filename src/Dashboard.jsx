@@ -2486,7 +2486,7 @@ export default function Dashboard({
         {view==="confronto-sedi"&&<ConfrontoSedi orgId={orgId} sedi={sedi}/>}
         {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita}/>}
         {view==="trasferimenti"&&<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>}
-        {view==="integrazioni"&&<Integrazioni orgId={orgId} notify={notify}/>}
+        {view==="integrazioni"&&<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile}/>}

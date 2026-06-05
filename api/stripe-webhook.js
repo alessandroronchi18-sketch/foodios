@@ -219,10 +219,22 @@ export default async function handler(req, res) {
             if (!d || !d.coupon) continue
             const couponId = typeof d.coupon === 'string' ? d.coupon : d.coupon.id
             const promoCodeId = typeof d.promotion_code === 'string' ? d.promotion_code : d.promotion_code?.id
-            const { data: cod } = await supabase
-              .from('discount_codes').select('id, codice')
-              .or(`stripe_coupon_id.eq.${couponId}${promoCodeId ? `,stripe_promo_code_id.eq.${promoCodeId}` : ''}`)
-              .maybeSingle()
+            // Due .eq() parametrici invece di .or() con interpolazione grezza
+            // (gli ID Stripe sono alfanumerici, ma evitiamo interpolazione in
+            // una filter-string PostgREST). Match per coupon, fallback su promo.
+            let cod = null
+            {
+              const { data } = await supabase
+                .from('discount_codes').select('id, codice')
+                .eq('stripe_coupon_id', couponId).maybeSingle()
+              cod = data
+            }
+            if (!cod && promoCodeId) {
+              const { data } = await supabase
+                .from('discount_codes').select('id, codice')
+                .eq('stripe_promo_code_id', promoCodeId).maybeSingle()
+              cod = data
+            }
             if (!cod) continue
             const { data: orgRow } = await supabase
               .from('organizations').select('id').eq('stripe_customer_id', inv.customer).maybeSingle()
