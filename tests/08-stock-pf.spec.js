@@ -1,62 +1,70 @@
 // @ts-check
-// Test E2E sul ciclo stock prodotti finiti: carico produzione, vendita,
-// eliminazione sessione, scarico stock vetrina.
+// Stock prodotti finiti: carico (produzione) → scarico (vendita) → scarto.
+// Self-contained: crea un'org effimera e chiama le RPC col token utente (le RPC
+// usano get_user_org_id() dal JWT), verificando lo stock dopo ogni movimento.
+// Pulisce a fine test.
 //
-// Stato attuale: STUB — gated su TEST_PRODOTTO_SEED. La logica di setup
-// richiede un ricettario seed con almeno 1 ricetta + magazzino popolato.
-// Vedi tests/helpers/auth.js per come scrive .seed-state.json.
-//
-// Quando il global-setup di Playwright produce TEST_PRODOTTO_SEED nella
-// .env.test, questo test puo' partire da solo.
+// Gira se ci sono: SUPABASE_URL + SUPABASE_SERVICE_KEY + VITE_SUPABASE_ANON_KEY.
 
 import { test, expect } from '@playwright/test'
-import { login, navTo, TEST_EMAIL, TEST_PASSWORD } from './helpers/auth.js'
+import { hasDbEnv, serviceClient, createEphemeralOrg, cleanupOrg } from './helpers/db.js'
 
-const PROD = process.env.TEST_PRODOTTO_SEED || ''
+test.describe('Stock prodotti finiti — carico/scarico/scarto via RPC', () => {
+  test.skip(!hasDbEnv, 'Servono SUPABASE_URL + SUPABASE_SERVICE_KEY + VITE_SUPABASE_ANON_KEY')
 
-test.describe('Stock vetrina — ciclo completo', () => {
-  test.skip(!TEST_EMAIL || !TEST_PASSWORD || !PROD,
-    'TEST_PRODOTTO_SEED non impostato (nome prodotto seed nel ricettario test)')
+  test('il carico aumenta lo stock, scarico e scarto lo riducono', async () => {
+    const svc = serviceClient()
+    let A = null
+    try {
+      A = await createEphemeralOrg(svc, 'stock')
+      expect(A.sedeId).toBeTruthy()
+      const PROD = 'TORTA TEST PF' // convenzione: prodotto_nome uppercase().trim()
 
-  test('produzione → vendita → delete sessione → stock zero', async ({ page }) => {
-    await login(page)
+      const stockOf = async () => {
+        const { data } = await A.userClient.from('stock_prodotti_finiti')
+          .select('quantita').eq('sede_id', A.sedeId).eq('prodotto_nome', PROD).maybeSingle()
+        return Number(data?.quantita ?? 0)
+      }
 
-    // 1. Apri Produzione, registra 10 stampi del prodotto seed
-    await navTo(page, 'Produzione')
-    const inputQta = page.getByLabel(new RegExp(`${PROD}.*stampi`, 'i')).first()
-    if (await inputQta.count() === 0) test.skip(true, `Ricetta seed "${PROD}" non trovata nel ricettario corrente`)
-    await inputQta.fill('10')
-    await page.getByRole('button', { name: /conferma produzione/i }).click()
-    await page.getByRole('button', { name: /sì, conferma/i }).click()
-    await expect(page.getByText(/produzione registrata/i).first()).toBeVisible({ timeout: 15000 })
+      // carico 10
+      {
+        const { error } = await A.userClient.rpc('stock_pf_carico_produzione', {
+          p_sede: A.sedeId, p_prodotto: PROD, p_quantita: 10, p_unita: 'pz', p_note: 'e2e carico',
+        })
+        expect(error).toBeFalsy()
+      }
+      expect(await stockOf()).toBe(10)
 
-    // 2. Verifica stock = 10 (in Magazzino o nel widget)
-    await navTo(page, 'Magazzino')
-    await expect(page.getByText(new RegExp(PROD, 'i')).first()).toBeVisible({ timeout: 10000 })
+      // scarico vendita 4 → 6
+      {
+        const { error } = await A.userClient.rpc('stock_pf_scarico_vendita', {
+          p_sede: A.sedeId, p_prodotto: PROD, p_quantita: 4, p_unita: 'pz', p_note: 'e2e vendita',
+        })
+        expect(error).toBeFalsy()
+      }
+      expect(await stockOf()).toBe(6)
 
-    // 3. Elimina la sessione
-    await navTo(page, 'Produzione')
-    await page.getByRole('tab', { name: /storico/i }).click().catch(() => {})
-    await page.getByRole('button', { name: /elimina/i }).first().click()
-    await page.getByPlaceholder('ELIMINA').fill('ELIMINA')
-    await page.getByRole('button', { name: /elimina e reintegra/i }).click()
-    await expect(page.getByText(/sessione eliminata/i).first()).toBeVisible({ timeout: 15000 })
+      // scarto 6 → 0
+      {
+        const { error } = await A.userClient.rpc('stock_pf_scarto', {
+          p_sede: A.sedeId, p_prodotto: PROD, p_quantita: 6, p_note: 'e2e scarto',
+        })
+        expect(error).toBeFalsy()
+      }
+      expect(await stockOf()).toBe(0)
 
-    // 4. Verifica stock = 0 (ovvero il prodotto non e' piu' visibile in vetrina)
-    await navTo(page, 'Magazzino')
-    // Lo stock potrebbe ancora avere riga con quantita 0; il widget Dashboard
-    // mostra solo righe > 0. Per il test, controlliamo via API direttamente:
-    const stockZero = await page.evaluate(async (prodName) => {
-      const sb = (await import('/src/lib/supabase.js')).supabase
-      const { data: { user } } = await sb.auth.getUser()
-      const { data: prof } = await sb.from('profiles').select('organization_id').eq('id', user.id).single()
-      const { data } = await sb.from('stock_prodotti_finiti')
-        .select('quantita')
-        .eq('organization_id', prof.organization_id)
-        .eq('prodotto_nome', prodName.toUpperCase().trim())
-        .maybeSingle()
-      return Number(data?.quantita || 0)
-    }, PROD)
-    expect(stockZero).toBe(0)
+      // carico con quantità non valida (0) → la RPC deve rifiutare
+      {
+        const { error } = await A.userClient.rpc('stock_pf_carico_produzione', {
+          p_sede: A.sedeId, p_prodotto: PROD, p_quantita: 0, p_unita: 'pz', p_note: null,
+        })
+        expect(error).toBeTruthy()
+      }
+
+      // un movimento su una sede di un'ALTRA org sarebbe bloccato: la RPC ricava
+      // l'org dal JWT, quindi non può toccare sedi non proprie (coperto da RLS).
+    } finally {
+      await cleanupOrg(svc, A)
+    }
   })
 })

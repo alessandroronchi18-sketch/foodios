@@ -5,6 +5,9 @@ const BASE_URL = process.env.BASE_URL || 'https://foodios-rose.vercel.app'
 
 export default defineConfig({
   testDir: './tests',
+  // Solo le spec e2e (*.spec.js). Gli unit Vitest (tests/unit/*.test.js) NON
+  // devono essere raccolti da Playwright (usano vi.mock / import.meta.env).
+  testMatch: '**/*.spec.js',
   globalSetup: './global-setup.js',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

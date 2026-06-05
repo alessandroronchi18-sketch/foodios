@@ -1,70 +1,78 @@
 // @ts-check
-// Test del webhook Stripe — gated su STRIPE_WEBHOOK_SECRET_TEST + STRIPE_SECRET_KEY_TEST.
+// Webhook Stripe — proprietà di sicurezza + (opzionale) evento firmato valido.
 //
-// Cosa fa: genera una signature di test valida con stripe.webhooks.generateTestHeaderString,
-// POST a /api/stripe-webhook con payload `customer.subscription.updated`, verifica
-// che `organizations.stripe_subscription_id` venga sincronizzato sul DB.
-//
-// Requisiti:
-//   STRIPE_WEBHOOK_SECRET_TEST  = whsec_... (uguale a quello configurato sul deploy di test)
-//   STRIPE_SECRET_KEY_TEST      = sk_test_... (per il client Stripe)
-//   E2E_BASE_URL                = https://foodios-rose.vercel.app (o deploy preview)
-//   TEST_ORG_ID                 = uuid dell'org test
-//   TEST_STRIPE_CUSTOMER_ID     = cus_... corrispondente
-//
-// Senza queste env var, il test e' SKIPPED (no failure).
+// I test di sicurezza girano SEMPRE (nessun secret): verificano che un evento
+// non firmato / con firma errata NON venga mai accettato (mai 200) e che GET dia
+// 405. Il test positivo (evento firmato valido) gira solo se è impostato
+// STRIPE_WEBHOOK_SECRET_TEST = stesso secret del webhook in produzione.
 
 import { test, expect, request } from '@playwright/test'
 
+const BASE = process.env.E2E_BASE_URL || process.env.BASE_URL || 'https://foodios-rose.vercel.app'
+
+test.describe('Stripe webhook — sicurezza firma', () => {
+  test('evento NON firmato → mai accettato (400 o 503, mai 200)', async () => {
+    const ctx = await request.newContext()
+    try {
+      const res = await ctx.post(`${BASE}/api/stripe-webhook`, {
+        headers: { 'content-type': 'application/json' },
+        data: JSON.stringify({ id: 'evt_fake', type: 'customer.subscription.updated', data: { object: {} } }),
+      })
+      expect(res.status()).not.toBe(200)        // un evento non firmato non passa MAI
+      expect([400, 503]).toContain(res.status()) // 400 firma mancante / 503 Stripe non configurato
+    } finally { await ctx.dispose() }
+  })
+
+  test('firma palesemente errata → rifiutata', async () => {
+    const ctx = await request.newContext()
+    try {
+      const res = await ctx.post(`${BASE}/api/stripe-webhook`, {
+        headers: { 'content-type': 'application/json', 'stripe-signature': 't=1,v1=deadbeef' },
+        data: '{"id":"evt_x","type":"ping"}',
+      })
+      expect(res.status()).not.toBe(200)
+      expect([400, 503]).toContain(res.status())
+    } finally { await ctx.dispose() }
+  })
+
+  test('metodo GET non consentito → 405', async () => {
+    const ctx = await request.newContext()
+    try {
+      const res = await ctx.get(`${BASE}/api/stripe-webhook`)
+      expect(res.status()).toBe(405)
+    } finally { await ctx.dispose() }
+  })
+})
+
 const WHSEC = process.env.STRIPE_WEBHOOK_SECRET_TEST || ''
-const STRIPE_KEY = process.env.STRIPE_SECRET_KEY_TEST || ''
-const BASE_URL = process.env.E2E_BASE_URL || ''
-const ORG_ID = process.env.TEST_ORG_ID || ''
-const STRIPE_CUST = process.env.TEST_STRIPE_CUSTOMER_ID || ''
 
-test.describe('Stripe webhook end-to-end', () => {
-  test.skip(!WHSEC || !STRIPE_KEY || !BASE_URL || !ORG_ID || !STRIPE_CUST,
-    'STRIPE_WEBHOOK_SECRET_TEST / STRIPE_SECRET_KEY_TEST / E2E_BASE_URL / TEST_ORG_ID / TEST_STRIPE_CUSTOMER_ID non impostati')
+test.describe('Stripe webhook — evento firmato valido', () => {
+  test.skip(!WHSEC, 'STRIPE_WEBHOOK_SECRET_TEST non impostato (deve combaciare col secret del webhook in prod)')
 
-  test('customer.subscription.updated → DB sync', async () => {
+  test('evento firmato correttamente → 200 received', async () => {
     const Stripe = (await import('stripe')).default
-    const stripe = new Stripe(STRIPE_KEY, { apiVersion: '2024-06-20' })
-
-    // Payload Stripe di un evento subscription.updated
-    const now = Math.floor(Date.now() / 1000)
-    const fakeEvent = {
-      id: `evt_test_${now}`,
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY_TEST || 'sk_test_placeholder', { apiVersion: '2024-06-20' })
+    const payload = JSON.stringify({
+      id: `evt_e2e_${Date.now()}`,
       object: 'event',
       type: 'customer.subscription.updated',
-      created: now,
-      livemode: false,
-      data: {
-        object: {
-          id: `sub_test_${now}`,
-          object: 'subscription',
-          customer: STRIPE_CUST,
-          status: 'active',
-          current_period_end: now + 30 * 86400,
-          items: { data: [{ price: { id: process.env.STRIPE_PRO_PRICE_ID || 'price_test_pro' } }] },
-          metadata: { organization_id: ORG_ID, plan: 'pro' },
-        },
-      },
-    }
-    const payload = JSON.stringify(fakeEvent)
-    const sig = stripe.webhooks.generateTestHeaderString({ payload, secret: WHSEC })
-
-    // POST al webhook deploy
-    const ctx = await request.newContext()
-    const res = await ctx.post(`${BASE_URL}/api/stripe-webhook`, {
-      headers: { 'stripe-signature': sig, 'content-type': 'application/json' },
-      data: payload,
+      data: { object: {
+        id: 'sub_e2e_test',
+        status: 'active',
+        items: { data: [] },
+        metadata: { organization_id: process.env.TEST_ORG_ID || '' },
+      } },
     })
-    expect(res.status()).toBe(200)
-    const body = await res.json()
-    expect(body.received).toBe(true)
-
-    // Verifica DB: organizations.stripe_subscription_id deve essere fakeEvent.data.object.id
-    // (richiede VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY + RLS bypass via service_role).
-    // In assenza di service_role accessibile al test, ci limitiamo allo status 200.
+    const header = stripe.webhooks.generateTestHeaderString({ payload, secret: WHSEC })
+    const ctx = await request.newContext()
+    try {
+      const res = await ctx.post(`${BASE}/api/stripe-webhook`, {
+        headers: { 'content-type': 'application/json', 'stripe-signature': header },
+        data: payload,
+      })
+      expect(res.status()).toBe(200)
+      const body = await res.json()
+      expect(body.received).toBe(true)
+    } finally { await ctx.dispose() }
   })
 })

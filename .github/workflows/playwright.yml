@@ -32,6 +32,12 @@ jobs:
           # global-setup.js usa la service key per seminare ricetta + leggere orgId
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          # anon key (pubblica) per il sign-in utente nei test RLS / stock PF
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
+          # opzionali per il test positivo Stripe (altrimenti skipped)
+          STRIPE_WEBHOOK_SECRET_TEST: ${{ secrets.STRIPE_WEBHOOK_SECRET_TEST }}
+          STRIPE_SECRET_KEY_TEST: ${{ secrets.STRIPE_SECRET_KEY_TEST }}
+          TEST_ORG_ID: ${{ vars.TEST_ORG_ID }}
         run: npx playwright test
 
       - name: Upload Playwright report
