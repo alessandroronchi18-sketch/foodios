@@ -26,7 +26,20 @@ const T = {
 const SERIF = "'Fraunces', 'Iowan Old Style', 'Apple Garamond', Georgia, serif"
 const SANS  = "'Inter', system-ui, -apple-system, sans-serif"
 
-const TIPI_ATTIVITA = ['Pasticceria','Bar / Caffè','Gelateria','Ristorante','Pizzeria','Panetteria','Altro']
+// {label mostrato, slug stabile salvato su organizations.tipo}.
+// Lo slug è la chiave usata da src/lib/lessico.js per la terminologia.
+const TIPI_ATTIVITA = [
+  { label: 'Pasticceria',                slug: 'pasticceria' },
+  { label: 'Gelateria',                  slug: 'gelateria' },
+  { label: 'Cioccolateria',              slug: 'cioccolateria' },
+  { label: 'Panificio / Forno',          slug: 'panificio' },
+  { label: 'Pizzeria',                   slug: 'pizzeria' },
+  { label: 'Pasta fresca / Laboratorio', slug: 'pasta_fresca' },
+  { label: 'Gastronomia / Rosticceria',  slug: 'gastronomia' },
+  { label: 'Bar / Caffetteria',          slug: 'bar' },
+  { label: 'Ristorante',                 slug: 'ristorante' },
+  { label: 'Altro',                      slug: 'altro' },
+]
 
 // Prefissi telefonici internazionali — default Italia (+39)
 const PREFISSI_TELEFONO = [
@@ -525,7 +538,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
   const [reg, setReg] = useState({
     nome: '', cognome: '', prefisso: '+39', telefono: '', nome_attivita: '',
-    tipo_attivita: 'Pasticceria', citta: '',
+    tipo_attivita: 'pasticceria', citta: '',
     email: '', password: '', codice_invito: initialReferralCode,
     accept_terms: false,
   })
@@ -781,7 +794,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
       await onSignUp(reg.email, reg.password, {
         nome_completo: `${reg.nome.trim()} ${reg.cognome.trim()}`.trim(),
         nome_attivita: reg.nome_attivita,
-        tipo_attivita: reg.tipo_attivita.toLowerCase().replace(' / ', '_').replace('/', '_'),
+        tipo_attivita: reg.tipo_attivita, // già uno slug stabile (vedi TIPI_ATTIVITA)
         citta: reg.citta,
         telefono: telNorm,
         telefono_verificato: otpVerified,
@@ -1112,10 +1125,10 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                     <Field label="Tipo di attività">
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
                         {TIPI_ATTIVITA.map(t => {
-                          const selected = reg.tipo_attivita === t
+                          const selected = reg.tipo_attivita === t.slug
                           return (
-                            <button key={t} type="button"
-                              onClick={() => setReg(p => ({ ...p, tipo_attivita: t }))}
+                            <button key={t.slug} type="button"
+                              onClick={() => setReg(p => ({ ...p, tipo_attivita: t.slug }))}
                               style={{
                                 padding: '11px 12px',
                                 background: selected ? T.ink : T.paper,
@@ -1125,7 +1138,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                                 cursor: 'pointer', fontFamily: SANS,
                                 transition: 'all 0.15s ease', textAlign: 'center',
                               }}>
-                              {t}
+                              {t.label}
                             </button>
                           )
                         })}

@@ -1,6 +1,7 @@
 import React from 'react'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { lazyWithReload } from './lib/lazyWithReload'
+import { lessico } from './lib/lessico'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
          Cell, PieChart, Pie, Legend, ReferenceLine, LineChart, Line,
@@ -1222,6 +1223,9 @@ export default function Dashboard({
   _ctx_orgId = orgId;
   _ctx_sedeId = sedeId;
 
+  // Lessico per categoria (gelateria→gusti, pizzeria→pizze, …); fallback generico.
+  const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita]);
+
   const isMobile = useIsMobile();
   const isOnline = useOnlineStatus();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -2075,7 +2079,7 @@ export default function Dashboard({
               </Group>
 
               <Group id="ricette" iconKey="chefHat" label="Ricette & Menù">
-                {navItem("ricettario","book","Ricettario")}
+                {navItem("ricettario","book",LEX.Ricettario)}
                 {navItem("semilavorati","layers","Semilavorati")}
                 {navItem("nuova-ricetta","pencil","Nuova ricetta")}
                 {navItem("formati-vendita","coins","Formati di vendita")}
@@ -2246,7 +2250,7 @@ export default function Dashboard({
         {!isMobile&&(()=>{
           const VIEW_LABELS = {
             home:"Dashboard", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
-            ricettario:"Ricettario", semilavorati:"Semilavorati", "nuova-ricetta":"Nuova ricetta",
+            ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
             simulatore:"Food Cost", pl:"P&L",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
             personale:"Personale", haccp:"HACCP", menu:"Menù",
@@ -2330,7 +2334,7 @@ export default function Dashboard({
         {isMobile&&(()=>{
           const MOBILE_LABELS = {
             home:"Oggi", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
-            ricettario:"Ricettario", semilavorati:"Semilavorati", "nuova-ricetta":"Nuova ricetta",
+            ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
             simulatore:"Food Cost", pl:"P&L",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
             personale:"Personale", haccp:"HACCP", menu:"Menù",
