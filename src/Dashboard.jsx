@@ -1,5 +1,6 @@
 import React from 'react'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { lazyWithReload } from './lib/lazyWithReload'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
          Cell, PieChart, Pie, Legend, ReferenceLine, LineChart, Line,
@@ -10,56 +11,56 @@ import { caricoProduzionePF, scaricoVenditaPF } from './lib/stockPF'
 import { creaTrasferimento } from './lib/trasferimenti'
 import SedeSelector from './components/SedeSelector'
 import SedeContextBanner from './components/SedeContextBanner'
-const Scadenzario = React.lazy(() => import('./components/Scadenzario'))
-const CalendarioOperativo = React.lazy(() => import('./components/CalendarioOperativo'))
-const ReferralPanel = React.lazy(() => import('./components/ReferralPanel'))
+const Scadenzario = lazyWithReload(() => import('./components/Scadenzario'))
+const CalendarioOperativo = lazyWithReload(() => import('./components/CalendarioOperativo'))
+const ReferralPanel = lazyWithReload(() => import('./components/ReferralPanel'))
 import Logo from './components/Logo'
-const Integrazioni = React.lazy(() => import('./components/Integrazioni'))
+const Integrazioni = lazyWithReload(() => import('./components/Integrazioni'))
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from './lib/importDelivery'
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importCassa'
 import useIsMobile from './lib/useIsMobile'
 import { useOnlineStatus } from './lib/useOnlineStatus'
 import { useNotifiche } from './lib/useNotifiche'
 import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF, typo, tnum as TNUM } from './lib/theme'
-const ImpostazioniSedi = React.lazy(() => import('./components/ImpostazioniSedi'))
-const ImpostazioniTv = React.lazy(() => import('./components/ImpostazioniTv'))
-const ExportContabilita = React.lazy(() => import('./components/ExportContabilita'))
+const ImpostazioniSedi = lazyWithReload(() => import('./components/ImpostazioniSedi'))
+const ImpostazioniTv = lazyWithReload(() => import('./components/ImpostazioniTv'))
+const ExportContabilita = lazyWithReload(() => import('./components/ExportContabilita'))
 import { WL_KEY } from './components/WhiteLabel';
-const WhiteLabel = React.lazy(() => import('./components/WhiteLabel'))
+const WhiteLabel = lazyWithReload(() => import('./components/WhiteLabel'))
 import { BenchmarkBadge } from './components/BenchmarkOptin';
-const BenchmarkOptin = React.lazy(() => import('./components/BenchmarkOptin'))
-const MfaSection = React.lazy(() => import('./components/Mfa'))
-const EventiView = React.lazy(() => import('./components/Eventi'))
-const ConfrontoSedi = React.lazy(() => import('./components/ConfrontoSedi'))
-const TrasferimentiView = React.lazy(() => import('./components/TrasferimentiView'))
-const EsportaDati = React.lazy(() => import('./components/EsportaDati'))
+const BenchmarkOptin = lazyWithReload(() => import('./components/BenchmarkOptin'))
+const MfaSection = lazyWithReload(() => import('./components/Mfa'))
+const EventiView = lazyWithReload(() => import('./components/Eventi'))
+const ConfrontoSedi = lazyWithReload(() => import('./components/ConfrontoSedi'))
+const TrasferimentiView = lazyWithReload(() => import('./components/TrasferimentiView'))
+const EsportaDati = lazyWithReload(() => import('./components/EsportaDati'))
 import { exportRicettaPDF, exportProduzione } from './lib/exportPDF'
 import { todayLocal } from './lib/dateLocal'
 import { ICONS as SHARED_ICONS, ic as sharedIc } from './lib/icons'
 import { setExportCtx, getExportCtx, gateExport } from './lib/exportGuard'
 import { CHANGELOG } from './lib/changelog'
 import { NovitaModal } from './components/Changelog';
-const ChangelogView = React.lazy(() => import('./components/Changelog'))
-const NotifichePanel = React.lazy(() => import('./components/NotifichePanel'))
-const BackgroundToast = React.lazy(() => import('./components/BackgroundToast'))
+const ChangelogView = lazyWithReload(() => import('./components/Changelog'))
+const NotifichePanel = lazyWithReload(() => import('./components/NotifichePanel'))
+const BackgroundToast = lazyWithReload(() => import('./components/BackgroundToast'))
 import { backgroundManager } from './lib/backgroundManager'
 import { uploadManager } from './lib/backgroundManager'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, mergeAllergeni } from './lib/allergeni'
 import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese } from './lib/rese'
-const Fornitori = React.lazy(() => import('./components/Fornitori'))
-const Personale = React.lazy(() => import('./components/Personale'))
-const MenuDinamico = React.lazy(() => import('./components/MenuDinamico'))
-const PrevisioneDomanda = React.lazy(() => import('./components/PrevisioneDomanda'))
-const AIFotoAnalisi = React.lazy(() => import('./components/AIFotoAnalisi'))
-const AIAssistant = React.lazy(() => import('./components/AIAssistant'))
-const ImportaDatiView = React.lazy(() => import('./components/ImportaDati'))
-const AbbonamentoPanel = React.lazy(() => import('./components/AbbonamentoPanel'))
-const HaccpView = React.lazy(() => import('./components/Haccp'))
-const FormatiVendita = React.lazy(() => import('./components/FormatiVendita'))
-const RegistroAttivita = React.lazy(() => import('./components/RegistroAttivita'))
-const SpreciOmaggi = React.lazy(() => import('./components/SpreciOmaggi'))
-const WhatsAppReportPanel = React.lazy(() => import('./components/WhatsAppReportPanel'))
-const Impostazioni = React.lazy(() => import('./components/Impostazioni'))
+const Fornitori = lazyWithReload(() => import('./components/Fornitori'))
+const Personale = lazyWithReload(() => import('./components/Personale'))
+const MenuDinamico = lazyWithReload(() => import('./components/MenuDinamico'))
+const PrevisioneDomanda = lazyWithReload(() => import('./components/PrevisioneDomanda'))
+const AIFotoAnalisi = lazyWithReload(() => import('./components/AIFotoAnalisi'))
+const AIAssistant = lazyWithReload(() => import('./components/AIAssistant'))
+const ImportaDatiView = lazyWithReload(() => import('./components/ImportaDati'))
+const AbbonamentoPanel = lazyWithReload(() => import('./components/AbbonamentoPanel'))
+const HaccpView = lazyWithReload(() => import('./components/Haccp'))
+const FormatiVendita = lazyWithReload(() => import('./components/FormatiVendita'))
+const RegistroAttivita = lazyWithReload(() => import('./components/RegistroAttivita'))
+const SpreciOmaggi = lazyWithReload(() => import('./components/SpreciOmaggi'))
+const WhatsAppReportPanel = lazyWithReload(() => import('./components/WhatsAppReportPanel'))
+const Impostazioni = lazyWithReload(() => import('./components/Impostazioni'))
 import {
   PREZZI_HORECA, SING_PLUR, normIng,
   EN_IT_PRODOTTI, EN_IT_INGREDIENTI, translateProdottoEN, translateIngredienteEN,
@@ -68,20 +69,20 @@ import {
 } from './lib/foodcost'
 import { SK_RIC, SK_PROD, SK_ACT, SK_AI, SK_MAG, SK_GIOR, SK_CHIUS, SK_EXCL, SK_RESE, SK_LOG_PRZ } from './lib/storageKeys'
 import { loadXLSX } from './lib/xlsx'
-const SimulatorePrezziView = React.lazy(() => import('./views/SimulatorePrezziView'))
-const PLView = React.lazy(() => import('./views/PLView'))
-const RicettarioView = React.lazy(() => import('./views/RicettarioView'))
-const DashboardHomeView = React.lazy(() => import('./views/DashboardHomeView'))
-const FotoOCR = React.lazy(() => import('./components/FotoOCR'))
+const SimulatorePrezziView = lazyWithReload(() => import('./views/SimulatorePrezziView'))
+const PLView = lazyWithReload(() => import('./views/PLView'))
+const RicettarioView = lazyWithReload(() => import('./views/RicettarioView'))
+const DashboardHomeView = lazyWithReload(() => import('./views/DashboardHomeView'))
+const FotoOCR = lazyWithReload(() => import('./components/FotoOCR'))
 import { compressImage } from './lib/imageUtils'
-const MagazzinoView = React.lazy(() => import('./views/MagazzinoView'))
-const ChiusuraView = React.lazy(() => import('./views/ChiusuraView'))
-const ProduzioneGiornalieraView = React.lazy(() => import('./views/ProduzioneGiornalieraView'))
-const AzioniView = React.lazy(() => import('./views/AzioniView'))
-const NuovaRicettaView = React.lazy(() => import('./views/NuovaRicettaView'))
-const StoricoProduzioneView = React.lazy(() => import('./views/StoricoProduzioneView'))
-const DiscrepanzeView = React.lazy(() => import('./views/DiscrepanzeView'))
-const SemilavoratiView = React.lazy(() => import('./views/SemilavoratiView'))
+const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
+const ChiusuraView = lazyWithReload(() => import('./views/ChiusuraView'))
+const ProduzioneGiornalieraView = lazyWithReload(() => import('./views/ProduzioneGiornalieraView'))
+const AzioniView = lazyWithReload(() => import('./views/AzioniView'))
+const NuovaRicettaView = lazyWithReload(() => import('./views/NuovaRicettaView'))
+const StoricoProduzioneView = lazyWithReload(() => import('./views/StoricoProduzioneView'))
+const DiscrepanzeView = lazyWithReload(() => import('./views/DiscrepanzeView'))
+const SemilavoratiView = lazyWithReload(() => import('./views/SemilavoratiView'))
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
 
