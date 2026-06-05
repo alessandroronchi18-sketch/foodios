@@ -764,32 +764,31 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             });
             return (
               <>
-                <SH sub="Ricavo stimato (produzione) vs ricavo reale (scontrini)">Stimato vs Reale</SH>
+                <SH sub="Per periodo: quanto previsto dalla produzione (blu) vs incassato davvero (verde)">Ricavo · Stimato vs Reale</SH>
                 <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={dataConf} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="30%">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={dataConf} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                       <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
                       <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
-                      <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]}/>
+                      <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                       <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                      <Bar dataKey="Ricavo stimato" fill={C.textSoft} opacity={0.4} radius={[3,3,0,0]}/>
-                      <Bar dataKey="Ricavo reale"   fill={C.green}    opacity={0.85} radius={[3,3,0,0]}/>
-                      <Bar dataKey="Spreco"         fill={C.amber}    opacity={0.85} radius={[3,3,0,0]}/>
+                      <Bar dataKey="Ricavo stimato" name="Stimato" fill="#8497B0" radius={[4,4,0,0]} maxBarSize={46}/>
+                      <Bar dataKey="Ricavo reale"   name="Reale"   fill={C.green}  radius={[4,4,0,0]} maxBarSize={46}/>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <SH sub="Margine stimato vs margine reale">Margine Stimato vs Reale</SH>
+                <SH sub="Per periodo: margine previsto (blu) vs margine reale dagli scontrini (verde)">Margine · Stimato vs Reale</SH>
                 <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={dataConf2} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="35%">
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={dataConf2} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                       <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
                       <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
-                      <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]}/>
+                      <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                       <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                      <Bar dataKey="Margine stimato" fill={C.textSoft} opacity={0.4} radius={[3,3,0,0]}/>
-                      <Bar dataKey="Margine reale"   fill={C.green}    opacity={0.9} radius={[3,3,0,0]}/>
+                      <Bar dataKey="Margine stimato" name="Stimato" fill="#8497B0" radius={[4,4,0,0]} maxBarSize={46}/>
+                      <Bar dataKey="Margine reale"   name="Reale"   fill={C.green}  radius={[4,4,0,0]} maxBarSize={46}/>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
