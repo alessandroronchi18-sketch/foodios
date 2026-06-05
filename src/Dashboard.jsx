@@ -2083,54 +2083,62 @@ export default function Dashboard({
                 )
               })()}
 
-              <Group id="oggi" iconKey="today" label="Oggi"
-                alert={(!hasProdOggi && new Date().getHours()>=6) || cassaMancante}>
-                {navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)}
-                {navItem("chiusura","creditCard","Cassa",0,cassaMancante)}
-                {navItem("eventi","cal","Eventi")}
-                {navItem("calendario","cal","Calendario")}
-              </Group>
+              {/* Group/Sep renderizzati come CHIAMATE di funzione (non <Group/>):
+                  definiti nello scope del render, come elementi JSX cambierebbero
+                  identità a ogni render → React rimonterebbe tutte le sezioni,
+                  azzerando lo scroll del menu (bug "torna in cima") e ri-animando. */}
+              {Group({ id:"oggi", iconKey:"today", label:"Oggi",
+                alert:(!hasProdOggi && new Date().getHours()>=6) || cassaMancante,
+                children:[
+                  navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6),
+                  navItem("chiusura","creditCard","Cassa",0,cassaMancante),
+                  navItem("eventi","cal","Eventi"),
+                  navItem("calendario","cal","Calendario"),
+                ] })}
 
-              <Group id="ricette" iconKey="chefHat" label="Ricette & Menù">
-                {navItem("ricettario","book",LEX.Ricettario)}
-                {navItem("semilavorati","layers","Semilavorati")}
-                {navItem("nuova-ricetta","pencil","Nuova ricetta")}
-                {navItem("formati-vendita","coins","Formati di vendita")}
-                {navItem("scheda-allergeni","shield","Allergeni")}
-                {navItem("menu","menu","Menù del giorno")}
-              </Group>
+              {Group({ id:"ricette", iconKey:"chefHat", label:"Ricette & Menù",
+                children:[
+                  navItem("ricettario","book",LEX.Ricettario),
+                  navItem("semilavorati","layers","Semilavorati"),
+                  navItem("nuova-ricetta","pencil","Nuova ricetta"),
+                  navItem("formati-vendita","coins","Formati di vendita"),
+                  navItem("scheda-allergeni","shield","Allergeni"),
+                  navItem("menu","menu","Menù del giorno"),
+                ] })}
 
-              <Group id="numeri" iconKey="coins" label="Numeri">
-                {navItem("simulatore","barChart","Food Cost")}
-                {navItem("pl","trendUp","Profitti (P&L)")}
-                {navItem("storico","activity","Storico")}
-                {navItem("previsione","forecast","Previsioni")}
-                {navItem("discrepanze","fileText","Discrepanze & Sprechi")}
-              </Group>
+              {Group({ id:"numeri", iconKey:"coins", label:"Numeri",
+                children:[
+                  navItem("simulatore","barChart","Food Cost"),
+                  navItem("pl","trendUp","Profitti (P&L)"),
+                  navItem("storico","activity","Storico"),
+                  navItem("previsione","forecast","Previsioni"),
+                  navItem("discrepanze","fileText","Discrepanze & Sprechi"),
+                ] })}
 
-              <Group id="acquisti" iconKey="shopping" label="Magazzino & Acquisti"
-                badge={criticeMag} alert={criticeMag>0}>
-                {navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0)}
-                {navItem("sprechi-omaggi","sparkles","Sprechi e omaggi")}
-                {navItem("scadenzario","fileText","Scadenzario")}
-                {navItem("fornitori","truck","Fornitori")}
-                {navItem("importa-dati","download","Importa dati")}
-              </Group>
+              {Group({ id:"acquisti", iconKey:"shopping", label:"Magazzino & Acquisti",
+                badge:criticeMag, alert:criticeMag>0,
+                children:[
+                  navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0),
+                  navItem("sprechi-omaggi","sparkles","Sprechi e omaggi"),
+                  navItem("scadenzario","fileText","Scadenzario"),
+                  navItem("fornitori","truck","Fornitori"),
+                  navItem("importa-dati","download","Importa dati"),
+                ] })}
 
-              <Group id="azienda" iconKey="briefcase" label="Azienda">
-                {navItem("personale","users","Personale")}
-                {navItem("haccp","shield","HACCP")}
-                {navItem("registro-attivita","fileText","Registro attività")}
-                {(sedi||[]).length>1 && navItem("confronto-sedi","building","Confronto sedi")}
-                {(sedi||[]).length>1 && navItem("trasferimenti","truck","Trasferimenti tra sedi")}
-              </Group>
+              {Group({ id:"azienda", iconKey:"briefcase", label:"Azienda",
+                children:[
+                  navItem("personale","users","Personale"),
+                  navItem("haccp","shield","HACCP"),
+                  navItem("registro-attivita","fileText","Registro attività"),
+                  (sedi||[]).length>1 && navItem("confronto-sedi","building","Confronto sedi"),
+                  (sedi||[]).length>1 && navItem("trasferimenti","truck","Trasferimenti tra sedi"),
+                ] })}
 
-              <Group id="strumenti" iconKey="tool" label="Strumenti"
-                badge={azioniAperte}>
-                {navItem("azioni","sparkles","AI Assistant",azioniAperte)}
-                {/* "Integrazioni" nascosta ai clienti su richiesta founder (2026-05-30).
-                    La view resta disponibile internamente via setView('integrazioni'). */}
-              </Group>
+              {Group({ id:"strumenti", iconKey:"tool", label:"Strumenti",
+                badge:azioniAperte,
+                children:[
+                  navItem("azioni","sparkles","AI Assistant",azioniAperte),
+                ] })}
 
               {/* In fondo, senza gruppo: impostazioni e novità */}
               <div style={{ height: 1, background:"rgba(255,255,255,0.06)", margin:"12px 16px 8px" }}/>
