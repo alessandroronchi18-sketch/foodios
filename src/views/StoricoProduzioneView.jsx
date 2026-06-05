@@ -192,6 +192,52 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const eur0 = n => `€ ${Math.round(Number(n)||0).toLocaleString('it-IT')}`;
   const n0   = n => `${Math.round(Number(n)||0).toLocaleString('it-IT')}`;
 
+  // Vendite: top 5 prodotti per ricavo + "Altri" (come per la produzione),
+  // così il grafico ricavi reali resta leggibile invece di impilare decine di serie.
+  const topProdVend = (() => {
+    const tot = {};
+    for (const p of periodiVend) for (const [k,v] of Object.entries(p.byProd)) tot[k]=(tot[k]||0)+(v.rv||0);
+    return Object.entries(tot).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k])=>k);
+  })();
+  const dataVendTop = periodiVend.map(p=>{
+    const row = { label:p.label };
+    let altri = 0;
+    for (const [k,v] of Object.entries(p.byProd)) {
+      const rv = +(v.rv||0).toFixed(2);
+      if (topProdVend.includes(k)) row[k]=rv; else altri+=rv;
+    }
+    if (altri>0) row["Altri"]=+altri.toFixed(2);
+    return row;
+  });
+  const seriesVend = [...topProdVend, ...(dataVendTop.some(d=>d["Altri"]>0)?["Altri"]:[])];
+  // Tooltip ricavi reali: per ogni periodo i prodotti per ricavo desc (top 7).
+  const vendByDay = {};
+  for (const p of periodiVend) {
+    const sorted = Object.entries(p.byProd).map(([n,v])=>[n, v.rv||0]).sort((a,b)=>b[1]-a[1]);
+    vendByDay[p.label] = { top: sorted.slice(0,7), tot: sorted.reduce((s,[,v])=>s+v,0), extra: Math.max(0, sorted.length-7) };
+  }
+  const VendTooltip = ({ active, label }) => {
+    const d = active && vendByDay[label];
+    if (!d) return null;
+    return (
+      <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', boxShadow:'0 8px 24px rgba(15,23,42,0.14)', minWidth:210 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', marginBottom:7, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
+          <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
+          <span style={{ fontSize:10.5, fontWeight:700, color:C.green, fontVariantNumeric:'tabular-nums' }}>{eur0(d.tot)}</span>
+        </div>
+        {d.top.map(([nome,v],i)=>(
+          <div key={nome} style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', padding:'2px 0' }}>
+            <span style={{ fontSize:11, color:C.textMid, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:180 }}>
+              <span style={{ display:'inline-block', width:15, color:C.textSoft, fontWeight:700 }}>{i+1}</span>{nome}
+            </span>
+            <span style={{ fontSize:11, fontWeight:800, color:C.text, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{fmt(v)}</span>
+          </div>
+        ))}
+        {d.extra>0 && <div style={{ fontSize:10, color:C.textSoft, marginTop:5 }}>+{d.extra} altri prodotti</div>}
+      </div>
+    );
+  };
+
   const hasProd = giornaliero?.length>0;
   const hasVend = chiusure?.length>0;
 
@@ -207,30 +253,29 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
   return (
     <div style={{maxWidth: 1200}}>
-      {/* Header + toggle */}
-      <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-         <div>
-           <div style={{fontSize:13,color:C.textSoft}}>Produzione, vendite e confronto</div>
-         </div>
-        <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
-          {/* Tab produzione/vendite/confronto */}
-          <div style={{display:"flex",background:"#F0EAE6",borderRadius:9,padding:3,gap:2}}>
-            {[["produzione","📦 Produzione"],["vendite","💰 Vendite"],["confronto","🔄 Confronto"]].map(([id,lbl])=>(
-              <button key={id} onClick={()=>setTab(id)}
-                style={{padding:"7px 16px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:700,fontSize:11,background:tab===id?C.red:"transparent",color:tab===id?C.white:C.textMid,transition:"all 0.15s",whiteSpace:"nowrap"}}>
-                {lbl}
-              </button>
-            ))}
-          </div>
-          {/* Toggle giornaliero/settimana/mese */}
-          <div style={{display:"flex",background:"#F0EAE6",borderRadius:9,padding:3,gap:2}}>
-            {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
-              <button key={id} onClick={()=>setVista(id)}
-                style={{padding:"5px 12px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:10,background:vista===id?"rgba(110,14,26,0.18)":"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
-                {lbl}
-              </button>
-            ))}
-          </div>
+      {/* Tab principali — centrali, larghe e ben visibili */}
+      <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
+        <div style={{display:"flex",gap:4,background:"#F0EAE6",borderRadius:12,padding:4,width:"100%",maxWidth:540}}>
+          {[["produzione","📦 Produzione"],["vendite","💰 Vendite"],["confronto","🔄 Confronto"]].map(([id,lbl])=>(
+            <button key={id} onClick={()=>setTab(id)}
+              style={{flex:1,padding:isMobile?"11px 8px":"13px 16px",borderRadius:9,border:"none",cursor:"pointer",
+                fontWeight:800,fontSize:isMobile?12:14,background:tab===id?C.red:"transparent",
+                color:tab===id?C.white:C.textMid,boxShadow:tab===id?"0 2px 10px rgba(110,14,26,0.28)":"none",
+                transition:"all 0.15s",whiteSpace:"nowrap"}}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Vista temporale — centrata, secondaria */}
+      <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
+        <div style={{display:"flex",background:"#F0EAE6",borderRadius:9,padding:3,gap:2}}>
+          {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
+            <button key={id} onClick={()=>setVista(id)}
+              style={{padding:"6px 18px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:11,background:vista===id?"rgba(110,14,26,0.18)":"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
+              {lbl}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -350,17 +395,17 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <KPI icon="🗑" label="Spreco"        value={eur0(totSV)}  color={totSV>20?C.red:C.amber}/>
               </div>
 
-              <SH sub={`Ricavi reali da scontrini per ${vista}`}>Ricavi Reali per {vista==="settimana"?"Settimana":"Mese"}</SH>
+              <SH sub={`Top 5 prodotti per ricavo + altri · per ${vista==="giornaliero"?"giorno":vista}`}>Ricavi Reali per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={dataVend} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="30%">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={dataVendTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
                     <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
-                    <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]}/>
+                    <Tooltip content={<VendTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                    {prodottiVend.map((n,i)=>(
-                      <Bar key={n} dataKey={n} stackId="a" fill={STACK_COLORS[i%STACK_COLORS.length]} radius={i===prodottiVend.length-1?[3,3,0,0]:[0,0,0,0]}/>
+                    {seriesVend.map((n,i)=>(
+                      <Bar key={n} dataKey={n} stackId="a" fill={n==="Altri"?ALTRI_COLOR:STACK_COLORS[i%STACK_COLORS.length]} radius={i===seriesVend.length-1?[4,4,0,0]:[0,0,0,0]}/>
                     ))}
                   </BarChart>
                 </ResponsiveContainer>
@@ -385,20 +430,19 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </ResponsiveContainer>
               </div>
 
-              <SH sub="Ricavo, FC, margine e spreco per periodo">Conto Economico Reale</SH>
+              <SH sub="Costi a colonna (food cost + spreco) · margine a linea">Conto Economico Reale</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={dataVendKPI} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="35%">
+                <ResponsiveContainer width="100%" height={240}>
+                  <ComposedChart data={dataVendKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="35%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
                     <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
-                    <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]}/>
+                    <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                    <Bar dataKey="Ricavo"   fill={C.green} opacity={0.25} radius={[3,3,0,0]}/>
-                    <Bar dataKey="FoodCost" fill={C.red}   opacity={0.85} radius={[3,3,0,0]}/>
-                    <Bar dataKey="Margine"  fill={C.green} opacity={0.85} radius={[3,3,0,0]}/>
-                    <Bar dataKey="Spreco"   fill={C.amber} opacity={0.85} radius={[3,3,0,0]}/>
-                  </BarChart>
+                    <Bar dataKey="FoodCost" stackId="c" name="Food cost" fill={C.red}   barSize={isMobile?18:30}/>
+                    <Bar dataKey="Spreco"   stackId="c" name="Spreco"    fill={C.amber} radius={[4,4,0,0]} barSize={isMobile?18:30}/>
+                    <Line type="monotone" dataKey="Margine" name="Margine" stroke={C.green} strokeWidth={2.5} dot={{r:3,fill:C.green,strokeWidth:0}} activeDot={{r:5}}/>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
