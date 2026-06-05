@@ -64,9 +64,10 @@
          Solo quando l'elemento riceve focus via tastiera (non click).
       */
       :focus-visible {
-        outline: 2px solid #6E0E1A;
+        /* !important per vincere sugli `outline:none` inline diffusi nei
+           componenti: senza, l'indicatore di focus da tastiera sparirebbe. */
+        outline: 2px solid #6E0E1A !important;
         outline-offset: 2px;
-        border-radius: 6px;
       }
       /* Bottoni/anchor con focus mouse: niente outline (UX coerente) */
       button:focus:not(:focus-visible),
@@ -86,6 +87,19 @@
 
       /* Scroll smooth nativo (Safari supporta da v15.4) */
       html { scroll-behavior: smooth; }
+
+      /* ───────────────────────────────────────────────────────────────
+         A11Y: rispetta "riduci movimento" (sensibilità vestibolare).
+         Neutralizza animazioni/transizioni globali, incluse quelle inline.
+      */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
 
       /* Selezione testo: usa brand bordeaux invece di blu sistema */
       ::selection { background: rgba(110, 14, 26, 0.18); color: #1C0A0A; }
