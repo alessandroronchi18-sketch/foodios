@@ -641,6 +641,49 @@ export default function PLView({ ricettario, onUpdateRegola }) {
         }
       />
 
+      {/* ESTRATTO CONTO ECONOMICO — colpo d'occhio: Ricavi − Food cost = Margine */}
+      {(() => {
+        const fcPct = totRicavo > 0 ? (totFC / totRicavo) * 100 : 0
+        const margPctTot = totRicavo > 0 ? (totMargine / totRicavo) * 100 : 0
+        const inUtile = totMargine >= 0
+        const gw = Math.max(0, Math.min(100, margPctTot))
+        const Riga = ({ label, sub, val, extra, color, bold, big, top }) => (
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12,
+            padding: big ? '12px 0 2px' : '9px 0', borderTop: top ? `2px solid ${C.border}` : 'none' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: big ? 15 : 13, fontWeight: bold ? 800 : 600, color: C.text, letterSpacing: '-0.01em' }}>{label}</div>
+              {sub && <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 1 }}>{sub}</div>}
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <span style={{ fontSize: big ? 22 : 15, fontWeight: bold ? 900 : 700, color, ...TNUM }}>{val}</span>
+              {extra && <div style={{ fontSize: 11, fontWeight: 700, color, marginTop: 1, ...TNUM }}>{extra}</div>}
+            </div>
+          </div>
+        )
+        return (
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16,
+            padding: isMobile ? '18px 18px' : '22px 26px', marginBottom: 28, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>📊 Conto economico — colpo d'occhio</div>
+              <div style={{ fontSize: 11, color: C.textSoft }}>a regime · su prezzi di listino e ricette correnti</div>
+            </div>
+            {Riga({ label: 'Ricavi', sub: 'vendite teoriche a listino', val: euro(totRicavo), color: C.text, bold: true })}
+            {Riga({ label: '− Materie prime (food cost)', sub: 'costo ingredienti delle ricette', val: `−${euro(totFC)}`, extra: `${fcPct.toFixed(1)}% dei ricavi`, color: C.red })}
+            {Riga({ label: '= Margine lordo', sub: 'prima di personale, affitto e utenze', val: euro(totMargine), extra: `${margPctTot.toFixed(1)}% dei ricavi`, color: inUtile ? C.green : C.red, bold: true, big: true, top: true })}
+
+            {/* Barra split margine vs food cost */}
+            <div style={{ display: 'flex', height: 14, borderRadius: 7, overflow: 'hidden', marginTop: 16, background: C.redLight }}>
+              <div style={{ width: `${gw}%`, background: inUtile ? C.green : C.red, transition: 'width 0.4s ease' }}/>
+              <div style={{ flex: 1, background: C.red, opacity: 0.85 }}/>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 7, fontSize: 10.5, fontWeight: 700 }}>
+              <span style={{ color: inUtile ? C.green : C.red }}>● Margine {margPctTot.toFixed(0)}%</span>
+              <span style={{ color: C.red }}>Food cost {fcPct.toFixed(0)}% ●</span>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* INSIGHTS AUTOMATICI */}
       {insights.length > 0 && (
         <div style={{ marginBottom: 28 }}>
