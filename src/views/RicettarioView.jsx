@@ -2,7 +2,6 @@
 // TortaCard è il card espandibile usato sia dal Ricettario che dai Semilavorati.
 
 import React, { useMemo, useState } from 'react'
-import { PieChart, Pie, Cell } from 'recharts'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
@@ -231,27 +230,29 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {pieData.length > 0 && (
+            {pieData.length > 0 && (() => {
+              const totPie = pieData.reduce((s, x) => s + (x.costoCalc || 0), 0) || 1
+              return (
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12 }}>📊 Composizione food cost</div>
-                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                  <PieChart width={110} height={110}>
-                    <Pie data={pieData} dataKey="costoCalc" cx={50} cy={50} innerRadius={28} outerRadius={52} paddingAngle={2}>
-                      {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]}/>)}
-                    </Pie>
-                  </PieChart>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {pieData.map((ing, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length] }}/>
-                        <span style={{ flex: 1, fontSize: 10, color: C.textMid, fontWeight: 500 }}>{ing.nome}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: C.text }}>{fmt(ing.costoCalc)}</span>
+                {pieData.map((ing, i) => {
+                  const pct = ing.costoCalc / totPie * 100
+                  const col = PIE_COLORS[i % PIE_COLORS.length]
+                  return (
+                    <div key={i} style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 10, marginBottom: 3 }}>
+                        <span style={{ color: C.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ing.nome}</span>
+                        <span style={{ color: C.textMid, fontWeight: 700, flexShrink: 0, ...TNUM }}>{fmt(ing.costoCalc)} · {pct.toFixed(0)}%</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div style={{ height: 6, background: '#EAE0DB', borderRadius: 3 }}>
+                        <div style={{ height: 6, width: `${Math.min(100, pct)}%`, background: col, borderRadius: 3 }}/>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            )}
+              )
+            })()}
 
             {!isSemi && (
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
