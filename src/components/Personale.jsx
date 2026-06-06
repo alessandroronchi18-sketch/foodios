@@ -352,9 +352,14 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   )
 }
 
+// Palette reparti: poche tinte nette e leggibili (più pulito di un colore per persona).
+const REPARTO_COLORS = ['#6E0E1A', '#2563EB', '#16A34A', '#C2410C', '#7C3AED', '#0E7490']
+const SENZA_REPARTO = { nome: 'Senza reparto', color: '#94A3B8' }
+
 function TurniTab({ orgId, notify, isMobile }) {
   const [turni, setTurni] = useState([])
   const [dipendenti, setDipendenti] = useState([])
+  const [organigramma, setOrganigramma] = useState({ reparti: [] })
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState('settimana') // 'giorno' | 'settimana' | 'mese'
   const [anchor, setAnchor] = useState(() => new Date().toISOString().slice(0,10)) // giorno di riferimento
@@ -390,16 +395,34 @@ function TurniTab({ orgId, notify, isMobile }) {
   async function carica() {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const [{ data:t, error:et }, { data:d, error:ed }] = await Promise.all([
+    const [{ data:t, error:et }, { data:d, error:ed }, org] = await Promise.all([
       supabase.from("turni").select("*, dipendenti(nome,costo_orario)").eq("organization_id", orgId)
         .gte("data", rng.from).lte("data", rng.to).order("data").order("ora_inizio"),
       supabase.from("dipendenti").select("id,nome").eq("organization_id", orgId).eq("attivo", true).order("nome"),
+      sload(SK_ORG, orgId, null).catch(() => null),
     ])
     if (et || ed) notify?.("⚠ Errore caricamento turni: " + (et?.message || ed?.message), false)
     setTurni(t || [])
     setDipendenti(d || [])
+    setOrganigramma(org && Array.isArray(org.reparti) ? org : { reparti: [] })
     setLoading(false)
   }
+
+  // Mappa dipendente → reparto (nome + colore) dall'organigramma.
+  const repartoByDip = useMemo(() => {
+    const m = {}
+    ;(organigramma.reparti || []).forEach((r, i) => {
+      const color = REPARTO_COLORS[i % REPARTO_COLORS.length]
+      for (const dipId of (r.membri || [])) m[dipId] = { nome: r.nome, color }
+    })
+    return m
+  }, [organigramma])
+  const repartoDi = dipId => repartoByDip[dipId] || SENZA_REPARTO
+  // Reparti effettivamente presenti (per legenda e copertura), nell'ordine dell'organigramma.
+  const repartiAttivi = useMemo(() => {
+    const out = (organigramma.reparti || []).map((r, i) => ({ nome: r.nome, color: REPARTO_COLORS[i % REPARTO_COLORS.length] }))
+    return out
+  }, [organigramma])
 
   function resetForm() {
     setForm({ dipendente_id:"", data:week, ora_inizio:"08:00", ora_fine:"16:00", note:"" })
@@ -588,7 +611,7 @@ function TurniTab({ orgId, notify, isMobile }) {
 
       {/* Vista mese: calendario; Giorno/Settimana: timeline oraria */}
       {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : periodo === 'mese' ? (() => {
-        const colorById = {}; dipendenti.forEach((d, i) => { colorById[d.id] = DIP_COLORS[i % DIP_COLORS.length] })
+        const colorById = {}; dipendenti.forEach((d) => { colorById[d.id] = repartoDi(d.id).color })
         const first = new Date(rng.from)
         const lead = (first.getDay() + 6) % 7
         const cells = [...Array(lead).fill(null), ...days]
@@ -630,7 +653,7 @@ function TurniTab({ orgId, notify, isMobile }) {
           </div>
         )
       })() : (() => {
-        const colorById = {}; dipendenti.forEach((d, i) => { colorById[d.id] = DIP_COLORS[i % DIP_COLORS.length] })
+        const colorById = {}; dipendenti.forEach((d) => { colorById[d.id] = repartoDi(d.id).color })
         const tutte = weekDays.flatMap(d => covByDay[d].shifts)
         let aMin = 6 * 60, aMax = 20 * 60
         if (tutte.length) { aMin = Math.floor(Math.min(...tutte.map(s => s.ini)) / 60) * 60; aMax = Math.ceil(Math.max(...tutte.map(s => s.fin)) / 60) * 60 }
@@ -639,13 +662,18 @@ function TurniTab({ orgId, notify, isMobile }) {
         const labelW = isMobile ? 76 : 150
         const pos = m => `${((m - aMin) / span) * 100}%`
         const usati = dipendenti.filter(d => turni.some(t => t.dipendente_id === d.id))
+        // Legenda per REPARTO (più pulita di un colore per persona): mostra solo
+        // i reparti effettivamente in turno nel periodo + eventuale "Senza reparto".
+        const repartiInTurno = []
+        const seen = new Set()
+        for (const d of usati) { const r = repartoDi(d.id); if (!seen.has(r.nome)) { seen.add(r.nome); repartiInTurno.push(r) } }
         return (
           <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, boxShadow:"0 1px 4px rgba(0,0,0,0.04)", overflow:"hidden" }}>
-            {usati.length > 0 && (
-              <div style={{ display:"flex", flexWrap:"wrap", gap:isMobile?8:14, padding:"12px 16px", borderBottom:`1px solid ${C.border}` }}>
-                {usati.map(d => (
-                  <span key={d.id} style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, color:C.textMid, fontWeight:600 }}>
-                    <span style={{ width:10, height:10, borderRadius:3, background:colorById[d.id], flexShrink:0 }}/>{d.nome}
+            {repartiInTurno.length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:isMobile?10:16, padding:"12px 16px", borderBottom:`1px solid ${C.border}` }}>
+                {repartiInTurno.map(r => (
+                  <span key={r.nome} style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, color:C.textMid, fontWeight:700 }}>
+                    <span style={{ width:11, height:11, borderRadius:3, background:r.color, flexShrink:0, border:"1px solid rgba(0,0,0,0.15)" }}/>{r.nome}
                   </span>
                 ))}
               </div>
@@ -672,6 +700,24 @@ function TurniTab({ orgId, notify, isMobile }) {
                     <div style={{ fontSize:9, color: cov.overlaps.size ? C.amber : C.textSoft, marginTop:1, fontWeight: cov.overlaps.size ? 700 : 400 }}>
                       {dayShifts.length ? `${cov.min === cov.max ? cov.max : `${cov.min}–${cov.max}`} in turno${cov.overlaps.size ? " · ⚠ sovrap." : ""}` : "riposo"}
                     </div>
+                    {/* Copertura per reparto: evidenzia i buchi (es. 0 in produzione) */}
+                    {!isMobile && repartiAttivi.length > 0 && dayShifts.length > 0 && (() => {
+                      const presPerRep = {}
+                      for (const s of dayShifts) { const r = repartoDi(s.dipId); (presPerRep[r.nome] = presPerRep[r.nome] || new Set()).add(s.dipId) }
+                      return (
+                        <div style={{ display:"flex", flexDirection:"column", gap:2, marginTop:5 }}>
+                          {repartiAttivi.map(r => {
+                            const n = presPerRep[r.nome]?.size || 0
+                            return (
+                              <span key={r.nome} style={{ display:"flex", alignItems:"center", gap:5, fontSize:9, fontWeight:700, color: n === 0 ? C.amber : C.textMid }}>
+                                <span style={{ width:7, height:7, borderRadius:2, background: n===0 ? "transparent" : r.color, border: n===0 ? `1px solid ${C.amber}` : "none", flexShrink:0 }}/>
+                                {r.nome}: {n === 0 ? "0 ⚠" : n}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
                     {!isMobile && <button onClick={() => apriNuovoTurno(dIso)} style={{ marginTop:6, fontSize:10, fontWeight:700, color:C.red, background:"transparent", border:`1px dashed ${C.red}40`, borderRadius:6, padding:"3px 8px", cursor:"pointer" }}>+ turno</button>}
                   </div>
                   <div style={{ position:"relative", height:rowH }}>
