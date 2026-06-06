@@ -90,6 +90,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const [vista, setVista] = useState('attivi') // 'attivi' | 'archivio'
   const [archCount, setArchCount] = useState(0)
   const [search, setSearch] = useState('')
+  const [orgData, setOrgData] = useState({ reparti: [] }) // organigramma (per assegnare reparto al dipendente)
 
   // Cognome = ultima parola del nome completo (per ordinamento alfabetico).
   const cognomeKey = (n) => (n || '').trim().split(/\s+/).slice(-1)[0]?.toLowerCase() || ''
@@ -119,7 +120,23 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     const { count } = await supabase.from("dipendenti").select("id", { count: "exact", head: true })
       .eq("organization_id", orgId).eq("attivo", false)
     setArchCount(count || 0)
+    const org = await sload(SK_ORG, orgId, null).catch(() => null)
+    setOrgData(org && Array.isArray(org.reparti) ? org : { reparti: [] })
     setLoading(false)
+  }
+  // Reparti a cui appartiene un dipendente (per popolare il form in modifica).
+  const repartiDi = (dipId) => (orgData.reparti || []).filter(r => (r.membri || []).includes(dipId)).map(r => r.id)
+  // Aggiorna l'organigramma: assegna dipId ai reparti scelti (max 2 = ibrido), togli dagli altri.
+  async function assegnaReparti(dipId, repIds) {
+    const scelti = [...new Set(repIds.filter(Boolean))]
+    const reparti = (orgData.reparti || []).map(r => {
+      const senza = (r.membri || []).filter(m => m !== dipId)
+      const membri = scelti.includes(r.id) ? [...senza, dipId] : senza
+      const capoId = r.capoId === dipId && !scelti.includes(r.id) ? null : r.capoId
+      return { ...r, membri, capoId }
+    })
+    const next = { ...orgData, reparti }
+    try { await ssave(SK_ORG, next, orgId, null); setOrgData(next) } catch {}
   }
 
   async function salva() {
@@ -137,14 +154,17 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       organization_id: orgId,
       attivo: true,
     }
-    let err
+    let err, dipId = editId
     if (editId) {
       ({ error: err } = await supabase.from("dipendenti").update(payload).eq("id", editId))
     } else {
-      ({ error: err } = await supabase.from("dipendenti").insert(payload))
+      const { data: ins, error: e2 } = await supabase.from("dipendenti").insert(payload).select("id").single()
+      err = e2; dipId = ins?.id
     }
-    if (err) { notify("⚠ Errore: " + err.message, false) }
-    else { notify(editId ? "✓ Dipendente aggiornato" : "✓ Dipendente aggiunto"); reset() }
+    if (err) { notify("⚠ Errore: " + err.message, false); setSaving(false); return }
+    // Assegna i reparti scelti (incl. ibrido) all'organigramma.
+    if (dipId) await assegnaReparti(dipId, [form.reparto1, form.reparto2])
+    notify(editId ? "✓ Dipendente aggiornato" : "✓ Dipendente aggiunto"); reset()
     setSaving(false)
     carica()
   }
@@ -166,8 +186,8 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     carica()
   }
 
-  function reset() { setForm({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"", sede_id: sedeId || "" }); setEditId(null); setShowForm(false) }
-  function initEdit(d) { setForm({ nome:d.nome, ruolo:d.ruolo||"", tipo_contratto:d.tipo_contratto||"Full-time", costo_orario:d.costo_orario||"", ore_settimana:d.ore_settimana||40, note:d.note||"", sede_id: d.sede_id || "" }); setEditId(d.id); if (isMobile) setShowForm(true) }
+  function reset() { setForm({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"", sede_id: sedeId || "", reparto1:"", reparto2:"" }); setEditId(null); setShowForm(false) }
+  function initEdit(d) { const reps = repartiDi(d.id); setForm({ nome:d.nome, ruolo:d.ruolo||"", tipo_contratto:d.tipo_contratto||"Full-time", costo_orario:d.costo_orario||"", ore_settimana:d.ore_settimana||40, note:d.note||"", sede_id: d.sede_id || "", reparto1: reps[0] || "", reparto2: reps[1] || "" }); setEditId(d.id); if (isMobile) setShowForm(true) }
 
   const costoMeseTot = lista.reduce((s,d)=>s+(d.costo_orario||0)*(d.ore_settimana||0)*4.33, 0)
   const inputSt = { width:"100%", height: 40, padding: "0 12px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color:C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
@@ -210,6 +230,24 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
           <select value={form.tipo_contratto} onChange={e=>setForm(f=>({...f,tipo_contratto:e.target.value}))} style={inputSt}>
             {TIPI_CONTRATTO.map(t=><option key={t}>{t}</option>)}
           </select>
+        </div>
+        {/* Reparto (serve alla copertura turni). Secondo reparto = ibrido. */}
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Reparto</div>
+          {(orgData.reparti||[]).length===0 ? (
+            <div style={{ fontSize:11, color:C.textSoft, fontStyle:"italic", padding:"8px 0" }}>Crea prima i reparti nella scheda <b>Organigramma</b>, poi potrai assegnarli qui.</div>
+          ) : (<>
+            <select value={form.reparto1} onChange={e=>setForm(f=>({...f, reparto1:e.target.value, reparto2: e.target.value===f.reparto2 ? "" : f.reparto2 }))} style={inputSt}>
+              <option value="">— Nessun reparto —</option>
+              {(orgData.reparti||[]).map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}
+            </select>
+            {form.reparto1 && (orgData.reparti||[]).length>1 && (
+              <select value={form.reparto2} onChange={e=>setForm(f=>({...f,reparto2:e.target.value}))} style={{ ...inputSt, marginTop:6 }}>
+                <option value="">+ Ibrido con… (opzionale)</option>
+                {(orgData.reparti||[]).filter(r=>r.id!==form.reparto1).map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}
+              </select>
+            )}
+          </>)}
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
           <div>
