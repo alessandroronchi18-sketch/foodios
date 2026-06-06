@@ -19,7 +19,7 @@ import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
   C, TNUM, margColor, margBadge, Badge, Tip, PageHeader, TD, TH,
-  useSortable, SortTH,
+  useSortable, SortTH, fmt0,
 } from './_shared'
 
 // ─── BARRE RICAVO (stacked margine vs food cost) ─────────────────────────────
@@ -189,11 +189,11 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
           <thead>
             <tr style={{ background: '#F8F4F2' }}>
               <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
-              <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Usato in</th>
-              <SortTH k="qty" right active={sortKey === 'qty'} dir={sortDir} onToggle={toggleSort}>Qty tot. (g)</SortTH>
-              <SortTH k="costoTot" right active={sortKey === 'costoTot'} dir={sortDir} onToggle={toggleSort}>Costo/stampo</SortTH>
-              <SortTH k="pctTot" right active={sortKey === 'pctTot'} dir={sortDir} onToggle={toggleSort}>% FC totale</SortTH>
-              <SortTH k="costoG" right active={sortKey === 'costoG'} dir={sortDir} onToggle={toggleSort}>€ / g</SortTH>
+              <th title="In quante ricette compare questo ingrediente" style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Usato in</th>
+              <SortTH k="qty" right active={sortKey === 'qty'} dir={sortDir} onToggle={toggleSort} tip="Grammi totali dell'ingrediente sommando una porzione di ogni ricetta che lo usa">Qty tot. (g)</SortTH>
+              <SortTH k="costoTot" right active={sortKey === 'costoTot'} dir={sortDir} onToggle={toggleSort} tip="Costo di questo ingrediente per stampo, sommato sulle ricette che lo usano">Costo/stampo</SortTH>
+              <SortTH k="pctTot" right active={sortKey === 'pctTot'} dir={sortDir} onToggle={toggleSort} tip="Quanto pesa questo ingrediente sul food cost complessivo del ricettario">% FC totale</SortTH>
+              <SortTH k="costoG" right active={sortKey === 'costoG'} dir={sortDir} onToggle={toggleSort} tip="Costo di un singolo grammo dell'ingrediente">€ / g</SortTH>
             </tr>
           </thead>
           <tbody>
@@ -408,16 +408,16 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
-                <SortTH k="unita" right active={sortKey === 'unita'} dir={sortDir} onToggle={toggleSort}>Unità/st.</SortTH>
-                <SortTH k="prezzo" right active={sortKey === 'prezzo'} dir={sortDir} onToggle={toggleSort}>Prezzo/un.</SortTH>
-                <SortTH k="ricavo" right active={sortKey === 'ricavo'} dir={sortDir} onToggle={toggleSort}>Ricavo/st.</SortTH>
-                <SortTH k="fc" right active={sortKey === 'fc'} dir={sortDir} onToggle={toggleSort}>FC/st.</SortTH>
-                <SortTH k="fcPct" right active={sortKey === 'fcPct'} dir={sortDir} onToggle={toggleSort}>FC ratio</SortTH>
-                <SortTH k="margine" right active={sortKey === 'margine'} dir={sortDir} onToggle={toggleSort}>Margine/st.</SortTH>
-                <SortTH k="margPct" right active={sortKey === 'margPct'} dir={sortDir} onToggle={toggleSort}>Marg. %</SortTH>
-                <SortTH k="fcUnita" right active={sortKey === 'fcUnita'} dir={sortDir} onToggle={toggleSort}>FC/un.</SortTH>
-                <SortTH k="mrgUnita" right active={sortKey === 'mrgUnita'} dir={sortDir} onToggle={toggleSort}>Marg./un.</SortTH>
-                <th style={{ padding: '10px 14px', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textAlign: 'right' }}>Rating</th>
+                <SortTH k="unita" right active={sortKey === 'unita'} dir={sortDir} onToggle={toggleSort} tip="Numero di pezzi/fette ricavati da uno stampo">Unità/st.</SortTH>
+                <SortTH k="prezzo" right active={sortKey === 'prezzo'} dir={sortDir} onToggle={toggleSort} tip="Prezzo di vendita di un singolo pezzo/fetta">Prezzo/un.</SortTH>
+                <SortTH k="ricavo" right active={sortKey === 'ricavo'} dir={sortDir} onToggle={toggleSort} tip="Ricavo da uno stampo = unità × prezzo">Ricavo/st.</SortTH>
+                <SortTH k="fc" right active={sortKey === 'fc'} dir={sortDir} onToggle={toggleSort} tip="Food cost (costo ingredienti) di uno stampo">FC/st.</SortTH>
+                <SortTH k="fcPct" right active={sortKey === 'fcPct'} dir={sortDir} onToggle={toggleSort} tip="Incidenza % del food cost sul ricavo (FC ÷ ricavo)">FC ratio</SortTH>
+                <SortTH k="margine" right active={sortKey === 'margine'} dir={sortDir} onToggle={toggleSort} tip="Margine lordo per stampo = ricavo − food cost">Margine/st.</SortTH>
+                <SortTH k="margPct" right active={sortKey === 'margPct'} dir={sortDir} onToggle={toggleSort} tip="Margine lordo in percentuale sul ricavo">Marg. %</SortTH>
+                <SortTH k="fcUnita" right active={sortKey === 'fcUnita'} dir={sortDir} onToggle={toggleSort} tip="Food cost di un singolo pezzo/fetta">FC/un.</SortTH>
+                <SortTH k="mrgUnita" right active={sortKey === 'mrgUnita'} dir={sortDir} onToggle={toggleSort} tip="Margine lordo di un singolo pezzo/fetta">Marg./un.</SortTH>
+                <th title="Valutazione complessiva del margine del prodotto" style={{ padding: '10px 14px', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, textAlign: 'right', textDecoration: 'underline dotted', textUnderlineOffset: 3, cursor: 'help' }}>Rating</th>
               </tr>
             </thead>
             <tbody>
@@ -426,10 +426,10 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
                   <TD bold>{r.nome}</TD>
                   <TD right color={C.textMid}>{r.reg.unita} {r.reg.tipo === 'fetta' ? 'fette' : 'pz'}</TD>
                   <TD right bold color={C.text} mono>{euro(r.reg.prezzo)}</TD>
-                  <TD right bold color={C.green} mono>{euro(r.ricavo)}</TD>
+                  <TD right bold color={C.green} mono>{fmt0(r.ricavo)}</TD>
                   <TD right color={C.red} mono>{euro(r.fc)}</TD>
                   <TD right color={r.fcPct < 30 ? C.green : r.fcPct < 40 ? C.amber : C.red} bold>{pct(r.fcPct)}</TD>
-                  <TD right bold color={margColor(r.margPct)} mono>{euro(r.margine)}</TD>
+                  <TD right bold color={margColor(r.margPct)} mono>{fmt0(r.margine)}</TD>
                   <TD right bold color={margColor(r.margPct)}>{pct(r.margPct)}</TD>
                   <TD right color={C.red} small mono>{euro(r.fcUnita)}</TD>
                   <TD right bold color={r.mrgUnita > 0 ? C.green : C.red} mono>{euro(r.mrgUnita)}</TD>
@@ -440,10 +440,10 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
             <tfoot>
               <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
                 <td colSpan={3} style={{ padding: '12px 14px', fontWeight: 900, fontSize: 12, color: C.text }}>TOTALE / MEDIA</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: C.green, ...TNUM }}>{euro(totRicavo)}</td>
+                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: C.green, ...TNUM }}>{fmt0(totRicavo)}</td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: C.red, ...TNUM }}>{euro(totFC)}</td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: fcAvg < 30 ? C.green : fcAvg < 40 ? C.amber : C.red }}>{pct(fcAvg)}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: margColor(avgMarg), ...TNUM }}>{euro(totMargine)}</td>
+                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: margColor(avgMarg), ...TNUM }}>{fmt0(totMargine)}</td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, color: margColor(avgMarg) }}>{pct(avgMarg)}</td>
                 <td colSpan={3}/>
               </tr>
@@ -480,11 +480,11 @@ function SensTable({ rows, euro, pct }) {
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
-                <SortTH k="margPct" right active={sortKey === 'margPct'} dir={sortDir} onToggle={toggleSort}>Margine attuale</SortTH>
-                <SortTH k="marg10" right active={sortKey === 'marg10'} dir={sortDir} onToggle={toggleSort}>FC +10% → marg.</SortTH>
-                <SortTH k="marg20" right active={sortKey === 'marg20'} dir={sortDir} onToggle={toggleSort}>FC +20% → marg.</SortTH>
-                <SortTH k="ricavo" right active={sortKey === 'ricavo'} dir={sortDir} onToggle={toggleSort}>Break-even FC</SortTH>
-                <SortTH k="headroom" right active={sortKey === 'headroom'} dir={sortDir} onToggle={toggleSort}>Headroom</SortTH>
+                <SortTH k="margPct" right active={sortKey === 'margPct'} dir={sortDir} onToggle={toggleSort} tip="Margine % con i costi attuali">Margine attuale</SortTH>
+                <SortTH k="marg10" right active={sortKey === 'marg10'} dir={sortDir} onToggle={toggleSort} tip="Margine % se il food cost aumentasse del 10% (es. rincaro materie prime)">FC +10% → marg.</SortTH>
+                <SortTH k="marg20" right active={sortKey === 'marg20'} dir={sortDir} onToggle={toggleSort} tip="Margine % se il food cost aumentasse del 20%">FC +20% → marg.</SortTH>
+                <SortTH k="ricavo" right active={sortKey === 'ricavo'} dir={sortDir} onToggle={toggleSort} tip="Aumento di food cost che azzera il margine: oltre questa soglia vendi in perdita">Break-even FC</SortTH>
+                <SortTH k="headroom" right active={sortKey === 'headroom'} dir={sortDir} onToggle={toggleSort} tip="Margine di sicurezza: quanto possono salire i costi prima di erodere la redditività">Headroom</SortTH>
               </tr>
             </thead>
             <tbody>
@@ -685,12 +685,12 @@ export default function PLView({ ricettario, onUpdateRegola }) {
               {/* Ricavi */}
               <Voce dot="#C9BEB6">Ricavi</Voce>
               <div style={{ ...cellP, color: C.textSoft }}>100.0%</div>
-              <div style={{ ...cellA, color: C.text }}>{euro(totRicavo)}</div>
+              <div style={{ ...cellA, color: C.text }}>{fmt0(totRicavo)}</div>
 
               {/* Food cost */}
               <Voce dot={C.red}>Food cost</Voce>
               <div style={{ ...cellP, color: C.red }}>{fcPct.toFixed(1)}%</div>
-              <div style={{ ...cellA, color: C.red }}>−{euro(totFC)}</div>
+              <div style={{ ...cellA, color: C.red }}>−{fmt0(totFC)}</div>
 
               {/* Linea di chiusura (stile bilancio) */}
               <div style={{ gridColumn: '1 / -1', borderTop: `1px solid ${C.border}`, margin: '4px 0' }}/>
@@ -698,7 +698,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
               {/* Margine lordo */}
               <Voce dot={margC}>Margine lordo</Voce>
               <div style={{ ...cellP, color: margC }}>{margPctTot.toFixed(1)}%</div>
-              <div style={{ ...cellA, color: margC }}>{euro(totMargine)}</div>
+              <div style={{ ...cellA, color: margC }}>{fmt0(totMargine)}</div>
             </div>
 
             {/* Barra proporzione + legenda allineata */}
@@ -766,9 +766,9 @@ export default function PLView({ ricettario, onUpdateRegola }) {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(3,1fr)' : 'repeat(6,1fr)', gap: 10, marginBottom: 36 }}>
         {[
           { lbl: 'Prodotti', val: rows.length, sub: 'nel listino', hi: true },
-          { lbl: 'Ricavo/stampo', val: euro(totRicavo), sub: 'somma tutti i prodotti', color: T.green },
-          { lbl: 'Food cost tot.', val: euro(totFC), sub: `FC ratio ${pct(fcAvg)}`, color: T.brand },
-          { lbl: 'Margine lordo', val: euro(totMargine), sub: `${pct(avgMarg)} medio`, color: margColor(avgMarg) },
+          { lbl: 'Ricavo/stampo', val: fmt0(totRicavo), sub: 'somma tutti i prodotti', color: T.green },
+          { lbl: 'Food cost tot.', val: fmt0(totFC), sub: `FC ratio ${pct(fcAvg)}`, color: T.brand },
+          { lbl: 'Margine lordo', val: fmt0(totMargine), sub: `${pct(avgMarg)} medio`, color: margColor(avgMarg) },
           { lbl: 'Miglior margine', val: best.short, sub: pct(best.margPct), color: T.green },
           { lbl: 'Da ottimizzare', val: worst.short, sub: pct(worst.margPct), color: T.brand },
         ].map(({ lbl, val, sub, hi, color }, i) => (
@@ -788,7 +788,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
       <BarreRicavo rows={rows} euro={euro} pct={pct}/>
       <PLTable rows={rows} euro={euro} pct={pct} totRicavo={totRicavo} totFC={totFC} totMargine={totMargine} fcAvg={fcAvg} avgMarg={avgMarg}/>
       <TopIngredientiTable ricettario={ricettario} ingCosti={ingCosti} euro={euro} pct={pct}/>
-      <ScenarioPrezzi rows={rows} euro={euro} pct={pct}/>
+      {/* Simulatore Scenari di Prezzo rimosso: duplicato della sezione Food Cost. */}
       <SensTable rows={rows} euro={euro} pct={pct}/>
 
       {/* Grafici di riepilogo */}

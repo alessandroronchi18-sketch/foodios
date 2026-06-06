@@ -200,9 +200,9 @@ export function useSortable(defaultKey, defaultDir = 'desc') {
 }
 
 // Header tabella sortable
-export function SortTH({ k, children, right, active, dir, onToggle }) {
+export function SortTH({ k, children, right, active, dir, onToggle, tip }) {
   return (
-    <th onClick={() => onToggle(k)}
+    <th onClick={() => onToggle(k)} title={tip || undefined}
       style={{
         padding: '10px 16px', textAlign: right ? 'right' : 'left',
         fontSize: 10, fontWeight: 600, letterSpacing: '0.05em',
@@ -212,6 +212,7 @@ export function SortTH({ k, children, right, active, dir, onToggle }) {
         background: active ? '#FEF2F2' : 'transparent',
         cursor: 'pointer', userSelect: 'none',
         transition: 'background 0.15s',
+        textDecoration: tip ? 'underline dotted' : 'none', textUnderlineOffset: 3,
       }}>
       {children}{active ? (dir === 'desc' ? ' ▼' : ' ▲') : ''}
     </th>
