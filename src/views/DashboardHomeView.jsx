@@ -1,6 +1,6 @@
 // DashboardHomeView + StockPFWidget — estratti da Dashboard.jsx.
-// StockPFWidget non legge più i moduli globali _ctx_* ma riceve orgId/sedeId come props
-// (chiamato da DashboardHomeView che già li ha disponibili).
+// Redesign 2026-06: hero brand, KPI con icone/accenti, stock con barre, hover-lift.
+// StockPFWidget riceve orgId/sedeId come props.
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
@@ -12,10 +12,36 @@ import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { lessico } from '../lib/lessico'
 import { C, TNUM } from './_shared'
 
-const fmt = v => `€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+const fmt = v => `€ ${Number(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const fmt0 = v => `€ ${Math.round(Number(v) || 0).toLocaleString('it-IT')}`
+const n0 = v => Number(v || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })
+
+// Stile hover-lift condiviso (iniettato una volta).
+const HOVER_CSS = `
+.fos-tile{transition:transform .18s cubic-bezier(.32,.72,0,1), box-shadow .18s ease, border-color .18s ease}
+.fos-tile:hover{transform:translateY(-3px)}
+.fos-row{transition:background .14s ease}
+.fos-row:hover{background:#F7F3F0}
+@keyframes fos_riseIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fos-rise{animation:fos_riseIn .4s cubic-bezier(.32,.72,0,1) both}
+`
+
+// Mini icone (stroke currentColor).
+const Ico = ({ d, size = 18, fill = false }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
+)
+const ICO = {
+  euro: <><path d="M14.5 6.5A5 5 0 0 0 7 11h6"/><path d="M13 13H7a5 5 0 0 0 7.5 4.5"/></>,
+  pie: <><path d="M21 15.5A9 9 0 1 1 8.5 3"/><path d="M21 12A9 9 0 0 0 12 3v9z"/></>,
+  box: <><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></>,
+  alert: <><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></>,
+  check: <polyline points="20 6 9 17 4 12"/>,
+  store: <><path d="M3 9 4 4h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></>,
+  chevron: <polyline points="9 18 15 12 9 6"/>,
+}
 
 // ─── StockPFWidget ───────────────────────────────────────────────────────────
-function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId }) {
+function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX }) {
   const [stock, setStock] = useState([])
   const [inArrivo, setInArrivo] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -60,60 +86,57 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId }) {
 
   if (loading) return null
 
-  // Solo prodotti realmente disponibili (qty > 0): evita di mostrare "fantasmi"
-  // con 0 pezzi (es. una ricetta mai prodotta che ha lasciato una riga stock a 0).
   const inStock = stock.filter(r => Number(r.quantita || 0) > 0)
   const totPezzi = inStock.reduce((s, r) => s + Number(r.quantita || 0), 0)
-  const top3 = [...inStock].sort((a, b) => Number(b.quantita) - Number(a.quantita)).slice(0, 3)
+  const top = [...inStock].sort((a, b) => Number(b.quantita) - Number(a.quantita)).slice(0, 5)
+  const maxQ = Math.max(1, ...top.map(r => Number(r.quantita || 0)))
   const hasStock = inStock.length > 0
+  const BAR = ['#6E0E1A', '#C2410C', '#2563EB', '#16A34A', '#7C3AED']
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (inArrivo > 0 ? '1.6fr 1fr' : '1fr'), gap: isMobile ? 12 : 14, marginBottom: isMobile ? 20 : 28 }}>
-      <div onClick={() => setView('magazzino')}
-        style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl,
-          padding: isMobile ? '16px 18px' : '18px 22px', boxShadow: S.sm, cursor: 'pointer' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft }}>
-            {viewAggregato ? 'Stock vetrina · tutte le sedi' : 'Stock vetrina · sede attiva'}
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (inArrivo > 0 ? '1.7fr 1fr' : '1fr'), gap: isMobile ? 12 : 16, marginBottom: isMobile ? 18 : 24 }}>
+      <div className="fos-tile" onClick={() => setView('magazzino')}
+        style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '18px 18px' : '22px 26px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 30px rgba(15,23,42,0.05)', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasStock ? 16 : 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ico d={ICO.store} size={17} /></span>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft }}>
+              Stock vetrina<span style={{ color: T.textFaint }}> · {viewAggregato ? 'tutte le sedi' : 'sede attiva'}</span>
+            </div>
           </div>
-          <span style={{ fontSize: 11, color: T.textSoft }}>{inStock.length} prodotti</span>
+          <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 600 }}>{inStock.length} prodotti</span>
         </div>
         {hasStock ? (
-          <>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
-              <span style={{ fontSize: isMobile ? 28 : 34, fontWeight: 700, color: T.text, letterSpacing: '-0.035em', ...TNUM }}>
-                {totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0 })}
-              </span>
-              <span style={{ fontSize: 14, color: T.textSoft, fontWeight: 500 }}>pezzi disponibili</span>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 14 : 28, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: isMobile ? 38 : 48, fontWeight: 800, color: T.text, letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(totPezzi)}</div>
+              <div style={{ fontSize: 13, color: T.textSoft, fontWeight: 500, marginTop: 4 }}>pezzi al banco</div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {top3.map(r => (
-                <span key={r.prodotto_nome} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 999, background: T.bgSubtle, color: T.textMid, fontWeight: 500 }}>
-                  {r.prodotto_nome} · <strong style={{ color: T.text, ...TNUM }}>{Number(r.quantita).toLocaleString('it-IT', { maximumFractionDigits: 0 })}</strong>
-                </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {top.map((r, i) => (
+                <div key={r.prodotto_nome} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textMid, width: isMobile ? 96 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 0 }}>{r.prodotto_nome}</span>
+                  <div style={{ flex: 1, height: 9, background: '#F0EAE6', borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{ width: `${Math.max(5, Number(r.quantita) / maxQ * 100)}%`, height: '100%', background: BAR[i % BAR.length], borderRadius: 6 }} />
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: T.text, width: 44, textAlign: 'right', ...TNUM }}>{n0(r.quantita)}</span>
+                </div>
               ))}
             </div>
-          </>
+          </div>
         ) : (
-          <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5 }}>
-            Nessun prodotto in stock. Si popola quando confermi una sessione di produzione.
+          <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5, paddingTop: 6 }}>
+            Nessun prodotto al banco. Si popola quando confermi una sessione di produzione.
           </div>
         )}
       </div>
 
       {inArrivo > 0 && !viewAggregato && (
-        <div onClick={() => setView('trasferimenti')}
-          style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: R.xl,
-            padding: isMobile ? '16px 18px' : '18px 22px', cursor: 'pointer' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 12 }}>
-            🚚 In arrivo da altre sedi
-          </div>
-          <div style={{ fontSize: isMobile ? 28 : 34, fontWeight: 700, color: '#92400E', letterSpacing: '-0.035em', ...TNUM }}>
-            {inArrivo}
-          </div>
-          <div style={{ fontSize: 13, color: '#92400E', marginTop: 6, fontWeight: 500 }}>
-            {inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}
-          </div>
+        <div className="fos-tile" onClick={() => setView('trasferimenti')}
+          style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', border: '1px solid #FCD34D', borderRadius: 18, padding: isMobile ? '18px 18px' : '22px 24px', cursor: 'pointer' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 12 }}>🚚 In arrivo da altre sedi</div>
+          <div style={{ fontSize: isMobile ? 38 : 48, fontWeight: 800, color: '#92400E', letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{inArrivo}</div>
+          <div style={{ fontSize: 13, color: '#92400E', marginTop: 6, fontWeight: 600 }}>{inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}</div>
         </div>
       )}
     </div>
@@ -154,17 +177,10 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
 
   const sessioniOggi = (giornEff || []).filter(s => s.data === today)
   const hasProdOggi = sessioniOggi.some(s => (s.prodotti || []).length > 0)
-  // Pezzi al banco prodotti oggi = Σ(stampi × pezzi-per-stampo). Coerente con lo
-  // "Stock vetrina · pezzi disponibili": sommare gli stampi qui mostrerebbe un
-  // numero molto più piccolo della vetrina e genera confusione (1 stampo → N pezzi).
   const prodCount = sessioniOggi.reduce((acc, s) => acc + (s.prodotti || []).reduce((a, p) => {
     const reg = getR(p.nome, ricettario?.ricette?.[p.nome])
     const u = Number(reg?.unita)
     return a + (p.stampi || 0) * (Number.isFinite(u) && u > 0 ? u : 1)
-  }, 0), 0)
-  const costoStimato = sessioniOggi.reduce((tot, sess) => tot + (sess.prodotti || []).reduce((a, p) => {
-    const { tot: fc } = calcolaFC(ricettario?.ricette?.[p.nome] || { name: p.nome, ingredienti: [] }, ingCosti, ricettario)
-    return a + fc * p.stampi
   }, 0), 0)
 
   const cassaOggiList = (chiusEff || []).filter(c => c.data === today)
@@ -186,89 +202,90 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
     }
     return cnt > 0 ? tot / cnt : 0
   })()
-  const fcColor = fcMedio < 0.30 ? C.green : fcMedio < 0.35 ? C.amber : C.red
+  const fcColor = fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.red
 
   const critici = Object.values(magazzino || {}).filter(m => m.giacenza_g === 0 || (m.soglia_g > 0 && m.giacenza_g <= m.soglia_g))
   const ultimeRicette = Object.values(ricettario?.ricette || {}).slice(-5).reverse()
 
   const todos = []
-  if (!hasProdOggi && ora >= 6) todos.push({ id: 'prod', label: 'Registra produzione di oggi', view: 'giornaliero' })
+  if (!hasProdOggi && ora >= 6) todos.push({ id: 'prod', label: 'Registra la produzione di oggi', view: 'giornaliero' })
   if (!cassaOggi && ora >= 14) todos.push({ id: 'cassa', label: 'Chiudi la cassa', view: 'chiusura' })
   if (critici.length > 0) todos.push({ id: 'mag', label: `${critici.length} ingredienti sotto soglia in magazzino`, view: 'magazzino' })
 
   const giornoLabel = now.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   const saluto = ora < 13 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera'
-  const nomeSaluto = nomeAttivita ? `, ${nomeAttivita}` : ''
 
-  const fcBand = fcMedio < 0.30 ? 'ok' : fcMedio < 0.35 ? 'warn' : 'bad'
-  const fcAccent = fcBand === 'ok' ? T.green : fcBand === 'warn' ? T.amber : T.red
-
-  const KpiCard = ({ label, value, sub, valueColor, accent, onClick, empty, mini, alert }) => {
-    const isAlert = !!alert
-    return (
-      <div onClick={onClick}
-        style={{ background: T.bgCard, border: `1px solid ${isAlert ? 'rgba(110,14,26,0.28)' : T.border}`,
-          borderRadius: 14, padding: isMobile ? '18px 18px 18px 20px' : '22px 24px 22px 26px',
-          boxShadow: isAlert ? '0 4px 14px rgba(110,14,26,0.14)' : '0 1px 2px rgba(15,23,42,0.05), 0 4px 14px rgba(15,23,42,0.05)',
-          cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
-        {accent && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: accent, borderRadius: '4px 0 0 4px' }}/>}
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft, marginBottom: isMobile ? 10 : 12 }}>
-          {label}
-        </div>
-        <div style={{ fontSize: isMobile ? (mini ? 24 : 30) : (mini ? 28 : 38), fontWeight: 700,
-          color: empty ? T.textFaint : (valueColor || T.text), lineHeight: 1.0, letterSpacing: '-0.035em', ...TNUM }}>
-          {empty ? '—' : value}
-        </div>
-        <div style={{ fontSize: 13, color: T.textSoft, marginTop: isMobile ? 8 : 10, fontWeight: 500 }}>{sub}</div>
+  // ── KPI card premium: icona, accento, hover-lift ──
+  const KpiCard = ({ label, value, sub, valueColor, icon, tint, onClick, empty, alert }) => (
+    <div className="fos-tile" onClick={onClick}
+      style={{ background: T.bgCard, border: `1px solid ${alert ? 'rgba(110,14,26,0.25)' : T.border}`,
+        borderRadius: 18, padding: isMobile ? '16px 16px' : '20px 22px',
+        boxShadow: alert ? '0 1px 2px rgba(110,14,26,0.06), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
+        cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: -28, right: -28, width: 96, height: 96, borderRadius: '50%', background: tint.soft, opacity: 0.5 }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 12 : 14, position: 'relative' }}>
+        <span style={{ width: 36, height: 36, borderRadius: 11, background: tint.soft, color: tint.solid, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ico d={icon} size={18} /></span>
+        <span style={{ color: T.textFaint }}><Ico d={ICO.chevron} size={15} /></span>
       </div>
-    )
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 6, position: 'relative' }}>{label}</div>
+      <div style={{ fontSize: isMobile ? 26 : 32, fontWeight: 800, color: empty ? T.textFaint : (valueColor || T.text), lineHeight: 1.0, letterSpacing: '-0.035em', position: 'relative', ...TNUM }}>
+        {empty ? '—' : value}
+      </div>
+      <div style={{ fontSize: 12.5, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative' }}>{sub}</div>
+    </div>
+  )
+  const TINT = {
+    green: { soft: 'rgba(16,163,74,0.12)', solid: T.green },
+    blue: { soft: 'rgba(37,99,235,0.12)', solid: '#2563EB' },
+    red: { soft: 'rgba(110,14,26,0.12)', solid: T.brand },
+    fc: { soft: fcMedio < 0.30 ? 'rgba(16,163,74,0.12)' : fcMedio < 0.35 ? 'rgba(217,119,6,0.14)' : 'rgba(110,14,26,0.12)', solid: fcColor },
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ marginBottom: isMobile ? 28 : 40 }}>
-        <div style={{ fontSize: 13, color: T.textSoft, textTransform: 'capitalize', fontWeight: 500, marginBottom: 8 }}>
-          {giornoLabel}
-        </div>
-        <h1 style={{ margin: 0, fontSize: isMobile ? 30 : 44, fontWeight: 700, color: T.text, letterSpacing: '-0.035em', lineHeight: 1.05 }}>
-          {saluto}{nomeSaluto}
-        </h1>
-        {sediAttiveAll.length > 1 && (
-          <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase' }}>Visualizza:</span>
-            <div style={{ display: 'inline-flex', gap: 4, background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 999, padding: 3 }}>
-              <button onClick={() => setViewAggregato(false)}
-                style={{ padding: '4px 12px', border: 'none', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  background: !viewAggregato ? T.bgCard : 'transparent', color: !viewAggregato ? T.text : T.textSoft }}>
-                📍 {sedeAttiva?.nome || 'Sede attiva'}
-              </button>
-              <button onClick={() => setViewAggregato(true)}
-                style={{ padding: '4px 12px', border: 'none', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  background: viewAggregato ? T.bgCard : 'transparent', color: viewAggregato ? T.text : T.textSoft }}>
-                🏢 Tutte le sedi ({sediAttiveAll.length})
-              </button>
-            </div>
-            {viewAggregato && !aggrData && (
-              <span style={{ fontSize: 11, color: T.textSoft }}>Caricamento aggregati…</span>
-            )}
+    <div style={{ maxWidth: 1220, margin: '0 auto' }}>
+      <style>{HOVER_CSS}</style>
+
+      {/* HERO brand */}
+      <div className="fos-rise" style={{ position: 'relative', overflow: 'hidden', borderRadius: 22, padding: isMobile ? '22px 22px' : '30px 34px', marginBottom: isMobile ? 18 : 24,
+        background: 'linear-gradient(135deg, #1C0A0A 0%, #4A0612 52%, #6E0E1A 100%)',
+        boxShadow: '0 14px 40px rgba(110,14,26,0.32)' }}>
+        <div style={{ position: 'absolute', top: -60, right: -40, width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(232,75,58,0.35) 0%, transparent 70%)' }} />
+        <div style={{ position: 'absolute', bottom: -90, left: '30%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)' }} />
+        <div style={{ position: 'relative', display: 'flex', alignItems: isMobile ? 'flex-start' : 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', textTransform: 'capitalize', fontWeight: 600, letterSpacing: '0.02em', marginBottom: 8 }}>{giornoLabel}</div>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 28 : 42, fontWeight: 800, color: '#FFF', letterSpacing: '-0.04em', lineHeight: 1.04 }}>
+              {saluto}{nomeAttivita ? <>,<br style={{ display: isMobile ? 'block' : 'none' }} /> <span style={{ color: '#FBD7C9' }}>{nomeAttivita}</span></> : ''}
+            </h1>
           </div>
-        )}
+          {sediAttiveAll.length > 1 && (
+            <div style={{ display: 'inline-flex', gap: 4, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 999, padding: 4, backdropFilter: 'blur(6px)' }}>
+              {[[false, `📍 ${sedeAttiva?.nome || 'Sede attiva'}`], [true, `🏢 Tutte (${sediAttiveAll.length})`]].map(([agg, lbl]) => (
+                <button key={String(agg)} onClick={() => setViewAggregato(agg)}
+                  style={{ padding: '6px 14px', border: 'none', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                    background: viewAggregato === agg ? '#FFF' : 'transparent', color: viewAggregato === agg ? '#1C0A0A' : 'rgba(255,255,255,0.85)' }}>{lbl}</button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14, marginBottom: isMobile ? 20 : 28 }}>
-        <KpiCard label="Ricavi" value={fmt(ricaviOggi)} empty={!cassaOggi} sub={cassaOggi ? 'oggi' : 'non ancora registrati'} onClick={() => setView('chiusura')}/>
-        <KpiCard label="Food Cost" value={`${(fcMedio * 100).toFixed(1)}%`} valueColor={fcColor} accent={ricette.length > 0 ? fcAccent : null} empty={ricette.length === 0} sub={ricette.length > 0 ? 'medio ricettario' : 'non disponibile'} onClick={() => setView('simulatore')}/>
-        <KpiCard label="Produzione" value={<>{prodCount}<span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 500, color: T.textSoft, marginLeft: 6 }}>pz</span></>} empty={!hasProdOggi} sub={hasProdOggi ? 'registrata oggi' : 'non registrata'} onClick={() => setView('giornaliero')}/>
-        <KpiCard label="Magazzino" value={critici.length > 0 ? <>{critici.length}<span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 500, color: T.textSoft, marginLeft: 6 }}>critici</span></> : 'Tutto OK'} valueColor={critici.length > 0 ? T.brand : T.green} accent={critici.length > 0 ? T.brand : null} alert={critici.length > 0} sub={critici.length > 0 ? 'ingredienti sotto soglia' : 'livelli in ordine'} onClick={() => setView('magazzino')}/>
+      {/* KPI */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: isMobile ? 18 : 24 }}>
+        <KpiCard label="Ricavi" icon={ICO.euro} tint={TINT.green} value={fmt0(ricaviOggi)} valueColor={T.green} empty={!cassaOggi} sub={cassaOggi ? 'incassati oggi' : 'non ancora registrati'} onClick={() => setView('chiusura')} />
+        <KpiCard label="Food Cost" icon={ICO.pie} tint={TINT.fc} value={`${(fcMedio * 100).toFixed(1)}%`} valueColor={fcColor} empty={ricette.length === 0} sub={ricette.length > 0 ? 'medio ricettario' : 'non disponibile'} onClick={() => setView('simulatore')} />
+        <KpiCard label="Produzione" icon={ICO.box} tint={TINT.blue} value={<>{n0(prodCount)}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>pz</span></>} valueColor="#2563EB" empty={!hasProdOggi} sub={hasProdOggi ? 'prodotti oggi' : 'non registrata'} onClick={() => setView('giornaliero')} />
+        <KpiCard label="Magazzino" icon={ICO.alert} tint={critici.length > 0 ? TINT.red : TINT.green} value={critici.length > 0 ? <>{critici.length}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>critici</span></> : 'OK'} valueColor={critici.length > 0 ? T.brand : T.green} alert={critici.length > 0} sub={critici.length > 0 ? 'sotto soglia' : 'livelli in ordine'} onClick={() => setView('magazzino')} />
       </div>
 
-      <StockPFWidget isMobile={isMobile} setView={setView} viewAggregato={viewAggregato} orgId={orgId} sedeId={sedeId}/>
+      <StockPFWidget isMobile={isMobile} setView={setView} viewAggregato={viewAggregato} orgId={orgId} sedeId={sedeId} LEX={LEX} />
 
+      {/* Liste */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 14 : 18 }}>
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: isMobile ? '16px 16px 12px' : '20px 22px 14px', boxShadow: S.sm }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: isMobile ? 12 : 16 }}>
-            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.text }}>Ultime {LEX.ricette}</h2>
-            {ultimeRicette.length > 0 && <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 500 }}>{Object.keys(ricettario?.ricette || {}).length} totali</span>}
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '16px 16px 12px' : '20px 22px 14px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 10 : 14 }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Ultime {LEX.ricette}</h2>
+            {ultimeRicette.length > 0 && <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 600 }}>{Object.keys(ricettario?.ricette || {}).length} totali</span>}
           </div>
           {ultimeRicette.length === 0
             ? <div style={{ padding: '24px 12px', textAlign: 'center' }}>
@@ -284,51 +301,49 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
                   const marg = ricavo > 0 ? ((ricavo - fc) / ricavo * 100) : 0
                   const mC = marg >= 60 ? T.green : marg >= 40 ? T.amber : T.brand
                   return (
-                    <div key={r.nome} onClick={() => setView('ricettario')}
-                      style={{ padding: '10px 8px', margin: '0 -8px', borderRadius: R.md,
-                        borderTop: i === 0 ? 'none' : `1px solid ${T.borderSoft}`, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div key={r.nome} className="fos-row" onClick={() => setView('ricettario')}
+                      style={{ padding: '11px 8px', margin: '0 -8px', borderRadius: 10,
+                        borderTop: i === 0 ? 'none' : `1px solid ${T.borderSoft}`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ width: 4, height: 30, borderRadius: 3, background: ricavo > 0 ? mC : T.borderStr, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 500, fontSize: 13, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nome}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nome}</div>
                         <div style={{ fontSize: 11, color: T.textSoft, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, ...TNUM }}>
                           <span>FC {fcPct.toFixed(0)}%</span>
-                          <span style={{ width: 2, height: 2, borderRadius: '50%', background: T.textFaint }}/>
-                          <span style={{ color: ricavo > 0 ? mC : T.textSoft, fontWeight: 500 }}>Marg {marg.toFixed(0)}%</span>
+                          <span style={{ width: 3, height: 3, borderRadius: '50%', background: T.textFaint }} />
+                          <span style={{ color: ricavo > 0 ? mC : T.textSoft, fontWeight: 700 }}>Margine {marg.toFixed(0)}%</span>
                         </div>
                       </div>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textFaint} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                      <span style={{ color: T.textFaint }}><Ico d={ICO.chevron} size={14} /></span>
                     </div>
                   )
                 })}
               </div>
           }
           <button onClick={() => setView('ricettario')}
-            style={{ marginTop: isMobile ? 12 : 16, padding: '10px 12px', background: 'transparent',
-              border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, color: T.textMid,
-              cursor: 'pointer', width: '100%' }}>
+            style={{ marginTop: isMobile ? 12 : 16, padding: '11px 12px', background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 12, fontSize: 13, fontWeight: 600, color: T.textMid, cursor: 'pointer', width: '100%' }}>
             Apri il {LEX.Ricettario} →
           </button>
         </div>
 
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: isMobile ? '16px 16px' : '20px 22px', boxShadow: S.sm }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: isMobile ? 12 : 16 }}>
-            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.text }}>Da fare oggi</h2>
-            {todos.length > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: T.brand, background: T.brandLight, borderRadius: 999, padding: '2px 8px' }}>{todos.length}</span>}
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '16px 16px' : '20px 22px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 10 : 14 }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Da fare oggi</h2>
+            {todos.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: T.brand, background: T.brandLight, borderRadius: 999, padding: '2px 9px' }}>{todos.length}</span>}
           </div>
           {todos.length === 0
-            ? <div style={{ padding: '24px 12px', textAlign: 'center' }}>
-                <div style={{ fontSize: 13, color: T.textMid, fontWeight: 500 }}>✓ Tutto fatto per oggi</div>
-                <div style={{ fontSize: 12, color: T.textSoft, marginTop: 6 }}>Goditi la giornata.</div>
+            ? <div style={{ padding: '28px 12px', textAlign: 'center' }}>
+                <span style={{ display: 'inline-flex', width: 44, height: 44, borderRadius: '50%', background: 'rgba(16,163,74,0.12)', color: T.green, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}><Ico d={ICO.check} size={22} /></span>
+                <div style={{ fontSize: 13.5, color: T.text, fontWeight: 600 }}>Tutto fatto per oggi</div>
+                <div style={{ fontSize: 12, color: T.textSoft, marginTop: 4 }}>Goditi la giornata.</div>
               </div>
             : <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {todos.map((t, i) => (
-                  <div key={t.id} onClick={() => setView(t.view)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 8px',
-                      margin: '0 -8px', borderRadius: R.md,
+                  <div key={t.id} className="fos-row" onClick={() => setView(t.view)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 8px', margin: '0 -8px', borderRadius: 10,
                       borderTop: i === 0 ? 'none' : `1px solid ${T.borderSoft}`, cursor: 'pointer' }}>
-                    <div style={{ width: 18, height: 18, border: `2px solid ${T.borderStr}`, borderRadius: R.xs, flexShrink: 0 }}/>
-                    <span style={{ fontSize: 13, color: T.text, flex: 1 }}>{t.label}</span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textFaint} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    <span style={{ width: 22, height: 22, borderRadius: 7, background: T.brandLight, color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ico d={ICO.alert} size={13} /></span>
+                    <span style={{ fontSize: 13, color: T.text, flex: 1, fontWeight: 500 }}>{t.label}</span>
+                    <span style={{ color: T.textFaint }}><Ico d={ICO.chevron} size={14} /></span>
                   </div>
                 ))}
               </div>
