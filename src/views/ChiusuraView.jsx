@@ -965,33 +965,62 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
           {!isDipendente && confronto.filter(r => r.spreco > 2).length > 0 && (
             <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}30`, borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 10 }}>💡 Ottimizza la produzione di domani</div>
-              {confronto.filter(r => r.spreco > 2).map(r => (
-                <div key={r.nome} style={{ fontSize: 11, color: C.amber, lineHeight: 1.9 }}>
-                  <b>{r.nome}</b>: rimaste {r.unitaR} {r.reg?.tipo === 'fetta' ? 'fette' : 'pezzi'} · spreco {fmt(r.spreco)} · considera <b>{Math.ceil(r.unitaV / r.reg.unita)} stampi</b> invece di {r.stampiP}
-                </div>
-              ))}
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 12 }}>💡 Ottimizza la produzione di domani</div>
+              {/* Griglia incolonnata: Prodotto · Rimaste · Spreco · Suggerito */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto' : '1.8fr 0.9fr 0.9fr 1.4fr', gap: isMobile ? '2px 12px' : '7px 16px', alignItems: 'baseline' }}>
+                {!isMobile && ['Prodotto', 'Rimaste', 'Spreco', 'Suggerito'].map((h, i) => (
+                  <div key={h} style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.amber, textAlign: i === 0 ? 'left' : i === 3 ? 'left' : 'right' }}>{h}</div>
+                ))}
+                {confronto.filter(r => r.spreco > 2).map(r => {
+                  const tipo = r.reg?.tipo === 'fetta' ? 'fette' : 'pezzi'
+                  const consigliato = Math.ceil(r.unitaV / r.reg.unita)
+                  return isMobile ? (
+                    <React.Fragment key={r.nome}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{r.nome}</div>
+                      <div style={{ fontSize: 10, color: C.amber, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {r.unitaR} {tipo} · {fmt(r.spreco)} · <b>{consigliato}</b> invece di {r.stampiP} stampi
+                      </div>
+                    </React.Fragment>
+                  ) : (
+                    <React.Fragment key={r.nome}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>
+                      <div style={{ fontSize: 11, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{r.unitaR} {tipo}</div>
+                      <div style={{ fontSize: 11, color: C.amber, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(r.spreco)}</div>
+                      <div style={{ fontSize: 11, color: C.textMid, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: C.text }}>{consigliato} stampi</b> <span style={{ color: C.textSoft }}>invece di {r.stampiP}</span></div>
+                    </React.Fragment>
+                  )
+                })}
+              </div>
             </div>
           )}
 
           {confronto.length > 0 && (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 16 }}>Sell-through per {LEX.prodotto}</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 12 }}>Sell-through per {LEX.prodotto}</div>
+            {(() => { const nameW = isMobile ? 96 : 160, vendW = isMobile ? 52 : 64, rvW = isMobile ? 60 : 80; return (<>
+            {/* Intestazioni colonne destre, allineate alle celle dati */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+              <div style={{ width: nameW, flexShrink: 0 }}/>
+              <div style={{ flex: 1, fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft }}>Sell-through</div>
+              <div style={{ width: vendW, flexShrink: 0, textAlign: 'right', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft }}>Vend/Prod</div>
+              <div style={{ width: rvW, flexShrink: 0, textAlign: 'right', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft }}>Ricavo</div>
+            </div>
             {confronto.filter(r => r.st !== null).sort((a, b) => b.st - a.st).map(r => (
               <div key={r.nome} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                <div style={{ width: 160, fontSize: 11, fontWeight: 600, color: C.text, flexShrink: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>
+                <div style={{ width: nameW, fontSize: 11, fontWeight: 600, color: C.text, flexShrink: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>
                 <div style={{ flex: 1, height: 20, background: '#F0EAE6', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ height: 20, width: `${Math.min(100, r.st)}%`, background: stC(r.st), borderRadius: 4, display: 'flex', alignItems: 'center', paddingLeft: 7, minWidth: r.st > 8 ? 32 : 0 }}>
                     {r.st > 8 && <span style={{ fontSize: 10, fontWeight: 800, color: C.white }}>{r.st.toFixed(0)}%</span>}
                   </div>
                 </div>
-                <div style={{ width: 100, textAlign: 'right', fontSize: 11 }}>
+                <div style={{ width: vendW, flexShrink: 0, textAlign: 'right', fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
                   <span style={{ fontWeight: 700, color: C.text }}>{r.unitaV}</span>
-                  <span style={{ color: C.textSoft }}>{r.inProd ? ` / ${r.unitaP}` : ''}</span>
-                  <span style={{ color: C.green, fontWeight: 700, marginLeft: 5 }}>{fmt(r.rv)}</span>
+                  <span style={{ color: C.textSoft }}>{r.inProd ? `/${r.unitaP}` : ''}</span>
                 </div>
+                <div style={{ width: rvW, flexShrink: 0, textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.rv)}</div>
               </div>
             ))}
+            </>) })()}
             <div style={{ marginTop: 14, display: 'flex', gap: 14, fontSize: 10, color: C.textSoft, flexWrap: 'wrap' }}>
               {[[C.green, '>=85% ottimo'], [C.amber, '65-84% buono'], [C.red, '<65% ottimizzare']].map(([c, l]) => (
                 <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: c, display: 'inline-block' }}/>{l}</span>
