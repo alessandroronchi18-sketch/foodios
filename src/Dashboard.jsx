@@ -2437,8 +2437,7 @@ export default function Dashboard({
           const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
           return (
             <div style={{position:"sticky",top:52,zIndex:Z.topbar,
-              background:"linear-gradient(180deg, rgba(255,251,250,0.92) 0%, rgba(250,244,242,0.9) 100%)",
-              backdropFilter:"saturate(180%) blur(18px)",WebkitBackdropFilter:"saturate(180%) blur(18px)",
+              background:"linear-gradient(180deg, #FFFBFA 0%, #FAF4F2 100%)",
               borderBottom:`1px solid ${C.borderSoft}`,
               padding:"3px 32px",display:"flex",alignItems:"center",gap:16}}>
               {/* Sezione attiva: indicatore visivo brand a sinistra */}
