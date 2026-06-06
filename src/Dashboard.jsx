@@ -1,5 +1,6 @@
 import React from 'react'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import * as Sentry from '@sentry/react'
 import { lazyWithReload } from './lib/lazyWithReload'
 import UpgradeGate from './components/UpgradeGate'
 import { canAccessView } from './lib/planAccess'
@@ -1064,7 +1065,7 @@ function isChunkLoadError(e) {
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { err: null }; }
   static getDerivedStateFromError(e) { return { err: e }; }
-  componentDidCatch(e) {
+  componentDidCatch(e, info) {
     if (isChunkLoadError(e)) {
       // Ricarica una volta (guard anti-loop): nuova versione disponibile.
       try {
@@ -1072,7 +1073,11 @@ class ErrorBoundary extends React.Component {
         const last = Number(sessionStorage.getItem(k)) || 0;
         if (Date.now() - last > 20000) { sessionStorage.setItem(k, String(Date.now())); window.location.reload(); }
       } catch { window.location.reload(); }
+      return;
     }
+    // Errore reale: segnala a Sentry (questo boundary lo "ingoia", altrimenti
+    // non verrebbe riportato dal boundary radice).
+    try { Sentry.captureException(e, { extra: { componentStack: info?.componentStack } }); } catch { /* noop */ }
   }
   render() {
     const err = this.state.err;
@@ -1083,6 +1088,18 @@ class ErrorBoundary extends React.Component {
           <h1 style={{margin:"0 0 10px",fontSize:19,fontWeight:800,color:"#1C0A0A"}}>È disponibile una nuova versione</h1>
           <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>Ricarico la pagina per aggiornare FoodOS all'ultima versione…</p>
           <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica ora</button>
+        </div>
+      </div>
+    );
+    // In PRODUZIONE: card pulita + ricarica (mai stack grezzo davanti a un cliente).
+    // In DEV: stack completo per il debug.
+    if (err && import.meta.env.PROD) return (
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F8FAFC",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}>
+        <div style={{maxWidth:420,textAlign:"center",background:"#fff",border:"1px solid #E8E0DC",borderRadius:16,padding:"36px 28px",boxShadow:"0 4px 20px rgba(15,23,42,0.08)"}}>
+          <div style={{fontSize:38,marginBottom:12}}>😕</div>
+          <h1 style={{margin:"0 0 10px",fontSize:19,fontWeight:800,color:"#1C0A0A"}}>Qualcosa è andato storto</h1>
+          <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>L'errore è stato segnalato automaticamente. Ricarica la pagina per continuare.</p>
+          <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica</button>
         </div>
       </div>
     );
