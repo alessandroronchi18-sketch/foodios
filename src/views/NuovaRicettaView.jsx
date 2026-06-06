@@ -430,8 +430,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
-                      {["Ingrediente","g / stampo","Costo €",""].map((h,i)=>(
-                        <th key={i} style={{padding:"7px 10px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                      {[["Ingrediente",null],["g / stampo","Grammi di ingrediente per uno stampo"],["Costo €","Costo dell'ingrediente per uno stampo"],["",null]].map(([h,tip],i)=>(
+                        <th key={i} title={tip||undefined} style={{padding:"7px 10px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,whiteSpace:"nowrap",...(tip?{cursor:"help",textDecoration:"underline dotted",textUnderlineOffset:3}:null)}}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -442,8 +442,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       return (
                         <tr key={i} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
                           <td style={{padding:"7px 10px",fontWeight:600,color:C.text}}>
-                            {ing.nome}
-                            {!c&&<span style={{fontSize:7,marginLeft:4,background:C.amberLight,color:C.amber,padding:"1px 4px",borderRadius:3,fontWeight:700}}>prezzo mancante</span>}
+                            <span title={ing.nome} style={{display:"inline-block",maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",verticalAlign:"bottom"}}>{ing.nome}</span>
+                            {!c&&<span style={{fontSize:7,marginLeft:4,background:C.amberLight,color:C.amber,padding:"1px 4px",borderRadius:3,fontWeight:700,whiteSpace:"nowrap"}}>prezzo mancante</span>}
                           </td>
                           <td style={{padding:"4px 10px",textAlign:"right"}}>
                             <input
@@ -457,7 +457,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                             />
                             <span style={{fontSize:9,color:C.textSoft,marginLeft:3}}>g</span>
                           </td>
-                          <td style={{padding:"7px 10px",textAlign:"right",color:costo>0?C.red:C.textSoft,fontWeight:600}}>{costo>0?fmt(costo):"—"}</td>
+                          <td style={{padding:"7px 10px",textAlign:"right",color:costo>0?C.red:C.textSoft,fontWeight:600,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{costo>0?fmt(costo):"—"}</td>
                           <td style={{padding:"7px 6px",textAlign:"right"}}>
                             <button aria-label="Rimuovi ingrediente" onClick={()=>removeIng(i)} style={{padding:"2px 7px",borderRadius:4,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
                           </td>

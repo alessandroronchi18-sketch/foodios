@@ -31,6 +31,9 @@ function fmtData(iso) {
 function fmtQty(q, u) {
   return `${Number(q || 0).toLocaleString('it-IT', { maximumFractionDigits: 3 })} ${u || ''}`
 }
+function fmtEuro(v) {
+  return `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
 
 export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null, notify }) {
   const isMobile = useIsMobile()
@@ -417,8 +420,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 onChange={e => setRiceviModal(m => ({ ...m, qtyRic: e.target.value }))}
                 style={inp}/>
               {parseFloat(riceviModal.qtyRic) < Number(riceviModal.t.quantita) && (
-                <div style={{ marginTop: 6, fontSize: 11, color: C.amber }}>
-                  ⚠ Scarto: {(Number(riceviModal.t.quantita) - parseFloat(riceviModal.qtyRic || 0)).toFixed(2)} {riceviModal.t.unita}
+                <div style={{ marginTop: 6, fontSize: 11, color: C.amber, ...tnum }}>
+                  ⚠ Scarto: {(Number(riceviModal.t.quantita) - parseFloat(riceviModal.qtyRic || 0)).toLocaleString('it-IT', { maximumFractionDigits: 2 })} {riceviModal.t.unita}
                 </div>
               )}
             </div>
@@ -466,9 +469,9 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{t.prodotto}</span>
-                    <span style={{ fontSize: 11, color: C.textMid, ...tnum }}>{fmtQty(t.quantita, t.unita)}</span>
-                    {t.valore_unit > 0 && <span style={{ fontSize: 11, color: C.textSoft, ...tnum }}>· €{(t.quantita * t.valore_unit).toFixed(2)}</span>}
+                    <span title={t.prodotto} style={{ fontSize: 13, fontWeight: 700, color: C.text, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.prodotto}</span>
+                    <span style={{ fontSize: 11, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtQty(t.quantita, t.unita)}</span>
+                    {t.valore_unit > 0 && <span style={{ fontSize: 11, color: C.textSoft, whiteSpace: 'nowrap', ...tnum }}>· {fmtEuro(t.quantita * t.valore_unit)}</span>}
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: statoCfg.bg, color: statoCfg.color }}>
                       {statoCfg.label}
                     </span>

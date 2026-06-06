@@ -143,6 +143,8 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
 
 export default function ImpostazioniSedi({ orgId, onSediChange }) {
   const isMobile = useIsMobile()
+  // Su mobile font input >=16px per evitare lo zoom automatico iOS.
+  const inpR = { ...inp, fontSize: isMobile ? 16 : 13 }
   const [sedi, setSedi] = useState([])
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -294,16 +296,16 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
           <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 14 }}>Nuova sede</div>
           <div style={{ marginBottom: 10 }}>
             <label style={lbl}>Nome sede *</label>
-            <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} style={inp} placeholder="Es. Sede Centro" />
+            <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} style={inpR} placeholder="Es. Sede Centro" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <div>
               <label style={lbl}>Indirizzo</label>
-              <input value={form.indirizzo} onChange={e => setForm(f => ({ ...f, indirizzo: e.target.value }))} style={inp} placeholder="Via Roma 1" />
+              <input value={form.indirizzo} onChange={e => setForm(f => ({ ...f, indirizzo: e.target.value }))} style={inpR} placeholder="Via Roma 1" />
             </div>
             <div>
               <label style={lbl}>Città</label>
-              <input value={form.citta} onChange={e => setForm(f => ({ ...f, citta: e.target.value }))} style={inp} placeholder="Torino" />
+              <input value={form.citta} onChange={e => setForm(f => ({ ...f, citta: e.target.value }))} style={inpR} placeholder="Torino" />
             </div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: MID, marginBottom: 16, cursor: 'pointer' }}>
@@ -323,16 +325,16 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
             <div>
               <div style={{ marginBottom: 10 }}>
                 <label style={lbl}>Nome</label>
-                <input value={editForm.nome || ''} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} style={inp} />
+                <input value={editForm.nome || ''} onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} style={inpR} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 12 }}>
                 <div>
                   <label style={lbl}>Indirizzo</label>
-                  <input value={editForm.indirizzo || ''} onChange={e => setEditForm(f => ({ ...f, indirizzo: e.target.value }))} style={inp} />
+                  <input value={editForm.indirizzo || ''} onChange={e => setEditForm(f => ({ ...f, indirizzo: e.target.value }))} style={inpR} />
                 </div>
                 <div>
                   <label style={lbl}>Città</label>
-                  <input value={editForm.citta || ''} onChange={e => setEditForm(f => ({ ...f, citta: e.target.value }))} style={inp} />
+                  <input value={editForm.citta || ''} onChange={e => setEditForm(f => ({ ...f, citta: e.target.value }))} style={inpR} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
