@@ -52,15 +52,19 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   if (!orgId) return <div style={{ padding: 24, color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
 
   // ── handlers vendita ──
-  const apriVendita = () => setVForm({ cliente_id: '', data: todayLocal(), note: '', righe: [{ prodotto: '', qta: '', prezzo: '' }] })
+  const apriVendita = () => setVForm({ id: null, cliente_id: '', data: todayLocal(), note: '', righe: [{ prodotto: '', qta: '', prezzo: '' }] })
+  const modificaVendita = (v) => setVForm({
+    id: v.id, cliente_id: v.cliente_id || '', data: v.data, note: v.note || '',
+    righe: (v.righe || []).map(r => ({ prodotto: r.prodotto, qta: String(r.qta ?? ''), prezzo: String(r.prezzo ?? '') })),
+  })
   const salvaV = async () => {
     if (saving) return
     setSaving(true)
     try {
       const cliente = clienti.find(c => c.id === vForm.cliente_id)
-      const res = await salvaVenditaB2B({ orgId, sedeId, clienteId: vForm.cliente_id || null, clienteNome: cliente?.nome, data: vForm.data, righe: vForm.righe, note: vForm.note })
-      if (res.errori?.length) notify?.(`✓ Vendita salvata (${eur(res.totale)}) ma stock non scaricato per: ${res.errori.slice(0, 2).join(', ')}`, false)
-      else notify?.(`✓ Vendita B2B salvata · ${eur(res.totale)}`)
+      const res = await salvaVenditaB2B({ orgId, sedeId, clienteId: vForm.cliente_id || null, clienteNome: cliente?.nome, data: vForm.data, righe: vForm.righe, note: vForm.note, id: vForm.id || null })
+      if (res.warnings?.length) notify?.(`✓ Vendita salvata (${eur(res.totale)}) · ⚠ ${res.warnings.slice(0, 2).join(' · ')}`, false)
+      else notify?.(`✓ Vendita B2B ${vForm.id ? 'aggiornata' : 'salvata'} · ${eur(res.totale)}`)
       setVForm(null); ricarica()
     } catch (e) { notify?.('⚠ ' + e.message, false) }
     setSaving(false)
@@ -106,6 +110,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
           )}
           {vForm && (
             <div style={{ background: '#FFF0F0', border: `1px solid ${C.red}30`, borderRadius: 12, padding: '18px 20px', marginBottom: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 12 }}>{vForm.id ? '✏️ Modifica vendita' : '➕ Nuova vendita B2B'}</div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                 <select value={vForm.cliente_id} onChange={e => setVForm(f => ({ ...f, cliente_id: e.target.value }))} style={{ ...inp, flex: 1, minWidth: 160 }}>
                   <option value="">Cliente…</option>
@@ -159,6 +164,9 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.lbl}</span>
                     <span style={{ fontSize: 15, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums', minWidth: 90, textAlign: 'right' }}>{eur(v.totale)}</span>
+                    {v.stato !== 'annullata' && (
+                      <button onClick={() => modificaVendita(v)} title="Modifica vendita" style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Modifica</button>
+                    )}
                     <button onClick={() => toggleFattura(v)} title="Segna fatturata/da fatturare" style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>
                       {v.stato === 'fatturata' ? '↩' : '✓ Fatturata'}
                     </button>
