@@ -164,7 +164,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', boxShadow:'0 8px 24px rgba(15,23,42,0.14)', minWidth:190 }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', marginBottom:7, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
           <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
-          <span style={{ fontSize:10.5, fontWeight:700, color:C.textSoft, fontVariantNumeric:'tabular-nums' }}>{d.tot} stampi</span>
+          <span style={{ fontSize:10.5, fontWeight:700, color:C.textSoft, fontVariantNumeric:'tabular-nums' }}>{n0(d.tot)} stampi</span>
         </div>
         {d.top.map(([nome,q],i)=>{
           const col = colorOf(nome);
@@ -173,7 +173,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             <span style={{ fontSize:11, fontWeight:600, color:col, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:170 }}>
               <span style={{ display:'inline-block', width:15, color:C.textSoft, fontWeight:700 }}>{i+1}</span>{nome}
             </span>
-            <span style={{ fontSize:11, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{q}</span>
+            <span style={{ fontSize:11, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{n0(q)}</span>
           </div>
         );})}
         {d.extra>0 && <div style={{ fontSize:10, color:C.textSoft, marginTop:5 }}>+{d.extra} altri prodotti</div>}
@@ -267,6 +267,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     return base.sort((a,b)=>{ const va=col.get(a), vb=col.get(b); return (col.str?String(va).localeCompare(String(vb)):(va-vb))*dir; });
   })();
   const clickSort = key => { if (sortBy===key) setSortDir(d=>d==='asc'?'desc':'asc'); else { setSortBy(key); setSortDir(key==='periodo'||key==='top'?'asc':'desc'); } };
+  // Ricavo massimo tra i periodi: scala per le barre intuitive nel riepilogo.
+  const maxRicPeriodo = Math.max(1, ...periodiProd.map(p=>p.ricavoTot));
 
   const hasProd = giornaliero?.length>0;
   const hasVend = chiusure?.length>0;
@@ -390,12 +392,18 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       const top=Object.entries(p.byRicetta).sort((a,b)=>b[1]-a[1])[0];
                       return (
                         <tr key={p.key} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
-                          <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>{p.label}</td>
+                          <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>
+                            <div>{p.label}</div>
+                            {/* Barra intuitiva: ricavo del periodo rapportato al migliore */}
+                            <div title={`Ricavo ${eur0(p.ricavoTot)} · ${Math.round(p.ricavoTot/maxRicPeriodo*100)}% del periodo migliore`} style={{marginTop:4,height:5,width:96,maxWidth:"100%",background:"#F0EAE6",borderRadius:3,overflow:"hidden"}}>
+                              <div style={{height:5,width:`${Math.max(2,p.ricavoTot/maxRicPeriodo*100)}%`,background:C.green,borderRadius:3}}/>
+                            </div>
+                          </td>
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid}}>{p.sessioni.length}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{n0(p.stampiTot)}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",color:C.green,fontWeight:600,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(p.ricavoTot)}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(p.fcTot)}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(p.margPct),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(p.margine)}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",color:C.green,fontWeight:600,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(p.ricavoTot)}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(p.fcTot)}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(p.margPct),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(p.margine)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(p.margPct)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontSize:10}}>{top?`${top[0].replace("TORTA DI ","")} (${top[1]})`:"-"}</td>
                         </tr>
