@@ -1050,15 +1050,46 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 }
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
+// Errore di caricamento di un chunk lazy: capita quando l'app è aperta da un
+// deploy precedente e gli hash dei file sono cambiati (il vecchio chunk dà 404).
+// Non è un bug di codice: si risolve ricaricando per prendere l'index aggiornato.
+function isChunkLoadError(e) {
+  const s = `${e?.name || ''} ${e?.message || ''}`.toLowerCase();
+  return s.includes('dynamically imported module') || s.includes('failed to fetch')
+    || s.includes('importing a module script failed') || s.includes('chunkloaderror')
+    || s.includes('error loading') || s.includes('module script failed');
+}
+
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { err: null }; }
   static getDerivedStateFromError(e) { return { err: e }; }
+  componentDidCatch(e) {
+    if (isChunkLoadError(e)) {
+      // Ricarica una volta (guard anti-loop): nuova versione disponibile.
+      try {
+        const k = 'foodos_chunk_hardreload_ts';
+        const last = Number(sessionStorage.getItem(k)) || 0;
+        if (Date.now() - last > 20000) { sessionStorage.setItem(k, String(Date.now())); window.location.reload(); }
+      } catch { window.location.reload(); }
+    }
+  }
   render() {
-    if (this.state.err) return (
+    const err = this.state.err;
+    if (err && isChunkLoadError(err)) return (
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F8FAFC",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}>
+        <div style={{maxWidth:420,textAlign:"center",background:"#fff",border:"1px solid #E8E0DC",borderRadius:16,padding:"36px 28px",boxShadow:"0 4px 20px rgba(15,23,42,0.08)"}}>
+          <div style={{fontSize:38,marginBottom:12}}>🔄</div>
+          <h1 style={{margin:"0 0 10px",fontSize:19,fontWeight:800,color:"#1C0A0A"}}>È disponibile una nuova versione</h1>
+          <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>Ricarico la pagina per aggiornare FoodOS all'ultima versione…</p>
+          <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica ora</button>
+        </div>
+      </div>
+    );
+    if (err) return (
       <div style={{padding:40,fontFamily:"'JetBrains Mono', ui-monospace, monospace",color:"#6E0E1A",background:"#FFF5F5",minHeight:"100vh"}}>
         <h2>⚠️ Errore runtime</h2>
-        <pre style={{whiteSpace:"pre-wrap",fontSize:11}}>{this.state.err.toString()}</pre>
-        <pre style={{whiteSpace:"pre-wrap",fontSize:10,color:"#666"}}>{this.state.err.stack}</pre>
+        <pre style={{whiteSpace:"pre-wrap",fontSize:11}}>{err.toString()}</pre>
+        <pre style={{whiteSpace:"pre-wrap",fontSize:10,color:"#666"}}>{err.stack}</pre>
       </div>
     );
     return this.props.children;
