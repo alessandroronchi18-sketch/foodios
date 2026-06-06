@@ -44,7 +44,7 @@ const dayISO = back => {
 }
 
 // ─── Dataset: ingredienti (costo al kg) ──────────────────────────────────────
-const INGREDIENTI = {
+const INGREDIENTI_PAST = {
   'Farina 00': 0.88, 'Farina manitoba': 1.20, 'Zucchero': 0.98, 'Zucchero a velo': 1.45,
   'Burro': 5.80, 'Uova': 3.00, 'Tuorli': 6.20, 'Albumi': 2.40, 'Latte intero': 1.10,
   'Panna fresca': 3.40, 'Mascarpone': 6.20, 'Ricotta': 4.50, 'Lievito per dolci': 7.50,
@@ -60,7 +60,7 @@ const INGREDIENTI = {
 
 // ─── Dataset: ricette (qty in g per 1 stampo) ────────────────────────────────
 // tipo: 'fetta' | 'pezzo' | 'semilavorato'.  unita = porzioni per stampo.
-const RICETTE = [
+const RICETTE_PAST = [
   // Semilavorati (referenziati dalle ricette finite)
   { nome: 'Crema pasticcera base', cat: 'Semilavorati', tipo: 'semilavorato', unita: 1, prezzo: 0,
     ing: [['Latte intero', 500], ['Tuorli', 120], ['Zucchero', 130], ['Farina 00', 45], ['Vaniglia bacca', 1]] },
@@ -110,6 +110,81 @@ const RICETTE = [
   { nome: 'Mini Cheesecake', cat: 'Monoporzioni', tipo: 'pezzo', unita: 1, prezzo: 2.50,
     ing: [['Ricotta', 50], ['Mascarpone', 25], ['Zucchero', 15], ['Lamponi', 15], ['Amaretti', 18]] },
 ]
+
+// ─── Dataset GELATERIA (ing in g per vaschetta ~5kg; unita = coppette/vaschetta;
+//      prezzo = per coppetta). I "gusti" sono le ricette. ──────────────────────
+const INGREDIENTI_GEL = {
+  'Latte intero': 1.10, 'Panna fresca': 3.40, 'Zucchero': 0.98, 'Destrosio': 1.80,
+  'Latte magro in polvere': 3.50, 'Tuorli': 6.20, 'Cacao amaro': 9.50, 'Cioccolato fondente': 9.80,
+  'Pasta pistacchio': 38.00, 'Pasta nocciola': 18.00, 'Nocciole': 14.50, 'Pistacchio': 38.00,
+  'Fragole': 6.50, 'Limoni': 2.50, 'Mango polpa': 8.00, 'Caffè espresso': 14.00,
+  'Vaniglia bacca': 220.00, 'Amarena sciroppata': 7.50, 'Cocco rapè': 7.20, 'Yogurt': 2.80,
+  'Menta': 3.00, 'Latte condensato': 4.50,
+  'Base bianca': 0, 'Base gialla': 0, // semilavorati
+}
+const RICETTE_GEL = [
+  { nome: 'Base bianca', cat: 'Basi', tipo: 'semilavorato', unita: 1, prezzo: 0,
+    ing: [['Latte intero', 3000], ['Panna fresca', 800], ['Zucchero', 700], ['Latte magro in polvere', 250], ['Destrosio', 250]] },
+  { nome: 'Base gialla', cat: 'Basi', tipo: 'semilavorato', unita: 1, prezzo: 0,
+    ing: [['Latte intero', 3000], ['Panna fresca', 700], ['Tuorli', 600], ['Zucchero', 700]] },
+  { nome: 'Fiordilatte', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Base bianca', 5000]] },
+  { nome: 'Crema', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Base gialla', 4900], ['Vaniglia bacca', 2]] },
+  { nome: 'Pistacchio', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 3.00, ing: [['Base bianca', 4500], ['Pasta pistacchio', 500]] },
+  { nome: 'Nocciola', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.80, ing: [['Base bianca', 4600], ['Pasta nocciola', 400]] },
+  { nome: 'Cioccolato', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Base bianca', 4500], ['Cacao amaro', 250], ['Cioccolato fondente', 250]] },
+  { nome: 'Stracciatella', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Base bianca', 4800], ['Cioccolato fondente', 200]] },
+  { nome: 'Bacio', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.80, ing: [['Base bianca', 4500], ['Pasta nocciola', 300], ['Cacao amaro', 200]] },
+  { nome: 'Caffè', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Base bianca', 4800], ['Caffè espresso', 200]] },
+  { nome: 'Amarena', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Base bianca', 4700], ['Amarena sciroppata', 300]] },
+  { nome: 'Cocco', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Base bianca', 4700], ['Cocco rapè', 300]] },
+  { nome: 'Yogurt', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Yogurt', 3000], ['Base bianca', 1500], ['Zucchero', 500]] },
+  { nome: 'Tiramisù', cat: 'Creme', tipo: 'pezzo', unita: 50, prezzo: 2.80, ing: [['Base gialla', 4600], ['Caffè espresso', 200], ['Cacao amaro', 100]] },
+  { nome: 'Sorbetto Limone', cat: 'Sorbetti', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Limoni', 1500], ['Zucchero', 1300]] },
+  { nome: 'Sorbetto Fragola', cat: 'Sorbetti', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Fragole', 2500], ['Zucchero', 1200]] },
+  { nome: 'Sorbetto Mango', cat: 'Sorbetti', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Mango polpa', 2500], ['Zucchero', 1200]] },
+  { nome: 'Menta', cat: 'Sorbetti', tipo: 'pezzo', unita: 50, prezzo: 2.50, ing: [['Base bianca', 4800], ['Menta', 200]] },
+]
+
+// ─── Config per tipo attività: cosa cambia tra pasticceria/gelateria ─────────
+const DEMO = {
+  pasticceria: {
+    nome_attivita: 'Pasticceria Demo', tipo: 'pasticceria', ing: INGREDIENTI_PAST, ric: RICETTE_PAST,
+    // vendite B2B: {cliente idx, giorni fa, stato, righe [[prodotto, qta, prezzo]]}
+    b2b: [
+      { c: 0, back: 1, s: 'fatturata', items: [['CROISSANT VUOTO', 60, 0.7], ['BRIOCHE COL TUPPO', 30, 0.85]] },
+      { c: 1, back: 2, s: 'fatturata', items: [['CROISSANT CREMA', 40, 0.9], ['CANNOLO SICILIANO', 20, 1.4]] },
+      { c: 0, back: 4, s: 'fatturata', items: [['CROISSANT VUOTO', 80, 0.7]] },
+      { c: 2, back: 6, s: 'consegnata', items: [['BIGNÈ CREMA', 50, 0.7], ['TORTA SACHER', 3, 22]] },
+      { c: 1, back: 0, s: 'consegnata', items: [['CROISSANT VUOTO', 50, 0.7], ['BACI DI DAMA', 60, 0.35]] },
+    ],
+    eventi: [
+      { cliente: 'Famiglia Ferrero', back: 5, acconto: 30, note: '18 anni — ritiro ore 16', items: [['Torta 3 piani cioccolato', 1, 120], ['Mignon assortiti', 40, 1.2]] },
+      { cliente: 'Studio Legale Bianchi', back: 9, acconto: 0, note: 'Buffet inaugurazione ufficio', items: [['Focaccine farcite', 80, 1.5], ['Pasticceria salata', 100, 0.9]] },
+      { cliente: 'Maria (privato)', back: 2, acconto: 20, note: 'Battesimo', items: [['Torta panna e fragole', 1, 45], ['Confetti', 30, 0.5]] },
+    ],
+  },
+  gelateria: {
+    nome_attivita: 'Gelateria Demo', tipo: 'gelateria', ing: INGREDIENTI_GEL, ric: RICETTE_GEL,
+    // ingrosso: vaschette di gusti a bar/ristoranti (prezzo per vaschetta)
+    b2b: [
+      { c: 0, back: 1, s: 'fatturata', items: [['FIORDILATTE', 8, 22], ['CIOCCOLATO', 6, 22], ['PISTACCHIO', 4, 30]] },
+      { c: 1, back: 2, s: 'fatturata', items: [['NOCCIOLA', 6, 26], ['STRACCIATELLA', 6, 22]] },
+      { c: 0, back: 4, s: 'fatturata', items: [['FIORDILATTE', 10, 22], ['SORBETTO LIMONE', 5, 20]] },
+      { c: 2, back: 6, s: 'consegnata', items: [['PISTACCHIO', 5, 30], ['BACIO', 5, 26], ['CAFFÈ', 4, 22]] },
+      { c: 1, back: 0, s: 'consegnata', items: [['FIORDILATTE', 8, 22], ['SORBETTO FRAGOLA', 6, 20]] },
+    ],
+    eventi: [
+      { cliente: 'Famiglia Ferrero', back: 5, acconto: 30, note: 'Compleanno 18 anni — torta gelato', items: [['Torta gelato pistacchio (10 pers)', 1, 55], ['Coppette assortite', 30, 2.5]] },
+      { cliente: 'Pro Loco Moncalieri', back: 9, acconto: 50, note: 'Sagra — fornitura vaschette', items: [['Vaschette 5kg assortite', 12, 24], ['Coni cialda', 300, 0.25]] },
+      { cliente: 'Maria (privato)', back: 2, acconto: 20, note: 'Festa bimbi — semifreddo', items: [['Semifreddo amarena', 2, 28], ['Coppette', 25, 2.5]] },
+    ],
+  },
+}
+
+const TIPO = (process.env.DEMO_TIPO || 'pasticceria').toLowerCase()
+const CFG = DEMO[TIPO] || DEMO.pasticceria
+const INGREDIENTI = CFG.ing
+const RICETTE = CFG.ric
 
 // ─── Costruzione ricettario nel formato dell'app ─────────────────────────────
 function pesoStampo(r) { return r.ing.reduce((s, [, q]) => s + q, 0) }
@@ -294,7 +369,7 @@ let userId
 {
   const { data, error } = await sb.auth.admin.createUser({
     email: EMAIL, password: PASSWORD, email_confirm: true,
-    user_metadata: { nome_completo: 'Demo Pasticceria', nome_attivita: 'Pasticceria Demo', tipo_attivita: 'pasticceria', citta: 'Torino' },
+    user_metadata: { nome_completo: 'Demo', nome_attivita: CFG.nome_attivita, tipo_attivita: TIPO, citta: 'Torino' },
   })
   if (error && error.message?.toLowerCase().includes('already')) {
     // riusa: trova l id paginando gli utenti
@@ -329,7 +404,8 @@ console.log(`✓ org=${orgId}  sede=${sedeId}`)
 
 // 3. Sblocca l account (niente gate trial): approvato + attivo + trial lontano
 await sb.from('organizations').update({
-  approvato: true, attivo: true,
+  approvato: true, attivo: true, tipo: TIPO,
+  nome: CFG.nome_attivita,
   trial_ends_at: new Date(Date.now() + 365 * 86400000).toISOString(),
 }).eq('id', orgId)
 
@@ -392,28 +468,20 @@ if (stockRows.length) {
     { organization_id: orgId, nome: 'Caffè San Carlo', partita_iva: '99887766554', codice_destinatario: '0000000', citta: 'Torino', referente: 'Elena', telefono: '011 5550202' },
     { organization_id: orgId, nome: 'Ristorante Da Mario', partita_iva: '55667788990', citta: 'Moncalieri', referente: 'Mario', telefono: '011 5550303' },
   ]).select('id')
-  const rg = (p, q, pr) => ({ prodotto: p, qta: q, prezzo: pr, totale: r2(q * pr) })
-  const totR = rr => r2(rr.reduce((s, r) => s + r.totale, 0))
-  const vend = [
-    { c: 0, back: 1, s: 'fatturata', r: [rg('CROISSANT VUOTO', 60, 0.7), rg('BRIOCHE COL TUPPO', 30, 0.85)] },
-    { c: 1, back: 2, s: 'fatturata', r: [rg('CROISSANT CREMA', 40, 0.9), rg('CANNOLO SICILIANO', 20, 1.4)] },
-    { c: 0, back: 4, s: 'fatturata', r: [rg('CROISSANT VUOTO', 80, 0.7)] },
-    { c: 2, back: 6, s: 'consegnata', r: [rg('BIGNÈ CREMA', 50, 0.7), rg('TORTA SACHER', 3, 22)] },
-    { c: 1, back: 0, s: 'consegnata', r: [rg('CROISSANT VUOTO', 50, 0.7), rg('BACI DI DAMA', 60, 0.35)] },
-  ]
-  await sb.from('vendite_b2b').insert(vend.map(v => ({
+  const r2tot = items => r2(items.reduce((s, [, q, pr]) => s + q * pr, 0))
+  await sb.from('vendite_b2b').insert(CFG.b2b.map(v => ({
     organization_id: orgId, sede_id: sedeId, cliente_id: cl[v.c].id,
-    data: dayISO(v.back), righe: v.r, totale: totR(v.r), stato: v.s, stock_scaricato: false,
+    data: dayISO(v.back), stato: v.s, stock_scaricato: false,
+    righe: v.items.map(([p, q, pr]) => ({ prodotto: p, qta: q, prezzo: pr, totale: r2(q * pr) })),
+    totale: r2tot(v.items),
   })))
 
   // Eventi (ordini su commessa) — per-sede
-  const ev = (n, cliente, back, acconto, note, righe) => ({ id: `seed-ev-${n}`, cliente, data: dayISO(-back), acconto, note, righe: righe.map((x, i) => ({ id: `r${i}`, nome: x[0], qty: x[1], prezzo: x[2] })) })
-  await setData(orgId, sedeId, 'pasticceria-eventi-v1', [
-    ev(1, 'Famiglia Ferrero', 5, 30, '18 anni — ritiro ore 16', [['Torta 3 piani cioccolato', 1, 120], ['Mignon assortiti', 40, 1.2]]),
-    ev(2, 'Studio Legale Bianchi', 9, 0, 'Buffet inaugurazione ufficio', [['Focaccine farcite', 80, 1.5], ['Pasticceria salata', 100, 0.9]]),
-    ev(3, 'Maria (privato)', 2, 20, 'Battesimo', [['Torta panna e fragole', 1, 45], ['Confetti', 30, 0.5]]),
-  ])
-  console.log('✓ Fornitori (4), Personale (4 dip + ' + turni.length + ' turni), Clienti B2B (3) + vendite (5), Eventi (3)')
+  await setData(orgId, sedeId, 'pasticceria-eventi-v1', CFG.eventi.map((e, n) => ({
+    id: `seed-ev-${n + 1}`, cliente: e.cliente, data: dayISO(-e.back), acconto: e.acconto, note: e.note,
+    righe: e.items.map((x, i) => ({ id: `r${i}`, nome: x[0], qty: x[1], prezzo: x[2] })),
+  })))
+  console.log(`✓ Fornitori (4), Personale (4 dip + ${turni.length} turni), Clienti B2B (3) + vendite (${CFG.b2b.length}), Eventi (${CFG.eventi.length})`)
 }
 
 console.log('\n═══════════════════════════════════════════════════════════')
