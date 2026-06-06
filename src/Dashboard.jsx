@@ -1178,6 +1178,9 @@ export default function Dashboard({
   });
   useEffect(() => { try { localStorage.setItem('foodios-zoom', String(zoom)); } catch {} }, [zoom]);
   const stepZoom = (dir) => setZoom(z => { const i = ZOOM_STEPS.indexOf(z); const ni = Math.max(0, Math.min(ZOOM_STEPS.length - 1, (i < 0 ? 3 : i) + dir)); return ZOOM_STEPS[ni]; });
+  // Navigazione orizzontale in topbar (desktop): sezione con mega-menu aperto + dropdown profilo.
+  const [hoverSec, setHoverSec] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // Ruolo utente. Il dipendente vede solo le viste operative (DIPENDENTE_VIEWS).
   const ruolo = auth?.ruolo || 'titolare';
@@ -1759,25 +1762,170 @@ export default function Dashboard({
       {/* ── Trial Banner rimosso dal rendering (logica isTrialAttivo intatta) ── */}
       <style>{`*{box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.4);border-radius:10px}::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.7)}`}</style>
 
-      {/* Fascia superiore globale (desktop): logo + nome. Spostata fuori dalla
-          sidebar per liberare spazio al menu. */}
-      {!isMobile && (
-        <div style={{position:"fixed",top:0,left:0,right:0,height:46,zIndex:40,background:T.bgSide,
-          borderBottom:`1px solid ${T.borderOnDark}`,display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"0 18px"}}>
-          {customLogo
-            ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/>
-            : <Logo size={26} style={{borderRadius:6}}/>}
-          <span style={{fontSize:15,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em"}}>{appName}</span>
-          {/* Controllo zoom globale, a destra (non sposta il logo centrato) */}
-          <div style={{position:"absolute",right:14,top:0,bottom:0,display:"flex",alignItems:"center",gap:4}}>
-            <button onClick={()=>stepZoom(-1)} aria-label="Riduci zoom" title="Rimpicciolisci"
-              style={{width:24,height:24,borderRadius:6,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:T.textOnDarkMid,fontSize:15,fontWeight:800,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-            <span style={{minWidth:38,textAlign:"center",fontSize:11,fontWeight:700,color:T.textOnDarkSoft,fontVariantNumeric:"tabular-nums"}}>{Math.round(zoom*100)}%</span>
-            <button onClick={()=>stepZoom(1)} aria-label="Aumenta zoom" title="Ingrandisci"
-              style={{width:24,height:24,borderRadius:6,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:T.textOnDarkMid,fontSize:14,fontWeight:800,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+      {/* Fascia superiore globale (desktop): NAVIGAZIONE ORIZZONTALE.
+          Logo a sx · sezioni con mega-menu su hover · ricerca · profilo a dx. */}
+      {!isMobile && (()=>{
+        const ICONS = SHARED_ICONS, ic = sharedIc;
+        const today2 = todayLocal();
+        const criticeMag = Object.values(magazzino||{}).filter(m=>m.giacenza_g===0||(m.soglia_g>0&&m.giacenza_g<=m.soglia_g)).length;
+        const azioniAperte = (actions||[]).filter(a=>a.stato!=="chiusa").length;
+        const hasProdOggi = (giornaliero||[]).some(s=>s.data===today2&&(s.prodotti||[]).length>0);
+        const cassaMancante = !(chiusure||[]).some(c=>c.data===today2) && new Date().getHours()>=14;
+        const multiSede = (sedi||[]).length>1;
+        const NAV = [
+          { id:"oggi", label:"Oggi", items:[
+            {id:"giornaliero",label:"Produzione",icon:"cal",alert:!hasProdOggi&&new Date().getHours()>=6},
+            {id:"chiusura",label:"Cassa",icon:"creditCard",alert:cassaMancante},
+            {id:"eventi",label:"Eventi",icon:"cal"},
+            {id:"calendario",label:"Calendario",icon:"cal"},
+          ]},
+          { id:"ricette", label:"Ricette & Menù", items:[
+            {id:"ricettario",label:LEX.Ricettario,icon:"book"},
+            {id:"semilavorati",label:"Semilavorati",icon:"layers"},
+            {id:"nuova-ricetta",label:"Nuova ricetta",icon:"pencil"},
+            {id:"formati-vendita",label:"Formati di vendita",icon:"coins"},
+            {id:"scheda-allergeni",label:"Allergeni",icon:"shield"},
+            {id:"menu",label:"Menù del giorno",icon:"menu"},
+          ]},
+          { id:"acquisti", label:"Magazzino & Acquisti", badge:criticeMag, items:[
+            {id:"magazzino",label:"Magazzino",icon:"pkg",badge:criticeMag,alert:criticeMag>0},
+            {id:"scadenzario",label:"Scadenzario",icon:"fileText"},
+            {id:"fornitori",label:"Fornitori",icon:"truck"},
+            {id:"vendite-b2b",label:"Vendite B2B",icon:"building"},
+            {id:"sprechi-omaggi",label:"Sprechi e omaggi",icon:"sparkles"},
+            {id:"importa-dati",label:"Importa dati",icon:"download"},
+          ]},
+          { id:"numeri", label:"Andamento & costi", items:[
+            {id:"simulatore",label:"Food Cost",icon:"barChart"},
+            {id:"pl",label:"Profitti (P&L)",icon:"trendUp"},
+            {id:"storico",label:"Storico",icon:"activity"},
+            {id:"previsione",label:"Previsioni",icon:"forecast"},
+            {id:"discrepanze",label:"Discrepanze prod./vendite",icon:"fileText"},
+          ]},
+          { id:"azienda", label:"Azienda", items:[
+            {id:"personale",label:"Personale",icon:"users"},
+            {id:"haccp",label:"HACCP",icon:"shield"},
+            {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
+            ...(multiSede?[{id:"confronto-sedi",label:"Confronto sedi",icon:"building"},{id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"}]:[]),
+          ]},
+          { id:"strumenti", label:"Assistente AI", badge:azioniAperte, items:[
+            {id:"azioni",label:"AI Assistant",icon:"sparkles",badge:azioniAperte},
+          ]},
+        ].map(sec=>({ ...sec, items: sec.items.filter(it=>!isDip||DIPENDENTE_VIEWS.has(it.id)) })).filter(sec=>sec.items.length>0);
+
+        const go = id => { setView(id); setHoverSec(null); setProfileOpen(false); setSidebarSearch(''); };
+        const activeSec = NAV.find(s=>s.items.some(it=>it.id===view))?.id;
+        const q = sidebarQuery;
+        const searchHits = q ? NAV.flatMap(s=>s.items).filter(it=>it.label.toLowerCase().includes(q)||it.id.toLowerCase().includes(q)) : [];
+
+        // Bottone voce dentro un mega-menu o nei risultati ricerca.
+        const ItemBtn = (it) => {
+          const act = view===it.id;
+          return (
+            <button key={it.id} onClick={()=>go(it.id)}
+              style={{display:"flex",alignItems:"center",gap:9,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",cursor:"pointer",
+                background:act?C.redLight:"transparent",color:act?C.red:C.text,fontSize:12.5,fontWeight:act?700:500,fontFamily:"inherit"}}
+              onMouseEnter={e=>{if(!act)e.currentTarget.style.background="#F4EEEA";}} onMouseLeave={e=>{if(!act)e.currentTarget.style.background="transparent";}}>
+              <span style={{color:act?C.red:C.textSoft,display:"flex"}}>{ic(ICONS[it.icon],15)}</span>
+              <span style={{flex:1,whiteSpace:"nowrap"}}>{it.label}</span>
+              {it.badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"1px 7px"}}>{it.badge}</span>}
+              {it.alert&&!it.badge&&<span style={{width:7,height:7,borderRadius:"50%",background:"#E84B3A"}}/>}
+              {!canAccessView(it.id,piano)&&<span title="Funzione del piano Chain" style={{color:C.textSoft,display:"flex"}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>}
+            </button>
+          );
+        };
+        const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
+        return (
+        <div style={{position:"fixed",top:0,left:0,right:0,height:52,zIndex:45,background:T.bgSide,
+          borderBottom:`1px solid ${T.borderOnDark}`,display:"flex",alignItems:"center",gap:14,padding:"0 16px"}}>
+          {/* Logo + nome (sx) */}
+          <button onClick={()=>go(isDip?"giornaliero":"home")} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
+            {customLogo ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/> : <Logo size={26} style={{borderRadius:6}}/>}
+            <span style={{fontSize:15,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",whiteSpace:"nowrap"}}>{appName}</span>
+          </button>
+
+          {/* Sezioni con mega-menu su hover */}
+          <div style={{display:"flex",alignItems:"center",gap:2,flex:1,minWidth:0,overflow:"visible"}}>
+            {NAV.map(sec=>{
+              const open = hoverSec===sec.id;
+              const secActive = activeSec===sec.id;
+              return (
+                <div key={sec.id} style={{position:"relative"}} onMouseEnter={()=>setHoverSec(sec.id)} onMouseLeave={()=>setHoverSec(null)}>
+                  <button style={{display:"flex",alignItems:"center",gap:6,padding:"7px 11px",borderRadius:8,border:"none",cursor:"pointer",whiteSpace:"nowrap",
+                    background:open||secActive?"rgba(255,255,255,0.10)":"transparent",
+                    color:secActive?"#fff":"rgba(255,255,255,0.82)",fontSize:12.5,fontWeight:secActive?700:500,fontFamily:"inherit",
+                    transition:`background ${M.durFast} ${M.ease}`}}>
+                    {sec.label}
+                    {sec.badge>0&&<span style={{background:"#6E0E1A",color:"#fff",borderRadius:9,fontSize:9,fontWeight:700,padding:"1px 6px"}}>{sec.badge}</span>}
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.6}}><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  {open&&(
+                    <div style={{position:"absolute",top:"100%",left:0,marginTop:4,minWidth:210,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 12px 32px rgba(15,23,42,0.18)",padding:6,zIndex:60}}>
+                      {sec.items.map(ItemBtn)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Ricerca sezioni */}
+          <div style={{position:"relative",flexShrink:0}}>
+            <input value={sidebarSearch} onChange={e=>setSidebarSearch(e.target.value)} placeholder="Cerca…"
+              style={{width:150,padding:"7px 10px 7px 30px",borderRadius:8,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+            <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.5)",display:"flex",pointerEvents:"none"}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </span>
+            {q&&(
+              <div style={{position:"absolute",top:"100%",right:0,marginTop:4,minWidth:240,maxHeight:340,overflowY:"auto",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 12px 32px rgba(15,23,42,0.18)",padding:6,zIndex:60}}>
+                {searchHits.length?searchHits.map(ItemBtn):<div style={{padding:"10px 12px",fontSize:12,color:C.textSoft}}>Nessuna sezione trovata.</div>}
+              </div>
+            )}
+          </div>
+
+          {/* Profilo (dx) con dropdown */}
+          <div style={{position:"relative",flexShrink:0}}>
+            <button onClick={()=>setProfileOpen(o=>!o)} aria-label="Menu profilo"
+              style={{display:"flex",alignItems:"center",gap:8,padding:"4px 8px 4px 4px",borderRadius:999,border:`1px solid ${T.borderOnDarkStr}`,background:profileOpen?"rgba(255,255,255,0.12)":"rgba(255,255,255,0.04)",cursor:"pointer"}}>
+              <span style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#6E0E1A,#3D1515)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff"}}>{initial}</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            {profileOpen&&(<>
+              <div onClick={()=>setProfileOpen(false)} style={{position:"fixed",inset:0,zIndex:55}}/>
+              <div style={{position:"absolute",top:"100%",right:0,marginTop:6,width:248,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 16px 40px rgba(15,23,42,0.22)",padding:8,zIndex:60}}>
+                <div style={{padding:"8px 10px 10px",borderBottom:`1px solid ${C.border}`,marginBottom:6}}>
+                  <div style={{fontSize:12.5,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{auth?.user?.email||"Account"}</div>
+                  <div style={{fontSize:10.5,color:C.textSoft,marginTop:2}}>{nomeAttivita||"La mia attività"}</div>
+                </div>
+                {[
+                  {lbl:"Impostazioni",ic:"settings",on:()=>go("impostazioni")},
+                  {lbl:"Notifiche"+(nonLette>0?` (${nonLette})`:""),ic:"bell",on:()=>{setProfileOpen(false);setShowNotifiche(true);}},
+                  {lbl:"Novità",ic:"bell",on:()=>go("changelog")},
+                ].map(r=>(
+                  <button key={r.lbl} onClick={r.on} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize:12.5,fontWeight:500,color:C.text,fontFamily:"inherit"}}
+                    onMouseEnter={e=>e.currentTarget.style.background="#F4EEEA"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <span style={{color:C.textSoft,display:"flex"}}>{ic(ICONS[r.ic],15)}</span>{r.lbl}
+                  </button>
+                ))}
+                {/* Zoom */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"9px 10px",margin:"4px 0",borderTop:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:12,color:C.textMid,fontWeight:600}}>Zoom</span>
+                  <div style={{display:"flex",alignItems:"center",gap:4}}>
+                    <button onClick={()=>stepZoom(-1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:15,fontWeight:800,color:C.textMid,cursor:"pointer",lineHeight:1}}>−</button>
+                    <span style={{minWidth:42,textAlign:"center",fontSize:12,fontWeight:700,color:C.text,fontVariantNumeric:"tabular-nums"}}>{Math.round(zoom*100)}%</span>
+                    <button onClick={()=>stepZoom(1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:14,fontWeight:800,color:C.textMid,cursor:"pointer",lineHeight:1}}>+</button>
+                  </div>
+                </div>
+                <button onClick={()=>{setProfileOpen(false);onSignOut&&onSignOut();}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize:12.5,fontWeight:600,color:C.red,fontFamily:"inherit"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.redLight} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <span style={{display:"flex"}}>{ic(ICONS.logOut,15)}</span>Esci
+                </button>
+              </div>
+            </>)}
           </div>
         </div>
-      )}
+        );
+      })()}
       {/* Fascia inferiore globale (desktop): link legali. */}
       {!isMobile && (
         <div style={{position:"fixed",bottom:0,left:0,right:0,height:28,zIndex:40,background:T.bgSide,
@@ -1944,8 +2092,9 @@ export default function Dashboard({
                 animation:`_fos_fadeIn ${M.durBase} ${M.ease}`}} />
           )}
 
+          {isMobile && (
           <div style={{width:L.sidebarWidth,background:T.bgSide,display:"flex",flexDirection:"column",
-            position:"fixed",top:isMobile?0:46,left:0,bottom:isMobile?0:28,zIndex:Z.drawer,flexShrink:0,
+            position:"fixed",top:0,left:0,bottom:0,zIndex:Z.drawer,flexShrink:0,
             borderRight:`1px solid ${T.borderOnDark}`,
             transform:isMobile&&!sidebarOpen?"translateX(-100%)":"translateX(0)",
             transition:`transform ${M.durSlow} ${M.ease}`,
@@ -2161,6 +2310,7 @@ export default function Dashboard({
               )}
             </div>
           </div>
+          )}
 
           {/* Mobile bottom navigation */}
           {isMobile&&(()=>{
@@ -2232,7 +2382,7 @@ export default function Dashboard({
       {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}}} onVediTutte={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}setView('changelog');}}/>}
 
       {/* CONTENT */}
-      <div style={{marginLeft:isMobile?0:L.sidebarWidth,marginTop:isMobile?0:46,flex:1,padding:0,paddingBottom:isMobile?0:28,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
+      <div style={{marginLeft:0,marginTop:isMobile?0:52,flex:1,padding:0,paddingBottom:isMobile?0:28,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
         {/* Desktop topbar */}
         {!isMobile&&(()=>{
           const VIEW_LABELS = {
@@ -2263,7 +2413,7 @@ export default function Dashboard({
           const sedeCorrente = (sedi||[]).find(s => s.id === sedeAttiva);
           const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
           return (
-            <div style={{position:"sticky",top:46,zIndex:Z.topbar,
+            <div style={{position:"sticky",top:52,zIndex:Z.topbar,
               background:"rgba(247,248,250,0.88)",
               backdropFilter:"saturate(180%) blur(18px)",WebkitBackdropFilter:"saturate(180%) blur(18px)",
               borderBottom:`1px solid ${C.borderSoft}`,
@@ -2283,7 +2433,11 @@ export default function Dashboard({
                 </div>
                 <h1 style={{margin:0,fontSize:22,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</h1>
               </div>
-              {sedeCorrente&&(
+              {/* Sede: switcher per multi-sede, badge di sola lettura per sede unica.
+                  Notifiche/profilo/esci ora vivono nel menu profilo della topbar. */}
+              {(sedi||[]).length>1
+                ? <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />
+                : sedeCorrente&&(
                 <div style={{display:"flex",alignItems:"center",gap:9,padding:"8px 14px",
                   background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.lg,boxShadow:S.sm}}>
                   <span style={{width:7,height:7,borderRadius:"50%",background:T.green,boxShadow:"0 0 0 3px rgba(14,159,110,0.16)",flexShrink:0}}/>
@@ -2293,27 +2447,6 @@ export default function Dashboard({
                   </div>
                 </div>
               )}
-              <button onClick={()=>setShowNotifiche(o=>!o)} aria-label="Notifiche"
-                style={{position:"relative",width:40,height:40,border:`1px solid ${T.border}`,
-                  background:T.bgCard,borderRadius:R.lg,cursor:"pointer",display:"flex",alignItems:"center",
-                  justifyContent:"center",color:T.textMid,boxShadow:S.sm,
-                  transition:`background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderStr;e.currentTarget.style.color=T.text;e.currentTarget.style.background=T.bgSubtle;}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.textMid;e.currentTarget.style.background=T.bgCard;}}>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
-                </svg>
-                {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:T.brand,color:"#fff",borderRadius:"50%",minWidth:18,height:18,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #FFF",lineHeight:1}}>{nonLette>99?"99+":nonLette}</span>}
-              </button>
-              <div title={auth?.user?.email||""}
-                style={{width:40,height:40,borderRadius:"50%",
-                  background:T.brandGradient,
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  color:"#fff",fontSize:14,fontWeight:700,letterSpacing:0,
-                  boxShadow:S.brandSoft,cursor:"default",userSelect:"none",
-                  border:"2px solid rgba(255,255,255,0.92)"}}>
-                {initial}
-              </div>
             </div>
           );
         })()}
