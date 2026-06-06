@@ -29,22 +29,32 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
 
   const inMenu = new Set(menuItems.map(m=>m.nome))
 
-  function toggleItem(ric) {
-    if (inMenu.has(ric.nome)) {
-      setMenuItems(prev => prev.filter(m=>m.nome!==ric.nome))
-    } else {
-      const reg = getR(ric.nome, ric)
-      const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
-      const ricavo = reg.unita * reg.prezzo
-      setMenuItems(prev => [...prev, {
-        nome: ric.nome, prezzo: reg.prezzo, unita: reg.unita, tipo: reg.tipo,
-        fc, ricavo, margPct: ricavo>0 ? (ricavo-fc)/ricavo*100 : 0,
-        allergeni: ric.allergeni||[], descrizione: "", visibile: true,
-      }])
+  // Costruisce la voce di menù da una ricetta (prezzo, FC, margine, allergeni).
+  function buildItem(ric) {
+    const reg = getR(ric.nome, ric)
+    const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
+    const ricavo = reg.unita * reg.prezzo
+    return {
+      nome: ric.nome, prezzo: reg.prezzo, unita: reg.unita, tipo: reg.tipo,
+      fc, ricavo, margPct: ricavo>0 ? (ricavo-fc)/ricavo*100 : 0,
+      allergeni: ric.allergeni||[], descrizione: "", visibile: true,
     }
   }
 
+  function toggleItem(ric) {
+    if (inMenu.has(ric.nome)) setMenuItems(prev => prev.filter(m=>m.nome!==ric.nome))
+    else setMenuItems(prev => [...prev, buildItem(ric)])
+  }
+
   const filtrate = ricette.filter(r => !search || r.nome.toLowerCase().includes(search.toLowerCase()))
+  // Seleziona/deseleziona tutte le ricette attualmente filtrate.
+  const tutteInMenu = filtrate.length > 0 && filtrate.every(r => inMenu.has(r.nome))
+  function selezionaTutti() {
+    setMenuItems(prev => { const have = new Set(prev.map(m=>m.nome)); return [...prev, ...filtrate.filter(r=>!have.has(r.nome)).map(buildItem)] })
+  }
+  function deselezionaTutti() {
+    const names = new Set(filtrate.map(r=>r.nome)); setMenuItems(prev => prev.filter(m=>!names.has(m.nome)))
+  }
 
   return (
     <div>
@@ -64,6 +74,15 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
           }}
           onFocus={e=>{ e.currentTarget.style.borderColor=T.borderStr; e.currentTarget.style.boxShadow=`0 0 0 3px ${T.brandSoft}`; }}
           onBlur={e=>{ e.currentTarget.style.borderColor=T.border; e.currentTarget.style.boxShadow="none"; }}/>
+      </div>
+
+      {/* Azioni rapide: seleziona / deseleziona tutte le ricette filtrate */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:12, flexWrap:"wrap" }}>
+        <div style={{ fontSize:12, color:T.textSoft }}>{menuItems.length} nel menù · {filtrate.length} {search ? "trovate" : "ricette"}</div>
+        <button type="button" onClick={tutteInMenu ? deselezionaTutti : selezionaTutti}
+          style={{ padding:"7px 14px", borderRadius:R.md, border:`1px solid ${T.brand}`, background: tutteInMenu ? T.bgCard : T.brand, color: tutteInMenu ? T.brand : T.white, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+          {tutteInMenu ? "Deseleziona tutti" : `✓ Seleziona tutti${search ? " (filtrati)" : ""}`}
+        </button>
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
