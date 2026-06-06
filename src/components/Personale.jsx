@@ -570,7 +570,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                       const over = cov.overlaps.has(s.id); const col = colorById[s.dipId] || C.red
                       return (
                         <div key={s.id} title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (${fmtH(s.ore || 0)})${over ? " · sovrapposto" : ""}`}
-                          style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height:26, background:col, borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding:"0 6px", overflow:"hidden", boxShadow: over ? `0 0 0 2px ${C.amber}` : "none" }}>
+                          style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height:26, background:col, border:"1.5px solid #000", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding:"0 6px", overflow:"hidden", boxShadow: over ? `0 0 0 2px ${C.amber}` : "none" }}>
                           <span style={{ fontSize:10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>{over ? "⚠ " : ""}{s.nome.split(" ")[0]} · {_hm(s.ini)}–{_hm(s.fin)}</span>
                           <button aria-label="Elimina turno" onClick={() => eliminaTurno(s.id)} style={{ flexShrink:0, background:"rgba(255,255,255,0.25)", border:"none", color:"#fff", borderRadius:4, width:16, height:16, fontSize:11, lineHeight:1, cursor:"pointer" }}>×</button>
                         </div>
