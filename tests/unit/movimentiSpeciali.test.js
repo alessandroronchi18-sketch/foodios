@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+// supabase.js crea il client a top-level con env Vite assenti nei test → mock.
+vi.mock('../../src/lib/supabase.js', () => ({ supabase: {} }))
 import {
   nuovoMovimento, filtraPerIntervallo, aggregaGiorno,
   CAUSALI_SPRECO, CAUSALI_OMAGGIO,
