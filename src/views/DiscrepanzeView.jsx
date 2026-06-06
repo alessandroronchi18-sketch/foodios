@@ -13,7 +13,7 @@ import { color as T, radius as R } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, normIng } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
-import { C, fmt, fmtp, TNUM } from './_shared'
+import { C, fmt, fmt0, TNUM } from './_shared'
 
 export const SK_DISCREPANZE = 'pasticceria-discrepanze-v1'
 
@@ -180,17 +180,17 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
         </div>
         <div style={{ ...card, marginBottom: 0 }}>
           <div style={lbl}>Costo perso</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#92400E', ...TNUM }}>{fmt(kpi.totCosto)}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#92400E', ...TNUM }} title={fmt(kpi.totCosto)}>{fmt0(kpi.totCosto)}</div>
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Materie prime regalate/buttate</div>
         </div>
         <div style={{ ...card, marginBottom: 0 }}>
           <div style={lbl}>Mancato ricavo</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.red, ...TNUM }}>{fmt(kpi.totMancato)}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.red, ...TNUM }} title={fmt(kpi.totMancato)}>{fmt0(kpi.totMancato)}</div>
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Vendite non realizzate</div>
         </div>
         <div style={{ ...card, marginBottom: 0 }}>
           <div style={lbl}>Impatto totale</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.red, ...TNUM }}>{fmt(kpi.totCosto + kpi.totMancato)}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.red, ...TNUM }} title={fmt(kpi.totCosto + kpi.totMancato)}>{fmt0(kpi.totCosto + kpi.totMancato)}</div>
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Costo + mancato ricavo</div>
         </div>
       </div>
@@ -270,7 +270,7 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
-              <label style={lbl}>FC unità (€) <span style={{ color: C.textSoft, fontWeight: 500 }}>auto</span></label>
+              <label style={{ ...lbl, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3, display: 'inline-block' }} title="Food cost per unità — calcolato automaticamente dalla ricetta; puoi sovrascriverlo">FC unità (€)</label>
               <input type="number" min="0" step="0.01" value={draft.costo_unita}
                 onChange={e => aggiorna({ costo_unita: e.target.value })}
                 placeholder="auto" style={inp}/>

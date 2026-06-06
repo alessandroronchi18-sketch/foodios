@@ -70,6 +70,9 @@ const URGENZA_CFG = {
 
 const fmtEuro = v =>
   `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+// Euro arrotondato all'unità (per i box/KPI grandi)
+const fmtEuro0 = v =>
+  `€ ${Math.round(Number(v || 0)).toLocaleString('it-IT')}`
 const fmtDate = d =>
   d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
@@ -671,7 +674,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         {[
           {
             label: 'Totale da pagare',
-            val: fmtEuro(summary.daPagare),
+            val: fmtEuro0(summary.daPagare),
+            exact: fmtEuro(summary.daPagare),
             sub: `${summary.nDaPagare} ${summary.nDaPagare === 1 ? 'fattura aperta' : 'fatture aperte'}`,
             color: summary.daPagare > 0 ? T.text : T.textSoft,
             accent: T.text,
@@ -679,7 +683,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           },
           {
             label: 'Scaduto',
-            val: fmtEuro(summary.scaduto),
+            val: fmtEuro0(summary.scaduto),
+            exact: fmtEuro(summary.scaduto),
             sub: summary.nScadute > 0
               ? `${summary.nScadute} ${summary.nScadute === 1 ? 'fattura' : 'fatture'} da regolare subito`
               : 'nessuna fattura scaduta',
@@ -690,7 +695,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           },
           {
             label: 'In scadenza (7 giorni)',
-            val: fmtEuro(summary.settimanaTot),
+            val: fmtEuro0(summary.settimanaTot),
+            exact: fmtEuro(summary.settimanaTot),
             sub: summary.nSettimana > 0
               ? `${summary.nSettimana} ${summary.nSettimana === 1 ? 'fattura' : 'fatture'} questa settimana`
               : 'nulla in scadenza',
@@ -716,7 +722,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <div style={{ fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
               {k.label}
             </div>
-            <div style={{
+            <div title={k.exact} style={{
               fontSize: 24, fontWeight: 700, color: k.color, lineHeight: 1.05,
               marginBottom: 6, letterSpacing: '-0.025em', ...tnum,
             }}>{k.val}</div>

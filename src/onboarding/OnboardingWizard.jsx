@@ -508,8 +508,8 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: '#0E1726',
                         marginBottom: 2, letterSpacing: '-0.005em' }}>{r.nome}</div>
-                      <div style={{ fontSize: 11.5, color: '#8B95A7' }}>
-                        Food cost €{r.fc.toFixed(2)} · Ricavo €{r.prezzo.toFixed(2)}
+                      <div style={{ fontSize: 11.5, color: '#8B95A7', fontVariantNumeric: 'tabular-nums' }}>
+                        Food cost € {r.fc.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Ricavo € {r.prezzo.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
