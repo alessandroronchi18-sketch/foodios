@@ -354,6 +354,68 @@ if (stockRows.length) {
   if (error) console.error('⚠ stock_prodotti_finiti:', error.message, '(la vetrina resterà vuota, il resto è ok)')
 }
 
+// ─── 6. Fornitori, personale+turni, clienti/vendite B2B, eventi ──────────────
+// Idempotente: cancella i dati demo precedenti e reinserisce.
+{
+  // Fornitori
+  await sb.from('fornitori').delete().eq('organization_id', orgId)
+  await sb.from('fornitori').insert([
+    { organization_id: orgId, nome: 'Molino Verga', contatto: 'Andrea Verga', email: 'ordini@molinoverga.it', telefono: '011 4567890', note: 'Farine e semole · consegna lun/gio' },
+    { organization_id: orgId, nome: 'Centrale del Latte di Torino', contatto: 'Ufficio ordini', email: 'b2b@centralelatte.it', telefono: '011 2233445', note: 'Latte, panna, burro' },
+    { organization_id: orgId, nome: 'Agricola Dolce', contatto: 'Maria Sala', email: 'maria@agricoladolce.it', telefono: '0125 998877', note: 'Uova bio e frutta di stagione' },
+    { organization_id: orgId, nome: 'Domori Cioccolato', contatto: 'Vendite', email: 'vendite@domori.com', telefono: '011 7654321', note: 'Cioccolato e cacao' },
+  ])
+
+  // Dipendenti + turni (settimana corrente, con una sovrapposizione il sabato)
+  await sb.from('turni').delete().eq('organization_id', orgId)
+  await sb.from('dipendenti').delete().eq('organization_id', orgId)
+  const { data: dips } = await sb.from('dipendenti').insert([
+    { organization_id: orgId, nome: 'Giulia Rossi', ruolo: 'Banconista', tipo_contratto: 'Part-time', costo_orario: 9.5, ore_settimana: 24 },
+    { organization_id: orgId, nome: 'Marco Bianchi', ruolo: 'Pasticcere', tipo_contratto: 'Full-time', costo_orario: 13, ore_settimana: 40 },
+    { organization_id: orgId, nome: 'Sara Conti', ruolo: 'Aiuto pasticcere', tipo_contratto: 'Full-time', costo_orario: 10.5, ore_settimana: 40 },
+    { organization_id: orgId, nome: 'Luca Verdi', ruolo: 'Banconista', tipo_contratto: 'Part-time', costo_orario: 9, ore_settimana: 20 },
+  ]).select('id, costo_orario')
+  const monday = (() => { const d = new Date(); const g = d.getDay(); d.setDate(d.getDate() + (g === 0 ? -6 : 1 - g)); return d })()
+  const dISO = off => { const d = new Date(monday); d.setDate(d.getDate() + off); return d.toISOString().slice(0, 10) }
+  const oreOf = (a, b) => { const [h1, m1] = a.split(':').map(Number); const [h2, m2] = b.split(':').map(Number); return Math.max(0, (h2 * 60 + m2 - h1 * 60 - m1) / 60) }
+  const turni = []
+  const T = (i, off, ini, fin) => { const o = oreOf(ini, fin); turni.push({ organization_id: orgId, dipendente_id: dips[i].id, data: dISO(off), ora_inizio: ini, ora_fine: fin, ore: r2(o), costo: r2(o * dips[i].costo_orario) }) }
+  for (let g = 0; g < 5; g++) { T(1, g, '05:00', '13:00'); T(2, g, '06:00', '14:00'); T(0, g, '07:00', '13:00'); if (g === 4) T(3, g, '12:00', '19:00') }
+  T(0, 5, '07:00', '14:00'); T(3, 5, '13:00', '19:30'); T(1, 5, '05:00', '11:00') // sabato: sovrapposizione
+  await sb.from('turni').insert(turni)
+
+  // Clienti + vendite B2B (prezzi all'ingrosso, prodotti del ricettario)
+  await sb.from('vendite_b2b').delete().eq('organization_id', orgId)
+  await sb.from('clienti_b2b').delete().eq('organization_id', orgId)
+  const { data: cl } = await sb.from('clienti_b2b').insert([
+    { organization_id: orgId, nome: 'Bar Centrale Torino', partita_iva: '11223344556', codice_destinatario: 'M5UXCR1', citta: 'Torino', referente: 'Paolo', telefono: '011 5550101' },
+    { organization_id: orgId, nome: 'Caffè San Carlo', partita_iva: '99887766554', codice_destinatario: '0000000', citta: 'Torino', referente: 'Elena', telefono: '011 5550202' },
+    { organization_id: orgId, nome: 'Ristorante Da Mario', partita_iva: '55667788990', citta: 'Moncalieri', referente: 'Mario', telefono: '011 5550303' },
+  ]).select('id')
+  const rg = (p, q, pr) => ({ prodotto: p, qta: q, prezzo: pr, totale: r2(q * pr) })
+  const totR = rr => r2(rr.reduce((s, r) => s + r.totale, 0))
+  const vend = [
+    { c: 0, back: 1, s: 'fatturata', r: [rg('CROISSANT VUOTO', 60, 0.7), rg('BRIOCHE COL TUPPO', 30, 0.85)] },
+    { c: 1, back: 2, s: 'fatturata', r: [rg('CROISSANT CREMA', 40, 0.9), rg('CANNOLO SICILIANO', 20, 1.4)] },
+    { c: 0, back: 4, s: 'fatturata', r: [rg('CROISSANT VUOTO', 80, 0.7)] },
+    { c: 2, back: 6, s: 'consegnata', r: [rg('BIGNÈ CREMA', 50, 0.7), rg('TORTA SACHER', 3, 22)] },
+    { c: 1, back: 0, s: 'consegnata', r: [rg('CROISSANT VUOTO', 50, 0.7), rg('BACI DI DAMA', 60, 0.35)] },
+  ]
+  await sb.from('vendite_b2b').insert(vend.map(v => ({
+    organization_id: orgId, sede_id: sedeId, cliente_id: cl[v.c].id,
+    data: dayISO(v.back), righe: v.r, totale: totR(v.r), stato: v.s, stock_scaricato: false,
+  })))
+
+  // Eventi (ordini su commessa) — per-sede
+  const ev = (n, cliente, back, acconto, note, righe) => ({ id: `seed-ev-${n}`, cliente, data: dayISO(-back), acconto, note, righe: righe.map((x, i) => ({ id: `r${i}`, nome: x[0], qty: x[1], prezzo: x[2] })) })
+  await setData(orgId, sedeId, 'pasticceria-eventi-v1', [
+    ev(1, 'Famiglia Ferrero', 5, 30, '18 anni — ritiro ore 16', [['Torta 3 piani cioccolato', 1, 120], ['Mignon assortiti', 40, 1.2]]),
+    ev(2, 'Studio Legale Bianchi', 9, 0, 'Buffet inaugurazione ufficio', [['Focaccine farcite', 80, 1.5], ['Pasticceria salata', 100, 0.9]]),
+    ev(3, 'Maria (privato)', 2, 20, 'Battesimo', [['Torta panna e fragole', 1, 45], ['Confetti', 30, 0.5]]),
+  ])
+  console.log('✓ Fornitori (4), Personale (4 dip + ' + turni.length + ' turni), Clienti B2B (3) + vendite (5), Eventi (3)')
+}
+
 console.log('\n═══════════════════════════════════════════════════════════')
 console.log('✅ Demo pronta.')
 console.log(`   Ricette:      ${Object.keys(ricettario.ricette).length}`)
