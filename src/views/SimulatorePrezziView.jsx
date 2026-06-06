@@ -339,47 +339,43 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                   </div>
                 </div>
 
-                {/* Input prezzo */}
+                {/* Input prezzo con stepper −/+ : più intuitivo che digitare */}
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.textSoft, marginBottom: 6 }}>
-                    Prezzo / {r.reg.tipo === 'fetta' ? 'fetta' : 'pezzo'}
+                    Prezzo / {r.reg.tipo === 'fetta' ? 'fetta' : 'pezzo'} <span style={{ color: C.textSoft, fontWeight: 600 }}>· base {euro(r.reg.prezzo)}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '4px 8px', background: '#F8F4F2', borderRadius: 7,
-                      fontSize: 10, color: C.textSoft, fontWeight: 600 }}>
-                      base {euro(r.reg.prezzo)}
-                    </div>
-                    <span style={{ color: C.textSoft }}>→</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: C.textMid }}>€</span>
-                      <input type="number" min="0" step="0.10"
-                        value={prezzi[r.nome] ?? r.reg.prezzo.toFixed(2)}
-                        onChange={e => setP(r.nome, e.target.value)}
-                        onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setP(r.nome, v.toFixed(2)) }}
-                        style={{ width: 80, padding: '8px 10px', borderRadius: 8, textAlign: 'center',
-                          border: `2px solid ${r.changed ? (r.delta > 0 ? C.green : C.red) : C.border}`,
-                          fontSize: 16, fontWeight: 900, color: r.changed ? (r.delta > 0 ? C.green : C.red) : C.text,
-                          fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'", outline: 'none', transition: 'border-color 0.2s' }}/>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {(() => { const cur = parseFloat(prezzi[r.nome] ?? r.reg.prezzo) || 0; const step = (d) => setP(r.nome, Math.max(0, +(cur + d).toFixed(2)).toFixed(2)); return (<>
+                      <button onClick={() => step(-0.10)} aria-label="Diminuisci prezzo" style={{ width: 32, height: 38, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 18, fontWeight: 800, color: C.textMid, cursor: 'pointer', lineHeight: 1 }}>−</button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: C.textMid }}>€</span>
+                        <input type="number" min="0" step="0.10"
+                          value={prezzi[r.nome] ?? r.reg.prezzo.toFixed(2)}
+                          onChange={e => setP(r.nome, e.target.value)}
+                          onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setP(r.nome, v.toFixed(2)) }}
+                          style={{ width: '100%', minWidth: 56, padding: '8px 6px', borderRadius: 8, textAlign: 'center',
+                            border: `2px solid ${r.changed ? (r.delta > 0 ? C.green : C.red) : C.border}`,
+                            fontSize: 16, fontWeight: 900, color: r.changed ? (r.delta > 0 ? C.green : C.red) : C.text,
+                            fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'", outline: 'none', transition: 'border-color 0.2s' }}/>
+                      </div>
+                      <button onClick={() => step(0.10)} aria-label="Aumenta prezzo" style={{ width: 32, height: 38, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 17, fontWeight: 800, color: C.textMid, cursor: 'pointer', lineHeight: 1 }}>+</button>
+                    </>) })()}
                   </div>
                 </div>
 
-                {/* KPI per stampo — griglia 4 colonne così si allineano riga su riga */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                  {[
-                    { lbl: 'Ricavo/st.',  val: euro(r.newRicavo), c: C.text },
-                    { lbl: 'Margine/st.', val: euro(r.newMarg),   c: mc, bold: true },
-                    { lbl: 'Margine %',   val: pct(r.newMargPct), c: mc, bold: true,
-                      sub: r.changed ? (r.diffMargPct > 0 ? '+' : '') + r.diffMargPct.toFixed(1) + ' pp' : null },
-                    { lbl: 'Marg./unità', val: euro(r.newPrezzo - r.fcUnita), c: mc },
-                  ].map(({ lbl, val, c, bold, sub }) => (
-                    <div key={lbl} style={{ background: '#F8F4F2', borderRadius: 8, padding: '10px 8px', textAlign: 'center', minWidth: 0 }}>
-                      <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3, whiteSpace: 'nowrap' }}>{lbl}</div>
-                      <div style={{ fontSize: 13, fontWeight: bold ? 900 : 600, color: c, fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }}>{val}</div>
-                      {sub && <div style={{ fontSize: 9, fontWeight: 800, color: c, marginTop: 2 }}>{sub}</div>}
-                    </div>
-                  ))}
+                {/* Margine: prima → dopo, l'informazione che conta davvero */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobile ? 14 : 18, background: '#F8F4F2', borderRadius: 10, padding: '12px 16px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, marginBottom: 3 }}>Margine ora</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: C.textMid, fontVariantNumeric: 'tabular-nums' }}>{pct(r.margPct)}</div>
+                    <div style={{ fontSize: 9, color: C.textSoft, marginTop: 1 }}>{euro(r.margine)}/st.</div>
+                  </div>
+                  <div style={{ fontSize: 18, color: r.changed ? mc : C.textSoft, fontWeight: 900 }}>→</div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: r.changed ? mc : C.textSoft, marginBottom: 3 }}>Nuovo margine</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: mc, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{pct(r.newMargPct)}</div>
+                    <div style={{ fontSize: 9, color: r.changed ? mc : C.textSoft, marginTop: 2, fontWeight: 700 }}>{euro(r.newMarg)}/st.{r.changed ? ` · ${r.diffMargPct > 0 ? '+' : ''}${r.diffMargPct.toFixed(1)} pp` : ''}</div>
+                  </div>
                 </div>
 
                 {/* Δ margine */}
