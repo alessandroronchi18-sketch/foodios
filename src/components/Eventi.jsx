@@ -429,22 +429,14 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
           {/* Intestazioni colonna — solo desktop */}
           {!isMobile && (draft.righe || []).length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: '2.4fr 0.9fr 1.1fr 0.6fr', gap: 8, marginBottom: 4, padding: '0 4px' }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>Prodotto</div>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>Scegli dal ricettario</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>Quantità da produrre</div>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>N° di pezzi/porzioni</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>Prezzo di vendita unitario</div>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>Prezzo a cui vendi al cliente</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A' }}>Food cost</div>
-                <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>Costo ingredienti</div>
-              </div>
+              {[
+                ['Prodotto', 'Scegli dal ricettario'],
+                ['Quantità da produrre', 'N° di pezzi/porzioni'],
+                ['Prezzo di vendita unitario', 'Prezzo a cui vendi al cliente'],
+                ['Food cost', 'Costo ingredienti'],
+              ].map(([h, tip]) => (
+                <div key={h} title={tip} style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>{h}</div>
+              ))}
             </div>
           )}
 

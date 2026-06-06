@@ -472,9 +472,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           { h: 'Stampi prodotti', sub: 'quanti stampi/teglie' },
                           { h: 'Pezzi al banco', sub: 'esposti per la vendita' },
                         ].map(({ h, sub }, i) => (
-                          <th key={i} style={{ padding: '10px 14px', textAlign: i < 2 ? 'left' : 'center', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>
-                            <div>{h}</div>
-                            <div style={{ fontSize: 7, color: C.textSoft, fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2, opacity: 0.75 }}>{sub}</div>
+                          <th key={i} title={sub} style={{ padding: '10px 14px', textAlign: i < 2 ? 'left' : 'center', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>
+                            {h}
                           </th>
                         ))}
                       </tr>

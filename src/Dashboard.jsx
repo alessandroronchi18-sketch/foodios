@@ -2523,7 +2523,7 @@ export default function Dashboard({
         {/* Inner content padding. Suspense globale: copre tutte le view lazy
             (44 component lazy-loaded via React.lazy). Fallback minimale per
             evitare flash bianco — l'utente vede un loader breve. */}
-        <div className="fos-page" key={view} style={{padding:isMobile?"14px 16px 88px":"18px 32px 28px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
+        <div className="fos-page" key={view} style={{padding:isMobile?"18px 16px 88px":"26px 32px 28px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         <React.Suspense fallback={
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 20px',color:T.textSoft,fontSize:13,gap:10}}>
             <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${T.border}`,borderTopColor:T.brand,animation:'fos_spin 0.6s linear infinite'}}/>
