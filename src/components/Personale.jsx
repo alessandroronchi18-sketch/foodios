@@ -13,6 +13,50 @@ const C = {
 function fmt(n) { return n==null?"—":`€${Number(n).toFixed(2)}` }
 function fmtH(h) { return `${h.toFixed(1)}h` }
 
+// ─── Copertura turni: sovrapposizioni + n° persone presenti per fascia oraria ──
+const _toMin = s => { const [h,m] = String(s||'').split(':').map(Number); return (h||0)*60 + (m||0) }
+const _hm = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
+function analizzaCopertura(turniGiorno) {
+  const shifts = (turniGiorno||[])
+    .map(t => ({ id:t.id, nome:t.dipendenti?.nome||'—', ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine) }))
+    .filter(s => s.fin > s.ini)
+    .sort((a,b)=>a.ini-b.ini)
+  if (!shifts.length) return { shifts:[], overlaps:new Set(), segments:[], open:0, close:0, min:0, max:0 }
+  const overlaps = new Set()
+  for (let i=0;i<shifts.length;i++) for (let j=i+1;j<shifts.length;j++)
+    if (shifts[i].ini < shifts[j].fin && shifts[j].ini < shifts[i].fin) { overlaps.add(shifts[i].id); overlaps.add(shifts[j].id) }
+  const open = Math.min(...shifts.map(s=>s.ini)), close = Math.max(...shifts.map(s=>s.fin))
+  const pts = [...new Set(shifts.flatMap(s=>[s.ini,s.fin]))].sort((a,b)=>a-b)
+  const segments = []
+  for (let k=0;k<pts.length-1;k++) {
+    const a=pts[k], b=pts[k+1]
+    segments.push({ a, b, count: shifts.filter(s=>s.ini<=a && s.fin>=b).length })
+  }
+  const counts = segments.map(s=>s.count)
+  return { shifts, overlaps, segments, open, close, min:Math.min(...counts), max:Math.max(...counts) }
+}
+const _covColor = c => c===0 ? '#FCA5A5' : c===1 ? '#9AD0B4' : c===2 ? '#16A34A' : '#0B6E3D'
+function CoperturaBar({ cov, compact }) {
+  if (!cov || !cov.shifts.length) return null
+  return (
+    <div style={{ marginTop: compact?6:8 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:9, color:'#8B95A7', marginBottom:3, gap:6 }}>
+        <span>{_hm(cov.open)}</span>
+        <span style={{ fontWeight:700, color: cov.overlaps.size ? '#D97706' : '#8B95A7', whiteSpace:'nowrap' }}>
+          {cov.overlaps.size ? '⚠ sovrapposti' : `${cov.min===cov.max?cov.min:`${cov.min}–${cov.max}`} in turno`}
+        </span>
+        <span>{_hm(cov.close)}</span>
+      </div>
+      <div style={{ display:'flex', height: compact?7:10, borderRadius:5, overflow:'hidden', background:'#EEE' }}>
+        {cov.segments.map((s,i)=>(
+          <div key={i} title={`${_hm(s.a)}–${_hm(s.b)} · ${s.count} ${s.count===1?'persona':'persone'}`}
+            style={{ flex:s.b-s.a, background:_covColor(s.count) }}/>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const TIPI_CONTRATTO = ["Full-time","Part-time","Stagionale","Collaboratore","Apprendista"]
 
 function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
@@ -338,6 +382,8 @@ function TurniTab({ orgId, notify, isMobile }) {
 
   const GIORNI = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"]
   const weekDays = Array.from({length:7},(_,i)=>{ const d=new Date(week); d.setDate(d.getDate()+i); return d.toISOString().slice(0,10) })
+  // Copertura/sovrapposizioni per ogni giorno della settimana (calcolata una volta).
+  const covByDay = Object.fromEntries(weekDays.map(d => [d, analizzaCopertura(turni.filter(t => t.data === d))]))
 
   function prevWeek() { const d=new Date(week); d.setDate(d.getDate()-7); setWeek(d.toISOString().slice(0,10)) }
   function nextWeek() { const d=new Date(week); d.setDate(d.getDate()+7); setWeek(d.toISOString().slice(0,10)) }
@@ -441,6 +487,7 @@ function TurniTab({ orgId, notify, isMobile }) {
         <div>
           {weekDays.map((dIso, i) => {
             const turniGiorno = turni.filter(t => t.data === dIso)
+            const cov = covByDay[dIso]
             const dayDate = new Date(dIso + "T12:00:00")
             const label = `${GIORNI[i]} ${dayDate.getDate()}/${String(dayDate.getMonth()+1).padStart(2,'0')}`
             return (
@@ -448,16 +495,19 @@ function TurniTab({ orgId, notify, isMobile }) {
                 <div style={{ fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", marginBottom:6 }}>{label}</div>
                 {turniGiorno.length === 0 ? (
                   <div style={{ fontSize:12, color:"#CBD5E1", padding:"6px 0" }}>Nessun turno</div>
-                ) : turniGiorno.map(t => (
-                  <div key={t.id} style={{ background:C.bgCard, border:`1px solid ${C.border}`, borderRadius:8, padding:"10px 12px", marginBottom:6, display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+                ) : turniGiorno.map(t => {
+                  const over = cov.overlaps.has(t.id)
+                  return (
+                  <div key={t.id} style={{ background:over?"#FFFBEB":C.bgCard, border:`1px solid ${over?C.amber:C.border}`, borderRadius:8, padding:"10px 12px", marginBottom:6, display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{t.dipendenti?.nome || "—"}</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{t.dipendenti?.nome || "—"}{over && <span title="Si sovrappone a un altro turno" style={{ color:C.amber, marginLeft:6 }}>⚠</span>}</div>
                       <div style={{ fontSize:11, color:C.textSoft, marginTop:2 }}>{t.ora_inizio} - {t.ora_fine} · {fmtH(t.ore||0)} · {fmt(t.costo)}</div>
                     </div>
                     <button aria-label="Elimina turno" onClick={()=>eliminaTurno(t.id)} style={{ background:"none", border:"none", color:C.red, cursor:"pointer", fontSize:20, padding:"4px 8px" }}>×</button>
                   </div>
-                ))}
-                <button onClick={()=>apriNuovoTurno(dIso)} style={{ width:"100%", padding:"8px", background:C.bg, border:`1px dashed ${C.borderStr}`, borderRadius:8, fontSize:11, color:C.textSoft, cursor:"pointer", marginTop:4 }}>
+                )})}
+                <CoperturaBar cov={cov} compact/>
+                <button onClick={()=>apriNuovoTurno(dIso)} style={{ width:"100%", padding:"8px", background:C.bg, border:`1px dashed ${C.borderStr}`, borderRadius:8, fontSize:11, color:C.textSoft, cursor:"pointer", marginTop:6 }}>
                   + Aggiungi turno
                 </button>
               </div>
@@ -481,16 +531,19 @@ function TurniTab({ orgId, notify, isMobile }) {
               <div key={dip.id} style={{ display:"grid", gridTemplateColumns:"140px repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
                 <div style={{ padding:"10px 12px", fontSize:11, fontWeight:700, color:C.text, display:"flex", alignItems:"center" }}>{dip.nome}</div>
                 {weekDays.map(d=>{
-                  const t = turniDip.find(t=>t.data===d)
+                  const ts = turniDip.filter(t=>t.data===d)
+                  const ov = covByDay[d].overlaps
                   return (
-                    <div key={d} style={{ padding:"6px 4px", borderLeft:`1px solid ${C.border}`, minHeight:48 }}>
-                      {t && (
-                        <div style={{ background:C.redLight, borderRadius:8, padding:"5px 7px", border:`1px solid ${C.red}30` }}>
-                          <div style={{ fontSize:9, fontWeight:700, color:C.red }}>{t.ora_inizio}–{t.ora_fine}</div>
+                    <div key={d} style={{ padding:"6px 4px", borderLeft:`1px solid ${C.border}`, minHeight:48, display:"flex", flexDirection:"column", gap:4 }}>
+                      {ts.map(t => {
+                        const over = ov.has(t.id)
+                        return (
+                        <div key={t.id} style={{ background:over?"#FFFBEB":C.redLight, borderRadius:8, padding:"5px 7px", border:`1px solid ${over?C.amber:`${C.red}30`}` }}>
+                          <div style={{ fontSize:9, fontWeight:700, color:over?C.amber:C.red }}>{over?"⚠ ":""}{t.ora_inizio}–{t.ora_fine}</div>
                           <div style={{ fontSize:9, color:C.textSoft }}>{fmtH(t.ore||0)}</div>
                           <button aria-label="Elimina turno" onClick={()=>eliminaTurno(t.id)} style={{ fontSize:7, color:C.red, background:"transparent", border:"none", cursor:"pointer", padding:0, marginTop:2 }}>✕</button>
                         </div>
-                      )}
+                      )})}
                     </div>
                   )
                 })}
@@ -500,6 +553,15 @@ function TurniTab({ orgId, notify, isMobile }) {
           {dipendenti.every(d=>!turni.find(t=>t.dipendente_id===d.id)) && (
             <div style={{ padding:30, textAlign:"center", color:C.textSoft, fontSize:13 }}>Nessun turno per questa settimana.</div>
           )}
+          {/* Riga copertura: quante persone in turno per fascia oraria, per giorno */}
+          <div style={{ display:"grid", gridTemplateColumns:"140px repeat(7,1fr)", borderTop:`2px solid ${C.border}`, background:"#FBFAF9" }}>
+            <div style={{ padding:"10px 12px", fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", display:"flex", alignItems:"center" }}>Copertura</div>
+            {weekDays.map(d=>(
+              <div key={d} style={{ padding:"8px 6px", borderLeft:`1px solid ${C.border}`, display:"flex", alignItems:"center" }}>
+                {covByDay[d].shifts.length ? <div style={{ width:"100%" }}><CoperturaBar cov={covByDay[d]} compact/></div> : <span style={{ fontSize:9, color:"#CBD5E1", margin:"0 auto" }}>—</span>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
