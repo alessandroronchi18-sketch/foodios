@@ -1844,24 +1844,29 @@ export default function Dashboard({
             <span style={{fontSize:15,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",whiteSpace:"nowrap"}}>{appName}</span>
           </button>
 
-          {/* Sezioni con mega-menu su hover */}
-          <div style={{display:"flex",alignItems:"center",gap:2,flex:1,minWidth:0,overflow:"visible"}}>
+          {/* Sezioni con mega-menu su hover (centrate) */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:2,flex:1,minWidth:0,overflow:"visible"}}>
             {NAV.map(sec=>{
               const open = hoverSec===sec.id;
               const secActive = activeSec===sec.id;
               return (
-                <div key={sec.id} style={{position:"relative"}} onMouseEnter={()=>setHoverSec(sec.id)} onMouseLeave={()=>setHoverSec(null)}>
-                  <button style={{display:"flex",alignItems:"center",gap:6,padding:"7px 11px",borderRadius:8,border:"none",cursor:"pointer",whiteSpace:"nowrap",
-                    background:open||secActive?"rgba(255,255,255,0.10)":"transparent",
-                    color:secActive?"#fff":"rgba(255,255,255,0.82)",fontSize:12.5,fontWeight:secActive?700:500,fontFamily:"inherit",
-                    transition:`background ${M.durFast} ${M.ease}`}}>
+                <div key={sec.id} style={{position:"relative",height:"100%",display:"flex",alignItems:"center"}} onMouseEnter={()=>setHoverSec(sec.id)} onMouseLeave={()=>setHoverSec(null)}>
+                  <button style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,border:"none",cursor:"pointer",whiteSpace:"nowrap",
+                    background:open?"rgba(255,255,255,0.14)":secActive?"rgba(255,255,255,0.08)":"transparent",
+                    color:secActive||open?"#fff":"rgba(255,255,255,0.80)",fontSize:12.5,fontWeight:secActive?700:500,fontFamily:"inherit",
+                    boxShadow:secActive?"inset 0 -2px 0 #E84B3A":"none",
+                    transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}>
                     {sec.label}
-                    {sec.badge>0&&<span style={{background:"#6E0E1A",color:"#fff",borderRadius:9,fontSize:9,fontWeight:700,padding:"1px 6px"}}>{sec.badge}</span>}
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.6}}><polyline points="6 9 12 15 18 9"/></svg>
+                    {sec.badge>0&&<span style={{background:"#E84B3A",color:"#fff",borderRadius:9,fontSize:9,fontWeight:700,padding:"1px 6px"}}>{sec.badge}</span>}
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.6,transform:open?"rotate(180deg)":"none",transition:`transform ${M.durFast} ${M.ease}`}}><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
+                  {/* Bridge trasparente (paddingTop) tra bottone ed elenco: così
+                      spostandosi sull'elenco il menu NON si chiude. */}
                   {open&&(
-                    <div style={{position:"absolute",top:"100%",left:0,marginTop:4,minWidth:210,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 12px 32px rgba(15,23,42,0.18)",padding:6,zIndex:60}}>
-                      {sec.items.map(ItemBtn)}
+                    <div style={{position:"absolute",top:"100%",left:0,paddingTop:6,zIndex:60}}>
+                      <div style={{minWidth:212,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 14px 38px rgba(15,23,42,0.20)",padding:6}}>
+                        {sec.items.map(ItemBtn)}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1872,13 +1877,17 @@ export default function Dashboard({
           {/* Ricerca sezioni */}
           <div style={{position:"relative",flexShrink:0}}>
             <input value={sidebarSearch} onChange={e=>setSidebarSearch(e.target.value)} placeholder="Cerca…"
+              onKeyDown={e=>{ if(e.key==="Enter"&&searchHits.length){ e.preventDefault(); go(searchHits[0].id); } if(e.key==="Escape") setSidebarSearch(''); }}
               style={{width:150,padding:"7px 10px 7px 30px",borderRadius:8,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:12,outline:"none",fontFamily:"inherit"}}/>
             <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.5)",display:"flex",pointerEvents:"none"}}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </span>
             {q&&(
               <div style={{position:"absolute",top:"100%",right:0,marginTop:4,minWidth:240,maxHeight:340,overflowY:"auto",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 12px 32px rgba(15,23,42,0.18)",padding:6,zIndex:60}}>
-                {searchHits.length?searchHits.map(ItemBtn):<div style={{padding:"10px 12px",fontSize:12,color:C.textSoft}}>Nessuna sezione trovata.</div>}
+                {searchHits.length?(<>
+                  {searchHits.map(ItemBtn)}
+                  <div style={{padding:"6px 10px 2px",fontSize:9.5,color:C.textSoft,borderTop:`1px solid ${C.border}`,marginTop:4}}>↵ Invio apre il primo</div>
+                </>):<div style={{padding:"10px 12px",fontSize:12,color:C.textSoft}}>Nessuna sezione trovata.</div>}
               </div>
             )}
           </div>
@@ -2417,7 +2426,7 @@ export default function Dashboard({
               background:"rgba(247,248,250,0.88)",
               backdropFilter:"saturate(180%) blur(18px)",WebkitBackdropFilter:"saturate(180%) blur(18px)",
               borderBottom:`1px solid ${C.borderSoft}`,
-              padding:"16px 32px",display:"flex",alignItems:"center",gap:16}}>
+              padding:"11px 32px",display:"flex",alignItems:"center",gap:16}}>
               {/* Sezione attiva: indicatore visivo brand a sinistra */}
               <div style={{width:4,height:34,borderRadius:3,
                 background:"linear-gradient(180deg, #6E0E1A 0%, #E84B3A 100%)",
@@ -2514,7 +2523,7 @@ export default function Dashboard({
         {/* Inner content padding. Suspense globale: copre tutte le view lazy
             (44 component lazy-loaded via React.lazy). Fallback minimale per
             evitare flash bianco — l'utente vede un loader breve. */}
-        <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 88px":"28px 32px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
+        <div className="fos-page" key={view} style={{padding:isMobile?"14px 16px 88px":"18px 32px 28px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         <React.Suspense fallback={
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 20px',color:T.textSoft,fontSize:13,gap:10}}>
             <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${T.border}`,borderTopColor:T.brand,animation:'fos_spin 0.6s linear infinite'}}/>
