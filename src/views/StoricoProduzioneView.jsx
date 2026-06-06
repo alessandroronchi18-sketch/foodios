@@ -238,7 +238,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             <span style={{ fontSize:11, color:C.textMid, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:180 }}>
               <span style={{ display:'inline-block', width:15, color:C.textSoft, fontWeight:700 }}>{i+1}</span>{nome}
             </span>
-            <span style={{ fontSize:11, fontWeight:800, color:C.text, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{fmt(v)}</span>
+            <span style={{ fontSize:11, fontWeight:800, color:C.text, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{eur0(v)}</span>
           </div>
         ))}
         {d.extra>0 && <div style={{ fontSize:10, color:C.textSoft, marginTop:5 }}>+{d.extra} altri prodotti</div>}
@@ -251,6 +251,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const [sortDir, setSortDir] = useState('desc');
   // Storico chiusure: ordinamento per colonna.
   const [chiSort, setChiSort] = useState({ key: 'data', dir: 'desc' });
+  // Zoom asse Y del grafico Sell-Through (0/25/50 → 100) per leggere meglio le barre.
+  const [stZoom, setStZoom] = useState(0);
   const COLS_RIEP = [
     { label:'Periodo',      key:'periodo',  get:p=>p.key,                 str:true, align:'left' },
     { label:'Sessioni',     key:'sessioni', get:p=>p.sessioni.length },
@@ -457,11 +459,19 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
               <SH sub="Sell-through medio per periodo">Andamento Sell-Through %</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                {/* Zoom asse Y: parti da 0/25/50 per leggere meglio le differenze */}
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft}}>Zoom asse Y</span>
+                  {[[0,"0–100%"],[25,"25–100%"],[50,"50–100%"]].map(([v,lbl])=>(
+                    <button key={v} onClick={()=>setStZoom(v)}
+                      style={{padding:"4px 10px",borderRadius:999,border:`1px solid ${stZoom===v?C.red:C.border}`,background:stZoom===v?C.redLight:C.white,color:stZoom===v?C.red:C.textMid,fontSize:10,fontWeight:stZoom===v?800:600,cursor:"pointer"}}>{lbl}</button>
+                  ))}
+                </div>
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={dataST} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="40%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis domain={[0,100]} tickFormatter={v=>`${v}%`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                    <YAxis domain={[stZoom,100]} allowDataOverflow tickFormatter={v=>`${v}%`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
                     <Tooltip formatter={(v)=>[`${v.toFixed(1)}%`,"Sell-Through"]}/>
                     <ReferenceLine y={85} stroke={C.green} strokeDasharray="4 4" label={{value:"85%",fill:C.green,fontSize:9}}/>
                     <ReferenceLine y={65} stroke={C.amber} strokeDasharray="4 4" label={{value:"65%",fill:C.amber,fontSize:9}}/>
