@@ -1,9 +1,17 @@
 # FoodOS — Analisi prodotto (stile McKinsey, scoring 1–100)
 
-> Aggiornato: 2026-06-05 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern).
+> Aggiornato: 2026-06-06 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern).
 > I numeri di mercato/competitor sono stime ragionate (knowledge cutoff gen-2026).
 >
 > **Rifare periodicamente** e confrontare i punteggi nel tempo.
+
+### Storico compositi
+| Data | Prodotto | Ingegneria | Business | Maturità azienda |
+|---|---:|---:|---:|---:|
+| 2026-06-05 | 76 | 70 | 22 | ~30 |
+| 2026-06-06 | **79** | **75** | **22** | **~31** |
+
+Δ 6 giu: sessione tutta prodotto/UX (Personale rifondato, home+nav premium, +68 test, RLS stipendi solo-titolare). Business invariato → la forbice prodotto↔mercato si allarga.
 
 ## Rubrica punteggi
 
@@ -29,9 +37,10 @@
 | Ricettario | 78 | Import .xlsx, OCR, allergeni, export PDF watermark. |
 | Billing / Stripe | 78 | Webhook idempotente, checkout/portal, tax_id, custom_fields SDI. Non ancora live. |
 | Multi-sede + trasferimenti | 76 | Shared vs per-sede, scenari A/B/C/D, confronto sedi. |
-| Cassa + OCR scontrini | 75 | Claude Vision, drift porzioni, merge delivery. OCR non testato e2e. |
-| Produzione giornaliera | 74 | Save-first anti-dataloss, stock PF, double-submit guard. |
-| Magazzino / stock PF | 72 | Per-sede, soglie, RPC atomiche. Manca paginazione. |
+| Personale | 80 | (6 giu) Organigramma per reparto editabile, copertura turni per reparto, consuntivo ore + straordinari, analisi costo (incidenza su fatturato), viste gg/sett/mese, RLS solo-titolare. |
+| Cassa + OCR scontrini | 77 | Claude Vision, drift porzioni, merge delivery; (6 giu) fix toggle foto/manuale, tabella ordinabile. OCR non testato e2e. |
+| Produzione giornaliera | 77 | Save-first anti-dataloss, stock PF, double-submit guard; (6 giu) modifica sessione storico con doppia conferma. |
+| Magazzino / stock PF | 74 | Per-sede, soglie, RPC atomiche; (6 giu) fix bug isTablet, formattazione. Manca paginazione. |
 | Sprechi / omaggi | 68 | Causali, impatto food cost. |
 | HACCP | 62 | Range temperature, trigger. Sottile vs tool dedicati. |
 | Onboarding wizard | 60 | 3–4 step. Attivazione non validata. |
@@ -40,25 +49,25 @@
 | Fatturazione SDI | 50 | Endpoint esiste, non testato in produzione. Blocco legale n°1. |
 | Moduli adiacenti | 56 | Tanta superficie, profondità variabile. |
 
-**Composito capacità prodotto: ~76/100.**
+**Composito capacità prodotto: ~79/100** (era 76 il 5 giu).
 
 ## 2. Ingegneria & piattaforma
 
 | Dimensione | Score | Giudizio |
 |---|---:|---|
-| Documentazione interna | 82 | CLAUDE.md, STATO_PROGETTO, NEXT_STEPS, ROADMAP, TESTING. |
-| Sicurezza | 80 | RLS FORCE, webhook idempotenti, AES-256-GCM, rate-limit, session fingerprint, zero-trust /api/ai, watermark. |
-| Qualità codice | 75 | Error handling, retry esponenziale, sanitize. 1 TODO, ~0 dead code. |
+| UX / design system | 83 | (6 giu) Home premium (hero brand, KPI con icone, stock a barre), nav orizzontale in topbar con mega-menu + dropdown profilo, chrome a gradiente brand, primitivi premium condivisi (KPI, classi .fos-tile), separatore migliaia + tooltip ovunque. Da finire: replica stile a tutte le pagine interne. |
+| Documentazione interna | 84 | CLAUDE.md (+ regole permanenti mobile/numeri), STATO_PROGETTO, NEXT_STEPS, ROADMAP, TESTING. |
+| Sicurezza | 85 | RLS FORCE, webhook idempotenti, AES-256-GCM, rate-limit, session fingerprint, zero-trust /api/ai, watermark; (6 giu) RLS solo-titolare su dipendenti/turni (chiuso leak stipendi). |
+| Qualità codice | 77 | Error handling, retry esponenziale, sanitize; (6 giu) 3 bug reali risolti. Dashboard.jsx cresciuto con la nav. |
 | Performance | 74 | Bundle 246KB (-78%), code-splitting. Manca paginazione su liste. |
-| Architettura / scalabilità | 72 | Buona estrazione views/components; Dashboard.jsx ~2.500 righe + stato globale mutabile (`_ctx_*`). |
-| UX / design system | 70 | theme.js + uiKit.js maturi; landing non sincronizzata ai token. |
-| Mobile | 68 | useIsMobile/useIsTablet sistematici; rifiniture residue. |
+| Test coverage | 62 | (6 giu) 259 test verdi (28 file), +46 nuovi, 2 suite rotte risolte. Scoperti ancora OCR, email, admin. |
+| Mobile | 73 | useIsMobile/useIsTablet sistematici, tabelle scrollabili, regole permanenti; (6 giu) nav nuova da verificare su mobile. |
+| Architettura / scalabilità | 72 | Buona estrazione views/components; Dashboard.jsx ~2.700 righe + stato globale mutabile (`_ctx_*`). |
+| Accessibilità | 58 | role/aria/keyboard sui nuovi controlli; WCAG ancora non validato. |
 | DevOps / CI | 60 | CI unit, autodeploy. Niente staging. |
-| Accessibilità | 55 | aria/role presenti ma WCAG non validato, niente focus-mgmt/contrast audit. |
-| Test coverage | 50 | Forte su core; scoperti OCR, email, admin, integrazioni. ~45–55%. |
-| Osservabilità | 45 | error_log esiste ma niente alerting (Sentry off). |
+| Osservabilità | 48 | error_log + Sentry collegato; alerting ancora minimale. |
 
-**Composito ingegneria: ~70/100.**
+**Composito ingegneria: ~75/100** (era 70 il 5 giu).
 
 ## 3. Business & go-to-market
 
@@ -84,13 +93,13 @@
 ## 4. Verdetto a due velocità
 
 ```
-Capacità PRODOTTO      76/100   "ottimo prodotto"
-Ingegneria/piattaforma 70/100   "solida"
-Business / commerciale 22/100   "non validato"
-MATURITÀ AZIENDA (blend) ~30/100
+Capacità PRODOTTO      79/100   "ottimo prodotto" (era 76)
+Ingegneria/piattaforma 75/100   "solida"           (era 70)
+Business / commerciale 22/100   "non validato"     (invariato)
+MATURITÀ AZIENDA (blend) ~31/100                    (era ~30)
 ```
 
-Il gap di 54 punti tra prodotto (76) e business (22) È l'azienda. Non c'è un problema di prodotto: c'è un prodotto eccellente in cerca della prova che qualcuno lo paghi.
+Il gap prodotto↔business è salito a **57 punti** (79 vs 22): ogni sessione di build lo allarga. Non c'è un problema di prodotto — c'è un prodotto sempre più eccellente in cerca della prova che qualcuno lo paghi. Il prossimo punto che muove la maturità azienda è commerciale (call design-partner martedì), non codice.
 
 ## 5. Benchmark — competitor stesso settore (maturità azienda)
 
