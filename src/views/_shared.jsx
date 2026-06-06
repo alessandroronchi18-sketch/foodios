@@ -45,11 +45,11 @@ export const fmt0 = v => { const n = Number(v); return `€ ${Math.round(Number.
 // KPI card grande (usata da Magazzino, Chiusura, Produzione, ecc.)
 export function KPI({ label, value, sub, color, highlight, icon }) {
   return (
-    <div style={{
+    <div className="fos-tile" style={{
       background: highlight ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
-      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 14,
+      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 16,
       padding: '20px 22px',
-      boxShadow: highlight ? '0 12px 28px rgba(110,14,26,0.34), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.05), 0 4px 12px rgba(15,23,42,0.04)',
+      boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
     }}>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
         color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 10 }}>

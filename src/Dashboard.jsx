@@ -1760,7 +1760,15 @@ export default function Dashboard({
     <ErrorBoundary>
     <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',system-ui,sans-serif",color:C.text,display:"flex",zoom:zoom}}>
       {/* ── Trial Banner rimosso dal rendering (logica isTrialAttivo intatta) ── */}
-      <style>{`*{box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.4);border-radius:10px}::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.7)}`}</style>
+      <style>{`*{box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.4);border-radius:10px}::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.7)}
+        /* Linguaggio premium condiviso (usabile da tutte le view) */
+        .fos-tile{transition:transform .18s cubic-bezier(.32,.72,0,1), box-shadow .18s ease, border-color .18s ease}
+        .fos-tile:hover{transform:translateY(-3px); box-shadow:0 14px 34px rgba(15,23,42,0.12)}
+        .fos-row{transition:background .14s ease}
+        .fos-row:hover{background:#F7F3F0}
+        @keyframes fos_riseIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        .fos-rise{animation:fos_riseIn .4s cubic-bezier(.32,.72,0,1) both}
+      `}</style>
 
       {/* Fascia superiore globale (desktop): NAVIGAZIONE ORIZZONTALE.
           Logo a sx · sezioni con mega-menu su hover · ricerca · profilo a dx. */}
