@@ -402,7 +402,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Clicca le intestazioni per ordinare ▼▲</div>
         </div>
       </div>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 700 }}>
             <thead>
@@ -474,7 +474,7 @@ function SensTable({ rows, euro, pct }) {
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Cosa succede se i costi materie prime salgono</div>
         </div>
       </div>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 580 }}>
             <thead>
