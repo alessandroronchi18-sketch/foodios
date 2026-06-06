@@ -58,6 +58,94 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   const [deleteSessConf, setDeleteSessConf] = useState(null)
   const [deleteSessPin, setDeleteSessPin] = useState('')
   const [deletingSess, setDeletingSess] = useState(false)
+  // Modifica sessione storico: id sessione in edit, righe editate, step conferma.
+  const [editSessId, setEditSessId] = useState(null)
+  const [editRows, setEditRows] = useState({})     // { nome: { stampi, vendibile } }
+  const [editConfirm, setEditConfirm] = useState(false) // doppia conferma
+  const [savingEdit, setSavingEdit] = useState(false)
+
+  function apriModificaSessione(sess) {
+    const rows = {}
+    for (const p of (sess.prodotti || [])) rows[p.nome] = { stampi: p.stampi ?? 0, vendibile: p.vendibile ?? p.stampi ?? 0 }
+    setEditRows(rows); setEditSessId(sess.id); setEditConfirm(false)
+    setDeleteSessConf(null)
+  }
+  function annullaModifica() { setEditSessId(null); setEditRows({}); setEditConfirm(false) }
+
+  // Calcola ingredienti/fc/ricavo per una lista prodotti (stesso motore della conferma).
+  const computeSessione = (prodotti) => {
+    const ings = {}; let fcTot = 0, ricavoTot = 0
+    for (const p of prodotti) {
+      const ric = ricettario?.ricette?.[p.nome] || ricettario?.ricette?.[(p.nome || '').toUpperCase().trim()]
+      if (!ric) continue
+      const reg = getR(p.nome, ric)
+      const q = Number(p.stampi) || 0, qv = Number(p.vendibile) || q
+      ricavoTot += qv * reg.unita * reg.prezzo
+      const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
+      fcTot += q * fc
+      for (const ing of (ric.ingredienti || [])) { const k = normIng(ing.nome); ings[k] = (ings[k] || 0) + ing.qty1stampo * q }
+    }
+    return { ings, fcTot, ricavoTot }
+  }
+
+  // Salva le modifiche a una sessione: ripristina gli effetti vecchi e applica i
+  // nuovi (magazzino + stock PF), con SAVE FIRST. Doppia conferma a monte.
+  const salvaModificheSessione = async (sess) => {
+    if (savingEdit) return
+    setSavingEdit(true)
+    const nuoviProdotti = (sess.prodotti || [])
+      .map(p => { const e = editRows[p.nome] || {}; return { ...p, stampi: Number(e.stampi) || 0, vendibile: Number(e.vendibile) || 0 } })
+      .filter(p => p.stampi > 0 || p.vendibile > 0)
+    const agg = computeSessione(nuoviProdotti)
+    const oldIngs = sess.ingredientiUsati || {}
+    // magazzino: parti dall'attuale, ri-aggiungi i vecchi ingredienti, sottrai i nuovi.
+    const nm = { ...magazzino }
+    const keys = new Set([...Object.keys(oldIngs), ...Object.keys(agg.ings)])
+    for (const k of keys) {
+      const delta = (oldIngs[k] || 0) - (agg.ings[k] || 0) // >0 = restituito, <0 = consumato
+      const base = nm[k]?.giacenza_g || 0
+      nm[k] = nm[k] ? { ...nm[k], giacenza_g: Math.max(0, base + delta) } : { nome: k, giacenza_g: Math.max(0, delta), soglia_g: 0, ultimoRifornimento: null }
+    }
+    const nuovaSess = { ...sess, prodotti: nuoviProdotti, ingredientiUsati: agg.ings, fcTot: agg.fcTot, ricavoTot: agg.ricavoTot }
+    const ng = (giornaliero || []).map(s => s.id === sess.id ? nuovaSess : s)
+
+    try {
+      await ssave(SK_GIOR, ng)
+      await ssave(SK_MAG, nm)
+    } catch (e) {
+      setSavingEdit(false)
+      notify(`⚠ Impossibile salvare le modifiche: ${e.message || 'errore di rete'}. Riprova.`, false)
+      return
+    }
+
+    // Stock PF: applica il delta dei pezzi vendibili per prodotto.
+    const sedeProduttiva = sedeAttiva?.id
+    const destDiversa = sess.destinazioneSedeId && sess.destinazioneSedeId !== sedeProduttiva
+    const stockErrors = []
+    if (orgId && sedeProduttiva && !destDiversa) {
+      const oldVend = {}; for (const p of (sess.prodotti || [])) oldVend[p.nome] = Number(p.vendibile || 0) || Number(p.stampi || 0)
+      const newVend = {}; for (const p of nuoviProdotti) newVend[p.nome] = Number(p.vendibile || 0) || Number(p.stampi || 0)
+      const allNomi = new Set([...Object.keys(oldVend), ...Object.keys(newVend)])
+      for (const nome of allNomi) {
+        const ric = ricettario?.ricette?.[nome] || ricettario?.ricette?.[(nome || '').toUpperCase().trim()]
+        const reg = ric ? getR(nome, ric) : null
+        const uf = Number(reg?.unita); const factor = Number.isFinite(uf) && uf > 0 ? uf : 1
+        const deltaPezzi = ((newVend[nome] || 0) - (oldVend[nome] || 0)) * factor
+        if (Math.abs(deltaPezzi) < 0.0001) continue
+        const prodottoKey = (nome || '').toUpperCase().trim()
+        try {
+          if (deltaPezzi > 0) await caricoProduzionePF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: deltaPezzi, unita: 'pz', note: `Modifica sessione del ${sess.data}` })
+          else await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: -deltaPezzi, note: `Modifica sessione del ${sess.data}` })
+        } catch (e) { stockErrors.push(`${nome}: ${e.message}`) }
+      }
+    }
+
+    setGiornaliero(ng); setMagazzino(nm)
+    annullaModifica(); setSavingEdit(false)
+    if (destDiversa) notify('✓ Sessione modificata. Stock prodotti finiti NON ritoccato (destinazione altra sede).', false)
+    else if (stockErrors.length > 0) notify(`⚠ Sessione modificata ma alcuni stock non aggiornati: ${stockErrors.slice(0,3).map(s=>s.split(':')[0]).join(', ')}. Controlla Magazzino → Prodotti finiti.`, false)
+    else notify('✓ Sessione modificata — magazzino e vetrina aggiornati')
+  }
 
   // Elimina sessione produzione:
   // 1. Calcola magazzino post-reintegro ingredienti
@@ -614,11 +702,52 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Food cost</div><div style={{ fontSize: 14, fontWeight: 800, color: C.red, fontVariantNumeric: 'tabular-nums' }}>{fmt0(sess.fcTot || 0)}</div></div>
                         </div>
                       )}
-                      <button onClick={() => { setDeleteSessConf(sess); setDeleteSessPin('') }}
+                      <button onClick={() => editSessId === sess.id ? annullaModifica() : apriModificaSessione(sess)}
+                        style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>{editSessId === sess.id ? '✕ Chiudi' : '✏️ Modifica'}</button>
+                      <button onClick={() => { setDeleteSessConf(sess); setDeleteSessPin(''); annullaModifica() }}
                         style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>🗑 Elimina</button>
                     </div>
                   </div>
-                  <ProdottiChips prodotti={sess.prodotti} />
+                  {editSessId === sess.id ? (
+                    <div style={{ marginTop: 12, padding: '14px 16px', background: '#F8F4F2', border: `1px solid ${C.borderStr}`, borderRadius: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: C.text, marginBottom: 4 }}>Modifica quantità prodotte</div>
+                      <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 10, lineHeight: 1.5 }}>Cambia gli stampi o i pezzi vendibili. Metti <b>0</b> per togliere un prodotto. Magazzino e vetrina verranno riallineati di conseguenza.</div>
+                      {/* Intestazioni colonne */}
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 64px 64px' : '1fr 90px 90px', gap: 8, marginBottom: 4 }}>
+                        <div/>
+                        <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, textAlign: 'center' }}>Stampi</div>
+                        <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, textAlign: 'center' }}>Vendibili</div>
+                      </div>
+                      {(sess.prodotti || []).map(p => (
+                        <div key={p.nome} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 64px 64px' : '1fr 90px 90px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
+                          <input type="number" min="0" inputMode="decimal" value={editRows[p.nome]?.stampi ?? ''} disabled={editConfirm}
+                            onChange={e => setEditRows(m => ({ ...m, [p.nome]: { ...m[p.nome], stampi: e.target.value } }))}
+                            style={{ padding: '7px 8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right' }}/>
+                          <input type="number" min="0" inputMode="decimal" value={editRows[p.nome]?.vendibile ?? ''} disabled={editConfirm}
+                            onChange={e => setEditRows(m => ({ ...m, [p.nome]: { ...m[p.nome], vendibile: e.target.value } }))}
+                            style={{ padding: '7px 8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right' }}/>
+                        </div>
+                      ))}
+                      {!editConfirm ? (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                          <button onClick={() => setEditConfirm(true)} style={{ flex: 1, padding: '9px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Salva modifiche</button>
+                          <button onClick={annullaModifica} style={{ padding: '9px 14px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Annulla</button>
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: 12, padding: '12px 14px', background: '#FFF8EE', border: `1px solid ${C.amber}`, borderRadius: 8 }}>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: C.amber, marginBottom: 4 }}>⚠️ Confermi le modifiche?</div>
+                          <div style={{ fontSize: 10, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>Questa azione riallinea il <b>magazzino</b> (ingredienti) e la <b>vetrina</b> (stock prodotti finiti) in base alle nuove quantità. Non è automaticamente reversibile.</div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={() => salvaModificheSessione(sess)} disabled={savingEdit} style={{ flex: 1, padding: '9px', background: C.amber, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: savingEdit ? 'not-allowed' : 'pointer', opacity: savingEdit ? 0.6 : 1 }}>{savingEdit ? 'Salvataggio…' : 'Sì, conferma e aggiorna'}</button>
+                            <button onClick={() => setEditConfirm(false)} disabled={savingEdit} style={{ padding: '9px 14px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Indietro</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <ProdottiChips prodotti={sess.prodotti} />
+                  )}
                 </div>
               ))}
             </div>
