@@ -82,6 +82,14 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const [scopeSede, setScopeSede] = useState('attiva')
   const [vista, setVista] = useState('attivi') // 'attivi' | 'archivio'
   const [archCount, setArchCount] = useState(0)
+  const [search, setSearch] = useState('')
+
+  // Cognome = ultima parola del nome completo (per ordinamento alfabetico).
+  const cognomeKey = (n) => (n || '').trim().split(/\s+/).slice(-1)[0]?.toLowerCase() || ''
+  const listaView = lista
+    .filter(d => { const q = search.trim().toLowerCase(); return !q || (d.nome || '').toLowerCase().includes(q) })
+    .slice()
+    .sort((a, b) => cognomeKey(a.nome).localeCompare(cognomeKey(b.nome), 'it') || (a.nome || '').localeCompare(b.nome || '', 'it'))
 
   const haPiuSedi = (sedi || []).filter(s => s.attiva !== false).length > 1
   const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
@@ -257,10 +265,24 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             ))}
           </div>
         )}
+        {/* Barra di ricerca per nome/cognome */}
+        {lista.length > 0 && (
+          <div style={{ position:"relative", marginBottom:10 }}>
+            <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:13, color:C.textSoft, pointerEvents:"none" }}>🔍</span>
+            <input
+              type="text" value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Cerca dipendente per nome o cognome…" aria-label="Cerca dipendente"
+              style={{ ...inputSt, paddingLeft:34, paddingRight: search ? 34 : 12 }}
+            />
+            {search && <button onClick={()=>setSearch('')} aria-label="Pulisci ricerca" style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"transparent", border:"none", fontSize:14, color:C.textSoft, cursor:"pointer", padding:4 }}>✕</button>}
+          </div>
+        )}
         {/* KPI strip rimossa: ora i totali stanno nell'header globale di Personale. */}
         {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : lista.length === 0 ? (
           <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>{inArchivio ? "Nessun dipendente archiviato." : "Nessun dipendente ancora."}</div>
-        ) : isMobile ? lista.map(d=>(
+        ) : listaView.length === 0 ? (
+          <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun dipendente trovato per "{search}".</div>
+        ) : isMobile ? listaView.map(d=>(
           <div key={d.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
               <div style={{ flex:1, minWidth:0 }}>
@@ -280,7 +302,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
                 : <button onClick={()=>disattiva(d.id)} style={{ flex:1, padding:"10px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>Archivia</button>}
             </div>
           </div>
-        )) : lista.map(d=>(
+        )) : listaView.map(d=>(
           <div key={d.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
               <div>
@@ -533,7 +555,7 @@ function TurniTab({ orgId, notify, isMobile }) {
               const dd = new Date(dIso + "T12:00:00")
               const oggi = dIso === new Date().toISOString().slice(0, 10)
               return (
-                <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`1px solid ${C.border}`, background: oggi ? "#FFFCF7" : "transparent" }}>
+                <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`2px solid ${C.borderStr}`, background: oggi ? "#FFFCF7" : "transparent" }}>
                   <div style={{ padding:"8px 10px", borderRight:`1px solid ${C.border}` }}>
                     <div style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{GIORNI[i]} {dd.getDate()}</div>
                     <div style={{ fontSize:9, color: cov.overlaps.size ? C.amber : C.textSoft, marginTop:1, fontWeight: cov.overlaps.size ? 700 : 400 }}>
