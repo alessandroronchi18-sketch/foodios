@@ -246,6 +246,57 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     );
   };
 
+  // Conto economico reale: dove va ogni euro incassato (margine vs food cost) + spreco.
+  const contoByDay = {};
+  for (const p of periodiVend) contoByDay[p.label] = { ricavo:p.rvTot, fc:p.fcTot, marg:p.margTot, spreco:p.sproTot };
+  const ContoTooltip = ({ active, label }) => {
+    const d = active && contoByDay[label];
+    if (!d) return null;
+    const pctOf = x => d.ricavo>0 ? `${(x/d.ricavo*100).toFixed(0)}%` : '—';
+    const Row = (col, nome, val, sub) => (
+      <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'baseline', padding:'2px 0' }}>
+        <span style={{ fontSize:11, fontWeight:600, color:col, display:'flex', alignItems:'center', gap:6 }}><span style={{width:9,height:9,borderRadius:2,background:col,display:'inline-block'}}/>{nome}</span>
+        <span style={{ fontSize:11, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{eur0(val)} <span style={{color:C.textSoft,fontWeight:600}}>· {sub}</span></span>
+      </div>
+    );
+    return (
+      <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', boxShadow:'0 8px 24px rgba(15,23,42,0.14)', minWidth:230 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', marginBottom:7, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
+          <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
+          <span style={{ fontSize:10.5, fontWeight:700, color:C.text }}>Ricavo {eur0(d.ricavo)}</span>
+        </div>
+        {Row(C.green, 'Margine (quello che resta)', d.marg, pctOf(d.marg))}
+        {Row(C.red, 'Food cost (ingredienti venduti)', d.fc, pctOf(d.fc))}
+        {d.spreco>0.01 && Row(C.amber, 'Spreco (invenduto buttato)', d.spreco, pctOf(d.spreco))}
+      </div>
+    );
+  };
+
+  // Andamento economico (stimato, da produzione): margine vs food cost per periodo.
+  const ecoProdByDay = {};
+  for (const p of periodiProd) ecoProdByDay[p.label] = { ricavo:p.ricavoTot, fc:p.fcTot, marg:p.margine };
+  const EcoProdTooltip = ({ active, label }) => {
+    const d = active && ecoProdByDay[label];
+    if (!d) return null;
+    const pctOf = x => d.ricavo>0 ? `${(x/d.ricavo*100).toFixed(0)}%` : '—';
+    const Row = (col, nome, val, sub) => (
+      <div style={{ display:'flex', justifyContent:'space-between', gap:16, alignItems:'baseline', padding:'2px 0' }}>
+        <span style={{ fontSize:11, fontWeight:600, color:col, display:'flex', alignItems:'center', gap:6 }}><span style={{width:9,height:9,borderRadius:2,background:col,display:'inline-block'}}/>{nome}</span>
+        <span style={{ fontSize:11, fontWeight:800, color:col, fontVariantNumeric:'tabular-nums', flexShrink:0 }}>{eur0(val)} <span style={{color:C.textSoft,fontWeight:600}}>· {sub}</span></span>
+      </div>
+    );
+    return (
+      <div style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:'10px 12px', boxShadow:'0 8px 24px rgba(15,23,42,0.14)', minWidth:230 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', gap:14, alignItems:'baseline', marginBottom:7, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
+          <span style={{ fontSize:11.5, fontWeight:800, color:C.text }}>{label}</span>
+          <span style={{ fontSize:10.5, fontWeight:700, color:C.text }}>Ricavo stim. {eur0(d.ricavo)}</span>
+        </div>
+        {Row(C.green, 'Margine stimato', d.marg, pctOf(d.marg))}
+        {Row(C.red, 'Food cost', d.fc, pctOf(d.fc))}
+      </div>
+    );
+  };
+
   // Riepilogo periodi: ordinamento per colonna (click sull'intestazione).
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
@@ -363,20 +414,23 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <SH sub={`Colonna: ricavo (sotto) + food cost (sopra) · linea: margine · per ${vista==="giornaliero"?"giorno":vista}`}>Andamento Economico (stimato)</SH>
+              <SH sub={`Ogni colonna è il ricavo stimato del periodo: in verde il margine, in rosso il food cost · per ${vista==="giornaliero"?"giorno":vista}`}>Andamento Economico (stimato)</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                <ResponsiveContainer width="100%" height={240}>
-                  <ComposedChart data={dataKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="35%">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={dataKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="32%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
                     <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
-                    <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
+                    <Tooltip content={<EcoProdTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                    <Bar dataKey="Ricavo"   stackId="e" name="Ricavo"    fill="#5B8FCE" barSize={isMobile?20:34}/>
-                    <Bar dataKey="FoodCost" stackId="e" name="Food cost" fill={C.red} radius={[4,4,0,0]} barSize={isMobile?20:34}/>
-                    <Line type="monotone" dataKey="Margine" name="Margine" stroke={C.green} strokeWidth={2.5} dot={{r:3,fill:C.green,strokeWidth:0}} activeDot={{r:5}}/>
-                  </ComposedChart>
+                    {/* Barra = ricavo stimato: margine (verde) sopra il food cost (rosso) */}
+                    <Bar dataKey="FoodCost" stackId="e" name="Food cost" fill={C.red} barSize={isMobile?26:42}/>
+                    <Bar dataKey="Margine"  stackId="e" name="Margine" fill={C.green} radius={[4,4,0,0]} barSize={isMobile?26:42}/>
+                  </BarChart>
                 </ResponsiveContainer>
+                <div style={{fontSize:11,color:C.textSoft,marginTop:10,lineHeight:1.5,textAlign:"center"}}>
+                  L'altezza è il <b>ricavo stimato</b>. Più verde = più margine. Passa il mouse per i dettagli.
+                </div>
               </div>
               <SH sub="Dettaglio per periodo">Riepilogo Periodi</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
@@ -484,20 +538,23 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </ResponsiveContainer>
               </div>
 
-              <SH sub="Costi a colonna (food cost + spreco) · margine a linea">Conto Economico Reale</SH>
+              <SH sub="Ogni colonna è il ricavo del periodo: in verde quanto ti resta (margine), in rosso quanto sono costati gli ingredienti venduti">Conto Economico Reale</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-                <ResponsiveContainer width="100%" height={240}>
-                  <ComposedChart data={dataVendKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="35%">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={dataVendKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="32%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
                     <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
-                    <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
+                    <Tooltip content={<ContoTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                    <Bar dataKey="FoodCost" stackId="c" name="Food cost" fill={C.red}   barSize={isMobile?18:30}/>
-                    <Bar dataKey="Spreco"   stackId="c" name="Spreco"    fill={C.amber} radius={[4,4,0,0]} barSize={isMobile?18:30}/>
-                    <Line type="monotone" dataKey="Margine" name="Margine" stroke={C.green} strokeWidth={2.5} dot={{r:3,fill:C.green,strokeWidth:0}} activeDot={{r:5}}/>
-                  </ComposedChart>
+                    {/* Barra = ricavo: margine (verde) sopra il food cost (rosso) */}
+                    <Bar dataKey="FoodCost" stackId="ce" name="Food cost (ingredienti)" fill={C.red} barSize={isMobile?26:42}/>
+                    <Bar dataKey="Margine"  stackId="ce" name="Margine (ti resta)" fill={C.green} radius={[4,4,0,0]} barSize={isMobile?26:42}/>
+                  </BarChart>
                 </ResponsiveContainer>
+                <div style={{fontSize:11,color:C.textSoft,marginTop:10,lineHeight:1.5,textAlign:"center"}}>
+                  L'altezza della colonna è il <b>ricavo</b>. Più verde = più margine. Passa il mouse per vedere anche lo spreco.
+                </div>
               </div>
 
               {/* BATCH RESULTS */}
