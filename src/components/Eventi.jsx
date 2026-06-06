@@ -245,6 +245,9 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
   async function ripristina(id) {
     const next = eventi.map(e => e.id === id ? { ...e, archiviato: false, archiviato_at: undefined } : e)
     await salvaTutti(next)
+    // Chiudi eventuali box di conferma aperti su questo evento (elimina/archivia).
+    if (eliminaId === id) { setEliminaId(null); setEliminaPin('') }
+    if (archiviaId === id) setArchiviaId(null)
     notify?.('✓ Evento ripristinato')
   }
 
