@@ -36,6 +36,19 @@ function analizzaCopertura(turniGiorno) {
   return { shifts, overlaps, segments, open, close, min:Math.min(...counts), max:Math.max(...counts) }
 }
 const _covColor = c => c===0 ? '#FCA5A5' : c===1 ? '#9AD0B4' : c===2 ? '#16A34A' : '#0B6E3D'
+// Colori per dipendente (timeline turni) + packing in corsie: i turni che si
+// sovrappongono finiscono in corsie diverse → si VEDE la compresenza.
+const DIP_COLORS = ['#6E0E1A', '#2980B9', '#16A34A', '#C77D11', '#8E44AD', '#0E7490', '#B83280', '#475569']
+function packLanes(shifts) {
+  const laneEnds = []
+  const placed = shifts.slice().sort((a, b) => a.ini - b.ini || a.fin - b.fin).map(s => {
+    let lane = laneEnds.findIndex(end => end <= s.ini)
+    if (lane === -1) { lane = laneEnds.length; laneEnds.push(s.fin) } else laneEnds[lane] = s.fin
+    return { ...s, lane }
+  })
+  return { placed, nLanes: Math.max(1, laneEnds.length) }
+}
+
 function CoperturaBar({ cov, compact }) {
   if (!cov || !cov.shifts.length) return null
   return (
@@ -483,87 +496,71 @@ function TurniTab({ orgId, notify, isMobile }) {
       )}
 
       {/* Grid settimanale (desktop) / Lista giornaliera (mobile) */}
-      {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : isMobile ? (
-        <div>
-          {weekDays.map((dIso, i) => {
-            const turniGiorno = turni.filter(t => t.data === dIso)
-            const cov = covByDay[dIso]
-            const dayDate = new Date(dIso + "T12:00:00")
-            const label = `${GIORNI[i]} ${dayDate.getDate()}/${String(dayDate.getMonth()+1).padStart(2,'0')}`
-            return (
-              <div key={dIso} style={{ marginBottom:12 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", marginBottom:6 }}>{label}</div>
-                {turniGiorno.length === 0 ? (
-                  <div style={{ fontSize:12, color:"#CBD5E1", padding:"6px 0" }}>Nessun turno</div>
-                ) : turniGiorno.map(t => {
-                  const over = cov.overlaps.has(t.id)
-                  return (
-                  <div key={t.id} style={{ background:over?"#FFFBEB":C.bgCard, border:`1px solid ${over?C.amber:C.border}`, borderRadius:8, padding:"10px 12px", marginBottom:6, display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:C.text }}>{t.dipendenti?.nome || "—"}{over && <span title="Si sovrappone a un altro turno" style={{ color:C.amber, marginLeft:6 }}>⚠</span>}</div>
-                      <div style={{ fontSize:11, color:C.textSoft, marginTop:2 }}>{t.ora_inizio} - {t.ora_fine} · {fmtH(t.ore||0)} · {fmt(t.costo)}</div>
+      {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : (() => {
+        const colorById = {}; dipendenti.forEach((d, i) => { colorById[d.id] = DIP_COLORS[i % DIP_COLORS.length] })
+        const tutte = weekDays.flatMap(d => covByDay[d].shifts)
+        let aMin = 6 * 60, aMax = 20 * 60
+        if (tutte.length) { aMin = Math.floor(Math.min(...tutte.map(s => s.ini)) / 60) * 60; aMax = Math.ceil(Math.max(...tutte.map(s => s.fin)) / 60) * 60 }
+        const span = Math.max(120, aMax - aMin)
+        const ticks = []; for (let m = aMin; m <= aMax; m += (span > 11 * 60 ? 180 : 120)) ticks.push(m)
+        const labelW = isMobile ? 76 : 150
+        const pos = m => `${((m - aMin) / span) * 100}%`
+        const usati = dipendenti.filter(d => turni.some(t => t.dipendente_id === d.id))
+        return (
+          <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, boxShadow:"0 1px 4px rgba(0,0,0,0.04)", overflow:"hidden" }}>
+            {usati.length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:isMobile?8:14, padding:"12px 16px", borderBottom:`1px solid ${C.border}` }}>
+                {usati.map(d => (
+                  <span key={d.id} style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, color:C.textMid, fontWeight:600 }}>
+                    <span style={{ width:10, height:10, borderRadius:3, background:colorById[d.id], flexShrink:0 }}/>{d.nome}
+                  </span>
+                ))}
+              </div>
+            )}
+            {/* Asse orario */}
+            <div style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr` }}>
+              <div/>
+              <div style={{ position:"relative", height:22, borderBottom:`1px solid ${C.border}` }}>
+                {ticks.map(m => <span key={m} style={{ position:"absolute", left:pos(m), transform:"translateX(-50%)", top:5, fontSize:9, color:C.textSoft, fontVariantNumeric:"tabular-nums" }}>{_hm(m)}</span>)}
+              </div>
+            </div>
+            {/* Una riga per giorno: turni come barre sull'orario, in corsie quando si sovrappongono */}
+            {weekDays.map((dIso, i) => {
+              const cov = covByDay[dIso]
+              const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "—"), ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine), ore:t.ore })).filter(s => s.fin > s.ini)
+              const { placed, nLanes } = packLanes(dayShifts)
+              const rowH = nLanes * 30 + 8
+              const dd = new Date(dIso + "T12:00:00")
+              const oggi = dIso === new Date().toISOString().slice(0, 10)
+              return (
+                <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`1px solid ${C.border}`, background: oggi ? "#FFFCF7" : "transparent" }}>
+                  <div style={{ padding:"8px 10px", borderRight:`1px solid ${C.border}` }}>
+                    <div style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{GIORNI[i]} {dd.getDate()}</div>
+                    <div style={{ fontSize:9, color: cov.overlaps.size ? C.amber : C.textSoft, marginTop:1, fontWeight: cov.overlaps.size ? 700 : 400 }}>
+                      {dayShifts.length ? `${cov.min === cov.max ? cov.max : `${cov.min}–${cov.max}`} in turno${cov.overlaps.size ? " · ⚠ sovrap." : ""}` : "riposo"}
                     </div>
-                    <button aria-label="Elimina turno" onClick={()=>eliminaTurno(t.id)} style={{ background:"none", border:"none", color:C.red, cursor:"pointer", fontSize:20, padding:"4px 8px" }}>×</button>
+                    {!isMobile && <button onClick={() => apriNuovoTurno(dIso)} style={{ marginTop:6, fontSize:10, fontWeight:700, color:C.red, background:"transparent", border:`1px dashed ${C.red}40`, borderRadius:6, padding:"3px 8px", cursor:"pointer" }}>+ turno</button>}
                   </div>
-                )})}
-                <CoperturaBar cov={cov} compact/>
-                <button onClick={()=>apriNuovoTurno(dIso)} style={{ width:"100%", padding:"8px", background:C.bg, border:`1px dashed ${C.borderStr}`, borderRadius:8, fontSize:11, color:C.textSoft, cursor:"pointer", marginTop:6 }}>
-                  + Aggiungi turno
-                </button>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"140px repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
-            <div style={{ padding:"10px 12px", fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Dipendente</div>
-            {weekDays.map((d,i)=>(
-              <div key={d} style={{ padding:"10px 8px", fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", textAlign:"center", borderLeft:`1px solid ${C.border}` }}>
-                {GIORNI[i]}<br/><span style={{ fontSize:10, fontWeight:500 }}>{new Date(d).getDate()}</span>
-              </div>
-            ))}
-          </div>
-          {dipendenti.map(dip=>{
-            const turniDip = turni.filter(t=>t.dipendente_id===dip.id)
-            if (!turniDip.length) return null
-            return (
-              <div key={dip.id} style={{ display:"grid", gridTemplateColumns:"140px repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
-                <div style={{ padding:"10px 12px", fontSize:11, fontWeight:700, color:C.text, display:"flex", alignItems:"center" }}>{dip.nome}</div>
-                {weekDays.map(d=>{
-                  const ts = turniDip.filter(t=>t.data===d)
-                  const ov = covByDay[d].overlaps
-                  return (
-                    <div key={d} style={{ padding:"6px 4px", borderLeft:`1px solid ${C.border}`, minHeight:48, display:"flex", flexDirection:"column", gap:4 }}>
-                      {ts.map(t => {
-                        const over = ov.has(t.id)
-                        return (
-                        <div key={t.id} style={{ background:over?"#FFFBEB":C.redLight, borderRadius:8, padding:"5px 7px", border:`1px solid ${over?C.amber:`${C.red}30`}` }}>
-                          <div style={{ fontSize:9, fontWeight:700, color:over?C.amber:C.red }}>{over?"⚠ ":""}{t.ora_inizio}–{t.ora_fine}</div>
-                          <div style={{ fontSize:9, color:C.textSoft }}>{fmtH(t.ore||0)}</div>
-                          <button aria-label="Elimina turno" onClick={()=>eliminaTurno(t.id)} style={{ fontSize:7, color:C.red, background:"transparent", border:"none", cursor:"pointer", padding:0, marginTop:2 }}>✕</button>
+                  <div style={{ position:"relative", height:rowH }}>
+                    {ticks.map(m => <div key={m} style={{ position:"absolute", left:pos(m), top:0, bottom:0, width:1, background:"#F2ECE8" }}/>)}
+                    {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:10, color:"#CBD5E1" }}>—</div>}
+                    {placed.map(s => {
+                      const over = cov.overlaps.has(s.id); const col = colorById[s.dipId] || C.red
+                      return (
+                        <div key={s.id} title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (${fmtH(s.ore || 0)})${over ? " · sovrapposto" : ""}`}
+                          style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height:26, background:col, borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding:"0 6px", overflow:"hidden", boxShadow: over ? `0 0 0 2px ${C.amber}` : "none" }}>
+                          <span style={{ fontSize:10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>{over ? "⚠ " : ""}{s.nome.split(" ")[0]} · {_hm(s.ini)}–{_hm(s.fin)}</span>
+                          <button aria-label="Elimina turno" onClick={() => eliminaTurno(s.id)} style={{ flexShrink:0, background:"rgba(255,255,255,0.25)", border:"none", color:"#fff", borderRadius:4, width:16, height:16, fontSize:11, lineHeight:1, cursor:"pointer" }}>×</button>
                         </div>
-                      )})}
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          })}
-          {dipendenti.every(d=>!turni.find(t=>t.dipendente_id===d.id)) && (
-            <div style={{ padding:30, textAlign:"center", color:C.textSoft, fontSize:13 }}>Nessun turno per questa settimana.</div>
-          )}
-          {/* Riga copertura: quante persone in turno per fascia oraria, per giorno */}
-          <div style={{ display:"grid", gridTemplateColumns:"140px repeat(7,1fr)", borderTop:`2px solid ${C.border}`, background:"#FBFAF9" }}>
-            <div style={{ padding:"10px 12px", fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", display:"flex", alignItems:"center" }}>Copertura</div>
-            {weekDays.map(d=>(
-              <div key={d} style={{ padding:"8px 6px", borderLeft:`1px solid ${C.border}`, display:"flex", alignItems:"center" }}>
-                {covByDay[d].shifts.length ? <div style={{ width:"100%" }}><CoperturaBar cov={covByDay[d]} compact/></div> : <span style={{ fontSize:9, color:"#CBD5E1", margin:"0 auto" }}>—</span>}
-              </div>
-            ))}
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {isMobile && !showForm && (
         <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:C.white, borderTop:`1px solid ${C.border}`, zIndex:100 }}>
