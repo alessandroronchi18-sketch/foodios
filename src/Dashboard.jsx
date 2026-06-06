@@ -2426,9 +2426,9 @@ export default function Dashboard({
               background:"rgba(247,248,250,0.88)",
               backdropFilter:"saturate(180%) blur(18px)",WebkitBackdropFilter:"saturate(180%) blur(18px)",
               borderBottom:`1px solid ${C.borderSoft}`,
-              padding:"11px 32px",display:"flex",alignItems:"center",gap:16}}>
+              padding:"6px 32px",display:"flex",alignItems:"center",gap:16}}>
               {/* Sezione attiva: indicatore visivo brand a sinistra */}
-              <div style={{width:4,height:34,borderRadius:3,
+              <div style={{width:4,height:30,borderRadius:3,
                 background:"linear-gradient(180deg, #6E0E1A 0%, #E84B3A 100%)",
                 boxShadow:"0 2px 8px rgba(110,14,26,0.28)",flexShrink:0}}/>
               {/* Titolo + breadcrumb */}
