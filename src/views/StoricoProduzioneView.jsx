@@ -363,7 +363,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   <ComposedChart data={dataKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="35%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                    <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
                     <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
                     <Bar dataKey="Ricavo"   stackId="e" name="Ricavo"    fill="#5B8FCE" barSize={isMobile?20:34}/>
@@ -435,7 +435,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   <BarChart data={dataVendTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                    <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
                     <Tooltip content={<VendTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
                     {seriesVend.map((n,i)=>(
@@ -470,7 +470,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   <ComposedChart data={dataVendKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="35%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                    <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
                     <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                     <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
                     <Bar dataKey="FoodCost" stackId="c" name="Food cost" fill={C.red}   barSize={isMobile?18:30}/>
@@ -599,7 +599,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       <BarChart data={chartData} margin={{top:4,right:8,left:0,bottom:0}} barSize={n<=14?14:n<=20?10:6}>
                         <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false}/>
                         <XAxis dataKey="data" tick={{fontSize:8,fill:C.textSoft}} tickLine={false} axisLine={false} interval={n<=10?0:Math.floor(n/8)}/>
-                        <YAxis tick={{fontSize:8,fill:C.textSoft}} tickLine={false} axisLine={false} tickFormatter={v=>`€${v}`} width={38}/>
+                        <YAxis tick={{fontSize:8,fill:C.textSoft}} tickLine={false} axisLine={false} tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} width={38}/>
                         <Tooltip formatter={(v,name)=>[`€${v.toFixed(2)}`,name]} contentStyle={{fontSize:10,borderRadius:8,border:`1px solid ${C.border}`}}/>
                         <Bar dataKey="Ricavi"  fill={C.red}  opacity={0.85} radius={[3,3,0,0]}/>
                         <Bar dataKey="Margine" fill={C.green} opacity={0.7} radius={[3,3,0,0]}/>
@@ -772,7 +772,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <BarChart data={dataConf} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                       <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                      <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                      <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
                       <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                       <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
                       <Bar dataKey="Ricavo stimato" name="Stimato" fill="#8497B0" radius={[4,4,0,0]} maxBarSize={46}/>
@@ -786,7 +786,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <BarChart data={dataConf2} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                       <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                      <YAxis tickFormatter={v=>`€${v}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                      <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
                       <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
                       <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
                       <Bar dataKey="Margine stimato" name="Stimato" fill="#8497B0" radius={[4,4,0,0]} maxBarSize={46}/>

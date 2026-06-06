@@ -51,6 +51,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   const isMobile = useIsMobile()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ricette = Object.values(ricettario?.ricette || {}).filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
+    .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it')) // lista prodotti in ordine alfabetico
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
 
   const [tab, setTab] = useState('nuova')
