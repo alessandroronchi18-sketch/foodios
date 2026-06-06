@@ -150,10 +150,10 @@ function BCGMatrix({ menuItems }) {
   const ranked = [...withBcg].sort((a,b)=> b.margPct - a.margPct)
 
   const QUAD_META = {
-    Star:   { title:"Star",   sub:"Alta % · Alta popolarità",   sample:{ margPct:70, volRel:0.8 } },
-    Puzzle: { title:"Puzzle", sub:"Alta % · Bassa popolarità",  sample:{ margPct:70, volRel:0.2 } },
-    Plow:   { title:"Plow",   sub:"Bassa % · Alta popolarità",  sample:{ margPct:20, volRel:0.8 } },
-    Dog:    { title:"Dog",    sub:"Bassa % · Bassa popolarità", sample:{ margPct:20, volRel:0.2 } },
+    Star:   { title:"⭐ Star",   sub:"Alto margine · Molto venduto",  desc:"I tuoi cavalli di battaglia: rendono bene e vendono tanto. Tienili sempre disponibili e ben in vista.", sample:{ margPct:70, volRel:0.8 } },
+    Puzzle: { title:"❓ Puzzle", sub:"Alto margine · Poco venduto",   desc:"Rendono bene ma li compra in pochi: spingili (vetrina, consiglio, promo) per trasformarli in Star.", sample:{ margPct:70, volRel:0.2 } },
+    Plow:   { title:"🐴 Plow",   sub:"Basso margine · Molto venduto", desc:"Piacciono e vendono, ma guadagni poco: rivedi food cost o ritocca il prezzo per alzare il margine.", sample:{ margPct:20, volRel:0.8 } },
+    Dog:    { title:"🐶 Dog",    sub:"Basso margine · Poco venduto",  desc:"Vendono poco e rendono poco: valuta se rinnovarli, sostituirli o toglierli dal menù.", sample:{ margPct:20, volRel:0.2 } },
   }
 
   return (
@@ -176,8 +176,11 @@ function BCGMatrix({ menuItems }) {
                   {byQ[q].length}
                 </div>
               </div>
-              <div style={{ fontSize:11, color:T.textMid, marginBottom:10, lineHeight:1.4 }}>
+              <div style={{ fontSize:11, fontWeight:600, color:info.color, marginBottom:6, lineHeight:1.4 }}>
                 {meta.sub}
+              </div>
+              <div style={{ fontSize:11, color:T.textMid, marginBottom:10, lineHeight:1.5 }}>
+                {meta.desc}
               </div>
               {byQ[q].length === 0 ? (
                 <div style={{ fontSize:12, color:T.textSoft, fontStyle:"italic" }}>
