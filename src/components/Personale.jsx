@@ -432,6 +432,14 @@ function TurniTab({ orgId, notify, isMobile }) {
   async function salvaTurno() {
     if (!form.dipendente_id || !form.data) { notify("⚠ Seleziona dipendente e data", false); return }
     if (!orgId) { notify("⚠ Profilo non pronto, riprova", false); return }
+    // Avviso sovrapposizione: stesso dipendente, stesso giorno, orari che si accavallano.
+    const ni = _toMin(form.ora_inizio), nf = _toMin(form.ora_fine)
+    const conflitto = turni.find(t => t.id !== editId && t.dipendente_id === form.dipendente_id && t.data === form.data && ni < _toMin(t.ora_fine) && _toMin(t.ora_inizio) < nf)
+    if (conflitto) {
+      const nomeDip = dipendenti.find(d => d.id === form.dipendente_id)?.nome || 'Il dipendente'
+      const ok = typeof window !== "undefined" && window.confirm(`⚠ Turno sovrapposto\n\n${nomeDip} ha già un turno il ${form.data} dalle ${_hm(_toMin(conflitto.ora_inizio))} alle ${_hm(_toMin(conflitto.ora_fine))}, che si accavalla con ${form.ora_inizio}–${form.ora_fine}.\n\nVuoi salvarlo comunque?`)
+      if (!ok) return
+    }
     const ore = calcOre(form.ora_inizio, form.ora_fine)
     const dip = dipendenti.find(d=>d.id===form.dipendente_id)
     const costo = ore * (dip?.costo_orario||0)
