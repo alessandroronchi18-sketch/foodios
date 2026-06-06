@@ -460,6 +460,12 @@ if (stockRows.length) {
   T(0, 5, '07:00', '14:00'); T(3, 5, '13:00', '19:30'); T(1, 5, '05:00', '11:00') // sabato: sovrapposizione
   await sb.from('turni').insert(turni)
 
+  // Organigramma (shared): Laboratorio (capo Marco) + Banco vendita (capo Giulia)
+  await setData(orgId, null, 'pasticceria-organigramma-v1', { reparti: [
+    { id: 'rep-lab',   nome: 'Laboratorio',  capoId: dips[1].id, membri: [dips[1].id, dips[2].id] },
+    { id: 'rep-banco', nome: 'Banco vendita', capoId: dips[0].id, membri: [dips[0].id, dips[3].id] },
+  ] })
+
   // Clienti + vendite B2B (prezzi all'ingrosso, prodotti del ricettario)
   await sb.from('vendite_b2b').delete().eq('organization_id', orgId)
   await sb.from('clienti_b2b').delete().eq('organization_id', orgId)

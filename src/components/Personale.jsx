@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { sload, ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
 
@@ -844,12 +845,121 @@ function HeaderPersonale({ orgId, isMobile }) {
   )
 }
 
+// ─── ORGANIGRAMMA: reparti + assegnazione dipendenti, editabile dal titolare ──
+const SK_ORG = 'pasticceria-organigramma-v1'
+function OrganigrammaTab({ orgId, notify, isMobile }) {
+  const [dip, setDip] = useState([])
+  const [org, setOrg] = useState({ reparti: [] })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!orgId) return
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase.from('dipendenti').select('id,nome,ruolo').eq('organization_id', orgId).eq('attivo', true).order('nome')
+      const saved = await sload(SK_ORG, orgId, null)
+      if (cancelled) return
+      setDip(data || [])
+      setOrg(saved && Array.isArray(saved.reparti) ? saved : { reparti: [] })
+      setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [orgId])
+
+  const nomeById = id => dip.find(d => d.id === id)?.nome || '—'
+  const assegnati = new Set(org.reparti.flatMap(r => [r.capoId, ...(r.membri || [])]).filter(Boolean))
+  const nonAssegnati = dip.filter(d => !assegnati.has(d.id))
+
+  async function persist(next) {
+    try { await ssave(SK_ORG, next, orgId, null) } catch { notify?.('⚠ Errore salvataggio organigramma', false); return }
+    setOrg(next)
+  }
+  const update = fn => persist({ ...org, reparti: fn(org.reparti.map(r => ({ ...r, membri: [...(r.membri || [])] }))) })
+
+  function addReparto() { const nome = (prompt('Nome del reparto (es. Laboratorio, Banco vendita, Amministrazione)') || '').trim(); if (!nome) return; update(rs => [...rs, { id: 'rep-' + Math.random().toString(36).slice(2, 8), nome, capoId: null, membri: [] }]) }
+  function renameReparto(id) { const r = org.reparti.find(x => x.id === id); const nome = (prompt('Nuovo nome reparto', r?.nome) || '').trim(); if (!nome) return; update(rs => rs.map(x => x.id === id ? { ...x, nome } : x)) }
+  function delReparto(id) { if (!confirm('Eliminare il reparto? I dipendenti tornano tra i non assegnati.')) return; update(rs => rs.filter(x => x.id !== id)) }
+  function addMembro(repId, dipId) { if (!dipId) return; update(rs => rs.map(r => r.id === repId ? { ...r, membri: [...new Set([...(r.membri || []), dipId])] } : r)) }
+  function removeMembro(repId, dipId) { update(rs => rs.map(r => r.id === repId ? { ...r, membri: (r.membri || []).filter(m => m !== dipId), capoId: r.capoId === dipId ? null : r.capoId } : r)) }
+  function setCapo(repId, dipId) { update(rs => rs.map(r => r.id === repId ? { ...r, capoId: r.capoId === dipId ? null : dipId, membri: [...new Set([...(r.membri || []), dipId])] } : r)) }
+
+  if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+
+  const chip = (dipId, repId, isCapo) => (
+    <span key={dipId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: isCapo ? C.red : '#F8F4F2', color: isCapo ? C.white : C.text, border: `1px solid ${isCapo ? C.red : C.border}`, borderRadius: 999, padding: '4px 6px 4px 11px', fontSize: 11, fontWeight: 700 }}>
+      {isCapo && <span style={{ fontSize: 9 }}>★</span>}{nomeById(dipId)}
+      <button onClick={() => setCapo(repId, dipId)} title={isCapo ? 'Rimuovi da responsabile' : 'Imposta come responsabile'} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11, color: isCapo ? 'rgba(255,255,255,0.85)' : C.amber, padding: 0 }}>★</button>
+      <button onClick={() => removeMembro(repId, dipId)} aria-label="Rimuovi dal reparto" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: isCapo ? 'rgba(255,255,255,0.85)' : C.textSoft, padding: 0, lineHeight: 1 }}>×</button>
+    </span>
+  )
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
+          Organizza il team per reparto. Il <b style={{ color: C.red }}>★</b> indica il responsabile. {nonAssegnati.length > 0 ? `${nonAssegnati.length} non ancora assegnati.` : 'Tutti assegnati.'}
+        </div>
+        <button onClick={addReparto} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>+ Reparto</button>
+      </div>
+
+      {org.reparti.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textSoft, background: C.bgCard, border: `1px dashed ${C.borderStr}`, borderRadius: 12 }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🗂️</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun reparto</div>
+          <div style={{ fontSize: 12 }}>Crea il primo reparto e assegna i dipendenti per costruire l'organigramma.</div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          {org.reparti.map(r => {
+            const membriOrdinati = [...(r.membri || [])].sort((a, b) => (b === r.capoId ? 1 : 0) - (a === r.capoId ? 1 : 0) || nomeById(a).localeCompare(nomeById(b), 'it'))
+            return (
+              <div key={r.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'linear-gradient(135deg,#1C0A0A,#3D1515)' }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.white }}>{r.nome}</span>
+                  <span style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={() => renameReparto(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}>✏️</button>
+                    <button onClick={() => delReparto(r.id)} title="Elimina reparto" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}>🗑</button>
+                  </span>
+                </div>
+                <div style={{ padding: '12px 14px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{(r.membri || []).length} {(r.membri || []).length === 1 ? 'persona' : 'persone'}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
+                    {membriOrdinati.length === 0 && <span style={{ fontSize: 11, color: C.textSoft, fontStyle: 'italic' }}>Nessuno assegnato</span>}
+                    {membriOrdinati.map(m => chip(m, r.id, m === r.capoId))}
+                  </div>
+                  {nonAssegnati.length > 0 && (
+                    <select value="" onChange={e => addMembro(r.id, e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.textMid, background: C.white, cursor: 'pointer' }}>
+                      <option value="">+ Aggiungi dipendente…</option>
+                      {nonAssegnati.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
+                    </select>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {nonAssegnati.length > 0 && (
+        <div style={{ marginTop: 18, padding: '14px 16px', background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', marginBottom: 8 }}>Non assegnati ({nonAssegnati.length})</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {nonAssegnati.map(d => <span key={d.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 11px', fontSize: 11, fontWeight: 700, color: C.text }}>{d.nome}</span>)}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Personale({ orgId, sedeId, sedi = [], notify }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState("dipendenti")
   const TABS = [
     ["dipendenti", "Dipendenti", "👥"],
     ["turni",      "Turni",      "📅"],
+    ["organigramma", "Organigramma", "🗂️"],
     ["analisi",    "Analisi costo", "📊"],
   ]
 
@@ -886,6 +996,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify }) {
 
       {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
       {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
+      {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile}/>}
       {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile}/>}
     </div>
   )
