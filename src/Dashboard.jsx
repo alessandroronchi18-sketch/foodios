@@ -2019,24 +2019,24 @@ export default function Dashboard({
                   navItem("menu","menu","Menù del giorno"),
                 ] })}
 
-              {Group({ id:"numeri", iconKey:"coins", label:"Numeri",
+              {Group({ id:"acquisti", iconKey:"shopping", label:"Magazzino & Acquisti",
+                badge:criticeMag, alert:criticeMag>0,
+                children:[
+                  navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0),
+                  navItem("scadenzario","fileText","Scadenzario"),
+                  navItem("fornitori","truck","Fornitori"),
+                  navItem("vendite-b2b","building","Vendite B2B"),
+                  navItem("sprechi-omaggi","sparkles","Sprechi e omaggi"),
+                  navItem("importa-dati","download","Importa dati"),
+                ] })}
+
+              {Group({ id:"numeri", iconKey:"coins", label:"Andamento & costi",
                 children:[
                   navItem("simulatore","barChart","Food Cost"),
                   navItem("pl","trendUp","Profitti (P&L)"),
                   navItem("storico","activity","Storico"),
                   navItem("previsione","forecast","Previsioni"),
-                  navItem("discrepanze","fileText","Discrepanze & Sprechi"),
-                ] })}
-
-              {Group({ id:"acquisti", iconKey:"shopping", label:"Magazzino & Acquisti",
-                badge:criticeMag, alert:criticeMag>0,
-                children:[
-                  navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0),
-                  navItem("sprechi-omaggi","sparkles","Sprechi e omaggi"),
-                  navItem("scadenzario","fileText","Scadenzario"),
-                  navItem("fornitori","truck","Fornitori"),
-                  navItem("vendite-b2b","building","Vendite B2B"),
-                  navItem("importa-dati","download","Importa dati"),
+                  navItem("discrepanze","fileText","Discrepanze prod./vendite"),
                 ] })}
 
               {Group({ id:"azienda", iconKey:"briefcase", label:"Azienda",
@@ -2202,10 +2202,10 @@ export default function Dashboard({
             home:"", giornaliero:"Oggi", chiusura:"Oggi", eventi:"Oggi", calendario:"Oggi",
             ricettario:"Ricette & Menù", semilavorati:"Ricette & Menù", "nuova-ricetta":"Ricette & Menù",
             "scheda-allergeni":"Ricette & Menù", menu:"Ricette & Menù",
-            simulatore:"Numeri", pl:"Numeri", storico:"Numeri", previsione:"Numeri",
-            magazzino:"Magazzino & Acquisti", scadenzario:"Magazzino & Acquisti",
-            fornitori:"Magazzino & Acquisti", "importa-dati":"Magazzino & Acquisti",
-            personale:"Azienda", haccp:"Azienda", "confronto-sedi":"Azienda", trasferimenti:"Azienda",
+            simulatore:"Andamento & costi", pl:"Andamento & costi", storico:"Andamento & costi", previsione:"Andamento & costi", discrepanze:"Andamento & costi",
+            magazzino:"Magazzino & Acquisti", scadenzario:"Magazzino & Acquisti", "sprechi-omaggi":"Magazzino & Acquisti",
+            fornitori:"Magazzino & Acquisti", "vendite-b2b":"Magazzino & Acquisti", "importa-dati":"Magazzino & Acquisti",
+            personale:"Azienda", haccp:"Azienda", "registro-attivita":"Azienda", "confronto-sedi":"Azienda", trasferimenti:"Azienda",
             azioni:"Strumenti", integrazioni:"Strumenti",
             impostazioni:"", changelog:"",
           };
