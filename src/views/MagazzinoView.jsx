@@ -71,6 +71,7 @@ function calcolaFabbisognoSettimana(ricettario, giornaliero) {
 // ─── ProdottiFinitiTab (stock prodotti finiti per sede) ──────────────────────
 function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [stock, setStock] = useState([])
   const [loading, setLoading] = useState(true)
   const [scartoForm, setScartoForm] = useState(null)
@@ -332,7 +333,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                 <thead>
                   <tr>
                     {['Data', 'Ingrediente', 'Vecchio', 'Nuovo', 'Δ'].map((h, i) => (
-                      <th key={i} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
+                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 2 ? 'right' : 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -341,10 +342,10 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                     <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>{new Date(l.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
                       <td style={{ padding: '7px 12px', fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>{l.ingrediente}</td>
-                      <td style={{ padding: '7px 12px', color: C.textMid, ...TNUM }}>€{(l.prezzoVecchio || 0).toFixed(2)}/kg</td>
-                      <td style={{ padding: '7px 12px', fontWeight: 700, color: C.text, ...TNUM }}>€{(l.prezzoNuovo || 0).toFixed(2)}/kg</td>
-                      <td style={{ padding: '7px 12px', fontWeight: 700, color: l.delta > 0 ? C.red : C.green, ...TNUM }}>
-                        {l.delta > 0 ? '+' : ''}{l.delta.toFixed(2)}
+                      <td style={{ padding: '7px 12px', textAlign: 'right', color: C.textMid, ...TNUM }}>€ {(l.prezzoVecchio || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</td>
+                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>€ {(l.prezzoNuovo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</td>
+                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: l.delta > 0 ? C.red : C.green, ...TNUM }}>
+                        {l.delta > 0 ? '+' : ''}{l.delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         {l.deltaPct != null && <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>({l.deltaPct > 0 ? '+' : ''}{l.deltaPct.toFixed(1)}%)</span>}
                       </td>
                     </tr>
@@ -393,7 +394,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                       ) : (
                         <span onClick={() => startEdit(row)} title="Clicca per modificare"
                           style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 5, display: 'inline-block' }}>
-                          {row.prezzoKg > 0 ? `€${row.prezzoKg.toFixed(2)}` : '—'}
+                          {row.prezzoKg > 0 ? `€ ${row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
                         </span>
                       )}
                     </td>
@@ -431,16 +432,16 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '14px 16px', marginBottom: 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600 }}>Prezzo attuale</span>
-                  <span style={{ fontSize: 14, color: C.textMid, ...TNUM, fontWeight: 700 }}>€{row.prezzoKg.toFixed(2)}/kg</span>
+                  <span style={{ fontSize: 14, color: C.textMid, ...TNUM, fontWeight: 700 }}>€ {row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600 }}>Nuovo prezzo</span>
-                  <span style={{ fontSize: 14, color: C.red, ...TNUM, fontWeight: 800 }}>€{confirmVal.toFixed(2)}/kg</span>
+                  <span style={{ fontSize: 14, color: C.red, ...TNUM, fontWeight: 800 }}>€ {confirmVal.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
                   <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600 }}>Variazione</span>
                   <span style={{ fontSize: 13, color: delta > 0 ? C.red : C.green, ...TNUM, fontWeight: 800 }}>
-                    {delta > 0 ? '+' : ''}€{delta.toFixed(2)} {deltaPct != null && <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{deltaPct.toFixed(1)}%)</span>}
+                    {delta > 0 ? '+' : ''}€ {delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {deltaPct != null && <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{deltaPct.toFixed(1)}%)</span>}
                   </span>
                 </div>
               </div>
@@ -727,11 +728,11 @@ export default function MagazzinoView({
                   <tr style={{ background: '#F8F4F2' }}>
                     <SortTH k="nome" active={magKey === 'nome'} dir={magDir} onToggle={magToggle}>Ingrediente</SortTH>
                     <SortTH k="giacenza" right active={magKey === 'giacenza'} dir={magDir} onToggle={magToggle}>Giacenza</SortTH>
-                    <SortTH k="fabb" right active={magKey === 'fabb'} dir={magDir} onToggle={magToggle}>Fabb. sett.</SortTH>
-                    <SortTH k="giorniScorta" right active={magKey === 'giorniScorta'} dir={magDir} onToggle={magToggle}>Giorni scorta</SortTH>
-                    <SortTH k="soglia" right active={magKey === 'soglia'} dir={magDir} onToggle={magToggle}>Soglia alert</SortTH>
+                    <SortTH k="fabb" right active={magKey === 'fabb'} dir={magDir} onToggle={magToggle} tip="Fabbisogno settimanale stimato dal consumo degli ultimi 7 giorni">Fabb. sett.</SortTH>
+                    <SortTH k="giorniScorta" right active={magKey === 'giorniScorta'} dir={magDir} onToggle={magToggle} tip="Giorni di scorta rimanenti al ritmo di consumo attuale">Giorni scorta</SortTH>
+                    <SortTH k="soglia" right active={magKey === 'soglia'} dir={magDir} onToggle={magToggle} tip="Soglia minima sotto la quale scatta l'alert di riordino">Soglia alert</SortTH>
                     <SortTH k="stato" active={magKey === 'stato'} dir={magDir} onToggle={magToggle}>Stato</SortTH>
-                    <SortTH k="ultimoRif" right active={magKey === 'ultimoRif'} dir={magDir} onToggle={magToggle}>Ultimo riforn.</SortTH>
+                    <SortTH k="ultimoRif" right active={magKey === 'ultimoRif'} dir={magDir} onToggle={magToggle} tip="Data dell'ultimo rifornimento registrato">Ultimo riforn.</SortTH>
                     <th style={{ padding: '10px 8px', borderBottom: `1px solid ${C.border}` }}></th>
                   </tr>
                 </thead>

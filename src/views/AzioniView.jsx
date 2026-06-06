@@ -139,7 +139,6 @@ ${azioniStr}
     <div style={{maxWidth:900,display:"flex",flexDirection:"column",gap:0}}>
       {/* Header */}
       <PageHeader
-        title="AI Assistant"
         subtitle="Analisi basate sui tuoi dati reali · ricettario, produzioni, cassa, magazzino"
       />
 

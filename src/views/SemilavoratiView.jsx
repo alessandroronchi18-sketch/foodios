@@ -47,9 +47,9 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
         </div>
         <div style={{display:"flex",gap:8,flexShrink:0}}>
           {[
-            {lbl:"Costo batch",val:`€${fc.toFixed(2)}`,c:T.brand,bg:T.brandLight},
+            {lbl:"Costo batch",val:`€ ${fc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,c:T.brand,bg:T.brandLight},
             {lbl:"Costo/g",val:costoG>0?costoG.toFixed(4)+"€":"—",c:PURPLE,bg:PURPLE_BG},
-            {lbl:"Costo/kg",val:`€${(costoG*1000).toFixed(2)}`,c:PURPLE_DARK,bg:"#ECD9F8"},
+            {lbl:"Costo/kg",val:`€ ${(costoG*1000).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,c:PURPLE_DARK,bg:"#ECD9F8"},
           ].map(({lbl,val,c,bg})=>(
             <div key={lbl} style={{background:bg,padding:"9px 12px",borderRadius:R.md,textAlign:"center",minWidth:isMobile?0:80,flex:isMobile?1:"none"}}>
               <div style={{fontSize:9,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:T.textSoft,marginBottom:4}}>{lbl}</div>
@@ -100,7 +100,8 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
                 <thead>
                   <tr style={{background:"#F8F4F2"}}>
                     {["Ingrediente","Grammi","Costo","% FC"].map((h,i)=>(
-                      <th key={h} style={{padding:"6px 10px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                      <th key={h} title={h==="% FC"?"Incidenza % di questo ingrediente sul food cost totale del batch":undefined}
+                        style={{padding:"6px 10px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,...(h==="% FC"?{cursor:"help",textDecoration:"underline dotted",textUnderlineOffset:3}:null)}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -402,7 +403,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
                     <span style={{color:C.textSoft}}>Costo batch</span>
-                    <span style={{fontWeight:700,color:C.red}}>€{fcLive.toFixed(2)}</span>
+                    <span style={{fontWeight:700,color:C.red,...TNUM}}>€ {fcLive.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
                     <span style={{color:C.textSoft}}>Costo/g</span>
@@ -410,7 +411,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
                     <span style={{color:C.textSoft}}>Costo/kg</span>
-                    <span style={{fontWeight:700,color:"#8E44AD"}}>€{(costoGLive*1000).toFixed(2)}</span>
+                    <span style={{fontWeight:700,color:"#8E44AD",...TNUM}}>€ {(costoGLive*1000).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
                   </div>
                 </div>
               )}
