@@ -249,6 +249,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // Riepilogo periodi: ordinamento per colonna (click sull'intestazione).
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
+  // Storico chiusure: ordinamento per colonna.
+  const [chiSort, setChiSort] = useState({ key: 'data', dir: 'desc' });
   const COLS_RIEP = [
     { label:'Periodo',      key:'periodo',  get:p=>p.key,                 str:true, align:'left' },
     { label:'Sessioni',     key:'sessioni', get:p=>p.sessioni.length },
@@ -719,24 +721,43 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
-                      {["Data","Prodotti","Ricavo reale","Food cost","Margine","Marg%","Sell-T. medio","Spreco"].map((h,i)=>(
-                        <th key={i} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
-                      ))}
+                      {(() => {
+                        const COLS = [
+                          { h:'Data', key:'data', str:true, align:'left' },
+                          { h:'Prodotti', key:'prodotti' },
+                          { h:'Ricavo reale', key:'totV' },
+                          { h:'Food cost', key:'totFC' },
+                          { h:'Margine', key:'totM' },
+                          { h:'Marg%', key:'totMP' },
+                          { h:'Sell-T. medio', key:'avgST' },
+                          { h:'Spreco', key:'totS' },
+                        ];
+                        return COLS.map((c)=>(
+                          <th key={c.key} onClick={()=>setChiSort(s=>s.key===c.key?{key:c.key,dir:s.dir==='asc'?'desc':'asc'}:{key:c.key,dir:c.key==='data'?'desc':'desc'})} title="Ordina"
+                            style={{padding:"10px 12px",textAlign:c.align==='left'?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:chiSort.key===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}}>
+                            {c.h}<span style={{opacity:chiSort.key===c.key?1:0.25}}> {chiSort.key===c.key?(chiSort.dir==='asc'?'▲':'▼'):'↕'}</span>
+                          </th>
+                        ));
+                      })()}
                     </tr>
                   </thead>
                   <tbody>
-                    {[...(chiusure||[])].sort((a,b)=>b.data.localeCompare(a.data)).map((ch,i)=>(
+                    {(() => {
+                      const getVal = (ch,k)=> k==='data'?ch.data : k==='prodotti'?(ch.confronto||[]).length : (ch.kpi?.[k]||0);
+                      const dir = chiSort.dir==='asc'?1:-1;
+                      return [...(chiusure||[])].sort((a,b)=>{ const va=getVal(a,chiSort.key),vb=getVal(b,chiSort.key); return (chiSort.key==='data'?String(va).localeCompare(String(vb)):(va-vb))*dir; });
+                    })().map((ch,i)=>(
                       <tr key={ch.id} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
                         <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>{new Date(ch.data+"T12:00").toLocaleDateString("it-IT",{weekday:"short",day:"2-digit",month:"short"})}</td>
                         <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid}}>{(ch.confronto||[]).length}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(ch.kpi.totV)}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{eurIT(ch.kpi.totFC)}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(ch.kpi.totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(ch.kpi.totM)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(ch.kpi.totV)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{eur0(ch.kpi.totFC)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(ch.kpi.totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(ch.kpi.totM)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(ch.kpi.totMP)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>
                           <span style={{fontWeight:700,color:ch.kpi.avgST>=85?C.green:ch.kpi.avgST>=65?C.amber:C.red}}>{fmtp(ch.kpi.avgST)}</span>
                         </td>
-                        <td style={{padding:"10px 12px",textAlign:"right",color:ch.kpi.totS>5?C.red:C.textSoft,fontWeight:ch.kpi.totS>5?700:400}}>{eurIT(ch.kpi.totS)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",color:ch.kpi.totS>5?C.red:C.textSoft,fontWeight:ch.kpi.totS>5?700:400}}>{eur0(ch.kpi.totS)}</td>
                       </tr>
                     ))}
                   </tbody>
