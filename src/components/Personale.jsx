@@ -12,6 +12,11 @@ const C = {
 
 function fmt(n) { return n==null?"—":`€${Number(n).toFixed(2)}` }
 function fmtH(h) { return `${h.toFixed(1)}h` }
+// Nome completo (nome + cognome) per disambiguare gli omonimi senza ambiguità.
+function etichettaNome(nome) {
+  const n = String(nome || '').trim()
+  return n || '—'
+}
 
 // ─── Copertura turni: sovrapposizioni + n° persone presenti per fascia oraria ──
 const _toMin = s => { const [h,m] = String(s||'').split(':').map(Number); return (h||0)*60 + (m||0) }
@@ -355,6 +360,7 @@ function TurniTab({ orgId, notify, isMobile }) {
   })
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ dipendente_id:"", data:"", ora_inizio:"08:00", ora_fine:"16:00", note:"" })
+  const [editId, setEditId] = useState(null) // id turno in modifica (null = nuovo)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { carica() }, [orgId, week])
@@ -376,14 +382,18 @@ function TurniTab({ orgId, notify, isMobile }) {
     setLoading(false)
   }
 
+  function resetForm() {
+    setForm({ dipendente_id:"", data:week, ora_inizio:"08:00", ora_fine:"16:00", note:"" })
+    setEditId(null); setShowForm(false)
+  }
+
   async function salvaTurno() {
     if (!form.dipendente_id || !form.data) { notify("⚠ Seleziona dipendente e data", false); return }
     if (!orgId) { notify("⚠ Profilo non pronto, riprova", false); return }
     const ore = calcOre(form.ora_inizio, form.ora_fine)
     const dip = dipendenti.find(d=>d.id===form.dipendente_id)
     const costo = ore * (dip?.costo_orario||0)
-    setSaving(true)
-    const { error } = await supabase.from("turni").insert({
+    const payload = {
       organization_id: orgId,
       dipendente_id: form.dipendente_id,
       data: form.data,
@@ -392,19 +402,31 @@ function TurniTab({ orgId, notify, isMobile }) {
       ore: parseFloat(ore.toFixed(2)),
       costo: parseFloat(costo.toFixed(2)),
       note: form.note,
-    })
+    }
+    setSaving(true)
+    const { error } = editId
+      ? await supabase.from("turni").update(payload).eq("id", editId).eq("organization_id", orgId)
+      : await supabase.from("turni").insert(payload)
     if (error) { notify("⚠ Errore: " + error.message, false) }
-    else { notify("✓ Turno aggiunto"); setShowForm(false); setForm({ dipendente_id:"", data:week, ora_inizio:"08:00", ora_fine:"16:00", note:"" }) }
+    else { notify(editId ? "✓ Turno aggiornato" : "✓ Turno aggiunto"); resetForm() }
     setSaving(false)
     carica()
   }
 
   async function eliminaTurno(id) {
-    if (!orgId) return
+    if (!orgId || !id) return
     const { error } = await supabase.from("turni").delete().eq("id", id).eq("organization_id", orgId)
     if (error) { notify("⚠ Errore eliminazione turno: " + error.message, false); return }
     notify("✓ Turno eliminato")
+    resetForm()
     carica()
+  }
+
+  // Apre il box sopra la tabella precompilato con un turno esistente (modifica/elimina).
+  function apriModificaTurno(s) {
+    setForm({ dipendente_id: s.dipId || "", data: s.data, ora_inizio: _hm(s.ini), ora_fine: _hm(s.fin), note: s.note || "" })
+    setEditId(s.id); setShowForm(true)
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   function calcOre(ini, fin) {
@@ -427,7 +449,7 @@ function TurniTab({ orgId, notify, isMobile }) {
 
   function apriNuovoTurno(dataIso) {
     setForm({ dipendente_id:"", data: dataIso || week, ora_inizio:"08:00", ora_fine:"16:00", note:"" })
-    setShowForm(true)
+    setEditId(null); setShowForm(true)
   }
 
   return (
@@ -451,7 +473,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                 <div style={{ fontSize:18, fontWeight:900, color:C.red, ...tnum }}>{fmt(totCosto)}</div>
               </div>
             </div>
-            <button onClick={()=>setShowForm(s=>!s)}
+            <button onClick={()=> showForm ? resetForm() : apriNuovoTurno(week)}
               style={{ padding:"8px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:11, cursor:"pointer" }}>
               {showForm ? "✕" : "➕ Turno"}
             </button>
@@ -487,12 +509,10 @@ function TurniTab({ orgId, notify, isMobile }) {
           zIndex: isMobile ? 1000 : "auto",
           overflowY: isMobile ? "auto" : "visible",
         }}>
-          {isMobile && (
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-              <div style={{ fontSize:14, fontWeight:800, color:C.text }}>Nuovo turno</div>
-              <button aria-label="Chiudi form turno" onClick={()=>setShowForm(false)} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
-            </div>
-          )}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: isMobile ? 16 : 10 }}>
+            <div style={{ fontSize: isMobile ? 14 : 12, fontWeight:800, color:C.text }}>{editId ? "✏️ Modifica turno" : "➕ Nuovo turno"}</div>
+            <button aria-label="Chiudi form turno" onClick={resetForm} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
+          </div>
           <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 100px 100px 1fr auto", gap: isMobile ? 12 : 10, alignItems: isMobile ? "stretch" : "end" }}>
             {[
               { lbl:"Dipendente", el: <select value={form.dipendente_id} onChange={e=>setForm(f=>({...f,dipendente_id:e.target.value}))} style={{ ...inputSt, width:"100%" }}><option value="">Seleziona…</option>{dipendenti.map(d=><option key={d.id} value={d.id}>{d.nome}</option>)}</select> },
@@ -500,7 +520,12 @@ function TurniTab({ orgId, notify, isMobile }) {
               { lbl:"Inizio", el: <input type="time" value={form.ora_inizio} onChange={e=>setForm(f=>({...f,ora_inizio:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
               { lbl:"Fine", el: <input type="time" value={form.ora_fine} onChange={e=>setForm(f=>({...f,ora_fine:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
               { lbl:"Note", el: <input value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
-              { lbl:" ", el: <button onClick={salvaTurno} disabled={saving} style={{ padding: isMobile ? "14px" : "9px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer", width:"100%" }}>{saving?"…":"Salva"}</button> },
+              { lbl:" ", el: (
+                <div style={{ display:"flex", gap:6 }}>
+                  <button onClick={salvaTurno} disabled={saving} style={{ flex:1, padding: isMobile ? "14px" : "9px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer" }}>{saving?"…":(editId?"Aggiorna":"Salva")}</button>
+                  {editId && <button onClick={()=>eliminaTurno(editId)} disabled={saving} title="Elimina turno" style={{ flexShrink:0, padding: isMobile ? "14px" : "9px 14px", background:C.white, color:C.red, border:`1px solid ${C.red}`, borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer" }}>🗑</button>}
+                </div>
+              ) },
             ].map(({lbl,el},i)=>(
               <div key={i}>
                 <div style={{ fontSize: isMobile ? 10 : 8, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>{lbl}</div>
@@ -549,7 +574,7 @@ function TurniTab({ orgId, notify, isMobile }) {
             {/* Una riga per giorno: turni come barre sull'orario, in corsie quando si sovrappongono */}
             {weekDays.map((dIso, i) => {
               const cov = covByDay[dIso]
-              const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "—"), ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine), ore:t.ore })).filter(s => s.fin > s.ini)
+              const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "—"), data:t.data, note:t.note, ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine), ore:t.ore })).filter(s => s.fin > s.ini)
               const { placed, nLanes } = packLanes(dayShifts)
               const rowH = nLanes * 30 + 8
               const dd = new Date(dIso + "T12:00:00")
@@ -568,11 +593,13 @@ function TurniTab({ orgId, notify, isMobile }) {
                     {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:10, color:"#CBD5E1" }}>—</div>}
                     {placed.map(s => {
                       const over = cov.overlaps.has(s.id); const col = colorById[s.dipId] || C.red
+                      const selez = editId === s.id
                       return (
-                        <div key={s.id} title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (${fmtH(s.ore || 0)})${over ? " · sovrapposto" : ""}`}
-                          style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height:26, background:col, border:"1.5px solid #000", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding:"0 6px", overflow:"hidden", boxShadow: over ? `0 0 0 2px ${C.amber}` : "none" }}>
-                          <span style={{ fontSize:10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>{over ? "⚠ " : ""}{s.nome.split(" ")[0]} · {_hm(s.ini)}–{_hm(s.fin)}</span>
-                          <button aria-label="Elimina turno" onClick={() => eliminaTurno(s.id)} style={{ flexShrink:0, background:"rgba(255,255,255,0.25)", border:"none", color:"#fff", borderRadius:4, width:16, height:16, fontSize:11, lineHeight:1, cursor:"pointer" }}>×</button>
+                        <div key={s.id} onClick={() => apriModificaTurno(s)} role="button" tabIndex={0}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); apriModificaTurno(s) } }}
+                          title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (${fmtH(s.ore || 0)})${over ? " · sovrapposto" : ""} — clicca per modificare`}
+                          style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height:26, background:col, border: selez ? "2px solid #6E0E1A" : "1.5px solid #000", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding:"0 6px", overflow:"hidden", cursor:"pointer", boxShadow: over ? `0 0 0 2px ${C.amber}` : "none" }}>
+                          <span style={{ fontSize:10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>{over ? "⚠ " : ""}{etichettaNome(s.nome)} · {_hm(s.ini)}–{_hm(s.fin)}</span>
                         </div>
                       )
                     })}
