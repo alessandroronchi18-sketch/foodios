@@ -734,11 +734,9 @@ function HeaderPersonale({ orgId, isMobile }) {
   return (
     <div style={{ marginBottom: isMobile ? 20 : 28 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
+        {/* Titolo "Personale" già mostrato dalla topbar: qui solo il sottotitolo. */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 26, fontWeight: 700, color: T.text, letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-            Personale
-          </h1>
-          <p style={{ margin: '6px 0 0', fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 560 }}>
+          <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 560 }}>
             Dipendenti, turni settimanali, costo del lavoro. Sotto controllo in tempo reale.
           </p>
         </div>

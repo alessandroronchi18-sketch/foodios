@@ -191,7 +191,6 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, ingCosti, c
           </svg>
         </div>
         <div style={{ flex:1, minWidth:0 }}>
-          <h1 style={{ margin:"0 0 4px", fontSize:26, fontWeight:700, color:T.text, letterSpacing:"-0.025em", lineHeight:1.15 }}>Previsione domanda</h1>
           <p style={{ margin:0, fontSize:13, color:T.textSoft, letterSpacing:"-0.005em", lineHeight:1.45 }}>Smoothing esponenziale doppio sulla serie storica di produzione per stimare la domanda futura.</p>
         </div>
       </div>

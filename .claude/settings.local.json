@@ -46,7 +46,17 @@
       "Bash(perl -pi -e 's/Number\\\\\\(v\\\\\\)\\\\.toFixed\\\\\\(2\\\\\\)/Number\\(v\\).__TRACKED_VAR__/g' src/Dashboard.jsx src/views/RicettarioView.jsx src/views/DashboardHomeView.jsx src/views/SimulatorePrezziView.jsx src/views/PLView.jsx)",
       "Bash(perl -pi -e 's/Number\\\\\\(n \\\\|\\\\| 0\\\\\\)\\\\.toFixed\\\\\\(2\\\\\\)/Number\\(n || 0\\).__TRACKED_VAR__/g' src/components/Eventi.jsx src/lib/exportPDF.js)",
       "Bash(perl -pi -e 's/Number\\\\\\(n\\\\\\)\\\\.toFixed\\\\\\(2\\\\\\)/Number\\(n\\).__TRACKED_VAR__/g' src/components/Personale.jsx src/components/Fornitori.jsx src/components/MenuDinamico.jsx)",
-      "Bash(perl -pi -e 's/: 0\\\\\\)\\\\.toFixed\\\\\\(2\\\\\\)/: 0\\).__TRACKED_VAR__/g' src/components/SpreciOmaggi.jsx)"
+      "Bash(perl -pi -e 's/: 0\\\\\\)\\\\.toFixed\\\\\\(2\\\\\\)/: 0\\).__TRACKED_VAR__/g' src/components/SpreciOmaggi.jsx)",
+      "Bash(sed -n '193,202p' src/components/ConfrontoSedi.jsx)",
+      "Bash(sed -n '626,636p' src/components/Scadenzario.jsx)",
+      "Bash(sed -n '176,185p' src/components/CalendarioOperativo.jsx)",
+      "Bash(sed -n '274,281p' src/components/TrasferimentiView.jsx)",
+      "Bash(sed -n '300,313p' src/components/RegistroAttivita.jsx)",
+      "Bash(perl -0pi -e 's{<h1[^>]*>Confronto sedi</h1>\\\\s*}{}' src/components/ConfrontoSedi.jsx)",
+      "Bash(perl -0pi -e 's{<h1[^>]*>Scadenzario</h1>\\\\s*}{}' src/components/Scadenzario.jsx)",
+      "Bash(perl -0pi -e 's{<h1[^>]*>Calendario</h1>\\\\s*}{}' src/components/CalendarioOperativo.jsx)",
+      "Bash(perl -0pi -e 's{<h1[^>]*>Trasferimenti tra sedi</h1>\\\\s*}{}' src/components/TrasferimentiView.jsx)",
+      "Bash(perl -0pi -e 's{<h1[^>]*>Previsione domanda</h1>\\\\s*}{}' src/components/PrevisioneDomanda.jsx)"
     ]
   }
 }

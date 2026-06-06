@@ -194,7 +194,6 @@ export default function ConfrontoSedi({ orgId, sedi }) {
     <div style={{ maxWidth: 1080, padding: isMobile ? 12 : 0 }}>
       <div style={{ marginBottom: 6 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 6 }}>Analisi</div>
-        <h1 style={{ margin: '0 0 8px', fontSize: isMobile ? 22 : 28, fontWeight: 900, color: TXT, letterSpacing: '-0.03em' }}>Confronto sedi</h1>
         <p style={{ margin: 0, fontSize: 12, color: SOFT, lineHeight: 1.5 }}>
           <span style={{ color: GRN, fontWeight: 700 }}>Verde</span> = migliore &nbsp;·&nbsp;
           <span style={{ color: RED, fontWeight: 700 }}>Rosso</span> = peggiore

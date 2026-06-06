@@ -627,7 +627,6 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <h1 style={{ margin: '0 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 700, color: T.text, letterSpacing: '-0.025em', lineHeight: 1.15 }}>Scadenzario</h1>
           <div style={{ fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', ...tnum }}>
             {fatture.length} {fatture.length === 1 ? 'fattura' : 'fatture'} totali · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} fatturato registrato
           </div>

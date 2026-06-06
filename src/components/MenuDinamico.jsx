@@ -478,10 +478,6 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
           </svg>
         </div>
         <div style={{ flex:1, minWidth:0 }}>
-          <h1 style={{
-            margin:"0 0 4px", fontSize:26, fontWeight:700, color:T.text,
-            letterSpacing:"-0.025em", lineHeight:1.15,
-          }}>Menù</h1>
           <p style={{ margin:0, fontSize:13, color:T.textSoft, lineHeight:1.5, letterSpacing:"-0.005em" }}>
             Costruisci il menù, analizza la redditività con la matrice BCG ed esporta in PDF.
           </p>

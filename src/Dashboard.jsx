@@ -2196,7 +2196,7 @@ export default function Dashboard({
             calendario:"Calendario", previsione:"Previsioni",
             "scheda-allergeni":"Scheda allergeni", impostazioni:"Impostazioni",
             "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
-            "importa-dati":"Importa dati",
+            "importa-dati":"Importa dati", "registro-attivita":"Registro attività",
           };
           const VIEW_GROUPS = {
             home:"", giornaliero:"Oggi", chiusura:"Oggi", eventi:"Oggi", calendario:"Oggi",
@@ -2280,7 +2280,7 @@ export default function Dashboard({
             calendario:"Calendario", previsione:"Previsioni",
             "scheda-allergeni":"Allergeni", impostazioni:"Impostazioni",
             "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
-            "importa-dati":"Importa dati",
+            "importa-dati":"Importa dati", "registro-attivita":"Registro attività",
           };
           const titolo = MOBILE_LABELS[view] || nomeAttivita || "FoodOS";
           return (

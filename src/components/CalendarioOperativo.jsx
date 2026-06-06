@@ -176,7 +176,6 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
         {/* Header */}
         <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:14 }}>
           <div style={{ minWidth:0, flex:1 }}>
-            <h1 style={{ margin:'0 0 4px', fontSize: isMobile ? 22 : 26, fontWeight:700, color:T.text, letterSpacing:'-0.025em', lineHeight:1.15 }}>Calendario</h1>
             <div style={{ display:'flex', gap:14, fontSize:13, color:T.textSoft, flexWrap:'wrap', letterSpacing:'-0.005em', ...tnum }}>
               <span>
                 {completati}/{totPassati} giorni completi —{' '}

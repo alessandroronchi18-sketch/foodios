@@ -274,7 +274,6 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     <div style={{ maxWidth: 1100 }}>
       <div style={{ marginBottom: 6 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>Operazioni multi-sede</div>
-        <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 900, color: C.text, letterSpacing: '-0.03em' }}>Trasferimenti tra sedi</h1>
         <p style={{ margin: 0, fontSize: 13, color: C.textSoft }}>
           Sposta prodotti finiti, semilavorati o materie prime da una sede all'altra. Lo stock si aggiorna automaticamente.
         </p>

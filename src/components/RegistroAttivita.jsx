@@ -301,9 +301,6 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
       <div style={{ marginBottom: isMobile ? 20 : 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 26, fontWeight: 700, color: T.text, letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-              Registro attività
-            </h1>
             <p style={{ margin: '6px 0 0', fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 600 }}>
               Tutte le modifiche tracciate automaticamente: chi, quando, cosa. Solo titolare.
             </p>
