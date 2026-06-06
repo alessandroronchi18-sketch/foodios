@@ -197,6 +197,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // Formattazione box grandi: arrotonda all'unità + separatore migliaia IT (1.000).
   const eur0 = n => `€ ${Math.round(Number(n)||0).toLocaleString('it-IT')}`;
   const n0   = n => `${Math.round(Number(n)||0).toLocaleString('it-IT')}`;
+  // Tabelle: € con separatore migliaia IT + 2 decimali (es. € 1.234,56).
+  const eurIT = v => `€ ${Number(v||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   // Vendite: top 5 prodotti per ricavo + "Altri" (come per la produzione),
   // così il grafico ricavi reali resta leggibile invece di impilare decine di serie.
@@ -390,10 +392,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         <tr key={p.key} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
                           <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>{p.label}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid}}>{p.sessioni.length}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600}}>{p.stampiTot}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",color:C.green,fontWeight:600}}>{fmt(p.ricavoTot)}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{fmt(p.fcTot)}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(p.margPct),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(p.margine)}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{n0(p.stampiTot)}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",color:C.green,fontWeight:600,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(p.ricavoTot)}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(p.fcTot)}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(p.margPct),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(p.margine)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(p.margPct)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontSize:10}}>{top?`${top[0].replace("TORTA DI ","")} (${top[1]})`:"-"}</td>
                         </tr>
@@ -484,7 +486,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           {(chiusure||[]).length > 0 && (() => {
             const giorni = [...(chiusure||[])].sort((a,b)=>a.data.localeCompare(b.data));
             const n = giorni.length;
-            const euro = v => v==null?"—":`€${Number(v).toFixed(2)}`;
+            const euro = v => v==null?"—":`€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
             const pct  = v => v==null?"—":`${Number(v).toFixed(1)}%`;
             const fmt2 = v => v>=1000?`€${(v/1000).toFixed(1)}k`:`€${v.toFixed(0)}`;
 
@@ -719,14 +721,14 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       <tr key={ch.id} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
                         <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>{new Date(ch.data+"T12:00").toLocaleDateString("it-IT",{weekday:"short",day:"2-digit",month:"short"})}</td>
                         <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid}}>{(ch.confronto||[]).length}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(ch.kpi.totV)}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{fmt(ch.kpi.totFC)}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(ch.kpi.totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{fmt(ch.kpi.totM)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(ch.kpi.totV)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{eurIT(ch.kpi.totFC)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(ch.kpi.totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eurIT(ch.kpi.totM)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(ch.kpi.totMP)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>
                           <span style={{fontWeight:700,color:ch.kpi.avgST>=85?C.green:ch.kpi.avgST>=65?C.amber:C.red}}>{fmtp(ch.kpi.avgST)}</span>
                         </td>
-                        <td style={{padding:"10px 12px",textAlign:"right",color:ch.kpi.totS>5?C.red:C.textSoft,fontWeight:ch.kpi.totS>5?700:400}}>{fmt(ch.kpi.totS)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",color:ch.kpi.totS>5?C.red:C.textSoft,fontWeight:ch.kpi.totS>5?700:400}}>{eurIT(ch.kpi.totS)}</td>
                       </tr>
                     ))}
                   </tbody>
