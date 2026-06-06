@@ -2155,11 +2155,14 @@ export default function Dashboard({
         );
       })()}
 
-      {/* Notifications panel */}
-      {showNotifiche&&<NotifichePanel notifiche={notifiche} nonLette={nonLette} onSegnaLetta={segnaLetta} onSegnaTutte={segnaTutte} onClose={()=>setShowNotifiche(false)}/>}
+      {/* Notifications panel — lazy: serve un proprio Suspense, altrimenti il
+          click sincrono che lo monta sospende senza boundary (React #426). */}
+      <React.Suspense fallback={null}>
+        {showNotifiche&&<NotifichePanel notifiche={notifiche} nonLette={nonLette} onSegnaLetta={segnaLetta} onSegnaTutte={segnaTutte} onClose={()=>setShowNotifiche(false)}/>}
+      </React.Suspense>
 
       {/* Novità modal */}
-      <BackgroundToast />
+      <React.Suspense fallback={null}><BackgroundToast /></React.Suspense>
       {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}}} onVediTutte={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}setView('changelog');}}/>}
 
       {/* CONTENT */}
@@ -2421,8 +2424,8 @@ export default function Dashboard({
         </div>{/* /fos-page */}
       </div>
 
-      {/* AI Assistant — floating button su tutte le pagine */}
-      <AIAssistant />
+      {/* AI Assistant — floating button su tutte le pagine (lazy → Suspense) */}
+      <React.Suspense fallback={null}><AIAssistant /></React.Suspense>
     </div>
     </ErrorBoundary>
   );
