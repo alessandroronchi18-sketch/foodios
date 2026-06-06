@@ -433,7 +433,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </div>
               </div>
               <SH sub="Dettaglio per periodo">Riepilogo Periodi</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
@@ -745,7 +745,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
                 {/* Tabella prodotti cross-giornata */}
                 {topProd.length > 0 && (
-                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",marginBottom:14}}>
+                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",marginBottom:14}}>
                     <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,fontSize:11,fontWeight:800,color:C.text}}>
                       Dettaglio prodotti — totale periodo
                     </div>
@@ -784,7 +784,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
               {/* Tabella chiusure */}
               <SH sub="Ogni giornata chiusa con scontrino">Storico Chiusure</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
@@ -892,7 +892,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </div>
                 {/* Tabella confronto periodi */}
                 <SH sub="Per ogni periodo con entrambi i dati">Dettaglio Confronto</SH>
-                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                     <thead>
                       <tr style={{background:"#F8F4F2"}}>
