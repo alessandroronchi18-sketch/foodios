@@ -1751,6 +1751,33 @@ export default function Dashboard({
       {/* ── Trial Banner rimosso dal rendering (logica isTrialAttivo intatta) ── */}
       <style>{`*{box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.4);border-radius:10px}::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.7)}`}</style>
 
+      {/* Fascia superiore globale (desktop): logo + nome. Spostata fuori dalla
+          sidebar per liberare spazio al menu. */}
+      {!isMobile && (
+        <div style={{position:"fixed",top:0,left:0,right:0,height:46,zIndex:40,background:T.bgSide,
+          borderBottom:`1px solid ${T.borderOnDark}`,display:"flex",alignItems:"center",gap:10,padding:"0 18px",
+          backgroundImage:"linear-gradient(90deg, rgba(110,14,26,0.20) 0%, transparent 32%)"}}>
+          {customLogo
+            ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/>
+            : <Logo size={26} style={{borderRadius:6}}/>}
+          <span style={{fontSize:15,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em"}}>{appName}</span>
+        </div>
+      )}
+      {/* Fascia inferiore globale (desktop): link legali. */}
+      {!isMobile && (
+        <div style={{position:"fixed",bottom:0,left:0,right:0,height:28,zIndex:40,background:T.bgCard,
+          borderTop:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",gap:9}}>
+          {[["Privacy","/privacy"],["Termini","/termini"],["Cookie","/cookie"],["Contatti","/contatti"]].map(([l,h],i)=>(
+            <React.Fragment key={l}>
+              {i>0 && <span style={{fontSize:10,color:T.borderStr}}>·</span>}
+              <a href={h} target="_blank" rel="noreferrer" style={{fontSize:10.5,color:T.textSoft,textDecoration:"none",letterSpacing:"0.02em"}}>{l}</a>
+            </React.Fragment>
+          ))}
+          <span style={{fontSize:10,color:T.borderStr}}>·</span>
+          <span style={{fontSize:10.5,color:T.textSoft}}>© {appName}</span>
+        </div>
+      )}
+
       {toast&&(
         <div style={{position:"fixed",top:isMobile?16:20,right:isMobile?16:24,left:isMobile?16:"auto",
           zIndex:Z.toast,background:toast.ok?T.text:T.brand,color:T.textOnDark,
@@ -1902,7 +1929,7 @@ export default function Dashboard({
           )}
 
           <div style={{width:L.sidebarWidth,background:T.bgSide,display:"flex",flexDirection:"column",
-            position:"fixed",top:0,left:0,bottom:0,zIndex:Z.drawer,flexShrink:0,
+            position:"fixed",top:isMobile?0:46,left:0,bottom:isMobile?0:28,zIndex:Z.drawer,flexShrink:0,
             borderRight:`1px solid ${T.borderOnDark}`,
             transform:isMobile&&!sidebarOpen?"translateX(-100%)":"translateX(0)",
             transition:`transform ${M.durSlow} ${M.ease}`,
@@ -1912,7 +1939,9 @@ export default function Dashboard({
             {/* Brand accent strip */}
             <div style={{height:3, background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)", flexShrink:0}}/>
 
-            {/* Logo header: padding uniforme 20 px, logo bordeaux invariante */}
+            {/* Logo header: solo su mobile (su desktop logo+nome sono nella fascia
+                superiore globale, così la sidebar ha più spazio per il menu). */}
+            {isMobile && (
             <div style={{padding:"20px 20px 18px",borderBottom:`1px solid ${T.borderOnDark}`}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 {customLogo
@@ -1927,6 +1956,7 @@ export default function Dashboard({
                 </div>
               </div>
             </div>
+            )}
 
             <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />
 
@@ -2101,6 +2131,8 @@ export default function Dashboard({
                 {ic(ICONS.logOut)}
                 Esci
               </button>
+              {/* Link legali: solo su mobile (su desktop sono nella fascia inferiore globale) */}
+              {isMobile && (
               <div style={{display:"flex",justifyContent:"center",gap:8,paddingTop:2,flexWrap:"wrap"}}>
                 <a href="/privacy" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Privacy</a>
                 <span style={{fontSize:10,color:"rgba(255,255,255,0.14)"}}>·</span>
@@ -2110,6 +2142,7 @@ export default function Dashboard({
                 <span style={{fontSize:10,color:"rgba(255,255,255,0.14)"}}>·</span>
                 <a href="/contatti" style={{fontSize:10,color:T.textOnDarkFaint,textDecoration:"none",letterSpacing:"0.02em"}} target="_blank" rel="noreferrer">Contatti</a>
               </div>
+              )}
             </div>
           </div>
 
@@ -2183,7 +2216,7 @@ export default function Dashboard({
       {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}}} onVediTutte={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}setView('changelog');}}/>}
 
       {/* CONTENT */}
-      <div style={{marginLeft:isMobile?0:L.sidebarWidth,flex:1,padding:0,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
+      <div style={{marginLeft:isMobile?0:L.sidebarWidth,marginTop:isMobile?0:46,flex:1,padding:0,paddingBottom:isMobile?0:28,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
         {/* Desktop topbar */}
         {!isMobile&&(()=>{
           const VIEW_LABELS = {
@@ -2214,7 +2247,7 @@ export default function Dashboard({
           const sedeCorrente = (sedi||[]).find(s => s.id === sedeAttiva);
           const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
           return (
-            <div style={{position:"sticky",top:0,zIndex:Z.topbar,
+            <div style={{position:"sticky",top:46,zIndex:Z.topbar,
               background:"rgba(247,248,250,0.88)",
               backdropFilter:"saturate(180%) blur(18px)",WebkitBackdropFilter:"saturate(180%) blur(18px)",
               borderBottom:`1px solid ${C.borderSoft}`,
