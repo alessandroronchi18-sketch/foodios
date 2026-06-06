@@ -354,26 +354,43 @@ function TurniTab({ orgId, notify, isMobile }) {
   const [turni, setTurni] = useState([])
   const [dipendenti, setDipendenti] = useState([])
   const [loading, setLoading] = useState(true)
-  const [week, setWeek] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1)
-    return d.toISOString().slice(0,10)
-  })
+  const [periodo, setPeriodo] = useState('settimana') // 'giorno' | 'settimana' | 'mese'
+  const [anchor, setAnchor] = useState(() => new Date().toISOString().slice(0,10)) // giorno di riferimento
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ dipendente_id:"", data:"", ora_inizio:"08:00", ora_fine:"16:00", note:"" })
   const [editId, setEditId] = useState(null) // id turno in modifica (null = nuovo)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { carica() }, [orgId, week])
+  // Lunedì della settimana che contiene `iso`.
+  const isoMonday = iso => { const d = new Date(iso); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return d.toISOString().slice(0,10) }
+  const week = isoMonday(anchor) // compat: usato come default data nel form
+  // Intervallo [from,to] in base al periodo selezionato.
+  const rng = useMemo(() => {
+    if (periodo === 'giorno') return { from: anchor, to: anchor }
+    if (periodo === 'mese') {
+      const d = new Date(anchor)
+      const f = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1))
+      const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 0))
+      return { from: f.toISOString().slice(0,10), to: t.toISOString().slice(0,10) }
+    }
+    const m = isoMonday(anchor); const e = new Date(m); e.setDate(e.getDate()+6)
+    return { from: m, to: e.toISOString().slice(0,10) }
+  }, [periodo, anchor])
+  // Giorni da renderizzare nell'intervallo.
+  const days = useMemo(() => {
+    const out = []; const d0 = new Date(rng.from), d1 = new Date(rng.to)
+    for (let d = new Date(d0); d <= d1; d.setDate(d.getDate()+1)) out.push(d.toISOString().slice(0,10))
+    return out
+  }, [rng.from, rng.to])
+
+  useEffect(() => { carica() }, [orgId, rng.from, rng.to])
 
   async function carica() {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const from = week
-    const to = new Date(week); to.setDate(to.getDate()+6)
-    const toStr = to.toISOString().slice(0,10)
     const [{ data:t, error:et }, { data:d, error:ed }] = await Promise.all([
       supabase.from("turni").select("*, dipendenti(nome,costo_orario)").eq("organization_id", orgId)
-        .gte("data", from).lte("data", toStr).order("data").order("ora_inizio"),
+        .gte("data", rng.from).lte("data", rng.to).order("data").order("ora_inizio"),
       supabase.from("dipendenti").select("id,nome").eq("organization_id", orgId).eq("attivo", true).order("nome"),
     ])
     if (et || ed) notify?.("⚠ Errore caricamento turni: " + (et?.message || ed?.message), false)
@@ -438,12 +455,26 @@ function TurniTab({ orgId, notify, isMobile }) {
   const totCosto = turni.reduce((s,t)=>s+(t.costo||0), 0)
 
   const GIORNI = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"]
-  const weekDays = Array.from({length:7},(_,i)=>{ const d=new Date(week); d.setDate(d.getDate()+i); return d.toISOString().slice(0,10) })
-  // Copertura/sovrapposizioni per ogni giorno della settimana (calcolata una volta).
-  const covByDay = Object.fromEntries(weekDays.map(d => [d, analizzaCopertura(turni.filter(t => t.data === d))]))
+  const weekDays = days
+  // Copertura/sovrapposizioni per ogni giorno renderizzato (calcolata una volta).
+  const covByDay = Object.fromEntries(days.map(d => [d, analizzaCopertura(turni.filter(t => t.data === d))]))
 
-  function prevWeek() { const d=new Date(week); d.setDate(d.getDate()-7); setWeek(d.toISOString().slice(0,10)) }
-  function nextWeek() { const d=new Date(week); d.setDate(d.getDate()+7); setWeek(d.toISOString().slice(0,10)) }
+  // Navigazione: sposta di 1 giorno / 1 settimana / 1 mese in base al periodo.
+  function shiftPeriodo(dir) {
+    const d = new Date(anchor)
+    if (periodo === 'giorno') d.setDate(d.getDate() + dir)
+    else if (periodo === 'mese') d.setMonth(d.getMonth() + dir)
+    else d.setDate(d.getDate() + 7 * dir)
+    setAnchor(d.toISOString().slice(0,10))
+  }
+  const prevWeek = () => shiftPeriodo(-1)
+  const nextWeek = () => shiftPeriodo(1)
+  // Etichetta dell'intervallo corrente.
+  const labelPeriodo = periodo === 'giorno'
+    ? new Date(anchor).toLocaleDateString("it-IT", { weekday: isMobile ? undefined : "long", day:"2-digit", month: isMobile ? "short" : "long", year:"numeric" })
+    : periodo === 'mese'
+    ? new Date(anchor).toLocaleDateString("it-IT", { month:"long", year:"numeric" })
+    : `${new Date(rng.from).toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long"})} – ${new Date(rng.to).toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long",year:"numeric"})}`
 
   const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
 
@@ -454,18 +485,29 @@ function TurniTab({ orgId, notify, isMobile }) {
 
   return (
     <div style={{ paddingBottom: isMobile ? 80 : 0 }}>
-      {/* Week nav */}
-      <div style={{ display:"flex", alignItems:"center", gap: isMobile ? 8 : 12, marginBottom:16, flexWrap:"wrap" }}>
-        <button onClick={prevWeek} aria-label="Settimana precedente" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>←{isMobile ? "" : " Prec"}</button>
-        <div style={{ fontWeight:800, fontSize: isMobile ? 13 : 14, color:C.text, flex: isMobile ? 1 : "0 0 auto", textAlign: isMobile ? "center" : "left" }}>
-          {new Date(week).toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long"})} – {new Date(weekDays[6]).toLocaleDateString("it-IT",{day:"2-digit",month: isMobile ? "short" : "long",year:"numeric"})}
+      {/* Switch periodo: Giorno / Settimana / Mese */}
+      <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
+        <div style={{ display:"flex", background:"#F0EAE6", borderRadius:9, padding:3, gap:2 }}>
+          {[["giorno","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
+            <button key={id} onClick={()=>setPeriodo(id)}
+              style={{ padding:"6px 18px", borderRadius:7, border:"none", cursor:"pointer", fontWeight:600, fontSize:11, background:periodo===id?"rgba(110,14,26,0.18)":"transparent", color:periodo===id?C.red:C.textMid, transition:"all 0.15s" }}>
+              {lbl}
+            </button>
+          ))}
         </div>
-        <button onClick={nextWeek} aria-label="Settimana successiva" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>{isMobile ? "" : "Succ "}→</button>
+      </div>
+      {/* Nav periodo */}
+      <div style={{ display:"flex", alignItems:"center", gap: isMobile ? 8 : 12, marginBottom:16, flexWrap:"wrap" }}>
+        <button onClick={prevWeek} aria-label="Periodo precedente" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>←{isMobile ? "" : " Prec"}</button>
+        <div style={{ fontWeight:800, fontSize: isMobile ? 13 : 14, color:C.text, flex: isMobile ? 1 : "0 0 auto", textAlign: isMobile ? "center" : "left", textTransform:"capitalize" }}>
+          {labelPeriodo}
+        </div>
+        <button onClick={nextWeek} aria-label="Periodo successivo" style={{ padding: isMobile ? "10px 16px" : "7px 14px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize: isMobile ? 14 : 12, cursor:"pointer" }}>{isMobile ? "" : "Succ "}→</button>
         {!isMobile && (
           <>
             <div style={{ marginLeft:"auto", display:"flex", gap:20 }}>
               <div style={{ textAlign:"center" }}>
-                <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore settimana</div>
+                <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>Ore {periodo}</div>
                 <div style={{ fontSize:18, fontWeight:900, color:C.text }}>{fmtH(totOre)}</div>
               </div>
               <div style={{ textAlign:"center" }}>
@@ -542,8 +584,50 @@ function TurniTab({ orgId, notify, isMobile }) {
         </div>
       )}
 
-      {/* Grid settimanale (desktop) / Lista giornaliera (mobile) */}
-      {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : (() => {
+      {/* Vista mese: calendario; Giorno/Settimana: timeline oraria */}
+      {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : periodo === 'mese' ? (() => {
+        const colorById = {}; dipendenti.forEach((d, i) => { colorById[d.id] = DIP_COLORS[i % DIP_COLORS.length] })
+        const first = new Date(rng.from)
+        const lead = (first.getDay() + 6) % 7
+        const cells = [...Array(lead).fill(null), ...days]
+        while (cells.length % 7 !== 0) cells.push(null)
+        const todayIso = new Date().toISOString().slice(0, 10)
+        return (
+          <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, boxShadow:"0 1px 4px rgba(0,0,0,0.04)", overflow:"hidden" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
+              {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>{g}</div>)}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)" }}>
+              {cells.map((dIso, idx) => {
+                if (!dIso) return <div key={`e${idx}`} style={{ background:"#FAF7F5", borderRight:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, minHeight: isMobile ? 64 : 88 }}/>
+                const cov = covByDay[dIso]
+                const ds = turni.filter(t => t.data === dIso)
+                const ore = ds.reduce((s, t) => s + (t.ore || 0), 0)
+                const oggi = dIso === todayIso
+                const dd = new Date(dIso + "T12:00:00")
+                return (
+                  <div key={dIso} onClick={() => { setAnchor(dIso); setPeriodo('giorno') }} role="button" tabIndex={0}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAnchor(dIso); setPeriodo('giorno') } }}
+                    title={ds.length ? `${ds.length} turni · ${fmtH(ore)} — clicca per il dettaglio` : "Nessun turno — clicca per aggiungere"}
+                    style={{ borderRight:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, minHeight: isMobile ? 64 : 88, padding:"6px 7px", cursor:"pointer", background: oggi ? "#FFFCF7" : "transparent" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <span style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{dd.getDate()}</span>
+                      {ds.length > 0 && <span style={{ fontSize:9, fontWeight:700, color:C.textSoft }}>{fmtH(ore)}</span>}
+                    </div>
+                    {cov?.overlaps?.size > 0 && <div style={{ fontSize:8, fontWeight:700, color:C.amber, marginTop:2 }}>⚠ sovrap.</div>}
+                    <div style={{ display:"flex", flexDirection:"column", gap:2, marginTop:3 }}>
+                      {ds.slice(0, isMobile ? 2 : 3).map(t => (
+                        <span key={t.id} style={{ fontSize:9, fontWeight:600, color:"#fff", background:colorById[t.dipendente_id] || C.red, border:"1px solid #000", borderRadius:4, padding:"1px 4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{etichettaNome(t.dipendenti?.nome)} {_hm(_toMin(t.ora_inizio))}</span>
+                      ))}
+                      {ds.length > (isMobile ? 2 : 3) && <span style={{ fontSize:8, color:C.textSoft, fontWeight:700 }}>+{ds.length - (isMobile ? 2 : 3)} altri</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })() : (() => {
         const colorById = {}; dipendenti.forEach((d, i) => { colorById[d.id] = DIP_COLORS[i % DIP_COLORS.length] })
         const tutte = weekDays.flatMap(d => covByDay[d].shifts)
         let aMin = 6 * 60, aMax = 20 * 60
@@ -582,7 +666,7 @@ function TurniTab({ orgId, notify, isMobile }) {
               return (
                 <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`2px solid ${C.borderStr}`, background: oggi ? "#FFFCF7" : "transparent" }}>
                   <div style={{ padding:"8px 10px", borderRight:`1px solid ${C.border}` }}>
-                    <div style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{GIORNI[i]} {dd.getDate()}</div>
+                    <div style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{GIORNI[(dd.getDay()+6)%7]} {dd.getDate()}</div>
                     <div style={{ fontSize:9, color: cov.overlaps.size ? C.amber : C.textSoft, marginTop:1, fontWeight: cov.overlaps.size ? 700 : 400 }}>
                       {dayShifts.length ? `${cov.min === cov.max ? cov.max : `${cov.min}–${cov.max}`} in turno${cov.overlaps.size ? " · ⚠ sovrap." : ""}` : "riposo"}
                     </div>
