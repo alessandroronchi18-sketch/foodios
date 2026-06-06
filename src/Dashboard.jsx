@@ -1171,6 +1171,14 @@ export default function Dashboard({
     try { sessionStorage.setItem(`foodios_view_${orgId||'_'}`, view); } catch {}
   }, [view, orgId]);
 
+  // Zoom globale del sito (persistente): l'utente può rimpicciolire/ingrandire tutto.
+  const ZOOM_STEPS = [0.7, 0.8, 0.9, 1, 1.1, 1.25];
+  const [zoom, setZoom] = useState(() => {
+    try { const z = parseFloat(localStorage.getItem('foodios-zoom')); return ZOOM_STEPS.includes(z) ? z : 1; } catch { return 1; }
+  });
+  useEffect(() => { try { localStorage.setItem('foodios-zoom', String(zoom)); } catch {} }, [zoom]);
+  const stepZoom = (dir) => setZoom(z => { const i = ZOOM_STEPS.indexOf(z); const ni = Math.max(0, Math.min(ZOOM_STEPS.length - 1, (i < 0 ? 3 : i) + dir)); return ZOOM_STEPS[ni]; });
+
   // Ruolo utente. Il dipendente vede solo le viste operative (DIPENDENTE_VIEWS).
   const ruolo = auth?.ruolo || 'titolare';
   const isDip = ruolo === 'dipendente';
@@ -1747,7 +1755,7 @@ export default function Dashboard({
 
   return (
     <ErrorBoundary>
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',system-ui,sans-serif",color:C.text,display:"flex"}}>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',system-ui,sans-serif",color:C.text,display:"flex",zoom:zoom}}>
       {/* ── Trial Banner rimosso dal rendering (logica isTrialAttivo intatta) ── */}
       <style>{`*{box-sizing:border-box}body{font-family:'Inter',system-ui,sans-serif}input,select,button,textarea{font-family:inherit}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.4);border-radius:10px}::-webkit-scrollbar-thumb:hover{background:rgba(148,163,184,0.7)}`}</style>
 
@@ -1755,26 +1763,34 @@ export default function Dashboard({
           sidebar per liberare spazio al menu. */}
       {!isMobile && (
         <div style={{position:"fixed",top:0,left:0,right:0,height:46,zIndex:40,background:T.bgSide,
-          borderBottom:`1px solid ${T.borderOnDark}`,display:"flex",alignItems:"center",gap:10,padding:"0 18px",
-          backgroundImage:"linear-gradient(90deg, rgba(110,14,26,0.20) 0%, transparent 32%)"}}>
+          borderBottom:`1px solid ${T.borderOnDark}`,display:"flex",alignItems:"center",justifyContent:"center",gap:10,padding:"0 18px"}}>
           {customLogo
             ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/>
             : <Logo size={26} style={{borderRadius:6}}/>}
           <span style={{fontSize:15,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em"}}>{appName}</span>
+          {/* Controllo zoom globale, a destra (non sposta il logo centrato) */}
+          <div style={{position:"absolute",right:14,top:0,bottom:0,display:"flex",alignItems:"center",gap:4}}>
+            <button onClick={()=>stepZoom(-1)} aria-label="Riduci zoom" title="Rimpicciolisci"
+              style={{width:24,height:24,borderRadius:6,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:T.textOnDarkMid,fontSize:15,fontWeight:800,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+            <span style={{minWidth:38,textAlign:"center",fontSize:11,fontWeight:700,color:T.textOnDarkSoft,fontVariantNumeric:"tabular-nums"}}>{Math.round(zoom*100)}%</span>
+            <button onClick={()=>stepZoom(1)} aria-label="Aumenta zoom" title="Ingrandisci"
+              style={{width:24,height:24,borderRadius:6,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:T.textOnDarkMid,fontSize:14,fontWeight:800,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+          </div>
         </div>
       )}
       {/* Fascia inferiore globale (desktop): link legali. */}
       {!isMobile && (
-        <div style={{position:"fixed",bottom:0,left:0,right:0,height:28,zIndex:40,background:T.bgCard,
-          borderTop:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",gap:9}}>
+        <div style={{position:"fixed",bottom:0,left:0,right:0,height:28,zIndex:40,background:T.bgSide,
+          borderTop:`1px solid ${T.borderOnDark}`,display:"flex",alignItems:"center",justifyContent:"center",gap:9,
+          fontFamily:"'Inter',system-ui,sans-serif"}}>
           {[["Privacy","/privacy"],["Termini","/termini"],["Cookie","/cookie"],["Contatti","/contatti"]].map(([l,h],i)=>(
             <React.Fragment key={l}>
-              {i>0 && <span style={{fontSize:10,color:T.borderStr}}>·</span>}
-              <a href={h} target="_blank" rel="noreferrer" style={{fontSize:10.5,color:T.textSoft,textDecoration:"none",letterSpacing:"0.02em"}}>{l}</a>
+              {i>0 && <span style={{fontSize:10,color:T.borderOnDarkStr}}>·</span>}
+              <a href={h} target="_blank" rel="noreferrer" style={{fontSize:10.5,fontWeight:500,color:T.textOnDarkSoft,textDecoration:"none",letterSpacing:"0.02em"}}>{l}</a>
             </React.Fragment>
           ))}
-          <span style={{fontSize:10,color:T.borderStr}}>·</span>
-          <span style={{fontSize:10.5,color:T.textSoft}}>© {appName}</span>
+          <span style={{fontSize:10,color:T.borderOnDarkStr}}>·</span>
+          <span style={{fontSize:10.5,fontWeight:500,color:T.textOnDarkSoft,letterSpacing:"0.02em"}}>© {appName}</span>
         </div>
       )}
 
