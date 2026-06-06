@@ -263,7 +263,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
               boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : S.sm,
               backgroundImage: hi ? 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)' : undefined }}>
               <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
-                color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6 }}>{lbl}</div>
+                color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: hi ? T.textOnDark : c, letterSpacing: '-0.02em', lineHeight: 1.15,
                 fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }}>{val}</div>
               <div style={{ fontSize: 11, color: hi ? 'rgba(255,255,255,0.62)' : c, marginTop: 5, fontWeight: 500, letterSpacing: '-0.005em' }}>{sub}</div>
@@ -323,7 +324,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                 {/* Nome + badge variazione */}
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: C.text }}>{r.nome}</span>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }} title={r.nome}>{r.nome}</span>
                     {r.changed && (
                       <span style={{ padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 800,
                         background: r.delta > 0 ? C.greenLight : C.redLight,

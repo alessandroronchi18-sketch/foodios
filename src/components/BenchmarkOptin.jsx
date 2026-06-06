@@ -156,11 +156,9 @@ export function BenchmarkBadge({ tipoAttivita, miaFcPct, citta }) {
 
   if (!data) return null
   if (!data.available) return null
-  if (!data.sample) return (
-    <div style={{ fontSize: 11, color: '#64748B', padding: '6px 10px', background: '#F1F5F9', borderRadius: 8, display: 'inline-block' }}>
-      Benchmark settore: dati insufficienti — sii il primo a contribuire dalle Impostazioni
-    </div>
-  )
+  // Nessun campione disponibile: non mostriamo nulla (evitiamo la frase
+  // "dati insufficienti" che confonde il proprietario nella sezione Food cost).
+  if (!data.sample) return null
 
   const media = data.media_settore
   const delta = miaFcPct != null ? (miaFcPct - media) : null
