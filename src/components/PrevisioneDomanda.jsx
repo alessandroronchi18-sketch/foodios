@@ -103,7 +103,7 @@ function RicettaForecast({ ric, giornaliero, calcolaFC, ingCosti, ricettario, ge
           </div>
           <div style={{ textAlign:"center" }}>
             <div style={{ fontSize:8, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em" }}>Ricavo prev.</div>
-            <div style={{ fontSize:14, fontWeight:800, color:C.green, ...tnum }}>€{(prev * ricavoPerStampo).toFixed(0)}</div>
+            <div style={{ fontSize:14, fontWeight:800, color:C.green, ...tnum }}>€ {Math.round(prev * ricavoPerStampo).toLocaleString('it-IT')}</div>
           </div>
           <div style={{ padding:"4px 10px", borderRadius:20, background:confidence>=0.7?C.greenLight:confidence>=0.4?C.amberLight:C.redLight, fontSize:9, fontWeight:700, color:confidence>=0.7?C.green:confidence>=0.4?C.amber:C.red }}>
             {Math.round(confidence*100)}% conf.
@@ -205,7 +205,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, ingCosti, c
           ].map(({ lbl, val, sub, c }) => (
             <div key={lbl} style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, padding:"18px 22px", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
               <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>{lbl}</div>
-              <div style={{ fontSize:22, fontWeight:900, color:c }}>{val}</div>
+              <div style={{ fontSize:22, fontWeight:900, color:c, ...tnum }}>{val}</div>
               <div style={{ fontSize:10, color:C.textSoft, marginTop:3 }}>{sub}</div>
             </div>
           ))}

@@ -17,7 +17,7 @@ const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'"
 
 function fmt(n) {
   if (n == null) return '—'
-  return '€' + Number(n).toFixed(2)
+  return '€ ' + Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 function fmtInt(n) {
   if (n == null) return '—'

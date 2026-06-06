@@ -261,7 +261,8 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 {['Quando', 'Tipo', 'Cosa', 'Qta', 'Causale', 'Costo', 'Autore', ''].map((h, i) => (
-                  <th key={i} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={i} title={h === 'Qta' ? 'Quantità (grammi o pezzi)' : h === 'Costo' ? 'Costo food cost del prodotto perso/omaggiato' : undefined}
+                    style={{ padding: '10px 14px', textAlign: (i === 3 || i === 5) ? 'right' : 'left', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', ...((h === 'Qta' || h === 'Costo') ? { cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 } : null) }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -278,9 +279,9 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
                     {m.prodotto || m.categoria || '—'}
                     {m.note && <span style={{ color: C.textSoft, fontWeight: 400 }}> — {m.note}</span>}
                   </td>
-                  <td style={{ padding: '10px 14px', color: C.text, whiteSpace: 'nowrap' }}>{fmtQta(m.qta, m.unita)}</td>
+                  <td style={{ padding: '10px 14px', color: C.text, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtQta(m.qta, m.unita)}</td>
                   <td style={{ padding: '10px 14px', color: C.textMid }}>{m.causale || '—'}</td>
-                  <td style={{ padding: '10px 14px', color: m.tipo === 'spreco' ? C.amber : '#0369A1', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '10px 14px', color: m.tipo === 'spreco' ? C.amber : '#0369A1', fontWeight: 700, whiteSpace: 'nowrap', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {fmt(m.fcTot)}
                     {m.tipo === 'omaggio' && Number(m.valoreOmaggio) > 0 && (
                       <span style={{ color: C.textSoft, fontWeight: 400, marginLeft: 6 }}>(− {fmt(m.valoreOmaggio)} ricavo)</span>

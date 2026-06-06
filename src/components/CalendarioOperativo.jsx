@@ -241,7 +241,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                     </div>
                   </div>
                   {totale != null && (
-                    <div style={{ fontSize:12, color:'#6B4C44', fontWeight:600, flexShrink:0 }}>€{Math.round(totale)}</div>
+                    <div style={{ fontSize:12, color:'#6B4C44', fontWeight:600, flexShrink:0, ...tnum }}>€ {Math.round(totale).toLocaleString('it-IT')}</div>
                   )}
                 </div>
               )
@@ -303,8 +303,8 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                     </div>
                   )}
                   {totale != null && (
-                    <div style={{ fontSize:9, color:'#6B4C44', fontWeight:600 }}>
-                      €{Math.round(totale)}
+                    <div style={{ fontSize:9, color:'#6B4C44', fontWeight:600, ...tnum }}>
+                      €&nbsp;{Math.round(totale).toLocaleString('it-IT')}
                     </div>
                   )}
                 </div>
@@ -351,9 +351,9 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
           <div style={{ marginBottom:16 }}>
             {[
               { icon:'🏭', label:'Produzione', has:selDetail.haProd, view:'giornaliero',
-                sub: selDetail.prodD ? `${selDetail.prodD.prodotti?.length||0} prodotti · €${Math.round(selDetail.prodD.ricavoTot||0)} stim.` : null },
+                sub: selDetail.prodD ? `${selDetail.prodD.prodotti?.length||0} prodotti · € ${Math.round(selDetail.prodD.ricavoTot||0).toLocaleString('it-IT')} stim.` : null },
               { icon:'💳', label:'Cassa', has:selDetail.haCassa, view:'chiusura',
-                sub: selDetail.cassaD?.kpi ? `€${(selDetail.cassaD.kpi.totV||0).toFixed(2)} incasso` : null },
+                sub: selDetail.cassaD?.kpi ? `€ ${(selDetail.cassaD.kpi.totV||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} incasso` : null },
             ].map(({ icon, label, has, sub, view:v }) => (
               <div key={label} style={{
                 display:'flex', alignItems:'center', gap:10, padding:'10px 12px',
