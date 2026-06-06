@@ -112,7 +112,13 @@ Esempio: `ProduzioneGiornalieraView.handleConferma` (riga ~100).
 - **Imports stockPF**: tutti STATIC (`import { caricoProduzionePF } from '../lib/stockPF'`). Dynamic imports invalidano code splitting.
 - **alert()**: NON usare in flussi utente. Usare `notify()` (passato come prop dal Dashboard, mostra un toast). `alert()` ammesso solo in admin per azioni distruttive (delete codici, ecc).
 - **Bottoni async**: SEMPRE `disabled={saving}` durante operazioni await. Evita double-submit.
-- **Mobile**: ogni componente usa `useIsMobile` per i breakpoint. Grid > 2 colonne devono passare a `1fr` su mobile.
+- **Mobile/Tablet — REGOLA PERMANENTE**: ogni modifica all'UI va resa equivalente e curata anche su **mobile e tablet**, non solo desktop. Prima di considerare finita una modifica:
+  - Usa `useIsMobile` (e `isTablet` dove serve) per i breakpoint.
+  - Grid con > 2 colonne devono collassare (`1fr` o 2 colonne) su mobile.
+  - Le tabelle larghe devono stare in un contenitore con `overflowX: 'auto'` (mai `overflow: 'hidden'` che le comprime su mobile).
+  - Touch target ≥ ~40px; font input ≥ 16px su mobile (evita lo zoom iOS).
+  - Verifica che nessuna riga/etichetta vada a capo in modo rotto e che i numeri restino allineati.
+- **Formattazione numeri — REGOLA PERMANENTE**: importi e numeri a schermo SEMPRE con separatore migliaia IT (`toLocaleString('it-IT')`). Usa gli helper in `src/views/_shared.jsx`: `fmt` (€ 2 decimali), `fmt0` (€ arrotondato all'unità), `fmtp` (%). I box/KPI grandi vanno arrotondati all'unità; i dettagli in tabella possono avere 2 decimali; le percentuali restano %. Celle numeriche con `fontVariantNumeric: 'tabular-nums'` e allineate a destra. Etichette con abbreviazioni criptiche → `title` (tooltip) + `cursor: 'help'`.
 - **Console.log**: vengono droppati in build di produzione (vite.config.js). Solo `console.error` / `console.warn` sopravvivono.
 
 ---
