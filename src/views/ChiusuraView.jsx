@@ -696,9 +696,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         {/* Toggle: foto scontrino (OCR) vs inserimento manuale */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
           {[['foto', '📷 Foto scontrino'], ['manuale', '✍️ Inserimento manuale']].map(([id, lbl]) => (
-            {/* Cambiando modalità NON azzeriamo `venduto`/`salvato`: il riepilogo e
-                tutta la sezione dati sotto (KPI, confronto) restano visibili. */}
-            <button key={id} onClick={() => { setInputMode(id); setError(null) }}
+            <button key={id} onClick={() => { setInputMode(id); setError(null) /* non azzerare venduto/salvato: i dati sotto restano visibili */ }}
               style={{ flex: 1, padding: '9px', borderRadius: 8, border: `1px solid ${inputMode === id ? C.red : C.border}`, background: inputMode === id ? C.redLight : C.white, color: inputMode === id ? C.red : C.textMid, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
               {lbl}
             </button>

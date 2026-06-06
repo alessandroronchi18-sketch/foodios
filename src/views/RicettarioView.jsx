@@ -15,7 +15,7 @@ import {
   C, TNUM, margColor, margBadge, Badge, Tip,
 } from './_shared'
 
-const fmt  = v => `€ ${Number(v).toFixed(2)}`
+const fmt  = v => `€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
 const fmtp = v => `${Number(v).toFixed(1)}%`
 const PIE_COLORS = [C.red, '#E07040', '#D4A030', '#5B8FCE', '#7B7B7B', '#A0522D']
 

@@ -10,7 +10,7 @@ const C = {
   border: T.border, borderStr: T.borderStr,
 }
 
-function fmt(n) { return n==null?"—":`€${Number(n).toFixed(2)}` }
+function fmt(n) { return n==null?"—":`€${Number(n).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}` }
 function fmtH(h) { return `${h.toFixed(1)}h` }
 // Nome completo (nome + cognome) per disambiguare gli omonimi senza ambiguità.
 function etichettaNome(nome) {

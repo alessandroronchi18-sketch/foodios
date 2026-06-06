@@ -4,7 +4,7 @@ import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
-function fmt(n)  { return `€ ${Number(n).toFixed(2)}` }
+function fmt(n)  { return `€ ${Number(n).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}` }
 function fmtp(n) { return `${Number(n).toFixed(1)}%` }
 
 // BCG quadrant: margine% × popolarità (relative volume)

@@ -22,7 +22,7 @@ const C = {
 }
 const inputS = { width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, boxSizing: 'border-box', fontFamily: 'inherit', background: C.white }
 const labelS = { fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display: 'block' }
-const fmt = n => `€ ${(Number.isFinite(Number(n)) ? Number(n) : 0).toFixed(2)}`
+const fmt = n => `€ ${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
 const fmtQta = (q, u) => `${(Number(q) || 0).toLocaleString('it-IT')} ${u || ''}`.trim()
 const fmtTs = iso => new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 

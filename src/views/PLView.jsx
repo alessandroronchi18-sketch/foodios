@@ -520,7 +520,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
   const ricette = Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
 
-  const euro = v => `€ ${Number(v).toFixed(2)}`
+  const euro = v => `€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
   const pct = v => `${Number(v).toFixed(1)}%`
 
   const rows = ricette.map(ric => {
@@ -825,7 +825,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" horizontal={false}/>
               <XAxis type="number" tickFormatter={v => `€${v.toFixed(0)}`} tick={{ fill: C.textSoft, fontSize: 9 }} axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="short" width={80} tick={{ fill: C.textMid, fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false}/>
-              <Tooltip formatter={(v, n) => [`€ ${Number(v).toFixed(2)}`, n]} contentStyle={{ borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 11 }}/>
+              <Tooltip formatter={(v, n) => [`€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`, n]} contentStyle={{ borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 11 }}/>
               <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} radius={[0, 3, 3, 0]}/>
               <Bar dataKey="margine" name="Margine" radius={[0, 3, 3, 0]}>
                 {[...rows].sort((a, b) => b.ricavo - a.ricavo).map((r, i) => (

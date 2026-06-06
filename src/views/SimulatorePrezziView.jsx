@@ -38,7 +38,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const ricette = Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
 
-  const euro = v => `€ ${Number(v).toFixed(2)}`
+  const euro = v => `€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
   // Box riassuntivi (comparazione + proiezione): arrotonda all'unità con
   // separatore migliaia IT (es. € 1.000) e gestisce il segno.
   const euro0 = v => { const n = Math.round(Number(v) || 0); return `${n < 0 ? '−' : ''}€ ${Math.abs(n).toLocaleString('it-IT')}` }

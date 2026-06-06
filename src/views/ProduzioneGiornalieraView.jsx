@@ -15,7 +15,37 @@ import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
-import { C, margColor, fmt, PageHeader } from './_shared'
+import { C, margColor, fmt, fmt0, PageHeader } from './_shared'
+
+// Chip dei prodotti di una sessione: ordinati per pezzi prodotti (desc) e, quando
+// sono tanti (es. 50), mostra solo i primi N + un chip "+X altri" che al passaggio
+// del mouse (o al tap) espande l'elenco completo. Evita righe di chip infinite.
+const CHIP_PROD = { background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 10, fontWeight: 700, color: C.textMid, whiteSpace: 'nowrap' }
+function ProdottiChips({ prodotti }) {
+  const [aperto, setAperto] = useState(false)
+  const LIMITE = 12
+  const ordinati = [...(prodotti || [])].sort((a, b) => (b.stampi || 0) - (a.stampi || 0))
+  const visibili = aperto ? ordinati : ordinati.slice(0, LIMITE)
+  const nascosti = ordinati.length - visibili.length
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {visibili.map(p => <span key={p.nome} style={CHIP_PROD}>{p.stampi}× {p.nome}</span>)}
+      {!aperto && nascosti > 0 && (
+        <span role="button" tabIndex={0} onMouseEnter={() => setAperto(true)} onClick={() => setAperto(true)}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAperto(true) } }}
+          title="Passa il mouse per vedere tutti i prodotti"
+          style={{ ...CHIP_PROD, cursor: 'pointer', background: C.redLight, borderColor: C.red, color: C.red }}>
+          +{nascosti} altri
+        </span>
+      )}
+      {aperto && ordinati.length > LIMITE && (
+        <span role="button" tabIndex={0} onClick={() => setAperto(false)}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAperto(false) } }}
+          style={{ ...CHIP_PROD, cursor: 'pointer', color: C.textSoft }}>↑ comprimi</span>
+      )}
+    </div>
+  )
+}
 
 export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify, sedi = [], sedeAttiva = null, orgId, sedeId, isDipendente = false, LEX = lessico() }) {
   const isMobile = useIsMobile()
@@ -566,7 +596,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{new Date(sess.data).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: C.text, fontVariantNumeric: 'tabular-nums', minWidth: 86, display: 'inline-block' }}>{new Date(sess.data).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: C.textSoft, textTransform: 'capitalize' }}>{new Date(sess.data).toLocaleDateString('it-IT', { weekday: 'long' })}</span>
+                        </div>
                         {sess.destinazioneSedeNome && (
                           <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FEF3C7', color: '#92400E' }}>🚚 Per: {sess.destinazioneSedeNome}</span>
                         )}
@@ -576,19 +609,15 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                       {!isDipendente && (
                         <div style={{ display: 'flex', gap: 16, textAlign: 'right' }}>
-                          <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Ricavo pot.</div><div style={{ fontSize: 14, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(sess.ricavoTot || 0)}</div></div>
-                          <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Food cost</div><div style={{ fontSize: 14, fontWeight: 800, color: C.red, fontVariantNumeric: 'tabular-nums' }}>{fmt(sess.fcTot || 0)}</div></div>
+                          <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Ricavo pot.</div><div style={{ fontSize: 14, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt0(sess.ricavoTot || 0)}</div></div>
+                          <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Food cost</div><div style={{ fontSize: 14, fontWeight: 800, color: C.red, fontVariantNumeric: 'tabular-nums' }}>{fmt0(sess.fcTot || 0)}</div></div>
                         </div>
                       )}
                       <button onClick={() => { setDeleteSessConf(sess); setDeleteSessPin('') }}
                         style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>🗑 Elimina</button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {(sess.prodotti || []).map(p => (
-                      <span key={p.nome} style={{ background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 10, fontWeight: 700, color: C.textMid }}>{p.stampi}× {p.nome}</span>
-                    ))}
-                  </div>
+                  <ProdottiChips prodotti={sess.prodotti} />
                 </div>
               ))}
             </div>

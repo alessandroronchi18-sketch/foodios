@@ -12,7 +12,7 @@ import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { lessico } from '../lib/lessico'
 import { C, TNUM } from './_shared'
 
-const fmt = v => `€ ${Number(v).toFixed(2)}`
+const fmt = v => `€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
 
 // ─── StockPFWidget ───────────────────────────────────────────────────────────
 function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId }) {

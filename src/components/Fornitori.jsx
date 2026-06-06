@@ -12,7 +12,7 @@ const C = {
 }
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
-function fmt(n) { return n==null?"-":`€${Number(n).toFixed(2)}` }
+function fmt(n) { return n==null?"-":`€${Number(n).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}` }
 function fmtDate(s) { if(!s) return "—"; const d=new Date(s); return d.toLocaleDateString("it-IT"); }
 
 function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
