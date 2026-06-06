@@ -360,6 +360,9 @@ function TurniTab({ orgId, notify, isMobile }) {
   const [turni, setTurni] = useState([])
   const [dipendenti, setDipendenti] = useState([])
   const [organigramma, setOrganigramma] = useState({ reparti: [] })
+  // Consuntivo ore effettive per turno: { [turnoId]: oreEffettive }. Salvato in
+  // user_data (no migration): se non c'è valore, vale l'orario pianificato.
+  const [consuntivo, setConsuntivo] = useState({})
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState('settimana') // 'giorno' | 'settimana' | 'mese'
   const [anchor, setAnchor] = useState(() => new Date().toISOString().slice(0,10)) // giorno di riferimento
@@ -395,16 +398,18 @@ function TurniTab({ orgId, notify, isMobile }) {
   async function carica() {
     if (!orgId) { setLoading(false); return }
     setLoading(true)
-    const [{ data:t, error:et }, { data:d, error:ed }, org] = await Promise.all([
+    const [{ data:t, error:et }, { data:d, error:ed }, org, cons] = await Promise.all([
       supabase.from("turni").select("*, dipendenti(nome,costo_orario)").eq("organization_id", orgId)
         .gte("data", rng.from).lte("data", rng.to).order("data").order("ora_inizio"),
       supabase.from("dipendenti").select("id,nome").eq("organization_id", orgId).eq("attivo", true).order("nome"),
       sload(SK_ORG, orgId, null).catch(() => null),
+      sload(SK_CONSUNTIVO, orgId, null).catch(() => null),
     ])
     if (et || ed) notify?.("⚠ Errore caricamento turni: " + (et?.message || ed?.message), false)
     setTurni(t || [])
     setDipendenti(d || [])
     setOrganigramma(org && Array.isArray(org.reparti) ? org : { reparti: [] })
+    setConsuntivo(cons && typeof cons === 'object' ? cons : {})
     setLoading(false)
   }
 
@@ -425,7 +430,7 @@ function TurniTab({ orgId, notify, isMobile }) {
   }, [organigramma])
 
   function resetForm() {
-    setForm({ dipendente_id:"", data:week, ora_inizio:"08:00", ora_fine:"16:00", note:"" })
+    setForm({ dipendente_id:"", data:week, ora_inizio:"08:00", ora_fine:"16:00", note:"", ore_effettive:"" })
     setEditId(null); setShowForm(false)
   }
 
@@ -457,8 +462,16 @@ function TurniTab({ orgId, notify, isMobile }) {
     const { error } = editId
       ? await supabase.from("turni").update(payload).eq("id", editId).eq("organization_id", orgId)
       : await supabase.from("turni").insert(payload)
-    if (error) { notify("⚠ Errore: " + error.message, false) }
-    else { notify(editId ? "✓ Turno aggiornato" : "✓ Turno aggiunto"); resetForm() }
+    if (error) { notify("⚠ Errore: " + error.message, false); setSaving(false); return }
+    // Consuntivo ore effettive (solo su turno esistente): salva/aggiorna la mappa.
+    if (editId) {
+      const eff = parseFloat(String(form.ore_effettive).replace(',', '.'))
+      const next = { ...consuntivo }
+      if (Number.isFinite(eff) && eff >= 0 && Math.abs(eff - ore) > 0.001) next[editId] = parseFloat(eff.toFixed(2))
+      else delete next[editId]
+      try { await ssave(SK_CONSUNTIVO, next, orgId, null); setConsuntivo(next) } catch {}
+    }
+    notify(editId ? "✓ Turno aggiornato" : "✓ Turno aggiunto"); resetForm()
     setSaving(false)
     carica()
   }
@@ -474,7 +487,7 @@ function TurniTab({ orgId, notify, isMobile }) {
 
   // Apre il box sopra la tabella precompilato con un turno esistente (modifica/elimina).
   function apriModificaTurno(s) {
-    setForm({ dipendente_id: s.dipId || "", data: s.data, ora_inizio: _hm(s.ini), ora_fine: _hm(s.fin), note: s.note || "" })
+    setForm({ dipendente_id: s.dipId || "", data: s.data, ora_inizio: _hm(s.ini), ora_fine: _hm(s.fin), note: s.note || "", ore_effettive: consuntivo[s.id] != null ? String(consuntivo[s.id]) : "" })
     setEditId(s.id); setShowForm(true)
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -512,7 +525,7 @@ function TurniTab({ orgId, notify, isMobile }) {
   const inputSt = { padding: isMobile ? "12px 14px" : "8px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }
 
   function apriNuovoTurno(dataIso) {
-    setForm({ dipendente_id:"", data: dataIso || week, ora_inizio:"08:00", ora_fine:"16:00", note:"" })
+    setForm({ dipendente_id:"", data: dataIso || week, ora_inizio:"08:00", ora_fine:"16:00", note:"", ore_effettive:"" })
     setEditId(null); setShowForm(true)
   }
 
@@ -595,6 +608,7 @@ function TurniTab({ orgId, notify, isMobile }) {
               { lbl:"Inizio", el: <input type="time" value={form.ora_inizio} onChange={e=>setForm(f=>({...f,ora_inizio:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
               { lbl:"Fine", el: <input type="time" value={form.ora_fine} onChange={e=>setForm(f=>({...f,ora_fine:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
               { lbl:"Note", el: <input value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} style={{ ...inputSt, width:"100%" }}/> },
+              ...(editId ? [{ lbl:"Ore effettive", el: <input type="number" min="0" step="0.25" inputMode="decimal" placeholder={`pian. ${fmtH(calcOre(form.ora_inizio, form.ora_fine))}`} value={form.ore_effettive} onChange={e=>setForm(f=>({...f,ore_effettive:e.target.value}))} title="Ore realmente lavorate; se diverse dal pianificato risultano come consuntivo/straordinario" style={{ ...inputSt, width:"100%" }}/> }] : []),
               { lbl:" ", el: (
                 <div style={{ display:"flex", gap:6 }}>
                   <button onClick={salvaTurno} disabled={saving} style={{ flex:1, padding: isMobile ? "14px" : "9px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer" }}>{saving?"…":(editId?"Aggiorna":"Salva")}</button>
@@ -733,12 +747,15 @@ function TurniTab({ orgId, notify, isMobile }) {
                     {placed.map(s => {
                       const col = colorById[s.dipId] || C.red
                       const selez = editId === s.id
+                      const eff = consuntivo[s.id] // ore effettive consuntivate
+                      const straord = eff != null ? +(eff - (s.ore || 0)).toFixed(2) : null
                       return (
                         <div key={s.id} onClick={() => apriModificaTurno(s)} role="button" tabIndex={0}
                           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); apriModificaTurno(s) } }}
-                          title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (${fmtH(s.ore || 0)}) — clicca per modificare`}
+                          title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (pianificato ${fmtH(s.ore || 0)}${eff != null ? ` · effettivo ${fmtH(eff)}${straord ? ` · ${straord > 0 ? 'straord +' : ''}${straord}h` : ''}` : ''}) — clicca per modificare`}
                           style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height:26, background:col, border:"none", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding:"0 6px", overflow:"hidden", cursor:"pointer", boxShadow: selez ? "inset 0 0 0 2px rgba(255,255,255,0.95)" : "none" }}>
                           <span style={{ fontSize:10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>{etichettaNome(s.nome)} · {_hm(s.ini)}–{_hm(s.fin)}</span>
+                          {eff != null && <span title="Ore consuntivate" style={{ fontSize:8, fontWeight:800, background:straord > 0 ? "#F59E0B" : "rgba(255,255,255,0.3)", color:"#fff", borderRadius:4, padding:"0 3px", flexShrink:0 }}>{straord > 0 ? `+${straord}h` : "✓"}</span>}
                         </div>
                       )
                     })}
@@ -961,6 +978,7 @@ function HeaderPersonale({ orgId, isMobile }) {
 
 // ─── ORGANIGRAMMA: reparti + assegnazione dipendenti, editabile dal titolare ──
 const SK_ORG = 'pasticceria-organigramma-v1'
+const SK_CONSUNTIVO = 'pasticceria-consuntivo-turni-v1' // { [turnoId]: oreEffettive }
 function OrganigrammaTab({ orgId, notify, isMobile }) {
   const [dip, setDip] = useState([])
   const [org, setOrg] = useState({ reparti: [] })
