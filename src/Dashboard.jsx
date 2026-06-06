@@ -2442,20 +2442,9 @@ export default function Dashboard({
                 </div>
                 <h1 style={{margin:0,fontSize:22,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</h1>
               </div>
-              {/* Sede: switcher per multi-sede, badge di sola lettura per sede unica.
-                  Notifiche/profilo/esci ora vivono nel menu profilo della topbar. */}
-              {(sedi||[]).length>1
-                ? <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />
-                : sedeCorrente&&(
-                <div style={{display:"flex",alignItems:"center",gap:9,padding:"8px 14px",
-                  background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.lg,boxShadow:S.sm}}>
-                  <span style={{width:7,height:7,borderRadius:"50%",background:T.green,boxShadow:"0 0 0 3px rgba(14,159,110,0.16)",flexShrink:0}}/>
-                  <div style={{display:"flex",flexDirection:"column",lineHeight:1.15}}>
-                    <span style={{fontSize:9.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase"}}>Sede</span>
-                    <span style={{fontSize:12.5,color:T.text,fontWeight:600,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.005em"}}>{sedeCorrente.nome||"—"}</span>
-                  </div>
-                </div>
-              )}
+              {/* Sede (badge per sede unica, switcher per multi-sede) — variante
+                  chiara e compatta per la topbar. Notifiche/profilo/esci nel menu profilo. */}
+              {(sedi||[]).length>0 && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} variant="topbar" />}
             </div>
           );
         })()}
