@@ -20,7 +20,7 @@ import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGeneric
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/importCassa'
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
-import { C, KPI, PageHeader, margColor, fmt, fmtp } from './_shared'
+import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
 
 // Persiste fra unmount/remount durante l'analisi AI di uno scontrino
 const _receiptPending = { current: null }
@@ -130,6 +130,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   // Inserimento prodotti venduti: 'foto' (OCR scontrino) o 'manuale' (digitazione).
   const [inputMode, setInputMode] = useState('foto')
   const [manualRows, setManualRows] = useState([{ nome: '', qta: '', prezzo: '' }])
+  // Ordinamento tabella Produzione vs Venduto (click sull'intestazione).
+  const [confrSort, setConfrSort] = useState({ key: null, dir: 'desc' })
 
   // Nomi ricette per autocomplete del nome prodotto in modalità manuale.
   const nomiRicette = useMemo(() => Object.values(ricettario?.ricette || {})
@@ -801,14 +803,37 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             )
           })()}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? `repeat(${isDipendente ? 2 : 3},1fr)` : `repeat(${isDipendente ? 2 : 5},1fr)`, gap: 10, marginBottom: 24 }}>
-            <KPI icon="💰" label="Ricavo reale" value={fmt(totV)} highlight/>
-            {!isDipendente && <KPI icon="📈" label="Margine" value={fmt(totM)} color={margColor(totMP)} sub={fmtp(totMP)}/>}
-            {!isDipendente && <KPI icon="🧾" label="Food cost" value={fmt(totFC)} color={C.red}/>}
+            <KPI icon="💰" label="Ricavo reale" value={fmt0(totV)} highlight/>
+            {!isDipendente && <KPI icon="📈" label="Margine" value={fmt0(totM)} color={margColor(totMP)} sub={fmtp(totMP)}/>}
+            {!isDipendente && <KPI icon="🧾" label="Food cost" value={fmt0(totFC)} color={C.red}/>}
             <KPI icon="🎯" label="Sell-through" value={fmtp(avgST)} color={stC(avgST)} sub="% vendute"/>
-            {!isDipendente && <KPI icon="🗑" label="Spreco" value={fmt(totS)} color={totS > 5 ? C.red : C.green} sub="FC perso"/>}
+            {!isDipendente && <KPI icon="🗑" label="Spreco" value={fmt0(totS)} color={totS > 5 ? C.red : C.green} sub="FC perso"/>}
           </div>
 
-          {confronto.length > 0 && (
+          {confronto.length > 0 && (() => {
+          // Colonne ordinabili: ogni colonna ha un accessor; click sull'header
+          // alterna asc/desc (stesso comportamento del Riepilogo Periodi nello Storico).
+          const COLS = [
+            { h: LEX.Prodotto, key: 'nome', get: r => r.nome, str: true, align: 'left' },
+            { h: 'Prodotte', key: 'unitaP', get: r => r.inProd ? (r.unitaP || 0) : -1 },
+            { h: 'Vendute', key: 'unitaV', get: r => r.unitaV || 0 },
+            { h: 'Rimaste', key: 'unitaR', get: r => r.inProd ? (r.unitaR || 0) : -1 },
+            { h: 'Sell-T%', key: 'st', get: r => r.st == null ? -1 : r.st },
+            { h: 'Ricavo reale', key: 'rv', get: r => r.rv || 0 },
+            ...(isDipendente ? [] : [
+              { h: 'FC venduto', key: 'fcV', get: r => r.fcV || 0 },
+              { h: 'Margine', key: 'marg', get: r => r.marg || 0 },
+              { h: 'Spreco FC', key: 'spreco', get: r => r.spreco || 0 },
+            ]),
+          ]
+          const clickSort = key => setConfrSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'nome' ? 'asc' : 'desc' })
+          const rows = (() => {
+            if (!confrSort.key) return confronto
+            const col = COLS.find(c => c.key === confrSort.key); if (!col) return confronto
+            const dir = confrSort.dir === 'asc' ? 1 : -1
+            return [...confronto].sort((a, b) => { const va = col.get(a), vb = col.get(b); return (col.str ? String(va).localeCompare(String(vb), 'it') : (va - vb)) * dir })
+          })()
+          return (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             <div style={{ padding: '13px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Produzione vs Venduto · {new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}</div>
@@ -818,16 +843,16 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
-                    {[
-                      LEX.Prodotto, 'Prodotte', 'Vendute', 'Rimaste', 'Sell-T%', 'Ricavo reale',
-                      ...(isDipendente ? [] : ['FC venduto', 'Margine', 'Spreco FC']),
-                    ].map((h, i) => (
-                      <th key={i} style={{ padding: '9px 12px', textAlign: i === 0 ? 'left' : 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                    {COLS.map((c, i) => (
+                      <th key={i} onClick={() => clickSort(c.key)} title="Ordina"
+                        style={{ padding: '9px 12px', textAlign: c.align === 'left' ? 'left' : 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: confrSort.key === c.key ? C.red : C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
+                        {c.h}<span style={{ opacity: confrSort.key === c.key ? 1 : 0.25 }}> {confrSort.key === c.key ? (confrSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {confronto.map((r, i) => (
+                  {rows.map((r, i) => (
                     <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                       <td style={{ padding: '9px 12px', fontWeight: 700, color: C.text }}>
                         {r.nome}
@@ -865,7 +890,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               </table>
             </div>
           </div>
-          )}
+          )})()}
 
           {formatiRiconc.righe.length > 0 && (
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
