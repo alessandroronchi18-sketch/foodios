@@ -152,28 +152,48 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
             </div>
           ) : (
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              {vendite.map((v, i) => {
-                const st = STATI[v.stato] || STATI.consegnata
+              {(() => {
+                const COLS = isMobile ? '1fr' : 'minmax(0,1fr) 130px 110px 184px'
+                const cellHead = { fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft }
                 return (
-                  <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: i < vendite.length - 1 ? `1px solid ${C.border}` : 'none', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: 160 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
-                      <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>
-                        {new Date(v.data + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })} · {(v.righe || []).length} prodotti · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0)} pz
+                  <>
+                    {!isMobile && (
+                      <div style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: 12, padding: '10px 16px', background: '#F8F4F2', borderBottom: `1px solid ${C.border}` }}>
+                        <span style={cellHead}>Cliente</span>
+                        <span style={{ ...cellHead, textAlign: 'center' }}>Stato</span>
+                        <span style={{ ...cellHead, textAlign: 'right' }}>Totale</span>
+                        <span style={{ ...cellHead, textAlign: 'right' }}>Azioni</span>
                       </div>
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.lbl}</span>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums', minWidth: 90, textAlign: 'right' }}>{eur(v.totale)}</span>
-                    {v.stato !== 'annullata' && (
-                      <button onClick={() => modificaVendita(v)} title="Modifica vendita" style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Modifica</button>
                     )}
-                    <button onClick={() => toggleFattura(v)} title="Segna fatturata/da fatturare" style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>
-                      {v.stato === 'fatturata' ? '↩' : '✓ Fatturata'}
-                    </button>
-                    <button aria-label="Elimina vendita" onClick={async () => { if (confirm('Eliminare questa vendita B2B? (lo stock non viene ripristinato)')) { try { await eliminaVenditaB2B(v.id); ricarica() } catch (e) { notify?.('⚠ ' + e.message, false) } } }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
-                  </div>
+                    {vendite.map((v, i) => {
+                      const st = STATI[v.stato] || STATI.consegnata
+                      return (
+                        <div key={v.id} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: isMobile ? 8 : 12, padding: '12px 16px', borderBottom: i < vendite.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
+                            <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>
+                              {new Date(v.data + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })} · {(v.righe || []).length} prodotti · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0)} pz
+                            </div>
+                          </div>
+                          <div style={{ justifySelf: isMobile ? 'start' : 'center' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: st.bg, color: st.fg, whiteSpace: 'nowrap' }}>{st.lbl}</span>
+                          </div>
+                          <span style={{ fontSize: 15, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums', textAlign: isMobile ? 'left' : 'right' }}>{eur(v.totale)}</span>
+                          <div style={{ display: 'flex', gap: 6, justifyContent: isMobile ? 'flex-start' : 'flex-end', flexWrap: 'wrap' }}>
+                            {v.stato !== 'annullata' && (
+                              <button onClick={() => modificaVendita(v)} title="Modifica vendita" style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Modifica</button>
+                            )}
+                            <button onClick={() => toggleFattura(v)} title={v.stato === 'fatturata' ? 'Segna da fatturare' : 'Segna fatturata'} style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              {v.stato === 'fatturata' ? '↩ Riapri' : '✓ Fattura'}
+                            </button>
+                            <button aria-label="Elimina vendita" onClick={async () => { if (confirm('Eliminare questa vendita B2B? Lo stock dei prodotti verrà ripristinato.')) { try { await eliminaVenditaB2B(v.id); ricarica() } catch (e) { notify?.('⚠ ' + e.message, false) } } }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </>
                 )
-              })}
+              })()}
             </div>
           )}
         </>
