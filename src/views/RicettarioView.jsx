@@ -72,7 +72,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
       {/* Header */}
       <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: open ? `1px solid ${isSemi ? SEMI.divider : C.border}` : 'none' }}>
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
             {isSemi && (
               <span style={{ padding: '3px 8px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', lineHeight: 1.2 }}>Semilavorato</span>
             )}
@@ -80,13 +80,20 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               style={{ margin: 0, fontSize: isMobile ? 15 : 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', cursor: onEdit ? 'pointer' : 'default', lineHeight: 1.25 }}>
               {ric.nome}
             </h3>
-            {!isSemi && (
-              <Tip text={`Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={260}>{margBadge(margPct)}</Tip>
-            )}
-            {mancanti.length > 0 && (
-              <Tip text="Alcuni ingredienti non hanno prezzo reale: FC calcolato su stime HoReCa." width={280}><Badge label={`${mancanti.length} prezzi stimati`} color="amber"/></Tip>
-            )}
           </div>
+          {/* Etichette qualità/avvisi su riga dedicata: così restano allineate
+              nella stessa posizione sotto ogni gusto, indipendentemente dalla
+              lunghezza del nome. */}
+          {(!isSemi || mancanti.length > 0) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5, minHeight: 22 }}>
+              {!isSemi && (
+                <Tip text={`Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={260}>{margBadge(margPct)}</Tip>
+              )}
+              {mancanti.length > 0 && (
+                <Tip text="Alcuni ingredienti non hanno prezzo reale: FC calcolato su stime HoReCa." width={280}><Badge label={`${mancanti.length} prezzi stimati`} color="amber"/></Tip>
+              )}
+            </div>
+          )}
           <div style={{ fontSize: 11, color: C.textSoft, lineHeight: 1.4 }}>
             {isSemi
               ? `Base interna · ${pesoTotSemi >= 1000 ? `${(pesoTotSemi / 1000).toFixed(2)} kg` : `${Math.round(pesoTotSemi)} g`} per batch${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
@@ -189,8 +196,15 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
-                    {['Ingrediente', 'g / st.', '€ / g', 'Costo', '%FC'].map((h, i) => (
-                      <th key={h} style={{ padding: '8px 10px', textAlign: i === 0 ? 'left' : 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                    {[
+                      ['Ingrediente', 'Materia prima usata nella ricetta'],
+                      ['g / st.', 'Grammi di ingrediente per UNO stampo (o batch) della ricetta'],
+                      ['€ / g', "Costo di un grammo dell'ingrediente (prezzo materia prima ÷ 1000 se al kg)"],
+                      ['Costo', 'Costo di questo ingrediente per uno stampo = g/st. × €/g'],
+                      ['%FC', 'Peso percentuale di questo ingrediente sul food cost totale della ricetta'],
+                    ].map(([h, tip], i) => (
+                      <th key={h} title={tip}
+                        style={{ padding: '8px 10px', textAlign: i === 0 ? 'left' : 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, cursor: 'help', textDecoration: i === 0 ? 'none' : 'underline dotted', textUnderlineOffset: 3 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
