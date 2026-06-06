@@ -641,6 +641,14 @@ export default function PLView({ ricettario, onUpdateRegola }) {
         }
       />
 
+      {/* Chiarisce il "quando": il P&L è teorico per-stampo, NON un periodo. */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
+        <span style={{ fontSize: 16, lineHeight: 1, marginTop: 1 }}>ℹ️</span>
+        <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55 }}>
+          <b style={{ color: C.text }}>Numeri teorici, non riferiti a un periodo.</b> Mostrano ricavo, food cost e margine <b>per un singolo stampo di ciascun prodotto</b>, ai <b>prezzi di listino attuali</b> — servono a capire la redditività delle ricette. Per ricavi e margini <b>reali nel tempo</b> (giorno · settimana · mese) apri la sezione <b>Storico</b>.
+        </div>
+      </div>
+
       {/* ESTRATTO CONTO ECONOMICO — colpo d'occhio: Ricavi − Food cost = Margine */}
       {(() => {
         const fcPct = totRicavo > 0 ? (totFC / totRicavo) * 100 : 0
