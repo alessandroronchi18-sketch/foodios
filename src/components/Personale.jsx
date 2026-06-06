@@ -965,6 +965,11 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
   const [dip, setDip] = useState([])
   const [org, setOrg] = useState({ reparti: [] })
   const [loading, setLoading] = useState(true)
+  // UI inline (niente prompt(): in alcuni browser è bloccato → "non si aggiunge").
+  const [addingRep, setAddingRep] = useState(false)
+  const [newRepNome, setNewRepNome] = useState('')
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameVal, setRenameVal] = useState('')
 
   useEffect(() => {
     if (!orgId) return
@@ -990,8 +995,17 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
   }
   const update = fn => persist({ ...org, reparti: fn(org.reparti.map(r => ({ ...r, membri: [...(r.membri || [])] }))) })
 
-  function addReparto() { const nome = (prompt('Nome del reparto (es. Laboratorio, Banco vendita, Amministrazione)') || '').trim(); if (!nome) return; update(rs => [...rs, { id: 'rep-' + Math.random().toString(36).slice(2, 8), nome, capoId: null, membri: [] }]) }
-  function renameReparto(id) { const r = org.reparti.find(x => x.id === id); const nome = (prompt('Nuovo nome reparto', r?.nome) || '').trim(); if (!nome) return; update(rs => rs.map(x => x.id === id ? { ...x, nome } : x)) }
+  function confermaAddReparto() {
+    const nome = newRepNome.trim(); if (!nome) { setAddingRep(false); return }
+    update(rs => [...rs, { id: 'rep-' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3), nome, capoId: null, membri: [] }])
+    setNewRepNome(''); setAddingRep(false)
+  }
+  function avviaRename(id) { const r = org.reparti.find(x => x.id === id); setRenamingId(id); setRenameVal(r?.nome || '') }
+  function confermaRename() {
+    const nome = renameVal.trim(); const id = renamingId
+    if (id && nome) update(rs => rs.map(x => x.id === id ? { ...x, nome } : x))
+    setRenamingId(null); setRenameVal('')
+  }
   function delReparto(id) { if (!confirm('Eliminare il reparto? I dipendenti tornano tra i non assegnati.')) return; update(rs => rs.filter(x => x.id !== id)) }
   function addMembro(repId, dipId) { if (!dipId) return; update(rs => rs.map(r => r.id === repId ? { ...r, membri: [...new Set([...(r.membri || []), dipId])] } : r)) }
   function removeMembro(repId, dipId) { update(rs => rs.map(r => r.id === repId ? { ...r, membri: (r.membri || []).filter(m => m !== dipId), capoId: r.capoId === dipId ? null : r.capoId } : r)) }
@@ -1013,7 +1027,18 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
         <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
           Organizza il team per reparto. Il <b style={{ color: C.red }}>★</b> indica il responsabile. {nonAssegnati.length > 0 ? `${nonAssegnati.length} non ancora assegnati.` : 'Tutti assegnati.'}
         </div>
-        <button onClick={addReparto} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>+ Reparto</button>
+        {addingRep ? (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input autoFocus value={newRepNome} onChange={e => setNewRepNome(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confermaAddReparto(); if (e.key === 'Escape') { setAddingRep(false); setNewRepNome('') } }}
+              placeholder="Nome reparto (es. Laboratorio)"
+              style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, width: 200 }} />
+            <button onClick={confermaAddReparto} style={{ padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Aggiungi</button>
+            <button onClick={() => { setAddingRep(false); setNewRepNome('') }} style={{ padding: '8px 10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>✕</button>
+          </div>
+        ) : (
+          <button onClick={() => setAddingRep(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>+ Reparto</button>
+        )}
       </div>
 
       {org.reparti.length === 0 ? (
@@ -1029,9 +1054,16 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
             return (
               <div key={r.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'linear-gradient(135deg,#1C0A0A,#3D1515)' }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: C.white }}>{r.nome}</span>
-                  <span style={{ display: 'flex', gap: 4 }}>
-                    <button onClick={() => renameReparto(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}>✏️</button>
+                  {renamingId === r.id ? (
+                    <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') confermaRename(); if (e.key === 'Escape') { setRenamingId(null); setRenameVal('') } }}
+                      onBlur={confermaRename}
+                      style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.12)', color: C.white, fontSize: 13, fontWeight: 700 }} />
+                  ) : (
+                    <span style={{ fontSize: 13, fontWeight: 800, color: C.white }}>{r.nome}</span>
+                  )}
+                  <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    <button onClick={() => avviaRename(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}>✏️</button>
                     <button onClick={() => delReparto(r.id)} title="Elimina reparto" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}>🗑</button>
                   </span>
                 </div>
