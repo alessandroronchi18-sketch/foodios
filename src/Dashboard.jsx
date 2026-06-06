@@ -2432,9 +2432,9 @@ export default function Dashboard({
               background:"linear-gradient(180deg, rgba(255,251,250,0.92) 0%, rgba(250,244,242,0.9) 100%)",
               backdropFilter:"saturate(180%) blur(18px)",WebkitBackdropFilter:"saturate(180%) blur(18px)",
               borderBottom:`1px solid ${C.borderSoft}`,
-              padding:"8px 32px",display:"flex",alignItems:"center",gap:16}}>
+              padding:"3px 32px",display:"flex",alignItems:"center",gap:16}}>
               {/* Sezione attiva: indicatore visivo brand a sinistra */}
-              <div style={{width:4,height:32,borderRadius:4,
+              <div style={{width:4,height:26,borderRadius:4,
                 background:"linear-gradient(180deg, #6E0E1A 0%, #E84B3A 100%)",
                 boxShadow:"0 2px 10px rgba(110,14,26,0.32)",flexShrink:0}}/>
               {/* Titolo + breadcrumb */}

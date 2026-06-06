@@ -38,8 +38,8 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
   if (!sedi || sedi.length === 0) return null
 
   const iconBox = (isOpen) => (
-    <span style={{ width: top ? 26 : 28, height: top ? 26 : 28, borderRadius: 8, background: isOpen ? P.iconBgOpen : P.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 120ms ease' }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isOpen ? P.iconStrokeOpen : P.iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <span style={{ width: top ? 22 : 28, height: top ? 22 : 28, borderRadius: top ? 7 : 8, background: isOpen ? P.iconBgOpen : P.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 120ms ease' }}>
+      <svg width={top ? 12 : 14} height={top ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke={isOpen ? P.iconStrokeOpen : P.iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
       </svg>
     </span>
@@ -48,7 +48,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
   // Una sola sede: badge informativo non interattivo
   if (sedi.length === 1) {
     return (
-      <div style={{ margin: P.margin, padding: top ? '6px 12px 6px 8px' : '10px 12px', background: P.bg, border: `1px solid ${P.border}`, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 9 }}>
+      <div style={{ margin: P.margin, padding: top ? '3px 10px 3px 5px' : '10px 12px', background: P.bg, border: `1px solid ${P.border}`, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 9 }}>
         {iconBox(false)}
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 9, fontWeight: 600, color: P.label, textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1 }}>Sede</div>
@@ -70,7 +70,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
         onMouseLeave={() => setHover(false)}
         style={{
           width: top ? 'auto' : '100%', minWidth: top ? 168 : undefined,
-          padding: top ? '6px 12px 6px 8px' : '10px 12px',
+          padding: top ? '3px 10px 3px 5px' : '10px 12px',
           background: open ? P.bgOpen : hover ? P.bgHover : P.bg,
           border: `1px solid ${open ? P.borderOpen : P.border}`,
           borderRadius: 10, color: P.txt, fontSize: 12.5, cursor: 'pointer',
