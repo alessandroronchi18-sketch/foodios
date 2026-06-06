@@ -2439,21 +2439,21 @@ export default function Dashboard({
             <div style={{position:"sticky",top:52,zIndex:Z.topbar,
               background:"linear-gradient(180deg, #FFFBFA 0%, #FAF4F2 100%)",
               borderBottom:`1px solid ${C.borderSoft}`,
-              padding:"3px 32px",display:"flex",alignItems:"center",gap:16}}>
+              padding:"4px 32px",display:"flex",alignItems:"center",gap:14}}>
               {/* Sezione attiva: indicatore visivo brand a sinistra */}
-              <div style={{width:4,height:26,borderRadius:4,
+              <div style={{width:4,height:22,borderRadius:4,
                 background:"linear-gradient(180deg, #6E0E1A 0%, #E84B3A 100%)",
                 boxShadow:"0 2px 10px rgba(110,14,26,0.32)",flexShrink:0}}/>
-              {/* Titolo + breadcrumb */}
+              {/* Titolo + breadcrumb (compatto) */}
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                <div style={{fontSize:9.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:8,marginBottom:1,lineHeight:1}}>
                   <span style={{maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.brand,fontWeight:700,letterSpacing:"0.07em"}}>{nomeAttivita||"FoodOS"}</span>
                   {group&&<>
                     <span style={{color:T.borderStr,fontSize:11}}>›</span>
                     <span style={{color:T.textSoft,letterSpacing:"0.05em"}}>{group}</span>
                   </>}
                 </div>
-                <h1 style={{margin:0,fontSize:22,fontWeight:700,color:T.text,letterSpacing:"-0.025em",lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</h1>
+                <h1 style={{margin:0,fontSize:19,fontWeight:700,color:T.text,letterSpacing:"-0.02em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</h1>
               </div>
               {/* Sede (badge per sede unica, switcher per multi-sede) — variante
                   chiara e compatta per la topbar. Notifiche/profilo/esci nel menu profilo. */}
