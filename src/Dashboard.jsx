@@ -50,6 +50,7 @@ import { backgroundManager } from './lib/backgroundManager'
 import { uploadManager } from './lib/backgroundManager'
 import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese } from './lib/rese'
 const Fornitori = lazyWithReload(() => import('./components/Fornitori'))
+const VenditeB2BView = lazyWithReload(() => import('./views/VenditeB2BView'))
 const Personale = lazyWithReload(() => import('./components/Personale'))
 const MenuDinamico = lazyWithReload(() => import('./components/MenuDinamico'))
 const PrevisioneDomanda = lazyWithReload(() => import('./components/PrevisioneDomanda'))
@@ -1194,7 +1195,7 @@ export default function Dashboard({
     ricettario:'ricette', semilavorati:'ricette', 'nuova-ricetta':'ricette',
     'scheda-allergeni':'ricette', menu:'ricette',
     simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', discrepanze:'numeri',
-    magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'importa-dati':'acquisti',
+    magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'vendite-b2b':'acquisti', 'importa-dati':'acquisti',
     personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
   }), []);
@@ -2017,6 +2018,7 @@ export default function Dashboard({
                   navItem("sprechi-omaggi","sparkles","Sprechi e omaggi"),
                   navItem("scadenzario","fileText","Scadenzario"),
                   navItem("fornitori","truck","Fornitori"),
+                  navItem("vendite-b2b","building","Vendite B2B"),
                   navItem("importa-dati","download","Importa dati"),
                 ] })}
 
@@ -2168,7 +2170,7 @@ export default function Dashboard({
             home:"Dashboard", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
             ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
             simulatore:"Food Cost", pl:"P&L",
-            magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
+            magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori", "vendite-b2b":"Vendite B2B",
             personale:"Personale", haccp:"HACCP", menu:"Menù",
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
             calendario:"Calendario", previsione:"Previsioni",
@@ -2252,7 +2254,7 @@ export default function Dashboard({
             home:"Oggi", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
             ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
             simulatore:"Food Cost", pl:"P&L",
-            magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori",
+            magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori", "vendite-b2b":"Vendite B2B",
             personale:"Personale", haccp:"HACCP", menu:"Menù",
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
             calendario:"Calendario", previsione:"Previsioni",
@@ -2386,6 +2388,7 @@ export default function Dashboard({
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX}/>}
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
+        {view==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {view==="personale"&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="haccp"&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
         {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita}/>}
