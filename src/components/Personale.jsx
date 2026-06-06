@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { sload, ssave } from '../lib/storage'
+import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
 
@@ -12,6 +12,7 @@ const C = {
 }
 
 function fmt(n) { return n==null?"—":`€${Number(n).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}` }
+function fmt0(n) { return `€${Math.round(Number(n)||0).toLocaleString('it-IT')}` }
 function fmtH(h) { return `${h.toFixed(1)}h` }
 // Nome completo (nome + cognome) per disambiguare gli omonimi senza ambiguità.
 function etichettaNome(nome) {
@@ -709,7 +710,7 @@ function TurniTab({ orgId, notify, isMobile }) {
 
 function AnalisiCostoTab({ orgId, isMobile }) {
   const [mese, setMese] = useState(() => new Date().toISOString().slice(0,7))
-  const [dati, setDati] = useState({ turni:[], dipendenti:[] })
+  const [dati, setDati] = useState({ turni:[], dipendenti:[], ricavi:0 })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { carica() }, [orgId, mese])
@@ -720,19 +721,38 @@ function AnalisiCostoTab({ orgId, isMobile }) {
     const from = mese + "-01"
     const last = new Date(mese.split("-")[0], mese.split("-")[1], 0).getDate()
     const to = `${mese}-${last}`
-    const [{ data:t, error:et },{ data:d, error:ed }] = await Promise.all([
+    const [{ data:t, error:et },{ data:d, error:ed }, chiusurePerSede] = await Promise.all([
       supabase.from("turni").select("*, dipendenti(nome,ruolo)").eq("organization_id", orgId).gte("data", from).lte("data", to),
       supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true),
+      sloadAllSedi('pasticceria-chiusure-v1', orgId).catch(() => ({})),
     ])
     if (et || ed) console.warn("analisi costo load:", et?.message || ed?.message)
-    setDati({ turni:t||[], dipendenti:d||[] })
+    // Fatturato del mese = somma kpi.totV delle chiusure (tutte le sedi) in range.
+    const ricavi = Object.values(chiusurePerSede || {}).flat()
+      .filter(c => c && typeof c.data === 'string' && c.data >= from && c.data <= to)
+      .reduce((s, c) => s + (c.kpi?.totV || 0), 0)
+    setDati({ turni:t||[], dipendenti:d||[], ricavi })
     setLoading(false)
   }
 
-  const { turni, dipendenti } = dati
+  const { turni, dipendenti, ricavi } = dati
   const totOre = turni.reduce((s,t)=>s+(t.ore||0), 0)
   const totCosto = turni.reduce((s,t)=>s+(t.costo||0), 0)
   const costoFissoMese = dipendenti.reduce((s,d)=>s+(d.costo_orario||0)*(d.ore_settimana||0)*4.33, 0)
+  const giorniLavorati = new Set(turni.map(t=>t.data)).size
+  const costoMedioOra = totOre>0 ? totCosto/totOre : 0
+  const costoGiorno = giorniLavorati>0 ? totCosto/giorniLavorati : 0
+  // Incidenza del costo del lavoro sul fatturato: la metrica chiave nella
+  // ristorazione (sano 25–35%; oltre il 40% margine a rischio).
+  const incidenza = ricavi>0 ? (totCosto/ricavi*100) : null
+  const incColor = incidenza==null ? C.textSoft : incidenza<=30 ? C.green : incidenza<=40 ? C.amber : C.red
+  const incVerdetto = incidenza==null ? "Registra le chiusure di cassa per vedere quanto pesa il personale sugli incassi."
+    : incidenza<=30 ? "Ottimo: il costo del personale è sotto controllo rispetto agli incassi."
+    : incidenza<=40 ? "Sotto controllo, ma tieni d'occhio: ogni punto sopra il 30% erode il margine."
+    : "Attenzione: il costo del personale è alto rispetto agli incassi. Rivedi turni o ricavi."
+  // Scostamento costo effettivo (turni) vs teorico da contratto.
+  const scost = totCosto - costoFissoMese
+  const scostPct = costoFissoMese>0 ? (scost/costoFissoMese*100) : 0
 
   const byDip = turni.reduce((acc,t)=>{
     const n = t.dipendenti?.nome||"?"
@@ -740,45 +760,86 @@ function AnalisiCostoTab({ orgId, isMobile }) {
     acc[n].ore += t.ore||0; acc[n].costo += t.costo||0
     return acc
   }, {})
+  const dipRows = Object.entries(byDip).sort(([,a],[,b])=>b.costo-a.costo)
+  const maxCostoDip = Math.max(1, ...dipRows.map(([,d])=>d.costo))
+  const meseLbl = new Date(mese+"-01T12:00").toLocaleDateString('it-IT',{month:'long',year:'numeric'})
 
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
         <input type="month" value={mese} onChange={e=>setMese(e.target.value)}
           style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text, width: isMobile ? "100%" : "auto" }}/>
+        <span style={{ fontSize:12, color:C.textSoft, textTransform:"capitalize" }}>{meseLbl}</span>
       </div>
 
-      {loading ? <div style={{ color:C.textSoft }}>Caricamento…</div> : (
+      {loading ? <div style={{ color:C.textSoft }}>Caricamento…</div> : turni.length===0 ? (
+        <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun turno registrato per {meseLbl}.</div>
+      ) : (
         <>
-          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(180px,1fr))", gap: isMobile ? 8 : 14, marginBottom: isMobile ? 16 : 24 }}>
+          {/* INSIGHT CHIAVE: incidenza del costo lavoro sul fatturato */}
+          <div style={{ background:"linear-gradient(135deg,#1C0A0A,#3D1515)", borderRadius:14, padding: isMobile?"18px 18px":"22px 26px", marginBottom:16, boxShadow:"0 8px 22px rgba(110,14,26,0.28)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:16, flexWrap:"wrap" }}>
+              <div style={{ flex:1, minWidth:200 }}>
+                <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Incidenza costo lavoro</div>
+                <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
+                  <span style={{ fontSize: isMobile?34:44, fontWeight:900, color: incidenza==null?"rgba(255,255,255,0.5)":(incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"), lineHeight:1, ...tnum }}>{incidenza==null?"—":`${incidenza.toFixed(1)}%`}</span>
+                  {incidenza!=null && <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>del fatturato ({fmt0(ricavi)})</span>}
+                </div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:10, lineHeight:1.5, maxWidth:560 }}>{incVerdetto}</div>
+              </div>
+              {incidenza!=null && (
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                  <div style={{ width:64, height:64, borderRadius:"50%", background:`conic-gradient(${incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"} ${Math.min(100,incidenza)*3.6}deg, rgba(255,255,255,0.12) 0)`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <div style={{ width:46, height:46, borderRadius:"50%", background:"#2A0E0E", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#fff" }}>{incidenza.toFixed(0)}%</div>
+                  </div>
+                  <span style={{ fontSize:8, color:"rgba(255,255,255,0.5)", textTransform:"uppercase", letterSpacing:"0.08em" }}>target ≤30%</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* KPI strip */}
+          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(160px,1fr))", gap: isMobile ? 8 : 12, marginBottom: 16 }}>
             {[
-              { lbl:"Ore lavorate", val:fmtH(totOre), c:C.text },
-              { lbl:"Costo effettivo", val:fmt(totCosto), c:C.red },
-              { lbl:"Costo fisso stimato", val:fmt(costoFissoMese), c:C.amber },
-              { lbl:"Dipendenti", val:dipendenti.length, c:C.text },
-            ].map(({lbl,val,c})=>(
-              <div key={lbl} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "16px 20px", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+              { lbl:"Costo effettivo", val:fmt(totCosto), c:C.red, sub:`${fmtH(totOre)} lavorate` },
+              { lbl:"Costo medio orario", val:fmt(costoMedioOra), c:C.text, sub:"per ora lavorata" },
+              { lbl:"Costo medio / giorno", val:fmt(costoGiorno), c:C.text, sub:`${giorniLavorati} gg con turni` },
+              { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${scostPct.toFixed(0)}% (straordinari?)`:`${scostPct.toFixed(0)}% sotto teorico` },
+              { lbl:"Proiezione annua", val:fmt0(costoFissoMese*12), c:C.amber, sub:"costo fisso × 12" },
+            ].map(({lbl,val,c,sub})=>(
+              <div key={lbl} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "14px 18px", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
                 <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>{lbl}</div>
-                <div style={{ fontSize: isMobile ? 17 : 22, fontWeight:900, color:c, ...tnum }}>{val}</div>
+                <div style={{ fontSize: isMobile ? 16 : 20, fontWeight:900, color:c, ...tnum }}>{val}</div>
+                {sub && <div style={{ fontSize:9, color:C.textSoft, marginTop:3 }}>{sub}</div>}
               </div>
             ))}
           </div>
 
-          {Object.keys(byDip).length > 0 && (
+          {/* Per dipendente: barra costo + €/h effettivo + % sul totale */}
+          {dipRows.length > 0 && (
             <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, padding:"16px 20px", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-              <div style={{ fontSize:12, fontWeight:800, color:C.text, marginBottom:12 }}>Per dipendente</div>
-              {Object.entries(byDip).sort(([,a],[,b])=>b.costo-a.costo).map(([nome,d])=>(
-                <div key={nome} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 0", borderBottom:`1px solid ${C.border}` }}>
-                  <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{nome}</span>
-                  <div style={{ display:"flex", gap:20 }}>
-                    <span style={{ fontSize:11, color:C.textSoft }}>{fmtH(d.ore)}</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:C.red, ...tnum }}>{fmt(d.costo)}</span>
+              <div style={{ fontSize:12, fontWeight:800, color:C.text, marginBottom:14 }}>Ripartizione per dipendente</div>
+              {dipRows.map(([nome,d])=>{
+                const oraEff = d.ore>0 ? d.costo/d.ore : 0
+                const quota = totCosto>0 ? d.costo/totCosto*100 : 0
+                return (
+                  <div key={nome} style={{ marginBottom:12 }}>
+                    <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:10, marginBottom:4 }}>
+                      <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{nome}</span>
+                      <span style={{ display:"flex", gap:14, alignItems:"baseline" }}>
+                        <span style={{ fontSize:10, color:C.textSoft }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
+                        <span style={{ fontSize:12, fontWeight:800, color:C.red, ...tnum, minWidth:64, textAlign:"right" }}>{fmt(d.costo)}</span>
+                        <span style={{ fontSize:10, color:C.textSoft, minWidth:34, textAlign:"right" }}>{quota.toFixed(0)}%</span>
+                      </span>
+                    </div>
+                    <div style={{ height:7, background:"#F0EAE6", borderRadius:5, overflow:"hidden" }}>
+                      <div style={{ width:`${d.costo/maxCostoDip*100}%`, height:"100%", background:C.red, borderRadius:5 }}/>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
-          {Object.keys(byDip).length===0 && <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun turno registrato per questo mese.</div>}
         </>
       )}
     </div>
