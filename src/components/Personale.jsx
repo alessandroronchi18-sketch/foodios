@@ -62,8 +62,8 @@ function CoperturaBar({ cov, compact }) {
     <div style={{ marginTop: compact?6:8 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:9, color:'#8B95A7', marginBottom:3, gap:6 }}>
         <span>{_hm(cov.open)}</span>
-        <span style={{ fontWeight:700, color: cov.overlaps.size ? '#D97706' : '#8B95A7', whiteSpace:'nowrap' }}>
-          {cov.overlaps.size ? '⚠ sovrapposti' : `${cov.min===cov.max?cov.min:`${cov.min}–${cov.max}`} in turno`}
+        <span style={{ fontWeight:700, color: '#8B95A7', whiteSpace:'nowrap' }}>
+          {`${cov.min===cov.max?cov.min:`${cov.min}–${cov.max}`} in turno`}
         </span>
         <span>{_hm(cov.close)}</span>
       </div>
@@ -647,7 +647,6 @@ function TurniTab({ orgId, notify, isMobile }) {
                       <span style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{dd.getDate()}</span>
                       {ds.length > 0 && <span style={{ fontSize:9, fontWeight:700, color:C.textSoft }}>{fmtH(ore)}</span>}
                     </div>
-                    {cov?.overlaps?.size > 0 && <div style={{ fontSize:8, fontWeight:700, color:C.amber, marginTop:2 }}>⚠ sovrap.</div>}
                     <div style={{ display:"flex", flexDirection:"column", gap:2, marginTop:3 }}>
                       {ds.slice(0, isMobile ? 2 : 3).map(t => (
                         <span key={t.id} style={{ fontSize:9, fontWeight:600, color:"#fff", background:colorById[t.dipendente_id] || C.red, border:"1px solid #000", borderRadius:4, padding:"1px 4px", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{etichettaNome(t.dipendenti?.nome)} {_hm(_toMin(t.ora_inizio))}</span>
@@ -705,8 +704,8 @@ function TurniTab({ orgId, notify, isMobile }) {
                 <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`2px solid ${C.borderStr}`, background: oggi ? "#FFFCF7" : "transparent" }}>
                   <div style={{ padding:"8px 10px", borderRight:`1px solid ${C.border}` }}>
                     <div style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{GIORNI[(dd.getDay()+6)%7]} {dd.getDate()}</div>
-                    <div style={{ fontSize:9, color: cov.overlaps.size ? C.amber : C.textSoft, marginTop:1, fontWeight: cov.overlaps.size ? 700 : 400 }}>
-                      {dayShifts.length ? `${cov.min === cov.max ? cov.max : `${cov.min}–${cov.max}`} in turno${cov.overlaps.size ? " · ⚠ sovrap." : ""}` : "riposo"}
+                    <div style={{ fontSize:9, color: C.textSoft, marginTop:1 }}>
+                      {dayShifts.length ? `${cov.min === cov.max ? cov.max : `${cov.min}–${cov.max}`} in turno` : "riposo"}
                     </div>
                     {/* Copertura per reparto: evidenzia i buchi (es. 0 in produzione) */}
                     {!isMobile && repartiAttivi.length > 0 && dayShifts.length > 0 && (() => {
@@ -732,14 +731,14 @@ function TurniTab({ orgId, notify, isMobile }) {
                     {ticks.map(m => <div key={m} style={{ position:"absolute", left:pos(m), top:0, bottom:0, width:1, background:"#F2ECE8" }}/>)}
                     {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:10, color:"#CBD5E1" }}>—</div>}
                     {placed.map(s => {
-                      const over = cov.overlaps.has(s.id); const col = colorById[s.dipId] || C.red
+                      const col = colorById[s.dipId] || C.red
                       const selez = editId === s.id
                       return (
                         <div key={s.id} onClick={() => apriModificaTurno(s)} role="button" tabIndex={0}
                           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); apriModificaTurno(s) } }}
-                          title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (${fmtH(s.ore || 0)})${over ? " · sovrapposto" : ""} — clicca per modificare`}
-                          style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height:26, background:col, border: selez ? "2px solid #6E0E1A" : "1.5px solid #000", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding:"0 6px", overflow:"hidden", cursor:"pointer", boxShadow: over ? `0 0 0 2px ${C.amber}` : "none" }}>
-                          <span style={{ fontSize:10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>{over ? "⚠ " : ""}{etichettaNome(s.nome)} · {_hm(s.ini)}–{_hm(s.fin)}</span>
+                          title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (${fmtH(s.ore || 0)}) — clicca per modificare`}
+                          style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height:26, background:col, border:"none", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding:"0 6px", overflow:"hidden", cursor:"pointer", boxShadow: selez ? "inset 0 0 0 2px rgba(255,255,255,0.95)" : "none" }}>
+                          <span style={{ fontSize:10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>{etichettaNome(s.nome)} · {_hm(s.ini)}–{_hm(s.fin)}</span>
                         </div>
                       )
                     })}
