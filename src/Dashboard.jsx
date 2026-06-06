@@ -1836,8 +1836,12 @@ export default function Dashboard({
         };
         const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
         return (
-        <div style={{position:"fixed",top:0,left:0,right:0,height:52,zIndex:45,background:T.bgSide,
-          borderBottom:`1px solid ${T.borderOnDark}`,display:"flex",alignItems:"center",gap:14,padding:"0 16px"}}>
+        <div style={{position:"fixed",top:0,left:0,right:0,height:52,zIndex:45,
+          background:"linear-gradient(100deg, #16121C 0%, #1E0B11 55%, #2C0E14 100%)",
+          borderBottom:"1px solid rgba(0,0,0,0.4)",boxShadow:"0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 18px rgba(0,0,0,0.18)",
+          display:"flex",alignItems:"center",gap:14,padding:"0 16px"}}>
+          {/* Linea accento brand in cima (firma premium) */}
+          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)"}}/>
           {/* Logo + nome (sx) */}
           <button onClick={()=>go(isDip?"giornaliero":"home")} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
             {customLogo ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/> : <Logo size={26} style={{borderRadius:6}}/>}
@@ -1937,8 +1941,10 @@ export default function Dashboard({
       })()}
       {/* Fascia inferiore globale (desktop): link legali. */}
       {!isMobile && (
-        <div style={{position:"fixed",bottom:0,left:0,right:0,height:28,zIndex:40,background:T.bgSide,
-          borderTop:`1px solid ${T.borderOnDark}`,display:"flex",alignItems:"center",justifyContent:"center",gap:9,
+        <div style={{position:"fixed",bottom:0,left:0,right:0,height:28,zIndex:40,
+          background:"linear-gradient(100deg, #16121C 0%, #1E0B11 55%, #2C0E14 100%)",
+          borderTop:"1px solid rgba(255,255,255,0.06)",boxShadow:"0 -4px 18px rgba(0,0,0,0.14)",
+          display:"flex",alignItems:"center",justifyContent:"center",gap:9,
           fontFamily:"'Inter',system-ui,sans-serif"}}>
           {[["Privacy","/privacy"],["Termini","/termini"],["Cookie","/cookie"],["Contatti","/contatti"]].map(([l,h],i)=>(
             <React.Fragment key={l}>
@@ -2423,18 +2429,18 @@ export default function Dashboard({
           const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
           return (
             <div style={{position:"sticky",top:52,zIndex:Z.topbar,
-              background:"rgba(247,248,250,0.88)",
+              background:"linear-gradient(180deg, rgba(255,251,250,0.92) 0%, rgba(250,244,242,0.9) 100%)",
               backdropFilter:"saturate(180%) blur(18px)",WebkitBackdropFilter:"saturate(180%) blur(18px)",
               borderBottom:`1px solid ${C.borderSoft}`,
-              padding:"6px 32px",display:"flex",alignItems:"center",gap:16}}>
+              padding:"8px 32px",display:"flex",alignItems:"center",gap:16}}>
               {/* Sezione attiva: indicatore visivo brand a sinistra */}
-              <div style={{width:4,height:30,borderRadius:3,
+              <div style={{width:4,height:32,borderRadius:4,
                 background:"linear-gradient(180deg, #6E0E1A 0%, #E84B3A 100%)",
-                boxShadow:"0 2px 8px rgba(110,14,26,0.28)",flexShrink:0}}/>
+                boxShadow:"0 2px 10px rgba(110,14,26,0.32)",flexShrink:0}}/>
               {/* Titolo + breadcrumb */}
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:10.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                  <span style={{maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.textMid}}>{nomeAttivita||"FoodOS"}</span>
+                  <span style={{maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.brand,fontWeight:700,letterSpacing:"0.07em"}}>{nomeAttivita||"FoodOS"}</span>
                   {group&&<>
                     <span style={{color:T.borderStr,fontSize:11}}>›</span>
                     <span style={{color:T.textSoft,letterSpacing:"0.05em"}}>{group}</span>
