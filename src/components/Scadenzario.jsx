@@ -7,6 +7,7 @@ import { getExportCtx, gateExport } from '../lib/exportGuard'
 import useIsMobile from '../lib/useIsMobile'
 import { sload, ssave } from '../lib/storage'
 import { generateSepaXml, ibanIsValid, normalizeIban, causaleFattura, bonificoText } from '../lib/sepa'
+import Icon from './Icon'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 // Chiave storage per i dati di pagamento dell'azienda (intestatario + IBAN da
@@ -994,7 +995,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <div key={g.nome_norm} style={{ borderBottom: `1px solid ${T.border}`, padding: isMobile ? '11px 14px' : '12px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <input type="checkbox" checked={sel} disabled={!selectable} onChange={() => toggleSelez(g.nome_norm)}
-                  title={selectable ? 'Includi nel bonifico SEPA' : 'IBAN mancante: impostalo (⚙) per poter pagare'}
+                  title={selectable ? 'Includi nel bonifico SEPA' : 'IBAN mancante: impostalo col tasto impostazioni per poter pagare'}
                   style={{ width: 17, height: 17, cursor: selectable ? 'pointer' : 'not-allowed', accentColor: T.brand, flexShrink: 0 }} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 13.5, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.nome}</div>
@@ -1006,7 +1007,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 {g.scaduto > 0 && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '3px 8px', borderRadius: 8, whiteSpace: 'nowrap' }}>scaduto {fmtEuro0(g.scaduto)}</span>}
                 <div style={{ fontSize: 15, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 92, textAlign: 'right' }}>{fmtEuro(g.totale)}</div>
                 <button onClick={() => { if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, categoria: g.categoria || '' }) } }}
-                  title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: '5px 9px' }}>⚙</button>
+                  title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: '5px 9px' }}><Icon name="gear" size={14} /></button>
               </div>
               {isEdit && (
                 <div style={{ marginTop: 10, padding: 12, background: T.bgSubtle, borderRadius: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1117,7 +1118,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 if (!(await gateExport('scadenzario', { n_items: list.length }, window.__foodos_notify))) return;
                 const c = getExportCtx();
                 exportScadenzario(list, c.nomeAttivita, c.email);
-              }} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>📄 Esporta PDF</button>
+              }} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}><Icon name="fileText" size={13} /> Esporta PDF</button>
               <button onClick={() => { setBulkConfirm(''); setBulkOpen(true) }}
                 title="Elimina tutte le fatture caricate"
                 style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto', color: T.brand, borderColor: '#F3C7C2' }}
@@ -1131,17 +1132,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             </>
           )}
           <label style={{ ...ghostBtn, cursor: 'pointer' }}>
-            📄 XML SDI
+            <Icon name="fileText" size={14} /> XML SDI
             <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
               onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportXML(files) }} />
           </label>
           <label style={{ ...ghostBtn, cursor: 'pointer' }}>
-            📊 FatturaSMART
+            <Icon name="barChart" size={14} /> FatturaSMART
             <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
               onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportSMART(files) }} />
           </label>
           <label style={primaryBtn}>
-            {importLoading ? '⏳ Importazione…' : '📂 Importa .xlsx'}
+            {importLoading ? <><Icon name="hourglass" size={14} /> Importazione…</> : <><Icon name="folder" size={14} /> Importa .xlsx</>}
             <input type="file" accept=".xlsx,.xls" multiple style={{ display: 'none' }}
               onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
           </label>
@@ -1251,18 +1252,19 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ display: 'inline-flex', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10, padding: 3, gap: 2 }}>
           {[
-            { id: 'scadenza', label: '📅 Per scadenza' },
-            { id: 'fornitore', label: '🏭 Per fornitore' },
-            { id: 'cassa', label: '💸 Cassa in uscita' },
+            { id: 'scadenza', label: 'Per scadenza', icon: 'calendar' },
+            { id: 'fornitore', label: 'Per fornitore', icon: 'factory' },
+            { id: 'cassa', label: 'Cassa in uscita', icon: 'money' },
           ].map(v => {
             const active = vista === v.id
             return (
               <button key={v.id} onClick={() => setVista(v.id)}
                 style={{ padding: isMobile ? '7px 10px' : '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
                   fontSize: 12, fontWeight: active ? 700 : 500, letterSpacing: '-0.005em',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: active ? T.bgCard : 'transparent', color: active ? T.text : T.textMid,
                   boxShadow: active ? '0 1px 3px rgba(15,23,42,0.10)' : 'none', transition: 'all 0.14s' }}>
-                {v.label}
+                <Icon name={v.icon} size={14} /> {v.label}
               </button>
             )
           })}
@@ -1308,8 +1310,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${T.border}`,
               fontSize: 12, color: T.textMid, background: T.bgCard, cursor: 'pointer' }}
             title="Quali fatture mostrare">
-            <option value="attiva">📍 Solo sede attiva</option>
-            <option value="tutte">🏢 Tutte le sedi</option>
+            <option value="attiva">Solo sede attiva</option>
+            <option value="tutte">Tutte le sedi</option>
           </select>
         )}
         <div style={{ flex: 1 }} />
@@ -1336,14 +1338,14 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <label style={primaryBtn}>
-              📂 Importa .xlsx
+              <Icon name="folder" size={14} /> Importa .xlsx
               <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
             </label>
           </div>
         </div>
       ) : totaliFiltrati.n === 0 ? (
         <div style={{ ...card, padding: 40, textAlign: 'center', color: T.textSoft, fontSize: 13 }}>
-          {filtro === 'scadute'     ? '🎉 Nessuna fattura scaduta. Tutto in regola.' :
+          {filtro === 'scadute'     ? 'Nessuna fattura scaduta. Tutto in regola.' :
            filtro === 'in_scadenza' ? 'Nessuna fattura in scadenza nei prossimi 30 giorni.' :
            filtro === 'pagate'      ? 'Nessuna fattura ancora segnata come pagata.' :
                                        'Nessuna fattura per questo filtro.'}
@@ -1371,7 +1373,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <button onClick={() => setSelez(new Set())} style={ghostBtn}>Deseleziona</button>
             <button onClick={() => generaBonificoSEPA(selItems)} disabled={!selItems.length}
               style={{ ...primaryBtn, opacity: selItems.length ? 1 : 0.5 }}>
-              ⬇ Genera bonifico SEPA
+              <Icon name="download" size={14} /> Genera bonifico SEPA
             </button>
           </div>
         )

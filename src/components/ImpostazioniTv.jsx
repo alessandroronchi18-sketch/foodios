@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import Icon from './Icon'
 import { sload, ssave } from '../lib/storage'
 
 const TV_KEY = 'pasticceria-tv-token-v1'
@@ -45,7 +46,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
       setToken(nuovo)
       notify?.('✓ Nuovo link TV generato')
     } catch (e) {
-      notify?.('⚠ Errore generazione link', false)
+      notify?.('Errore generazione link', false)
     }
   }
 
@@ -56,7 +57,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
       setToken(null)
       notify?.('✓ Link TV revocato')
     } catch (e) {
-      notify?.('⚠ Errore revoca link', false)
+      notify?.('Errore revoca link', false)
     }
   }
 
@@ -69,7 +70,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
     if (!fullUrl) return
     navigator.clipboard?.writeText(fullUrl).then(
       () => notify?.('✓ Link copiato'),
-      () => notify?.('⚠ Impossibile copiare', false),
+      () => notify?.('Impossibile copiare', false),
     )
   }
 
@@ -78,7 +79,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
   return (
     <div>
       <div style={card}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6 }}>📺 Dashboard TV</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="tv" size={16} />Dashboard TV</div>
         <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, lineHeight: 1.6 }}>
           Visualizzazione full-screen pensata per uno schermo TV in laboratorio o sala.
           Mostra produzione del giorno e stock vetrina, si aggiorna automaticamente ogni 5 minuti.

@@ -6,6 +6,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { color as T } from '../lib/theme'
+import Icon from './Icon'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { todayLocal } from '../lib/dateLocal'
 import {
@@ -93,10 +94,10 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
   const salva = async () => {
     if (!form) return
     if (!form.prodotto.trim() && !form.categoria.trim()) {
-      notify?.('⚠ Specifica almeno il prodotto o la categoria', false); return
+      notify?.('Specifica almeno il prodotto o la categoria', false); return
     }
-    if (!(Number(form.qta) > 0)) { notify?.('⚠ Quantita non valida', false); return }
-    if (!sedeId) { notify?.('⚠ Seleziona una sede prima', false); return }
+    if (!(Number(form.qta) > 0)) { notify?.('Quantita non valida', false); return }
+    if (!sedeId) { notify?.('Seleziona una sede prima', false); return }
     const fcUnit = Number(form.fcUnit) || 0
     const qta = Number(form.qta) || 0
     const fcTot = fcUnit * qta
@@ -112,7 +113,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       setForm(null)
       notify?.(`✓ ${form.tipo === 'spreco' ? 'Spreco' : 'Omaggio'} registrato`)
     } catch (e) {
-      notify?.('⚠ Errore: ' + e.message, false)
+      notify?.('Errore: ' + e.message, false)
     }
   }
 
@@ -122,7 +123,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       const arr = await eliminaMovimento(orgId, sedeId, mov.id)
       setMovs(arr)
       notify?.('✓ Eliminato')
-    } catch (e) { notify?.('⚠ ' + e.message, false) }
+    } catch (e) { notify?.(e.message, false) }
   }
 
   const tipoBadge = (t) => (
@@ -146,12 +147,12 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       {!form && (
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <button onClick={() => apri('spreco')}
-            style={{ flex: 1, padding: '14px', background: C.amberLight, color: C.amber, border: `1px solid ${C.amber}40`, borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
-            🗑 Registra spreco
+            style={{ flex: 1, padding: '14px', background: C.amberLight, color: C.amber, border: `1px solid ${C.amber}40`, borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Icon name="trash" size={16}/> Registra spreco
           </button>
           <button onClick={() => apri('omaggio')}
-            style={{ flex: 1, padding: '14px', background: '#E0F2FE', color: '#0369A1', border: `1px solid #38BDF840`, borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
-            🎁 Registra omaggio
+            style={{ flex: 1, padding: '14px', background: '#E0F2FE', color: '#0369A1', border: `1px solid #38BDF840`, borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Icon name="gift" size={16}/> Registra omaggio
           </button>
         </div>
       )}
@@ -159,12 +160,12 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       {form && (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: 18, marginBottom: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-            {[['spreco', '🗑 Spreco'], ['omaggio', '🎁 Omaggio']].map(([k, lbl]) => (
+            {[['spreco', 'trash', 'Spreco'], ['omaggio', 'gift', 'Omaggio']].map(([k, ico, lbl]) => (
               <button key={k} onClick={() => setForm(f => ({ ...f, tipo: k, causale: k === 'spreco' ? CAUSALI_SPRECO[0] : CAUSALI_OMAGGIO[0] }))}
                 style={{ flex: 1, padding: '10px', borderRadius: 8, border: 'none',
                   background: form.tipo === k ? (k === 'spreco' ? C.amber : '#0369A1') : '#F4F4F5',
                   color: form.tipo === k ? '#fff' : C.textMid,
-                  fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{lbl}</button>
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name={ico} size={15}/> {lbl}</button>
             ))}
           </div>
 

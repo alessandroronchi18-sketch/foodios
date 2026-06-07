@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
+import Icon from './Icon'
 
 // ─── Definizione dei tipi di import ───────────────────────────────────────────
 // Ogni voce ha: descrizione, colonne (con nota), righe di esempio per il template,
@@ -9,7 +10,7 @@ import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
 const TIPI_IMPORT = [
   {
     id: 'ricettario',
-    icona: '📖',
+    icona: 'book',
     titolo: 'Ricettario',
     descrizione: 'Carica un file Excel con tutte le tue ricette, gli ingredienti, le quantità e i prezzi di vendita. Foodios calcola automaticamente il food cost di ciascuna ricetta.',
     foglio: 'Ricette',
@@ -27,7 +28,7 @@ const TIPI_IMPORT = [
   },
   {
     id: 'prezzi',
-    icona: '🏷️',
+    icona: 'ticket',
     titolo: 'Prezzi ingredienti',
     descrizione: 'Aggiorna in blocco i prezzi degli ingredienti che usi nelle ricette. Il food cost verrà ricalcolato automaticamente.',
     foglio: 'Prezzi ingredienti',
@@ -41,7 +42,7 @@ const TIPI_IMPORT = [
   },
   {
     id: 'fatture',
-    icona: '🧾',
+    icona: 'receipt',
     titolo: 'Fatture fornitori',
     descrizione: 'Importa fatture XML (formato fattura elettronica italiano) o file Excel con voci di spesa. Aggiorna automaticamente il magazzino e la spesa per fornitore.',
     foglio: 'Fatture',
@@ -59,7 +60,7 @@ const TIPI_IMPORT = [
   },
   {
     id: 'delivery',
-    icona: '🛵',
+    icona: 'scooter',
     titolo: 'Vendite Delivery',
     descrizione: 'Carica i report di vendita da Glovo, Deliveroo, Just Eat, Uber Eats e altre piattaforme di delivery / ecommerce.',
     foglio: 'Delivery',
@@ -77,7 +78,7 @@ const TIPI_IMPORT = [
   },
   {
     id: 'casse',
-    icona: '💰',
+    icona: 'money',
     titolo: 'Casse / Scontrini',
     descrizione: 'Carica esportazioni dalla cassa elettronica (Zucchetti, Streamcassa, Toast) o un Excel con i totali venduti per prodotto e data.',
     foglio: 'Casse',
@@ -179,10 +180,9 @@ export default function ImportaDatiView({
               <div style={{ padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                 <div style={{
                   width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                  background: T.bgSubtle, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22,
+                  background: T.bgSubtle, color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  {tipo.icona}
+                  <Icon name={tipo.icona} size={22} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em', marginBottom: 4 }}>
@@ -237,16 +237,16 @@ export default function ImportaDatiView({
                   <input type="file" accept={tipo.accept} multiple style={{ display: 'none' }}
                     disabled={disabled}
                     onChange={async e => {
-                      if (!handler) return notify?.('⚠ Importazione non ancora disponibile per questo tipo', false)
+                      if (!handler) return notify?.('Importazione non ancora disponibile per questo tipo', false)
                       const files = e.target.files
                       if (files && files.length > 0) {
                         setImportingId(tipo.id)
-                        notify?.(`📂 ${files.length} file in importazione…`)
+                        notify?.(`${files.length} file in importazione…`)
                         try {
                           await handler(files)
                           notify?.(`✓ Import "${tipo.titolo}" completato`)
                         } catch (err) {
-                          notify?.(`⚠ Errore import: ${err?.message || 'riprova'}`, false)
+                          notify?.(`Errore import: ${err?.message || 'riprova'}`, false)
                         } finally {
                           setImportingId(null)
                         }
@@ -295,8 +295,8 @@ export default function ImportaDatiView({
                     </table>
                   </div>
                   {tipo.note && (
-                    <div style={{ marginTop: 12, fontSize: 11.5, color: T.textMid, lineHeight: 1.55 }}>
-                      💡 {tipo.note}
+                    <div style={{ marginTop: 12, fontSize: 11.5, color: T.textMid, lineHeight: 1.55, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <Icon name="bulb" size={13} color={T.brand} style={{ marginTop: 1, flexShrink: 0 }}/><span>{tipo.note}</span>
                     </div>
                   )}
                 </div>

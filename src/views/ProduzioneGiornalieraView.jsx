@@ -15,6 +15,7 @@ import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
+import Icon from '../components/Icon'
 import { C, TNUM, margColor, fmt, fmt0, PageHeader } from './_shared'
 
 // Ombra premium coerente con la Dashboard home.
@@ -127,7 +128,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       await ssave(SK_MAG, nm)
     } catch (e) {
       setSavingEdit(false)
-      notify(`⚠ Impossibile salvare le modifiche: ${e.message || 'errore di rete'}. Riprova.`, false)
+      notify(`Impossibile salvare le modifiche: ${e.message || 'errore di rete'}. Riprova.`, false)
       return
     }
 
@@ -155,9 +156,9 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
     setGiornaliero(ng); setMagazzino(nm)
     annullaModifica(); setSavingEdit(false)
-    if (destDiversa) notify('✓ Sessione modificata. Stock prodotti finiti NON ritoccato (destinazione altra sede).', false)
-    else if (stockErrors.length > 0) notify(`⚠ Sessione modificata ma alcuni stock non aggiornati: ${stockErrors.slice(0,3).map(s=>s.split(':')[0]).join(', ')}. Controlla Magazzino → Prodotti finiti.`, false)
-    else notify('✓ Sessione modificata — magazzino e vetrina aggiornati')
+    if (destDiversa) notify('Sessione modificata. Stock prodotti finiti NON ritoccato (destinazione altra sede).', false)
+    else if (stockErrors.length > 0) notify(`Sessione modificata ma alcuni stock non aggiornati: ${stockErrors.slice(0,3).map(s=>s.split(':')[0]).join(', ')}. Controlla Magazzino → Prodotti finiti.`, false)
+    else notify('Sessione modificata — magazzino e vetrina aggiornati')
   }
 
   // Elimina sessione produzione:
@@ -187,7 +188,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       if (nm) await ssave(SK_MAG, nm)
     } catch (e) {
       setDeletingSess(false)
-      notify(`⚠ Impossibile eliminare la sessione: ${e.message || 'errore di rete'}. Riprova.`, false)
+      notify(`Impossibile eliminare la sessione: ${e.message || 'errore di rete'}. Riprova.`, false)
       return
     }
 
@@ -216,7 +217,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     if (nm) setMagazzino(nm)
     setDeleteSessConf(null); setDeleteSessPin(''); setDeletingSess(false)
 
-    const baseMsg = '✓ Sessione eliminata — ingredienti restituiti al magazzino'
+    const baseMsg = 'Sessione eliminata — ingredienti restituiti al magazzino'
     if (destDiversa) {
       notify(`${baseMsg}. Stock prodotti finiti NON ritoccato: la sessione aveva destinazione altra sede — gestisci il trasferimento dalla view Trasferimenti.`, false)
     } else if (scartoErrors.length > 0) {
@@ -225,7 +226,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       // manualmente dal pannello Magazzino → tab Prodotti finiti, altrimenti
       // le vendite future scaricheranno da uno stock fantasma.
       notify(
-        `⚠ Sessione eliminata e magazzino aggiornato MA alcuni prodotti finiti non sono stati scaricati dalla vetrina: ${scartoErrors.slice(0, 3).map(s => s.split(':')[0]).join(', ')}. Vai in Magazzino → Prodotti finiti per correggere a mano.`,
+        `Sessione eliminata e magazzino aggiornato MA alcuni prodotti finiti non sono stati scaricati dalla vetrina: ${scartoErrors.slice(0, 3).map(s => s.split(':')[0]).join(', ')}. Vai in Magazzino → Prodotti finiti per correggere a mano.`,
         false,
       )
     } else {
@@ -336,7 +337,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       await ssave(SK_GIOR, ng)
     } catch (e) {
       setSalvando(false)
-      notify(`⚠ Salvataggio fallito: ${e.message || 'errore di rete'}. I dati non sono stati persi, riprova.`, false)
+      notify(`Salvataggio fallito: ${e.message || 'errore di rete'}. I dati non sono stati persi, riprova.`, false)
       return
     }
 
@@ -373,13 +374,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         }
       }
       if (stockErrors.length || transferErrors.length) {
-        notify('⚠ Alcuni movimenti stock falliti: ' + [...stockErrors, ...transferErrors].slice(0, 2).join('; '), false)
+        notify('Alcuni movimenti stock falliti: ' + [...stockErrors, ...transferErrors].slice(0, 2).join('; '), false)
       }
     }
 
     setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false); setSalvando(false)
     const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id ? ` — trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}` : ''
-    notify(`✓ Produzione registrata${msgDest} — magazzino e stock vetrina aggiornati`)
+    notify(`Produzione registrata${msgDest} — magazzino e stock vetrina aggiornati`)
     setTab('storico')
   }
 
@@ -441,13 +442,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             }
             setQtaMap(nuovaMap)
             setProdottiNonRicettario(ignorati)
-            if (ignorati.length > 0) notify(`📷 ${importati} prodotti importati · ${ignorati.length} non riconosciuti (ignorati nei calcoli)`)
-            else notify(`📷 Importati ${importati} prodotti — controlla i valori`)
+            if (ignorati.length > 0) notify(`${importati} prodotti importati · ${ignorati.length} non riconosciuti (ignorati nei calcoli)`)
+            else notify(`Importati ${importati} prodotti — controlla i valori`)
           }}/>
 
           {prodottiNonRicettario && prodottiNonRicettario.length > 0 && (
             <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '12px 14px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <div style={{ flexShrink: 0, marginTop: 1, fontSize: 18 }}>⚠️</div>
+              <div style={{ flexShrink: 0, marginTop: 1, color: '#92400E' }}><Icon name="warning" size={18} /></div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, color: '#92400E', fontSize: 12, marginBottom: 4 }}>
                   {prodottiNonRicettario.length} prodotto/i non riconosciuti dal ricettario — ignorati nei calcoli
@@ -511,7 +512,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                                     {q} × {reg.unita} = {q * reg.unita} pezzi al banco
                                   </span>
                                 )}
-                                {cong && <span style={{ fontSize: 8, fontWeight: 700, background: '#E8F4FF', color: '#2980B9', padding: '1px 6px', borderRadius: 3 }}>❄ congelabile</span>}
+                                {cong && <span style={{ fontSize: 8, fontWeight: 700, background: '#E8F4FF', color: '#2980B9', padding: '1px 6px', borderRadius: 3, display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="snow" size={9} /> congelabile</span>}
                               </div>
                             </td>
                             <td style={{ padding: '10px 14px', color: C.red }}>{fmt(fc)}</td>
@@ -552,9 +553,9 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Destinazione</div>
                       <select value={destinazioneSedeId || ''} onChange={e => setDestinazioneSedeId(e.target.value || null)}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, background: C.bgCard, boxSizing: 'border-box' }}>
-                        <option value="">📍 Questa sede ({sedeAttiva?.nome || '—'})</option>
+                        <option value="">Questa sede ({sedeAttiva?.nome || '—'})</option>
                         {sediAttive.filter(s => s.id !== sedeAttiva?.id).map(s => (
-                          <option key={s.id} value={s.id}>🚚 Per: {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
+                          <option key={s.id} value={s.id}>Per: {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
                         ))}
                       </select>
                     </div>
@@ -565,7 +566,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
-                <PanelHead icon="📊" title="Riepilogo sessione" color={C.text} />
+                <PanelHead icon={<Icon name="barChart" size={16} />} title="Riepilogo sessione" color={C.text} />
                 {!hasQta ? (
                   <div style={{ color: C.textSoft, fontSize: 11, textAlign: 'center', padding: '20px 0' }}>Inserisci gli stampi prodotti</div>
                 ) : (
@@ -617,7 +618,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
               {hasQta && (
                 <div style={{ background: '#FEF7F5', border: `1px solid ${C.red}30`, borderRadius: 16, padding: '16px', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 8px 22px rgba(110,14,26,0.06)' }}>
-                  <PanelHead icon="🍰" title="Stock vetrina dopo la sessione" color={C.red} />
+                  <PanelHead icon={<Icon name="gift" size={16} />} title="Stock vetrina dopo la sessione" color={C.red} />
                   <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.55, marginBottom: 8 }}>
                     Una volta confermata, questi pezzi finiscono nello stock vetrina disponibile per la vendita:
                   </div>
@@ -638,7 +639,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
               {hasQta && (
                 <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
-                  <PanelHead icon="🧾" title="Ingredienti da scalare" color={C.text} />
+                  <PanelHead icon={<Icon name="receipt" size={16} />} title="Ingredienti da scalare" color={C.text} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
                     {Object.entries(riepilogo.ings).sort((a, b) => b[1] - a[1]).map(([k, qty]) => {
                       const giac = magazzino?.[k]?.giacenza_g || 0
@@ -648,7 +649,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           <span style={{ fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>{k}</span>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <span style={{ color: C.red, fontWeight: 700 }}>−{fmtG(qty)}</span>
-                            <span style={{ color: ok ? C.green : C.red, fontSize: 9 }}>{ok ? `→ ${fmtG(giac - qty)}` : '⚠ insuff.'}</span>
+                            <span style={{ color: ok ? C.green : C.red, fontSize: 9 }}>{ok ? `→ ${fmtG(giac - qty)}` : 'insuff.'}</span>
                           </div>
                         </div>
                       )
@@ -659,7 +660,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
               {problemi.length > 0 && (
                 <div style={{ background: C.redLight, border: `1px solid ${C.red}25`, borderRadius: 10, padding: '14px 16px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: C.red, marginBottom: 8 }}>⚠️ Scorte insufficienti</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />Scorte insufficienti</div>
                   {problemi.map(p => (
                     <div key={p.nome} style={{ fontSize: 10, color: C.red, marginBottom: 4 }}>
                       <b style={{ textTransform: 'capitalize' }}>{p.nome}</b>: servono {fmtG(p.richiesto)}, disponibili {fmtG(p.disponibile)}
@@ -671,7 +672,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
               {hasQta && (
                 !confermando ? (
-                  <button onClick={() => setConfermando(true)} style={{ padding: '14px', background: C.red, color: C.white, border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 8px rgba(110,14,26,0.3)' }}>✅ Conferma produzione</button>
+                  <button onClick={() => setConfermando(true)} style={{ padding: '14px', background: C.red, color: C.white, border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 8px rgba(110,14,26,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}><Icon name="checkCircle" size={16} />Conferma produzione</button>
                 ) : (
                   <div style={{ background: C.redLight, border: `1px solid ${C.red}30`, borderRadius: 10, padding: '16px' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 10 }}>Confermi? Il magazzino verrà scalato.</div>
@@ -697,9 +698,9 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         <div>
           {(!giornaliero || giornaliero.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: C.textSoft }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+              <div style={{ marginBottom: 12, color: C.textSoft }}><Icon name="clipboard" size={36} /></div>
               <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 8 }}>Nessuna sessione registrata</div>
-              <button onClick={() => setTab('nuova')} style={{ padding: '9px 22px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>➕ Prima sessione</button>
+              <button onClick={() => setTab('nuova')} style={{ padding: '9px 22px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 11, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={13} />Prima sessione</button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -713,7 +714,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           <span style={{ fontSize: 12, fontWeight: 600, color: C.textSoft, textTransform: 'capitalize' }}>{new Date(sess.data).toLocaleDateString('it-IT', { weekday: 'long' })}</span>
                         </div>
                         {sess.destinazioneSedeNome && (
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FEF3C7', color: '#92400E' }}>🚚 Per: {sess.destinazioneSedeNome}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FEF3C7', color: '#92400E', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="truck" size={11} />Per: {sess.destinazioneSedeNome}</span>
                         )}
                       </div>
                       {sess.note && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{sess.note}</div>}
@@ -726,9 +727,9 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         </div>
                       )}
                       <button onClick={() => editSessId === sess.id ? annullaModifica() : apriModificaSessione(sess)}
-                        style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>{editSessId === sess.id ? '✕ Chiudi' : '✏️ Modifica'}</button>
+                        style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}>{editSessId === sess.id ? <>✕ Chiudi</> : <><Icon name="edit" size={11} />Modifica</>}</button>
                       <button onClick={() => { setDeleteSessConf(sess); setDeleteSessPin(''); annullaModifica() }}
-                        style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>🗑 Elimina</button>
+                        style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="trash" size={11} />Elimina</button>
                     </div>
                   </div>
                   {editSessId === sess.id ? (
@@ -759,7 +760,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         </div>
                       ) : (
                         <div style={{ marginTop: 12, padding: '12px 14px', background: '#FFF8EE', border: `1px solid ${C.amber}`, borderRadius: 8 }}>
-                          <div style={{ fontSize: 11, fontWeight: 800, color: C.amber, marginBottom: 4 }}>⚠️ Confermi le modifiche?</div>
+                          <div style={{ fontSize: 11, fontWeight: 800, color: C.amber, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />Confermi le modifiche?</div>
                           <div style={{ fontSize: 10, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>Questa azione riallinea il <b>magazzino</b> (ingredienti) e la <b>vetrina</b> (stock prodotti finiti) in base alle nuove quantità. Non è automaticamente reversibile.</div>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={() => salvaModificheSessione(sess)} disabled={savingEdit} style={{ flex: 1, padding: '9px', background: C.amber, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: savingEdit ? 'not-allowed' : 'pointer', opacity: savingEdit ? 0.6 : 1 }}>{savingEdit ? 'Salvataggio…' : 'Sì, conferma e aggiorna'}</button>
@@ -782,7 +783,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) { setDeleteSessConf(null); setDeleteSessPin('') } }}>
           <div style={{ background: C.white, borderRadius: 14, padding: '28px 32px', maxWidth: 460, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8 }}>🗑 Elimina sessione di produzione</div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="trash" size={16} />Elimina sessione di produzione</div>
             <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>
               <b>{new Date(deleteSessConf.data).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</b>
             </div>
@@ -793,7 +794,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             </div>
             {deleteSessConf.ingredientiUsati && Object.keys(deleteSessConf.ingredientiUsati).length > 0 ? (
               <div style={{ background: '#F0FFF4', border: '1px solid #C6EDD3', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 11, color: '#1B7A3E' }}>
-                ♻️ <b>Gli ingredienti verranno restituiti al magazzino:</b>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="refresh" size={12} /><b>Gli ingredienti verranno restituiti al magazzino:</b></span>
                 <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {Object.entries(deleteSessConf.ingredientiUsati).map(([k, qty]) => (
                     <span key={k} style={{ background: '#D4F0DC', borderRadius: 4, padding: '2px 7px', fontSize: 10, fontWeight: 600, textTransform: 'capitalize' }}>
@@ -803,8 +804,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 </div>
               </div>
             ) : (
-              <div style={{ background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 11, color: '#B45309' }}>
-                ⚠️ Questa sessione non ha dati sugli ingredienti usati — il magazzino non verrà aggiornato.
+              <div style={{ background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 11, color: '#B45309', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="warning" size={13} />Questa sessione non ha dati sugli ingredienti usati — il magazzino non verrà aggiornato.
               </div>
             )}
             <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, marginBottom: 6 }}>Scrivi <b style={{ color: C.red }}>ELIMINA</b> per confermare:</div>

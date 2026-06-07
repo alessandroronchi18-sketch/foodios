@@ -5,6 +5,7 @@ import React, { useMemo } from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti } from '../lib/allergeni'
 import { C } from './_shared'
+import Icon from '../components/Icon'
 
 export default function SchedaAllergeniView({ ricettario }) {
   const ricette = Object.values(ricettario?.ricette||{}).filter(r=>r.tipo!=="semilavorato"&&r.tipo!=="interno");
@@ -69,7 +70,7 @@ export default function SchedaAllergeniView({ ricettario }) {
 
     y += 6;
     doc.setFontSize(6); doc.setTextColor(120);
-    doc.text('⚠ Le informazioni sugli allergeni possono variare in base ai fornitori. Verificare sempre le etichette dei singoli ingredienti.', startX, y);
+    doc.text('Le informazioni sugli allergeni possono variare in base ai fornitori. Verificare sempre le etichette dei singoli ingredienti.', startX, y);
     doc.text(`Generato il ${new Date().toLocaleDateString('it-IT')}`, pw-8, y, {align:'right'});
     doc.save('scheda-allergeni.pdf');
   };
@@ -83,7 +84,7 @@ export default function SchedaAllergeniView({ ricettario }) {
         </div>
         <button onClick={esportaPDF}
           style={{padding:"10px 16px",borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,fontSize:13,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",display:"inline-flex",alignItems:"center",gap:6,boxShadow:S.sm}}>
-          📄 Esporta PDF
+          <Icon name="fileText" size={14} />Esporta PDF
         </button>
       </div>
 
@@ -135,7 +136,7 @@ export default function SchedaAllergeniView({ ricettario }) {
 
           {/* Disclaimer legale */}
           <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"14px 18px",fontSize:11,color:"#92400E",lineHeight:1.7}}>
-            <strong>⚠️ Disclaimer:</strong> Le informazioni sugli allergeni sono indicative e si basano sulle ricette inserite. Gli allergeni possono variare in base ai fornitori e alla contaminazione crociata durante la produzione. Verificare sempre le etichette dei singoli ingredienti e aggiornare la scheda ad ogni modifica di ricetta o fornitore. <em>Regolamento UE 1169/2011 — Art. 21.</em>
+            <strong style={{display:"inline-flex",alignItems:"center",gap:4,verticalAlign:"middle"}}><Icon name="warning" size={13} />Disclaimer:</strong> Le informazioni sugli allergeni sono indicative e si basano sulle ricette inserite. Gli allergeni possono variare in base ai fornitori e alla contaminazione crociata durante la produzione. Verificare sempre le etichette dei singoli ingredienti e aggiornare la scheda ad ogni modifica di ricetta o fornitore. <em>Regolamento UE 1169/2011 — Art. 21.</em>
           </div>
         </>
       )}

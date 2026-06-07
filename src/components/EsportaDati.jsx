@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { sload } from '../lib/storage'
 import { color as T } from '../lib/theme'
+import Icon from './Icon'
 
 const R = T.brand
 const TXT = T.text
@@ -291,32 +292,32 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
 
       {/* Backup JSON completo */}
       <div style={card}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 6 }}>💾 Backup completo</div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="save" size={16} color={R} /> Backup completo</div>
         <div style={{ fontSize: 12, color: SOFT, marginBottom: 14, lineHeight: 1.6 }}>
           Scarica un file JSON con tutti i dati: ricettario, produzione, magazzino, chiusure cassa, fatture e note.<br />
           Include metadata: data export, nome attività, versione FoodOS.
         </div>
         <button onClick={esportaTutto} disabled={!!loading} style={secBtn()}>
-          {loading === 'json' ? '…' : '⬇ Scarica tutti i dati (.json)'}
+          {loading === 'json' ? '…' : <><Icon name="download" size={14} /> Scarica tutti i dati (.json)</>}
         </button>
       </div>
 
       {/* Export Excel */}
       <div style={card}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 6 }}>📊 Export Excel per sezione</div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="barChart" size={16} color={R} /> Export Excel per sezione</div>
         <div style={{ fontSize: 12, color: SOFT, marginBottom: 14, lineHeight: 1.6 }}>
           Esporta ogni sezione in formato Excel per analisi o archivio.
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {[
-            ['ricettario', '📖 Ricettario'],
-            ['produzione', '🏭 Produzione 90gg'],
-            ['chiusure', '💵 Chiusure 90gg'],
-            ['fatture', '📄 Fatture'],
-          ].map(([tipo, label]) => (
+            ['ricettario', 'book', 'Ricettario'],
+            ['produzione', 'factory', 'Produzione 90gg'],
+            ['chiusure', 'money', 'Chiusure 90gg'],
+            ['fatture', 'fileText', 'Fatture'],
+          ].map(([tipo, ico, label]) => (
             <button key={tipo} onClick={() => esportaExcel(tipo)} disabled={!!loading}
               style={{ ...secBtn(R, '#FFF3F3'), border: `1px solid #FCA5A5`, color: R }}>
-              {loading === 'excel-' + tipo ? '…' : label}
+              {loading === 'excel-' + tipo ? '…' : <><Icon name={ico} size={14} /> {label}</>}
             </button>
           ))}
         </div>
@@ -324,7 +325,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
 
       {/* Import da backup */}
       <div style={card}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 6 }}>📥 Ripristina da backup</div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="download" size={16} color={R} /> Ripristina da backup</div>
         <div style={{ fontSize: 12, color: SOFT, marginBottom: 14, lineHeight: 1.6 }}>
           Carica un file JSON generato da FoodOS per ripristinare tutti i dati.
         </div>
@@ -332,7 +333,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
         {!importPreview ? (
           <>
             <button onClick={() => fileRef.current?.click()} disabled={!!loading} style={{ ...secBtn('#92400E', '#FFFBEB'), border: '1px solid #FDE68A' }}>
-              📂 Seleziona file backup (.json)
+              <Icon name="folder" size={14} /> Seleziona file backup (.json)
             </button>
             <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportFile} />
           </>
@@ -349,7 +350,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
 
             {!importConfirm ? (
               <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF0EE', borderRadius: 8, border: '1px solid #FCA5A5', fontSize: 12, color: '#7F1D1D' }}>
-                <strong>⚠️ Attenzione</strong> — Questo sovrascriverà i dati attuali. Continuare?
+                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="warning" size={14} /> Attenzione</strong> — Questo sovrascriverà i dati attuali. Continuare?
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   <button onClick={() => setImportConfirm(true)} style={{ padding: '7px 16px', background: R, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                     Sì, ripristina
@@ -371,7 +372,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
       {/* Retention policy */}
       <div style={{ ...card, background: '#F8FAFC', border: `1px solid ${BOR}` }}>
         <div style={{ fontSize: 12, color: MID, lineHeight: 1.8 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: TXT, marginBottom: 6 }}>📋 Politica di conservazione dati</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: TXT, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="clipboard" size={15} color={R} /> Politica di conservazione dati</div>
           I tuoi dati sono conservati per tutta la durata dell'abbonamento + 12 mesi dalla disdetta.<br />
           Puoi scaricare un backup completo in qualsiasi momento.
         </div>

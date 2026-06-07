@@ -690,7 +690,7 @@ export default function MagazzinoView({
         <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {critici.length > 0 && (
             <div style={{ background: T.redLight, border: '1px solid rgba(220,38,38,0.20)', borderRadius: R.xl, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: R.md, background: 'rgba(220,38,38,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.red, flexShrink: 0 }}>⚠️</div>
+              <div style={{ width: 32, height: 32, borderRadius: R.md, background: 'rgba(220,38,38,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.red, flexShrink: 0 }}><Icon name="warning" size={16} /></div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: T.red, marginBottom: 4 }}>Riordino urgente — {critici.length} ingredient{critici.length > 1 ? 'i' : 'e'}</div>
                 <div style={{ fontSize: 12, color: T.red, lineHeight: 1.6, opacity: 0.9 }}>{critici.map(r => `${r.nome} (${fmtG(r.giacenza)})`).join(' · ')}</div>
@@ -699,7 +699,7 @@ export default function MagazzinoView({
           )}
           {attenzione.length > 0 && (
             <div style={{ background: T.amberLight, border: '1px solid rgba(217,119,6,0.22)', borderRadius: R.xl, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: R.md, background: 'rgba(217,119,6,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.amber, flexShrink: 0 }}>⏰</div>
+              <div style={{ width: 32, height: 32, borderRadius: R.md, background: 'rgba(217,119,6,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.amber, flexShrink: 0 }}><Icon name="clock" size={16} /></div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: T.amber, marginBottom: 4 }}>Scorte in esaurimento — {attenzione.length}</div>
                 <div style={{ fontSize: 12, color: T.amber, lineHeight: 1.6, opacity: 0.9 }}>{attenzione.map(r => `${r.nome} (~${r.giorniScorta?.toFixed(0)} giorni)`).join(' · ')}</div>
@@ -710,10 +710,10 @@ export default function MagazzinoView({
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 28 }}>
-        <KPI icon="📦" label="Ingredienti" value={righe.length} highlight/>
-        <KPI icon="🚨" label="Critici" value={critici.length} color={critici.length > 0 ? C.red : C.green} sub={critici.length > 0 ? 'riordino urgente' : 'tutto ok'}/>
-        <KPI icon="⚠️" label="In esaurimento" value={attenzione.length} color={attenzione.length > 0 ? C.amber : C.green} sub={attenzione.length > 0 ? '< 7 giorni' : 'ok'}/>
-        <KPI icon="✅" label="Sufficienti" value={righe.filter(r => r.stato === 'ok').length} color={C.green}/>
+        <KPI icon={<Icon name="package" size={18} />} label="Ingredienti" value={righe.length} highlight/>
+        <KPI icon={<Icon name="alert" size={18} />} label="Critici" value={critici.length} color={critici.length > 0 ? C.red : C.green} sub={critici.length > 0 ? 'riordino urgente' : 'tutto ok'}/>
+        <KPI icon={<Icon name="warning" size={18} />} label="In esaurimento" value={attenzione.length} color={attenzione.length > 0 ? C.amber : C.green} sub={attenzione.length > 0 ? '< 7 giorni' : 'ok'}/>
+        <KPI icon={<Icon name="checkCircle" size={18} />} label="Sufficienti" value={righe.filter(r => r.stato === 'ok').length} color={C.green}/>
       </div>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}`, overflowX: 'auto' }}>
@@ -732,7 +732,7 @@ export default function MagazzinoView({
 
       {tab === 'giacenze' && (
         <div>
-          <SectHead icon="📦" title="Materie prime" sub="Giacenze, soglie di riordino e giorni di scorta"
+          <SectHead icon={<Icon name="package" size={17} />} title="Materie prime" sub="Giacenze, soglie di riordino e giorni di scorta"
             right={<button onClick={() => setShowAddIng(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)' }}>+ Aggiungi ingrediente</button>} />
 
           {showAddIng && (
@@ -815,8 +815,8 @@ export default function MagazzinoView({
                         {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '—'}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                        <button onClick={() => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
-                          style={{ padding: '4px 10px', borderRadius: 5, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                        <button aria-label="Elimina ingrediente" onClick={() => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
+                          style={{ padding: '4px 10px', borderRadius: 5, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="trash" size={12} /></button>
                       </td>
                     </tr>
                   ))}
@@ -829,7 +829,7 @@ export default function MagazzinoView({
 
       {tab === 'carica' && (
         <div style={{ maxWidth: 680 }}>
-          <SectHead icon="🚚" title="Carica merce" sub="Registra rifornimenti, scarichi e rettifiche di magazzino" />
+          <SectHead icon={<Icon name="truck" size={17} />} title="Carica merce" sub="Registra rifornimenti, scarichi e rettifiche di magazzino" />
           <FotoOCR mode="magazzino" notify={notify} ricettario={ricettario} onResult={async res => {
             const now = new Date().toISOString()
             const nm = { ...magazzino }
@@ -851,35 +851,35 @@ export default function MagazzinoView({
               await ssave(SK_MAG, nm)
               await ssave(SK_LOGRIF, updLogs)
             } catch (e) {
-              notify(`⚠ Salvataggio OCR fallito: ${e.message || 'rete'}. Riprova.`, false)
+              notify(`Salvataggio OCR fallito: ${e.message || 'rete'}. Riprova.`, false)
               return
             }
             setMagazzino(nm)
             setLogRif(updLogs)
-            notify(`📷 Caricati ${(res.ingredienti || []).length} ingredienti in magazzino`)
+            notify(`Caricati ${(res.ingredienti || []).length} ingredienti in magazzino`)
           }}/>
           <FotoOCR mode="prezzi" notify={notify} ricettario={ricettario} onResult={async res => {
-            if (!ricettario) { notify('⚠ Carica prima il ricettario', false); return }
+            if (!ricettario) { notify('Carica prima il ricettario', false); return }
             const ing_list = res.ingredienti || []
             const validi = ing_list.filter(i => i.prezzo_kg > 0)
-            if (!validi.length) { notify('⚠ Nessun prezzo estratto', false); return }
+            if (!validi.length) { notify('Nessun prezzo estratto', false); return }
             const nuoviCosti = {}
             for (const i of validi) {
               const k = normIng(translateIngredienteEN(i.nome || ''))
               nuoviCosti[k] = { costoKg: parseFloat(i.prezzo_kg.toFixed(4)), costoG: parseFloat((i.prezzo_kg / 1000).toFixed(6)), isStima: false }
             }
             if (onImportPrezziOCR) onImportPrezziOCR(nuoviCosti)
-            notify(`📷 ${validi.length} prezzi aggiornati`)
+            notify(`${validi.length} prezzi aggiornati`)
           }}/>
           <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: 18, padding: '28px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
-              {[['carico', '➕ Carico merce', 'Rifornimento in entrata'], ['scarico', '➖ Scarico / Rettifica', 'Rimuovi quantità']].map(([m, lbl, sub]) => (
+              {[['carico', 'plus', 'Carico merce', 'Rifornimento in entrata'], ['scarico', 'trash', 'Scarico / Rettifica', 'Rimuovi quantità']].map(([m, ic, lbl, sub]) => (
                 <button key={m} onClick={() => setFormMode(m)}
                   style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `2px solid ${formMode === m ? (m === 'carico' ? C.green : C.amber) : C.border}`,
                     background: formMode === m ? (m === 'carico' ? C.greenLight : C.amberLight) : C.white,
                     color: formMode === m ? (m === 'carico' ? C.green : C.amber) : C.textMid,
                     fontWeight: formMode === m ? 800 : 500, fontSize: 11, cursor: 'pointer', textAlign: 'left' }}>
-                  <div style={{ fontWeight: 800, marginBottom: 2 }}>{lbl}</div>
+                  <div style={{ fontWeight: 800, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name={ic} size={12} />{lbl}</div>
                   <div style={{ fontSize: 9, opacity: 0.7 }}>{sub}</div>
                 </button>
               ))}
@@ -912,8 +912,8 @@ export default function MagazzinoView({
               <button onClick={handleCarica} disabled={!formIng || !formQty || saving}
                 style={{ padding: '12px', border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: (formIng && formQty && !saving) ? 'pointer' : 'default',
                   background: (formIng && formQty && !saving) ? (formMode === 'scarico' ? C.amber : C.red) : '#DDD',
-                  color: (formIng && formQty && !saving) ? C.white : '#999' }}>
-                {saving ? 'Salvataggio…' : (formMode === 'scarico' ? '➖ Rimuovi dal magazzino' : '➕ Aggiungi al magazzino')}
+                  color: (formIng && formQty && !saving) ? C.white : '#999', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                {saving ? 'Salvataggio…' : (formMode === 'scarico' ? <><Icon name="trash" size={14} />Rimuovi dal magazzino</> : <><Icon name="plus" size={14} />Aggiungi al magazzino</>)}
               </button>
             </div>
           </div>
@@ -926,10 +926,10 @@ export default function MagazzinoView({
 
       {tab === 'log' && (
         <div>
-          <SectHead icon="📋" title="Log rifornimenti" sub="Storico carichi e scarichi di materie prime" />
+          <SectHead icon={<Icon name="clipboard" size={17} />} title="Log rifornimenti" sub="Storico carichi e scarichi di materie prime" />
           {(!logRif || logRif.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '50px 20px', color: C.textSoft }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
+              <div style={{ marginBottom: 12, color: C.textSoft }}><Icon name="clipboard" size={32} /></div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>Nessun rifornimento registrato</div>
             </div>
           ) : (
@@ -963,7 +963,7 @@ export default function MagazzinoView({
           role="dialog" aria-modal="true" aria-labelledby="delete-ing-title"
           onClick={e => { if (e.target === e.currentTarget) { setDeleteIngConf(null); setDeleteIngPin('') } }}>
           <div style={{ background: C.white, borderRadius: 16, padding: '28px 32px', maxWidth: 420, width: '90%', boxShadow: '0 24px 60px rgba(15,23,42,0.28)' }}>
-            <div id="delete-ing-title" style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8 }}>🗑 Elimina ingrediente</div>
+            <div id="delete-ing-title" style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="trash" size={16} />Elimina ingrediente</div>
             <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>
               Stai per eliminare <b style={{ textTransform: 'capitalize' }}>{magazzino?.[deleteIngConf]?.nome || deleteIngConf}</b> dal magazzino.
             </div>

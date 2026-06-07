@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import Icon from './Icon'
 import { sload, ssave } from '../lib/storage'
 import { apiFetch } from '../lib/apiFetch'
 
@@ -70,7 +71,7 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
       notify?.(nuovo ? '✓ Benchmark attivati' : '✓ Benchmark disattivati')
       if (nuovo) await contribuisci()
     } catch (e) {
-      notify?.('⚠ Errore salvataggio', false)
+      notify?.('Errore salvataggio', false)
       setOptin(!nuovo)
     }
   }
@@ -83,7 +84,7 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
       const sedeDefault = (sedi || []).find(s => s.is_default)?.id || sedeId
       const r = await calcolaFoodCostMeseCorrente(orgId, sedeDefault)
       if (!r) {
-        notify?.('⚠ Nessun dato sufficiente per contribuire', false)
+        notify?.('Nessun dato sufficiente per contribuire', false)
         setLastResult({ ok: false, reason: 'no_data' })
         return
       }
@@ -94,9 +95,9 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
       })
       setLastResult({ ok: !!out?.stored, fcPct: r.fcPct, sample: r.sample, reason: out?.reason })
       if (out?.stored) notify?.('✓ Dato anonimo condiviso')
-      else if (out?.reason) notify?.('⚠ ' + out.reason, false)
+      else if (out?.reason) notify?.(out.reason, false)
     } catch (e) {
-      notify?.('⚠ ' + (e.message || 'Errore invio'), false)
+      notify?.(e.message || 'Errore invio', false)
     } finally {
       setSending(false)
     }
@@ -108,7 +109,7 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
     <div>
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A' }}>📈 Benchmark anonimi</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="trendUp" size={16} />Benchmark anonimi</div>
           <button onClick={() => toggle(!optin)}
             style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative',
               background: optin ? '#10B981' : '#CBD5E1', transition: 'background 0.2s' }}>
@@ -133,7 +134,7 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
               <div style={{ fontSize: 11, color: lastResult.ok ? '#166534' : '#92400E', marginTop: 10 }}>
                 {lastResult.ok
                   ? `✓ Inviato (FC ${lastResult.fcPct?.toFixed(1)}%, ${lastResult.sample} sessioni)`
-                  : `⚠ Non inviato${lastResult.reason ? ': ' + lastResult.reason : ''}`}
+                  : `Non inviato${lastResult.reason ? ': ' + lastResult.reason : ''}`}
               </div>
             )}
           </div>

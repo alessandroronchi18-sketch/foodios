@@ -14,6 +14,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseRicettario } from '../lib/parseRicettario'
 import { ssave } from '../lib/storage'
+import Icon from '../components/Icon'
 
 const BRAND = '#6E0E1A'
 const BRAND_DARK = '#4A0612'
@@ -316,14 +317,14 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
               marginBottom: 32, maxWidth: 480,
               boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }}>
               {[
-                ['📊', 'Food cost in real-time'],
-                ['📷', 'OCR scontrini'],
-                ['🏪', 'Multi-sede'],
-                ['🛡️', 'HACCP ASL-ready'],
-              ].map(([emo, txt]) => (
+                ['barChart', 'Food cost in real-time'],
+                ['camera', 'OCR scontrini'],
+                ['store', 'Multi-sede'],
+                ['shield', 'HACCP ASL-ready'],
+              ].map(([ico, txt]) => (
                 <div key={txt} style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
                   fontSize: 12.5, color: '#475264', fontWeight: 500 }}>
-                  <span>{emo}</span>
+                  <Icon name={ico} size={14} color={BRAND} />
                   <span>{txt}</span>
                 </div>
               ))}
@@ -372,7 +373,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 22, color: '#FFF',
                   boxShadow: demoApplied ? '0 4px 10px rgba(22,163,74,0.32)' : '0 4px 10px rgba(110,14,26,0.32)',
-                }}>{demoApplied ? '✓' : '🎯'}</div>
+                }}>{demoApplied ? '✓' : <Icon name="target" size={22}/>}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3,
                     letterSpacing: '-0.01em' }}>
@@ -419,7 +420,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 22, color: parseStats ? '#FFF' : '#475264',
                 }}>
-                  {parseError ? '⚠' : parseStats ? '✓' : (parsing ? '⏳' : '📂')}
+                  {parseError ? <Icon name="warning" size={22}/> : parseStats ? '✓' : (parsing ? <Icon name="hourglass" size={22}/> : <Icon name="folder" size={22}/>)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3,
@@ -468,7 +469,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                 onMouseEnter={e => { if (!parsing) { e.currentTarget.style.borderColor = '#94A3B8'; e.currentTarget.style.color = '#475264' } }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.color = '#8B95A7' }}
               >
-                <div style={{ fontSize: 20 }}>🚀</div>
+                <div style={{ display: 'inline-flex' }}><Icon name="bolt" size={20}/></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2, letterSpacing: '-0.005em' }}>
                     Inizia vuoto, configurerò dopo
@@ -485,7 +486,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
         {/* ═══════════════ STEP 3: Prima analisi (anteprima reale) ═══════════════ */}
         {step === 3 && (
           <div>
-            <div style={{ fontSize: 50, marginBottom: 12 }}>✨</div>
+            <div style={{ marginBottom: 12, color: BRAND }}><Icon name="star" size={50}/></div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
               margin: '0 0 12px', letterSpacing: '-0.025em' }}>
               {demoApplied ? 'Ecco i tuoi food cost demo' : 'Ricettario importato!'}
@@ -542,7 +543,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
         {/* ═══════════════ STEP 4: Multi-sede ═══════════════ */}
         {step === 4 && (
           <div>
-            <div style={{ fontSize: 50, marginBottom: 12 }}>🏪</div>
+            <div style={{ marginBottom: 12, color: BRAND }}><Icon name="store" size={50}/></div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
               margin: '0 0 12px', letterSpacing: '-0.025em' }}>
               Hai altri punti vendita?
@@ -592,8 +593,8 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                   </div>
                 ))}
                 {sedeError && (
-                  <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13, lineHeight: 1.5 }}>
-                    ⚠ {sedeError}
+                  <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13, lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                    <Icon name="warning" size={14} style={{ marginTop: 2, flexShrink: 0 }}/><span>{sedeError}</span>
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>

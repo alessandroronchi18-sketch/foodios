@@ -23,7 +23,7 @@ export function useAuth() {
         // UA binding: se il fingerprint del browser è cambiato dall'ultimo login,
         // forziamo logout per proteggere da session hijacking.
         const check = await validaSessionFingerprint(async () => {
-          console.warn('🛡 fingerprint sessione cambiato: forced sign-out')
+          console.warn('fingerprint sessione cambiato: forced sign-out')
           await supabase.auth.signOut()
         })
         if (!check.ok) { setLoading(false); return }
@@ -85,7 +85,7 @@ export function useAuth() {
       if (profErr) throw profErr
       // Niente log di email/userId in production: leakable via console di shared computer.
       if (import.meta.env.DEV) {
-        console.log('🔑 loadProfile OK — userId:', userId?.slice(0, 8), 'orgId:', prof?.organization_id?.slice(0, 8));
+        console.log('loadProfile OK — userId:', userId?.slice(0, 8), 'orgId:', prof?.organization_id?.slice(0, 8));
       }
       // Imposta utente per Sentry (id e org_id come tag — niente email in chiaro)
       Sentry.setUser({ id: userId })

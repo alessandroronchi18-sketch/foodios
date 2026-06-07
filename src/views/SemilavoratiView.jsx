@@ -5,6 +5,7 @@ import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import FotoOCR from '../components/FotoOCR'
+import Icon from '../components/Icon'
 import { C, Badge, TNUM } from './_shared'
 
 function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
@@ -135,8 +136,8 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
                 </div>
               ))}
               {mancanti.length>0&&(
-                <div style={{marginTop:8,padding:"8px 10px",background:C.amberLight,borderRadius:7,fontSize:10,color:C.amber}}>
-                  ⚠ Prezzi mancanti: {mancanti.join(", ")}
+                <div style={{marginTop:8,padding:"8px 10px",background:C.amberLight,borderRadius:7,fontSize:10,color:C.amber,display:"flex",alignItems:"center",gap:5}}>
+                  <Icon name="warning" size={12}/> Prezzi mancanti: {mancanti.join(", ")}
                 </div>
               )}
             </div>
@@ -201,7 +202,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
     setForm(empty); setEditMode(null); setOverwriteConf(null);
   };
   const handleSave = () => {
-    if (!form.nome.trim() || form.ingredienti.length===0) { notify("⚠ Inserisci nome e almeno un ingrediente", false); return; }
+    if (!form.nome.trim() || form.ingredienti.length===0) { notify("Inserisci nome e almeno un ingrediente", false); return; }
     const nomeUp = form.nome.trim().toUpperCase();
     const esiste = ricettario?.ricette?.[nomeUp];
     const isEditing = editMode === nomeUp;
@@ -209,7 +210,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
   };
 
   const handleDelete = async nome => {
-    if (deletePin !== "ELIMINA") { notify("⚠ Scrivi ELIMINA per confermare", false); return; }
+    if (deletePin !== "ELIMINA") { notify("Scrivi ELIMINA per confermare", false); return; }
     const nuovoRic = { ...ricettario, ricette: Object.fromEntries(Object.entries(ricettario.ricette||{}).filter(([k])=>k!==nome)) };
     onSave(nuovoRic, {}, true);
     setDeleteConf(null); setDeletePin(""); setEditMode(null); setForm(empty);
@@ -312,8 +313,8 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
               note: res.note || f.note,
               ingredienti: ings.length>0 ? ings : f.ingredienti,
             }));
-            if (ings.length>0) notify(`📷 Importato: ${nomeIT||"semilavorato"} con ${ings.length} ingredienti`);
-            else notify(`⚠ Nessun ingrediente valido estratto dalla foto`, false);
+            if (ings.length>0) notify(`Importato: ${nomeIT||"semilavorato"} con ${ings.length} ingredienti`);
+            else notify(`Nessun ingrediente valido estratto dalla foto`, false);
           }}/>
 
           <div style={{background:T.bgCard,border:`1px solid #D4B0E8`,borderRadius:18,padding:isMobile?"18px":"22px",boxShadow:"0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)"}}>
@@ -333,7 +334,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
             {/* Template rapidi */}
             {!editMode && !form.nome && (
               <div style={{marginBottom:10}}>
-                <div style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>⚡ Template rapidi</div>
+                <div style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5,display:"flex",alignItems:"center",gap:4}}><Icon name="bolt" size={11}/> Template rapidi</div>
                 <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                   {[
                     {nome:"CREMA PASTICCERA", note:"Mescola latte+uova+zucchero+amido. Cuoci a fuoco medio.", ings:[{nome:"latte intero",q:500},{nome:"tuorlo",q:100},{nome:"zucchero",q:150},{nome:"amido di mais",q:40},{nome:"bacca di vaniglia",q:3}]},
@@ -418,16 +419,16 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
 
               {overwriteConf && (
                 <div style={{padding:"12px 14px",background:C.amberLight,border:`2px solid ${C.amber}`,borderRadius:9,marginBottom:4}}>
-                  <div style={{fontSize:11,fontWeight:800,color:C.amber,marginBottom:6}}>⚠️ "{overwriteConf}" esiste già — sovrascrivere?</div>
+                  <div style={{fontSize:11,fontWeight:800,color:C.amber,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="warning" size={13}/> "{overwriteConf}" esiste già — sovrascrivere?</div>
                   <div style={{display:"flex",gap:7}}>
-                    <button onClick={doSaveSemi} style={{padding:"7px 14px",background:C.amber,color:C.white,border:"none",borderRadius:6,fontWeight:800,fontSize:11,cursor:"pointer"}}>✅ Sovrascrivi</button>
+                    <button onClick={doSaveSemi} style={{padding:"7px 14px",background:C.amber,color:C.white,border:"none",borderRadius:6,fontWeight:800,fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}><Icon name="checkCircle" size={13}/> Sovrascrivi</button>
                     <button onClick={()=>setOverwriteConf(null)} style={{padding:"7px 12px",background:C.white,border:`1px solid ${C.border}`,borderRadius:6,fontSize:11,color:C.textMid,cursor:"pointer"}}>✕ Annulla</button>
                   </div>
                 </div>
               )}
               <button onClick={handleSave}
-                style={{padding:"11px",background:"#8E44AD",color:"#FFF",border:"none",borderRadius:9,fontWeight:900,fontSize:12,cursor:"pointer",boxShadow:"0 2px 8px rgba(142,68,173,0.25)",marginTop:4}}>
-                💾 {editMode ? "Aggiorna semilavorato" : "Salva semilavorato"}
+                style={{padding:"11px",background:"#8E44AD",color:"#FFF",border:"none",borderRadius:9,fontWeight:900,fontSize:12,cursor:"pointer",boxShadow:"0 2px 8px rgba(142,68,173,0.25)",marginTop:4,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                <Icon name="save" size={14}/> {editMode ? "Aggiorna semilavorato" : "Salva semilavorato"}
               </button>
               <div style={{fontSize:9,color:C.textSoft,textAlign:"center"}}>Premi <kbd style={{padding:"1px 4px",background:"#F0E4FA",borderRadius:3,border:"1px solid #D4B0E8",fontFamily:"'JetBrains Mono', ui-monospace, monospace"}}>Enter</kbd> per aggiungere ingrediente · <kbd style={{padding:"1px 4px",background:"#F0E4FA",borderRadius:3,border:"1px solid #D4B0E8",fontFamily:"'JetBrains Mono', ui-monospace, monospace"}}>↵ Salva</kbd> clic o invio sul bottone</div>
               {editMode&&<button onClick={()=>{setEditMode(null);setForm(empty);}}
@@ -437,8 +438,8 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
             </div>
           </div>
 
-          <div style={{marginTop:12,padding:"10px 14px",background:"#F9F2FD",border:"1px solid #D4B0E8",borderRadius:8,fontSize:10,color:"#6B2FA0",lineHeight:1.6}}>
-            💡 Per usare un semilavorato in una ricetta, aggiungi il suo nome come ingrediente (es. <em>"crema pasticcera"</em>) con la quantità in grammi — il costo viene calcolato automaticamente.
+          <div style={{marginTop:12,padding:"10px 14px",background:"#F9F2FD",border:"1px solid #D4B0E8",borderRadius:8,fontSize:10,color:"#6B2FA0",lineHeight:1.6,display:"flex",alignItems:"flex-start",gap:6}}>
+            <Icon name="bulb" size={12} style={{marginTop:2,flexShrink:0}}/><span>Per usare un semilavorato in una ricetta, aggiungi il suo nome come ingrediente (es. <em>"crema pasticcera"</em>) con la quantità in grammi — il costo viene calcolato automaticamente.</span>
           </div>
         </div>
       </div>

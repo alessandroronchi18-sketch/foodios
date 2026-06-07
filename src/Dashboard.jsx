@@ -541,7 +541,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div>
           <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:4}}>Produzione mensile · {mese.label}</div>
-          {mese.meteo&&<div style={{fontSize:11,color:C.textSoft,marginTop:4}}>☀️ {mese.meteo.giorniSole}gg sole · 🌧 {mese.meteo.giorniPioggia}gg pioggia · {mese.meteo.tempMean}°C media</div>}
+          {mese.meteo&&<div style={{fontSize:11,color:C.textSoft,marginTop:4}}>{mese.meteo.giorniSole}gg sole · {mese.meteo.giorniPioggia}gg pioggia · {mese.meteo.tempMean}°C media</div>}
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {dirty&&<span style={{fontSize:10,color:C.amber,fontWeight:600}}>● Non salvato</span>}

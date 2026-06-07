@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
+import Icon from './Icon'
 
 const C = {
   bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
@@ -124,8 +125,8 @@ function RicettaForecast({ ric, giornaliero, calcolaFC, ingCosti, ricettario, ge
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div style={{ marginTop:6, fontSize:9, color:C.textSoft }}>
-        🟡 Punto arancione = previsione prossimo mese basata su {serie.length} mesi di storico (smoothing esponenziale doppio)
+      <div style={{ marginTop:6, fontSize:9, color:C.textSoft, display:'flex', alignItems:'center', gap:5 }}>
+        <Icon name="dot" size={9} color={C.amber} />Punto arancione = previsione prossimo mese basata su {serie.length} mesi di storico (smoothing esponenziale doppio)
       </div>
     </div>
   )
@@ -295,14 +296,14 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, ingCosti, c
               </div>
             )
           })}
-          <div style={{ marginTop:16, fontSize:10, color:C.textSoft, lineHeight:1.7 }}>
-            💡 Usa questi dati per pianificare le quantità giornaliere di produzione. I giorni con indice alto richiedono più preparazione.
+          <div style={{ marginTop:16, fontSize:10, color:C.textSoft, lineHeight:1.7, display:'flex', alignItems:'flex-start', gap:6 }}>
+            <Icon name="bulb" size={12} style={{ marginTop:2, flexShrink:0 }} />Usa questi dati per pianificare le quantità giornaliere di produzione. I giorni con indice alto richiedono più preparazione.
           </div>
         </div>
       )}
 
-      <div style={{ marginTop:24, padding:"12px 16px", background:C.amberLight, borderRadius:10, fontSize:10, color:C.amber, lineHeight:1.7 }}>
-        ⚠️ Le previsioni si basano sullo storico di produzione inserito in FoodOS. Maggiore è lo storico, più accurate sono le previsioni. Fattori esterni (meteo, festività, eventi locali) non vengono considerati dall'algoritmo.
+      <div style={{ marginTop:24, padding:"12px 16px", background:C.amberLight, borderRadius:10, fontSize:10, color:C.amber, lineHeight:1.7, display:'flex', alignItems:'flex-start', gap:6 }}>
+        <Icon name="warning" size={12} style={{ marginTop:2, flexShrink:0 }} />Le previsioni si basano sullo storico di produzione inserito in FoodOS. Maggiore è lo storico, più accurate sono le previsioni. Fattori esterni (meteo, festività, eventi locali) non vengono considerati dall'algoritmo.
       </div>
     </div>
   )

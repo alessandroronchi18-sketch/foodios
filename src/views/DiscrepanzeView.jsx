@@ -13,18 +13,19 @@ import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, normIng } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
+import Icon from '../components/Icon'
 import { C, fmt, fmt0, TNUM, KPI, PageHeader, SH } from './_shared'
 
 export const SK_DISCREPANZE = 'pasticceria-discrepanze-v1'
 
 const TIPI = [
-  { id: 'regalo',            label: 'Regalo al cliente',  emoji: '🎁', desc: 'Prodotto ceduto gratis (cortesia, recupero cliente)' },
-  { id: 'porzione_grande',   label: 'Porzione abbondante', emoji: '🍰', desc: 'Lo staff ha dato porzioni più grandi del previsto' },
-  { id: 'porzione_piccola',  label: 'Porzione ridotta',    emoji: '🥄', desc: 'Porzioni più piccole → cliente potenzialmente insoddisfatto' },
-  { id: 'avanzo',            label: 'Avanzo fine giornata', emoji: '🌙', desc: 'Prodotto non venduto a fine giornata' },
-  { id: 'scarto',            label: 'Scarto / Buttato',    emoji: '🗑',  desc: 'Prodotto gettato (scadenza, contaminazione, errore)' },
-  { id: 'errore_produzione', label: 'Errore in produzione', emoji: '⚠️', desc: 'Prodotto venuto male in cottura/lavorazione' },
-  { id: 'furto',             label: 'Ammanco',             emoji: '🚨', desc: 'Sparizione non spiegata da inventario' },
+  { id: 'regalo',            label: 'Regalo al cliente',  icon: 'gift', desc: 'Prodotto ceduto gratis (cortesia, recupero cliente)' },
+  { id: 'porzione_grande',   label: 'Porzione abbondante', icon: 'trendUp', desc: 'Lo staff ha dato porzioni più grandi del previsto' },
+  { id: 'porzione_piccola',  label: 'Porzione ridotta',    icon: 'trendDown', desc: 'Porzioni più piccole → cliente potenzialmente insoddisfatto' },
+  { id: 'avanzo',            label: 'Avanzo fine giornata', icon: 'clock', desc: 'Prodotto non venduto a fine giornata' },
+  { id: 'scarto',            label: 'Scarto / Buttato',    icon: 'trash',  desc: 'Prodotto gettato (scadenza, contaminazione, errore)' },
+  { id: 'errore_produzione', label: 'Errore in produzione', icon: 'warning', desc: 'Prodotto venuto male in cottura/lavorazione' },
+  { id: 'furto',             label: 'Ammanco',             icon: 'alert', desc: 'Sparizione non spiegata da inventario' },
 ]
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36) }
@@ -69,7 +70,7 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
     try {
       await ssave(SK_DISCREPANZE, next, orgId, sedeId || null)
     } catch (e) {
-      notify?.('⚠ Errore salvataggio discrepanze: ' + (e.message || 'rete'), false)
+      notify?.('Errore salvataggio discrepanze: ' + (e.message || 'rete'), false)
       return false
     }
     setItems(next)
@@ -168,10 +169,10 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
 
       {/* KPI mese */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
-        <KPI icon="📋" label="Registrate" value={kpi.n} sub={meseFiltro} />
-        <KPI icon="📉" label="Costo perso" value={fmt0(kpi.totCosto)} sub="Materie prime regalate/buttate" color="#92400E" />
-        <KPI icon="🚫" label="Mancato ricavo" value={fmt0(kpi.totMancato)} sub="Vendite non realizzate" color={C.red} />
-        <KPI icon="💥" label="Impatto totale" value={fmt0(kpi.totCosto + kpi.totMancato)} sub="Costo + mancato ricavo" color={C.red} highlight />
+        <KPI icon={<Icon name="clipboard" size={17}/>} label="Registrate" value={kpi.n} sub={meseFiltro} />
+        <KPI icon={<Icon name="trendDown" size={17}/>} label="Costo perso" value={fmt0(kpi.totCosto)} sub="Materie prime regalate/buttate" color="#92400E" />
+        <KPI icon={<Icon name="xCircle" size={17}/>} label="Mancato ricavo" value={fmt0(kpi.totMancato)} sub="Vendite non realizzate" color={C.red} />
+        <KPI icon={<Icon name="bolt" size={17}/>} label="Impatto totale" value={fmt0(kpi.totCosto + kpi.totMancato)} sub="Costo + mancato ricavo" color={C.red} highlight />
       </div>
 
       {/* Tabs + filtro mese + nuovo */}
@@ -188,8 +189,8 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
             <button key={t.id} onClick={() => setTab(t.id)}
               style={{ padding: '6px 12px', borderRadius: 999, border: `1px solid ${tab === t.id ? C.red : C.border}`,
                 background: tab === t.id ? C.redLight : C.bgCard, color: tab === t.id ? C.red : C.textMid,
-                fontSize: 12, fontWeight: tab === t.id ? 800 : 500, cursor: 'pointer' }}>
-              {t.emoji} {t.label} {conta > 0 && <span style={{ marginLeft: 4, opacity: 0.7 }}>({conta})</span>}
+                fontSize: 12, fontWeight: tab === t.id ? 800 : 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Icon name={t.icon} size={13}/> {t.label} {conta > 0 && <span style={{ marginLeft: 4, opacity: 0.7 }}>({conta})</span>}
             </button>
           )
         })}
@@ -219,8 +220,8 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
                   title={t.desc}
                   style={{ padding: '7px 12px', borderRadius: 8, border: `1.5px solid ${draft.tipo === t.id ? C.red : C.border}`,
                     background: draft.tipo === t.id ? C.redLight : C.bgCard,
-                    color: draft.tipo === t.id ? C.red : C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                  {t.emoji} {t.label}
+                    color: draft.tipo === t.id ? C.red : C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name={t.icon} size={13}/> {t.label}
                 </button>
               ))}
             </div>
@@ -288,25 +289,25 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
       {/* Lista */}
       {!draft && visibili.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: C.textSoft }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
+          <div style={{ marginBottom: 12, color: C.red }}><Icon name="target" size={48}/></div>
           <div style={{ fontSize: 14, marginBottom: 6 }}>Nessuna discrepanza registrata{tab !== 'tutti' ? ` in "${TIPI.find(t => t.id === tab)?.label || tab}"` : ''}.</div>
           <div style={{ fontSize: 12 }}>Buon segno! Oppure ricordati di registrare regali, scarti e avanzi.</div>
         </div>
       )}
 
       {!draft && visibili.map(it => {
-        const t = TIPI.find(x => x.id === it.tipo) || { emoji: '?', label: it.tipo }
+        const t = TIPI.find(x => x.id === it.tipo) || { icon: 'package', label: it.tipo }
         return (
           <div key={it.id} style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 22 }}>{t.emoji}</span>
+                  <span style={{ color: C.red, display: 'inline-flex' }}><Icon name={t.icon} size={22}/></span>
                   <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{t.label}</span>
                 </div>
                 <div style={{ fontSize: 13, color: C.text, fontWeight: 600, textTransform: 'capitalize' }}>{it.prodotto}</div>
-                <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4 }}>
-                  📅 {new Date(it.data + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })}
+                <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="calendar" size={12}/> {new Date(it.data + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })}
                   &nbsp;·&nbsp; <b>{it.quantita}</b> pz
                 </div>
                 {it.note && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 4, fontStyle: 'italic' }}>{it.note}</div>}
@@ -345,7 +346,7 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
               const t = TIPI.find(x => x.id === tid)
               return (
                 <div key={tid} style={{ padding: '12px 14px', background: C.bgSubtle, borderRadius: 8, border: `1px solid ${C.border}` }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 4 }}>{t?.emoji} {t?.label || tid}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>{t?.icon && <Icon name={t.icon} size={13}/>} {t?.label || tid}</div>
                   <div style={{ fontSize: 11, color: C.textSoft }}>{v.count} eventi · {fmt(v.costo)} costo · {fmt(v.mancato)} mancato</div>
                 </div>
               )

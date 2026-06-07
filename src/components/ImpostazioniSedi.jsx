@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
@@ -20,28 +21,28 @@ const SCENARI = [
   {
     id: 'B',
     nome: 'Ogni sede produce per sé',
-    icon: '🏪',
+    icon: 'store',
     descr: 'Ogni sede ha la propria produzione, magazzino e vendita. Le sedi sono autonome, non si scambiano prodotti.',
     setupHint: 'Crea tutte le sedi paritarie. La produzione di ogni sede resta nella sede stessa.',
   },
   {
     id: 'A',
     nome: 'Laboratorio centrale → punti vendita',
-    icon: '🏭',
+    icon: 'factory',
     descr: 'Una sede produce tutto, le altre sono punti vendita che ricevono i prodotti dal laboratorio.',
     setupHint: 'Crea una sede "Laboratorio" + N sedi "Punto vendita". In produzione giornaliera scegli a quale PV destinare la sessione.',
   },
   {
     id: 'C',
     nome: 'Più produttori + sedi solo riceventi',
-    icon: '🚛',
+    icon: 'truck',
     descr: 'Due o più sedi producono ognuna i propri prodotti, mentre altre sedi sono solo punti vendita che vengono rifornite.',
     setupHint: 'Crea le sedi produttive con le loro materie prime e ricette. Le sedi riceventi ricevono via trasferimento.',
   },
   {
     id: 'D',
     nome: 'Rete distribuita',
-    icon: '🔄',
+    icon: 'refresh',
     descr: 'Più sedi producono prodotti diversi e si scambiano tra loro per riempire le vetrine. Modello a hub multipli.',
     setupHint: 'Pianifica chi produce cosa. Usa i trasferimenti per ogni movimento, lo stock vetrina si aggiornerà automaticamente.',
   },
@@ -69,7 +70,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
     return (
       <div style={{ background: '#FAFAFA', border: `1px solid ${BOR}`, borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 22 }}>{corrente.icon}</span>
+          <span style={{ color: R, display: 'inline-flex' }}><Icon name={corrente.icon} size={22} /></span>
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Scenario operativo</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: TXT, marginTop: 2 }}>{corrente.nome}</div>
@@ -85,8 +86,8 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
 
   return (
     <div style={{ background: '#FFFBEB', border: '2px dashed #FCD34D', borderRadius: 12, padding: 20, marginBottom: 18 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-        🧭 Come lavora la tua attività?
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Icon name="gear" size={13} />Come lavora la tua attività?
       </div>
       <div style={{ fontSize: 13, color: MID, marginBottom: 16, lineHeight: 1.55 }}>
         Scegli lo scenario che meglio descrive il tuo modello operativo. Useremo questa informazione per suggerirti la configurazione corretta delle sedi e dei flussi.
@@ -105,7 +106,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
                 boxShadow: isSel ? '0 4px 14px rgba(110,14,26,0.18)' : 'none',
                 transition: 'all .15s',
               }}>
-              <div style={{ fontSize: 28, marginBottom: 6 }}>{s.icon}</div>
+              <div style={{ marginBottom: 6, color: R }}><Icon name={s.icon} size={28} /></div>
               <div style={{ fontSize: 13, fontWeight: 800, color: TXT, marginBottom: 6, lineHeight: 1.25 }}>{s.nome}</div>
               <div style={{ fontSize: 11, color: SOFT, lineHeight: 1.5 }}>{s.descr}</div>
             </button>
@@ -117,8 +118,8 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
         const s = SCENARI.find(x => x.id === scelta)
         return (
           <div style={{ background: '#FFF', borderRadius: 10, padding: '12px 14px', border: `1px solid ${BOR}`, marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
-              💡 Come configurarlo
+            <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="bulb" size={13} />Come configurarlo
             </div>
             <div style={{ fontSize: 12, color: MID, lineHeight: 1.6 }}>{s.setupHint}</div>
           </div>

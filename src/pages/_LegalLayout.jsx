@@ -29,7 +29,7 @@ export default function LegalLayout({ title, updated, children, related = [] }) 
   return (
     <div style={S.wrap}>
       <div style={S.header}>
-        <a href="/" style={{ color: '#FFF', textDecoration: 'none', fontWeight: 900, fontSize: 18 }}>🍰 FoodOS</a>
+        <a href="/" style={{ color: '#FFF', textDecoration: 'none', fontWeight: 900, fontSize: 18 }}>FoodOS</a>
         <a href="/" style={{ color: '#FFF', fontSize: 13, opacity: 0.7, textDecoration: 'none' }}>← Torna all'app</a>
       </div>
       <div style={S.body}>

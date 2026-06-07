@@ -58,6 +58,8 @@ const Icon = ({ name, size = 16, color = 'currentColor' }) => {
     gift:        <><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></>,
     book:        <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></>,
     menu:        <><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>,
+    file:        <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></>,
+    undo:        <><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></>,
   }[name] || null
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>{p}</svg>
 }
@@ -79,7 +81,7 @@ function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify
       await auth.refreshOrg?.()
       notify('✓ Nome attività aggiornato')
     } catch (e) {
-      notify('⚠ ' + (e.message || 'Errore'), false)
+      notify(e.message || 'Errore', false)
     } finally { setSaving(false) }
   }
 
@@ -154,7 +156,7 @@ function ReportMensiliSection({ orgId, notify }) {
       organization_id: orgId, sede_id: null, data_key: 'report-settings-v1',
       data_value: { emailReport: val },
     }, { onConflict: 'organization_id,sede_id,data_key' })
-    if (error) { setEnabled(!val); notify('⚠ ' + error.message, false); return }
+    if (error) { setEnabled(!val); notify(error.message, false); return }
     notify(val ? '✓ Riceverai i report mensili' : '✓ Email report disattivata')
   }
 
@@ -177,7 +179,7 @@ function ReportMensiliSection({ orgId, notify }) {
             const { data: urlData } = supabase.storage.from('reports').getPublicUrl(`${orgId}/${r.name}`)
             return (
               <div key={r.name} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:T.bgSubtle, borderRadius:R.md }}>
-                <span style={{ fontSize:18 }}>📄</span>
+                <span style={{ color:T.textMid, display:'inline-flex' }}><Icon name="file" size={18}/></span>
                 <span style={{ flex:1, fontSize:13, fontWeight:600, color:T.text }}>{r.name.replace('.pdf','')}</span>
                 <a href={urlData?.publicUrl} download target="_blank" rel="noreferrer"
                   style={{ fontSize:12, fontWeight:700, color:T.brand, textDecoration:'none', display:'inline-flex', alignItems:'center', gap:4 }}>
@@ -242,7 +244,7 @@ function ReseSection({ notify }) {
     <SectionCard title="Resa ingredienti"
       description="La resa indica quanta parte del peso lordo è effettivamente utilizzabile. Es. uova 85% → per 100g netti acquisti 118g lordi. FoodOS applica la resa al food cost in automatico."
       action={<span style={{ fontSize:11, fontWeight:700, color:T.textSoft, padding:'4px 10px', background:T.bgSubtle, borderRadius:999 }}>{nCustom} personalizzate</span>}>
-      <input style={{ ...inp, marginBottom:14 }} value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="🔍 Filtra ingrediente…"/>
+      <input style={{ ...inp, marginBottom:14 }} value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Filtra ingrediente…"/>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:8 }}>
         {items.map(([k, v]) => {
           const pct = Math.round(v * 100)
@@ -268,7 +270,7 @@ function ReseSection({ notify }) {
               <span style={{ fontSize:11, color:T.textSoft }}>%</span>
               {isCustom && (
                 <button onClick={()=>reset(k)} title="Ripristina default"
-                  style={{ width:24, height:24, borderRadius:6, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:11 }}>↩</button>
+                  style={{ width:24, height:24, borderRadius:6, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textSoft, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:11 }}><Icon name="undo" size={13}/></button>
               )}
             </div>
           )

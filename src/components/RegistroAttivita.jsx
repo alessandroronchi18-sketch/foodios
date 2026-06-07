@@ -11,6 +11,7 @@
 // - Mobile ottimizzato (lista verticale invece di tabella overflow)
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, tnum } from '../lib/theme'
@@ -38,16 +39,16 @@ const opPalette = (op) => OP_META[op] || { label: op || 'AZIONE', fg: C.textMid,
 
 // Mapping table → label user-friendly + icona
 const TABLE_META = {
-  user_data:     { label: 'Dati operativi',  icon: '📊' },
-  profiles:      { label: 'Profili utente',  icon: '👤' },
-  sedi:          { label: 'Sedi',            icon: '🏢' },
-  organizations: { label: 'Azienda',         icon: '🏛️' },
-  dipendenti:    { label: 'Dipendenti',      icon: '👥' },
-  turni:         { label: 'Turni',           icon: '📅' },
-  fatture_passive:{ label: 'Fatture',        icon: '🧾' },
-  fornitori:     { label: 'Fornitori',       icon: '🚚' },
+  user_data:     { label: 'Dati operativi',  icon: 'barChart' },
+  profiles:      { label: 'Profili utente',  icon: 'user' },
+  sedi:          { label: 'Sedi',            icon: 'building' },
+  organizations: { label: 'Azienda',         icon: 'bank' },
+  dipendenti:    { label: 'Dipendenti',      icon: 'users' },
+  turni:         { label: 'Turni',           icon: 'calendar' },
+  fatture_passive:{ label: 'Fatture',        icon: 'receipt' },
+  fornitori:     { label: 'Fornitori',       icon: 'truck' },
 }
-const tableMeta = (t) => TABLE_META[t] || { label: t || 'Altro', icon: '·' }
+const tableMeta = (t) => TABLE_META[t] || { label: t || 'Altro', icon: null }
 
 function fmtTs(iso) {
   if (!iso) return '—'
@@ -314,7 +315,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
               letterSpacing: '-0.005em', display: 'inline-flex', alignItems: 'center', gap: 6,
               boxShadow: S.sm, opacity: rows.length ? 1 : 0.5,
             }}>
-            ⬇ Esporta CSV
+            <Icon name="download" size={14} /> Esporta CSV
           </button>
         </div>
 
@@ -428,7 +429,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
             style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="">Tutti i tipi</option>
             {Object.entries(TABLE_META).map(([k, v]) => (
-              <option key={k} value={k}>{v.icon} {v.label}</option>
+              <option key={k} value={k}>{v.label}</option>
             ))}
           </select>
         </div>
@@ -447,13 +448,13 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
       {/* TIMELINE */}
       {loading && rows.length === 0 ? (
         <div style={{ padding: 60, textAlign: 'center', color: T.textSoft, fontSize: 13 }}>
-          <div style={{ marginBottom: 8, fontSize: 18 }}>⏳</div>
+          <div style={{ marginBottom: 8 }}><Icon name="hourglass" size={18} /></div>
           Caricamento attività…
         </div>
       ) : rows.length === 0 ? (
         <div style={{ padding: '60px 20px', textAlign: 'center', color: T.textSoft,
           background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, boxShadow: S.sm }}>
-          <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.5 }}>📋</div>
+          <div style={{ marginBottom: 12, opacity: 0.5 }}><Icon name="clipboard" size={36} color={T.textSoft} /></div>
           <div style={{ fontSize: 14, fontWeight: 600, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>
             Nessuna attività trovata
           </div>
@@ -540,15 +541,16 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
                             background: T.bgSubtle, color: T.textMid, border: `1px solid ${T.borderSoft}`,
                             fontSize: 10, fontWeight: 600, letterSpacing: '0.03em',
                           }}>
-                            <span>{tm.icon}</span>{tm.label}
+                            {tm.icon ? <Icon name={tm.icon} size={11} /> : <span>·</span>}{tm.label}
                           </span>
                           {sedeNome && (
                             <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
                               padding: '3px 9px', borderRadius: 5,
                               background: '#EFF6FF', color: '#1E40AF',
                               fontSize: 10, fontWeight: 600, letterSpacing: '0.03em',
                             }}>
-                              🏢 {sedeNome}
+                              <Icon name="building" size={11} /> {sedeNome}
                             </span>
                           )}
                           <span style={{ fontSize: 12.5, color: T.text, letterSpacing: '-0.005em', fontWeight: 500 }}>
@@ -596,7 +598,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
       {/* INFO FOOTER */}
       <div style={{ marginTop: 28, fontSize: 11.5, color: T.textSoft, lineHeight: 1.55, padding: '14px 18px',
         background: T.bgSubtle, borderRadius: R.lg, border: `1px solid ${T.borderSoft}` }}>
-        🔒 Il registro traccia automaticamente ogni scrittura nei dati dell'attività (produzione, cassa, magazzino, ricettario, sedi, profili, abbonamento). I dipendenti non possono vederlo: solo il titolare.
+        <Icon name="lock" size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} /> Il registro traccia automaticamente ogni scrittura nei dati dell'attività (produzione, cassa, magazzino, ricettario, sedi, profili, abbonamento). I dipendenti non possono vederlo: solo il titolare.
       </div>
     </div>
   )

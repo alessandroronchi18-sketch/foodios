@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import Icon from '../components/Icon'
 
 const REFRESH_MS = 5 * 60 * 1000
 
@@ -92,7 +93,7 @@ export default function TvDashboard() {
   if (error) return (
     <div style={styles.wrap}>
       <div style={styles.errorBox}>
-        <div style={{ fontSize: 60, marginBottom: 16 }}>📺</div>
+        <div style={{ marginBottom: 16 }}><Icon name="tv" size={60} /></div>
         <h1 style={{ fontSize: 28, margin: '0 0 12px' }}>TV mode</h1>
         <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.75)', margin: 0 }}>
           {error}. Verifica il link generato dalle Impostazioni.

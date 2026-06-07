@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import Icon from './Icon'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 
@@ -58,13 +59,13 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       if (!r.ok) throw new Error(j.error || 'Errore checkout')
       window.location.href = j.url
     } catch (e) {
-      notify?.('⚠ ' + (e.message || 'Errore'), false)
+      notify?.(e.message || 'Errore', false)
     }
   }
 
   if (!piaIsChain) return (
     <div style={card}>
-      <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8 }}>🎨 Personalizzazione</div>
+      <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="palette" size={16} />Personalizzazione</div>
       <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
         Sì, FoodOS permette di applicare il tuo <strong>logo, il nome dell'app e il colore del brand</strong> all'interfaccia:
         compaiono nella sidebar e nell'intestazione, e il nome custom sostituisce "FoodOS" anche nel titolo del browser.
@@ -98,14 +99,14 @@ export default function WhiteLabel({ orgId, piano, notify }) {
   async function handleLogo(file) {
     if (!file) return
     if (file.size > MAX_LOGO_BYTES) {
-      notify?.(`⚠ Logo troppo grande (max ${(MAX_LOGO_BYTES/1024).toFixed(0)} KB)`, false)
+      notify?.(`Logo troppo grande (max ${(MAX_LOGO_BYTES/1024).toFixed(0)} KB)`, false)
       return
     }
     try {
       const dataUrl = await fileToBase64(file)
       setLogoData(dataUrl)
     } catch (e) {
-      notify?.('⚠ Errore lettura file', false)
+      notify?.('Errore lettura file', false)
     }
   }
 
@@ -122,7 +123,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       setSettings(next)
       notify?.('✓ Personalizzazione salvata · ricarica la pagina per applicare ovunque')
     } catch (e) {
-      notify?.('⚠ Errore salvataggio', false)
+      notify?.('Errore salvataggio', false)
     } finally {
       setSaving(false)
     }
@@ -138,7 +139,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       setLogoData(null)
       notify?.('✓ Branding ripristinato · ricarica la pagina')
     } catch (e) {
-      notify?.('⚠ Errore reset', false)
+      notify?.('Errore reset', false)
     } finally {
       setSaving(false)
     }
@@ -149,7 +150,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
   return (
     <div>
       <div style={card}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6 }}>🎨 Personalizzazione</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="palette" size={16} />Personalizzazione</div>
         <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, lineHeight: 1.6 }}>
           Esclusiva piano Chain. Applica logo, nome app e colore del brand all'interfaccia (sidebar, intestazione, navigazione e titolo del browser) per gli utenti della tua organizzazione.
         </div>
@@ -183,8 +184,8 @@ export default function WhiteLabel({ orgId, piano, notify }) {
               </button>
             </div>
           )}
-          <label style={{ display: 'inline-block', padding: '10px 18px', background: '#FFFBEB', border: '1px dashed #FDE68A', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#92400E' }}>
-            📂 Carica logo
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', background: '#FFFBEB', border: '1px dashed #FDE68A', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#92400E' }}>
+            <Icon name="upload" size={14} />Carica logo
             <input type="file" accept="image/png,image/svg+xml,image/jpeg" style={{ display: 'none' }}
               onChange={e => e.target.files?.[0] && handleLogo(e.target.files[0])} />
           </label>

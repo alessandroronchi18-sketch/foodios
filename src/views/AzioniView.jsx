@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
+import Icon from '../components/Icon'
 import { C, PageHeader } from './_shared'
 
 export default function AzioniView({ actions, onUpdate, onDelete, ricettario, giornaliero, chiusure, magazzino }) {
@@ -95,12 +96,12 @@ ${azioniStr}
   };
 
   const QUICK_PROMPTS = [
-    { icon:"📊", label:"Analisi P&L", q:"Analizza il mio P&L attuale: quali prodotti devo ottimizzare e perché?" },
-    { icon:"💡", label:"Next step", q:"Quali sono le 3 azioni più urgenti che dovrei fare questa settimana per migliorare la redditività?" },
-    { icon:"🗺️", label:"Come funziona", q:"Spiegami la struttura del gestionale: cosa c'è in ogni sezione e come usarla al meglio." },
-    { icon:"📦", label:"Magazzino", q:"Ho qualche problema con il magazzino? Cosa devo rifornire?" },
-    { icon:"🍰", label:"Miglior prodotto", q:"Qual è il prodotto più redditizio? E quello che mi conviene spingere di più?" },
-    { icon:"⚠️", label:"Rischi", q:"Ci sono ingredienti o prodotti che mi espongono a rischi economici? Identifica le vulnerabilità." },
+    { icon:"barChart", label:"Analisi P&L", q:"Analizza il mio P&L attuale: quali prodotti devo ottimizzare e perché?" },
+    { icon:"bulb", label:"Next step", q:"Quali sono le 3 azioni più urgenti che dovrei fare questa settimana per migliorare la redditività?" },
+    { icon:"book", label:"Come funziona", q:"Spiegami la struttura del gestionale: cosa c'è in ogni sezione e come usarla al meglio." },
+    { icon:"package", label:"Magazzino", q:"Ho qualche problema con il magazzino? Cosa devo rifornire?" },
+    { icon:"gift", label:"Miglior prodotto", q:"Qual è il prodotto più redditizio? E quello che mi conviene spingere di più?" },
+    { icon:"warning", label:"Rischi", q:"Ci sono ingredienti o prodotti che mi espongono a rischi economici? Identifica le vulnerabilità." },
   ];
 
   const sendMessage = async (text) => {
@@ -127,7 +128,7 @@ ${azioniStr}
       const reply = data.content?.[0]?.text || "Errore nella risposta.";
       setMessages(prev => [...prev, { role:"assistant", content:reply, ts:Date.now() }]);
     } catch(e) {
-      setMessages(prev => [...prev, { role:"assistant", content:"⚠️ Errore di connessione. Riprova.", ts:Date.now() }]);
+      setMessages(prev => [...prev, { role:"assistant", content:"Errore di connessione. Riprova.", ts:Date.now() }]);
     }
     setLoading(false);
   };
@@ -172,7 +173,7 @@ ${azioniStr}
                     style={{padding:"14px 16px",borderRadius:16,border:`1px solid ${C.border}`,background:C.bgCard,
                       cursor:"pointer",textAlign:"left",
                       boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:34,height:34,borderRadius:11,background:"rgba(110,14,26,0.10)",fontSize:17,marginBottom:8}}>{icon}</span>
+                    <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:34,height:34,borderRadius:11,background:"rgba(110,14,26,0.10)",color:C.red,marginBottom:8}}><Icon name={icon} size={17}/></span>
                     <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:3,letterSpacing:"-0.01em"}}>{label}</div>
                     <div style={{fontSize:10,color:C.textSoft,lineHeight:1.45}}>{q.slice(0,55)}…</div>
                   </button>
@@ -193,8 +194,8 @@ ${azioniStr}
                     <div style={{width:28,height:28,borderRadius:"50%",flexShrink:0,
                       background:m.role==="user"?C.red:C.bgSide,
                       display:"flex",alignItems:"center",justifyContent:"center",
-                      fontSize:12}}>
-                      {m.role==="user"?"👤":"🍰"}
+                      color:C.white}}>
+                      <Icon name={m.role==="user"?"user":"robot"} size={15}/>
                     </div>
                     <div style={{maxWidth:"78%",padding:"10px 14px",borderRadius:12,lineHeight:1.65,
                       fontSize:12,color:C.text,whiteSpace:"pre-wrap",
@@ -209,7 +210,7 @@ ${azioniStr}
                 ))}
                 {loading&&(
                   <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
-                    <div style={{width:28,height:28,borderRadius:"50%",background:C.bgSide,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>🍰</div>
+                    <div style={{width:28,height:28,borderRadius:"50%",background:C.bgSide,display:"flex",alignItems:"center",justifyContent:"center",color:C.white}}><Icon name="robot" size={15}/></div>
                     <div style={{padding:"10px 16px",borderRadius:12,background:C.white,border:`1px solid ${C.border}`,fontSize:12,color:C.textSoft}}>
                       <span style={{display:"inline-flex",gap:4}}>
                         {[0,1,2].map(i=>(

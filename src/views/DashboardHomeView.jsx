@@ -11,6 +11,7 @@ import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { lessico } from '../lib/lessico'
 import { C, TNUM } from './_shared'
+import Icon from '../components/Icon'
 
 const fmt = v => `€ ${Number(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmt0 = v => `€ ${Math.round(Number(v) || 0).toLocaleString('it-IT')}`
@@ -134,7 +135,7 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
       {inArrivo > 0 && !viewAggregato && (
         <div className="fos-tile" onClick={() => setView('trasferimenti')}
           style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', border: '1px solid #FCD34D', borderRadius: 18, padding: isMobile ? '18px 18px' : '22px 24px', cursor: 'pointer' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 12 }}>🚚 In arrivo da altre sedi</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="truck" size={13} />In arrivo da altre sedi</div>
           <div style={{ fontSize: isMobile ? 38 : 48, fontWeight: 800, color: '#92400E', letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{inArrivo}</div>
           <div style={{ fontSize: 13, color: '#92400E', marginTop: 6, fontWeight: 600 }}>{inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}</div>
         </div>
@@ -260,10 +261,11 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
           </div>
           {sediAttiveAll.length > 1 && (
             <div style={{ display: 'inline-flex', gap: 4, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 999, padding: 4, backdropFilter: 'blur(6px)' }}>
-              {[[false, `📍 ${sedeAttiva?.nome || 'Sede attiva'}`], [true, `🏢 Tutte (${sediAttiveAll.length})`]].map(([agg, lbl]) => (
+              {[[false, 'pin', sedeAttiva?.nome || 'Sede attiva'], [true, 'building', `Tutte (${sediAttiveAll.length})`]].map(([agg, ic, lbl]) => (
                 <button key={String(agg)} onClick={() => setViewAggregato(agg)}
                   style={{ padding: '6px 14px', border: 'none', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-                    background: viewAggregato === agg ? '#FFF' : 'transparent', color: viewAggregato === agg ? '#1C0A0A' : 'rgba(255,255,255,0.85)' }}>{lbl}</button>
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: viewAggregato === agg ? '#FFF' : 'transparent', color: viewAggregato === agg ? '#1C0A0A' : 'rgba(255,255,255,0.85)' }}><Icon name={ic} size={13} />{lbl}</button>
               ))}
             </div>
           )}

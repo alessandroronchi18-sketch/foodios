@@ -12,6 +12,7 @@ import { exportSimulatorePrezzi } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { lessico } from '../lib/lessico'
 import { KPI, SH, PageHeader, Tip, useSortable, SortTH } from './_shared'
+import Icon from '../components/Icon'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
@@ -189,7 +190,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
         fontSize: 13, fontWeight: 500, color: T.textMid, cursor: 'pointer', letterSpacing: '-0.005em',
         display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.sm }}>
-      📄 Esporta PDF
+      <Icon name="fileText" size={14} />Esporta PDF
     </button>
   )
 
@@ -218,8 +219,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       {/* Target food cost */}
       <div style={{ ...cardStyle(), padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <Tip text="Il food cost obiettivo: la quota del prezzo di vendita che vuoi sia coperta dalle materie prime. In pasticceria/gelateria di solito 25–35%.">
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: T.textMid, cursor: 'help', borderBottom: '1px dashed', borderColor: T.borderStr }}>
-            🎯 Food cost obiettivo
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: T.textMid, cursor: 'help', borderBottom: '1px dashed', borderColor: T.borderStr, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="target" size={14} />Food cost obiettivo
           </span>
         </Tip>
         <div style={{ display: 'flex', gap: 3, padding: 3, background: T.bgSubtle, borderRadius: R.md }}>
@@ -236,12 +237,12 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
 
       {/* ① DIAGNOSI */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
-        <KPI icon="🧮" label="Food cost medio" value={pct(diag.fcMedio)} color={fcColor(diag.fcMedio)}
+        <KPI icon={<Icon name="receipt" size={17} />} label="Food cost medio" value={pct(diag.fcMedio)} color={fcColor(diag.fcMedio)}
           sub={`obiettivo ${targetPct}%`} />
-        <KPI icon="📈" label="Margine medio" value={pct(diag.margMedio)} color={T.green} sub="sul ricavo" />
-        <KPI icon="⚠️" label="Prodotti critici" value={String(diag.critici)} color={diag.critici ? T.brand : T.green}
+        <KPI icon={<Icon name="trendUp" size={17} />} label="Margine medio" value={pct(diag.margMedio)} color={T.green} sub="sul ricavo" />
+        <KPI icon={<Icon name="warning" size={17} />} label="Prodotti critici" value={String(diag.critici)} color={diag.critici ? T.brand : T.green}
           sub={`su ${rows.length} · oltre ${targetPct + 10}%`} />
-        <KPI icon="💰" label="Recuperabile / mese" value={euro0(diag.impattoMese)} highlight
+        <KPI icon={<Icon name="money" size={17} />} label="Recuperabile / mese" value={euro0(diag.impattoMese)} highlight
           sub={hasStorico ? 'portando i critici a target' : 'serve storico produzione'} />
       </div>
 
@@ -302,7 +303,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                       style={{ cursor: 'pointer', borderTop: i ? `1px solid ${T.borderSoft}` : 'none', background: open ? T.bgSubtle : 'transparent' }}>
                       <td style={{ padding: '11px 14px', fontWeight: 700, color: T.text, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <span title={r.nome}>{r.nome}</span>
-                        {r.mancanti.length > 0 && <Tip text={`Ingredienti senza prezzo: ${r.mancanti.map(m => m.nome).join(', ')}. Il food cost è sottostimato.`}><span style={{ marginLeft: 6, color: T.amber, cursor: 'help' }}>⚠</span></Tip>}
+                        {r.mancanti.length > 0 && <Tip text={`Ingredienti senza prezzo: ${r.mancanti.map(m => m.nome).join(', ')}. Il food cost è sottostimato.`}><span style={{ marginLeft: 6, color: T.amber, cursor: 'help', display: 'inline-flex', verticalAlign: 'middle' }}><Icon name="warning" size={13} /></span></Tip>}
                       </td>
                       <td style={{ ...cellNum, color: T.textMid }}>{euro(r.reg.prezzo)}</td>
                       <td style={{ ...cellNum, color: T.text, fontWeight: 600 }}>{euro(r.fc)}</td>
@@ -425,8 +426,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
           </div>
           {hasChanges && (
             <button onClick={() => { setPrezzoPct(0); setMpPct(0) }}
-              style={{ padding: '7px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12.5, fontWeight: 500, color: T.textMid, cursor: 'pointer' }}>
-              ↺ Azzera leve
+              style={{ padding: '7px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12.5, fontWeight: 500, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="refresh" size={13} />Azzera leve
             </button>
           )}
         </div>

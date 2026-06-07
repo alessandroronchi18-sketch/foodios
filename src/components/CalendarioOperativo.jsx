@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
@@ -130,7 +131,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
       setNote(prev => ({ ...prev, [sel]: notaEdit.trim() }))
       notify?.('✓ Nota salvata')
     } catch (e) {
-      notify?.('⚠ ' + e.message, false)
+      notify?.(e.message, false)
     } finally { setSavingNota(false) }
   }
 
@@ -235,9 +236,9 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                       {isOggi && <span style={{ marginLeft:6, fontSize:9, fontWeight:700, color:'#6E0E1A', background:'#FEF0EE', borderRadius:4, padding:'1px 5px' }}>OGGI</span>}
                     </div>
                     <div style={{ display:'flex', gap:5, marginTop:3 }}>
-                      {prod   && <Pill bg="#EAF5EE" color="#1B7A3E">🏭 Prod.</Pill>}
-                      {cassa  && <Pill bg="#EFF6FF" color="#1D4ED8">💳 Cassa</Pill>}
-                      {hasNota && <Pill bg="#FEF9C3" color="#92400E">📝</Pill>}
+                      {prod   && <Pill bg="#EAF5EE" color="#1B7A3E"><Icon name="factory" size={10} /> Prod.</Pill>}
+                      {cassa  && <Pill bg="#EFF6FF" color="#1D4ED8"><Icon name="card" size={10} /> Cassa</Pill>}
+                      {hasNota && <Pill bg="#FEF9C3" color="#92400E"><Icon name="edit" size={10} /></Pill>}
                     </div>
                   </div>
                   {totale != null && (
@@ -297,9 +298,9 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                   )}
                   {cur && status !== 'futuro' && (
                     <div style={{ display:'flex', gap:2, flexWrap:'wrap', marginBottom:2 }}>
-                      {prod  && <Pill bg="#EAF5EE" color="#1B7A3E">🏭</Pill>}
-                      {cassa && <Pill bg="#EFF6FF" color="#1D4ED8">💳</Pill>}
-                      {hasNota && <Pill bg="#FEF9C3" color="#92400E">📝</Pill>}
+                      {prod  && <Pill bg="#EAF5EE" color="#1B7A3E"><Icon name="factory" size={10} /></Pill>}
+                      {cassa && <Pill bg="#EFF6FF" color="#1D4ED8"><Icon name="card" size={10} /></Pill>}
+                      {hasNota && <Pill bg="#FEF9C3" color="#92400E"><Icon name="edit" size={10} /></Pill>}
                     </div>
                   )}
                   {totale != null && (
@@ -321,7 +322,9 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
               <div style={{ width:9, height:9, borderRadius:'50%', background:c }} />{l}
             </div>
           ))}
-          <div style={{ fontSize:11, color:'#9C7B76' }}>🏭 Produzione · 💳 Cassa · 📝 Nota</div>
+          <div style={{ fontSize:11, color:'#9C7B76', display:'inline-flex', alignItems:'center', gap:5 }}>
+            <Icon name="factory" size={11} /> Produzione · <Icon name="card" size={11} /> Cassa · <Icon name="edit" size={11} /> Nota
+          </div>
         </div>
 
       </div>
@@ -350,9 +353,9 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
           {/* Sections */}
           <div style={{ marginBottom:16 }}>
             {[
-              { icon:'🏭', label:'Produzione', has:selDetail.haProd, view:'giornaliero',
+              { icon:'factory', label:'Produzione', has:selDetail.haProd, view:'giornaliero',
                 sub: selDetail.prodD ? `${selDetail.prodD.prodotti?.length||0} prodotti · € ${Math.round(selDetail.prodD.ricavoTot||0).toLocaleString('it-IT')} stim.` : null },
-              { icon:'💳', label:'Cassa', has:selDetail.haCassa, view:'chiusura',
+              { icon:'card', label:'Cassa', has:selDetail.haCassa, view:'chiusura',
                 sub: selDetail.cassaD?.kpi ? `€ ${(selDetail.cassaD.kpi.totV||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} incasso` : null },
             ].map(({ icon, label, has, sub, view:v }) => (
               <div key={label} style={{
@@ -361,11 +364,11 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                 background: has ? '#F0FDF4' : selDetail.isFuture ? '#F8FAFC' : '#FEF2F2',
                 border:`1px solid ${has ? '#BBF7D0' : selDetail.isFuture ? '#E2E8F0' : '#FECACA'}`,
               }}>
-                <span style={{ fontSize:20, lineHeight:1 }}>{icon}</span>
+                <span style={{ display:'inline-flex', lineHeight:1 }}><Icon name={icon} size={20} color={has ? '#166534' : selDetail.isFuture ? '#64748B' : '#6E0E1A'} /></span>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:12, fontWeight:600,
+                  <div style={{ fontSize:12, fontWeight:600, display:'inline-flex', alignItems:'center', gap:5,
                     color: has ? '#166534' : selDetail.isFuture ? '#64748B' : '#6E0E1A' }}>
-                    {has ? '✅' : selDetail.isFuture ? '—' : '❌'} {label}
+                    {has ? <Icon name="checkCircle" size={12} /> : selDetail.isFuture ? '—' : <Icon name="xCircle" size={12} />} {label}
                   </div>
                   {sub && <div style={{ fontSize:10, color:'#6B4C44', marginTop:1 }}>{sub}</div>}
                 </div>
@@ -381,8 +384,8 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
 
           {/* Note */}
           <div>
-            <div style={{ fontSize:11, fontWeight:700, color:'#6B4C44', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>
-              📝 Nota del giorno
+            <div style={{ fontSize:11, fontWeight:700, color:'#6B4C44', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6, display:'inline-flex', alignItems:'center', gap:5 }}>
+              <Icon name="edit" size={11} /> Nota del giorno
             </div>
             {noteErr ? (
               <div style={{ fontSize:11, color:'#9C7B76', background:'#F8FAFC', borderRadius:8, padding:'8px 10px' }}>

@@ -76,7 +76,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
       const j = await r.json()
       window.location.href = j.url
     } catch (e) {
-      notify?.('⚠ ' + (e.message || 'Errore'), false)
+      notify?.(e.message || 'Errore', false)
       setLoading(null)
     }
   }
@@ -88,7 +88,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
       const j = await r.json()
       window.location.href = j.url
     } catch (e) {
-      notify?.('⚠ ' + (e.message || 'Errore'), false)
+      notify?.(e.message || 'Errore', false)
       setLoading(null)
     }
   }
@@ -99,8 +99,8 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   const stateLabel = ({
     active:    { text: '✓ Abbonamento attivo', color: T.green,  bg: T.greenLight },
     trialing:  { text: 'In prova',             color: T.amber,  bg: T.amberLight },
-    past_due:  { text: '⚠ Pagamento in ritardo', color: T.red, bg: T.redLight },
-    unpaid:    { text: '⚠ Pagamento non riuscito', color: T.red, bg: T.redLight },
+    past_due:  { text: 'Pagamento in ritardo', color: T.red, bg: T.redLight },
+    unpaid:    { text: 'Pagamento non riuscito', color: T.red, bg: T.redLight },
     canceled:  { text: 'Annullato',            color: T.textSoft, bg: T.bgSubtle },
   })[stato] || null
 

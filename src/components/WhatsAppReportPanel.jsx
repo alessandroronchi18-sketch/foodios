@@ -7,19 +7,20 @@
 //   - POST /api/whatsapp-test (invia messaggio di prova)
 
 import React, { useEffect, useState } from 'react'
+import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import { apiFetch } from '../lib/apiFetch'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 
 const PREFISSI = [
-  { code: '+39',  flag: '🇮🇹', label: 'Italia' },
-  { code: '+378', flag: '🇸🇲', label: 'San Marino' },
-  { code: '+377', flag: '🇲🇨', label: 'Monaco' },
-  { code: '+33',  flag: '🇫🇷', label: 'Francia' },
-  { code: '+34',  flag: '🇪🇸', label: 'Spagna' },
-  { code: '+41',  flag: '🇨🇭', label: 'Svizzera' },
-  { code: '+49',  flag: '🇩🇪', label: 'Germania' },
-  { code: '+44',  flag: '🇬🇧', label: 'Regno Unito' },
+  { code: '+39',  label: 'Italia' },
+  { code: '+378', label: 'San Marino' },
+  { code: '+377', label: 'Monaco' },
+  { code: '+33',  label: 'Francia' },
+  { code: '+34',  label: 'Spagna' },
+  { code: '+41',  label: 'Svizzera' },
+  { code: '+49',  label: 'Germania' },
+  { code: '+44',  label: 'Regno Unito' },
 ]
 
 function splitPhone(full) {
@@ -53,7 +54,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
       if (error) throw error
       notify?.(full ? '✓ Numero salvato — riceverai il report alle 22:00' : '✓ Report WhatsApp disattivato')
       onRefresh?.()
-    } catch (e) { notify?.('⚠ ' + e.message, false) }
+    } catch (e) { notify?.(e.message, false) }
     finally { setSaving(false) }
   }
 
@@ -66,7 +67,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
       if (error) throw error
       notify?.('✓ Report disattivato')
       onRefresh?.()
-    } catch (e) { notify?.('⚠ ' + e.message, false) }
+    } catch (e) { notify?.(e.message, false) }
     finally { setSaving(false) }
   }
 
@@ -75,7 +76,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
     try {
       await apiFetch('/api/whatsapp-test', { method: 'POST' })
       notify?.('✓ Messaggio di test inviato — controlla WhatsApp')
-    } catch (e) { notify?.('⚠ ' + e.message, false) }
+    } catch (e) { notify?.(e.message, false) }
     finally { setTesting(false) }
   }
 
@@ -88,7 +89,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
     <div style={card}>
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16, marginBottom:16, flexWrap:'wrap' }}>
         <div style={{ flex:1, minWidth:240 }}>
-          <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:6 }}>📱 Report serale WhatsApp</div>
+          <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:6, display:'flex', alignItems:'center', gap:6 }}><Icon name="chat" size={16} />Report serale WhatsApp</div>
           <div style={{ fontSize:13, color:T.textSoft, lineHeight:1.55 }}>
             Ogni sera alle 22:00 riceverai un messaggio con: ricavi del giorno, food cost %,
             margine, prodotto top e prodotto da rivedere.
@@ -109,7 +110,6 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
       <div style={{ display:'flex', gap:8, marginBottom:12, position:'relative' }}>
         <button type="button" onClick={() => setOpen(o=>!o)}
           style={{ height:40, padding:'0 12px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, fontSize:14, fontWeight:600, color:T.text, cursor:'pointer', display:'flex', alignItems:'center', gap:8, minWidth:96 }}>
-          <span>{PREFISSI.find(p => p.code === prefisso)?.flag || '🇮🇹'}</span>
           <span>{prefisso}</span>
         </button>
         <input style={{ ...inp, flex:1 }} type="tel" inputMode="numeric" maxLength={15}
@@ -125,7 +125,6 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
               <button key={p.code} type="button"
                 onMouseDown={e => { e.preventDefault(); setPrefisso(p.code); setOpen(false) }}
                 style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'10px 12px', background:p.code===prefisso?T.bgSubtle:'transparent', border:'none', cursor:'pointer', fontSize:13, color:T.text, textAlign:'left', fontFamily:'inherit' }}>
-                <span style={{ fontSize:18 }}>{p.flag}</span>
                 <span style={{ fontWeight:600, minWidth:48 }}>{p.code}</span>
                 <span style={{ color:T.textSoft }}>{p.label}</span>
               </button>
@@ -144,7 +143,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
         </button>
         <button onClick={inviaTest} disabled={testing || !isAttivo}
           style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:13, fontWeight:700, cursor: (testing||!isAttivo)?'not-allowed':'pointer', opacity: !isAttivo ? 0.5 : 1 }}>
-          {testing ? 'Invio…' : '📤 Invia messaggio di test'}
+          {testing ? 'Invio…' : <><Icon name="upload" size={14} style={{ marginRight:6 }} />Invia messaggio di test</>}
         </button>
         {isAttivo && (
           <button onClick={disattiva} disabled={saving}

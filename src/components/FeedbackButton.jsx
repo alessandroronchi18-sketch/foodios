@@ -1,15 +1,16 @@
 import React, { useState } from 'react'
 import { apiFetch } from '../lib/apiFetch'
+import Icon from './Icon'
 
 // Bottone floating + modale per inviare feedback all'admin.
 // L'utente non vede una "casella feedback" dopo l'invio: e' uno strumento
 // di segnalazione, non un canale di supporto. L'admin gestisce dal pannello.
 
 const SENTIMENTS = [
-  { key: 'bug',         label: '🐛 Bug',          help: 'Qualcosa non funziona' },
-  { key: 'feature',     label: '💡 Idea',         help: 'Mi piacerebbe avere...' },
-  { key: 'feedback',    label: '💬 Feedback',     help: 'Un\'osservazione generica' },
-  { key: 'complimento', label: '🎉 Complimento',  help: 'Mi piace come funziona' },
+  { key: 'bug',         icon: 'bug',   label: 'Bug',          help: 'Qualcosa non funziona' },
+  { key: 'feature',     icon: 'bulb',  label: 'Idea',         help: 'Mi piacerebbe avere...' },
+  { key: 'feedback',    icon: 'chat',  label: 'Feedback',     help: 'Un\'osservazione generica' },
+  { key: 'complimento', icon: 'party', label: 'Complimento',  help: 'Mi piace come funziona' },
 ]
 
 export default function FeedbackButton({ viewCorrente }) {
@@ -56,7 +57,7 @@ export default function FeedbackButton({ viewCorrente }) {
           background: '#6E0E1A',
           color: '#FFF',
           border: 'none',
-          fontSize: 22,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer',
           boxShadow: '0 6px 20px rgba(110,14,26,0.35)',
           zIndex: 50,
@@ -65,7 +66,7 @@ export default function FeedbackButton({ viewCorrente }) {
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
         title="Invia feedback ad Alessandro"
-      >💬</button>
+      ><Icon name="chat" size={22}/></button>
 
       {open && (
         <div
@@ -85,8 +86,8 @@ export default function FeedbackButton({ viewCorrente }) {
             }}
           >
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#1C0A0A' }}>
-                💬 Mandami un feedback
+              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#1C0A0A', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                <Icon name="chat" size={16} color="#6E0E1A"/> Mandami un feedback
               </h2>
               <button onClick={() => setOpen(false)} disabled={sending} style={{
                 background: 'transparent', border: 'none', fontSize: 22, color: '#94A3B8',
@@ -96,7 +97,7 @@ export default function FeedbackButton({ viewCorrente }) {
             <div style={{ padding: 20 }}>
               {sent ? (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <div style={{ fontSize: 40 }}>✅</div>
+                  <div style={{ color: '#0E9F6E' }}><Icon name="checkCircle" size={40}/></div>
                   <div style={{ fontSize: 14, color: '#065F46', fontWeight: 600, marginTop: 8 }}>
                     Grazie! Ho ricevuto il tuo feedback.
                   </div>
@@ -125,7 +126,7 @@ export default function FeedbackButton({ viewCorrente }) {
                           fontFamily: 'inherit',
                         }}
                       >
-                        <div>{s.label}</div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name={s.icon} size={14}/> {s.label}</div>
                         <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.7, marginTop: 2 }}>{s.help}</div>
                       </button>
                     ))}
@@ -150,7 +151,8 @@ export default function FeedbackButton({ viewCorrente }) {
                     <div style={{
                       marginTop: 10, padding: '8px 12px', background: '#FEE2E2',
                       border: '1px solid #FCA5A5', borderRadius: 8, color: '#991B1B', fontSize: 12,
-                    }}>⚠️ {err}</div>
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}><Icon name="warning" size={13}/> {err}</div>
                   )}
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
                     <button onClick={() => setOpen(false)} disabled={sending} style={{

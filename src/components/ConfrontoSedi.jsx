@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import Icon from './Icon'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
@@ -141,7 +142,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
 
   if (sediAttive.length < 2) return (
     <div style={{ maxWidth: 640, margin: '60px auto', textAlign: 'center', padding: 20 }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
+      <div style={{ marginBottom: 12 }}><Icon name="barChart" size={48} color={SOFT} /></div>
       <h2 style={{ fontSize: 20, color: TXT, marginBottom: 8 }}>Confronto sedi</h2>
       <p style={{ fontSize: 13, color: SOFT, lineHeight: 1.6 }}>
         Disponibile quando hai almeno 2 sedi attive.<br/>
@@ -178,12 +179,12 @@ export default function ConfrontoSedi({ orgId, sedi }) {
   // ── Render mobile: cards verticali, una per sede ────────────────────────
 
   const RIGHE_KPI = [
-    { key: 'ricaviSettimana',  label: '💰 Ricavi settimana',  fmt: fmt,    bw: bwRicavi },
-    { key: 'foodCostPct',      label: '🧾 Food cost medio',   fmt: v => v != null ? v.toFixed(1) + '%' : '—', bw: bwFC },
-    { key: 'prodOggi',         label: '🏭 Prodotti oggi',     fmt: v => v ?? 0, bw: bwProd },
-    { key: 'stockPF',          label: '📦 Stock vetrina',     fmt: v => v != null ? `${fmtInt(v)} pz` : '—', bw: bwStock },
-    { key: 'trasfInArrivo',    label: '🚚 Trasf. in arrivo',  fmt: v => v ?? 0, bw: bwArrivo },
-    { key: 'fattureDaPagare',  label: '📄 Fatture da pagare', fmt: v => v ?? 0, bw: bwFatture },
+    { key: 'ricaviSettimana',  icon: 'money',    label: 'Ricavi settimana',  fmt: fmt,    bw: bwRicavi },
+    { key: 'foodCostPct',      icon: 'receipt',  label: 'Food cost medio',   fmt: v => v != null ? v.toFixed(1) + '%' : '—', bw: bwFC },
+    { key: 'prodOggi',         icon: 'factory',  label: 'Prodotti oggi',     fmt: v => v ?? 0, bw: bwProd },
+    { key: 'stockPF',          icon: 'package',  label: 'Stock vetrina',     fmt: v => v != null ? `${fmtInt(v)} pz` : '—', bw: bwStock },
+    { key: 'trasfInArrivo',    icon: 'truck',    label: 'Trasf. in arrivo',  fmt: v => v ?? 0, bw: bwArrivo },
+    { key: 'fattureDaPagare',  icon: 'fileText', label: 'Fatture da pagare', fmt: v => v ?? 0, bw: bwFatture },
   ]
 
   const headerStyle = { padding: isMobile ? '8px 10px' : '12px 16px', fontSize: 11, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: `1px solid ${BORDER}`, textAlign: 'center' }
@@ -209,7 +210,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             const k = kpiMap[s.id] || {}
             return (
               <div key={s.id} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginBottom: 4 }}>📍 {s.nome}</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="pin" size={14} />{s.nome}</div>
                 {s.citta && <div style={{ fontSize: 11, color: SOFT, marginBottom: 12 }}>{s.citta}</div>}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {RIGHE_KPI.map(r => {
@@ -218,7 +219,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     const col = cs.color || TXT
                     return (
                       <div key={r.key} style={{ background: bg, borderRadius: 8, padding: '10px 12px' }}>
-                        <div style={{ fontSize: 10, color: SOFT, marginBottom: 4, fontWeight: 600 }}>{r.label}</div>
+                        <div style={{ fontSize: 10, color: SOFT, marginBottom: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name={r.icon} size={12} />{r.label}</div>
                         <div style={{ fontSize: 16, fontWeight: 800, color: col, ...tnum }}>{r.fmt(k[r.key])}</div>
                       </div>
                     )
@@ -246,7 +247,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             <tbody>
               {RIGHE_KPI.map(r => (
                 <tr key={r.key}>
-                  <td style={tdL}>{r.label}</td>
+                  <td style={tdL}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name={r.icon} size={14} />{r.label}</span></td>
                   {sediAttive.map(s => (
                     <td key={s.id} style={{ ...tdC, ...cellStyle(s.id, r.bw) }}>
                       {r.fmt(kpiMap[s.id]?.[r.key])}

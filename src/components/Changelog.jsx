@@ -1,4 +1,5 @@
 import React from 'react'
+import Icon from './Icon'
 import { CHANGELOG } from '../lib/changelog'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
@@ -37,7 +38,7 @@ export function NovitaModal({ onClose, onVediTutte }) {
           fontSize: 20, color: C.textSoft, lineHeight: 1, padding: 4,
         }}>✕</button>
 
-        <div style={{ fontSize: 28, marginBottom: 6 }}>🎉</div>
+        <div style={{ marginBottom: 6, color: C.red }}><Icon name="party" size={28} /></div>
         <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 4 }}>
           Novità in FoodOS {latest.versione}
         </div>
@@ -47,8 +48,8 @@ export function NovitaModal({ onClose, onVediTutte }) {
 
         {latest.novita.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-              ✨ Nuove funzionalità
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="star" size={12} />Nuove funzionalità
             </div>
             <ul style={{ margin: 0, padding: '0 0 0 18px' }}>
               {latest.novita.map((n, i) => (
@@ -60,8 +61,8 @@ export function NovitaModal({ onClose, onVediTutte }) {
 
         {latest.fix.length > 0 && (
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-              🔧 Fix
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="gear" size={12} />Fix
             </div>
             <ul style={{ margin: 0, padding: '0 0 0 18px' }}>
               {latest.fix.map((f, i) => (
@@ -93,8 +94,8 @@ export function NovitaModal({ onClose, onVediTutte }) {
 export default function ChangelogView() {
   return (
     <div style={{ maxWidth: 680 }}>
-      <div style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 6 }}>
-        📋 Novità & Changelog
+      <div style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Icon name="clipboard" size={20} />Novità & Changelog
       </div>
       <div style={{ fontSize: 13, color: C.textSoft, marginBottom: 32 }}>
         Tutte le versioni e gli aggiornamenti di FoodOS
@@ -142,8 +143,8 @@ export default function ChangelogView() {
 
               {entry.novita.length > 0 && (
                 <div style={{ marginBottom: entry.fix.length > 0 ? 12 : 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                    ✨ Nuove funzionalità
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="star" size={12} />Nuove funzionalità
                   </div>
                   <ul style={{ margin: 0, padding: '0 0 0 18px' }}>
                     {entry.novita.map((n, i) => (

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Logo from '../components/Logo'
+import CatIcon from '../components/Icon'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 
 
@@ -1135,10 +1136,10 @@ export default function LandingPage({ onLogin, onRegister }) {
             gap: 16,
           }}>
             {[
-              { emoji:'🍰', t:'Pasticcerie', d:'Food cost per ricetta, gestione semilavorati, scheda allergeni.' },
-              { emoji:'☕', t:'Bar & caffè', d:'Cassa, magazzino, scontrini OCR e P&L mensile.' },
-              { emoji:'🍦', t:'Gelaterie', d:'Calcolo costo per gusto, stagionalità, previsione domanda.' },
-              { emoji:'🍝', t:'Ristoranti', d:'Menù dinamico, food cost a porzione, gestione personale.' },
+              { icon:'cake', t:'Pasticcerie', d:'Food cost per ricetta, gestione semilavorati, scheda allergeni.' },
+              { icon:'coffee', t:'Bar & caffè', d:'Cassa, magazzino, scontrini OCR e P&L mensile.' },
+              { icon:'iceCream', t:'Gelaterie', d:'Calcolo costo per gusto, stagionalità, previsione domanda.' },
+              { icon:'restaurant', t:'Ristoranti', d:'Menù dinamico, food cost a porzione, gestione personale.' },
             ].map((item, i) => (
               <Reveal key={item.t} delay={i * 80}>
                 <div style={{
@@ -1146,7 +1147,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                   borderRadius: 18, padding: '28px 24px',
                   height: '100%', textAlign: 'center',
                 }}>
-                  <div style={{ fontSize: 48, marginBottom: 14 }}>{item.emoji}</div>
+                  <div style={{ marginBottom: 14, color: T.ink, display: 'flex', justifyContent: 'center' }}><CatIcon name={item.icon} size={44} strokeWidth={1.6} /></div>
                   <h3 style={{
                     fontFamily: SERIF, fontSize: 20, fontWeight: 600,
                     color: T.ink, letterSpacing: '-0.02em', margin: '0 0 8px',

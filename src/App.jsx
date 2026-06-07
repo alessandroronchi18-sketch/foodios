@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from './auth/useAuth'
 import AuthPage, { ResetPasswordPage } from './auth/AuthPage'
 import Dashboard from './Dashboard'
+import Icon from './components/Icon'
 import { lazyWithReload } from './lib/lazyWithReload'
 // Lazy: AdminPage 2581 righe, OnboardingWizard usato solo first-login
 const AdminPage = lazyWithReload(() => import('./admin/AdminPage'))
@@ -74,7 +75,7 @@ function TrialScadutoPage({ org, onSignOut }) {
 }
 
 export default function App() {
-  // ⚠️ TUTTI gli hook DEVONO stare qui in cima, prima di qualsiasi `return`
+  // ATTENZIONE: TUTTI gli hook DEVONO stare qui in cima, prima di qualsiasi `return`
   // condizionale. Le pagine statiche (/privacy, /termini, /tv) tornavano prima
   // di useAuth(): navigando da/verso quelle pagine il numero di hook cambiava
   // tra un render e l'altro → "Rendered fewer hooks than expected" (crash).
@@ -211,7 +212,7 @@ export default function App() {
     return (
       <div style={{ minHeight:'100vh', background:'#F8FAFC', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
         <div style={{ maxWidth:560, textAlign:'center', background:'#FFF', padding:'32px 40px', borderRadius:16, boxShadow:'0 4px 24px rgba(0,0,0,0.08)' }}>
-          <div style={{ fontSize:42, marginBottom:14 }}>⚠️</div>
+          <div style={{ marginBottom:14, color:'#B91C1C' }}><Icon name="warning" size={42} /></div>
           <h1 style={{ color:'#1C0A0A', marginBottom:10, fontSize:22 }}>Impossibile caricare il profilo</h1>
           <p style={{ color:'#6B4C44', lineHeight:1.6, marginBottom:18, fontSize:14 }}>
             Errore database: <code style={{ background:'#FEF2F2', padding:'2px 6px', borderRadius:4, fontSize:12, color:'#B91C1C' }}>{auth.profileError.code || 'unknown'}</code>

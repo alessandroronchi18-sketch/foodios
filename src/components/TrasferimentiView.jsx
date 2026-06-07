@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, motion as M } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
@@ -19,9 +20,9 @@ const C = {
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
 const TIPI = [
-  { id: 'prodotto',       lbl: '🍰 Prodotto finito' },
-  { id: 'semilavorato',   lbl: '🧁 Semilavorato' },
-  { id: 'materia_prima',  lbl: '🌾 Materia prima' },
+  { id: 'prodotto',       lbl: 'Prodotto finito' },
+  { id: 'semilavorato',   lbl: 'Semilavorato' },
+  { id: 'materia_prima',  lbl: 'Materia prima' },
 ]
 
 function fmtData(iso) {
@@ -259,7 +260,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   if (sediAttive.length < 2) {
     return (
       <div style={{ maxWidth: 720, margin: '60px auto', textAlign: 'center', padding: 20 }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🚚</div>
+        <div style={{ marginBottom: 12 }}><Icon name="truck" size={48} color={C.textSoft} /></div>
         <h2 style={{ fontSize: 20, color: C.text, marginBottom: 8 }}>Trasferimenti tra sedi</h2>
         <p style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.6 }}>
           I trasferimenti permettono di spostare prodotti, semilavorati o materie prime tra sedi diverse
@@ -301,16 +302,17 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <button onClick={() => setShowForm(s => !s)}
           style={{ padding: '8px 16px', background: showForm ? C.bgCard : C.red, color: showForm ? C.textMid : C.white,
-            border: showForm ? `1px solid ${C.border}` : 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-          {showForm ? '✕ Annulla' : '➕ Nuovo trasferimento'}
+            border: showForm ? `1px solid ${C.border}` : 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {showForm ? <>✕ Annulla</> : <><Icon name="plus" size={14} /> Nuovo trasferimento</>}
         </button>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 6 }}>
-          {[['attiva','📍 Sede attiva'], ['tutte','🏢 Tutte le sedi']].map(([id, lbl2]) => (
+          {[['attiva','pin','Sede attiva'], ['tutte','building','Tutte le sedi']].map(([id, ic, lbl2]) => (
             <button key={id} onClick={() => setScope(id)}
               style={{ padding: '6px 12px', borderRadius: 999, border: `1px solid ${C.border}`,
                 background: scope === id ? C.text : C.bgCard, color: scope === id ? C.white : C.textMid,
-                fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{lbl2}</button>
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Icon name={ic} size={13} /> {lbl2}</button>
           ))}
         </div>
       </div>
@@ -345,7 +347,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               <div style={lbl}>Da</div>
               <select value={form.sede_da} onChange={e => setForm(f => ({ ...f, sede_da: e.target.value }))} style={inp}>
                 <option value="">— Seleziona —</option>
-                {sediAttive.map(s => <option key={s.id} value={s.id}>📍 {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
+                {sediAttive.map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
               </select>
             </div>
             <div style={{ textAlign: 'center', fontSize: 20, color: C.textSoft, paddingBottom: isMobile ? 0 : 6 }}>→</div>
@@ -353,7 +355,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               <div style={lbl}>A</div>
               <select value={form.sede_a} onChange={e => setForm(f => ({ ...f, sede_a: e.target.value }))} style={inp}>
                 <option value="">— Seleziona —</option>
-                {sediAttive.filter(s => s.id !== form.sede_da).map(s => <option key={s.id} value={s.id}>📍 {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
+                {sediAttive.filter(s => s.id !== form.sede_da).map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
               </select>
             </div>
           </div>
@@ -385,19 +387,19 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
           {/* Info movimentazione stock */}
           <div style={{ marginBottom: 14, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, color: '#1E40AF', lineHeight: 1.5 }}>
-            {form.tipo === 'prodotto' && <>📦 All'invio: scala stock prodotti finiti di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa stock di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
-            {form.tipo === 'materia_prima' && <>🌾 All'invio: scala magazzino materie prime di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa magazzino di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
-            {form.tipo === 'semilavorato' && <>🧁 Trasferimento di semilavorato. Solo log, lo stock semilavorati non è ancora gestito automaticamente.</>}
+            {form.tipo === 'prodotto' && <><Icon name="package" size={13} /> All'invio: scala stock prodotti finiti di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa stock di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
+            {form.tipo === 'materia_prima' && <><Icon name="package" size={13} /> All'invio: scala magazzino materie prime di <strong>{sediMap[form.sede_da]?.nome || 'partenza'}</strong>. Alla ricezione: incrementa magazzino di <strong>{sediMap[form.sede_a]?.nome || 'destinazione'}</strong>.</>}
+            {form.tipo === 'semilavorato' && <><Icon name="gift" size={13} /> Trasferimento di semilavorato. Solo log, lo stock semilavorati non è ancora gestito automaticamente.</>}
           </div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => salvaBozza(true)} disabled={saving}
-              style={{ padding: '10px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-              {saving ? '…' : '🚚 Invia subito'}
+              style={{ padding: '10px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {saving ? '…' : <><Icon name="truck" size={14} /> Invia subito</>}
             </button>
             <button onClick={() => salvaBozza(false)} disabled={saving}
-              style={{ padding: '10px 20px', background: C.bgCard, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-              💾 Salva bozza
+              style={{ padding: '10px 20px', background: C.bgCard, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="save" size={14} /> Salva bozza
             </button>
           </div>
         </div>
@@ -409,7 +411,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           role="dialog" aria-modal="true"
           onClick={() => setRiceviModal(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%' }}>
-            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text }}>📦 Conferma ricezione</h3>
+            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="package" size={18} /> Conferma ricezione</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>
               <strong>{riceviModal.t.prodotto}</strong> · {fmtQty(riceviModal.t.quantita, riceviModal.t.unita)} inviati da {sediMap[riceviModal.t.sede_da]?.nome || '—'}
             </p>
@@ -420,8 +422,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 onChange={e => setRiceviModal(m => ({ ...m, qtyRic: e.target.value }))}
                 style={inp}/>
               {parseFloat(riceviModal.qtyRic) < Number(riceviModal.t.quantita) && (
-                <div style={{ marginTop: 6, fontSize: 11, color: C.amber, ...tnum }}>
-                  ⚠ Scarto: {(Number(riceviModal.t.quantita) - parseFloat(riceviModal.qtyRic || 0)).toLocaleString('it-IT', { maximumFractionDigits: 2 })} {riceviModal.t.unita}
+                <div style={{ marginTop: 6, fontSize: 11, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5, ...tnum }}>
+                  <Icon name="warning" size={12} /> Scarto: {(Number(riceviModal.t.quantita) - parseFloat(riceviModal.qtyRic || 0)).toLocaleString('it-IT', { maximumFractionDigits: 2 })} {riceviModal.t.unita}
                 </div>
               )}
             </div>
@@ -485,11 +487,11 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                     {t.stato === 'bozza' && (
                       <>
                         <button onClick={() => azInvia(t)} disabled={busy} title="Invia"
-                          style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                          🚚 Invia
+                          style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Icon name="truck" size={12} /> Invia
                         </button>
                         <button onClick={() => azElimina(t)} disabled={busy} title="Elimina bozza"
-                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="trash" size={13} /></button>
                       </>
                     )}
                     {t.stato === 'inviato' && (
@@ -499,7 +501,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                           ✓ Ricevuto
                         </button>
                         <button onClick={() => azAnnulla(t)} disabled={busy} title="Annulla (rollback stock)"
-                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>⊘</button>
+                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="xCircle" size={13} /></button>
                       </>
                     )}
                     {(t.stato === 'ricevuto' || t.stato === 'completato') && (
@@ -507,12 +509,12 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                     )}
                     {t.stato === 'annullato' && (
                       <button onClick={() => azElimina(t)} title="Elimina"
-                        style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                        style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="trash" size={13} /></button>
                     )}
                   </div>
                 </div>
                 <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: C.textSoft, flexWrap: 'wrap' }}>
-                  <span>📅 {fmtData(t.data)}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="calendar" size={12} /> {fmtData(t.data)}</span>
                   <span>•</span>
                   <span>{TIPO_LABEL[t.tipo] || t.tipo}</span>
                   <span>•</span>

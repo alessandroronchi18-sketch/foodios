@@ -5,6 +5,7 @@ import useIsMobile from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'
 import { lessico } from '../lib/lessico'
+import Icon from '../components/Icon'
 import { C, KPI, SH, margColor, margBadge, fmt, fmtp, ChartTip } from './_shared'
 
 // Nomi mese italiani per fmtKey (vista="mese"). L'index 0 è vuoto perché
@@ -330,7 +331,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
   if (!hasProd && !hasVend) return (
     <div style={{maxWidth:560,margin:"80px auto",textAlign:"center",padding:'32px 24px',background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:18,boxShadow:'0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'}}>
-      <div style={{fontSize:42,marginBottom:14,opacity:0.6}}>📊</div>
+      <div style={{marginBottom:14,opacity:0.6,color:C.textSoft}}><Icon name="barChart" size={42} /></div>
       <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:8,letterSpacing:'-0.01em'}}>Nessun dato storico</div>
       <div style={{fontSize:13,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:'0 auto'}}>
         Lo storico si popola automaticamente con le sessioni di <b>Produzione</b> e le <b>Chiusure cassa</b> registrate. Apri quelle sezioni dal menu a sinistra per iniziare.
@@ -343,13 +344,13 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {/* Tab principali — centrali, larghe e ben visibili */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
         <div style={{display:"flex",gap:4,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:14,padding:4,width:"100%",maxWidth:540}}>
-          {[["produzione","📦 Produzione"],["vendite","💰 Vendite"],["confronto","🔄 Confronto"]].map(([id,lbl])=>(
+          {[["produzione","package","Produzione"],["vendite","money","Vendite"],["confronto","refresh","Confronto"]].map(([id,ic,lbl])=>(
             <button key={id} onClick={()=>setTab(id)}
               style={{flex:1,padding:isMobile?"11px 8px":"13px 16px",borderRadius:10,border:"none",cursor:"pointer",
                 fontWeight:700,fontSize:isMobile?12:14,background:tab===id?C.red:"transparent",
                 color:tab===id?C.white:C.textMid,boxShadow:tab===id?"0 2px 10px rgba(110,14,26,0.28)":"none",
-                transition:"all 0.15s",whiteSpace:"nowrap"}}>
-              {lbl}
+                transition:"all 0.15s",whiteSpace:"nowrap",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+              <Icon name={ic} size={16} />{lbl}
             </button>
           ))}
         </div>
@@ -378,8 +379,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         {(dateFrom||dateTo)&&<>
           <button onClick={()=>{setDateFrom("");setDateTo("");}}
             style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:10,fontWeight:600,cursor:"pointer"}}>✕ Reset</button>
-          <span style={{fontSize:10,color:C.amber,fontWeight:600,marginLeft:4}}>
-            🔍 {[dateFrom&&`Da ${dateFrom}`,dateTo&&`a ${dateTo}`].filter(Boolean).join(" ")}
+          <span style={{fontSize:10,color:C.amber,fontWeight:600,marginLeft:4,display:"inline-flex",alignItems:"center",gap:4}}>
+            <Icon name="search" size={11} />{[dateFrom&&`Da ${dateFrom}`,dateTo&&`a ${dateTo}`].filter(Boolean).join(" ")}
           </span>
         </>}
       </div>
@@ -387,15 +388,15 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {/* ─── TAB PRODUZIONE ─── */}
       {tab==="produzione"&&(
         <>
-          {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",color:C.textSoft,fontSize:13,lineHeight:1.5}}><div style={{fontSize:32,marginBottom:10,opacity:0.5}}>🍰</div>Nessuna produzione registrata.<br/><span style={{fontSize:11,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
+          {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",color:C.textSoft,fontSize:13,lineHeight:1.5}}><div style={{marginBottom:10,opacity:0.5,color:C.textSoft}}><Icon name="gift" size={32} /></div>Nessuna produzione registrata.<br/><span style={{fontSize:11,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
           {hasProd&&(
             <>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
-                <KPI icon="📦" label="Stampi"     value={n0(totMP)}        highlight/>
-                <KPI icon="💰" label="Ricavi"     value={eur0(totRP)}      color={C.green}/>
-                <KPI icon="🧾" label="Food cost"  value={eur0(totFP)}      color={C.red}/>
-                <KPI icon="📈" label="Margine"    value={eur0(totRP-totFP)} color={margColor(totRP>0?((totRP-totFP)/totRP*100):0)}/>
-                <KPI icon="🏆" label="Top"        value={topP?topP[0].replace("TORTA DI ",""):"—"} sub={topP?`${n0(topP[1])} stampi`:""} color={C.amber}/>
+                <KPI icon={<Icon name="package" size={18} />} label="Stampi"     value={n0(totMP)}        highlight/>
+                <KPI icon={<Icon name="money" size={18} />} label="Ricavi"     value={eur0(totRP)}      color={C.green}/>
+                <KPI icon={<Icon name="receipt" size={18} />} label="Food cost"  value={eur0(totFP)}      color={C.red}/>
+                <KPI icon={<Icon name="trendUp" size={18} />} label="Margine"    value={eur0(totRP-totFP)} color={margColor(totRP>0?((totRP-totFP)/totRP*100):0)}/>
+                <KPI icon={<Icon name="trophy" size={18} />} label="Top"        value={topP?topP[0].replace("TORTA DI ",""):"—"} sub={topP?`${n0(topP[1])} stampi`:""} color={C.amber}/>
               </div>
               <SH sub={`Stampi totali per ${vista==="giornaliero"?"giorno":vista} · top 5 prodotti + altri`}>Produzione per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
@@ -480,7 +481,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         <>
           {!hasVend&&(
             <div style={{textAlign:"center",padding:"48px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-              <div style={{fontSize:32,marginBottom:12}}>🧾</div>
+              <div style={{marginBottom:12,color:C.textSoft}}><Icon name="receipt" size={32} /></div>
               <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Nessuna chiusura registrata</div>
               <div style={{fontSize:12,color:C.textSoft}}>Carica gli scontrini di fine giornata dalla sezione <b>Chiusura</b> per vedere i dati di vendita reali qui.</div>
             </div>
@@ -488,11 +489,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           {hasVend&&(
             <>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
-                <KPI icon="💰" label="Ricavi reali"  value={eur0(totRV)}  highlight/>
-                <KPI icon="📈" label="Margine"       value={eur0(totMV)}  color={margColor(totRV>0?(totMV/totRV*100):0)} sub={fmtp(totRV>0?(totMV/totRV*100):0)}/>
-                <KPI icon="🧾" label="Food cost"     value={eur0(totFV)}  color={C.red}/>
-                <KPI icon="🎯" label="Sell-through"  value={fmtp(avgST)} color={avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
-                <KPI icon="🗑" label="Spreco"        value={eur0(totSV)}  color={totSV>20?C.red:C.amber}/>
+                <KPI icon={<Icon name="money" size={18} />} label="Ricavi reali"  value={eur0(totRV)}  highlight/>
+                <KPI icon={<Icon name="trendUp" size={18} />} label="Margine"       value={eur0(totMV)}  color={margColor(totRV>0?(totMV/totRV*100):0)} sub={fmtp(totRV>0?(totMV/totRV*100):0)}/>
+                <KPI icon={<Icon name="receipt" size={18} />} label="Food cost"     value={eur0(totFV)}  color={C.red}/>
+                <KPI icon={<Icon name="target" size={18} />} label="Sell-through"  value={fmtp(avgST)} color={avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
+                <KPI icon={<Icon name="trash" size={18} />} label="Spreco"        value={eur0(totSV)}  color={totSV>20?C.red:C.amber}/>
               </div>
 
               <SH sub={`Top 5 prodotti per ricavo + altri · per ${vista==="giornaliero"?"giorno":vista}`}>Ricavi Reali per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
@@ -640,7 +641,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 14px",borderRadius:20,
                       background:trendPct>=0?C.greenLight:C.redLight,
                       border:`1px solid ${trendPct>=0?C.green+"40":C.red+"40"}`}}>
-                      <span style={{fontSize:14}}>{trendPct>=0?"📈":"📉"}</span>
+                      <span style={{display:"inline-flex",color:trendPct>=0?C.green:C.red}}><Icon name={trendPct>=0?"trendUp":"trendDown"} size={14} /></span>
                       <span style={{fontSize:11,fontWeight:800,color:trendPct>=0?C.green:C.red}}>
                         {trendPct>=0?"+":""}{trendPct.toFixed(1)}% ricavo medio (2ª metà vs 1ª)
                       </span>
@@ -651,17 +652,17 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 {/* KPI Strip */}
                 <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(6,1fr)",gap:8,marginBottom:16}}>
                   {[
-                    {icon:"💰",lbl:"Ricavi totali",    val:euro(totRicavi),    sub:`${euro(ricavoMedio.toFixed(2))}/gg`,  color:C.green, hi:true},
-                    {icon:"📈",lbl:"Margine lordo",    val:euro(totMarg),      sub:pct(margPct),                          color:margC(margPct)},
-                    {icon:"🧾",lbl:"Food cost tot.",   val:euro(totFC),        sub:pct(fcPct)+" del ricavo",              color:C.red},
-                    {icon:"🗑",lbl:"Spreco totale",    val:euro(totSpreco),    sub:`${euro((totSpreco/n).toFixed(2))}/gg`,color:C.amber},
-                    {icon:"🎯",lbl:"Sell-through med.",val:avgST!=null?pct(avgST):"—", sub:avgST!=null?(avgST>=85?"ottimo":avgST>=65?"buono":"da migliorare"):"",color:avgST!=null?stC2(avgST):C.textSoft},
-                    {icon:"📅",lbl:"Giorni registrati",val:String(n),          sub:`${euro(ricavoMedio.toFixed(2))} medio`,color:C.text},
+                    {icon:"money",lbl:"Ricavi totali",    val:euro(totRicavi),    sub:`${euro(ricavoMedio.toFixed(2))}/gg`,  color:C.green, hi:true},
+                    {icon:"trendUp",lbl:"Margine lordo",    val:euro(totMarg),      sub:pct(margPct),                          color:margC(margPct)},
+                    {icon:"receipt",lbl:"Food cost tot.",   val:euro(totFC),        sub:pct(fcPct)+" del ricavo",              color:C.red},
+                    {icon:"trash",lbl:"Spreco totale",    val:euro(totSpreco),    sub:`${euro((totSpreco/n).toFixed(2))}/gg`,color:C.amber},
+                    {icon:"target",lbl:"Sell-through med.",val:avgST!=null?pct(avgST):"—", sub:avgST!=null?(avgST>=85?"ottimo":avgST>=65?"buono":"da migliorare"):"",color:avgST!=null?stC2(avgST):C.textSoft},
+                    {icon:"calendar",lbl:"Giorni registrati",val:String(n),          sub:`${euro(ricavoMedio.toFixed(2))} medio`,color:C.text},
                   ].map(({icon,lbl,val,sub,color,hi})=>(
                     <div key={lbl} style={{background:hi?"linear-gradient(135deg,#1C0A0A,#3D1515)":C.bgCard,
                       border:`1px solid ${hi?"transparent":C.border}`,borderRadius:16,padding:"12px 14px",
                       boxShadow:hi?"0 4px 14px rgba(110,14,26,0.22)":"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                      <div style={{fontSize:11,marginBottom:4}}>{icon}</div>
+                      <div style={{marginBottom:4,color:hi?C.white:color}}><Icon name={icon} size={15} /></div>
                       <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",
                         color:hi?`rgba(255,255,255,0.6)`:C.textSoft,marginBottom:3}}>{lbl}</div>
                       <div style={{fontSize:16,fontWeight:900,color:hi?C.white:color,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
@@ -698,7 +699,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
                   {/* Top prodotti */}
                   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:10}}>🏆 Top {LEX.prodotti} per ricavo</div>
+                    <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:10,display:"flex",alignItems:"center",gap:6}}><Icon name="trophy" size={13} />Top {LEX.prodotti} per ricavo</div>
                     {topProd.length===0 && <div style={{fontSize:10,color:C.textSoft}}>Dati non disponibili — salva chiusure con scontrino per vederli.</div>}
                     {topProd.map(([nome,d],i)=>(
                       <div key={nome} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
@@ -719,7 +720,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:10,marginBottom:14}}>
                   {/* Miglior giorno */}
                   <div style={{background:"linear-gradient(135deg,#EAF5EE,#FFF)",border:`1px solid ${C.green}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.green,marginBottom:6}}>🏅 Miglior giorno</div>
+                    <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.green,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trophy" size={11} />Miglior giorno</div>
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{fmt3(bestDay?.data)}</div>
                     <div style={{fontSize:13,color:C.green,fontWeight:700,marginTop:2}}>{euro((bestDay?.kpi?.totV||0).toFixed(2))}</div>
                     <div style={{fontSize:10,color:C.textSoft,marginTop:3}}>
@@ -728,7 +729,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   </div>
                   {/* Peggior giorno */}
                   <div style={{background:"linear-gradient(135deg,#FEF3C7,#FFF)",border:`1px solid ${C.amber}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.amber,marginBottom:6}}>⚠️ Giorno più debole</div>
+                    <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.amber,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="warning" size={11} />Giorno più debole</div>
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{fmt3(worstDay?.data)}</div>
                     <div style={{fontSize:13,color:C.amber,fontWeight:700,marginTop:2}}>{euro((worstDay?.kpi?.totV||0).toFixed(2))}</div>
                     <div style={{fontSize:10,color:C.textSoft,marginTop:3}}>
@@ -737,11 +738,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   </div>
                   {/* Spreco insight */}
                   <div style={{background:"linear-gradient(135deg,#FDECEA,#FFF)",border:`1px solid ${C.red}20`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:6}}>🗑 Impatto spreco</div>
+                    <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="trash" size={11} />Impatto spreco</div>
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{euro(totSpreco.toFixed(2))}</div>
                     <div style={{fontSize:10,color:C.textSoft,marginTop:2}}>{pct(totRicavi>0?(totSpreco/totRicavi*100):0)} dei ricavi</div>
-                    <div style={{fontSize:10,color:C.red,fontWeight:700,marginTop:4}}>
-                      {totRicavi>0&&totSpreco/totRicavi>0.05?"⚠ sopra soglia (5%)" : totSpreco===0?"✓ nessuno spreco rilevato":"✓ sotto controllo"}
+                    <div style={{fontSize:10,color:C.red,fontWeight:700,marginTop:4,display:"flex",alignItems:"center",gap:4}}>
+                      {totRicavi>0&&totSpreco/totRicavi>0.05?<><Icon name="warning" size={11} />sopra soglia (5%)</> : totSpreco===0?"✓ nessuno spreco rilevato":"✓ sotto controllo"}
                     </div>
                   </div>
                 </div>
@@ -843,7 +844,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         <>
           {(!hasProd||!hasVend)&&(
             <div style={{textAlign:"center",padding:"48px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-              <div style={{fontSize:32,marginBottom:12}}>🔄</div>
+              <div style={{marginBottom:12,color:C.textSoft}}><Icon name="refresh" size={32} /></div>
               <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Servono sia produzioni che chiusure</div>
               <div style={{fontSize:12,color:C.textSoft}}>Registra la produzione giornaliera <b>e</b> carica gli scontrini di chiusura per vedere il confronto.</div>
             </div>

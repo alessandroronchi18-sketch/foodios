@@ -80,6 +80,12 @@ const P = {
   tv:         '<rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/>',
   // dot colorati (pallini di stato) — riempiti
   dot:        '<circle cx="12" cy="12" r="6"/>',
+  // categorie attività (landing)
+  cake:       '<path d="M4 21h16M4 21v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7M4 16h16M12 4v4M12 4c-.7 0-1.3-.5-1.3-1.2C10.7 2 12 .8 12 .8s1.3 1.2 1.3 2C13.3 3.5 12.7 4 12 4z"/>',
+  coffee:     '<path d="M18 8h1a3 3 0 0 1 0 6h-1M3 8h15v6a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5zM6 2v2M10 2v2M14 2v2"/>',
+  iceCream:   '<path d="M8 8a4 4 0 0 1 8 0M7 8h10l-5 13z"/>',
+  restaurant: '<path d="M7 2v20M5 2v6a2 2 0 0 0 2 2 2 2 0 0 0 2-2V2M17 2c-1.5 0-3 1.5-3 5s1.5 4 3 4v11"/>',
+  broom:      '<path d="M19.4 4.6 14 10M9.5 21.5 3 15l4-4 6.5 6.5zM13 11l-2 2M22 2l-6 6"/>',
 }
 
 // alias: più emoji → stessa icona

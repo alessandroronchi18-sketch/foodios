@@ -8,17 +8,18 @@
 // API: /api/referral (GET = info + auto-crea codice; POST = applica codice ricevuto)
 
 import React, { useEffect, useState } from 'react'
+import Icon from './Icon'
 import { apiFetch } from '../lib/apiFetch'
 
 const APP_NAME = 'FoodOS'
 
 // Scala premi: ogni gradino sblocca un bonus aggiuntivo per il referente.
 const LIVELLI = [
-  { soglia: 1,  premio: '1 mese gratis',     emoji: '🥉' },
-  { soglia: 3,  premio: '3 mesi gratis',     emoji: '🥈' },
-  { soglia: 5,  premio: '6 mesi gratis',     emoji: '🥇' },
-  { soglia: 10, premio: '1 anno gratis',     emoji: '🏆' },
-  { soglia: 25, premio: 'Piano Chain gratis 1 anno', emoji: '💎' },
+  { soglia: 1,  premio: '1 mese gratis',     icon: 'star' },
+  { soglia: 3,  premio: '3 mesi gratis',     icon: 'star' },
+  { soglia: 5,  premio: '6 mesi gratis',     icon: 'star' },
+  { soglia: 10, premio: '1 anno gratis',     icon: 'trophy' },
+  { soglia: 25, premio: 'Piano Chain gratis 1 anno', icon: 'trophy' },
 ]
 
 const STYLE = {
@@ -119,8 +120,8 @@ export default function ReferralPanel({ auth }) {
   if (errore && !data?.codice) {
     return (
       <div style={STYLE.card}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: '#1C0A0A', marginBottom: 8 }}>🎁 Programma Referral</div>
-        <div style={{ fontSize: 13, color: '#DC2626', marginBottom: 10 }}>⚠️ {errore}</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: '#1C0A0A', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="gift" size={16} />Programma Referral</div>
+        <div style={{ fontSize: 13, color: '#DC2626', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="warning" size={14} />{errore}</div>
         <button onClick={loadReferral} style={STYLE.btn}>Riprova</button>
       </div>
     )
@@ -139,9 +140,9 @@ export default function ReferralPanel({ auth }) {
     <div>
       <div style={STYLE.card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: '#1C0A0A' }}>🎁 Programma Referral</div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#6E0E1A', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 999, padding: '4px 10px' }}>
-            {livelloCorrente ? `${livelloCorrente.emoji} Livello ${livelloCorrente.premio}` : 'Inizia a invitare per sbloccare premi'}
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#1C0A0A', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="gift" size={16} />Programma Referral</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#6E0E1A', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 999, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {livelloCorrente ? <><Icon name={livelloCorrente.icon} size={12} />{`Livello ${livelloCorrente.premio}`}</> : 'Inizia a invitare per sbloccare premi'}
           </div>
         </div>
         <p style={{ fontSize: 12, color: '#64748B', margin: '0 0 18px', lineHeight: 1.55 }}>
@@ -180,9 +181,9 @@ export default function ReferralPanel({ auth }) {
             </button>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button style={{ ...STYLE.btn, background: '#25D366' }} onClick={shareWhatsApp}>💬 WhatsApp</button>
-            <button style={{ ...STYLE.btn, background: '#1D4ED8' }} onClick={shareEmail}>📧 Email</button>
-            <button style={{ ...STYLE.btnGhost }} onClick={shareNative}>📤 Condividi…</button>
+            <button style={{ ...STYLE.btn, background: '#25D366', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={shareWhatsApp}><Icon name="chat" size={14} />WhatsApp</button>
+            <button style={{ ...STYLE.btn, background: '#1D4ED8', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={shareEmail}><Icon name="mail" size={14} />Email</button>
+            <button style={{ ...STYLE.btnGhost, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={shareNative}><Icon name="upload" size={14} />Condividi…</button>
             <button style={{ ...STYLE.btnGhost }} onClick={() => copy(messaggioInvito(), 'msg')}>
               {copied === 'msg' ? '✓ Copiato!' : 'Copia messaggio pronto'}
             </button>
@@ -206,7 +207,7 @@ export default function ReferralPanel({ auth }) {
           <div style={{ marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
               <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>
-                Prossimo premio: <strong>{prossimo.emoji} {prossimo.premio}</strong>
+                Prossimo premio: <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={prossimo.icon} size={12} />{prossimo.premio}</strong>
               </span>
               <span style={{ fontSize: 11, fontWeight: 700, color: '#6E0E1A' }}>
                 {mancanti} {mancanti === 1 ? 'invito' : 'inviti'} mancanti
@@ -236,8 +237,8 @@ export default function ReferralPanel({ auth }) {
                   borderRadius: 8,
                   opacity: raggiunto ? 1 : 0.85,
                 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: raggiunto ? '#16A34A' : '#64748B', marginBottom: 2 }}>
-                    {l.emoji} {l.soglia} inviti
+                  <div style={{ fontSize: 11, fontWeight: 700, color: raggiunto ? '#16A34A' : '#64748B', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Icon name={l.icon} size={12} />{l.soglia} inviti
                   </div>
                   <div style={{ fontSize: 11, color: raggiunto ? '#065F46' : '#475569', fontWeight: 600, lineHeight: 1.3 }}>
                     {l.premio}

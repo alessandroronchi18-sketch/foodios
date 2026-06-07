@@ -21,6 +21,7 @@ import {
   C, TNUM, margColor, margBadge, Badge, Tip, PageHeader, SH, TD, TH,
   useSortable, SortTH, fmt0,
 } from './_shared'
+import Icon from '../components/Icon'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -100,7 +101,7 @@ function BarreRicavo({ rows, euro, pct }) {
             <div style={{ fontWeight: 900, fontSize: 13, color: C.text, marginBottom: 10 }}>{tooltip.nome}</div>
             {tooltip.segment === 'margine' ? (
               <>
-                <div style={{ fontSize: 11, color: C.green, fontWeight: 700, marginBottom: 6 }}>🟢 Margine lordo</div>
+                <div style={{ fontSize: 11, color: C.green, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.green} />Margine lordo</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: 11 }}>
                   <span style={{ color: C.textMid }}>Ricavo stampo</span>
                   <span style={{ fontWeight: 800, color: C.text, ...TNUM, textAlign: 'right' }}>{euro(tooltip.r.ricavo)}</span>
@@ -113,7 +114,7 @@ function BarreRicavo({ rows, euro, pct }) {
               </>
             ) : (
               <>
-                <div style={{ fontSize: 11, color: C.red, fontWeight: 700, marginBottom: 6 }}>🔴 Costo ingredienti</div>
+                <div style={{ fontSize: 11, color: C.red, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="dot" size={10} color={C.red} />Costo ingredienti</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '4px 16px', fontSize: 11 }}>
                   <span style={{ color: C.textMid }}>Food cost totale</span>
                   <span style={{ fontWeight: 800, color: C.red, ...TNUM, textAlign: 'right' }}>{euro(tooltip.r.fc)}</span>
@@ -277,7 +278,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Inserisci il nuovo prezzo — la variazione % e il nuovo margine si calcolano in tempo reale</div>
         </div>
         {hasChanges && (
-          <button onClick={reset} style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>↺ Reset tutto</button>
+          <button onClick={reset} style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="refresh" size={12} />Reset tutto</button>
         )}
       </div>
 
@@ -609,14 +610,14 @@ export default function PLView({ ricettario, onUpdateRegola }) {
             style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
               fontSize: 13, fontWeight: 500, color: T.textMid, cursor: 'pointer', letterSpacing: '-0.005em',
               display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.sm }}>
-            📄 Esporta PDF
+            <Icon name="fileText" size={14} />Esporta PDF
           </button>
         }
       />
 
       {/* Chiarisce il "quando": il P&L è teorico per-stampo, NON un periodo. */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
-        <span style={{ fontSize: 16, lineHeight: 1, marginTop: 1 }}>ℹ️</span>
+        <span style={{ lineHeight: 1, marginTop: 1, color: C.textMid }}><Icon name="bulb" size={16} /></span>
         <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55 }}>
           <b style={{ color: C.text }}>Numeri teorici, non riferiti a un periodo.</b> Mostrano ricavo, food cost e margine <b>per un singolo stampo di ciascun prodotto</b>, ai <b>prezzi di listino attuali</b> — servono a capire la redditività delle ricette. Per ricavi e margini <b>reali nel tempo</b> (giorno · settimana · mese) apri la sezione <b>Storico</b>.
         </div>
@@ -704,7 +705,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2,1fr)', gap: 12, alignItems: 'stretch' }}>
             {[...insights].sort((a, b) => ({ critical: 0, warn: 1, ok: 2 }[a.tipo] - { critical: 0, warn: 1, ok: 2 }[b.tipo])).map((ins, i) => {
               const palette = ins.tipo === 'critical'
-                ? { bg: C.redLight, fg: C.red, lbl: 'CRITICO', icon: '⚠' }
+                ? { bg: C.redLight, fg: C.red, lbl: 'CRITICO', icon: <Icon name="warning" size={14} /> }
                 : ins.tipo === 'warn'
                 ? { bg: C.amberLight, fg: C.amber, lbl: 'ATTENZIONE', icon: '!' }
                 : { bg: C.greenLight, fg: C.green, lbl: 'OK', icon: '✓' }
@@ -805,7 +806,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
       {/* Benchmark */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 12 }}>
         <div style={{ background: C.greenLight, border: `1px solid ${C.green}30`, borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 10 }}>✅ Benchmark pasticceria</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Benchmark pasticceria</div>
           {[['Food cost ideale', '< 28–30%'], ['Margine target', '70–72%'], ['Accettabile', '55–70%']].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 11 }}>
               <span style={{ color: C.textMid }}>{k}</span><span style={{ color: C.green, fontWeight: 700 }}>{v}</span>
@@ -813,7 +814,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
           ))}
         </div>
         <div style={{ background: C.amberLight, border: `1px solid ${C.amber}30`, borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.amber, marginBottom: 10 }}>💡 Leve di ottimizzazione</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.amber, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="bulb" size={13} />Leve di ottimizzazione</div>
           {[['Aumentare prezzo +0,50€/fetta', 'Margine sale ~8-12pp'], ['Ridurre FC del 10%', 'Negozia bulk'], ['Tagliare prodotti < 50% marg.', 'Sostituisci con migliori']].map(([k, v]) => (
             <div key={k} style={{ padding: '6px 0', fontSize: 10 }}>
               <div style={{ color: C.amber, fontWeight: 700 }}>{k}</div>

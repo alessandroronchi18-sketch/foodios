@@ -1654,7 +1654,7 @@ export default function AdminPage() {
               <Icon name="refresh" size={14} /> Aggiorna log
             </Btn>
             <Btn kind="ghost" onClick={() => window.open('https://supabase.com/dashboard', '_blank')}>
-              🛢️ Supabase →
+              Supabase →
             </Btn>
             <Btn kind="ghost" onClick={() => window.open('https://vercel.com/dashboard', '_blank')}>
               ▲ Vercel →
@@ -1855,7 +1855,7 @@ export default function AdminPage() {
                               <Icon name="gift" size={14} />
                             </Btn>
                             <Btn kind="neutral" size="sm" onClick={() => handlePulisciDemo(c)} disabled={inAzione('pulisci_demo_fatture')} title="Pulisci fatture demo">
-                              🧹
+                              <Icon name="broom" size={14} />
                             </Btn>
                             <Btn kind="danger" size="sm" onClick={() => setDeleteFor(c)} title="Elimina">
                               <Icon name="trash" size={14} />
@@ -1897,7 +1897,7 @@ export default function AdminPage() {
 
             <Card style={{ padding: 18 }}>
               <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800 }}>
-                😴 Inattivi da &gt;7 giorni ({metricheAvanzate.inattivi.length})
+                Inattivi da &gt;7 giorni ({metricheAvanzate.inattivi.length})
               </h3>
               {metricheAvanzate.inattivi.length === 0 ? (
                 <div style={{ color: COLORS.textMute, fontSize: 12 }}>Tutti i clienti sono attivi <Icon name="party" size={14} /></div>
@@ -2128,7 +2128,7 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}>🔔 Eventi Stripe recenti</strong>
+              <strong style={{ fontSize: 14 }}>Eventi Stripe recenti</strong>
               <span style={{ fontSize: 12, color: COLORS.textMute }}>{stripeEvents.length} eventi · subscription, charge, invoice, checkout</span>
             </div>
             <Btn kind="neutral" size="sm" onClick={fetchStripeEvents} disabled={stripeEventsLoading}>{stripeEventsLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
@@ -2222,7 +2222,7 @@ export default function AdminPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: COLORS.textMute }}>
                       {f.view_corrente && <span><Icon name="pin" size={11} /> {f.view_corrente}</span>}
-                      {f.url && <a href={f.url} target="_blank" rel="noreferrer" style={{ color: COLORS.accent, textDecoration: 'none' }}>🔗 apri pagina</a>}
+                      {f.url && <a href={f.url} target="_blank" rel="noreferrer" style={{ color: COLORS.accent, textDecoration: 'none' }}>apri pagina</a>}
                       <span style={{ flex: 1 }} />
                       {f.gestito ? (
                         <>
@@ -2254,7 +2254,7 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}>📢 Banner globali</strong>
+              <strong style={{ fontSize: 14 }}>Banner globali</strong>
               <span style={{ fontSize: 12, color: COLORS.textMute }}>annuncio mostrato a tutti i clienti in cima all'app</span>
             </div>
             <Btn kind="neutral" size="sm" onClick={fetchBanners} disabled={bannersLoading}>{bannersLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>

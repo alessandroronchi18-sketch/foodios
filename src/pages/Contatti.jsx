@@ -9,7 +9,7 @@ export default function Contatti() {
         rispondiamo personalmente.
       </LegalP>
 
-      <LegalH2>📧 Supporto clienti</LegalH2>
+      <LegalH2>Supporto clienti</LegalH2>
       <LegalP>
         Hai un problema tecnico, una domanda sull'utilizzo, una proposta di miglioramento?<br />
         <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>
@@ -18,30 +18,30 @@ export default function Contatti() {
         Risposta entro 24 ore lavorative. Lavoriamo dal lunedi' al venerdi', 9:00-19:00.
       </LegalP>
 
-      <LegalH2>💼 Vendite e partnership</LegalH2>
+      <LegalH2>Vendite e partnership</LegalH2>
       <LegalP>
         Sei una pasticceria, gelateria, bar o rete di locali interessata a una demo?<br />
         Vuoi proporre una partnership o un'integrazione?<br />
         <LegalLink href="mailto:hello@foodios.it">hello@foodios.it</LegalLink>
       </LegalP>
 
-      <LegalH2>📜 Richieste legali</LegalH2>
+      <LegalH2>Richieste legali</LegalH2>
       <LegalP>
         Privacy, GDPR, esercizio dei diritti dell'interessato, richieste contrattuali:<br />
         <LegalLink href="mailto:legal@foodios.it">legal@foodios.it</LegalLink> (o usa{' '}
         <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink> per uniformita').
       </LegalP>
 
-      <LegalH2>📬 PEC e indirizzo legale</LegalH2>
+      <LegalH2>PEC e indirizzo legale</LegalH2>
       <LegalP>
         PEC: <strong>[INSERIRE PEC]</strong><br />
         Sede legale: <strong>[INSERIRE INDIRIZZO COMPLETO]</strong>
       </LegalP>
 
-      <LegalH2>💬 Feedback dentro l'app</LegalH2>
+      <LegalH2>Feedback dentro l'app</LegalH2>
       <LegalP>
         Se sei gia' utente di FoodOS, il modo piu' rapido per segnalare bug, idee o complimenti
-        e' usare il bottone <strong>💬</strong> in basso a destra dentro l'app — arriva direttamente
+        e' usare il bottone <strong>Feedback</strong> in basso a destra dentro l'app — arriva direttamente
         a chi sviluppa.
       </LegalP>
 

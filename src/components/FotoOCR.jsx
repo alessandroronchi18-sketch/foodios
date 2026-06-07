@@ -6,6 +6,7 @@
 // viene smontato (es. utente naviga via durante l'analisi) e lo restituisce al remount.
 
 import React, { useEffect, useRef, useState } from 'react'
+import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import { backgroundManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
@@ -153,12 +154,12 @@ Instructions:
         try {
           let saved = 0, skipped = 0, ricettarioAccumulato = null
           for (let i = 0; i < toProcess.length; i++) {
-            notify(`📷 Analizzando ricetta ${i + 1} di ${toProcess.length}…`)
+            notify(`Analizzando ricetta ${i + 1} di ${toProcess.length}…`)
             try {
               const obj = await analyzeOneImage(toProcess[i].data, toProcess[i].mediaType)
               const ok = await onBatchSave(obj, i, ricettarioAccumulato, (r) => { ricettarioAccumulato = r })
               if (ok) saved++; else skipped++
-            } catch (e) { notify(`⚠ Foto ${i + 1}: ${e.message}`, false); skipped++ }
+            } catch (e) { notify(`Foto ${i + 1}: ${e.message}`, false); skipped++ }
           }
           notify(`✓ ${saved} ricette salvate${skipped > 0 ? ` · ${skipped} saltate` : ''}`)
           reset()
@@ -229,21 +230,21 @@ Instructions:
   }
 
   const ML = {
-    ricetta:    { title: '📷 Foto della ricetta',          sub: 'Foglio scritto a mano o pagina di libro — Claude legge anche grafia difficile' },
-    produzione: { title: "📷 Foto dell'appunto di oggi",   sub: 'Foglietto o quaderno con le torte prodotte — anche corsivo abbreviato' },
-    magazzino:  { title: '📷 Foto della lista ingredienti', sub: 'Foglio scritto con gli ingredienti arrivati e le quantità' },
-    prezzi:     { title: '📷 Foto del listino / fattura',   sub: 'Listino prezzi, fattura fornitore, scontrino — Claude estrae €/kg automaticamente' },
+    ricetta:    { title: 'Foto della ricetta',          sub: 'Foglio scritto a mano o pagina di libro — Claude legge anche grafia difficile' },
+    produzione: { title: "Foto dell'appunto di oggi",   sub: 'Foglietto o quaderno con le torte prodotte — anche corsivo abbreviato' },
+    magazzino:  { title: 'Foto della lista ingredienti', sub: 'Foglio scritto con gli ingredienti arrivati e le quantità' },
+    prezzi:     { title: 'Foto del listino / fattura',   sub: 'Listino prezzi, fattura fornitore, scontrino — Claude estrae €/kg automaticamente' },
   }[mode]
 
   return (
     <div style={{ background: '#F8F4F2', border: `2px dashed ${C.borderStr}`, borderRadius: 14, padding: '20px 24px', marginBottom: 24 }}>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{ML.title}</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="camera" size={14} /> {ML.title}</div>
         <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>{ML.sub}</div>
       </div>
       {!preview && !parsed && !loading && !error ? (
         <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '24px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 10, cursor: 'pointer' }}>
-          <span style={{ fontSize: 28 }}>📷</span>
+          <span style={{ display: 'inline-flex' }}><Icon name="camera" size={28} color={C.textMid} /></span>
           <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>Tocca per scattare o scegli foto</span>
           <span style={{ fontSize: 10, color: C.textSoft }}>JPG · PNG · HEIC · <strong>più foto insieme</strong></span>
           <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
@@ -254,14 +255,14 @@ Instructions:
             <div style={{ position: 'relative' }}>
               <img src={preview} alt="preview" style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.border}`, display: 'block' }}/>
               <button aria-label="Rimuovi foto" onClick={reset} style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}>✕</button>
-              {imgs.length > 1 && <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,0.7)', color: '#FFF', fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 10 }}>📷 {imgs.length} foto</div>}
+              {imgs.length > 1 && <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,0.7)', color: '#FFF', fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="camera" size={10} color="#FFF" /> {imgs.length} foto</div>}
               <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {!parsed && !loading && !error && (
-              <button onClick={handleAnalizza} style={{ padding: '12px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 10px rgba(110,14,26,0.25)' }}>
-                🔍 Analizza con AI
+              <button onClick={handleAnalizza} style={{ padding: '12px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 10px rgba(110,14,26,0.25)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                <Icon name="search" size={15} color={C.white} /> Analizza con AI
               </button>
             )}
             {loading && (
@@ -273,7 +274,7 @@ Instructions:
             )}
             {error && (
               <div style={{ padding: '12px', background: C.redLight, borderRadius: 9 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6 }}>⚠ {error}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} /> {error}</div>
                 <button onClick={handleAnalizza} style={{ padding: '6px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Riprova</button>
               </div>
             )}
@@ -295,11 +296,11 @@ Instructions:
                         ))}
                       </div>
                     ) : (
-                      <div style={{ padding: '8px 10px', background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 6, fontSize: 11, color: C.amber, marginBottom: 6 }}>
-                        ⚠ Nessun ingrediente estratto — prova con una foto più nitida
+                      <div style={{ padding: '8px 10px', background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 6, fontSize: 11, color: C.amber, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <Icon name="warning" size={12} /> Nessun ingrediente estratto — prova con una foto più nitida
                       </div>
                     )}
-                    {parsed.note && <div style={{ fontSize: 10, color: C.textSoft }}>📝 {parsed.note}</div>}
+                    {parsed.note && <div style={{ fontSize: 10, color: C.textSoft, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="edit" size={11} /> {parsed.note}</div>}
                   </div>
                 )}
                 {mode === 'produzione' && (
@@ -336,7 +337,7 @@ Instructions:
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button onClick={handleConferma} style={{ flex: 1, padding: '9px', background: C.green, color: C.white, border: 'none', borderRadius: 7, fontWeight: 800, fontSize: 11, cursor: 'pointer' }}>✅ Usa questi dati</button>
+                  <button onClick={handleConferma} style={{ flex: 1, padding: '9px', background: C.green, color: C.white, border: 'none', borderRadius: 7, fontWeight: 800, fontSize: 11, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} color={C.white} /> Usa questi dati</button>
                   <button onClick={() => setParsed(null)} style={{ padding: '9px 14px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>Rianalizza</button>
                 </div>
               </div>
