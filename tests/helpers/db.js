@@ -62,10 +62,61 @@ export async function createEphemeralOrg(svc, label = 'e2e') {
   return { userId, email, password, orgId, sedeId, token, userClient }
 }
 
+// Crea un utente DIPENDENTE dentro un'org esistente (orgId/sedeId del titolare).
+// Il trigger handle_new_user crea sempre una nuova org per ogni auth user: la
+// riassegniamo all'org target e settiamo ruolo='dipendente' via service key
+// (l'attore è il service role → auth.uid() null → guard_profile_escalation non
+// scatta). L'org orfana creata dal trigger viene cancellata. Ritorna un client
+// autenticato col token del dipendente (RLS attive come lato client reale).
+export async function createDipendenteIn(svc, orgId, label = 'dip') {
+  const uniq = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+  const email = `e2e-${label}-${uniq}@foodios-e2e.test`
+  const password = `E2e!${uniq}Aa1`
+
+  const { data, error } = await svc.auth.admin.createUser({
+    email, password, email_confirm: true,
+    user_metadata: { nome_attivita: `E2E ${label} ${uniq}`, tipo_attivita: 'pasticceria', citta: 'Torino' },
+  })
+  if (error) throw new Error('createUser(dip): ' + error.message)
+  const userId = data.user.id
+
+  // Attendi il profilo creato dal trigger e cattura l'org orfana.
+  let orphanOrgId = null
+  for (let i = 0; i < 25 && !orphanOrgId; i++) {
+    await new Promise(r => setTimeout(r, 300))
+    const { data: prof } = await svc.from('profiles').select('organization_id').eq('id', userId).maybeSingle()
+    orphanOrgId = prof?.organization_id || null
+  }
+  if (!orphanOrgId) throw new Error(`trigger handle_new_user non ha creato il profilo per ${email}`)
+
+  // Riassegna all'org target come dipendente (service key bypassa RLS).
+  const { error: updErr } = await svc.from('profiles')
+    .update({ organization_id: orgId, ruolo: 'dipendente', approvato: true })
+    .eq('id', userId)
+  if (updErr) throw new Error('update profilo dipendente: ' + updErr.message)
+
+  // Cancella l'org orfana creata dal trigger (igiene).
+  if (orphanOrgId && orphanOrgId !== orgId) {
+    try { await svc.from('organizations').delete().eq('id', orphanOrgId) } catch { /* noop */ }
+  }
+
+  // Token utente reale (RLS attive) via anon sign-in.
+  const anon = createClient(URL, ANON, noPersist)
+  const { data: sess, error: signErr } = await anon.auth.signInWithPassword({ email, password })
+  if (signErr || !sess?.session) throw new Error('signIn(dip): ' + (signErr?.message || 'no session'))
+  const userClient = createClient(URL, ANON, {
+    ...noPersist,
+    global: { headers: { Authorization: `Bearer ${sess.session.access_token}` } },
+  })
+
+  return { userId, email, password, orgId, orphanOrgId, userClient }
+}
+
 // Pulizia best-effort: cancella l'org (cascata su sedi/user_data/stock se FK
 // cascade) e l'utente auth. Errori ignorati (è solo igiene post-test).
 export async function cleanupOrg(svc, ref) {
   if (!ref) return
   try { if (ref.orgId) await svc.from('organizations').delete().eq('id', ref.orgId) } catch { /* noop */ }
+  try { if (ref.orphanOrgId && ref.orphanOrgId !== ref.orgId) await svc.from('organizations').delete().eq('id', ref.orphanOrgId) } catch { /* noop */ }
   try { if (ref.userId) await svc.auth.admin.deleteUser(ref.userId) } catch { /* noop */ }
 }
