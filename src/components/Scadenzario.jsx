@@ -336,7 +336,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   }
 
   // ── UI helpers ────────────────────────────────────────────────────────────────
-  const card = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, boxShadow: S.sm }
+  const card = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }
   const pill = (active) => ({
     padding: '7px 14px', borderRadius: 9999, border: `1px solid ${active ? T.text : T.border}`, cursor: 'pointer',
     fontSize: 12, fontWeight: active ? 600 : 500, letterSpacing: '-0.005em',
@@ -714,11 +714,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               font: 'inherit',
               position: 'relative',
               borderLeft: `4px solid ${k.accent}`,
-              boxShadow: k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 1px 3px rgba(15,23,42,0.04)' : S.sm,
+              boxShadow: k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
               transition: `box-shadow ${M.durBase} ${M.ease}, transform ${M.durBase} ${M.ease}`,
             }}
-            onMouseEnter={e => { e.currentTarget.style.boxShadow = S.md; e.currentTarget.style.transform = 'translateY(-1px)' }}
-            onMouseLeave={e => { e.currentTarget.style.boxShadow = k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 1px 3px rgba(15,23,42,0.04)' : S.sm; e.currentTarget.style.transform = 'translateY(0)' }}>
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(15,23,42,0.08), 0 16px 36px rgba(15,23,42,0.08)'; e.currentTarget.style.transform = 'translateY(-3px)' }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'; e.currentTarget.style.transform = 'translateY(0)' }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
               {k.label}
             </div>

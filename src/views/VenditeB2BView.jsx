@@ -147,11 +147,11 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
           )}
 
           {vendite.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px', background: C.bgCard, borderRadius: 12, border: `1px solid ${C.border}`, color: C.textSoft, fontSize: 13 }}>
+            <div style={{ textAlign: 'center', padding: '48px', background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, color: C.textSoft, fontSize: 13, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>💼</div>Nessuna vendita B2B registrata.
             </div>
           ) : (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
               {(() => {
                 const COLS = isMobile ? '1fr' : 'minmax(0,1fr) 130px 110px 184px'
                 const cellHead = { fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft }
@@ -226,9 +226,9 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
             </div>
           )}
           {clienti.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px', background: C.bgCard, borderRadius: 12, border: `1px solid ${C.border}`, color: C.textSoft, fontSize: 13 }}>Nessun cliente B2B. Aggiungi i bar/ristoranti a cui vendi all'ingrosso.</div>
+            <div style={{ textAlign: 'center', padding: '48px', background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, color: C.textSoft, fontSize: 13, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>Nessun cliente B2B. Aggiungi i bar/ristoranti a cui vendi all'ingrosso.</div>
           ) : (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
               {clienti.map((c, i) => (
                 <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: i < clienti.length - 1 ? `1px solid ${C.border}` : 'none' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>

@@ -199,10 +199,10 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       {formVisible && (
       <div style={{
         background:C.bgCard,
-        borderRadius: isMobile ? 0 : 12,
+        borderRadius: isMobile ? 0 : 16,
         padding: isMobile ? "20px 16px 100px" : "20px 24px",
         border: isMobile ? "none" : `1px solid ${C.border}`,
-        boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+        boxShadow: isMobile ? "none" : "0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
         position: isMobile ? "fixed" : "sticky",
         top: isMobile ? 0 : 20,
         left: isMobile ? 0 : "auto",
@@ -328,7 +328,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         ) : listaView.length === 0 ? (
           <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun dipendente trovato per "{search}".</div>
         ) : isMobile ? listaView.map(d=>(
-          <div key={d.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div key={d.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{d.nome}</div>
@@ -348,7 +348,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             </div>
           </div>
         )) : listaView.map(d=>(
-          <div key={d.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div key={d.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap: 'wrap' }}>
@@ -678,7 +678,7 @@ function TurniTab({ orgId, notify, isMobile }) {
         while (cells.length % 7 !== 0) cells.push(null)
         const todayIso = new Date().toISOString().slice(0, 10)
         return (
-          <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, boxShadow:"0 1px 4px rgba(0,0,0,0.04)", overflow:"hidden" }}>
+          <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", overflow:"hidden" }}>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
               {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>{g}</div>)}
             </div>
@@ -727,7 +727,7 @@ function TurniTab({ orgId, notify, isMobile }) {
         const seen = new Set()
         for (const d of usati) { const r = repartoDi(d.id); if (!seen.has(r.nome)) { seen.add(r.nome); repartiInTurno.push(r) } }
         return (
-          <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, boxShadow:"0 1px 4px rgba(0,0,0,0.04)", overflow:"hidden" }}>
+          <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", overflow:"hidden" }}>
             {repartiInTurno.length > 0 && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:isMobile?10:16, padding:"12px 16px", borderBottom:`1px solid ${C.border}` }}>
                 {repartiInTurno.map(r => (
@@ -915,7 +915,7 @@ function AnalisiCostoTab({ orgId, isMobile }) {
               { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${scostPct.toFixed(0)}% (straordinari?)`:`${scostPct.toFixed(0)}% sotto teorico` },
               { lbl:"Proiezione annua", val:fmt0(costoFissoMese*12), c:C.amber, sub:"costo fisso × 12" },
             ].map(({lbl,val,c,sub})=>(
-              <div key={lbl} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "14px 18px", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+              <div key={lbl} style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "14px 18px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
                 <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>{lbl}</div>
                 <div style={{ fontSize: isMobile ? 16 : 20, fontWeight:900, color:c, ...tnum }}>{val}</div>
                 {sub && <div style={{ fontSize:9, color:C.textSoft, marginTop:3 }}>{sub}</div>}
@@ -925,8 +925,8 @@ function AnalisiCostoTab({ orgId, isMobile }) {
 
           {/* Per dipendente: barra costo + €/h effettivo + % sul totale */}
           {dipRows.length > 0 && (
-            <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, padding:"16px 20px", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-              <div style={{ fontSize:12, fontWeight:800, color:C.text, marginBottom:14 }}>Ripartizione per dipendente</div>
+            <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding:"16px 20px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
+              <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14, letterSpacing:'-0.01em' }}>Ripartizione per dipendente</div>
               {dipRows.map(([nome,d])=>{
                 const oraEff = d.ore>0 ? d.costo/d.ore : 0
                 const quota = totCosto>0 ? d.costo/totCosto*100 : 0
@@ -997,11 +997,11 @@ function HeaderPersonale({ orgId, isMobile }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,1fr)' : 'repeat(3,minmax(200px,1fr))', gap: 10 }}>
         {kpis.map((k, i) => (
-          <div key={i} style={{
+          <div key={i} className="fos-tile" style={{
             background: k.hi ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
             border: `1px solid ${k.hi ? '#4A0612' : T.border}`,
-            borderRadius: R.xl, padding: isMobile ? '14px 14px' : '18px 22px',
-            boxShadow: k.hi ? '0 8px 22px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : S.sm,
+            borderRadius: 16, padding: isMobile ? '14px 14px' : '18px 22px',
+            boxShadow: k.hi ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
           }}>
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
               color: k.hi ? 'rgba(255,255,255,0.72)' : T.textSoft, marginBottom: 8 }}>{k.lbl}</div>
@@ -1108,7 +1108,7 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
           {org.reparti.map(r => {
             const membriOrdinati = [...(r.membri || [])].sort((a, b) => (b === r.capoId ? 1 : 0) - (a === r.capoId ? 1 : 0) || nomeById(a).localeCompare(nomeById(b), 'it'))
             return (
-              <div key={r.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
+              <div key={r.id} className="fos-tile" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'linear-gradient(135deg,#1C0A0A,#3D1515)' }}>
                   {renamingId === r.id ? (
                     <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}

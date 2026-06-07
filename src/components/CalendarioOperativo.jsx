@@ -330,8 +330,8 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
       {sel && selDetail && (
         <div style={{
           width: isMobile ? '100%' : 272, flexShrink:0,
-          background:'#FFF', borderRadius:16, border:'1px solid #E8DDD8',
-          boxShadow:'0 4px 24px rgba(0,0,0,0.08)',
+          background:'#FFF', borderRadius:18, border:'1px solid #E8DDD8',
+          boxShadow:'0 1px 2px rgba(15,23,42,0.04), 0 14px 34px rgba(15,23,42,0.07)',
           padding:20, position: isMobile ? 'static' : 'sticky', top:24,
           marginTop: isMobile ? 16 : 0,
           animation:'slideIn 0.15s ease',

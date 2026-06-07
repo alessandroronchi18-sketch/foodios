@@ -102,10 +102,10 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       {formVisible && (
       <div style={{
         background:C.bgCard,
-        borderRadius: isMobile ? 0 : 12,
+        borderRadius: isMobile ? 0 : 16,
         padding: isMobile ? "20px 16px 100px" : "20px 24px",
         border: isMobile ? "none" : `1px solid ${C.border}`,
-        boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+        boxShadow: isMobile ? "none" : "0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
         position: isMobile ? "fixed" : "relative",
         top: isMobile ? 0 : "auto",
         left: isMobile ? 0 : "auto",
@@ -178,7 +178,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         {loading ? <div style={{ color:C.textSoft, fontSize:13, padding:20 }}>Caricamento…</div> : lista.length === 0 ? (
           <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>{inArchivio ? "Nessun fornitore archiviato." : "Nessun fornitore ancora."}</div>
         ) : isMobile ? lista.map(f => (
-          <div key={f.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div key={f.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
               <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{f.nome}</div>
               {haPiuSedi && (
@@ -206,7 +206,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             </div>
           </div>
         )) : lista.map(f => (
-          <div key={f.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div key={f.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -432,7 +432,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
       ) : isMobile ? (
         <div>
           {ordini.map(o=>(
-            <div key={o.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div key={o.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8, marginBottom:6 }}>
                 <div style={{ fontWeight:800, fontSize:13, color:C.text, flex:1, minWidth:0, wordBreak:"break-word" }}>{o.fornitori?.nome || "—"}</div>
                 <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:12, background:`${statoColor[o.stato]}20`, color:statoColor[o.stato], whiteSpace:"nowrap" }}>{o.stato}</span>
@@ -458,7 +458,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
       ) : (
         <div>
           {ordini.map(o=>(
-            <div key={o.id} style={{ background:C.bgCard, borderRadius:10, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div key={o.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
                 <div>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
@@ -534,8 +534,8 @@ function SpesaTab({ orgId, isMobile }) {
       {loading ? <div style={{ color:C.textSoft }}>Caricamento…</div> : (
         <>
           {Object.keys(byFornitore).length > 0 && (
-            <div style={{ background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`, padding:"16px 20px", marginBottom:20, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-              <div style={{ fontSize:12, fontWeight:800, color:C.text, marginBottom:12 }}>Per fornitore</div>
+            <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding:"16px 20px", marginBottom:20, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
+              <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:12, letterSpacing:'-0.01em' }}>Per fornitore</div>
               {Object.entries(byFornitore).sort(([,a],[,b])=>b-a).map(([nome,tot])=>(
                 <div key={nome} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${C.border}` }}>
                   <span style={{ fontSize:12, color:C.text, fontWeight:600 }}>{nome}</span>

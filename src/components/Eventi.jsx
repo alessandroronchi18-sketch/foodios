@@ -7,7 +7,7 @@ import { onEnterAutoComplete } from '../lib/autocomplete'
 
 export const SK_EVENTI = 'pasticceria-eventi-v1'
 
-const card = { background: T.bgCard, borderRadius: R.xl, padding: '18px 20px', border: `1px solid ${T.border}`, boxShadow: '0 1px 2px rgba(15,23,42,0.04)', marginBottom: 16 }
+const card = { background: T.bgCard, borderRadius: 16, padding: '18px 20px', border: `1px solid ${T.border}`, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', marginBottom: 16 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
 const inp  = { width: '100%', height: 40, padding: '0 12px', border: `1px solid ${T.borderStr}`, borderRadius: R.md, fontSize: 13, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
 const btn = (bg, fg) => ({ height: 36, padding: '0 14px', background: bg, color: fg, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em', whiteSpace: 'nowrap', transition: 'background 120ms ease, opacity 120ms ease', fontFamily: 'inherit' })
@@ -395,7 +395,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
 
       {editing != null && draft && (
         <div style={{ ...card, border: '2px solid #6E0E1A', background: '#FEF7F5' }}>
-          <div style={{ fontWeight: 800, fontSize: 14, color: '#0F172A', marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 14, letterSpacing: '-0.01em' }}>
             {draft._new ? 'Nuovo evento' : 'Modifica evento'}
           </div>
 

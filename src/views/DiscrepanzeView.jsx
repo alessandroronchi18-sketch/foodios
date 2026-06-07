@@ -9,7 +9,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
-import { color as T, radius as R } from '../lib/theme'
+import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, normIng } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
@@ -157,7 +157,7 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
 
   if (loading) return <div style={{ fontSize: 13, color: C.textSoft, padding: 24 }}>Caricamento…</div>
 
-  const card = { background: C.bgCard, borderRadius: R.xl, padding: '18px 20px', border: `1px solid ${C.border}`, marginBottom: 16 }
+  const card = { background: C.bgCard, borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.border}`, marginBottom: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }
   const lbl  = { fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
   const inp  = { width: '100%', height: 40, padding: '0 12px', border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: 13, color: C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
 
@@ -359,7 +359,7 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
       {/* Breakdown per tipo */}
       {!draft && Object.keys(kpi.perTipo).length > 0 && (
         <div style={card}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 12 }}>📊 Breakdown per tipo · {meseFiltro}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12, letterSpacing: '-0.01em' }}>📊 Breakdown per tipo · {meseFiltro}</div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
             {Object.entries(kpi.perTipo).sort((a, b) => b[1].costo - a[1].costo).map(([tid, v]) => {
               const t = TIPI.find(x => x.id === tid)

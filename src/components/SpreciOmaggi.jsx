@@ -136,7 +136,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
 
   return (
     <div style={{ maxWidth: 1100 }}>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 14, fontSize: 12.5, color: C.textMid, lineHeight: 1.6 }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '14px 18px', marginBottom: 14, fontSize: 12.5, color: C.textMid, lineHeight: 1.6, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
         <b style={{ color: C.text }}>Sprechi e omaggi</b> — registra qui i prodotti che vanno persi
         (caduti, scaduti, errori) o che regali a un cliente. Servono per non far sembrare ammanchi
         di cassa cio' che e' una scelta gestionale.
@@ -157,7 +157,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       )}
 
       {form && (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: 18, marginBottom: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
             {[['spreco', '🗑 Spreco'], ['omaggio', '🎁 Omaggio']].map(([k, lbl]) => (
               <button key={k} onClick={() => setForm(f => ({ ...f, tipo: k, causale: k === 'spreco' ? CAUSALI_SPRECO[0] : CAUSALI_OMAGGIO[0] }))}
@@ -236,7 +236,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         </div>
       )}
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 18px', marginBottom: 12, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '14px 18px', marginBottom: 12, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
         <div>
           <label style={labelS}>Da</label>
           <input style={inputS} type="date" value={dataDa} onChange={e => setDataDa(e.target.value)}/>
@@ -255,7 +255,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         </div>
       </div>
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
