@@ -14,6 +14,7 @@ import { onEnterAutoComplete } from '../lib/autocomplete'
 import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
+import Icon from '../components/Icon'
 import { loadStockPF, loadMovimentiPF, scartoPF } from '../lib/stockPF'
 import {
   C, TNUM, PageHeader, useSortable, SortTH,
@@ -148,27 +149,27 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   const negativi = stock.filter(r => Number(r.quantita) < 0)
 
   const CAUSALE_LBL = {
-    produzione: { lbl: '🏭 Produzione', col: '#16A34A' },
-    trasferimento_invio: { lbl: '🚚 Inviato', col: '#DC2626' },
-    trasferimento_ricezione: { lbl: '📦 Ricevuto', col: '#16A34A' },
-    vendita: { lbl: '🛒 Vendita', col: '#2563EB' },
-    scarto: { lbl: '⚠️ Scarto', col: '#92400E' },
+    produzione: { lbl: 'Produzione', ic: 'factory', col: '#16A34A' },
+    trasferimento_invio: { lbl: 'Inviato', ic: 'truck', col: '#DC2626' },
+    trasferimento_ricezione: { lbl: 'Ricevuto', ic: 'package', col: '#16A34A' },
+    vendita: { lbl: 'Vendita', ic: 'cart', col: '#2563EB' },
+    scarto: { lbl: 'Scarto', ic: 'warning', col: '#92400E' },
     annullo_trasferimento: { lbl: '↩ Annullo', col: '#94A3B8' },
-    rettifica: { lbl: '✏️ Rettifica', col: '#475569' },
+    rettifica: { lbl: 'Rettifica', ic: 'edit', col: '#475569' },
   }
 
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
-        <KPI icon="📦" label={`${LEX.Prodotti} in stock`} value={stock.length}/>
-        <KPI icon="🧮" label="Pezzi totali" value={totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0 })}/>
-        <KPI icon="⚠️" label="Sotto soglia" value={sottoSoglia.length} color={sottoSoglia.length > 0 ? C.amber : C.green}/>
-        <KPI icon="🚨" label="Stock negativo" value={negativi.length} color={negativi.length > 0 ? C.red : C.green} sub={negativi.length > 0 ? 'vendite > carico' : ''}/>
+        <KPI icon={<Icon name="package" size={18} />} label={`${LEX.Prodotti} in stock`} value={stock.length}/>
+        <KPI icon={<Icon name="barChart" size={18} />} label="Pezzi totali" value={totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0 })}/>
+        <KPI icon={<Icon name="warning" size={18} />} label="Sotto soglia" value={sottoSoglia.length} color={sottoSoglia.length > 0 ? C.amber : C.green}/>
+        <KPI icon={<Icon name="alert" size={18} />} label="Stock negativo" value={negativi.length} color={negativi.length > 0 ? C.red : C.green} sub={negativi.length > 0 ? 'vendite > carico' : ''}/>
       </div>
 
       {stock.length === 0 ? (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13, boxShadow: SHADOW_PREMIUM }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>
+          <div style={{ marginBottom: 8, color: C.textSoft }}><Icon name="package" size={36} /></div>
           Nessun prodotto in stock per questa sede.<br/>
           Lo stock si popola automaticamente alla conferma di una sessione di produzione.
         </div>
@@ -222,7 +223,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
 
       {movimenti.length > 0 && (
         <div>
-          <SectHead icon="🕑" title="Movimenti recenti" sub="Ultimi carichi, scarichi e trasferimenti" />
+          <SectHead icon={<Icon name="clock" size={16} />} title="Movimenti recenti" sub="Ultimi carichi, scarichi e trasferimenti" />
 
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
@@ -236,7 +237,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                         {new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td style={{ padding: '8px 14px', fontWeight: 700, color: C.text }}>{m.prodotto_nome}</td>
-                      <td style={{ padding: '8px 14px', fontSize: 11, color: c.col, whiteSpace: 'nowrap' }}>{c.lbl}</td>
+                      <td style={{ padding: '8px 14px', fontSize: 11, color: c.col, whiteSpace: 'nowrap' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{c.ic && <Icon name={c.ic} size={12} />}{c.lbl}</span></td>
                       <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 800, color: d > 0 ? C.green : d < 0 ? C.red : C.textSoft, ...TNUM }}>
                         {d > 0 ? '+' : ''}{d}
                       </td>
@@ -254,7 +255,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
           onClick={() => setScartoForm(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 16, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,0.28)' }}>
-            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text }}>⚠️ Registra scarto</h3>
+            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="warning" size={18} />Registra scarto</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>{LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong></p>
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Quantità scartata (pz)</div>
@@ -337,12 +338,12 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Cerca ingrediente…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca ingrediente…"
             style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 12, background: C.white, color: C.text, outline: 'none', boxSizing: 'border-box' }}/>
         </div>
         <button onClick={() => setShowLog(s => !s)}
-          style={{ padding: '9px 14px', borderRadius: 8, border: `1px solid ${C.borderStr}`, background: showLog ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: showLog ? C.red : C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          {showLog ? '✕ Chiudi log' : `📜 Log modifiche · ${logPrezzi?.length || 0}`}
+          style={{ padding: '9px 14px', borderRadius: 8, border: `1px solid ${C.borderStr}`, background: showLog ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: showLog ? C.red : C.textMid, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {showLog ? <>✕ Chiudi log</> : <><Icon name="fileText" size={13} />{`Log modifiche · ${logPrezzi?.length || 0}`}</>}
         </button>
       </div>
 
@@ -435,7 +436,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                           <button onClick={cancelEdit} style={{ padding: '6px 10px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 10, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
                         </>
                       ) : (
-                        <button onClick={() => startEdit(row)} style={{ padding: '6px 12px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 10, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>✏️ Modifica</button>
+                        <button onClick={() => startEdit(row)} style={{ padding: '6px 12px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 10, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="edit" size={11} />Modifica</button>
                       )}
                     </td>
                   </tr>
@@ -489,7 +490,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               </div>
               {deltaPct != null && Math.abs(deltaPct) > 50 && (
                 <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', marginBottom: 16, fontSize: 11, color: '#78350F', lineHeight: 1.5 }}>
-                  <b>⚠ Variazione importante</b> — la modifica del {Math.abs(deltaPct).toFixed(0)}% influenzerà il food cost di tutte le ricette che usano questo ingrediente (a partire dalla decorrenza scelta).
+                  <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle' }}><Icon name="warning" size={12} />Variazione importante</b> — la modifica del {Math.abs(deltaPct).toFixed(0)}% influenzerà il food cost di tutte le ricette che usano questo ingrediente (a partire dalla decorrenza scelta).
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -555,7 +556,7 @@ export default function MagazzinoView({
       await ssave(SK_MAG, nm)
       await ssave(SK_EXCL, [...nuoviEsclusi])
     } catch (e) {
-      notify(`⚠ Eliminazione fallita: ${e.message || 'rete'}. Riprova.`, false)
+      notify(`Eliminazione fallita: ${e.message || 'rete'}. Riprova.`, false)
       setSaving(false)
       return
     }
@@ -601,7 +602,7 @@ export default function MagazzinoView({
     if (!formIng || !formQty) return
     const k = normIng(formIng.toLowerCase().trim())
     const qty = parseFloat(formQty)
-    if (qty <= 0) { notify('⚠ Inserisci una quantità maggiore di 0', false); return }
+    if (qty <= 0) { notify('Inserisci una quantità maggiore di 0', false); return }
     const now = new Date().toISOString()
     const attuale = magazzino?.[k]?.giacenza_g || 0
     const delta = formMode === 'scarico' ? -qty : qty
@@ -616,7 +617,7 @@ export default function MagazzinoView({
     try {
       await ssave(SK_MAG, nm); await ssave(SK_LOGRIF, log)
     } catch (e) {
-      notify(`⚠ Salvataggio magazzino fallito: ${e.message || 'rete'}. Riprova.`, false)
+      notify(`Salvataggio magazzino fallito: ${e.message || 'rete'}. Riprova.`, false)
       setSaving(false)
       return
     }
@@ -632,7 +633,7 @@ export default function MagazzinoView({
     try {
       await ssave(SK_MAG, nm)
     } catch (e) {
-      notify(`⚠ Errore soglia: ${e.message || 'rete'}`, false)
+      notify(`Errore soglia: ${e.message || 'rete'}`, false)
       return
     }
     setMagazzino(nm)
@@ -648,7 +649,7 @@ export default function MagazzinoView({
     try {
       await ssave(SK_MAG, nm)
     } catch (e) {
-      notify(`⚠ Errore aggiunta ingrediente: ${e.message || 'rete'}`, false)
+      notify(`Errore aggiunta ingrediente: ${e.message || 'rete'}`, false)
       setSaving(false)
       return
     }

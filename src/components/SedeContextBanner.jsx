@@ -1,5 +1,6 @@
 import React from 'react'
 import { color as T } from '../lib/theme'
+import Icon from './Icon'
 
 /**
  * Banner contestuale che indica con quale sede stiamo operando nella vista corrente.
@@ -26,7 +27,7 @@ export default function SedeContextBanner({ sedeAttiva, sedi = [], onChange, sco
         fontSize: 11, fontWeight: 600,
         marginBottom: 16,
       }}>
-        <span>🏢</span>
+        <Icon name="building" size={13} />
         <span>Dato a livello azienda · visibile a tutte le sedi</span>
       </div>
     )
@@ -45,7 +46,7 @@ export default function SedeContextBanner({ sedeAttiva, sedi = [], onChange, sco
       fontSize: 12, fontWeight: 600,
       marginBottom: 16,
     }}>
-      <span style={{ fontSize: 16 }}>📍</span>
+      <Icon name="pin" size={16} style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, lineHeight: 1.35 }}>
         <div>
           Sede attiva: <strong style={{ fontWeight: 800 }}>{nome}</strong>

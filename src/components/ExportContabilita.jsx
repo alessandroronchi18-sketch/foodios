@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sloadAllSedi } from '../lib/storage'
 import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
+import Icon from './Icon'
 
 const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
@@ -245,7 +246,7 @@ export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, noti
     try {
       const { corr, fp } = await fetchData()
       if (corr.length === 0 && fp.length === 0) {
-        notify?.('⚠ Nessun dato per il periodo selezionato', false)
+        notify?.('Nessun dato per il periodo selezionato', false)
         return
       }
       if (tipo === 'fic') exportFattureInCloudCSV(corr, fp, ivaPct, sediMap, yearMonth)
@@ -254,7 +255,7 @@ export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, noti
       notify?.('✓ Export pronto')
     } catch (e) {
       console.error('Export contabilità fallito:', e)
-      notify?.('⚠ ' + (e.message || 'Errore export'), false)
+      notify?.('' + (e.message || 'Errore export'), false)
     } finally {
       setBusy(null)
     }
@@ -276,7 +277,7 @@ export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, noti
   return (
     <div>
       <div style={card}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8 }}>📊 Export contabilità</div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="barChart" size={16} /> Export contabilità</div>
         <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, lineHeight: 1.6 }}>
           Estrae corrispettivi giornalieri (chiusure cassa) e fatture passive del periodo selezionato,
           con calcolo IVA basato sull'aliquota indicata. Verifica i totali con il tuo commercialista prima dell'invio fiscale.
@@ -295,14 +296,14 @@ export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, noti
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button onClick={() => run('fic')} disabled={busy != null} style={btn(busy === 'fic', '#0F766E')}>
-            {busy === 'fic' ? 'Generazione…' : '📄 Esporta per Fatture in Cloud (CSV)'}
+          <button onClick={() => run('fic')} disabled={busy != null} style={{ ...btn(busy === 'fic', '#0F766E'), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {busy === 'fic' ? 'Generazione…' : <><Icon name="fileText" size={15} /> Esporta per Fatture in Cloud (CSV)</>}
           </button>
-          <button onClick={() => run('ts')} disabled={busy != null} style={btn(busy === 'ts', '#1E40AF')}>
-            {busy === 'ts' ? 'Generazione…' : '🏛 Esporta per TeamSystem (XML)'}
+          <button onClick={() => run('ts')} disabled={busy != null} style={{ ...btn(busy === 'ts', '#1E40AF'), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {busy === 'ts' ? 'Generazione…' : <><Icon name="bank" size={15} /> Esporta per TeamSystem (XML)</>}
           </button>
-          <button onClick={() => run('xlsx')} disabled={busy != null} style={btn(busy === 'xlsx', '#6E0E1A')}>
-            {busy === 'xlsx' ? 'Generazione…' : '📚 Esporta per commercialista (Excel)'}
+          <button onClick={() => run('xlsx')} disabled={busy != null} style={{ ...btn(busy === 'xlsx', '#6E0E1A'), display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {busy === 'xlsx' ? 'Generazione…' : <><Icon name="book" size={15} /> Esporta per commercialista (Excel)</>}
           </button>
         </div>
       </div>

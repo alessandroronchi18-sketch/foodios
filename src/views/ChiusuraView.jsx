@@ -20,6 +20,7 @@ import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGeneric
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/importCassa'
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
+import Icon from '../components/Icon'
 import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
 
 // Persiste fra unmount/remount durante l'analisi AI di uno scontrino
@@ -169,7 +170,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       }
       return { nome, qta, prezzoUnitario: prezzo, totale: Math.round(qta * prezzo * 100) / 100 }
     }).filter(Boolean)
-    if (!righe.length) { notify?.('⚠ Inserisci almeno un prodotto con quantità', false); return }
+    if (!righe.length) { notify?.('Inserisci almeno un prodotto con quantità', false); return }
     setVenduto(righe); setSalvato(false); setError(null)
   }
 
@@ -193,7 +194,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       const reads = await Promise.all(compressed.map(readFile64))
       setBatchFiles(reads)
       setPreview(reads[0].preview); setImg(reads[0].data64)
-      notify(`📷 ${reads.length} scontrini selezionati — premi "Leggi tutti" per elaborarli`)
+      notify(`${reads.length} scontrini selezionati — premi "Leggi tutti" per elaborarli`)
     }
   }
 
@@ -259,7 +260,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         setVenduto(prodotti)
         if (dataEstratta) {
           setDataFiltro(dataEstratta)
-          notify(`📅 Data estratta dallo scontrino: ${new Date(dataEstratta + 'T12:00').toLocaleDateString('it-IT')}`)
+          notify(`Data estratta dallo scontrino: ${new Date(dataEstratta + 'T12:00').toLocaleDateString('it-IT')}`)
         }
         setLoading(false)
       },
@@ -307,7 +308,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         setChiusure(nuoveChiusure); setBatchResults(results); setBatchProg(null); setLoading(false)
         notify(`✓ ${saved} chiusure salvate${skipped > 0 ? ` · ${skipped} saltate` : ''}`)
       },
-      onError: (err) => { setBatchProg(null); setLoading(false); notify(`⚠ Errore batch: ${err.message}`, false) },
+      onError: (err) => { setBatchProg(null); setLoading(false); notify(`Errore batch: ${err.message}`, false) },
     })
   }
 
@@ -409,7 +410,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     try {
       await ssave(SK_CHIUS, nuove)
     } catch (e) {
-      notify(`⚠ Errore salvataggio chiusura: ${e.message || 'rete'}. Riprova.`, false)
+      notify(`Errore salvataggio chiusura: ${e.message || 'rete'}. Riprova.`, false)
       setSalvando(false)
       return
     }
@@ -440,7 +441,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         ? 'mano abbondante o residui non registrati'
         : 'vendite non registrate o errore inserimento'
       setTimeout(() => {
-        notify(`⚠ Drift critico ${peggiore.categoria}: ${segno}${peggiore.driftPct.toFixed(0)}% — ${tipo}${anomalieDrift.length > 1 ? ` (e altre ${anomalieDrift.length - 1} categorie)` : ''}`, false)
+        notify(`Drift critico ${peggiore.categoria}: ${segno}${peggiore.driftPct.toFixed(0)}% — ${tipo}${anomalieDrift.length > 1 ? ` (e altre ${anomalieDrift.length - 1} categorie)` : ''}`, false)
       }, 1200)
     }
   }
@@ -462,7 +463,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       return result
     }, {
       onComplete: (result) => { setImportPreview(result); setImportLoading(false) },
-      onError: (err) => { notify(`⚠ ${err.message}`); setImportLoading(false) },
+      onError: (err) => { notify(`${err.message}`); setImportLoading(false) },
     })
   }
 
@@ -477,7 +478,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     try {
       await ssave(SK_CHIUS, nuove)
     } catch (e) {
-      notify(`⚠ Errore salvataggio import: ${e.message || 'rete'}. Riprova.`, false)
+      notify(`Errore salvataggio import: ${e.message || 'rete'}. Riprova.`, false)
       return
     }
     setChiusure(nuove)
@@ -496,7 +497,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       return { tipo: 'aggregated', righe }
     }, {
       onComplete: (result) => { setImportPreview(result); setImportLoading(false) },
-      onError: (err) => { notify(`⚠ ${err.message}`); setImportLoading(false) },
+      onError: (err) => { notify(`${err.message}`); setImportLoading(false) },
     })
   }
 
@@ -507,7 +508,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     try {
       await ssave(SK_CHIUS, nuove)
     } catch (e) {
-      notify(`⚠ Errore salvataggio import: ${e.message || 'rete'}. Riprova.`, false)
+      notify(`Errore salvataggio import: ${e.message || 'rete'}. Riprova.`, false)
       return
     }
     setChiusure(nuove)
@@ -537,9 +538,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         </div>
         {!salvato ? (
           (confronto.length > 0 || formatiRiconc.righe.length > 0) ? (
-            <button onClick={handleSalva} disabled={salvando} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1 }}>{salvando ? '💾 Salvataggio…' : '💾 Salva chiusura nello storico'}</button>
+            <button onClick={handleSalva} disabled={salvando} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="save" size={14} />{salvando ? 'Salvataggio…' : 'Salva chiusura nello storico'}</button>
           ) : (
-            <div style={{ fontSize: 10, color: C.amber }}>⚠ Nessun prodotto del ricettario o formato di vendita trovato — verifica i nomi</div>
+            <div style={{ fontSize: 10, color: C.amber }}>Nessun prodotto del ricettario o formato di vendita trovato — verifica i nomi</div>
           )
         ) : (
           <div style={{ padding: '9px 14px', background: C.greenLight, borderRadius: 8, fontSize: 11, fontWeight: 700, color: C.green }}>✓ Chiusura salvata nello storico</div>
@@ -565,7 +566,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       {importModal === 'delivery' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: C.white, borderRadius: 16, padding: '24px', maxWidth: 540, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', overflowY: 'auto', maxHeight: '90vh' }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: C.text, marginBottom: 4 }}>🛵 Importa da piattaforma delivery</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: C.text, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="scooter" size={18} />Importa da piattaforma delivery</div>
             <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 18 }}>Seleziona la piattaforma e carica il file export CSV/Excel.</div>
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Piattaforma</div>
@@ -578,7 +579,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               </select>
             </div>
             <label style={{ display: 'block', padding: '12px', background: '#F8F4F2', border: `1px dashed ${C.borderStr}`, borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.textMid, marginBottom: 14 }}>
-              📂 {importLoading ? 'Lettura file…' : 'Carica file export'}
+              <Icon name="folder" size={14} style={{ marginRight: 6 }} />{importLoading ? 'Lettura file…' : 'Carica file export'}
               <input ref={importFileRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }} onChange={handleImportDeliveryFile}/>
             </label>
             {importPreview?.tipo === 'aggregated' && (
@@ -606,7 +607,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             )}
             {importPreview?.tipo === 'generic' && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.amber, marginBottom: 8 }}>📋 Mappa le colonne</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.amber, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="clipboard" size={13} />Mappa le colonne</div>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
                   {[['Data', 'data'], ['Importo', 'importo'], ['Commissione (opz.)', 'comm']].map(([label, key]) => (
                     <div key={key}>
@@ -634,7 +635,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       {importModal === 'cassa' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: C.white, borderRadius: 16, padding: '24px', maxWidth: 540, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', overflowY: 'auto', maxHeight: '90vh' }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: C.text, marginBottom: 4 }}>🖥 Importa da sistema cassa</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: C.text, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="tv" size={18} />Importa da sistema cassa</div>
             <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 18 }}>Seleziona il sistema e carica il file export (CSV o XML).</div>
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Sistema cassa</div>
@@ -649,7 +650,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               </select>
             </div>
             <label style={{ display: 'block', padding: '12px', background: '#F8F4F2', border: `1px dashed ${C.borderStr}`, borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.textMid, marginBottom: 14 }}>
-              📂 {importLoading ? 'Lettura file…' : 'Carica file export'}
+              <Icon name="folder" size={14} style={{ marginRight: 6 }} />{importLoading ? 'Lettura file…' : 'Carica file export'}
               <input type="file" accept=".csv,.xml,.xlsx" style={{ display: 'none' }} onChange={handleImportCassaFile}/>
             </label>
             {importPreview?.tipo === 'aggregated' && (
@@ -699,7 +700,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             </div>
           ) : (
             <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}25`, borderRadius: 8, padding: '8px 14px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.amber }}>⚠ Nessuna produzione registrata per questa data</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} />Nessuna produzione registrata per questa data</div>
               <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>Il confronto prodotto/venduto non sarà disponibile, ma i ricavi verranno salvati.</div>
             </div>
           )}
@@ -714,10 +715,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       <div style={{ background: '#F8F4F2', border: `2px dashed ${C.borderStr}`, borderRadius: 18, padding: '20px 24px', marginBottom: 20 }}>
         {/* Toggle: foto scontrino (OCR) vs inserimento manuale */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-          {[['foto', '📷 Foto scontrino'], ['manuale', '✍️ Inserimento manuale']].map(([id, lbl]) => (
+          {[['foto', 'camera', 'Foto scontrino'], ['manuale', 'edit', 'Inserimento manuale']].map(([id, ic, lbl]) => (
             <button key={id} onClick={() => { setInputMode(id); setError(null) /* non azzerare venduto/salvato: i dati sotto restano visibili */ }}
-              style={{ flex: 1, padding: '9px', borderRadius: 8, border: `1px solid ${inputMode === id ? C.red : C.border}`, background: inputMode === id ? C.redLight : C.white, color: inputMode === id ? C.red : C.textMid, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-              {lbl}
+              style={{ flex: 1, padding: '9px', borderRadius: 8, border: `1px solid ${inputMode === id ? C.red : C.border}`, background: inputMode === id ? C.redLight : C.white, color: inputMode === id ? C.red : C.textMid, fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Icon name={ic} size={14} />{lbl}
             </button>
           ))}
         </div>
@@ -725,12 +726,12 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         {inputMode === 'foto' ? (
           <>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>🧾 Foto scontrino di chiusura</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="receipt" size={14} />Foto scontrino di chiusura</div>
               <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>Claude legge solo la sezione PASTICCERIA · Prodotti non nel ricettario vengono ignorati</div>
             </div>
             {!preview ? (
               <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '22px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 10, cursor: 'pointer' }}>
-                <span style={{ fontSize: 28 }}>🧾</span>
+                <Icon name="receipt" size={28} color={C.textMid} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>Tocca per fotografare lo scontrino</span>
                 <span style={{ fontSize: 10, color: C.textSoft }}>Seleziona più scontrini insieme — ogni data viene letta automaticamente</span>
                 <input ref={inputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile}/>
@@ -745,8 +746,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {!venduto && !loading && !error && (
-                    <button onClick={batchMode ? handleAnalizzaBatch : handleAnalizza} style={{ padding: '13px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 10px rgba(110,14,26,0.25)' }}>
-                      {batchMode ? `📊 Leggi tutti (${batchFiles.length} scontrini)` : '🔍 Leggi scontrino con AI'}
+                    <button onClick={batchMode ? handleAnalizzaBatch : handleAnalizza} style={{ padding: '13px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 10px rgba(110,14,26,0.25)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                      <Icon name={batchMode ? 'barChart' : 'search'} size={15} />{batchMode ? `Leggi tutti (${batchFiles.length} scontrini)` : 'Leggi scontrino con AI'}
                     </button>
                   )}
                   {loading && (
@@ -758,7 +759,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                   )}
                   {error && (
                     <div style={{ padding: '12px', background: C.redLight, borderRadius: 9 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6 }}>⚠ {error}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />{error}</div>
                       <button onClick={handleAnalizza} style={{ padding: '6px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Riprova</button>
                     </div>
                   )}
@@ -770,7 +771,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         ) : (
           <>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>✍️ Inserisci i prodotti venduti</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="edit" size={14} />Inserisci i prodotti venduti</div>
               <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>Digita nome e quantità · il prezzo si compila dal listino se lo lasci vuoto</div>
             </div>
             <datalist id="ric-cassa-list">{nomiRicette.map(n => <option key={n} value={n}/>)}</datalist>
@@ -820,11 +821,11 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             )
           })()}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? `repeat(${isDipendente ? 2 : 3},1fr)` : `repeat(${isDipendente ? 2 : 5},1fr)`, gap: 10, marginBottom: 24 }}>
-            <KPI icon="💰" label="Ricavo reale" value={fmt0(totV)} highlight/>
-            {!isDipendente && <KPI icon="📈" label="Margine" value={fmt0(totM)} color={margColor(totMP)} sub={fmtp(totMP)}/>}
-            {!isDipendente && <KPI icon="🧾" label="Food cost" value={fmt0(totFC)} color={C.red}/>}
-            <KPI icon="🎯" label="Sell-through" value={fmtp(avgST)} color={stC(avgST)} sub="% vendute"/>
-            {!isDipendente && <KPI icon="🗑" label="Spreco" value={fmt0(totS)} color={totS > 5 ? C.red : C.green} sub="FC perso"/>}
+            <KPI icon={<Icon name="money" size={18} />} label="Ricavo reale" value={fmt0(totV)} highlight/>
+            {!isDipendente && <KPI icon={<Icon name="trendUp" size={18} />} label="Margine" value={fmt0(totM)} color={margColor(totMP)} sub={fmtp(totMP)}/>}
+            {!isDipendente && <KPI icon={<Icon name="receipt" size={18} />} label="Food cost" value={fmt0(totFC)} color={C.red}/>}
+            <KPI icon={<Icon name="target" size={18} />} label="Sell-through" value={fmtp(avgST)} color={stC(avgST)} sub="% vendute"/>
+            {!isDipendente && <KPI icon={<Icon name="trash" size={18} />} label="Spreco" value={fmt0(totS)} color={totS > 5 ? C.red : C.green} sub="FC perso"/>}
           </div>
 
           {confronto.length > 0 && (() => {
@@ -852,7 +853,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           })()
           return (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
-            <SectHead icon="⚖️" title="Produzione vs Venduto"
+            <SectHead icon={<Icon name="barChart" size={16} />} title="Produzione vs Venduto"
               sub={new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}
               right={salvato && <span style={{ fontSize: 10, fontWeight: 700, color: C.green, background: C.greenLight, borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap' }}>✓ Salvato</span>} />
 
@@ -878,7 +879,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                       <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textMid }}>{r.inProd ? r.unitaP : '—'}</td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.text }}>{r.unitaV}</td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: r.unitaR > 0 ? 700 : 400, color: r.unitaR > 0 ? C.amber : C.green }}>
-                        {r.inProd ? (r.unitaR > 0 ? `${r.unitaR} ⚠` : '0 ✓') : '—'}
+                        {r.inProd ? (r.unitaR > 0 ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>{r.unitaR} <Icon name="warning" size={11} /></span> : '0 ✓') : '—'}
                       </td>
                       <td style={{ padding: '9px 12px', textAlign: 'right' }}>
                         {r.st !== null ? (
@@ -911,7 +912,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
           {formatiRiconc.righe.length > 0 && (
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
-              <SectHead icon="🍦" title="Formati di vendita" sub="Righe senza dettaglio gusto/ripieno · food cost stimato sulla media della categoria" />
+              <SectHead icon={<Icon name="cart" size={16} />} title="Formati di vendita" sub="Righe senza dettaglio gusto/ripieno · food cost stimato sulla media della categoria" />
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead>
@@ -980,7 +981,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           {!isDipendente && confronto.filter(r => r.spreco > 2).length > 0 && (
             <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}30`, borderRadius: 18, padding: '18px 20px', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
-                <span style={{ width: 34, height: 34, borderRadius: 10, background: C.amberLight, color: C.amber, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>💡</span>
+                <span style={{ width: 34, height: 34, borderRadius: 10, background: C.amberLight, color: C.amber, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}><Icon name="bulb" size={17} /></span>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>Ottimizza la produzione di domani</div>
                   <div style={{ fontSize: 11, color: C.textSoft, marginTop: 1 }}>Riduci lo spreco allineando gli stampi al venduto</div>
@@ -1017,7 +1018,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           {confronto.length > 0 && (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
-              <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: C.red, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎯</span>
+              <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: C.red, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}><Icon name="target" size={17} /></span>
               <div style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>Sell-through per {LEX.prodotto}</div>
             </div>
             {(() => { const nameW = isMobile ? 96 : 160, vendW = isMobile ? 52 : 64, rvW = isMobile ? 60 : 80; return (<>
@@ -1056,7 +1057,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
       {venduto && confronto.length === 0 && formatiRiconc.righe.length === 0 && !loading && (
         <div style={{ textAlign: 'center', padding: '36px', background: C.bgCard, borderRadius: 18, border: `1px solid ${C.border}`, boxShadow: SHADOW_PREMIUM }}>
-          <div style={{ fontSize: 30, marginBottom: 10 }}>🔍</div>
+          <div style={{ marginBottom: 10, color: C.textSoft }}><Icon name="search" size={30} /></div>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun prodotto del ricettario trovato</div>
           <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 8 }}>I nomi sullo scontrino non corrispondono alle ricette. Se la cassa batte prodotti generici (cono, vaschetta, panino…), configura i <b>Formati di vendita</b>.</div>
           <div style={{ fontSize: 10, color: C.textSoft }}>Letti: {venduto.map(p => p.nome).join(', ')}</div>

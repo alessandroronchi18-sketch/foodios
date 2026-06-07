@@ -15,6 +15,7 @@ import { caricoProduzionePF, scaricoVenditaPF } from './lib/stockPF'
 import { creaTrasferimento } from './lib/trasferimenti'
 import SedeSelector from './components/SedeSelector'
 import SedeContextBanner from './components/SedeContextBanner'
+import Icon from './components/Icon'
 const Scadenzario = lazyWithReload(() => import('./components/Scadenzario'))
 const CalendarioOperativo = lazyWithReload(() => import('./components/CalendarioOperativo'))
 const ReferralPanel = lazyWithReload(() => import('./components/ReferralPanel'))
@@ -455,7 +456,7 @@ function SH({children,sub}) {
   );
 }
 
-function KPI({label,value,sub,color,highlight,icon}) {
+function KPI({label,value,sub,color,highlight,icon,iconName}) {
   return (
     <div style={{background:highlight?"linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)":T.bgCard,
       border:`1px solid ${highlight?"#4A0612":T.border}`,borderRadius:14,
@@ -463,7 +464,7 @@ function KPI({label,value,sub,color,highlight,icon}) {
       boxShadow:highlight?"0 12px 28px rgba(110,14,26,0.34), inset 0 1px 0 rgba(255,255,255,0.18)":"0 1px 2px rgba(15,23,42,0.05), 0 4px 12px rgba(15,23,42,0.04)"}}>
       <div style={{fontSize:11,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",
         color:highlight?"rgba(255,255,255,0.76)":T.textSoft,marginBottom:10}}>
-        {icon&&<span style={{marginRight:6}}>{icon}</span>}{label}
+        {iconName?<span style={{marginRight:6,display:"inline-flex",verticalAlign:"-2px"}}><Icon name={iconName} size={13}/></span>:icon&&<span style={{marginRight:6}}>{icon}</span>}{label}
       </div>
       <div style={{fontSize:30,fontWeight:700,color:highlight?T.textOnDark:color||T.text,
         letterSpacing:"-0.03em",lineHeight:1.05,
@@ -544,15 +545,15 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {dirty&&<span style={{fontSize:10,color:C.amber,fontWeight:600}}>● Non salvato</span>}
-          <button onClick={save} style={{padding:"8px 20px",background:C.red,color:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:11,cursor:"pointer"}}>💾 Salva</button>
+          <button onClick={save} style={{padding:"8px 20px",background:C.red,color:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><Icon name="save" size={13}/> Salva</button>
         </div>
       </div>
 
       <div style={{display:"flex",gap:4,marginBottom:24,borderBottom:`2px solid ${C.border}`}}>
-        {[["dashboard","📊 Dashboard"],["inserimento","✏️ Inserimento dati"],["ai","🤖 Analisi AI"]].map(([id,lbl])=>(
+        {[["dashboard","barChart","Dashboard"],["inserimento","edit","Inserimento dati"],["ai","robot","Analisi AI"]].map(([id,icn,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{padding:"8px 18px",border:"none",background:"transparent",cursor:"pointer",fontSize:11,fontWeight:700,color:tab===id?C.red:C.textSoft,borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",marginBottom:-2,transition:"all 0.12s"}}>
-            {lbl}
+            style={{padding:"8px 18px",border:"none",background:"transparent",cursor:"pointer",fontSize:11,fontWeight:700,color:tab===id?C.red:C.textSoft,borderBottom:tab===id?`2px solid ${C.red}`:"2px solid transparent",marginBottom:-2,transition:"all 0.12s",display:"inline-flex",alignItems:"center",gap:6}}>
+            <Icon name={icn} size={13}/> {lbl}
           </button>
         ))}
       </div>
@@ -560,19 +561,19 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
       {tab==="dashboard"&&(
         !hasData ? (
           <div style={{textAlign:"center",padding:"70px 20px",color:C.textSoft}}>
-            <div style={{fontSize:36,marginBottom:14}}>📋</div>
+            <div style={{marginBottom:14,display:"flex",justifyContent:"center"}}><Icon name="clipboard" size={36}/></div>
             <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:8}}>Nessun dato per {mese.label}</div>
             <div style={{fontSize:12,marginBottom:20}}>Inserisci gli stampi prodotti e venduti per vedere i risultati.</div>
-            <button onClick={()=>setTab("inserimento")} style={{padding:"10px 24px",background:C.red,color:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:12,cursor:"pointer"}}>✏️ Inserisci dati</button>
+            <button onClick={()=>setTab("inserimento")} style={{padding:"10px 24px",background:C.red,color:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:12,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><Icon name="edit" size={13}/> Inserisci dati</button>
           </div>
         ) : (
           <>
             <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:28}}>
-              <KPI icon="💰" label="Ricavi" value={fmt(totR)} highlight/>
-              <KPI icon="🧾" label="Food cost" value={fmt(totFC)} color={C.red}/>
-              <KPI icon="📈" label="Margine" value={fmt(totM)} color={margColor(totMP)}/>
+              <KPI iconName="money" label="Ricavi" value={fmt(totR)} highlight/>
+              <KPI iconName="receipt" label="Food cost" value={fmt(totFC)} color={C.red}/>
+              <KPI iconName="trendUp" label="Margine" value={fmt(totM)} color={margColor(totMP)}/>
               <KPI icon="%" label="Margine %" value={fmtp(totMP)} color={margColor(totMP)}/>
-              <KPI icon="🎯" label="Sell-through" value={fmtp(st)} sub={`${totV}/${totP} stampi`} color={st>=80?C.green:st>=60?C.amber:C.red}/>
+              <KPI iconName="target" label="Sell-through" value={fmtp(st)} sub={`${totV}/${totP} stampi`} color={st>=80?C.green:st>=60?C.amber:C.red}/>
             </div>
             <SH>Risultati per Prodotto</SH>
             <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
@@ -657,7 +658,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
             </table>
           </div>
           <div style={{display:"flex",justifyContent:"flex-end"}}>
-            <button onClick={save} style={{padding:"10px 28px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer",letterSpacing:"0.02em"}}>💾 Salva dati {mese.label}</button>
+            <button onClick={save} style={{padding:"10px 28px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer",letterSpacing:"0.02em",display:"inline-flex",alignItems:"center",gap:6}}><Icon name="save" size={13}/> Salva dati {mese.label}</button>
           </div>
         </div>
       )}
@@ -666,16 +667,16 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
             <div>
-              <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4}}>🤖 Consulenza AI — {mese.label}</div>
+              <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Icon name="robot" size={14}/> Consulenza AI — {mese.label}</div>
               <div style={{fontSize:11,color:C.textSoft}}>Analisi automatica basata sui tuoi dati. Aggiornata ad ogni richiesta.</div>
             </div>
-            {hasData&&<button onClick={runAI} disabled={aiLoad} style={{padding:"9px 20px",background:aiLoad?"#EEE":C.red,color:aiLoad?C.textSoft:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:11,cursor:aiLoad?"default":"pointer"}}>{aiLoad?"⏳ Elaboro…":"▶ Analizza ora"}</button>}
+            {hasData&&<button onClick={runAI} disabled={aiLoad} style={{padding:"9px 20px",background:aiLoad?"#EEE":C.red,color:aiLoad?C.textSoft:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:11,cursor:aiLoad?"default":"pointer",display:"inline-flex",alignItems:"center",gap:6}}>{aiLoad?<><Icon name="hourglass" size={12}/> Elaboro…</>:"▶ Analizza ora"}</button>}
           </div>
           {!hasData&&<div style={{color:C.textSoft,fontSize:12}}>Inserisci prima i dati di produzione nella tab "Inserimento dati".</div>}
           {aiData&&(
             <div>
               <div style={{padding:"16px 18px",background:"#F8F4F2",borderRadius:10,marginBottom:16,fontSize:12,color:C.text,lineHeight:1.75}}>{aiData.sintesi}</div>
-              {aiData.alert&&<div style={{padding:"10px 16px",background:C.amberLight,border:`1px solid ${C.amber}30`,borderRadius:8,fontSize:11,color:C.amber,fontWeight:600,marginBottom:16}}>⚠️ {aiData.alert}</div>}
+              {aiData.alert&&<div style={{padding:"10px 16px",background:C.amberLight,border:`1px solid ${C.amber}30`,borderRadius:8,fontSize:11,color:C.amber,fontWeight:600,marginBottom:16,display:"flex",alignItems:"center",gap:6}}><Icon name="warning" size={13}/> {aiData.alert}</div>}
               <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:12}}>
                 {(aiData.azioni||[]).map((a,i)=>(
                   <div key={i} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:"16px 18px"}}>
@@ -763,7 +764,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
     if (error) {
       console.error("Errore toggle email report:", error);
       setEmailReport(!val);
-      notify("⚠ Errore nel salvataggio impostazione email", false);
+      notify("Errore nel salvataggio impostazione email", false);
       return;
     }
     notify(val ? "✓ Riceverai i report mensili via email" : "✓ Email report mensili disattivata");
@@ -772,7 +773,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
   const handleSalvaNome = async () => {
     if (!nomeMod.trim()) return;
     if (!orgId) {
-      notify("⚠ Errore: organizzazione non trovata. Ricarica la pagina.", false);
+      notify("Errore: organizzazione non trovata. Ricarica la pagina.", false);
       return;
     }
     setSaving(true);
@@ -786,7 +787,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
       notify("✓ Nome attività aggiornato");
     } catch (e) {
       console.error("Errore salvataggio nome:", e);
-      notify("⚠ Errore nel salvataggio: " + (e.message || "Riprova"), false);
+      notify("Errore nel salvataggio: " + (e.message || "Riprova"), false);
     } finally {
       setSaving(false);
     }
@@ -797,17 +798,17 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
   const input = { width:"100%", padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, fontWeight:500, color:C.text, background:"#FAFAFA", outline:"none" };
 
   const TABS = [
-    ["generale", "⚙️ Generale"],
-    ["abbonamento", "💳 Abbonamento"],
-    ["whatsapp", "📱 WhatsApp"],
-    ["sicurezza", "🔐 Sicurezza"],
-    ["rese", "🔢 Rese"],
-    ["sedi", "🏪 Sedi"],
-    ["tv", "📺 TV"],
-    ["contabilita", "📊 Contabilità"],
-    ["benchmark", "📈 Benchmark"],
-    ["personalizzazione", "🎨 Personalizzazione"],
-    ["dati", "💾 Dati"],
+    ["generale", "gear", "Generale"],
+    ["abbonamento", "card", "Abbonamento"],
+    ["whatsapp", "chat", "WhatsApp"],
+    ["sicurezza", "lock", "Sicurezza"],
+    ["rese", null, "Rese"],
+    ["sedi", "store", "Sedi"],
+    ["tv", "tv", "TV"],
+    ["contabilita", "barChart", "Contabilità"],
+    ["benchmark", "trendUp", "Benchmark"],
+    ["personalizzazione", "palette", "Personalizzazione"],
+    ["dati", "save", "Dati"],
   ];
 
   // Rese state
@@ -836,16 +837,17 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
       </div>
       {/* Tab nav */}
       <div style={{ display:"flex", gap:2, marginBottom:24, borderBottom:`1px solid ${T.border}` }}>
-        {TABS.map(([id,lbl]) => (
+        {TABS.map(([id,icn,lbl]) => (
           <button key={id} onClick={()=>setTab(id)}
             style={{ padding:"10px 16px", border:"none", background:"transparent", cursor:"pointer",
               fontSize:13, fontWeight:tab===id?600:500, color:tab===id?T.text:T.textSoft,
               borderBottom:tab===id?`2px solid ${T.brand}`:"2px solid transparent",
               marginBottom:-1, letterSpacing:"-0.005em",
+              display:"inline-flex", alignItems:"center", gap:6,
               transition:`color ${M.durFast} ${M.ease}` }}
             onMouseEnter={e=>{if(tab!==id)e.currentTarget.style.color=T.textMid;}}
             onMouseLeave={e=>{if(tab!==id)e.currentTarget.style.color=T.textSoft;}}>
-            {lbl}
+            {icn&&<Icon name={icn} size={14}/>}{lbl}
           </button>
         ))}
       </div>
@@ -884,12 +886,12 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
           {/* Import prezzi */}
           <div style={card}>
-            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>💶 Prezzi ingredienti</div>
+            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}><Icon name="euro" size={16}/> Prezzi ingredienti</div>
             <div style={{ fontSize:12, color:C.textSoft, marginBottom:14, lineHeight:1.6 }}>
               Importa un file Excel (.xlsx) con i prezzi degli ingredienti. Il file deve avere una colonna con il nome dell'ingrediente e una con il prezzo per kg o per g.
             </div>
-            <label style={{ display:"inline-block", padding:"10px 18px", background:"#FFFBEB", border:"1px dashed #FDE68A", borderRadius:9, cursor:"pointer", fontSize:12, fontWeight:600, color:"#92400E" }}>
-              📂 Importa prezzi .xlsx / .xls / .csv
+            <label style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 18px", background:"#FFFBEB", border:"1px dashed #FDE68A", borderRadius:9, cursor:"pointer", fontSize:12, fontWeight:600, color:"#92400E" }}>
+              <Icon name="folder" size={14}/> Importa prezzi .xlsx / .xls / .csv
               <input type="file" accept=".xlsx,.xls,.csv" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&onImportPrezzi(e.target.files)} />
             </label>
           </div>
@@ -911,7 +913,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
           {/* Report mensili */}
           <div style={card}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
-              <div style={{ fontWeight:700, fontSize:15, color:C.text }}>📊 Report mensili</div>
+              <div style={{ fontWeight:700, fontSize:15, color:C.text, display:"flex", alignItems:"center", gap:8 }}><Icon name="barChart" size={16}/> Report mensili</div>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ fontSize:12, color:C.textSoft }}>Ricevi via email</span>
                 <button onClick={()=>handleToggleEmail(!emailReport)}
@@ -936,7 +938,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
                   return (
                     <div key={r.name} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px",
                       background:"#F8FAFC", borderRadius:8, border:`1px solid ${C.border}` }}>
-                      <span style={{ fontSize:18 }}>📄</span>
+                      <span style={{ color:C.textSoft, display:"inline-flex" }}><Icon name="fileText" size={18}/></span>
                       <span style={{ flex:1, fontSize:12, fontWeight:500, color:C.text }}>{r.name.replace(".pdf","")}</span>
                       <a href={urlData?.publicUrl} download target="_blank" rel="noreferrer"
                         style={{ fontSize:11, fontWeight:700, color:C.red, textDecoration:"none" }}>Scarica ↓</a>
@@ -949,7 +951,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
           {/* Novità & Changelog */}
           <div style={card}>
-            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>📋 Novità & Changelog</div>
+            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}><Icon name="clipboard" size={16}/> Novità & Changelog</div>
             <div style={{ fontSize:12, color:C.textSoft, marginBottom:14 }}>Tutte le funzionalità e gli aggiornamenti di FoodOS.</div>
             <button onClick={onChangelogOpen}
               style={{ padding:"10px 18px", background:C.redLight, color:C.red,
@@ -996,8 +998,9 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
                 );
               })}
             </div>
-            <div style={{ marginTop:16, fontSize:11, color:C.textSoft, lineHeight:1.7 }}>
-              💡 Le rese modificate vengono applicate immediatamente al food cost di tutte le ricette. I valori di default sono basati su standard di laboratorio.
+            <div style={{ marginTop:16, fontSize:11, color:C.textSoft, lineHeight:1.7, display:"flex", alignItems:"flex-start", gap:6 }}>
+              <Icon name="bulb" size={14} style={{ marginTop:2, flexShrink:0 }}/>
+              <span>Le rese modificate vengono applicate immediatamente al food cost di tutte le ricette. I valori di default sono basati su standard di laboratorio.</span>
             </div>
           </div>
         </div>
@@ -1446,7 +1449,7 @@ export default function Dashboard({
           notify(`✓ ${f.name} — ${Object.keys(result.ricette || {}).length} ricette importate`);
         },
         onError: (err) => {
-          notify(`⚠ ${f.name}: ${err.message}`, false);
+          notify(`${f.name}: ${err.message}`, false);
         },
       });
     }
@@ -1457,7 +1460,7 @@ export default function Dashboard({
     const nuovoRic = { ...ricettario, ingredienti_costi: { ...(ricettario.ingredienti_costi||{}), ...nuoviCosti } };
     // SAVE FIRST: se ssave fallisce non muto lo state (evita prezzi fantasma al refresh)
     try { await ssave(SK_RIC, nuovoRic); }
-    catch (e) { notify(`⚠ Errore salvataggio prezzi: ${e.message||'rete'}`, false); return; }
+    catch (e) { notify(`Errore salvataggio prezzi: ${e.message||'rete'}`, false); return; }
     setRic(nuovoRic);
   }, [ricettario, notify]);
 
@@ -1473,14 +1476,14 @@ export default function Dashboard({
         if (!righe.length) try { const r = parseJustEat(text);  if (r?.length) { righe = r; piattaforma = 'Just Eat'; } } catch {}
         if (!righe.length) try { const r = await parseGlovo(f); if (r?.length) { righe = r; piattaforma = 'Glovo'; } } catch {}
         if (!righe.length) {
-          notify(`⚠ Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
+          notify(`Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
           continue;
         }
         const nuove = mergeInChiusure(chiusure||[], righe, piattaforma);
         await ssave(SK_CHIUS, nuove); setChiusure(nuove); // SAVE FIRST (il throw è gestito dal catch sotto)
         notify(`✓ ${righe.length} giorni importati da ${piattaforma}`);
       } catch (e) {
-        notify(`⚠ ${f.name}: ${e.message}`, false);
+        notify(`${f.name}: ${e.message}`, false);
       }
     }
   }, [chiusure, notify]);
@@ -1494,13 +1497,13 @@ export default function Dashboard({
         try { const r = await parseCassaFile(s, f); if (r?.length) { righe = r; sistema = s; break; } } catch {}
       }
       if (!righe?.length) {
-        notify(`⚠ Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
+        notify(`Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
         continue;
       }
       const nuove = mergeInChiusureCassa(chiusure||[], righe, sistema);
       // SAVE FIRST: questo loop non ha try/catch esterno, gestisco qui
       try { await ssave(SK_CHIUS, nuove); }
-      catch (e) { notify(`⚠ ${f.name}: ${e.message||'rete'}`, false); continue; }
+      catch (e) { notify(`${f.name}: ${e.message||'rete'}`, false); continue; }
       setChiusure(nuove);
       notify(`✓ ${righe.length} giorni importati da ${sistema}`);
     }
@@ -1541,7 +1544,7 @@ export default function Dashboard({
       };
       // SAVE FIRST per evitare data-loss su update prezzo.
       try { await ssave(SK_RIC, nuovoRic); }
-      catch (e) { notify(`⚠ Errore salvataggio prezzo: ${e.message || 'rete'}`, false); return; }
+      catch (e) { notify(`Errore salvataggio prezzo: ${e.message || 'rete'}`, false); return; }
       setRic(nuovoRic);
     }
 
@@ -1560,7 +1563,7 @@ export default function Dashboard({
     };
     const nextLog = [entry, ...(logPrezzi||[])].slice(0, 500); // tieni gli ultimi 500
     try { await ssave(SK_LOG_PRZ, nextLog); }
-    catch (e) { notify(`⚠ Errore log prezzi: ${e.message || 'rete'}`, false); return; }
+    catch (e) { notify(`Errore log prezzi: ${e.message || 'rete'}`, false); return; }
     setLogPrezzi(nextLog);
     const msg = isFuture
       ? `✓ Prezzo "${nomeIng}" programmato a €${newKg.toFixed(2)}/kg dal ${decorre.toLocaleDateString('it-IT')}`
@@ -1620,11 +1623,11 @@ export default function Dashboard({
           notify(`✓ ${f.name} — ${count} prezzi aggiornati`);
         },
         onError: (err) => {
-          notify(`⚠ ${f.name}: ${err.message}`, false);
+          notify(`${f.name}: ${err.message}`, false);
         },
       });
     }
-    if (!hasValidFile) notify("⚠ Nessun file xlsx/xls/csv valido trovato", false);
+    if (!hasValidFile) notify("Nessun file xlsx/xls/csv valido trovato", false);
   },[notify]);
 
   const handleNuovoMese=useCallback(async(m,y)=>{
@@ -1635,7 +1638,7 @@ export default function Dashboard({
     if(meteo) mese.meteo=meteo;
     const np={...produzione,[k]:mese};
     try { await ssave(SK_PROD,np); }
-    catch (e) { notify(`⚠ Creazione mese fallita: ${e.message || 'rete'}`, false); return; }
+    catch (e) { notify(`Creazione mese fallita: ${e.message || 'rete'}`, false); return; }
     setProd(np);
     setView(k);setShowMese(false);
     notify(`📅 ${mese.label} creato`);
@@ -1654,10 +1657,10 @@ export default function Dashboard({
       }
     };
     try { await ssave(SK_RIC, nuovoRic); }
-    catch (e) { notify(`⚠ Aggiornamento ricetta fallito: ${e.message || 'rete'}`, false); return; }
+    catch (e) { notify(`Aggiornamento ricetta fallito: ${e.message || 'rete'}`, false); return; }
     setRic(nuovoRic);
     const cong = congelabile!==undefined ? congelabile : ricettario?.ricette?.[nome]?.congelabile;
-    notify(`✓ ${nome}: ${unita} ${REGOLE[nome]?.tipo==="fetta"?"fette":"pezzi"} × ${fmt(prezzo)}${cong?" · ❄ congelabile":""}`);
+    notify(`✓ ${nome}: ${unita} ${REGOLE[nome]?.tipo==="fetta"?"fette":"pezzi"} × ${fmt(prezzo)}${cong?" · congelabile":""}`);
   }, [ricettario]);
 
   // noRedirect=true quando si elimina — non vogliamo uscire dalla pagina
@@ -1689,7 +1692,7 @@ export default function Dashboard({
       console.error('❌ ERRORE salvataggio ricetta su Supabase:', err);
       // Backup localStorage perché Supabase ha fallito
       try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: nuovoRic, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
-      notify(`⚠ Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta in cache locale — esegui SQL Supabase.`, false);
+      notify(`Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta in cache locale — esegui SQL Supabase.`, false);
       return; // non procedere — non redirect, non conferm toast
     }
     // 4. Magazzino — aggiungi ingredienti mancanti con giacenza 0
@@ -1714,7 +1717,7 @@ export default function Dashboard({
     const np={...produzione,[k]:{...produzione[k],entries}};
     // SAVE FIRST: muto lo state solo se la produzione è persistita
     try { await ssave(SK_PROD,np); }
-    catch(e){ notify(`⚠ Errore salvataggio: ${e.message||'rete'}`,false); return; }
+    catch(e){ notify(`Errore salvataggio: ${e.message||'rete'}`,false); return; }
     setProd(np);
     notify("✓ Dati salvati");
   },[produzione,notify]);
@@ -1723,7 +1726,7 @@ export default function Dashboard({
     const np={...produzione};delete np[k];
     // SAVE FIRST: non rimuovo dallo state se l'eliminazione non è persistita
     try { await ssave(SK_PROD,np); }
-    catch(e){ notify(`⚠ Errore eliminazione: ${e.message||'rete'}`,false); return; }
+    catch(e){ notify(`Errore eliminazione: ${e.message||'rete'}`,false); return; }
     setProd(np);
     const ks=Object.keys(np).sort();
     setView(ks.length?ks.at(-1):"ricettario");
@@ -1736,17 +1739,17 @@ export default function Dashboard({
     const a={id:`a-${Date.now()}`,label,azione,fonte,meseSorgente,stato:"aperta",createdAt:new Date().toISOString()};
     const u=[a,...actions];
     try { await ssave(SK_ACT,u); }
-    catch(e) { notify(`⚠ Errore tracciamento azione: ${e.message||'rete'}`,false); return; }
+    catch(e) { notify(`Errore tracciamento azione: ${e.message||'rete'}`,false); return; }
     setAct(u); notify("✅ Azione tracciata");
   },[actions]);
   const handleUpdAct=useCallback(async(id,ch)=>{
     const u=actions.map(a=>a.id===id?{...a,...ch}:a);
-    try { await ssave(SK_ACT,u); } catch(e) { notify(`⚠ Errore: ${e.message||'rete'}`,false); return; }
+    try { await ssave(SK_ACT,u); } catch(e) { notify(`Errore: ${e.message||'rete'}`,false); return; }
     setAct(u);
   },[actions]);
   const handleDelAct=useCallback(async id=>{
     const u=actions.filter(a=>a.id!==id);
-    try { await ssave(SK_ACT,u); } catch(e) { notify(`⚠ Errore: ${e.message||'rete'}`,false); return; }
+    try { await ssave(SK_ACT,u); } catch(e) { notify(`Errore: ${e.message||'rete'}`,false); return; }
     setAct(u);
   },[actions]);
 

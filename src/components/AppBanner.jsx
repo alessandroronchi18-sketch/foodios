@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import Icon from './Icon'
 
 // Banner globale dall'admin (tabella public.app_banners).
 // Carica il piu' recente attivo + non scaduto, dismissable per sessione
 // (riappare al prossimo login se l'admin non l'ha disattivato).
 const COLORI = {
-  info:     { bg: '#EFF6FF', border: '#BFDBFE', fg: '#1E3A8A', icon: 'ℹ️' },
-  warn:     { bg: '#FEF9C3', border: '#FCD34D', fg: '#854D0E', icon: '⚠️' },
-  critical: { bg: '#FEE2E2', border: '#FCA5A5', fg: '#991B1B', icon: '🚨' },
-  success:  { bg: '#DCFCE7', border: '#86EFAC', fg: '#166534', icon: '✅' },
+  info:     { bg: '#EFF6FF', border: '#BFDBFE', fg: '#1E3A8A', icon: 'bulb' },
+  warn:     { bg: '#FEF9C3', border: '#FCD34D', fg: '#854D0E', icon: 'warning' },
+  critical: { bg: '#FEE2E2', border: '#FCA5A5', fg: '#991B1B', icon: 'alert' },
+  success:  { bg: '#DCFCE7', border: '#86EFAC', fg: '#166534', icon: 'checkCircle' },
 }
 
 export default function AppBanner() {
@@ -56,7 +57,7 @@ export default function AppBanner() {
       gap: 10,
       lineHeight: 1.5,
     }}>
-      <span aria-hidden style={{ fontSize: 15, flexShrink: 0 }}>{c.icon}</span>
+      <span aria-hidden style={{ flexShrink: 0, color: c.fg }}><Icon name={c.icon} size={16} /></span>
       <span style={{ flex: 1 }}>{banner.messaggio}</span>
       <button
         aria-label="Chiudi avviso"

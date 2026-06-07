@@ -6,6 +6,7 @@ import { parseSumUp, parseSatispay, parseSquare } from '../lib/importCassa'
 import { parseUberEats, parseDeliveroo, parseJustEat, parseGlovo, mergeInChiusure } from '../lib/importDelivery'
 import { parseShopifyOrders, parseWooCommerceOrders, mergeOrdiniInChiusure } from '../lib/importEcommerce'
 import { sload, ssave } from '../lib/storage'
+import Icon from './Icon'
 
 const SK_CHIUS = 'pasticceria-chiusure-v1'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
@@ -31,7 +32,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'fattura_elettronica_xml',
     nome: 'Fattura Elettronica SDI',
-    icona: '📄',
+    icona: 'fileText',
     categoria: 'Fatturazione',
     descrizione: 'Importa file XML dalle fatture elettroniche italiane (formato FatturaPA) ricevute dallo SDI.',
     istruzioni: [
@@ -46,7 +47,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'fattura_smart',
     nome: 'TeamSystem FatturaSMART',
-    icona: '📊',
+    icona: 'barChart',
     categoria: 'Fatturazione',
     descrizione: 'Importa l\'export Excel dal gestionale TeamSystem FatturaSMART (fatture passive).',
     istruzioni: [
@@ -61,7 +62,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'zucchetti_infinity',
     nome: 'Zucchetti Infinity',
-    icona: '🔵',
+    icona: 'bank',
     categoria: 'Contabilità',
     descrizione: 'Importa i movimenti contabili da Zucchetti Infinity (estratto conto CSV).',
     istruzioni: [
@@ -77,7 +78,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'zucchetti_kassa',
     nome: 'Zucchetti Kassa',
-    icona: '🏪',
+    icona: 'store',
     categoria: 'Cassa',
     descrizione: 'Importa le vendite giornaliere da Zucchetti Kassa (cassa negozio).',
     istruzioni: [
@@ -93,7 +94,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'zucchetti_webhook',
     nome: 'Zucchetti Webhook (Enterprise)',
-    icona: '⚡',
+    icona: 'bolt',
     categoria: 'Cassa',
     descrizione: 'Ricezione dati in real-time da Zucchetti Infinity/Kassa Enterprise tramite webhook POST.',
     istruzioni: [
@@ -108,7 +109,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'sumup',
     nome: 'SumUp',
-    icona: '💳',
+    icona: 'card',
     categoria: 'Pagamenti',
     descrizione: 'Importa i pagamenti POS da SumUp (export CSV "Transactions").',
     istruzioni: [
@@ -123,7 +124,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'satispay',
     nome: 'Satispay Business',
-    icona: '🟧',
+    icona: 'euro',
     categoria: 'Pagamenti',
     descrizione: 'Importa i movimenti dal Business Dashboard Satispay (CSV).',
     istruzioni: [
@@ -138,7 +139,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'square',
     nome: 'Square',
-    icona: '⬛',
+    icona: 'card',
     categoria: 'Pagamenti',
     descrizione: 'Importa transazioni Square (CSV export dal Seller Dashboard).',
     istruzioni: [
@@ -155,7 +156,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'deliveroo',
     nome: 'Deliveroo',
-    icona: '🛵',
+    icona: 'scooter',
     categoria: 'Delivery',
     descrizione: 'Importa gli ordini Deliveroo (CSV "Orders export").',
     istruzioni: [
@@ -170,7 +171,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'justeat',
     nome: 'JustEat',
-    icona: '🍕',
+    icona: 'scooter',
     categoria: 'Delivery',
     descrizione: 'Importa gli ordini JustEat (CSV report ordini con commissioni).',
     istruzioni: [
@@ -185,7 +186,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'uber_eats',
     nome: 'Uber Eats',
-    icona: '🚗',
+    icona: 'truck',
     categoria: 'Delivery',
     descrizione: 'Importa gli ordini Uber Eats dal Restaurant Manager (CSV "Payouts" o "Order details").',
     istruzioni: [
@@ -200,7 +201,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'glovo',
     nome: 'Glovo Business',
-    icona: '🟡',
+    icona: 'scooter',
     categoria: 'Delivery',
     descrizione: 'Importa ordini Glovo (export Excel dal Glovo Manager).',
     istruzioni: [
@@ -216,7 +217,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'shopify',
     nome: 'Shopify',
-    icona: '🛍️',
+    icona: 'cart',
     categoria: 'E-commerce',
     descrizione: 'Importa gli ordini Shopify dal pannello Admin (CSV "Orders > Export").',
     istruzioni: [
@@ -232,7 +233,7 @@ const INTEGRAZIONI_CFG = [
   {
     id: 'woocommerce',
     nome: 'WooCommerce',
-    icona: '🟪',
+    icona: 'cart',
     categoria: 'E-commerce',
     descrizione: 'Importa ordini WooCommerce (CSV dal plugin "Customer/Order CSV Export" o WP Admin).',
     istruzioni: [
@@ -259,10 +260,10 @@ function StatoConnessioni({ notify }) {
       const elapsed = Math.round(performance.now() - t0)
       setStato({ ...j, latencyMs: elapsed })
       if (j.status === 'ok') notify('✓ Backend FoodOS online')
-      else notify('⚠ Backend degradato — controlla configurazione', false)
+      else notify('Backend degradato — controlla configurazione', false)
     } catch (e) {
       setStato({ status: 'down', error: e.message })
-      notify('⚠ Backend non raggiungibile: ' + e.message, false)
+      notify('Backend non raggiungibile: ' + e.message, false)
     } finally {
       setBusy(false)
     }
@@ -279,10 +280,11 @@ function StatoConnessioni({ notify }) {
     <div style={{ background: bg, border: `1px solid ${color}30`, borderRadius: 10,
       padding: '12px 16px', marginBottom: 20, fontSize: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       <div style={{ flex: 1, minWidth: 200 }}>
-        <div style={{ fontWeight: 700, color, marginBottom: 2 }}>
-          {isOk ? '🟢 Backend FoodOS operativo'
-            : isDegraded ? '🟡 Backend degradato (DB rallentato)'
-            : '🔴 Backend non raggiungibile'}
+        <div style={{ fontWeight: 700, color, marginBottom: 2, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Icon name="dot" size={12} color={color} />
+          {isOk ? 'Backend FoodOS operativo'
+            : isDegraded ? 'Backend degradato (DB rallentato)'
+            : 'Backend non raggiungibile'}
         </div>
         <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.5 }}>
           {stato ? (
@@ -294,8 +296,8 @@ function StatoConnessioni({ notify }) {
         </div>
       </div>
       <button onClick={verifica} disabled={busy}
-        style={{ padding: '7px 14px', background: '#FFF', color: C.text, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: busy ? 'wait' : 'pointer' }}>
-        {busy ? '…' : '🔄 Verifica ora'}
+        style={{ padding: '7px 14px', background: '#FFF', color: C.text, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: busy ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {busy ? '…' : <><Icon name="refresh" size={13} /> Verifica ora</>}
       </button>
     </div>
   )
@@ -545,7 +547,7 @@ export default function Integrazioni({ orgId, sedeId }) {
 
   if (!orgId) return (
     <div style={{ padding: 48, textAlign: 'center', color: C.textSoft }}>
-      <div style={{ fontSize: 32, marginBottom: 8 }}>🔒</div>
+      <div style={{ marginBottom: 8 }}><Icon name="lock" size={32} /></div>
       <div style={{ fontSize: 14, fontWeight: 600, color: C.textMid }}>Login richiesto</div>
     </div>
   )
@@ -575,7 +577,7 @@ export default function Integrazioni({ orgId, sedeId }) {
       <div style={{ background: C.blueLight, border: `1px solid #BFDBFE`, borderRadius: 10,
         padding: '12px 16px', marginBottom: 20, fontSize: 12 }}>
         <div style={{ fontWeight: 700, color: C.blue, marginBottom: 3 }}>
-          ℹ️ Setup richiesto (una volta sola)
+          Setup richiesto (una volta sola)
         </div>
         <div style={{ color: '#1D4ED8', lineHeight: 1.5 }}>
           Esegui lo script <code style={{ background: 'rgba(37,99,235,0.1)', padding: '1px 4px', borderRadius: 3 }}>supabase_sync_log.sql</code> in
@@ -604,7 +606,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                   onClick={() => setExpanded(isExp ? null : cfg.id)}
                   style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14,
                     cursor: 'pointer', userSelect: 'none' }}>
-                  <div style={{ fontSize: 22, flexShrink: 0 }}>{cfg.icona}</div>
+                  <div style={{ flexShrink: 0, color: C.textMid, display: 'flex' }}><Icon name={cfg.icona} size={22} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: C.text }}>{cfg.nome}</div>
                     <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{cfg.descrizione}</div>
@@ -653,7 +655,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                                 onClick={() => navigator.clipboard?.writeText(window.location.origin + '/api/webhook-zucchetti')
                                   .then(() => notify('URL copiato negli appunti'))}
                                 style={{ ...btnStyle(false), flexShrink: 0 }}>
-                                📋 Copia
+                                <Icon name="clipboard" size={13} /> Copia
                               </button>
                             </div>
                           </div>
@@ -667,8 +669,9 @@ export default function Integrazioni({ orgId, sedeId }) {
                             </code>
                           </div>
                           <div style={{ fontSize: 11, color: C.amber, padding: '8px 10px', background: C.amberLight,
-                            borderRadius: 8 }}>
-                            ⚠️ Imposta <code>ZUCCHETTI_WEBHOOK_SECRET</code> nelle variabili d'ambiente Vercel per proteggere l'endpoint.
+                            borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                            <Icon name="warning" size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+                            <span>Imposta <code>ZUCCHETTI_WEBHOOK_SECRET</code> nelle variabili d'ambiente Vercel per proteggere l'endpoint.</span>
                           </div>
                         </div>
                       </div>
@@ -676,7 +679,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                       /* File upload area */
                       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                         <label style={{ ...btnStyle(true), cursor: 'pointer' }}>
-                          {isLoading ? '⏳ Importazione…' : `📂 Importa ${cfg.tipoLabel}`}
+                          {isLoading ? <><Icon name="hourglass" size={13} /> Importazione…</> : <><Icon name="folder" size={13} /> Importa {cfg.tipoLabel}</>}
                           <input
                             type="file"
                             accept={cfg.tipoFile}
@@ -770,34 +773,34 @@ export default function Integrazioni({ orgId, sedeId }) {
           </div>
           <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
             {[
-              ['📑', 'Fatture in Cloud (API)', 'serve API key cliente'],
-              ['🏛', 'TeamSystem (TS Digital)', 'spec import del cliente'],
-              ['📒', 'Danea Easyfatt', 'serve file campione CSV'],
-              ['📒', 'Aruba Fatture', 'serve account business'],
-              ['🧾', 'Epson RT / Custom RT / Ditron', 'servono XML esempi'],
-              ['🛒', 'Metro Italia', 'serve listino campione'],
-              ['🛒', 'Marr / Transgourmet / Selex', 'cataloghi B2B'],
-              ['🥬', 'Eataly Wholesale', 'sblocco con accordo'],
-              ['🍞', 'Europastry / Bridor / Délifrance', 'fornitori panificazione'],
-              ['👥', 'Zucchetti HR / TeamSystem HR', 'serve formato richiesto'],
-              ['👥', 'TeamSystem Buste Paga', 'export contributi'],
-              ['🌡', 'Sensori HACCP (Govee, SensorPush, Inkbird)', 'servono API key cliente'],
-              ['🎟', 'Edenred Buoni Pasto', 'API merchant'],
-              ['🎟', 'Pellegrini / Day / UpDejeuner', 'CSV chiusura buoni'],
-              ['💳', 'Nexi / Worldline / Axerve', 'estratto POS'],
-              ['💳', 'Stripe (pagamenti online)', 'API key cliente'],
-              ['💳', 'PayPal Business', 'CSV statement'],
-              ['💳', 'Scalapay / Klarna', 'BNPL merchant CSV'],
-              ['🛵', 'Mooney / FoodCity', 'delivery locali'],
-              ['📊', 'Google Reviews / Trustpilot', 'monitoring reputazione'],
-              ['🛒', 'Shopify POS', 'oltre al canale e-commerce'],
-              ['🛒', 'Vendrive / iCubed POS / Lightspeed', 'casse cloud'],
-              ['📦', 'Amazon Fresh / Glovo Quick', 'sblocco commerciale'],
-              ['📞', 'TheFork / Restworld', 'prenotazioni & staff'],
-              ['🧮', 'Agyo (Cassa in Cloud)', 'cassa Cloud TS'],
+              ['fileText', 'Fatture in Cloud (API)', 'serve API key cliente'],
+              ['bank', 'TeamSystem (TS Digital)', 'spec import del cliente'],
+              ['book', 'Danea Easyfatt', 'serve file campione CSV'],
+              ['book', 'Aruba Fatture', 'serve account business'],
+              ['receipt', 'Epson RT / Custom RT / Ditron', 'servono XML esempi'],
+              ['cart', 'Metro Italia', 'serve listino campione'],
+              ['cart', 'Marr / Transgourmet / Selex', 'cataloghi B2B'],
+              ['cart', 'Eataly Wholesale', 'sblocco con accordo'],
+              ['package', 'Europastry / Bridor / Délifrance', 'fornitori panificazione'],
+              ['users', 'Zucchetti HR / TeamSystem HR', 'serve formato richiesto'],
+              ['users', 'TeamSystem Buste Paga', 'export contributi'],
+              ['gear', 'Sensori HACCP (Govee, SensorPush, Inkbird)', 'servono API key cliente'],
+              ['ticket', 'Edenred Buoni Pasto', 'API merchant'],
+              ['ticket', 'Pellegrini / Day / UpDejeuner', 'CSV chiusura buoni'],
+              ['card', 'Nexi / Worldline / Axerve', 'estratto POS'],
+              ['card', 'Stripe (pagamenti online)', 'API key cliente'],
+              ['card', 'PayPal Business', 'CSV statement'],
+              ['card', 'Scalapay / Klarna', 'BNPL merchant CSV'],
+              ['scooter', 'Mooney / FoodCity', 'delivery locali'],
+              ['barChart', 'Google Reviews / Trustpilot', 'monitoring reputazione'],
+              ['cart', 'Shopify POS', 'oltre al canale e-commerce'],
+              ['cart', 'Vendrive / iCubed POS / Lightspeed', 'casse cloud'],
+              ['package', 'Amazon Fresh / Glovo Quick', 'sblocco commerciale'],
+              ['chat', 'TheFork / Restworld', 'prenotazioni & staff'],
+              ['barChart', 'Agyo (Cassa in Cloud)', 'cassa Cloud TS'],
             ].map(([icon, nome, why]) => (
               <div key={nome} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px', background: '#FFF', borderRadius: 8, border: `1px solid ${C.border}` }}>
-                <span style={{ fontSize: 18 }}>{icon}</span>
+                <span style={{ color: C.textMid, display: 'flex', flexShrink: 0, marginTop: 1 }}><Icon name={icon} size={18} /></span>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{nome}</div>
                   <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>{why}</div>
@@ -806,16 +809,16 @@ export default function Integrazioni({ orgId, sedeId }) {
             ))}
           </div>
           <div style={{ marginTop: 14, padding: '12px 14px', background: '#FEF7F5', border: `1px dashed ${C.red}55`, borderRadius: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 4 }}>
-              💡 Manca un'integrazione che ti serve?
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="bulb" size={14} /> Manca un'integrazione che ti serve?
             </div>
             <div style={{ fontSize: 11, color: C.textMid, marginBottom: 8, lineHeight: 1.55 }}>
               Scrivici e attiviamo la sincronizzazione: di solito serve un file CSV/Excel campione o le credenziali API.
               Le integrazioni con catena distributiva &amp; gestionali italiani sono in alta priorità.
             </div>
             <a href={`mailto:support@foodios.it?subject=${encodeURIComponent('Richiesta integrazione FoodOS')}&body=${encodeURIComponent('Vorrei attivare l\'integrazione con:\n\n[Nome software/fornitore]\n\nUso questo software per:\n- ...\n\nVolume previsto (transazioni/mese):\n- ...\n')}`}
-              style={{ display: 'inline-block', padding: '7px 14px', background: C.red, color: '#FFF', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
-              ✉️ Richiedi una nuova integrazione
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: C.red, color: '#FFF', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+              <Icon name="mail" size={13} /> Richiedi una nuova integrazione
             </a>
           </div>
         </div>

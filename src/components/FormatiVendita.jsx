@@ -16,6 +16,7 @@ import {
   componentiNormalizzati, costoComponentiUnita,
 } from '../lib/formatiVendita'
 import useIsMobile from '../lib/useIsMobile'
+import Icon from './Icon'
 
 const C = {
   bg: T.bg, bgCard: T.bgCard, red: T.brand, redLight: T.brandLight,
@@ -59,15 +60,15 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
     try {
       await ssave(SK_FORMATI, arr, orgId, null)
     } catch (e) {
-      notify?.('⚠ Errore salvataggio formati: ' + (e.message || 'rete'), false)
+      notify?.('Errore salvataggio formati: ' + (e.message || 'rete'), false)
       return
     }
     setFormati(arr)
   }
 
   const salva = async () => {
-    if (!form.nome.trim()) { notify?.('⚠ Dai un nome al formato (es. "Cono piccolo")', false); return }
-    if (!form.categoria.trim()) { notify?.('⚠ Scegli la categoria di ricette collegata', false); return }
+    if (!form.nome.trim()) { notify?.('Dai un nome al formato (es. "Cono piccolo")', false); return }
+    if (!form.categoria.trim()) { notify?.('Scegli la categoria di ricette collegata', false); return }
     const componenti = (Array.isArray(form.componenti) ? form.componenti : [])
       .map(c => ({
         nome: String(c?.nome || '').trim(),
@@ -186,7 +187,7 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
           {previewFC && (
             <div style={{ marginTop: 14, padding: '10px 14px', background: previewFC.avg == null ? C.amberLight : C.greenLight, borderRadius: 9, fontSize: 12, color: C.textMid }}>
               {previewFC.avg == null ? (
-                <span>⚠ Nessuna ricetta con categoria <b>“{form.categoria}”</b> (con peso definito): il food cost coprira solo i materiali. Assegna la categoria ai gusti nel Ricettario.</span>
+                <span style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 6 }}><Icon name="warning" size={13} style={{ flexShrink: 0, marginTop: 1 }} /><span>Nessuna ricetta con categoria <b>“{form.categoria}”</b> (con peso definito): il food cost coprira solo i materiali. Assegna la categoria ai gusti nel Ricettario.</span></span>
               ) : (
                 <span>
                   FC categoria <b>“{form.categoria}”</b>: {fmt(previewFC.avg * 1000)}/kg ·

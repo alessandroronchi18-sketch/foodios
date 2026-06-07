@@ -1,13 +1,14 @@
 import React from 'react'
 import { useBackgroundJobs } from '../lib/useBackgroundJobs'
 import { backgroundManager } from '../lib/backgroundManager'
+import Icon from './Icon'
 
 const ICONE = {
-  upload:       '📤',
-  ai_analisi:   '🤖',
-  excel_import: '📊',
-  pdf_export:   '📄',
-  sync:         '🔄',
+  upload:       'upload',
+  ai_analisi:   'robot',
+  excel_import: 'barChart',
+  pdf_export:   'fileText',
+  sync:         'refresh',
 }
 
 const COLORI = {
@@ -44,8 +45,8 @@ export default function BackgroundToast() {
           }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ fontSize: 17, lineHeight: '20px', flexShrink: 0 }}>
-                {ICONE[job.tipo] || '⚙️'}
+              <span style={{ lineHeight: '20px', flexShrink: 0, color: COLORI[job.status] || '#475569' }}>
+                <Icon name={ICONE[job.tipo] || 'gear'} size={17} />
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
@@ -55,11 +56,11 @@ export default function BackgroundToast() {
                 }}>
                   {job.nome}
                 </div>
-                <div style={{ fontSize: 11, color: COLORI[job.status] }}>
+                <div style={{ fontSize: 11, color: COLORI[job.status], display: 'flex', alignItems: 'center', gap: 4 }}>
                   {job.status === 'pending' && 'In attesa…'}
                   {job.status === 'running' && `${job.progress}%`}
-                  {job.status === 'done'    && '✅ Completato'}
-                  {job.status === 'error'   && '❌ ' + (job.error || 'Errore')}
+                  {job.status === 'done'    && <><Icon name="checkCircle" size={12} /><span>Completato</span></>}
+                  {job.status === 'error'   && <><Icon name="xCircle" size={12} /><span>{job.error || 'Errore'}</span></>}
                 </div>
               </div>
               {(job.status === 'done' || job.status === 'error') && (
@@ -93,9 +94,10 @@ export default function BackgroundToast() {
                   marginTop: 6, width: '100%', padding: '4px 0',
                   background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8,
                   color: '#DC2626', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
               >
-                🔄 Riprova
+                <Icon name="refresh" size={12} /> Riprova
               </button>
             )}
           </div>

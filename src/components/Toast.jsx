@@ -4,15 +4,17 @@
 
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react'
 import { color as T, z as Z } from '../lib/theme'
+import Icon from './Icon'
 
 const ToastCtx = createContext(null)
 
 // Palette toast allineata al theme.js (era hardcoded con tonalità Tailwind
 // che non matchavano il resto dell'app).
+// icon: stringa testuale (✓ ! i) o, per warn, l'icona SVG renderizzata via iconName.
 const VARIANTS = {
   success: { bg: T.green, fg: T.white, border: '#0C7C56', icon: '✓' },
   error:   { bg: T.brand, fg: T.white, border: T.brandDarker, icon: '!' },
-  warn:    { bg: T.amber, fg: T.white, border: '#A65906',    icon: '⚠' },
+  warn:    { bg: T.amber, fg: T.white, border: '#A65906',    iconName: 'warning' },
   info:    { bg: T.blue,  fg: T.white, border: '#1E40AF',    icon: 'i' },
 }
 
@@ -106,7 +108,7 @@ function ToastItem({ message, variant, duration, onDismiss }) {
         background: 'rgba(255,255,255,0.22)',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         fontWeight: 800, fontSize: 13,
-      }}>{v.icon}</span>
+      }}>{v.iconName ? <Icon name={v.iconName} size={13} /> : v.icon}</span>
       <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{message}</span>
       <button
         aria-label="Chiudi notifica"

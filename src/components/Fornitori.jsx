@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
+import Icon from './Icon'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 
@@ -40,7 +41,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
     }
     const { data, error } = await q
-    if (error) notify?.("⚠ Errore caricamento fornitori: " + error.message, false)
+    if (error) notify?.("Errore caricamento fornitori: " + error.message, false)
     setLista(data || [])
     const { count } = await supabase.from("fornitori").select("id", { count: "exact", head: true })
       .eq("organization_id", orgId).eq("attivo", false)
@@ -49,8 +50,8 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   }
 
   async function salva() {
-    if (!form.nome.trim()) { notify("⚠ Inserisci il nome del fornitore", false); return }
-    if (!orgId) { notify("⚠ Profilo non pronto, riprova", false); return }
+    if (!form.nome.trim()) { notify("Inserisci il nome del fornitore", false); return }
+    if (!orgId) { notify("Profilo non pronto, riprova", false); return }
     setSaving(true)
     // sede_id="" significa "Tutte le sedi" (azienda) → NULL nel DB
     const payload = { ...form, sede_id: form.sede_id || null, organization_id: orgId }
@@ -60,7 +61,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     } else {
       ({ error: err } = await supabase.from("fornitori").insert(payload))
     }
-    if (err) { notify("⚠ Errore: " + err.message, false) }
+    if (err) { notify("Errore: " + err.message, false) }
     else { notify(editId ? "✓ Fornitore aggiornato" : "✓ Fornitore aggiunto"); resetForm() }
     setSaving(false)
     carica()
@@ -69,14 +70,14 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   async function archivia(id) {
     if (!confirm("Archiviare questo fornitore? Potrai riattivarlo dall'archivio quando vuoi.")) return
     const { error } = await supabase.from("fornitori").update({ attivo: false }).eq("id", id).eq("organization_id", orgId)
-    if (error) { notify("⚠ Errore archiviazione: " + error.message, false); return }
+    if (error) { notify("Errore archiviazione: " + error.message, false); return }
     notify("✓ Fornitore archiviato")
     carica()
   }
 
   async function riattiva(id) {
     const { error } = await supabase.from("fornitori").update({ attivo: true }).eq("id", id).eq("organization_id", orgId)
-    if (error) { notify("⚠ Errore riattivazione: " + error.message, false); return }
+    if (error) { notify("Errore riattivazione: " + error.message, false); return }
     notify("✓ Fornitore riattivato")
     carica()
   }
@@ -85,7 +86,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     // Eliminazione definitiva: solo dall'archivio, con conferma esplicita.
     if (!confirm(`Eliminare DEFINITIVAMENTE "${f.nome}"? L'operazione è irreversibile.\n\nSe il fornitore ha ordini collegati, archivialo invece di eliminarlo.`)) return
     const { error } = await supabase.from("fornitori").delete().eq("id", f.id).eq("organization_id", orgId)
-    if (error) { notify("⚠ Impossibile eliminare (forse ha ordini collegati): " + error.message, false); return }
+    if (error) { notify("Impossibile eliminare (forse ha ordini collegati): " + error.message, false); return }
     notify("✓ Fornitore eliminato definitivamente")
     carica()
   }
@@ -115,8 +116,9 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         overflowY: isMobile ? "auto" : "visible",
       }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:800, color:C.text }}>
-            {editId ? "✏️ Modifica fornitore" : "➕ Nuovo fornitore"}
+          <div style={{ fontSize:13, fontWeight:800, color:C.text, display:"inline-flex", alignItems:"center", gap:6 }}>
+            <Icon name={editId ? "edit" : "plus"} size={14} />
+            {editId ? "Modifica fornitore" : "Nuovo fornitore"}
           </div>
           {isMobile && (
             <button onClick={resetForm} aria-label="Chiudi form fornitore" style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
@@ -132,9 +134,9 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
           <div style={{ marginBottom:12 }}>
             <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Sede</div>
             <select value={form.sede_id} onChange={e=>setForm(f=>({...f,sede_id:e.target.value}))} style={inputSt}>
-              <option value="">🏢 Tutte le sedi (azienda)</option>
+              <option value="">Tutte le sedi (azienda)</option>
               {sedi.filter(s => s.attiva !== false).map(s => (
-                <option key={s.id} value={s.id}>📍 {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
+                <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
               ))}
             </select>
           </div>
@@ -158,20 +160,22 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       <div>
         {/* Toggle Attivi / Archivio */}
         <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
-          {[['attivi', '🚚 Attivi'], ['archivio', `📦 Archivio${archCount > 0 ? ` (${archCount})` : ''}`]].map(([id, lbl]) => (
+          {[['attivi', 'truck', 'Attivi'], ['archivio', 'package', `Archivio${archCount > 0 ? ` (${archCount})` : ''}`]].map(([id, ico, lbl]) => (
             <button key={id} onClick={() => setVista(id)}
               style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`,
                 background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid,
-                fontSize: 11, fontWeight: vista === id ? 800 : 600, cursor: 'pointer' }}>{lbl}</button>
+                fontSize: 11, fontWeight: vista === id ? 800 : 600, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={ico} size={12} /> {lbl}</button>
           ))}
         </div>
         {haPiuSedi && (
           <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
-            {[['attiva','📍 Solo sede attiva'], ['tutte','🏢 Tutte le sedi']].map(([id,lbl]) => (
+            {[['attiva','pin','Solo sede attiva'], ['tutte','building','Tutte le sedi']].map(([id,ico,lbl]) => (
               <button key={id} onClick={()=>setScopeSede(id)}
                 style={{ padding:'4px 10px', borderRadius: 999, border: `1px solid ${C.border}`,
                   background: scopeSede===id ? C.text : C.white, color: scopeSede===id ? C.white : C.textMid,
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{lbl}</button>
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={ico} size={12} /> {lbl}</button>
             ))}
           </div>
         )}
@@ -184,24 +188,26 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
               {haPiuSedi && (
                 <div style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,
                   background: f.sede_id ? C.amberLight : '#F1F5F9',
-                  color: f.sede_id ? '#92400E' : C.textSoft, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  {f.sede_id ? `📍 ${sediMap[f.sede_id]?.nome || 'Sede'}` : '🏢 Azienda'}
+                  color: f.sede_id ? '#92400E' : C.textSoft, fontWeight: 700, whiteSpace: 'nowrap',
+                  display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Icon name={f.sede_id ? 'pin' : 'building'} size={11} />
+                  {f.sede_id ? (sediMap[f.sede_id]?.nome || 'Sede') : 'Azienda'}
                 </div>
               )}
             </div>
-            {f.contatto && <div style={{ fontSize:12, color:C.textMid, marginTop:4 }}>👤 {f.contatto}</div>}
-            {f.email && <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>✉️ <a href={`mailto:${f.email}`} style={{ color:C.red }}>{f.email}</a></div>}
-            {f.telefono && <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>📞 <a href={`tel:${f.telefono}`} style={{ color:C.red }}>{f.telefono}</a></div>}
+            {f.contatto && <div style={{ fontSize:12, color:C.textMid, marginTop:4, display:"flex", alignItems:"center", gap:6 }}><Icon name="user" size={12} /> {f.contatto}</div>}
+            {f.email && <div style={{ fontSize:12, color:C.textMid, marginTop:2, display:"flex", alignItems:"center", gap:6 }}><Icon name="mail" size={12} /> <a href={`mailto:${f.email}`} style={{ color:C.red }}>{f.email}</a></div>}
+            {f.telefono && <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}><a href={`tel:${f.telefono}`} style={{ color:C.red }}>{f.telefono}</a></div>}
             {f.note && <div style={{ fontSize:11, color:C.textSoft, marginTop:6, fontStyle:"italic" }}>{f.note}</div>}
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
               <button onClick={()=>initEdit(f)} style={{ flex:1, padding:"10px", background:C.bg, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize:12, color:C.textMid, cursor:"pointer", fontWeight:600 }}>Modifica</button>
               {inArchivio ? (
                 <>
                   <button onClick={()=>riattiva(f.id)} style={{ flex:1, padding:"10px", background:"#ECFDF5", border:"1px solid #10B981", borderRadius:8, fontSize:12, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩ Riattiva</button>
-                  <button onClick={()=>elimina(f)} style={{ padding:"10px 12px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600 }}>🗑</button>
+                  <button onClick={()=>elimina(f)} aria-label="Elimina" style={{ padding:"10px 12px", background:C.redLight, border:`1px solid ${C.red}40`, borderRadius:8, fontSize:12, color:C.red, cursor:"pointer", fontWeight:600, display:"inline-flex", alignItems:"center" }}><Icon name="trash" size={14} /></button>
                 </>
               ) : (
-                <button onClick={()=>archivia(f.id)} style={{ flex:1, padding:"10px", background:"#FEF3C7", border:"1px solid #F59E0B", borderRadius:8, fontSize:12, color:"#92400E", cursor:"pointer", fontWeight:700 }}>📦 Archivia</button>
+                <button onClick={()=>archivia(f.id)} style={{ flex:1, padding:"10px", background:"#FEF3C7", border:"1px solid #F59E0B", borderRadius:8, fontSize:12, color:"#92400E", cursor:"pointer", fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}><Icon name="package" size={13} /> Archivia</button>
               )}
             </div>
           </div>
@@ -214,25 +220,27 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
                   {haPiuSedi && (
                     <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999,
                       background: f.sede_id ? C.amberLight : '#F1F5F9',
-                      color: f.sede_id ? '#92400E' : C.textSoft, fontWeight: 700 }}>
-                      {f.sede_id ? `📍 ${sediMap[f.sede_id]?.nome || 'Sede'}` : '🏢 Azienda'}
+                      color: f.sede_id ? '#92400E' : C.textSoft, fontWeight: 700,
+                      display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Icon name={f.sede_id ? 'pin' : 'building'} size={11} />
+                      {f.sede_id ? (sediMap[f.sede_id]?.nome || 'Sede') : 'Azienda'}
                     </span>
                   )}
                 </div>
-                {f.contatto && <div style={{ fontSize:11, color:C.textMid, marginTop:2 }}>👤 {f.contatto}</div>}
+                {f.contatto && <div style={{ fontSize:11, color:C.textMid, marginTop:2, display:"flex", alignItems:"center", gap:6 }}><Icon name="user" size={11} /> {f.contatto}</div>}
                 {f.email && <div style={{ fontSize:11, color:C.textMid }}><a href={`mailto:${f.email}`} style={{ color:C.red }}>{f.email}</a></div>}
-                {f.telefono && <div style={{ fontSize:11, color:C.textMid }}>📞 {f.telefono}</div>}
+                {f.telefono && <div style={{ fontSize:11, color:C.textMid }}>{f.telefono}</div>}
                 {f.note && <div style={{ fontSize:10, color:C.textSoft, marginTop:4, fontStyle:"italic" }}>{f.note}</div>}
               </div>
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
-                <button onClick={()=>initEdit(f)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}>✏️</button>
+                <button onClick={()=>initEdit(f)} title="Modifica" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer", display:"inline-flex", alignItems:"center" }}><Icon name="edit" size={13} /></button>
                 {inArchivio ? (
                   <>
                     <button onClick={()=>riattiva(f.id)} title="Riattiva" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #10B981", background:"#ECFDF5", fontSize:10, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩</button>
-                    <button onClick={()=>elimina(f)} title="Elimina definitivamente" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>🗑</button>
+                    <button onClick={()=>elimina(f)} title="Elimina definitivamente" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer", display:"inline-flex", alignItems:"center" }}><Icon name="trash" size={13} /></button>
                   </>
                 ) : (
-                  <button onClick={()=>archivia(f.id)} title="Archivia" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #F59E0B", background:"#FEF3C7", fontSize:10, color:"#92400E", cursor:"pointer" }}>📦</button>
+                  <button onClick={()=>archivia(f.id)} title="Archivia" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #F59E0B", background:"#FEF3C7", fontSize:10, color:"#92400E", cursor:"pointer", display:"inline-flex", alignItems:"center" }}><Icon name="package" size={13} /></button>
                 )}
               </div>
             </div>
@@ -270,16 +278,16 @@ function OrdiniTab({ orgId, notify, isMobile }) {
       supabase.from("ordini_fornitori").select("*, fornitori(nome)").eq("organization_id", orgId).order("data_ordine", { ascending:false }).limit(50),
       supabase.from("fornitori").select("id,nome").eq("organization_id", orgId).order("nome"),
     ])
-    if (e1 || e2) notify?.("⚠ Errore caricamento ordini: " + (e1?.message || e2?.message), false)
+    if (e1 || e2) notify?.("Errore caricamento ordini: " + (e1?.message || e2?.message), false)
     setOrdini(ord || [])
     setFornitori(forn || [])
     setLoading(false)
   }
 
   async function salvaOrdine() {
-    if (!form.fornitore_id) { notify("⚠ Seleziona un fornitore", false); return }
+    if (!form.fornitore_id) { notify("Seleziona un fornitore", false); return }
     const righeValide = righe.filter(r=>r.prodotto.trim())
-    if (!righeValide.length) { notify("⚠ Aggiungi almeno un prodotto", false); return }
+    if (!righeValide.length) { notify("Aggiungi almeno un prodotto", false); return }
     setSaving(true)
     const totale = righeValide.reduce((s,r)=>s+(parseFloat(r.quantita)||0)*(parseFloat(r.prezzo_unitario)||0), 0)
     const { data: ordineData, error } = await supabase.from("ordini_fornitori").insert({
@@ -290,7 +298,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
       stato: form.stato,
       totale: parseFloat(totale.toFixed(2)),
     }).select().single()
-    if (error) { notify("⚠ Errore: " + error.message, false); setSaving(false); return }
+    if (error) { notify("Errore: " + error.message, false); setSaving(false); return }
     const { error: errRighe } = await supabase.from("righe_ordine").insert(righeValide.map(r=>({
       ordine_id: ordineData.id,
       prodotto: r.prodotto,
@@ -301,7 +309,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
     })))
     if (errRighe) {
       await supabase.from("ordini_fornitori").delete().eq("id", ordineData.id).eq("organization_id", orgId)
-      notify("⚠ Errore salvataggio righe: " + errRighe.message, false)
+      notify("Errore salvataggio righe: " + errRighe.message, false)
       setSaving(false)
       return
     }
@@ -315,7 +323,7 @@ function OrdiniTab({ orgId, notify, isMobile }) {
 
   async function aggiornaStato(id, stato) {
     const { error } = await supabase.from("ordini_fornitori").update({ stato }).eq("id", id)
-    if (error) { notify("⚠ Errore aggiornamento stato: " + error.message, false); return }
+    if (error) { notify("Errore aggiornamento stato: " + error.message, false); return }
     notify("✓ Stato aggiornato")
     carica()
   }
@@ -333,8 +341,8 @@ function OrdiniTab({ orgId, notify, isMobile }) {
         <div style={{ fontSize:13, fontWeight:800, color:C.text }}>{ordini.length} ordini</div>
         {!isMobile && (
           <button onClick={()=>setShowForm(s=>!s)}
-            style={{ padding:"9px 18px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:12, cursor:"pointer" }}>
-            {showForm ? "✕ Annulla" : "➕ Nuovo ordine"}
+            style={{ padding:"9px 18px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:12, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
+            {showForm ? "✕ Annulla" : <><Icon name="plus" size={13} /> Nuovo ordine</>}
           </button>
         )}
       </div>
@@ -421,8 +429,8 @@ function OrdiniTab({ orgId, notify, isMobile }) {
               style={{ ...inputSt, width:"100%", resize:"vertical" }}/>
           </div>
           <button onClick={salvaOrdine} disabled={saving}
-            style={{ padding: isMobile ? "14px" : "10px 24px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer", width: isMobile ? "100%" : "auto" }}>
-            {saving ? "…" : "💾 Salva ordine"}
+            style={{ padding: isMobile ? "14px" : "10px 24px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer", width: isMobile ? "100%" : "auto", display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+            {saving ? "…" : <><Icon name="save" size={14} /> Salva ordine</>}
           </button>
         </div>
       )}

@@ -2,8 +2,9 @@ import React from 'react'
 import { useUploadManager } from '../lib/useUploadManager'
 import { uploadManager } from '../lib/uploadManager'
 import { color as T } from '../lib/theme'
+import Icon from './Icon'
 
-const ICON = { uploading: '⏳', done: '✅', error: '⚠️' }
+const ICON = { uploading: 'hourglass', done: 'checkCircle', error: 'warning' }
 const STATUS_COLOR = { uploading: T.textMid, done: T.green, error: T.brand }
 const STATUS_LABEL = { uploading: 'In corso…', done: 'Completato', error: null }
 
@@ -33,7 +34,7 @@ export default function UploadToast() {
             pointerEvents: 'all',
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{ fontSize: 17, lineHeight: '20px', flexShrink: 0 }}>{ICON[u.status]}</span>
+              <span style={{ lineHeight: '20px', flexShrink: 0, color: STATUS_COLOR[u.status] }}><Icon name={ICON[u.status]} size={17} /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontSize: 12, fontWeight: 600, color: '#1C0A0A',

@@ -6,6 +6,7 @@ import {
 import { color as T, radius as R, shadow as S, motion as M, tnum as _tnum, typo } from '../lib/theme'
 import { useToast } from '../components/Toast'
 import { apiFetch } from '../lib/apiFetch'
+import Icon from '../components/Icon'
 
 // ─── Costanti ──────────────────────────────────────────────────────────────
 const PIANI = ['trial', 'base', 'pro', 'enterprise']
@@ -92,17 +93,18 @@ function Card({ children, style }) {
 
 function StatoBadge({ stato, giorni }) {
   const m = {
-    pagante:   { bg: COLORS.okBg,      fg: COLORS.ok,      lbl: '✅ Pagante' },
-    trial:     { bg: COLORS.warnBg,    fg: COLORS.warn,    lbl: `⏳ Trial${giorni != null ? ` (${giorni}gg)` : ''}` },
-    scaduto:   { bg: COLORS.errBg,     fg: COLORS.err,     lbl: '❌ Scaduto' },
-    bloccato:  { bg: COLORS.blockedBg, fg: COLORS.blocked, lbl: '🔒 Bloccato' },
+    pagante:   { bg: COLORS.okBg,      fg: COLORS.ok,      icon: 'checkCircle', lbl: 'Pagante' },
+    trial:     { bg: COLORS.warnBg,    fg: COLORS.warn,    icon: 'hourglass',   lbl: `Trial${giorni != null ? ` (${giorni}gg)` : ''}` },
+    scaduto:   { bg: COLORS.errBg,     fg: COLORS.err,     icon: 'xCircle',     lbl: 'Scaduto' },
+    bloccato:  { bg: COLORS.blockedBg, fg: COLORS.blocked, icon: 'lock',        lbl: 'Bloccato' },
   }
   const s = m[stato] || m.scaduto
   return (
     <span style={{
       background: s.bg, color: s.fg, padding: '3px 10px',
       borderRadius: 99, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
-    }}>{s.lbl}</span>
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+    }}><Icon name={s.icon} size={12} /> {s.lbl}</span>
   )
 }
 
@@ -208,19 +210,19 @@ function EmailModal({ cliente, onClose, onInvia }) {
   )
 
   return (
-    <Modal title={`📧 Email a ${cliente.nome_attivita}`} onClose={onClose} width={580}>
+    <Modal title={`Email a ${cliente.nome_attivita}`} onClose={onClose} width={580}>
       <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 14 }}>
         Destinatario: <strong style={{ color: COLORS.text }}>{cliente.email}</strong>
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-        {tpl('🎉 Benvenuto',
+        {tpl(<><Icon name="party" size={12} /> Benvenuto</>,
           'Benvenuto in FoodOS!',
           `Ciao ${cliente.nome_completo || ''},\n\ngrazie per aver registrato ${cliente.nome_attivita} su FoodOS. Sono qui per aiutarti a iniziare — fammi sapere se hai bisogno di una breve demo o di chiarimenti.\n\nA presto!`)}
-        {tpl('⏰ Trial in scadenza',
+        {tpl(<><Icon name="clock" size={12} /> Trial in scadenza</>,
           'La tua prova FoodOS sta per scadere',
           `Ciao ${cliente.nome_completo || ''},\n\nho visto che il tuo trial sta per terminare. Vuoi continuare con FoodOS? Posso prepararti un'offerta dedicata, fammi sapere.\n\nGrazie,\nAlessandro`)}
-        {tpl('💬 Check-in',
+        {tpl(<><Icon name="chat" size={12} /> Check-in</>,
           'Come va con FoodOS?',
           `Ciao ${cliente.nome_completo || ''},\n\nti scrivo per sapere come ti stai trovando con FoodOS. C'è qualche funzione che ti manca o che vorresti migliorata?\n\nIl tuo feedback è importante.\n\nAlessandro`)}
       </div>
@@ -248,7 +250,7 @@ function EmailModal({ cliente, onClose, onInvia }) {
         <div style={{
           marginTop: 10, padding: '8px 12px', background: COLORS.accentSoft,
           border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12,
-        }}>⚠️ {err}</div>
+        }}><Icon name="warning" size={14} /> {err}</div>
       )}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
         <Btn kind="neutral" onClick={onClose} disabled={busy}>Annulla</Btn>
@@ -285,10 +287,10 @@ function BulkEmailModal({ clienti, onClose, onInvia }) {
   }
 
   return (
-    <Modal title={`📧 Email a ${clienti.length} clienti`} onClose={busy ? () => {} : onClose} width={620}>
+    <Modal title={`Email a ${clienti.length} clienti`} onClose={busy ? () => {} : onClose} width={620}>
       {done ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <div style={{ fontSize: 40 }}>{progress.ko === 0 ? '✅' : '⚠️'}</div>
+          <div style={{ fontSize: 40 }}>{progress.ko === 0 ? <Icon name="checkCircle" size={40} color={COLORS.ok} /> : <Icon name="warning" size={40} color={COLORS.warn} />}</div>
           <div style={{ fontSize: 14, color: COLORS.text, fontWeight: 700, marginTop: 12 }}>
             Inviate {progress.ok} email · {progress.ko} errori
           </div>
@@ -326,11 +328,11 @@ function BulkEmailModal({ clienti, onClose, onInvia }) {
             <div style={{
               marginTop: 10, padding: '8px 12px', background: COLORS.errBg,
               border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12,
-            }}>⚠️ {err}</div>
+            }}><Icon name="warning" size={14} /> {err}</div>
           )}
           {busy && (
             <div style={{ marginTop: 12, padding: '8px 12px', background: COLORS.blueBg, borderRadius: 8, color: COLORS.blue, fontSize: 12, fontWeight: 600, textAlign: 'center' }}>
-              ⏳ Invio in corso… {progress.ok + progress.ko} / {progress.tot} (ok {progress.ok} · errori {progress.ko})
+              <Icon name="hourglass" size={12} /> Invio in corso… {progress.ok + progress.ko} / {progress.tot} (ok {progress.ok} · errori {progress.ko})
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
@@ -355,7 +357,7 @@ function DeleteModal({ cliente, onClose, onConferma }) {
   }
 
   return (
-    <Modal title={`🗑️ Elimina ${cliente.nome_attivita}`} onClose={onClose}>
+    <Modal title={`Elimina ${cliente.nome_attivita}`} onClose={onClose}>
       <div style={{
         padding: '12px 14px', background: COLORS.errBg, border: `1px solid ${COLORS.err}`,
         borderRadius: 8, color: COLORS.err, fontSize: 13, marginBottom: 16,
@@ -383,7 +385,7 @@ function DeleteModal({ cliente, onClose, onConferma }) {
         <div style={{
           marginTop: 10, padding: '8px 12px', background: COLORS.accentSoft,
           border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12,
-        }}>⚠️ {err}</div>
+        }}><Icon name="warning" size={14} /> {err}</div>
       )}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
         <Btn kind="neutral" onClick={onClose} disabled={busy}>Annulla</Btn>
@@ -406,7 +408,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
   }
 
   return (
-    <Modal title={`🧹 Pulisci fatture demo · ${cliente.nome_attivita}`} onClose={onClose} width={560}>
+    <Modal title={`Pulisci fatture demo · ${cliente.nome_attivita}`} onClose={onClose} width={560}>
       {matches.length === 0 ? (
         <div style={{
           padding: '14px 16px', background: COLORS.greenBg || '#F0FDF4',
@@ -455,13 +457,13 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
         <div style={{
           marginBottom: 14, padding: '8px 12px', background: COLORS.accentSoft,
           border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12,
-        }}>⚠️ {err}</div>
+        }}><Icon name="warning" size={14} /> {err}</div>
       )}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <Btn kind="neutral" onClick={onClose} disabled={busy}>Annulla</Btn>
         {matches.length > 0 && (
           <Btn kind="danger" onClick={submit} disabled={busy}>
-            {busy ? 'Eliminazione…' : `🗑️ Elimina ${matches.length} fatture`}
+            {busy ? 'Eliminazione…' : <><Icon name="trash" size={13} /> Elimina {matches.length} fatture</>}
           </Btn>
         )}
       </div>
@@ -509,7 +511,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
   const inp = { width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: 13, boxSizing: 'border-box' }
 
   return (
-    <Modal title="🎟 Nuovo codice sconto" onClose={onClose} width={620}>
+    <Modal title="Nuovo codice sconto" onClose={onClose} width={620}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         <div>
           <label style={lbl}>Codice</label>
@@ -542,7 +544,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
             style={{ ...inp, fontWeight: 700 }}/>
           {tipoSconto === 'percent' && valore == 100 && (
             <div style={{ fontSize: 11, color: '#059669', fontWeight: 700, marginTop: 4 }}>
-              🎁 Sconto 100% = abbonamento gratis
+              <Icon name="gift" size={12} /> Sconto 100% = abbonamento gratis
             </div>
           )}
         </div>
@@ -602,7 +604,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
       </div>
 
       {err && (
-        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: 12, marginBottom: 12 }}>⚠️ {err}</div>
+        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: 12, marginBottom: 12 }}><Icon name="warning" size={14} /> {err}</div>
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -628,7 +630,7 @@ function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
   }
 
   return (
-    <Modal title={`🎁 Regala mesi · ${cliente.nome_attivita}`} onClose={onClose} width={500}>
+    <Modal title={`Regala mesi · ${cliente.nome_attivita}`} onClose={onClose} width={500}>
       <div style={{ fontSize: 13, color: '#64748B', marginBottom: 14, lineHeight: 1.55 }}>
         Estende la subscription Stripe (o il trial interno) per <strong>{cliente.nome_attivita}</strong> senza addebiti.
         Se l'utente ha già un abbonamento attivo, Stripe applicherà <code>trial_end</code> alla data calcolata.
@@ -657,13 +659,13 @@ function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
       </div>
 
       {err && (
-        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: 12, marginBottom: 12 }}>⚠️ {err}</div>
+        <div style={{ padding: '8px 12px', background: '#FEE2E2', border: '1px solid #991B1B', borderRadius: 8, color: '#991B1B', fontSize: 12, marginBottom: 12 }}><Icon name="warning" size={14} /> {err}</div>
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <Btn kind="neutral" onClick={onClose} disabled={busy}>Annulla</Btn>
         <Btn kind="success" onClick={submit} disabled={busy || mesi < 1}>
-          {busy ? 'Applicazione…' : `🎁 Regala ${mesi} mesi`}
+          {busy ? 'Applicazione…' : <><Icon name="gift" size={13} /> Regala {mesi} mesi</>}
         </Btn>
       </div>
     </Modal>
@@ -677,7 +679,7 @@ function ImpersonaModal({ cliente, link, onClose }) {
     catch { /* ignore */ }
   }
   return (
-    <Modal title={`🔑 Link di accesso — ${cliente.nome_attivita}`} onClose={onClose}>
+    <Modal title={`Link di accesso — ${cliente.nome_attivita}`} onClose={onClose}>
       <div style={{ fontSize: 13, color: COLORS.textSoft, lineHeight: 1.6, marginBottom: 14 }}>
         Magic link generato per <strong>{cliente.email}</strong>.<br/>
         Apri il link in una <strong>finestra anonima</strong> per accedere come quell'utente
@@ -734,10 +736,10 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
   const healthBadge = (() => {
     const ref = cliente.ultimo_accesso || cliente.registrata_il
     const d = giorniDa(ref)
-    if (d == null) return { bg: COLORS.blockedBg, fg: COLORS.blocked, lbl: '— Sconosciuto' }
-    if (d <= 2) return { bg: COLORS.okBg, fg: COLORS.ok, lbl: '🟢 Attivo' }
-    if (d <= 7) return { bg: COLORS.warnBg, fg: COLORS.warn, lbl: `🟡 A rischio (${d}gg)` }
-    return { bg: COLORS.errBg, fg: COLORS.err, lbl: `🔴 Dormiente (${d}gg)` }
+    if (d == null) return { bg: COLORS.blockedBg, fg: COLORS.blocked, dot: null, lbl: '— Sconosciuto' }
+    if (d <= 2) return { bg: COLORS.okBg, fg: COLORS.ok, dot: '#0E9F6E', lbl: 'Attivo' }
+    if (d <= 7) return { bg: COLORS.warnBg, fg: COLORS.warn, dot: '#D97706', lbl: `A rischio (${d}gg)` }
+    return { bg: COLORS.errBg, fg: COLORS.err, dot: '#6E0E1A', lbl: `Dormiente (${d}gg)` }
   })()
 
   const sedi = dettaglio?.sedi || []
@@ -751,7 +753,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
   const usageAltro = usage.filter(u => !CHIAVI_OPERATIVE_SET.has(u.data_key))
 
   return (
-    <Modal title={`📋 ${cliente.nome_attivita}`} onClose={onClose} width={780}>
+    <Modal title={`${cliente.nome_attivita}`} onClose={onClose} width={780}>
       {/* Header: stato + KPI in linea */}
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10,
@@ -763,7 +765,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         </div>
         <div>
           <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Salute</div>
-          <span style={{ background: healthBadge.bg, color: healthBadge.fg, padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>{healthBadge.lbl}</span>
+          <span style={{ background: healthBadge.bg, color: healthBadge.fg, padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{healthBadge.dot && <Icon name="dot" size={9} color={healthBadge.dot} />}{healthBadge.lbl}</span>
         </div>
         <div>
           <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Piano</div>
@@ -800,7 +802,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         <section style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <h3 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: COLORS.text }}>
-              🚀 Activation · {activation.score}/{activation.totale}
+              <Icon name="bolt" size={13} /> Activation · {activation.score}/{activation.totale}
             </h3>
             <span style={{ fontSize: 10, color: COLORS.textMute }}>
               {counts?.fatture != null && `${counts.fatture} fatture`}
@@ -833,17 +835,17 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
 
       {/* Azioni rapide */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        <Btn kind="warn" size="sm" onClick={() => onAzione('impersona')}>🔑 Impersona</Btn>
-        <Btn kind="neutral" size="sm" onClick={() => onAzione('email')}>📧 Email</Btn>
-        <Btn kind="success" size="sm" onClick={() => onAzione('regala')}>🎁 Regala mesi</Btn>
-        <Btn kind="neutral" size="sm" onClick={() => onAzione('reset_password')}>🔁 Reset password</Btn>
+        <Btn kind="warn" size="sm" onClick={() => onAzione('impersona')}><Icon name="key" size={13} /> Impersona</Btn>
+        <Btn kind="neutral" size="sm" onClick={() => onAzione('email')}><Icon name="mail" size={13} /> Email</Btn>
+        <Btn kind="success" size="sm" onClick={() => onAzione('regala')}><Icon name="gift" size={13} /> Regala mesi</Btn>
+        <Btn kind="neutral" size="sm" onClick={() => onAzione('reset_password')}><Icon name="refresh" size={13} /> Reset password</Btn>
       </div>
 
       {/* Note CRM (autosave 1.5s) */}
       <section style={{ marginBottom: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <h3 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: COLORS.text }}>
-            📝 Note interne (solo admin)
+            <Icon name="edit" size={13} /> Note interne (solo admin)
           </h3>
           <span style={{ fontSize: 10, color:
             notaStatus === 'saving' ? COLORS.textMute :
@@ -852,9 +854,9 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
             fontWeight: 600,
           }}>
             {notaStatus === 'dirty'  && '○ modifiche non salvate'}
-            {notaStatus === 'saving' && '⏳ salvataggio…'}
+            {notaStatus === 'saving' && <><Icon name="hourglass" size={10} /> salvataggio…</>}
             {notaStatus === 'saved'  && '✓ salvato'}
-            {notaStatus === 'error'  && '⚠ errore salvataggio'}
+            {notaStatus === 'error'  && <><Icon name="warning" size={10} /> errore salvataggio</>}
           </span>
         </div>
         <textarea
@@ -878,7 +880,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
           {/* Sedi */}
           <section style={{ marginBottom: 18 }}>
             <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
-              🏢 Sedi ({sedi.length})
+              <Icon name="building" size={13} /> Sedi ({sedi.length})
             </h3>
             {sedi.length === 0 ? (
               <div style={{ fontSize: 12, color: COLORS.textMute }}>Nessuna sede registrata</div>
@@ -891,7 +893,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                     color: s.attiva ? COLORS.ok : COLORS.blocked,
                     border: `1px solid ${s.attiva ? COLORS.ok : COLORS.border}`,
                   }}>
-                    {s.is_default && '★ '}{s.nome}{!s.attiva && ' (inattiva)'}
+                    {s.is_default && <Icon name="star" size={10} style={{ marginRight: 3 }} />}{s.nome}{!s.attiva && ' (inattiva)'}
                   </span>
                 ))}
               </div>
@@ -901,7 +903,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
           {/* Uso per area */}
           <section style={{ marginBottom: 18 }}>
             <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
-              📊 Uso per area
+              <Icon name="barChart" size={13} /> Uso per area
             </h3>
             {usage.length === 0 ? (
               <div style={{ fontSize: 12, color: COLORS.textMute, padding: '12px 0' }}>
@@ -952,7 +954,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
           {/* Eventi recenti */}
           <section>
             <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
-              🕒 Eventi recenti ({eventi.length})
+              <Icon name="clock" size={13} /> Eventi recenti ({eventi.length})
             </h3>
             {eventi.length === 0 ? (
               <div style={{ fontSize: 12, color: COLORS.textMute, padding: '12px 0' }}>
@@ -1339,7 +1341,7 @@ export default function AdminPage() {
           body: JSON.stringify({
             tipo: 'invia_email',
             destinatario: c.email,
-            oggetto: 'La tua prova FoodOS scade tra pochi giorni ⏰',
+            oggetto: 'La tua prova FoodOS scade tra pochi giorni',
             messaggio: `Ciao ${c.nome_completo || ''},\n\nla tua prova gratuita di FoodOS scade tra ${giorniRimanenti(c)} giorni.\n\nSe vuoi continuare ad accedere ai tuoi dati e alle analisi, rispondi a questa email e ti preparo l'attivazione.\n\nA presto,\nAlessandro`,
           }),
         })
@@ -1491,7 +1493,7 @@ export default function AdminPage() {
       }}>
         <div>
           <div style={{ fontWeight: 900, fontSize: 17, color: COLORS.text }}>
-            🍰 FoodOS <span style={{ color: COLORS.accent }}>Admin</span>
+            <Icon name="gift" size={17} /> FoodOS <span style={{ color: COLORS.accent }}>Admin</span>
           </div>
           <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
             Pannello amministrazione · {lastFetch
@@ -1501,7 +1503,7 @@ export default function AdminPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Btn kind="neutral" onClick={() => { fetchData(); fetchAudit() }} disabled={loading}>
-            {loading ? '…' : '🔄 Aggiorna'}
+            {loading ? '…' : <><Icon name="refresh" size={14} /> Aggiorna</>}
           </Btn>
           <Btn kind="neutral" onClick={() => { window.location.href = '/' }}>← Sito</Btn>
           <Btn kind="ghost" onClick={async () => { await supabase.auth.signOut(); window.location.href = '/' }}>Esci</Btn>
@@ -1513,7 +1515,7 @@ export default function AdminPage() {
           <div style={{
             background: COLORS.accentSoft, border: `1px solid ${COLORS.err}`,
             borderRadius: 8, padding: '12px 16px', color: COLORS.err, marginBottom: 20, fontSize: 13,
-          }}>⚠️ {errore}</div>
+          }}><Icon name="warning" size={14} /> {errore}</div>
         )}
 
         {/* ── KPI ─────────────────────────────────────────────────── */}
@@ -1556,7 +1558,7 @@ export default function AdminPage() {
         {stats?.crescita && (
           <Card style={{ padding: 20, marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>📈 Crescita registrazioni</h3>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}><Icon name="trendUp" size={14} /> Crescita registrazioni</h3>
               <div style={{ fontSize: 11, color: COLORS.textMute }}>Ultime 12 settimane</div>
             </div>
             <div style={{ width: '100%', height: 220 }}>
@@ -1585,12 +1587,12 @@ export default function AdminPage() {
         <Card style={{ padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
-              💳 MRR reale (Stripe)
+              <Icon name="card" size={14} /> MRR reale (Stripe)
               <span style={{ fontSize: 11, fontWeight: 500, color: COLORS.textMute, marginLeft: 10 }}>
                 calcolato dalle subscription Stripe, non da paganti × prezzo
               </span>
             </h3>
-            <Btn kind="neutral" size="sm" onClick={fetchStripeMrr} disabled={stripeMrrLoading}>{stripeMrrLoading ? '…' : '🔄'}</Btn>
+            <Btn kind="neutral" size="sm" onClick={fetchStripeMrr} disabled={stripeMrrLoading}>{stripeMrrLoading ? '…' : <Icon name="refresh" size={13} />}</Btn>
           </div>
           {stripeMrrLoading && !stripeMrr ? (
             <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Caricamento da Stripe…</div>
@@ -1603,7 +1605,7 @@ export default function AdminPage() {
             </div>
           ) : stripeMrr?.error ? (
             <div style={{ padding: '10px 14px', background: COLORS.errBg, border: `1px solid ${COLORS.err}`, borderRadius: 8, color: COLORS.err, fontSize: 12 }}>
-              ⚠️ Errore Stripe: {stripeMrr.error}
+              <Icon name="warning" size={13} /> Errore Stripe: {stripeMrr.error}
             </div>
           ) : stripeMrr ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
@@ -1640,16 +1642,16 @@ export default function AdminPage() {
 
         {/* ── Azioni rapide ──────────────────────────────────────── */}
         <Card style={{ padding: 16, marginBottom: 20 }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800 }}>⚡ Azioni rapide</h3>
+          <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800 }}><Icon name="bolt" size={14} /> Azioni rapide</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Btn kind="neutral" onClick={handleEmailTrialScadenza}>
-              📧 Email a trial in scadenza (7gg)
+              <Icon name="mail" size={14} /> Email a trial in scadenza (7gg)
             </Btn>
             <Btn kind="neutral" onClick={handleEsportaCsv}>
-              📊 Esporta CSV clienti
+              <Icon name="barChart" size={14} /> Esporta CSV clienti
             </Btn>
             <Btn kind="neutral" onClick={fetchAudit}>
-              🔄 Aggiorna log
+              <Icon name="refresh" size={14} /> Aggiorna log
             </Btn>
             <Btn kind="ghost" onClick={() => window.open('https://supabase.com/dashboard', '_blank')}>
               🛢️ Supabase →
