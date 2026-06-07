@@ -220,10 +220,13 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             <button onClick={reset} aria-label="Chiudi form" style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
           )}
         </div>
-        {[["Nome *","nome","text"],["Ruolo","ruolo","text"]].map(([lbl,key,type])=>(
+        {[["Nome e cognome *","nome","text","es. Mario Rossi"],["Ruolo","ruolo","text","es. Pasticciere (facoltativo)"]].map(([lbl,key,type,ph])=>(
           <div key={key} style={{ marginBottom:12 }}>
             <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>{lbl}</div>
-            <input type={type} value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={inputSt}/>
+            {/* autoComplete off + name fuori-standard: evita che il browser autocompili
+                il RUOLO col cognome dell'utente (bug: il cognome finiva nel ruolo). */}
+            <input type={type} value={form[key]} placeholder={ph} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={inputSt}
+              autoComplete="off" autoCorrect="off" spellCheck={false} name={`dip_${key}_${key==='ruolo'?'x9':'x1'}`} />
           </div>
         ))}
         <div style={{ marginBottom:12 }}>
