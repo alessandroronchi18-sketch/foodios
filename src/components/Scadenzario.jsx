@@ -8,6 +8,17 @@ import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
+// Colonne sicure della tabella `fatture` (quelle effettivamente lette/usate dal
+// componente → esistono di certo nel DB). I parser possono produrre campi extra
+// (piva, cf, note) che, se la tabella non li ha, fanno fallire l'INSERT con un
+// errore PostgREST. Inseriamo SOLO le colonne sicure per non rompere l'import.
+const FATTURA_COLS_SICURE = ['numero_rif', 'data_fattura', 'fornitore', 'imponibile', 'imposta', 'totale', 'stato']
+function pickFattura(r, orgId, sedeId) {
+  const out = { organization_id: orgId, sede_id: sedeId || null }
+  for (const k of FATTURA_COLS_SICURE) if (r[k] !== undefined && r[k] !== null) out[k] = r[k]
+  return out
+}
+
 // Termine di pagamento standard usato per derivare la data di scadenza
 // quando in DB non e' specificata: 30 giorni dalla data fattura.
 const PAYMENT_TERMS_DAYS = 30
@@ -153,7 +164,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       try {
         const records = await parseFatturaSMART(file)
         if (!records.length) { notify('Nessuna fattura trovata nel file', false); continue }
-        const toInsert = records.map(r => ({ ...r, organization_id: orgId, sede_id: sedeId || null }))
+        const toInsert = records.map(r => pickFattura(r, orgId, sedeId))
         for (let i = 0; i < toInsert.length; i += 100) {
           const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
           if (error) throw error
@@ -180,7 +191,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         const text = await file.text()
         const records = parseFatturaXML(text)
         if (!records.length) { notify('Nessuna fattura trovata nel file XML', false); continue }
-        const toInsert = records.map(r => ({ ...r, organization_id: orgId, sede_id: sedeId || null }))
+        const toInsert = records.map(r => pickFattura(r, orgId, sedeId))
         for (let i = 0; i < toInsert.length; i += 100) {
           const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
           if (error) throw error
@@ -205,7 +216,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       try {
         const records = await parseFatturaSMART(file)
         if (!records.length) { notify('Nessuna fattura trovata nel file FatturaSMART', false); continue }
-        const toInsert = records.map(r => ({ ...r, organization_id: orgId, sede_id: sedeId || null }))
+        const toInsert = records.map(r => pickFattura(r, orgId, sedeId))
         for (let i = 0; i < toInsert.length; i += 100) {
           const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
           if (error) throw error
