@@ -231,6 +231,24 @@ export default function App() {
     )
   }
 
+  // Dipendente non ancora attivato (o disattivato) dal titolare: nessun accesso.
+  if (auth.inAttesa) {
+    return (
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#FAF7F5', padding:24 }}>
+        <div style={{ maxWidth:440, width:'100%', background:'#FFF', border:'1px solid #E8DDD8', borderRadius:16, padding:'32px 28px', textAlign:'center', boxShadow:'0 10px 28px rgba(15,23,42,0.06)' }}>
+          <div style={{ fontSize:18, fontWeight:800, color:'#3F2D29', marginBottom:10 }}>Account in attesa di attivazione</div>
+          <div style={{ fontSize:14, color:'#6B4C44', lineHeight:1.6, marginBottom:22 }}>
+            Il tuo account è collegato alla tua azienda ma deve ancora essere <b>attivato dal titolare</b>.
+            Appena ti abilita potrai accedere alle funzioni operative. Riprova più tardi.
+          </div>
+          <button onClick={() => auth.signOut()} style={{ padding:'12px 24px', background:'transparent', color:'#6B4C44', border:'1px solid #E8DDD8', borderRadius:10, fontSize:14, cursor:'pointer' }}>
+            Esci
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // Trial scaduto
   if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} onSignOut={auth.signOut} />
 

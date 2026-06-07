@@ -1362,11 +1362,170 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
   )
 }
 
+// ── Accessi: il titolare invita (per email), attiva, disattiva ed elimina gli
+// account dipendente. Solo le email pre-autorizzate qui possono entrare nell'org
+// (vedi handle_new_user in 20260607c). Un dipendente non attivo = accesso ZERO.
+const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+function AccessiTab({ orgId, notify, isMobile }) {
+  const [meId, setMeId] = useState(null)
+  const [dipendenti, setDipendenti] = useState([])   // profiles ruolo='dipendente'
+  const [inviti, setInviti] = useState([])           // org_inviti pending non accettati
+  const [loading, setLoading] = useState(true)
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(null)             // id in lavorazione
+  const [delConf, setDelConf] = useState(null)       // dipendente in conferma eliminazione
+
+  async function carica() {
+    if (!orgId) return
+    const [{ data: { user } }, dip, inv] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase.from('profiles').select('id,email,nome_completo,approvato').eq('organization_id', orgId).eq('ruolo', 'dipendente').order('email'),
+      supabase.from('org_inviti').select('id,email,stato,created_at').eq('organization_id', orgId).eq('stato', 'pending').order('created_at', { ascending: false }),
+    ])
+    setMeId(user?.id || null)
+    setDipendenti(dip.data || [])
+    setInviti(inv.data || [])
+    setLoading(false)
+  }
+  useEffect(() => { setLoading(true); carica() }, [orgId])
+
+  // Email già invitate (pending) o già con un account dipendente.
+  const emailEsistenti = new Set([
+    ...inviti.map(i => (i.email || '').toLowerCase()),
+    ...dipendenti.map(d => (d.email || '').toLowerCase()),
+  ])
+
+  async function invita() {
+    const e = email.trim().toLowerCase()
+    if (!EMAIL_RX.test(e)) { notify?.('Email non valida', false); return }
+    if (emailEsistenti.has(e)) { notify?.('Questa email è già invitata o già collegata', false); return }
+    setBusy('invite')
+    const { error } = await supabase.from('org_inviti').insert({ organization_id: orgId, email: e, ruolo: 'dipendente', invited_by: meId })
+    setBusy(null)
+    if (error) { notify?.('Invito fallito: ' + error.message, false); return }
+    setEmail(''); notify?.('Invito creato. Quando questa persona si registra con questa email, comparirà qui in attesa di attivazione.')
+    carica()
+  }
+
+  async function setApprovato(dipId, val) {
+    setBusy(dipId)
+    const { error } = await supabase.from('profiles').update({ approvato: val }).eq('id', dipId).eq('organization_id', orgId)
+    setBusy(null)
+    if (error) { notify?.('Operazione fallita: ' + error.message, false); return }
+    notify?.(val ? 'Dipendente attivato' : 'Dipendente disattivato')
+    carica()
+  }
+
+  async function revocaInvito(invId) {
+    setBusy(invId)
+    const { error } = await supabase.from('org_inviti').delete().eq('id', invId).eq('organization_id', orgId)
+    setBusy(null)
+    if (error) { notify?.('Revoca fallita: ' + error.message, false); return }
+    notify?.('Invito revocato'); carica()
+  }
+
+  async function elimina(dip) {
+    setBusy(dip.id)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/dipendente-elimina', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ targetUserId: dip.id }),
+      })
+      const j = await res.json().catch(() => null)
+      if (!res.ok || !j?.ok) throw new Error(j?.error || `errore (${res.status})`)
+      notify?.('Account eliminato')
+    } catch (err) {
+      notify?.('Eliminazione fallita: ' + err.message, false)
+    } finally {
+      setBusy(null); setDelConf(null); carica()
+    }
+  }
+
+  if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+
+  const btn = (bg, color, border) => ({ padding: '7px 12px', borderRadius: 8, border: border || 'none', background: bg, color, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 })
+
+  return (
+    <div style={{ maxWidth: 760 }}>
+      <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55, marginBottom: 16 }}>
+        Solo le email che inviti qui possono entrare nella tua azienda. Un nuovo dipendente parte <b>in attesa</b> e
+        accede <b>solo dopo</b> che lo attivi. Puoi disattivarlo (revoca immediata) o eliminarlo in qualsiasi momento.
+      </div>
+
+      {/* Invito per email */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
+        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email.dipendente@esempio.it"
+          onKeyDown={e => { if (e.key === 'Enter') invita() }} autoComplete="off"
+          style={{ flex: 1, minWidth: 220, padding: isMobile ? '12px 14px' : '9px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text }} />
+        <button onClick={invita} disabled={busy === 'invite'} style={{ ...btn(C.red, C.white), padding: isMobile ? '12px 18px' : '9px 16px', fontWeight: 800, opacity: busy === 'invite' ? 0.6 : 1 }}>
+          <Icon name="plus" size={14} />Invita dipendente
+        </button>
+      </div>
+
+      {/* Account dipendente esistenti */}
+      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Account dipendente</div>
+      {dipendenti.length === 0 && <div style={{ fontSize: 12, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>Nessun account dipendente ancora.</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+        {dipendenti.map(d => (
+          <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
+              <div style={{ fontSize: 11, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.email}</div>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.approvato ? C.green : C.amber, background: d.approvato ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <Icon name={d.approvato ? 'checkCircle' : 'hourglass'} size={11} />{d.approvato ? 'Attivo' : 'In attesa / sospeso'}
+            </span>
+            {d.approvato
+              ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Disattiva</button>
+              : <button onClick={() => setApprovato(d.id, true)} disabled={busy === d.id} style={btn(C.green, C.white)}><Icon name="check" size={12} />Attiva</button>}
+            <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Elimina account" style={btn(C.white, C.red, `1px solid ${C.red}40`)}><Icon name="trash" size={12} /></button>
+          </div>
+        ))}
+      </div>
+
+      {/* Inviti in attesa di registrazione */}
+      {inviti.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Inviti in attesa di registrazione</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {inviti.map(i => (
+              <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgSubtle, border: `1px dashed ${C.border}`, borderRadius: 10 }}>
+                <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.email}</div>
+                <span style={{ fontSize: 11, color: C.textSoft, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="mail" size={11} />Invito inviato</span>
+                <button onClick={() => revocaInvito(i.id)} disabled={busy === i.id} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Revoca</button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Conferma eliminazione */}
+      {delConf && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setDelConf(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 380, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>Eliminare l'accesso?</div>
+            <div style={{ fontSize: 13, color: C.textMid, lineHeight: 1.55, marginBottom: 18 }}>
+              L'account <b>{delConf.email}</b> verrà rimosso definitivamente e non potrà più accedere. L'azione non è reversibile.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDelConf(null)} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
+              <button onClick={() => elimina(delConf)} disabled={busy === delConf.id} style={btn(C.red, C.white)}><Icon name="trash" size={12} />Elimina definitivamente</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Personale({ orgId, sedeId, sedi = [], notify }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState("dipendenti")
   const TABS = [
     ["dipendenti", "Dipendenti", "users"],
+    ["accessi",    "Accessi",    "lock"],
     ["turni",      "Turni",      "calendar"],
     ["organigramma", "Organigramma", "folder"],
     ["analisi",    "Analisi costo", "barChart"],
@@ -1404,6 +1563,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify }) {
       </div>
 
       {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
+      {tab === "accessi"    && <AccessiTab    orgId={orgId} notify={notify} isMobile={isMobile}/>}
       {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
       {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile}/>}
       {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile}/>}

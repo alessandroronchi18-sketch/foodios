@@ -205,6 +205,9 @@ export function useAuth() {
   // Il dipendente ha accesso solo alle viste operative (vedi Dashboard).
   const ruolo          = profile?.ruolo || 'titolare'
   const isDipendente   = ruolo === 'dipendente'
+  // Dipendente non ancora attivato (o disattivato) dal titolare: accesso negato a
+  // livello DB (get_user_org_id ritorna null). L'app mostra una schermata "in attesa".
+  const inAttesa       = isDipendente && profile?.approvato !== true
 
   return {
     user,
@@ -225,6 +228,7 @@ export function useAuth() {
     isAdmin,
     ruolo,
     isDipendente,
+    inAttesa,
     orgId: profile?.organization_id || null,
     sedeId: sedeAttiva?.id || null,
   }
