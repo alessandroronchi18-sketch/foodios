@@ -42,24 +42,35 @@ export const fmtp = v => { const n = Number(v); return `${(Number.isFinite(n) ? 
 // Valuta arrotondata all'unità con separatore migliaia (es. € 1.234). Per box/KPI.
 export const fmt0 = v => { const n = Number(v); return `€ ${Math.round(Number.isFinite(n) ? n : 0).toLocaleString('it-IT')}` }
 
-// KPI card grande (usata da Magazzino, Chiusura, Produzione, ecc.)
-export function KPI({ label, value, sub, color, highlight, icon }) {
+// KPI card grande premium (usata da Magazzino, Chiusura, Produzione, ecc.)
+// Look coerente con la Dashboard home: decoro radiale, chip icona, accento colore.
+export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
+  const accent = color || T.brand
+  const chipBg = highlight ? 'rgba(255,255,255,0.14)' : 'rgba(110,14,26,0.10)'
+  const chipColor = highlight ? '#fff' : accent
   return (
-    <div className="fos-tile" style={{
+    <div className="fos-tile" onClick={onClick} style={{
+      position: 'relative', overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
       background: highlight ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
-      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 16,
-      padding: '20px 22px',
+      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 18,
+      padding: '18px 20px',
       boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
     }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
-        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 10 }}>
-        {icon && <span style={{ marginRight: 6 }}>{icon}</span>}{label}
-      </div>
-      <div style={{ fontSize: 30, fontWeight: 700, color: highlight ? T.textOnDark : color || T.text,
-        letterSpacing: '-0.03em', lineHeight: 1.05, ...TNUM }}>
+      {/* decoro radiale d'angolo */}
+      <div style={{ position: 'absolute', top: -28, right: -28, width: 92, height: 92, borderRadius: '50%',
+        background: highlight ? 'rgba(255,255,255,0.07)' : `${accent}14`, opacity: 0.6, pointerEvents: 'none' }}/>
+      {icon && (
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 11, background: chipBg, color: chipColor, fontSize: 17 }}>{icon}</span>
+        </div>
+      )}
+      <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase',
+        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6 }}>{label}</div>
+      <div style={{ position: 'relative', fontSize: 30, fontWeight: 800, color: highlight ? T.textOnDark : color || T.text,
+        letterSpacing: '-0.035em', lineHeight: 1.05, ...TNUM }}>
         {value}
       </div>
-      {sub && <div style={{ fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500 }}>{sub}</div>}
+      {sub && <div style={{ position: 'relative', fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500 }}>{sub}</div>}
     </div>
   )
 }
