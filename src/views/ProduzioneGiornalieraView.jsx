@@ -15,7 +15,20 @@ import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
-import { C, margColor, fmt, fmt0, PageHeader } from './_shared'
+import { C, TNUM, margColor, fmt, fmt0, PageHeader } from './_shared'
+
+// Ombra premium coerente con la Dashboard home.
+const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
+
+// Titolo di pannello con chip icona (gerarchia premium come la Dashboard home).
+function PanelHead({ icon, title, color = C.red }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+      <span style={{ width: 30, height: 30, borderRadius: 9, background: `${color}14`, color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{icon}</span>
+      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>{title}</div>
+    </div>
+  )
+}
 
 // Chip dei prodotti di una sessione: ordinati per pezzi prodotti (desc) e, quando
 // sono tanti (es. 50), mostra solo i primi N + un chip "+X altri" che al passaggio
@@ -551,8 +564,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 16 }}>📊 Riepilogo sessione</div>
+              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
+                <PanelHead icon="📊" title="Riepilogo sessione" color={C.text} />
                 {!hasQta ? (
                   <div style={{ color: C.textSoft, fontSize: 11, textAlign: 'center', padding: '20px 0' }}>Inserisci gli stampi prodotti</div>
                 ) : (
@@ -577,23 +590,34 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         </div>
                       )
                     })}
-                    {!isDipendente && (
+                    {!isDipendente && (() => {
+                      const mc = margColor(margPct)
+                      const mbg = margPct >= 60 ? C.greenLight : margPct >= 40 ? C.amberLight : C.redLight
+                      return (
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.red }}>
-                          <span>Food cost totale</span><span style={{ fontWeight: 700 }}>−{fmt(riepilogo.fcTot)}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.red, paddingTop: 4 }}>
+                          <span>Food cost totale</span><span style={{ fontWeight: 700, ...TNUM }}>−{fmt(riepilogo.fcTot)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 900, color: margColor(margPct), borderTop: `2px solid ${C.border}`, paddingTop: 8 }}>
-                          <span>Margine lordo</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(riepilogo.ricavoTot - riepilogo.fcTot)}</span>
+                        <div style={{ marginTop: 4, padding: '12px 14px', background: mbg, border: `1px solid ${mc}25`, borderRadius: 10 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: mc }}>Margine lordo</span>
+                            <span style={{ fontSize: 18, fontWeight: 900, color: mc, ...TNUM }}>{fmt(riepilogo.ricavoTot - riepilogo.fcTot)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 4 }}>
+                            <span style={{ color: C.textMid }}>Margine %</span>
+                            <span style={{ fontWeight: 700, color: mc, ...TNUM }}>{margPct.toFixed(1)}%</span>
+                          </div>
                         </div>
                       </>
-                    )}
+                      )
+                    })()}
                   </div>
                 )}
               </div>
 
               {hasQta && (
-                <div style={{ background: '#FEF7F5', border: `1px solid ${C.red}30`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 8px 22px rgba(110,14,26,0.06)' }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.red, marginBottom: 8 }}>🍰 Stock vetrina dopo la sessione</div>
+                <div style={{ background: '#FEF7F5', border: `1px solid ${C.red}30`, borderRadius: 16, padding: '16px', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 8px 22px rgba(110,14,26,0.06)' }}>
+                  <PanelHead icon="🍰" title="Stock vetrina dopo la sessione" color={C.red} />
                   <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.55, marginBottom: 8 }}>
                     Una volta confermata, questi pezzi finiscono nello stock vetrina disponibile per la vendita:
                   </div>
@@ -613,8 +637,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               )}
 
               {hasQta && (
-                <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 12 }}>🧾 Ingredienti da scalare</div>
+                <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
+                  <PanelHead icon="🧾" title="Ingredienti da scalare" color={C.text} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
                     {Object.entries(riepilogo.ings).sort((a, b) => b[1] - a[1]).map(([k, qty]) => {
                       const giac = magazzino?.[k]?.giacenza_g || 0
@@ -680,7 +704,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {giornaliero.map((sess) => (
-                <div key={sess.id} style={{ background: C.bgCard, border: `1px solid ${deleteSessConf?.id === sess.id ? C.red : C.border}`, borderRadius: 16, padding: '16px 20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+                <div key={sess.id} className={editSessId === sess.id ? undefined : 'fos-tile'} style={{ background: C.bgCard, border: `1px solid ${deleteSessConf?.id === sess.id ? C.red : C.border}`, borderRadius: 16, padding: '16px 20px', boxShadow: SHADOW_PREMIUM }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

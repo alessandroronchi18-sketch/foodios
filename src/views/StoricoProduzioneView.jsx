@@ -342,11 +342,11 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     <div style={{maxWidth: 1200}}>
       {/* Tab principali — centrali, larghe e ben visibili */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
-        <div style={{display:"flex",gap:4,background:"#F0EAE6",borderRadius:12,padding:4,width:"100%",maxWidth:540}}>
+        <div style={{display:"flex",gap:4,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:14,padding:4,width:"100%",maxWidth:540}}>
           {[["produzione","📦 Produzione"],["vendite","💰 Vendite"],["confronto","🔄 Confronto"]].map(([id,lbl])=>(
             <button key={id} onClick={()=>setTab(id)}
-              style={{flex:1,padding:isMobile?"11px 8px":"13px 16px",borderRadius:9,border:"none",cursor:"pointer",
-                fontWeight:800,fontSize:isMobile?12:14,background:tab===id?C.red:"transparent",
+              style={{flex:1,padding:isMobile?"11px 8px":"13px 16px",borderRadius:10,border:"none",cursor:"pointer",
+                fontWeight:700,fontSize:isMobile?12:14,background:tab===id?C.red:"transparent",
                 color:tab===id?C.white:C.textMid,boxShadow:tab===id?"0 2px 10px rgba(110,14,26,0.28)":"none",
                 transition:"all 0.15s",whiteSpace:"nowrap"}}>
               {lbl}
@@ -356,10 +356,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       </div>
       {/* Vista temporale — centrata, secondaria */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
-        <div style={{display:"flex",background:"#F0EAE6",borderRadius:9,padding:3,gap:2}}>
+        <div style={{display:"flex",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:3,gap:2,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
           {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
             <button key={id} onClick={()=>setVista(id)}
-              style={{padding:"6px 18px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:11,background:vista===id?"rgba(110,14,26,0.18)":"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
+              style={{padding:"7px 18px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:11.5,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
               {lbl}
             </button>
           ))}
@@ -368,16 +368,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
       {/* ─── FILTRI DATA ─── */}
       <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap",alignItems:"center",
-        padding:"10px 14px",background:"#F8F4F2",borderRadius:9,border:`1px solid ${C.border}`}}>
+        padding:"12px 16px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
         <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textSoft}}>Periodo:</span>
         <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
-          style={{padding:"5px 9px",borderRadius:6,border:`1px solid ${C.borderStr}`,fontSize:11,color:C.text,background:C.white}}/>
+          style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:12,color:C.text,background:C.white}}/>
         <span style={{fontSize:10,color:C.textSoft}}>→</span>
         <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
-          style={{padding:"5px 9px",borderRadius:6,border:`1px solid ${C.borderStr}`,fontSize:11,color:C.text,background:C.white}}/>
+          style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:12,color:C.text,background:C.white}}/>
         {(dateFrom||dateTo)&&<>
           <button onClick={()=>{setDateFrom("");setDateTo("");}}
-            style={{padding:"5px 10px",borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:10,fontWeight:600,cursor:"pointer"}}>✕ Reset</button>
+            style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:10,fontWeight:600,cursor:"pointer"}}>✕ Reset</button>
           <span style={{fontSize:10,color:C.amber,fontWeight:600,marginLeft:4}}>
             🔍 {[dateFrom&&`Da ${dateFrom}`,dateTo&&`a ${dateTo}`].filter(Boolean).join(" ")}
           </span>
@@ -626,11 +626,14 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             return (
               <div style={{marginBottom:28}}>
                 {/* Header */}
-                <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
-                  <div>
-                    <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.15em",textTransform:"uppercase",color:C.red,marginBottom:3}}>Overview aggregata</div>
-                    <div style={{fontSize:20,fontWeight:900,color:C.text,letterSpacing:"-0.02em"}}>
-                      {n} {n===1?"giornata":"giornate"} · {fmt3(giorni[0].data)} – {fmt3(giorni[n-1].data)}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                    <div style={{width:3,height:34,background:C.red,borderRadius:2,flexShrink:0}}/>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:3}}>Overview aggregata</div>
+                      <div style={{fontSize:isMobile?16:20,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>
+                        {n} {n===1?"giornata":"giornate"} · {fmt3(giorni[0].data)} – {fmt3(giorni[n-1].data)}
+                      </div>
                     </div>
                   </div>
                   {n>=4 && (
@@ -668,7 +671,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </div>
 
                 {/* Chart + Top prodotti */}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:14,marginBottom:14}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 280px",gap:14,marginBottom:14}}>
                   {/* Trend ricavi */}
                   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:12}}>Ricavi & margine giornalieri</div>

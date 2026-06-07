@@ -6,29 +6,13 @@ import React, { useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
-import { BenchmarkBadge } from '../components/BenchmarkOptin'
 import { exportSimulatorePrezzi } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { lessico } from '../lib/lessico'
+import { C, KPI, SH, PageHeader, Tip, margColor } from './_shared'
 
-// Palette locale compatibile con il vecchio C.* del monolite
-const C = {
-  white: T.bgCard, text: T.text, textMid: T.textMid, textSoft: T.textSoft,
-  border: T.border, green: T.green, greenLight: T.greenLight,
-  amber: T.amber, red: T.brand, redLight: T.brandLight,
-}
-
-const margColor = pct => pct >= 60 ? C.green : pct >= 40 ? C.amber : C.red
-
-function PageHeader({ subtitle, action }) {
-  if (!subtitle && !action) return null
-  return (
-    <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-      {subtitle && <div style={{ fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, fontWeight: 500, flex: 1, minWidth: 0 }}>{subtitle}</div>}
-      {action}
-    </div>
-  )
-}
+// Ombra premium coerente con la Dashboard home (card/contenitori principali).
+const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 
 export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita, sedi }) {
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
@@ -116,13 +100,12 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const totProiDiff    = scenRows.reduce((s, r) => s + r.proiDiff, 0)
   const hasChanges     = scenRows.some(r => r.changed)
 
-  // Food cost medio per benchmark settoriale (% ricavi)
+  // Food cost medio sul ricavo (usato per l'export PDF).
   const fcAvgPct = (() => {
     const totFc  = baseRows.reduce((s, r) => s + r.fc, 0)
     const totRic = baseRows.reduce((s, r) => s + r.ricavo, 0)
     return totRic > 0 ? (totFc / totRic * 100) : null
   })()
-  const cittaDefault = (sedi || []).find(s => s.is_default)?.citta || (sedi || [])[0]?.citta || null
 
   // Raccomandazioni automatiche (computed dal listino base, indipendenti dalle modifiche)
   const raccomandazioni = useMemo(() => {
@@ -182,32 +165,20 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   return (
     <div style={{ maxWidth: 1200 }}>
       <PageHeader
-        subtitle={`Simulatore prezzi e proiezioni${hasStorico ? ' · ' + String((giornaliero || []).length) + ' sessioni' : ''}`}
+        subtitle={`Cambia i prezzi e vedi subito l'impatto su margine e proiezione${hasStorico ? ' · ' + String((giornaliero || []).length) + ' sessioni di storico' : ''}`}
         action={exportBtn}
       />
-
-      {tipoAttivita && (
-        <div style={{ marginBottom: 18 }}>
-          <BenchmarkBadge tipoAttivita={tipoAttivita} miaFcPct={fcAvgPct} citta={cittaDefault}/>
-        </div>
-      )}
 
       {/* RACCOMANDAZIONI AUTOMATICHE */}
       {raccomandazioni.length > 0 && (
         <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
-            <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
-            <div>
-              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Raccomandazioni</h2>
-              <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Suggerimenti generati dall'analisi del listino e dello storico</div>
-            </div>
-          </div>
-          <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: '16px 20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+          <SH sub="Suggerimenti generati dall'analisi del listino e dello storico">Raccomandazioni</SH>
+          <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: '18px 22px', boxShadow: SHADOW_PREMIUM }}>
             <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
               {raccomandazioni.map((r, i) => (
-                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 0', borderBottom: i < raccomandazioni.length - 1 ? `1px dashed ${T.borderSoft}` : 'none' }}>
-                  <span style={{ color: C.red, fontWeight: 900, flexShrink: 0, fontSize: 13, lineHeight: 1.5 }}>›</span>
-                  <span style={{ fontSize: 12, color: T.text, lineHeight: 1.55 }}>{r}</span>
+                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '8px 0', borderBottom: i < raccomandazioni.length - 1 ? `1px dashed ${T.borderSoft}` : 'none' }}>
+                  <span style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, flexShrink: 0, marginTop: 1 }}>›</span>
+                  <span style={{ fontSize: 12.5, color: T.text, lineHeight: 1.55 }}>{r}</span>
                 </li>
               ))}
             </ul>
@@ -252,24 +223,12 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
 
       {/* KPI comparazione — appare solo con modifiche */}
       {hasChanges && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: 14, marginBottom: 28 }}>
-          {[
-            { lbl: 'Ricavo/stampo base',    val: euro0(totBaseRicavo), sub: 'prezzi attuali', c: T.textMid },
-            { lbl: 'Ricavo/stampo scenario', val: euro0(totScenRicavo), sub: `${totScenRicavo > totBaseRicavo ? '+' : ''}${euro0(totScenRicavo - totBaseRicavo)} vs base`, c: totScenRicavo >= totBaseRicavo ? T.green : T.brand },
-            { lbl: 'Margine/stampo scenario', val: euro0(totScenMarg), sub: `${totScenMarg > totBaseMarg ? '+' : ''}${euro0(totScenMarg - totBaseMarg)} vs base`, c: totScenMarg >= totBaseMarg ? T.green : T.brand, hi: true },
-          ].map(({ lbl, val, sub, c, hi }) => (
-            <div key={lbl} style={{ background: hi ? T.brand : T.bgCard, border: `1px solid ${hi ? T.brandDark : T.border}`,
-              borderRadius: 16, padding: '18px 20px',
-              boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
-              backgroundImage: hi ? 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)' : undefined }}>
-              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
-                color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: hi ? T.textOnDark : c, letterSpacing: '-0.02em', lineHeight: 1.15,
-                fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }}>{val}</div>
-              <div style={{ fontSize: 11, color: hi ? 'rgba(255,255,255,0.62)' : c, marginTop: 5, fontWeight: 500, letterSpacing: '-0.005em' }}>{sub}</div>
-            </div>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 12 : 16, marginBottom: 28 }}>
+          <KPI icon="🏷" label="Ricavo / stampo base" value={euro0(totBaseRicavo)} sub="prezzi attuali" color={T.textMid} />
+          <KPI icon="📊" label="Ricavo / stampo scenario" value={euro0(totScenRicavo)} color={totScenRicavo >= totBaseRicavo ? T.green : T.brand}
+            sub={`${totScenRicavo > totBaseRicavo ? '+' : ''}${euro0(totScenRicavo - totBaseRicavo)} vs base`} />
+          <KPI icon="📈" label="Margine / stampo scenario" value={euro0(totScenMarg)} highlight
+            sub={`${totScenMarg > totBaseMarg ? '+' : ''}${euro0(totScenMarg - totBaseMarg)} vs base`} />
         </div>
       )}
 
@@ -383,17 +342,21 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                   <div style={{ padding: '10px 16px', borderRadius: 10, textAlign: 'center',
                     background: r.diffMarg > 0 ? C.greenLight : C.redLight,
                     border: `1px solid ${r.diffMarg > 0 ? C.green : C.red}30` }}>
-                    <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
-                      color: r.diffMarg > 0 ? C.green : C.red, marginBottom: 3 }}>Δ stampo</div>
+                    <Tip text="Variazione di margine su un singolo stampo rispetto al prezzo base." width={230}>
+                      <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', cursor: 'help',
+                        color: r.diffMarg > 0 ? C.green : C.red, marginBottom: 3, borderBottom: '1px dashed rgba(155,120,115,0.4)' }}>Δ stampo</div>
+                    </Tip>
                     <div style={{ fontSize: 18, fontWeight: 900, color: r.diffMarg > 0 ? C.green : C.red, fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }}>
                       {r.diffMarg > 0 ? '+' : ''}{euro(r.diffMarg)}
                     </div>
                     {r.proiDiff !== 0 && hasStorico && (
                       <>
-                        <div style={{ fontSize: 8, fontWeight: 700, color: r.proiDiff > 0 ? C.green : C.red,
-                          textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 8, marginBottom: 2 }}>
-                          Δ {orizzonteGiorni}g
-                        </div>
+                        <Tip text={`Differenza di margine attesa nei prossimi ${orizzonteGiorni} giorni, stimata sulla media di stampi prodotti per sessione.`} width={250}>
+                          <div style={{ fontSize: 8, fontWeight: 700, color: r.proiDiff > 0 ? C.green : C.red, cursor: 'help',
+                            textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 8, marginBottom: 2, borderBottom: '1px dashed rgba(155,120,115,0.4)' }}>
+                            Δ {orizzonteGiorni}g
+                          </div>
+                        </Tip>
                         <div style={{ fontSize: 14, fontWeight: 900, color: r.proiDiff > 0 ? C.green : C.red, fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }}>
                           {r.proiDiff > 0 ? '+' : ''}{euro(r.proiDiff)}
                         </div>

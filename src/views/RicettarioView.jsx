@@ -12,7 +12,7 @@ import { lessico } from '../lib/lessico'
 import { exportRicettaPDF } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
-  C, TNUM, margColor, margBadge, Badge, Tip,
+  C, TNUM, margColor, margBadge, Badge, Tip, KPI,
 } from './_shared'
 
 const fmt  = v => `€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
@@ -68,7 +68,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const pieData = [...pieRaw, ...(resto > 0.01 ? [{ nome: 'Altri', costoCalc: parseFloat(resto.toFixed(3)) }] : [])]
 
   return (
-    <div style={{ background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+    <div className={open ? undefined : 'fos-tile'} style={{ background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
       {/* Header */}
       <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: open ? `1px solid ${isSemi ? SEMI.divider : C.border}` : 'none' }}>
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
@@ -379,11 +379,11 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     <div onContextMenu={e => e.preventDefault()} onDragStart={e => e.preventDefault()}
       style={{ maxWidth: 1200, margin: '0 auto', userSelect: 'none' }}>
       <div style={{ marginBottom: isMobile ? 16 : 24 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: 14 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, color: T.textSoft, ...TNUM }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: ricette.length > 0 ? 18 : 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5, fontWeight: 500 }}>
               {ricette.length > 0
-                ? <>{ricette.length} {LEX.ricette} · food cost medio <b style={{ color: T.textMid, fontWeight: 600 }}>{(fcMedio * 100).toFixed(1)}%</b></>
+                ? <>Margini e food cost di ogni {LEX.ricetta}, ricalcolati sui prezzi delle materie prime.</>
                 : LEX.nessunaRicetta}
             </div>
           </div>
@@ -399,6 +399,16 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
             </label>
           )}
         </div>
+
+        {ricette.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: isMobile ? 10 : 16 }}>
+            <KPI label={LEX.ricette} value={ricette.length} icon="🍰" color={T.text} sub={`${Object.keys(ricettario?.ricette || {}).length} voci totali`} />
+            <KPI label="Food cost medio" value={`${(fcMedio * 100).toFixed(1)}%`} icon="📊"
+              color={fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand}
+              sub={fcMedio < 0.30 ? 'sotto controllo' : fcMedio < 0.35 ? 'da monitorare' : 'alto — rivedere'} />
+            <KPI label="Semilavorati" value={semilavorati.length} icon="🧁" color="#8E44AD" sub="basi e impasti interni" />
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isMobile ? 16 : 20, flexWrap: 'wrap' }}>

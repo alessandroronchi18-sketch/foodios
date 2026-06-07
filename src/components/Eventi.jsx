@@ -4,10 +4,15 @@ import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 import { onEnterAutoComplete } from '../lib/autocomplete'
+import { KPI, PageHeader } from '../views/_shared'
 
 export const SK_EVENTI = 'pasticceria-eventi-v1'
 
-const card = { background: T.bgCard, borderRadius: 16, padding: '18px 20px', border: `1px solid ${T.border}`, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', marginBottom: 16 }
+// Ombra premium coerente con la Dashboard home.
+const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
+const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
+
+const card = { background: T.bgCard, borderRadius: 16, padding: '18px 20px', border: `1px solid ${T.border}`, boxShadow: SHADOW_PREMIUM, marginBottom: 16 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
 const inp  = { width: '100%', height: 40, padding: '0 12px', border: `1px solid ${T.borderStr}`, borderRadius: R.md, fontSize: 13, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
 const btn = (bg, fg) => ({ height: 36, padding: '0 14px', background: bg, color: fg, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em', whiteSpace: 'nowrap', transition: 'background 120ms ease, opacity 120ms ease', fontFamily: 'inherit' })
@@ -275,7 +280,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
     return { totRicavo, totFC, margine: totRicavo - totFC, margPct: totRicavo > 0 ? ((totRicavo - totFC) / totRicavo * 100) : 0 }
   }
 
-  if (loading) return <div style={{ fontSize: 13, color: '#94A3B8', padding: 24 }}>Caricamento…</div>
+  if (loading) return <div style={{ fontSize: 13, color: T.textSoft, padding: 24 }}>Caricamento…</div>
 
   const ricetteList = Object.values(ricettario?.ricette || {}).map(r => r.nome).sort()
 
@@ -327,15 +332,15 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
     <div style={{ maxWidth: 1200, padding: isMobile ? 8 : 0 }}>
       {/* Tab attivi / archivio */}
       {editing == null && (
-        <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid #E2E8F0' }}>
+        <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: `1px solid ${T.border}` }}>
           {[['attivi', `Attivi · ${eventiAttivi.length}`], ['archivio', `Archivio · ${eventiPassati.length}`]].map(([id, lblTab]) => (
             <button key={id} onClick={() => { setTab(id); setFilterMese('') }}
               style={{
                 padding: '10px 16px', border: 'none', background: 'transparent',
                 cursor: 'pointer', fontSize: 13,
-                fontWeight: tab === id ? 700 : 500,
-                color: tab === id ? '#0F172A' : '#64748B',
-                borderBottom: tab === id ? '2px solid #6E0E1A' : '2px solid transparent',
+                fontWeight: tab === id ? 600 : 500,
+                color: tab === id ? T.text : T.textSoft,
+                borderBottom: tab === id ? `2px solid ${T.brand}` : '2px solid transparent',
                 marginBottom: -1,
               }}>
               {lblTab}
@@ -344,59 +349,55 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
         </div>
       )}
 
-      <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ fontSize: 13, color: '#64748B' }}>
-          {tab === 'archivio'
+      {editing == null && (
+        <PageHeader
+          subtitle={tab === 'archivio'
             ? `Eventi passati — ${eventiArchivioFiltrati.length} evento/i${filterMese ? ` · ${fmtMese(filterMese)}` : ''}`
             : `Preventivi e prenotazioni in arrivo — ${eventiAttivi.length} evento/i`}
-        </div>
-        {editing == null && tab === 'attivi' && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {eventiAttivi.length > 0 && (
-              <button onClick={() => exportSettimanaPDF(eventiAttivi, ricetteMap, nomeAttivita)}
-                title="Scarica la scheda di produzione dei prossimi 7 giorni (stampabile)"
-                style={{ ...btn('#EFF6FF', '#1E40AF'), border: '1px solid #BFDBFE' }}>📄 PDF settimana</button>
-            )}
-            <button onClick={nuovo} style={btn('#6E0E1A', '#FFF')}>+ Nuovo evento</button>
-          </div>
-        )}
-        {editing == null && tab === 'archivio' && mesiDisponibili.length > 0 && (
-          <select value={filterMese} onChange={e => setFilterMese(e.target.value)}
-            style={{ padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, background: '#FFF', color: '#0F172A', cursor: 'pointer' }}>
-            <option value="">Tutti i mesi</option>
-            {mesiDisponibili.map(m => <option key={m} value={m}>{fmtMese(m)}</option>)}
-          </select>
-        )}
-      </div>
-
-      {/* KPI archivio */}
-      {editing == null && tab === 'archivio' && eventiArchivioFiltrati.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
-          <div style={{ ...card, marginBottom: 0, padding: '14px 16px' }}>
-            <div style={lbl}>Eventi</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#0F172A' }}>{kpiArchivio.eventi}</div>
-          </div>
-          <div style={{ ...card, marginBottom: 0, padding: '14px 16px' }}>
-            <div style={lbl}>Ricavi</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#0F172A' }}>{fmtEur(kpiArchivio.ricavi)}</div>
-          </div>
-          <div style={{ ...card, marginBottom: 0, padding: '14px 16px' }}>
-            <div style={lbl}>Food cost</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#92400E' }}>{fmtEur(kpiArchivio.fc)}</div>
-            <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, marginTop: 2 }}>{kpiArchivio.fcPct.toFixed(1)}%</div>
-          </div>
-          <div style={{ ...card, marginBottom: 0, padding: '14px 16px' }}>
-            <div style={lbl}>Margine</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: kpiArchivio.margPct >= 50 ? '#10B981' : kpiArchivio.margPct >= 30 ? '#F59E0B' : '#6E0E1A' }}>{fmtEur(kpiArchivio.margine)}</div>
-            <div style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, marginTop: 2 }}>{kpiArchivio.margPct.toFixed(1)}%</div>
-          </div>
-        </div>
+          action={
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {tab === 'attivi' && (
+                <>
+                  {eventiAttivi.length > 0 && (
+                    <button onClick={() => exportSettimanaPDF(eventiAttivi, ricetteMap, nomeAttivita)}
+                      title="Scarica la scheda di produzione dei prossimi 7 giorni (stampabile)"
+                      style={{ ...btn(T.blueLight, '#1E40AF'), border: `1px solid #BFDBFE` }}>📄 PDF settimana</button>
+                  )}
+                  <button onClick={nuovo} style={btn(T.brand, '#FFF')}>+ Nuovo evento</button>
+                </>
+              )}
+              {tab === 'archivio' && mesiDisponibili.length > 0 && (
+                <select value={filterMese} onChange={e => setFilterMese(e.target.value)}
+                  style={{ height: 36, padding: '0 12px', border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 12, background: T.bgCard, color: T.text, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <option value="">Tutti i mesi</option>
+                  {mesiDisponibili.map(m => <option key={m} value={m}>{fmtMese(m)}</option>)}
+                </select>
+              )}
+            </div>
+          }
+        />
       )}
 
+      {/* KPI archivio */}
+      {editing == null && tab === 'archivio' && eventiArchivioFiltrati.length > 0 && (() => {
+        const margC = kpiArchivio.margPct >= 50 ? T.green : kpiArchivio.margPct >= 30 ? T.amber : T.brand
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
+            <KPI label="Eventi" value={kpiArchivio.eventi} icon="📅" color={T.text} />
+            <KPI label="Ricavi" value={fmtEur(kpiArchivio.ricavi)} icon="💶" color={T.green} />
+            <KPI label="Food cost" value={fmtEur(kpiArchivio.fc)} sub={`${kpiArchivio.fcPct.toFixed(1)}% sui ricavi`} icon="🧾" color={T.amber} />
+            <KPI label="Margine" value={fmtEur(kpiArchivio.margine)} sub={`${kpiArchivio.margPct.toFixed(1)}% sui ricavi`} icon="📈" color={margC} />
+          </div>
+        )
+      })()}
+
       {editing != null && draft && (
-        <div style={{ ...card, border: '2px solid #6E0E1A', background: '#FEF7F5' }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 14, letterSpacing: '-0.01em' }}>
-            {draft._new ? 'Nuovo evento' : 'Modifica evento'}
+        <div style={{ ...card, border: `1px solid ${T.brand}`, background: '#FEF7F5', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 10px 28px rgba(110,14,26,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{draft._new ? '➕' : '✏️'}</span>
+            <div style={{ fontWeight: 700, fontSize: 15, color: T.text, letterSpacing: '-0.01em' }}>
+              {draft._new ? 'Nuovo evento' : 'Modifica evento'}
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -419,9 +420,9 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
 
           <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ ...lbl, marginBottom: 0 }}>Prodotti dell'evento</div>
-            <button onClick={aggiungiRiga} style={btn('#0F172A', '#FFF')}>+ Aggiungi riga</button>
+            <button onClick={aggiungiRiga} style={btn(T.text, '#FFF')}>+ Aggiungi riga</button>
           </div>
-          <div style={{ fontSize: 12, color: '#64748B', marginBottom: 10, lineHeight: 1.45 }}>
+          <div style={{ fontSize: 12, color: T.textMid, marginBottom: 10, lineHeight: 1.45 }}>
             Per ogni prodotto specifica <b>quanti pezzi produrre</b> e <b>a che prezzo li vendi</b> al cliente.
             Il margine si calcola automaticamente in base al food cost della ricetta.
           </div>
@@ -435,13 +436,13 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 ['Prezzo di vendita unitario', 'Prezzo a cui vendi al cliente'],
                 ['Food cost', 'Costo ingredienti'],
               ].map(([h, tip]) => (
-                <div key={h} title={tip} style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>{h}</div>
+                <div key={h} title={tip} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}>{h}</div>
               ))}
             </div>
           )}
 
           {(draft.righe || []).length === 0 && (
-            <div style={{ fontSize: 12, color: '#94A3B8', padding: '12px 0', fontStyle: 'italic' }}>
+            <div style={{ fontSize: 12, color: T.textSoft, padding: '12px 0', fontStyle: 'italic' }}>
               Nessun prodotto. Aggiungi almeno una riga.
             </div>
           )}
@@ -472,7 +473,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   {isMobile && (
                     <label style={{ ...lbl, marginBottom: 4 }}>
                       Quantità da produrre
-                      <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>N° pezzi/porzioni</div>
+                      <div style={{ fontSize: 10, color: T.textSoft, fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>N° pezzi/porzioni</div>
                     </label>
                   )}
                   <input type="number" min="0" step="1" value={r.qty}
@@ -484,7 +485,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   {isMobile && (
                     <label style={{ ...lbl, marginBottom: 4 }}>
                       Prezzo di vendita unitario
-                      <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>Prezzo al cliente per pezzo</div>
+                      <div style={{ fontSize: 10, color: T.textSoft, fontWeight: 500, textTransform: 'none', letterSpacing: 0, marginTop: 2 }}>Prezzo al cliente per pezzo</div>
                     </label>
                   )}
                   <input type="number" min="0" step="0.01" value={r.prezzo}
@@ -493,10 +494,10 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                     placeholder="Es. 4.50" style={inp} />
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {isMobile && <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>FC tot</span>}
-                  <div style={{ fontSize: 11, color: '#64748B', flex: 1 }} title="Costo ingredienti totale (quantità × food cost ricetta)">{fmtEur(fcStampo * Number(r.qty || 0))}</div>
+                  {isMobile && <span style={{ fontSize: 11, color: T.textMid, fontWeight: 600 }}>FC tot</span>}
+                  <div style={{ fontSize: 11, color: T.textMid, flex: 1, ...TNUM }} title="Costo ingredienti totale (quantità × food cost ricetta)">{fmtEur(fcStampo * Number(r.qty || 0))}</div>
                   <button onClick={() => rimuoviRiga(r.id)} aria-label="Rimuovi riga"
-                    style={{ padding: '6px 10px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                    style={{ padding: '6px 10px', background: T.brandLight, color: T.brand, border: `1px solid ${T.brandSoft}`, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                     ×
                   </button>
                 </div>
@@ -520,27 +521,27 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             const t = calcolaTotali(draft)
             const saldo = t.totRicavo - Number(draft.acconto || 0)
             return (
-              <div style={{ marginTop: 18, padding: 14, background: '#FFF', border: '1px solid #E2E8F0', borderRadius: 10, display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12 }}>
-                <div><div style={lbl}>Totale</div><div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A' }}>{fmtEur(t.totRicavo)}</div></div>
-                <div><div style={lbl}>Food cost</div><div style={{ fontSize: 18, fontWeight: 800, color: '#92400E' }}>{fmtEur(t.totFC)}</div></div>
-                <div><div style={lbl}>Margine</div><div style={{ fontSize: 18, fontWeight: 800, color: t.margPct >= 50 ? '#10B981' : t.margPct >= 30 ? '#F59E0B' : '#6E0E1A' }}>{fmtEur(t.margine)} ({t.margPct.toFixed(0)}%)</div></div>
-                <div><div style={lbl}>Saldo</div><div style={{ fontSize: 18, fontWeight: 800, color: '#6E0E1A' }}>{fmtEur(saldo)}</div></div>
+              <div style={{ marginTop: 18, padding: 16, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, boxShadow: T.bgSubtle ? 'inset 0 1px 2px rgba(15,23,42,0.03)' : undefined }}>
+                <div><div style={lbl}>Totale</div><div style={{ fontSize: 18, fontWeight: 800, color: T.text, ...TNUM }}>{fmtEur(t.totRicavo)}</div></div>
+                <div><div style={lbl}>Food cost</div><div style={{ fontSize: 18, fontWeight: 800, color: T.amber, ...TNUM }}>{fmtEur(t.totFC)}</div></div>
+                <div><div style={lbl}>Margine</div><div style={{ fontSize: 18, fontWeight: 800, color: t.margPct >= 50 ? T.green : t.margPct >= 30 ? T.amber : T.brand, ...TNUM }}>{fmtEur(t.margine)} ({t.margPct.toFixed(0)}%)</div></div>
+                <div><div style={lbl}>Saldo</div><div style={{ fontSize: 18, fontWeight: 800, color: T.brand, ...TNUM }}>{fmtEur(saldo)}</div></div>
               </div>
             )
           })()}
 
           <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
-            <button onClick={salva} style={btn('#6E0E1A', '#FFF')}>Salva evento</button>
+            <button onClick={salva} style={btn(T.brand, '#FFF')}>Salva evento</button>
             <button onClick={() => { setEditing(null); setDraft(null) }}
-              style={{ ...btn('transparent', '#64748B'), border: '1px solid #E2E8F0' }}>Annulla</button>
+              style={{ ...btn('transparent', T.textMid), border: `1px solid ${T.border}` }}>Annulla</button>
           </div>
         </div>
       )}
 
       {editing == null && eventiCorrentiTab.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94A3B8' }}>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: T.textSoft }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
-          <div style={{ fontSize: 14, marginBottom: 6 }}>
+          <div style={{ fontSize: 14, marginBottom: 6, color: T.text, fontWeight: 600 }}>
             {tab === 'archivio' ? 'Nessun evento passato in archivio.' : 'Nessun evento in programma.'}
           </div>
           <div style={{ fontSize: 12 }}>
@@ -560,80 +561,80 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
         const isInDeleteConfirm = eliminaId === ev.id
         const isInArchiveConfirm = archiviaId === ev.id
         return (
-          <div key={ev.id} style={{ ...card, opacity: isArch ? 0.75 : 1 }}>
+          <div key={ev.id} className={isArch ? undefined : 'fos-tile'} style={{ ...card, opacity: isArch ? 0.78 : 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 16, fontWeight: 800, color: '#0F172A' }}>{ev.cliente || 'Cliente —'}</span>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: T.text, letterSpacing: '-0.01em' }}>{ev.cliente || 'Cliente —'}</span>
                   {!isArch && ft && (
                     <span title={`Evento ${fmtDate(ev.data)} — pianifica la produzione di conseguenza`}
                       style={{ fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: ft.bg, color: ft.fg, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                       {ft.urgente ? '⏰ ' : ''}{ft.label}
                     </span>
                   )}
-                  {isArch && <span style={{ fontSize: 10, background: '#F1F5F9', color: '#94A3B8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{ev.archiviato ? 'ARCHIVIATO' : 'PASSATO'}</span>}
+                  {isArch && <span style={{ fontSize: 10, background: T.bgSubtle, color: T.textSoft, padding: '2px 8px', borderRadius: 999, fontWeight: 700, letterSpacing: '0.04em' }}>{ev.archiviato ? 'ARCHIVIATO' : 'PASSATO'}</span>}
                 </div>
-                <div style={{ fontSize: 12, color: '#64748B' }}>
+                <div style={{ fontSize: 12, color: T.textMid }}>
                   📅 {fmtDate(ev.data)} · {(ev.righe || []).length} prodotti
                 </div>
-                {ev.note && <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4, fontStyle: 'italic' }}>{ev.note}</div>}
+                {ev.note && <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, fontStyle: 'italic' }}>{ev.note}</div>}
               </div>
-              <div style={{ textAlign: 'right', minWidth: 130, fontVariantNumeric: 'tabular-nums' }}>
-                <div style={{ fontSize: 20, fontWeight: 900, color: '#0F172A' }}>{fmtEur(t.totRicavo)}</div>
-                <div style={{ fontSize: 11, color: t.margPct >= 50 ? '#10B981' : t.margPct >= 30 ? '#F59E0B' : '#6E0E1A', fontWeight: 700 }}>
+              <div style={{ textAlign: 'right', minWidth: 130, ...TNUM }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: '-0.025em' }}>{fmtEur(t.totRicavo)}</div>
+                <div style={{ fontSize: 11, color: t.margPct >= 50 ? T.green : t.margPct >= 30 ? T.amber : T.brand, fontWeight: 700, marginTop: 2 }}>
                   margine {t.margPct.toFixed(0)}%
                 </div>
-                <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>
                   Saldo {fmtEur(saldo)}
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
               <button onClick={() => modifica(ev)}
-                style={{ padding: '6px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#64748B', cursor: 'pointer' }}>
+                style={{ padding: '6px 12px', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: T.textMid, cursor: 'pointer' }}>
                 Modifica
               </button>
               <button onClick={() => exportPreventivoPDF(ev, ricetteMap, null, nomeAttivita)}
-                style={{ padding: '6px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#1E40AF', cursor: 'pointer' }}>
+                style={{ padding: '6px 12px', background: T.blueLight, border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#1E40AF', cursor: 'pointer' }}>
                 📄 Esporta PDF
               </button>
               {!inArchivioTab && (
                 <button onClick={() => { setArchiviaId(ev.id); setEliminaId(null) }}
                   title="Sposta in archivio (riportabile in qualsiasi momento)"
-                  style={{ padding: '6px 12px', background: '#FEF3C7', border: '1px solid #F59E0B', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#92400E', cursor: 'pointer' }}>
+                  style={{ padding: '6px 12px', background: '#FEF3C7', border: `1px solid ${T.amber}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#92400E', cursor: 'pointer' }}>
                   📦 Archivia
                 </button>
               )}
               {inArchivioTab && ev.archiviato && (
                 <button onClick={() => ripristina(ev.id)}
                   title="Riporta l'evento tra gli attivi"
-                  style={{ padding: '6px 12px', background: '#ECFDF5', border: '1px solid #10B981', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#065F46', cursor: 'pointer' }}>
+                  style={{ padding: '6px 12px', background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#065F46', cursor: 'pointer' }}>
                   ↩ Ripristina
                 </button>
               )}
               {inArchivioTab && (
                 <button onClick={() => { setEliminaId(ev.id); setEliminaPin('') }}
-                  style={{ padding: '6px 12px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#6E0E1A', cursor: 'pointer' }}>
+                  style={{ padding: '6px 12px', background: T.brandLight, border: `1px solid ${T.brandSoft}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: T.brand, cursor: 'pointer' }}>
                   🗑 Elimina definitivamente
                 </button>
               )}
             </div>
 
             {isInArchiveConfirm && (
-              <div style={{ marginTop: 12, padding: '14px 16px', background: '#FFFBEB', border: '2px solid #F59E0B', borderRadius: 10 }}>
+              <div style={{ marginTop: 12, padding: '14px 16px', background: '#FFFBEB', border: `1px solid ${T.amber}`, borderRadius: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#92400E', marginBottom: 6 }}>
                   📦 Archiviare "{ev.cliente || 'evento'}"?
                 </div>
-                <div style={{ fontSize: 11, color: '#64748B', marginBottom: 10, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 11, color: T.textMid, marginBottom: 10, lineHeight: 1.5 }}>
                   L'evento sparirà dagli attivi e finirà in archivio. Nessun dato viene perso: potrai ripristinarlo in qualsiasi momento dalla scheda Archivio.
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button onClick={() => archivia(ev.id)}
-                    style={{ padding: '8px 16px', background: '#F59E0B', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                    style={{ padding: '8px 16px', background: T.amber, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
                     Sì, archivia
                   </button>
                   <button onClick={() => setArchiviaId(null)}
-                    style={{ padding: '8px 12px', background: '#FFF', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ padding: '8px 12px', background: T.bgCard, color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                     Annulla
                   </button>
                 </div>
@@ -641,25 +642,25 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             )}
 
             {isInDeleteConfirm && (
-              <div style={{ marginTop: 12, padding: '14px 16px', background: '#FFF5F5', border: '2px solid #FCA5A5', borderRadius: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#6E0E1A', marginBottom: 6 }}>
+              <div style={{ marginTop: 12, padding: '14px 16px', background: T.brandLight, border: `1px solid ${T.brandSoft}`, borderRadius: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: T.brand, marginBottom: 6 }}>
                   ⚠️ Eliminazione definitiva di "{ev.cliente || 'evento'}"
                 </div>
-                <div style={{ fontSize: 11, color: '#64748B', marginBottom: 8, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 11, color: T.textMid, marginBottom: 8, lineHeight: 1.5 }}>
                   Questa azione è irreversibile: i dati dell'evento e il preventivo verranno rimossi per sempre.
-                  Per confermare scrivi <b style={{ color: '#6E0E1A', letterSpacing: '0.06em' }}>ELIMINA</b> qui sotto.
+                  Per confermare scrivi <b style={{ color: T.brand, letterSpacing: '0.06em' }}>ELIMINA</b> qui sotto.
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <input value={eliminaPin}
                     onChange={e => setEliminaPin(e.target.value)}
                     placeholder="ELIMINA"
-                    style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${eliminaPin === 'ELIMINA' ? '#6E0E1A' : '#FCA5A5'}`, fontSize: 13, fontWeight: 700, color: '#6E0E1A', letterSpacing: '0.08em', background: '#FFF' }} />
+                    style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${eliminaPin === 'ELIMINA' ? T.brand : T.brandSoft}`, fontSize: 13, fontWeight: 700, color: T.brand, letterSpacing: '0.08em', background: T.bgCard }} />
                   <button onClick={confermaEliminazione} disabled={eliminaPin !== 'ELIMINA'}
-                    style={{ padding: '8px 16px', background: eliminaPin === 'ELIMINA' ? '#6E0E1A' : '#E5E7EB', color: eliminaPin === 'ELIMINA' ? '#FFF' : '#9CA3AF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: eliminaPin === 'ELIMINA' ? 'pointer' : 'not-allowed' }}>
+                    style={{ padding: '8px 16px', background: eliminaPin === 'ELIMINA' ? T.brand : '#E5E7EB', color: eliminaPin === 'ELIMINA' ? '#FFF' : '#9CA3AF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: eliminaPin === 'ELIMINA' ? 'pointer' : 'not-allowed' }}>
                     Elimina
                   </button>
                   <button onClick={() => { setEliminaId(null); setEliminaPin('') }}
-                    style={{ padding: '8px 12px', background: '#FFF', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    style={{ padding: '8px 12px', background: T.bgCard, color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                     Annulla
                   </button>
                 </div>

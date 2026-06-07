@@ -10,6 +10,20 @@ import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import { C, fmt, fmtp, margColor, margBadge } from './_shared'
 
+// Ombra premium coerente con la Dashboard home.
+const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
+
+// Titolo di card con chip icona (gerarchia premium come la Dashboard home).
+function PanelHead({ icon, title, color = C.red, badge }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+      <span style={{ width: 30, height: 30, borderRadius: 9, background: `${color}14`, color, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{icon}</span>
+      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>{title}</div>
+      {badge}
+    </div>
+  )
+}
+
 export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed, LEX = lessico() }) {
   const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
@@ -183,7 +197,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
       {/* Edit ricetta esistente */}
       {ricetteEsistenti.length>0 && (
-        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:18,padding:isMobile?"14px 16px":"18px 22px",marginBottom:20,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:18,padding:isMobile?"14px 16px":"18px 22px",marginBottom:20,boxShadow:SHADOW_PREMIUM}}>
           <div style={{fontSize:12,fontWeight:600,color:T.text,marginBottom:12,letterSpacing:"-0.005em",display:"flex",alignItems:"center",gap:8}}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textMid} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -327,8 +341,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         {/* Form sinistra */}
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
           {/* Nome + tipo + vendita */}
-          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-            <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:16}}>📋 Informazioni {LEX.prodotto}</div>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:SHADOW_PREMIUM}}>
+            <PanelHead icon="📋" title={`Informazioni ${LEX.prodotto}`} color={C.text} />
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               {[
                 {lbl:`Nome ${LEX.ricetta}`,span:2,el:<input value={form.nome} onChange={e=>setForm(f=>({...f,nome:e.target.value.toUpperCase()}))} placeholder="es. TORTA AL CIOCCOLATO" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:13,color:C.text,fontWeight:700}}/>},
@@ -368,12 +382,10 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           </div>
 
           {/* Allergeni — auto-rilevati dagli ingredienti */}
-          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-              <div style={{fontSize:12,fontWeight:800,color:C.text}}>⚠️ Allergeni presenti</div>
-              <span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:20,background:"#E0F2FE",color:"#0369A1",textTransform:"uppercase",letterSpacing:"0.05em"}}>Auto</span>
-            </div>
-            <div style={{fontSize:10,color:C.textSoft,marginBottom:14}}>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:SHADOW_PREMIUM}}>
+            <PanelHead icon="⚠️" title="Allergeni presenti" color={C.amber}
+              badge={<span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:20,background:"#E0F2FE",color:"#0369A1",textTransform:"uppercase",letterSpacing:"0.05em"}}>Auto</span>}/>
+            <div style={{fontSize:10,color:C.textSoft,marginBottom:14,marginTop:-8}}>
               Calcolati automaticamente dagli ingredienti (Reg. UE 1169/2011). Aggiungi manualmente quelli mancanti se necessario.
             </div>
 
@@ -423,8 +435,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           </div>
 
           {/* Ingredienti */}
-          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-            <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:14}}>🧾 Ingredienti</div>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:SHADOW_PREMIUM}}>
+            <PanelHead icon="🧾" title="Ingredienti" color={C.text} />
             {form.ingredienti.length>0 && (
               <div style={{marginBottom:14,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
@@ -512,8 +524,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
         {/* P&L preview destra */}
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",position:"sticky",top:20}}>
-            <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:16}}>📊 Anteprima P&L</div>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:SHADOW_PREMIUM,position:"sticky",top:20}}>
+            <PanelHead icon="📊" title="Anteprima P&L" color={C.text} />
             {form.ingredienti.length===0 ? (
               <div style={{color:C.textSoft,fontSize:11,textAlign:"center",padding:"20px 0"}}>Aggiungi ingredienti per vedere il calcolo</div>
             ) : (

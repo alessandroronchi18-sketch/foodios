@@ -18,31 +18,22 @@ import {
 import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
-  C, TNUM, margColor, margBadge, Badge, Tip, PageHeader, TD, TH,
+  C, TNUM, margColor, margBadge, Badge, Tip, PageHeader, SH, TD, TH,
   useSortable, SortTH, fmt0,
 } from './_shared'
+
+// Ombra premium coerente con la Dashboard home (card/contenitori principali).
+const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 
 // ─── BARRE RICAVO (stacked margine vs food cost) ─────────────────────────────
 function BarreRicavo({ rows, euro, pct }) {
   const [tooltip, setTooltip] = useState(null)
 
-  const SH2 = () => (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14, marginTop: 8 }}>
-      <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
-      <div>
-        <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Dove va ogni euro di ricavo — per stampo</h2>
-        <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>
-          Verde = margine lordo che resta in cassa &nbsp;·&nbsp; Rosso = costo ingredienti &nbsp;·&nbsp; Passa il mouse sulla barra per il dettaglio
-        </div>
-      </div>
-    </div>
-  )
-
   return (
     <>
-      <SH2/>
+      <SH sub="Verde = margine lordo che resta in cassa · Rosso = costo ingredienti · Passa il mouse sulla barra per il dettaglio">Dove va ogni euro di ricavo — per stampo</SH>
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28,
-        boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', position: 'relative' }}
+        boxShadow: SHADOW_PREMIUM, position: 'relative' }}
         onMouseLeave={() => setTooltip(null)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
           {rows.map((r, i) => {
@@ -177,14 +168,8 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-        <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Ingredienti per Impatto sul Food Cost</h2>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Aggregato su tutti i prodotti — clicca le intestazioni per ordinare</div>
-        </div>
-      </div>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'visible', marginBottom: 28, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', position: 'relative' }}>
+      <SH sub="Aggregato su tutti i prodotti — clicca le intestazioni per ordinare">Ingredienti per Impatto sul Food Cost</SH>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'visible', marginBottom: 28, boxShadow: SHADOW_PREMIUM, position: 'relative' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
             <tr style={{ background: '#F8F4F2' }}>
@@ -395,14 +380,8 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
   })
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-        <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Tabella Riepilogativa P&L</h2>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Clicca le intestazioni per ordinare ▼▲</div>
-        </div>
-      </div>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+      <SH sub="Clicca le intestazioni per ordinare ▼▲">Tabella Riepilogativa P&L</SH>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 700 }}>
             <thead>
@@ -467,14 +446,8 @@ function SensTable({ rows, euro, pct }) {
   const ss = sort(sensRows, (r, k) => k === 'nome' ? r.nome : (r[k] || 0))
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-        <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Sensitivity: Impatto Aumento Costi</h2>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Cosa succede se i costi materie prime salgono</div>
-        </div>
-      </div>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+      <SH sub="Cosa succede se i costi materie prime salgono">Sensitivity: Impatto Aumento Costi</SH>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 580 }}>
             <thead>
@@ -727,13 +700,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
       {/* INSIGHTS AUTOMATICI */}
       {insights.length > 0 && (
         <div style={{ marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-            <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
-            <div>
-              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Insights chiave</h2>
-              <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Cosa dicono i tuoi dati, generato in automatico</div>
-            </div>
-          </div>
+          <SH sub="Cosa dicono i tuoi dati, generato in automatico">Insights chiave</SH>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2,1fr)', gap: 12, alignItems: 'stretch' }}>
             {[...insights].sort((a, b) => ({ critical: 0, warn: 1, ok: 2 }[a.tipo] - { critical: 0, warn: 1, ok: 2 }[b.tipo])).map((ins, i) => {
               const palette = ins.tipo === 'critical'
@@ -765,19 +732,22 @@ export default function PLView({ ricettario, onUpdateRegola }) {
       {/* KPI STRIP */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(3,1fr)' : 'repeat(6,1fr)', gap: 10, marginBottom: 36 }}>
         {[
-          { lbl: 'Prodotti', val: rows.length, sub: 'nel listino', hi: true },
-          { lbl: 'Ricavo/stampo', val: fmt0(totRicavo), sub: 'somma tutti i prodotti', color: T.green },
-          { lbl: 'Food cost tot.', val: fmt0(totFC), sub: `FC ratio ${pct(fcAvg)}`, color: T.brand },
-          { lbl: 'Margine lordo', val: fmt0(totMargine), sub: `${pct(avgMarg)} medio`, color: margColor(avgMarg) },
-          { lbl: 'Miglior margine', val: best.short, sub: pct(best.margPct), color: T.green },
-          { lbl: 'Da ottimizzare', val: worst.short, sub: pct(worst.margPct), color: T.brand },
-        ].map(({ lbl, val, sub, hi, color }, i) => (
-          <div key={i} style={{ background: hi ? T.brand : T.bgCard,
+          { lbl: 'Prodotti', val: rows.length, sub: 'nel listino', hi: true, tip: 'Numero di prodotti finiti nel listino (esclusi semilavorati e ricette interne).' },
+          { lbl: 'Ricavo/stampo', val: fmt0(totRicavo), sub: 'somma tutti i prodotti', color: T.green, tip: 'Somma del ricavo teorico di uno stampo di ciascun prodotto, ai prezzi di listino.' },
+          { lbl: 'Food cost tot.', val: fmt0(totFC), sub: `FC ratio ${pct(fcAvg)}`, color: T.brand, tip: 'Costo totale degli ingredienti per uno stampo di ciascun prodotto. FC ratio = food cost ÷ ricavo.' },
+          { lbl: 'Margine lordo', val: fmt0(totMargine), sub: `${pct(avgMarg)} medio`, color: margColor(avgMarg), tip: 'Ricavo meno food cost, prima di personale, affitto e utenze. La % è la media dei margini di prodotto.' },
+          { lbl: 'Miglior margine', val: best.short, sub: pct(best.margPct), color: T.green, tip: 'Il prodotto con il margine percentuale più alto del listino.' },
+          { lbl: 'Da ottimizzare', val: worst.short, sub: pct(worst.margPct), color: T.brand, tip: 'Il prodotto con il margine percentuale più basso: rivedi prezzo o ricetta.' },
+        ].map(({ lbl, val, sub, hi, color, tip }, i) => (
+          <div key={i} className="fos-tile" style={{ background: hi ? T.brand : T.bgCard,
             border: `1px solid ${hi ? T.brandDark : T.border}`, borderRadius: 16,
             padding: '14px 16px',
-            boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6 }}>{lbl}</div>
+            boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : SHADOW_PREMIUM }}>
+            <Tip text={tip} width={240}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'help',
+                color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6,
+                borderBottom: `1px dashed ${hi ? 'rgba(255,255,255,0.28)' : 'rgba(155,120,115,0.4)'}` }}>{lbl}</div>
+            </Tip>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
               color: hi ? T.textOnDark : color || T.text, lineHeight: 1.15, ...TNUM }}>{val}</div>
             <div style={{ fontSize: 11, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5 }}>{sub}</div>
@@ -792,14 +762,9 @@ export default function PLView({ ricettario, onUpdateRegola }) {
       <SensTable rows={rows} euro={euro} pct={pct}/>
 
       {/* Grafici di riepilogo */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-        <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Grafici di Riepilogo</h2>
-        </div>
-      </div>
+      <SH>Grafici di Riepilogo</SH>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 28 }}>
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 16 }}>Margine % per prodotto</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[...rows].sort((a, b) => b.margPct - a.margPct).map(r => {
