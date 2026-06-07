@@ -236,32 +236,38 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
   }
 
-  // Mappa nome_norm → fornitore (per arricchire le fatture con IBAN/termini).
+  // Mappa nome normalizzato → fornitore (anagrafica esistente). Il match è sul
+  // nome (la tabella `fornitori` non ha nome_norm): normalizziamo lato JS.
   const fornitoriMap = useMemo(() => {
     const m = {}
-    for (const f of fornitori) m[f.nome_norm || normNome(f.nome)] = f
+    for (const f of fornitori) m[normNome(f.nome)] = f
     return m
   }, [fornitori])
 
-  // Upsert anagrafica fornitore (IBAN/termini/categoria) dal rollup.
+  // Salva IBAN/termini/categoria sull'anagrafica fornitori ESISTENTE.
+  // Find-or-insert per nome normalizzato (niente onConflict: la tabella legacy
+  // non ha un vincolo unico su nome).
   async function salvaFornitore(nome, patch) {
-    const nome_norm = normNome(nome)
+    const key = normNome(nome)
     try {
-      const esistente = fornitoriMap[nome_norm]
-      const row = {
-        organization_id: orgId, nome, nome_norm,
-        iban: patch.iban !== undefined ? normalizeIban(patch.iban) : (esistente?.iban || null),
+      const esistente = fornitori.find(f => normNome(f.nome) === key)
+      const fields = {
+        iban: patch.iban !== undefined ? (normalizeIban(patch.iban) || null) : (esistente?.iban || null),
         termini_pagamento: patch.termini_pagamento !== undefined ? patch.termini_pagamento : (esistente?.termini_pagamento ?? 30),
-        categoria: patch.categoria !== undefined ? patch.categoria : (esistente?.categoria || null),
-        updated_at: new Date().toISOString(),
+        categoria: patch.categoria !== undefined ? (patch.categoria || null) : (esistente?.categoria || null),
       }
-      const { error } = await supabase.from('fornitori').upsert(row, { onConflict: 'organization_id,nome_norm' })
+      let error
+      if (esistente) {
+        ({ error } = await supabase.from('fornitori').update(fields).eq('id', esistente.id))
+      } else {
+        ({ error } = await supabase.from('fornitori').insert({ organization_id: orgId, nome, ...fields }))
+      }
       if (error) throw error
       setEditForn(null)
       await loadFornitori()
       notify('✓ Anagrafica fornitore aggiornata')
     } catch (e) {
-      notify('Errore: ' + (e?.message || 'salvataggio fallito') + ' — applica la migration fornitori', false)
+      notify('Errore: ' + (e?.message || 'salvataggio fallito') + ' — verifica la migration scadenzario', false)
     }
   }
 
