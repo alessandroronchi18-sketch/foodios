@@ -287,18 +287,24 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                         <span style={{ ...cellHead, textAlign: 'right' }}>Azioni</span>
                       </div>
                     )}
-                    {vendite.map((v, i) => {
+                    {venditeExt.map((v, i) => {
                       const st = STATI[v.stato] || STATI.consegnata
                       return (
-                        <div key={v.id} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: isMobile ? 8 : 12, padding: '12px 16px', borderBottom: i < vendite.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                        <div key={v.id} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: isMobile ? 8 : 12, padding: '12px 16px', borderBottom: i < venditeExt.length - 1 ? `1px solid ${C.border}` : 'none' }}>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
                             <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>
-                              {new Date(v.data + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })} · {(v.righe || []).length} prodotti · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0)} pz
+                              {new Date(v.data + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })} · {(v.righe || []).length} prodotti · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0)} pz · margine {eur(v.margine)}
                             </div>
                           </div>
-                          <div style={{ justifySelf: isMobile ? 'start' : 'center' }}>
+                          <div style={{ justifySelf: isMobile ? 'start' : 'center', display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'flex-start' : 'center', gap: 4 }}>
                             <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: st.bg, color: st.fg, whiteSpace: 'nowrap' }}>{st.lbl}</span>
+                            {v.stato !== 'annullata' && (
+                              <button onClick={() => togglePagata(v)} title={v.pagata ? 'Segna da incassare' : 'Segna incassata'}
+                                style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', background: v.pagata ? C.greenLight : '#FEE2E2', color: v.pagata ? C.green : C.red }}>
+                                {v.pagata ? 'incassato' : 'da incassare'}
+                              </button>
+                            )}
                           </div>
                           <span style={{ fontSize: 15, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums', textAlign: isMobile ? 'left' : 'right' }}>{eur(v.totale)}</span>
                           <div style={{ display: 'flex', gap: 6, justifyContent: isMobile ? 'flex-start' : 'flex-end', flexWrap: 'wrap' }}>
