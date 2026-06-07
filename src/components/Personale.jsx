@@ -1018,57 +1018,87 @@ function AnalisiCostoTab({ orgId, isMobile }) {
 // al titolare un'idea immediata della scala (sopra le tab) senza dover entrare
 // in un singolo sotto-tab.
 function HeaderPersonale({ orgId, isMobile }) {
-  const [dipAttivi, setDipAttivi] = useState(0)
-  const [costoLavoro, setCostoLavoro] = useState(0)
-  const [oreSetTot, setOreSetTot] = useState(0)
+  const mese = useMemo(() => new Date().toISOString().slice(0, 7), [])
+  const [d, setD] = useState({ nDip: 0, costoContratto: 0, costoMese: 0, ricavi: 0, oreMese: 0, nonAssegnati: 0, repartiScoperti: [], hasReparti: false })
 
   useEffect(() => {
     if (!orgId) return
-    let cancelled = false
+    let alive = true
     ;(async () => {
-      const { data } = await supabase.from('dipendenti')
-        .select('costo_orario, ore_settimana')
-        .eq('organization_id', orgId).eq('attivo', true)
-      if (cancelled) return
-      const lista = data || []
-      setDipAttivi(lista.length)
-      setCostoLavoro(lista.reduce((s, d) => s + (d.costo_orario || 0) * (d.ore_settimana || 0) * 4.33, 0))
-      setOreSetTot(lista.reduce((s, d) => s + (d.ore_settimana || 0), 0))
+      const from = mese + '-01'
+      const [y, m] = mese.split('-')
+      const last = new Date(Number(y), Number(m), 0).getDate()
+      const to = `${mese}-${last}`
+      const [dip, turniRes, chius, org] = await Promise.all([
+        supabase.from('dipendenti').select('id,costo_orario,ore_settimana').eq('organization_id', orgId).eq('attivo', true),
+        supabase.from('turni').select('costo,ore,dipendente_id').eq('organization_id', orgId).gte('data', from).lte('data', to),
+        sloadAllSedi('pasticceria-chiusure-v1', orgId).catch(() => ({})),
+        sload(SK_ORG, orgId, null).catch(() => null),
+      ])
+      if (!alive) return
+      const lista = dip.data || []
+      const turni = turniRes.data || []
+      const reparti = (org && Array.isArray(org.reparti)) ? org.reparti : []
+      const assegnati = new Set(reparti.flatMap(r => r.membri || []))
+      setD({
+        nDip: lista.length,
+        costoContratto: lista.reduce((s, x) => s + (x.costo_orario || 0) * (x.ore_settimana || 0) * 4.33, 0),
+        costoMese: turni.reduce((s, t) => s + (t.costo || 0), 0),
+        oreMese: turni.reduce((s, t) => s + (t.ore || 0), 0),
+        ricavi: Object.values(chius || {}).flat().filter(c => c && typeof c.data === 'string' && c.data >= from && c.data <= to).reduce((s, c) => s + (c.kpi?.totV || 0), 0),
+        nonAssegnati: lista.filter(x => !assegnati.has(x.id)).length,
+        repartiScoperti: reparti.filter(r => !(r.membri || []).length).map(r => r.nome),
+        hasReparti: reparti.length > 0,
+      })
     })()
-    return () => { cancelled = true }
-  }, [orgId])
+    return () => { alive = false }
+  }, [orgId, mese])
+
+  const costo = d.costoMese > 0 ? d.costoMese : d.costoContratto
+  const incidenza = d.ricavi > 0 ? costo / d.ricavi * 100 : null
+  const incColor = incidenza == null ? T.textSoft : incidenza <= 30 ? T.green : incidenza <= 40 ? T.amber : T.brand
+  const prod = d.oreMese > 0 ? d.ricavi / d.oreMese : 0
+  const meseLbl = new Date(mese + '-01T12:00').toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
 
   const kpis = [
-    { lbl: 'Dipendenti attivi', val: dipAttivi, color: T.text },
-    { lbl: 'Ore settimana tot.', val: fmtH(oreSetTot), color: T.text },
-    { lbl: 'Costo lavoro / mese', val: fmt(costoLavoro), color: T.brand, hi: true },
+    { lbl: 'Dipendenti attivi', val: d.nDip, color: T.text, sub: ' ' },
+    { lbl: 'Costo lavoro (mese)', val: fmt0(costo), color: T.brand, hi: true, sub: d.costoMese > 0 ? 'effettivo dai turni' : 'stima da contratti' },
+    { lbl: 'Incidenza su fatturato', val: incidenza == null ? '—' : `${incidenza.toFixed(1)}%`, color: incColor, sub: incidenza == null ? 'registra le chiusure' : 'sano ≤ 30%' },
+    { lbl: 'Fatturato / ora', val: prod > 0 ? fmt0(prod) : '—', color: T.text, sub: 'produttività del lavoro' },
   ]
 
   return (
-    <div style={{ marginBottom: isMobile ? 20 : 28 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
-        {/* Titolo "Personale" già mostrato dalla topbar: qui solo il sottotitolo. */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 560 }}>
-            Dipendenti, turni settimanali, costo del lavoro. Sotto controllo in tempo reale.
-          </p>
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,1fr)' : 'repeat(3,minmax(200px,1fr))', gap: 10 }}>
+    <div style={{ marginBottom: isMobile ? 18 : 24 }}>
+      <p style={{ margin: '0 0 14px', fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 620 }}>
+        Costo del lavoro, turni e organigramma — diagnosi del mese in corso (<span style={{ textTransform: 'capitalize' }}>{meseLbl}</span>).
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: (d.nonAssegnati > 0 || d.repartiScoperti.length > 0) ? 12 : 0 }}>
         {kpis.map((k, i) => (
           <div key={i} className="fos-tile" style={{
             background: k.hi ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
             border: `1px solid ${k.hi ? '#4A0612' : T.border}`,
-            borderRadius: 16, padding: isMobile ? '14px 14px' : '18px 22px',
+            borderRadius: 16, padding: isMobile ? '13px 14px' : '16px 18px',
             boxShadow: k.hi ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
           }}>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: k.hi ? 'rgba(255,255,255,0.72)' : T.textSoft, marginBottom: 8 }}>{k.lbl}</div>
-            <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 700, letterSpacing: '-0.02em',
-              color: k.hi ? T.textOnDark : k.color, lineHeight: 1.1, ...tnum }}>{k.val}</div>
+            <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase',
+              color: k.hi ? 'rgba(255,255,255,0.72)' : T.textSoft, marginBottom: 7 }}>{k.lbl}</div>
+            <div style={{ fontSize: isMobile ? 18 : 23, fontWeight: 800, letterSpacing: '-0.02em',
+              color: k.hi ? T.textOnDark : k.color, lineHeight: 1.05, ...tnum }}>{k.val}</div>
+            {k.sub && <div style={{ fontSize: 10, color: k.hi ? 'rgba(255,255,255,0.65)' : T.textSoft, marginTop: 5 }}>{k.sub}</div>}
           </div>
         ))}
       </div>
+      {(d.nonAssegnati > 0 || d.repartiScoperti.length > 0) && (
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 12, padding: '10px 14px' }}>
+          <span style={{ color: '#C2410C', display: 'inline-flex' }}><Icon name="warning" size={16} /></span>
+          <span style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>
+            {d.nonAssegnati > 0 && `${d.nonAssegnati} ${d.nonAssegnati === 1 ? 'dipendente senza reparto' : 'dipendenti senza reparto'}`}
+            {d.nonAssegnati > 0 && d.repartiScoperti.length > 0 && ' · '}
+            {d.repartiScoperti.length > 0 && `reparti senza nessuno: ${d.repartiScoperti.join(', ')}`}
+            <span style={{ fontWeight: 500, color: '#B45309' }}> — sistemali nella scheda Organigramma.</span>
+          </span>
+        </div>
+      )}
     </div>
   )
 }
