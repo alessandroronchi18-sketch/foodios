@@ -41,8 +41,8 @@ function BarreRicavo({ rows, euro, pct }) {
   return (
     <>
       <SH2/>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '24px', marginBottom: 28,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.04)', position: 'relative' }}
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28,
+        boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', position: 'relative' }}
         onMouseLeave={() => setTooltip(null)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
           {rows.map((r, i) => {
@@ -184,7 +184,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Aggregato su tutti i prodotti — clicca le intestazioni per ordinare</div>
         </div>
       </div>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'visible', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)', position: 'relative' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'visible', marginBottom: 28, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', position: 'relative' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
             <tr style={{ background: '#F8F4F2' }}>
@@ -296,7 +296,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
         )}
       </div>
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '24px', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
         {hasChanges && (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 24, padding: '16px 20px', background: '#F8F4F2', borderRadius: 10, border: `1px solid ${C.border}` }}>
             {[
@@ -402,7 +402,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Clicca le intestazioni per ordinare ▼▲</div>
         </div>
       </div>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 700 }}>
             <thead>
@@ -474,7 +474,7 @@ function SensTable({ rows, euro, pct }) {
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Cosa succede se i costi materie prime salgono</div>
         </div>
       </div>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 580 }}>
             <thead>
@@ -606,7 +606,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
   // mai precedere gli useMemo, altrimenti il numero di hook cambia tra render.
   if (!rows.length) return (
     <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', padding: '32px 24px',
-      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, boxShadow: S.sm }}>
+      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
       <div style={{ width: 48, height: 48, borderRadius: R.md, background: T.bgSubtle,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: T.textSoft, marginBottom: 14 }}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -668,7 +668,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
         )
         return (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16,
-            padding: isMobile ? '20px' : '24px 28px', marginBottom: 28, boxShadow: '0 2px 12px rgba(15,23,42,0.06)' }}>
+            padding: isMobile ? '20px' : '24px 28px', marginBottom: 28, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
 
             {/* Header coerente con "Insights chiave" */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -744,8 +744,8 @@ export default function PLView({ ricettario, onUpdateRegola }) {
               return (
                 <div key={i} style={{
                   background: C.bgCard, border: `1px solid ${C.border}`, borderLeft: `3px solid ${palette.fg}`,
-                  borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12,
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                  borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12,
+                  boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
                 }}>
                   <div style={{
                     width: 26, height: 26, borderRadius: '50%', background: palette.bg, color: palette.fg,
@@ -773,9 +773,9 @@ export default function PLView({ ricettario, onUpdateRegola }) {
           { lbl: 'Da ottimizzare', val: worst.short, sub: pct(worst.margPct), color: T.brand },
         ].map(({ lbl, val, sub, hi, color }, i) => (
           <div key={i} style={{ background: hi ? T.brand : T.bgCard,
-            border: `1px solid ${hi ? T.brandDark : T.border}`, borderRadius: R.xl,
+            border: `1px solid ${hi ? T.brandDark : T.border}`, borderRadius: 16,
             padding: '14px 16px',
-            boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : S.sm }}>
+            boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
               color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6 }}>{lbl}</div>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
@@ -799,7 +799,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 28 }}>
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 16 }}>Margine % per prodotto</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[...rows].sort((a, b) => b.margPct - a.margPct).map(r => {
@@ -818,7 +818,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
             })}
           </div>
         </div>
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 4 }}>Ricavo vs Margine per stampo</div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={[...rows].sort((a, b) => b.ricavo - a.ricavo)} layout="vertical" margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
@@ -839,7 +839,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
 
       {/* Benchmark */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 12 }}>
-        <div style={{ background: C.greenLight, border: `1px solid ${C.green}30`, borderRadius: 12, padding: '20px 24px' }}>
+        <div style={{ background: C.greenLight, border: `1px solid ${C.green}30`, borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 10 }}>✅ Benchmark pasticceria</div>
           {[['Food cost ideale', '< 28–30%'], ['Margine target', '70–72%'], ['Accettabile', '55–70%']].map(([k, v]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 11 }}>
@@ -847,7 +847,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
             </div>
           ))}
         </div>
-        <div style={{ background: C.amberLight, border: `1px solid ${C.amber}30`, borderRadius: 12, padding: '20px 24px' }}>
+        <div style={{ background: C.amberLight, border: `1px solid ${C.amber}30`, borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.amber, marginBottom: 10 }}>💡 Leve di ottimizzazione</div>
           {[['Aumentare prezzo +0,50€/fetta', 'Margine sale ~8-12pp'], ['Ridurre FC del 10%', 'Negozia bulk'], ['Tagliare prodotti < 50% marg.', 'Sostituisci con migliori']].map(([k, v]) => (
             <div key={k} style={{ padding: '6px 0', fontSize: 10 }}>

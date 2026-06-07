@@ -329,7 +329,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const hasVend = chiusure?.length>0;
 
   if (!hasProd && !hasVend) return (
-    <div style={{maxWidth:560,margin:"80px auto",textAlign:"center",padding:'32px 24px',background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,boxShadow:'0 1px 4px rgba(15,23,42,0.04)'}}>
+    <div style={{maxWidth:560,margin:"80px auto",textAlign:"center",padding:'32px 24px',background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:18,boxShadow:'0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'}}>
       <div style={{fontSize:42,marginBottom:14,opacity:0.6}}>📊</div>
       <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:8,letterSpacing:'-0.01em'}}>Nessun dato storico</div>
       <div style={{fontSize:13,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:'0 auto'}}>
@@ -387,7 +387,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {/* ─── TAB PRODUZIONE ─── */}
       {tab==="produzione"&&(
         <>
-          {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,color:C.textSoft,fontSize:13,lineHeight:1.5}}><div style={{fontSize:32,marginBottom:10,opacity:0.5}}>🍰</div>Nessuna produzione registrata.<br/><span style={{fontSize:11,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
+          {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",color:C.textSoft,fontSize:13,lineHeight:1.5}}><div style={{fontSize:32,marginBottom:10,opacity:0.5}}>🍰</div>Nessuna produzione registrata.<br/><span style={{fontSize:11,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
           {hasProd&&(
             <>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
@@ -398,7 +398,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <KPI icon="🏆" label="Top"        value={topP?topP[0].replace("TORTA DI ",""):"—"} sub={topP?`${n0(topP[1])} stampi`:""} color={C.amber}/>
               </div>
               <SH sub={`Stampi totali per ${vista==="giornaliero"?"giorno":vista} · top 5 prodotti + altri`}>Produzione per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={dataProdTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
@@ -415,7 +415,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </ResponsiveContainer>
               </div>
               <SH sub={`Ogni colonna è il ricavo stimato del periodo: in verde il margine, in rosso il food cost · per ${vista==="giornaliero"?"giorno":vista}`}>Andamento Economico (stimato)</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:24,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={dataKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="32%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
@@ -433,7 +433,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </div>
               </div>
               <SH sub="Dettaglio per periodo">Riepilogo Periodi</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
@@ -479,7 +479,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {tab==="vendite"&&(
         <>
           {!hasVend&&(
-            <div style={{textAlign:"center",padding:"48px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`}}>
+            <div style={{textAlign:"center",padding:"48px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
               <div style={{fontSize:32,marginBottom:12}}>🧾</div>
               <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Nessuna chiusura registrata</div>
               <div style={{fontSize:12,color:C.textSoft}}>Carica gli scontrini di fine giornata dalla sezione <b>Chiusura</b> per vedere i dati di vendita reali qui.</div>
@@ -496,7 +496,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               </div>
 
               <SH sub={`Top 5 prodotti per ricavo + altri · per ${vista==="giornaliero"?"giorno":vista}`}>Ricavi Reali per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={260}>
                   <BarChart data={dataVendTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
@@ -512,7 +512,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               </div>
 
               <SH sub="Sell-through medio per periodo">Andamento Sell-Through %</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 {/* Zoom asse Y: parti da 0/25/50 per leggere meglio le differenze */}
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
                   <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft}}>Zoom asse Y</span>
@@ -539,7 +539,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               </div>
 
               <SH sub="Ogni colonna è il ricavo del periodo: in verde quanto ti resta (margine), in rosso quanto sono costati gli ingredienti venduti">Conto Economico Reale</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:20,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={dataVendKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="32%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
@@ -656,8 +656,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     {icon:"📅",lbl:"Giorni registrati",val:String(n),          sub:`${euro(ricavoMedio.toFixed(2))} medio`,color:C.text},
                   ].map(({icon,lbl,val,sub,color,hi})=>(
                     <div key={lbl} style={{background:hi?"linear-gradient(135deg,#1C0A0A,#3D1515)":C.bgCard,
-                      border:`1px solid ${hi?"transparent":C.border}`,borderRadius:10,padding:"12px 14px",
-                      boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+                      border:`1px solid ${hi?"transparent":C.border}`,borderRadius:16,padding:"12px 14px",
+                      boxShadow:hi?"0 4px 14px rgba(110,14,26,0.22)":"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                       <div style={{fontSize:11,marginBottom:4}}>{icon}</div>
                       <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",
                         color:hi?`rgba(255,255,255,0.6)`:C.textSoft,marginBottom:3}}>{lbl}</div>
@@ -670,7 +670,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 {/* Chart + Top prodotti */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:14,marginBottom:14}}>
                   {/* Trend ricavi */}
-                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:12}}>Ricavi & margine giornalieri</div>
                     <ResponsiveContainer width="100%" height={160}>
                       <BarChart data={chartData} margin={{top:4,right:8,left:0,bottom:0}} barSize={n<=14?14:n<=20?10:6}>
@@ -694,7 +694,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   </div>
 
                   {/* Top prodotti */}
-                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:10}}>🏆 Top {LEX.prodotti} per ricavo</div>
                     {topProd.length===0 && <div style={{fontSize:10,color:C.textSoft}}>Dati non disponibili — salva chiusure con scontrino per vederli.</div>}
                     {topProd.map(([nome,d],i)=>(
@@ -715,7 +715,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 {/* Insights row */}
                 <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:10,marginBottom:14}}>
                   {/* Miglior giorno */}
-                  <div style={{background:"linear-gradient(135deg,#EAF5EE,#FFF)",border:`1px solid ${C.green}30`,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{background:"linear-gradient(135deg,#EAF5EE,#FFF)",border:`1px solid ${C.green}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.green,marginBottom:6}}>🏅 Miglior giorno</div>
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{fmt3(bestDay?.data)}</div>
                     <div style={{fontSize:13,color:C.green,fontWeight:700,marginTop:2}}>{euro((bestDay?.kpi?.totV||0).toFixed(2))}</div>
@@ -724,7 +724,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     </div>
                   </div>
                   {/* Peggior giorno */}
-                  <div style={{background:"linear-gradient(135deg,#FEF3C7,#FFF)",border:`1px solid ${C.amber}30`,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{background:"linear-gradient(135deg,#FEF3C7,#FFF)",border:`1px solid ${C.amber}30`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.amber,marginBottom:6}}>⚠️ Giorno più debole</div>
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{fmt3(worstDay?.data)}</div>
                     <div style={{fontSize:13,color:C.amber,fontWeight:700,marginTop:2}}>{euro((worstDay?.kpi?.totV||0).toFixed(2))}</div>
@@ -733,7 +733,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     </div>
                   </div>
                   {/* Spreco insight */}
-                  <div style={{background:"linear-gradient(135deg,#FDECEA,#FFF)",border:`1px solid ${C.red}20`,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{background:"linear-gradient(135deg,#FDECEA,#FFF)",border:`1px solid ${C.red}20`,borderRadius:16,padding:"14px 16px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:C.red,marginBottom:6}}>🗑 Impatto spreco</div>
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{euro(totSpreco.toFixed(2))}</div>
                     <div style={{fontSize:10,color:C.textSoft,marginTop:2}}>{pct(totRicavi>0?(totSpreco/totRicavi*100):0)} dei ricavi</div>
@@ -745,7 +745,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
                 {/* Tabella prodotti cross-giornata */}
                 {topProd.length > 0 && (
-                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",marginBottom:14}}>
+                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",marginBottom:14}}>
                     <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,fontSize:11,fontWeight:800,color:C.text}}>
                       Dettaglio prodotti — totale periodo
                     </div>
@@ -784,7 +784,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
               {/* Tabella chiusure */}
               <SH sub="Ogni giornata chiusa con scontrino">Storico Chiusure</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
@@ -839,7 +839,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {tab==="confronto"&&(
         <>
           {(!hasProd||!hasVend)&&(
-            <div style={{textAlign:"center",padding:"48px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`}}>
+            <div style={{textAlign:"center",padding:"48px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
               <div style={{fontSize:32,marginBottom:12}}>🔄</div>
               <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Servono sia produzioni che chiusure</div>
               <div style={{fontSize:12,color:C.textSoft}}>Registra la produzione giornaliera <b>e</b> carica gli scontrini di chiusura per vedere il confronto.</div>
@@ -863,7 +863,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             return (
               <>
                 <SH sub="Per periodo: quanto previsto dalla produzione (blu) vs incassato davvero (verde)">Ricavo · Stimato vs Reale</SH>
-                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={dataConf} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
@@ -877,7 +877,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   </ResponsiveContainer>
                 </div>
                 <SH sub="Per periodo: margine previsto (blu) vs margine reale dagli scontrini (verde)">Margine · Stimato vs Reale</SH>
-                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:20,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={dataConf2} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
@@ -892,7 +892,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </div>
                 {/* Tabella confronto periodi */}
                 <SH sub="Per ogni periodo con entrambi i dati">Dettaglio Confronto</SH>
-                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                     <thead>
                       <tr style={{background:"#F8F4F2"}}>

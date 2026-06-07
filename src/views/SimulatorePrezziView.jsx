@@ -202,7 +202,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
               <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Suggerimenti generati dall'analisi del listino e dello storico</div>
             </div>
           </div>
-          <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: '16px 20px', boxShadow: S.sm }}>
+          <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: '16px 20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
             <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
               {raccomandazioni.map((r, i) => (
                 <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '6px 0', borderBottom: i < raccomandazioni.length - 1 ? `1px dashed ${T.borderSoft}` : 'none' }}>
@@ -259,8 +259,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
             { lbl: 'Margine/stampo scenario', val: euro0(totScenMarg), sub: `${totScenMarg > totBaseMarg ? '+' : ''}${euro0(totScenMarg - totBaseMarg)} vs base`, c: totScenMarg >= totBaseMarg ? T.green : T.brand, hi: true },
           ].map(({ lbl, val, sub, c, hi }) => (
             <div key={lbl} style={{ background: hi ? T.brand : T.bgCard, border: `1px solid ${hi ? T.brandDark : T.border}`,
-              borderRadius: R.xl, padding: '18px 20px',
-              boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : S.sm,
+              borderRadius: 16, padding: '18px 20px',
+              boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
               backgroundImage: hi ? 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)' : undefined }}>
               <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
                 color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6,
@@ -276,7 +276,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       {/* Proiezione futura — solo se storico disponibile e modifiche attive */}
       {hasChanges && hasStorico && (
         <div style={{ background: T.bgSide, backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 50%)',
-          border: `1px solid ${T.borderOnDark}`, borderRadius: R.xl,
+          border: `1px solid ${T.borderOnDark}`, borderRadius: 16,
           padding: isMobile ? '20px 22px' : '24px 28px', marginBottom: 28, boxShadow: S.lg }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E84B3A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -315,7 +315,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
           return (
             <div key={r.nome} style={{ background: r.changed ? (r.delta > 0 ? '#F6FBF7' : '#FEF6F5') : C.white,
               border: `2px solid ${r.changed ? (r.delta > 0 ? '#C6EDD3' : '#FAD5D0') : C.border}`,
-              borderRadius: 12, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+              borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
               transition: 'border-color 0.2s' }}>
 
               <div style={{ display: 'grid',
