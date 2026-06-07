@@ -14,7 +14,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22+: serve il WebSocket nativo richiesto da @supabase/supabase-js
+          # (global-setup/helper creano il client). Su Node 20 createClient lancia.
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
