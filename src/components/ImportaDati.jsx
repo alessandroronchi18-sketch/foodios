@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import useIsMobile from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S } from '../lib/theme'
+import { color as T } from '../lib/theme'
 import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
 import Icon from './Icon'
 
@@ -118,6 +118,41 @@ async function scaricaTemplate(tipo) {
   XLSX.writeFile(wb, fileName)
 }
 
+const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
+
+// Mini-card "1 passo" della guida iniziale
+function PassoCard({ n, icona, titolo, testo, isMobile }) {
+  return (
+    <div style={{
+      flex: '1 1 220px', minWidth: 0,
+      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16,
+      boxShadow: SHADOW_PREMIUM, padding: isMobile ? '16px 16px' : '18px 20px',
+      display: 'flex', gap: 14, alignItems: 'flex-start',
+    }}>
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 12,
+          background: T.brandLight, color: T.brand,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Icon name={icona} size={20} />
+        </div>
+        <div style={{
+          position: 'absolute', top: -7, right: -7,
+          width: 20, height: 20, borderRadius: '50%',
+          background: T.brand, color: '#FFF',
+          fontSize: 11, fontWeight: 800, lineHeight: '20px', textAlign: 'center',
+          boxShadow: '0 2px 6px rgba(110,14,26,0.3)',
+        }}>{n}</div>
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text, letterSpacing: '-0.01em', marginBottom: 3 }}>{titolo}</div>
+        <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>{testo}</div>
+      </div>
+    </div>
+  )
+}
+
 export default function ImportaDatiView({
   onImportRicettario,
   onImportPrezzi,
@@ -129,6 +164,7 @@ export default function ImportaDatiView({
   const isMobile = useIsMobile()
   const [expanded, setExpanded] = useState(null) // id tipo aperto in dettaglio
   const [importingId, setImportingId] = useState(null) // id tipo in caricamento → spinner
+  const [esiti, setEsiti] = useState({}) // id tipo → { ok:boolean, msg:string } | null
 
   const handlers = {
     onImportRicettario,
@@ -141,51 +177,77 @@ export default function ImportaDatiView({
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
       <style>{`@keyframes impspin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ marginBottom: isMobile ? 16 : 20 }}>
-        <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5 }}>
-          Importa i tuoi dati in Foodios da Excel, CSV o esportazioni dei sistemi cassa/delivery.
-          Scarica il template per ogni tipo di import per avere le colonne esatte.
+
+      {/* Header */}
+      <div style={{ marginBottom: isMobile ? 18 : 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+            background: T.brandGradient, color: '#FFF',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(110,14,26,0.28)',
+          }}>
+            <Icon name="folder" size={20} color="#FFF" />
+          </div>
+          <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 24, fontWeight: 800, color: T.text, letterSpacing: '-0.02em' }}>
+            Importa dati
+          </h1>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.55, maxWidth: 720 }}>
+          Porta dentro Foodios il tuo ricettario, i prezzi, le fatture e le vendite da Excel, CSV o esportazioni
+          dei sistemi cassa e delivery. Per ogni tipo scarica il template con le colonne esatte: ci pensa Foodios a
+          mappare e calcolare il resto.
         </p>
       </div>
 
-      {/* Hint box */}
-      <div style={{
-        background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: R.lg,
-        padding: '14px 18px', marginBottom: 24,
-        display: 'flex', gap: 12, alignItems: 'flex-start',
-      }}>
+      {/* Mini guida — 3 passi */}
+      <div style={{ marginBottom: isMobile ? 24 : 30 }}>
         <div style={{
-          width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-          background: T.brandLight, color: T.brand,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700,
-        }}>i</div>
-        <div style={{ fontSize: 12.5, color: T.textMid, lineHeight: 1.55 }}>
-          <b style={{ color: T.text }}>Come funziona:</b> per ciascun tipo di import 1) clicca "Scarica template",
-          2) compila il file mantenendo le intestazioni, 3) clicca "Importa file" e seleziona il tuo Excel.
-          Foodios mappa automaticamente le colonne dal nome.
+          fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase',
+          letterSpacing: '0.08em', marginBottom: 12,
+        }}>Come funziona, in 3 passi</div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <PassoCard isMobile={isMobile} n={1} icona="download" titolo="Scarica il template"
+            testo="Apri la card del tipo di dato e scarica il foglio Excel già pronto con le colonne giuste." />
+          <PassoCard isMobile={isMobile} n={2} icona="edit" titolo="Compila il file"
+            testo="Incolla i tuoi dati mantenendo le intestazioni. La seconda riga spiega cosa va in ogni colonna." />
+          <PassoCard isMobile={isMobile} n={3} icona="upload" titolo="Importa"
+            testo="Carica il file compilato. Foodios riconosce le colonne dal nome e aggiorna tutto in automatico." />
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+      {/* Sezione tipi import */}
+      <div style={{
+        fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase',
+        letterSpacing: '0.08em', marginBottom: 12,
+      }}>Cosa vuoi importare</div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
         {TIPI_IMPORT.map(tipo => {
           const isOpen = expanded === tipo.id
           const handler = handlers[tipo.propHandler]
+          const busy = importingId === tipo.id
+          const disabled = !handler || importingId !== null
+          const esito = esiti[tipo.id]
           return (
             <div key={tipo.id} style={{
-              background: T.bgCard, border: `1px solid ${T.border}`,
-              borderRadius: R.xl, boxShadow: S.sm, overflow: 'hidden',
+              background: T.bgCard, border: `1px solid ${busy ? T.brand : T.border}`,
+              borderRadius: 16, boxShadow: SHADOW_PREMIUM, overflow: 'hidden',
               transition: 'box-shadow 180ms ease, border-color 180ms ease',
               gridColumn: isOpen && !isMobile ? '1 / -1' : undefined,
+              display: 'flex', flexDirection: 'column',
             }}>
+              {/* Intestazione card */}
               <div style={{ padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                 <div style={{
-                  width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                  background: T.bgSubtle, color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 46, height: 46, borderRadius: 12, flexShrink: 0,
+                  background: T.brandLight, color: T.brand,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Icon name={tipo.icona} size={22} />
+                  <Icon name={tipo.icona} size={23} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em', marginBottom: 4 }}>
+                  <div style={{ fontSize: 15.5, fontWeight: 700, color: T.text, letterSpacing: '-0.01em', marginBottom: 4 }}>
                     {tipo.titolo}
                   </div>
                   <div style={{ fontSize: 12.5, color: T.textSoft, lineHeight: 1.55 }}>
@@ -194,44 +256,39 @@ export default function ImportaDatiView({
                 </div>
               </div>
 
-              {/* Bottoni */}
-              <div style={{ display: 'flex', gap: 8, padding: '0 20px 16px', flexWrap: 'wrap' }}>
+              {/* Bottoni azione */}
+              <div style={{ display: 'flex', gap: 8, padding: '0 20px 14px', flexWrap: 'wrap', marginTop: 'auto' }}>
                 <button onClick={() => scaricaTemplate(tipo)}
                   style={{
-                    flex: '1 1 140px', minWidth: 140,
-                    padding: '9px 14px', borderRadius: 8,
+                    flex: '1 1 150px', minWidth: 150,
+                    padding: '10px 14px', borderRadius: 10,
                     border: `1px solid ${T.border}`, background: T.bgCard,
-                    color: T.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    transition: 'background 100ms ease, color 100ms ease',
+                    color: T.textMid, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                    transition: 'background 100ms ease, color 100ms ease, border-color 100ms ease',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = T.bgSubtle; e.currentTarget.style.color = T.text }}
-                  onMouseLeave={e => { e.currentTarget.style.background = T.bgCard; e.currentTarget.style.color = T.textMid }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  Scarica template Excel
+                  onMouseEnter={e => { e.currentTarget.style.background = T.bgSubtle; e.currentTarget.style.color = T.text; e.currentTarget.style.borderColor = T.borderStr }}
+                  onMouseLeave={e => { e.currentTarget.style.background = T.bgCard; e.currentTarget.style.color = T.textMid; e.currentTarget.style.borderColor = T.border }}>
+                  <Icon name="download" size={15} />
+                  Scarica template
                 </button>
 
-                {(() => { const busy = importingId === tipo.id; const disabled = !handler || importingId !== null; return (
                 <label style={{
-                  flex: '1 1 140px', minWidth: 140,
-                  padding: '9px 14px', borderRadius: 8,
+                  flex: '1 1 150px', minWidth: 150,
+                  padding: '10px 14px', borderRadius: 10,
                   border: 'none', background: T.brand,
-                  color: '#FFF', fontSize: 12, fontWeight: 800, cursor: disabled ? 'not-allowed' : 'pointer',
+                  color: '#FFF', fontSize: 12.5, fontWeight: 800, cursor: disabled ? 'not-allowed' : 'pointer',
                   opacity: handler ? (importingId !== null && !busy ? 0.5 : 1) : 0.5,
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  textAlign: 'center', boxShadow: handler ? '0 2px 6px rgba(110,14,26,0.25)' : 'none',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                  textAlign: 'center', boxShadow: handler ? '0 2px 8px rgba(110,14,26,0.25)' : 'none',
                 }}>
                   {busy ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: 'impspin 0.7s linear infinite' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" style={{ animation: 'impspin 0.7s linear infinite' }}>
                       <circle cx="12" cy="12" r="9" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="3"/>
                       <path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
                     </svg>
                   ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
+                    <Icon name="upload" size={15} color="#FFF" strokeWidth={2.2} />
                   )}
                   {busy ? 'Importazione…' : 'Importa file'}
                   <input type="file" accept={tipo.accept} multiple style={{ display: 'none' }}
@@ -240,13 +297,18 @@ export default function ImportaDatiView({
                       if (!handler) return notify?.('Importazione non ancora disponibile per questo tipo', false)
                       const files = e.target.files
                       if (files && files.length > 0) {
+                        const n = files.length
                         setImportingId(tipo.id)
-                        notify?.(`${files.length} file in importazione…`)
+                        setEsiti(s => ({ ...s, [tipo.id]: null }))
+                        notify?.(`${n} file in importazione…`)
                         try {
                           await handler(files)
-                          notify?.(`✓ Import "${tipo.titolo}" completato`)
+                          setEsiti(s => ({ ...s, [tipo.id]: { ok: true, msg: `${n} file importati. Dati aggiornati.` } }))
+                          notify?.(`Import "${tipo.titolo}" completato`)
                         } catch (err) {
-                          notify?.(`Errore import: ${err?.message || 'riprova'}`, false)
+                          const msg = err?.message || 'riprova'
+                          setEsiti(s => ({ ...s, [tipo.id]: { ok: false, msg: `Import non riuscito: ${msg}` } }))
+                          notify?.(`Errore import: ${msg}`, false)
                         } finally {
                           setImportingId(null)
                         }
@@ -254,25 +316,54 @@ export default function ImportaDatiView({
                       e.target.value = ''
                     }}/>
                 </label>
-                ) })()}
-
-                <button onClick={() => setExpanded(o => o === tipo.id ? null : tipo.id)}
-                  style={{
-                    padding: '9px 12px', borderRadius: 8,
-                    border: `1px solid ${T.border}`, background: 'transparent',
-                    color: T.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  }}>
-                  {isOpen ? '▲ Nascondi struttura' : '▼ Struttura colonne'}
-                </button>
               </div>
 
-              {/* Dettaglio colonne */}
+              {/* Esito ultima importazione */}
+              {esito && (
+                <div style={{ padding: '0 20px 14px' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                    background: esito.ok ? T.greenLight : T.redLight,
+                    border: `1px solid ${esito.ok ? T.green : T.red}22`,
+                    borderRadius: 10, padding: '9px 12px',
+                    fontSize: 12, fontWeight: 600, lineHeight: 1.45,
+                    color: esito.ok ? T.green : T.red,
+                  }}>
+                    <Icon name={esito.ok ? 'checkCircle' : 'xCircle'} size={15}
+                      color={esito.ok ? T.green : T.red} style={{ marginTop: 1, flexShrink: 0 }} />
+                    <span>{esito.msg}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Toggle struttura colonne */}
+              <button onClick={() => setExpanded(o => o === tipo.id ? null : tipo.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                  width: '100%', padding: '11px 20px',
+                  border: 'none', borderTop: `1px solid ${T.borderSoft}`,
+                  background: isOpen ? T.bgSubtle : 'transparent',
+                  color: T.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  textAlign: 'left',
+                }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <Icon name="fileText" size={14} color={T.textSoft} />
+                  Struttura del file ({tipo.colonne.length} colonne)
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 180ms ease', color: T.textSoft }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              {/* Dettaglio colonne (collassabile) */}
               {isOpen && (
                 <div style={{ borderTop: `1px solid ${T.borderSoft}`, padding: '16px 20px', background: T.bgSubtle }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                    Foglio: <span style={{ color: T.text }}>{tipo.foglio}</span> · {tipo.colonne.length} colonne
+                    Foglio: <span style={{ color: T.text }}>{tipo.foglio}</span> · {tipo.colonne.length} colonne · formati: {tipo.accept.replace(/\./g, '').toUpperCase().replace(/,/g, ', ')}
                   </div>
-                  <div style={{ background: T.bgCard, borderRadius: 8, border: `1px solid ${T.border}`, overflowX: 'auto' }}>
+                  <div style={{ background: T.bgCard, borderRadius: 10, border: `1px solid ${T.border}`, overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 480 }}>
                       <thead>
                         <tr style={{ background: T.bgSubtle }}>

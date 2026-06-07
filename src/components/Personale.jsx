@@ -1149,19 +1149,71 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
 
   if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
 
-  const chip = (dipId, repId, isCapo) => (
-    <span key={dipId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: isCapo ? C.red : '#F8F4F2', color: isCapo ? C.white : C.text, border: `1px solid ${isCapo ? C.red : C.border}`, borderRadius: 999, padding: '4px 6px 4px 11px', fontSize: 11, fontWeight: 700 }}>
-      {isCapo && <span style={{ fontSize: 9 }}>★</span>}{nomeById(dipId)}
-      <button onClick={() => setCapo(repId, dipId)} title={isCapo ? 'Rimuovi da responsabile' : 'Imposta come responsabile'} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11, color: isCapo ? 'rgba(255,255,255,0.85)' : C.amber, padding: 0 }}>★</button>
-      <button onClick={() => removeMembro(repId, dipId)} aria-label="Rimuovi dal reparto" style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: isCapo ? 'rgba(255,255,255,0.85)' : C.textSoft, padding: 0, lineHeight: 1 }}>×</button>
-    </span>
+  // Drag & drop (desktop): trascina una persona tra reparti o nei "non assegnati".
+  const startDrag = (e, dipId, fromRepId) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ dipId, fromRepId: fromRepId || null }))
+    e.dataTransfer.effectAllowed = 'move'
+    setDragId(dipId)
+  }
+  const readDrag = (e) => { try { return JSON.parse(e.dataTransfer.getData('text/plain')) } catch { return null } }
+  const dropOnReparto = (e, repId) => {
+    e.preventDefault(); setDropTarget(null); setDragId(null)
+    const d = readDrag(e); if (!d || !d.dipId || d.fromRepId === repId) return
+    update(rs => rs.map(r => {
+      if (r.id === d.fromRepId) return { ...r, membri: (r.membri || []).filter(m => m !== d.dipId), capoId: r.capoId === d.dipId ? null : r.capoId }
+      if (r.id === repId) return { ...r, membri: [...new Set([...(r.membri || []), d.dipId])] }
+      return r
+    }))
+  }
+  const dropOnNonAssegnati = (e) => {
+    e.preventDefault(); setDropTarget(null); setDragId(null)
+    const d = readDrag(e); if (!d || !d.dipId || !d.fromRepId) return
+    removeMembro(d.fromRepId, d.dipId)
+  }
+
+  // Box-persona trascinabile (con azioni: responsabile / rimuovi)
+  const personBox = (dipId, repId, isCapo) => (
+    <div key={dipId} draggable onDragStart={e => startDrag(e, dipId, repId)} onDragEnd={() => setDragId(null)}
+      title="Trascina per spostare in un altro reparto"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'grab',
+        background: isCapo ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : C.bgCard,
+        color: isCapo ? C.white : C.text, border: `1px solid ${isCapo ? '#4A0612' : C.border}`,
+        borderRadius: 10, padding: '7px 7px 7px 11px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+        boxShadow: '0 1px 3px rgba(15,23,42,0.08)', opacity: dragId === dipId ? 0.4 : 1,
+      }}>
+      {isCapo && <Icon name="star" size={11} color={C.white} />}
+      <span>{nomeById(dipId)}</span>
+      <button onClick={() => setCapo(repId, dipId)} title={isCapo ? 'Rimuovi da responsabile' : 'Rendi responsabile'}
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: isCapo ? 'rgba(255,255,255,0.85)' : C.amber, padding: 0, display: 'inline-flex' }}><Icon name="star" size={12} /></button>
+      <button onClick={() => removeMembro(repId, dipId)} aria-label="Rimuovi dal reparto"
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: isCapo ? 'rgba(255,255,255,0.85)' : C.textSoft, padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
+    </div>
   )
 
   return (
     <div>
+      <style>{`
+        .orgtree{ display:flex; flex-direction:column; align-items:center; }
+        .orgkids{ display:flex; justify-content:center; padding-top:26px; position:relative; }
+        .orgkids::before{ content:''; position:absolute; top:0; left:50%; width:2px; height:13px; background:#E6D9D5; }
+        .orgkid{ position:relative; padding:0 14px; display:flex; flex-direction:column; align-items:center; }
+        .orgkid::before{ content:''; position:absolute; top:13px; left:0; right:0; height:2px; background:#E6D9D5; }
+        .orgkid::after{ content:''; position:absolute; top:13px; left:50%; width:2px; height:13px; background:#E6D9D5; }
+        .orgkid:first-child::before{ left:50%; }
+        .orgkid:last-child::before{ right:50%; }
+        .orgkid:only-child::before{ display:none; }
+        @media (max-width:760px){
+          .orgkids{ flex-direction:column; align-items:stretch; padding-top:14px; gap:12px; }
+          .orgkids::before{ display:none; }
+          .orgkid{ padding:0; }
+          .orgkid::before, .orgkid::after{ display:none; }
+        }
+      `}</style>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
-          Organizza il team per reparto. Il <b style={{ color: C.red }}>★</b> indica il responsabile. {nonAssegnati.length > 0 ? `${nonAssegnati.length} non ancora assegnati.` : 'Tutti assegnati.'}
+          Organigramma gerarchico. <b style={{ color: C.red }}>★</b> = responsabile. Trascina una persona da un box all'altro per spostarla{nonAssegnati.length > 0 ? ` · ${nonAssegnati.length} non ancora assegnati.` : '. Tutti assegnati.'}
         </div>
         {addingRep ? (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -1173,7 +1225,7 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
             <button onClick={() => { setAddingRep(false); setNewRepNome('') }} style={{ padding: '8px 10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>✕</button>
           </div>
         ) : (
-          <button onClick={() => setAddingRep(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>+ Reparto</button>
+          <button onClick={() => setAddingRep(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={14} /> Reparto</button>
         )}
       </div>
 
@@ -1184,50 +1236,85 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
           <div style={{ fontSize: 12 }}>Crea il primo reparto e assegna i dipendenti per costruire l'organigramma.</div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-          {org.reparti.map(r => {
-            const membriOrdinati = [...(r.membri || [])].sort((a, b) => (b === r.capoId ? 1 : 0) - (a === r.capoId ? 1 : 0) || nomeById(a).localeCompare(nomeById(b), 'it'))
-            return (
-              <div key={r.id} className="fos-tile" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' }}>
-                  {renamingId === r.id ? (
-                    <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') confermaRename(); if (e.key === 'Escape') { setRenamingId(null); setRenameVal('') } }}
-                      onBlur={confermaRename}
-                      style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.12)', color: C.white, fontSize: 13, fontWeight: 700 }} />
-                  ) : (
-                    <span style={{ fontSize: 13, fontWeight: 800, color: C.white }}>{r.nome}</span>
-                  )}
-                  <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                    <button onClick={() => avviaRename(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}><Icon name="edit" size={13} /></button>
-                    <button onClick={() => delReparto(r.id)} title="Elimina reparto" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}><Icon name="trash" size={13} /></button>
-                  </span>
-                </div>
-                <div style={{ padding: '12px 14px' }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{(r.membri || []).length} {(r.membri || []).length === 1 ? 'persona' : 'persone'}</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
-                    {membriOrdinati.length === 0 && <span style={{ fontSize: 11, color: C.textSoft, fontStyle: 'italic' }}>Nessuno assegnato</span>}
-                    {membriOrdinati.map(m => chip(m, r.id, m === r.capoId))}
-                  </div>
-                  {nonAssegnati.length > 0 && (
-                    <select value="" onChange={e => addMembro(r.id, e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.textMid, background: C.white, cursor: 'pointer' }}>
-                      <option value="">+ Aggiungi dipendente…</option>
-                      {nonAssegnati.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
-                    </select>
-                  )}
-                </div>
+        <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+          <div className="orgtree" style={{ minWidth: 'fit-content' }}>
+            {/* ROOT: Azienda */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'linear-gradient(135deg, #1C0A0A 0%, #4A0612 60%, #6E0E1A 100%)', color: C.white, borderRadius: 14, padding: '12px 18px', boxShadow: '0 10px 28px rgba(110,14,26,0.30)' }}>
+              <Icon name="building" size={18} color={C.white} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>Azienda</div>
+                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.7)' }}>{dip.length} {dip.length === 1 ? 'persona' : 'persone'} · {org.reparti.length} reparti</div>
               </div>
-            )
-          })}
+            </div>
+
+            {/* LIVELLO 1: reparti */}
+            <div className="orgkids">
+              {org.reparti.map(r => {
+                const membri = [...(r.membri || [])].sort((a, b) => (b === r.capoId ? 1 : 0) - (a === r.capoId ? 1 : 0) || nomeById(a).localeCompare(nomeById(b), 'it'))
+                const isDrop = dropTarget === r.id
+                return (
+                  <div className="orgkid" key={r.id}>
+                    {/* NODO REPARTO (drop zone) */}
+                    <div onDragOver={e => { e.preventDefault(); if (dropTarget !== r.id) setDropTarget(r.id) }}
+                      onDragLeave={() => setDropTarget(t => t === r.id ? null : t)}
+                      onDrop={e => dropOnReparto(e, r.id)}
+                      style={{ width: 210, background: C.bgCard, border: `2px solid ${isDrop ? C.red : C.border}`, borderRadius: 14, boxShadow: isDrop ? '0 0 0 4px rgba(110,14,26,0.12)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', overflow: 'hidden', transition: 'border-color .12s, box-shadow .12s' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' }}>
+                        {renamingId === r.id ? (
+                          <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') confermaRename(); if (e.key === 'Escape') { setRenamingId(null); setRenameVal('') } }}
+                            onBlur={confermaRename}
+                            style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.12)', color: C.white, fontSize: 13, fontWeight: 700 }} />
+                        ) : (
+                          <span style={{ fontSize: 13, fontWeight: 800, color: C.white, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</span>
+                        )}
+                        <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                          <button onClick={() => avviaRename(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, cursor: 'pointer', padding: '3px 8px' }}><Icon name="edit" size={13} /></button>
+                          <button onClick={() => delReparto(r.id)} title="Elimina reparto" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, cursor: 'pointer', padding: '3px 8px' }}><Icon name="trash" size={13} /></button>
+                        </span>
+                      </div>
+                      <div style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+                          {membri.length} {membri.length === 1 ? 'persona' : 'persone'}{r.capoId ? ` · resp. ${nomeById(r.capoId)}` : ''}
+                        </div>
+                        {nonAssegnati.length > 0 && (
+                          <select value="" onChange={e => addMembro(r.id, e.target.value)}
+                            style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.textMid, background: C.white, cursor: 'pointer' }}>
+                            <option value="">+ Aggiungi…</option>
+                            {nonAssegnati.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
+                          </select>
+                        )}
+                        {membri.length === 0 && nonAssegnati.length === 0 && <span style={{ fontSize: 11, color: C.textSoft, fontStyle: 'italic' }}>Nessuno assegnato</span>}
+                      </div>
+                    </div>
+
+                    {/* LIVELLO 2: persone del reparto (capo per primo, evidenziato) */}
+                    {membri.length > 0 && (
+                      <div className="orgkids">
+                        {membri.map(m => (
+                          <div className="orgkid" key={m}>{personBox(m, r.id, m === r.capoId)}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
       )}
 
+      {/* Non assegnati: pool trascinabile + drop zone per rimuovere dal reparto */}
       {nonAssegnati.length > 0 && (
-        <div style={{ marginTop: 18, padding: '14px 16px', background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', marginBottom: 8 }}>Non assegnati ({nonAssegnati.length})</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-            {nonAssegnati.map(d => <span key={d.id} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 11px', fontSize: 11, fontWeight: 700, color: C.text }}>{d.nome}</span>)}
+        <div onDragOver={e => e.preventDefault()} onDrop={dropOnNonAssegnati}
+          style={{ marginTop: 20, padding: '14px 16px', background: '#FFFBEB', border: '1px dashed #FCD34D', borderRadius: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', marginBottom: 8 }}>Non assegnati ({nonAssegnati.length}) — trascinali in un reparto, o trascina qui per rimuovere</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {nonAssegnati.map(d => (
+              <span key={d.id} draggable onDragStart={e => startDrag(e, d.id, null)} onDragEnd={() => setDragId(null)}
+                title="Trascina in un reparto"
+                style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: C.text, cursor: 'grab', boxShadow: '0 1px 3px rgba(15,23,42,0.06)', opacity: dragId === d.id ? 0.4 : 1 }}>{d.nome}</span>
+            ))}
           </div>
         </div>
       )}
