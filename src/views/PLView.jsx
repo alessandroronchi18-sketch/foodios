@@ -5,7 +5,8 @@
 // Primitive condivise (Tip, margBadge, margColor, TD, TH, SortTH, useSortable,
 // Badge, C palette) vengono da ./_shared.
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { sload, ssave } from '../lib/storage'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -19,7 +20,7 @@ import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
   C, TNUM, margColor, margBadge, Badge, Tip, PageHeader, SH, TD, TH,
-  useSortable, SortTH, fmt0,
+  useSortable, SortTH, fmt0, KPI,
 } from './_shared'
 import Icon from '../components/Icon'
 
@@ -487,7 +488,9 @@ function SensTable({ rows, euro, pct }) {
 }
 
 // ─── PLView ──────────────────────────────────────────────────────────────────
-export default function PLView({ ricettario, onUpdateRegola }) {
+const SK_PL_COSTI = 'pl-costi-fissi-v1' // per-sede: { affitto, utenze, altro, personale }
+
+export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpdateRegola }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -496,6 +499,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
 
   const euro = v => `€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
   const pct = v => `${Number(v).toFixed(1)}%`
+  const cardP = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
   const rows = ricette.map(ric => {
     const reg = getR(ric.nome, ric)
@@ -520,6 +524,66 @@ export default function PLView({ ricettario, onUpdateRegola }) {
   const best = rows[0]
   const worst = rows[rows.length - 1]
   const fcAvg = totRicavo > 0 ? (totFC / totRicavo * 100) : 0
+
+  // ═══ P&L MENSILE REALE (ricavi+food cost dalle chiusure, personale+costi fissi input) ═══
+  const [mese, setMese] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
+  const [costi, setCosti] = useState({ affitto: 0, utenze: 0, altro: 0, personale: 0 })
+  const [editCosti, setEditCosti] = useState(false)
+  const [savingCosti, setSavingCosti] = useState(false)
+  const [targetLavoro, setTargetLavoro] = useState(30)
+
+  useEffect(() => {
+    if (!orgId) return
+    let alive = true
+    sload(SK_PL_COSTI, orgId, sedeId).then(d => {
+      if (alive && d && typeof d === 'object') setCosti({ affitto: +d.affitto || 0, utenze: +d.utenze || 0, altro: +d.altro || 0, personale: +d.personale || 0 })
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [orgId, sedeId])
+
+  async function salvaCosti(next) {
+    setSavingCosti(true)
+    try { await ssave(SK_PL_COSTI, next, orgId, sedeId); setCosti(next); setEditCosti(false) }
+    catch { /* toast gestito altrove */ }
+    finally { setSavingCosti(false) }
+  }
+
+  const mesiDisponibili = useMemo(() => {
+    const s = new Set()
+    for (const c of (chiusure || [])) if (c?.data) s.add(c.data.slice(0, 7))
+    const arr = [...s].sort().reverse()
+    if (!arr.includes(mese)) arr.unshift(mese)
+    return arr
+  }, [chiusure, mese])
+
+  const aggMese = (ym) => {
+    let ricavi = 0, foodcost = 0, giorni = 0
+    for (const c of (chiusure || [])) {
+      if (!c?.data || c.data.slice(0, 7) !== ym) continue
+      ricavi += Number(c.kpi?.totV) || 0
+      foodcost += Number(c.kpi?.totFC) || 0
+      giorni++
+    }
+    return { ricavi, foodcost, giorni }
+  }
+  const meseLabel = (ym) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }) }
+  const mesePrec = (ym) => { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 2, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
+
+  const plMese = useMemo(() => {
+    const cur = aggMese(mese)
+    const prev = aggMese(mesePrec(mese))
+    const costiFissi = (+costi.affitto || 0) + (+costi.utenze || 0) + (+costi.altro || 0)
+    const personale = +costi.personale || 0
+    const margineLordo = cur.ricavi - cur.foodcost
+    const utile = margineLordo - personale - costiFissi
+    const fcPct = cur.ricavi > 0 ? cur.foodcost / cur.ricavi * 100 : 0
+    const lavPct = cur.ricavi > 0 ? personale / cur.ricavi * 100 : 0
+    const margOpPct = cur.ricavi > 0 ? utile / cur.ricavi * 100 : 0
+    const mcPct = cur.ricavi > 0 ? margineLordo / cur.ricavi : 0.7
+    const breakeven = mcPct > 0 ? (personale + costiFissi) / mcPct : 0
+    const utilePrev = (prev.ricavi - prev.foodcost) - personale - costiFissi
+    return { cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct, margOpPct, breakeven, utilePrev }
+  }, [chiusure, mese, costi])
 
   // Top ingredienti per costo (aggregato, riusato per PDF export)
   const topIngredienti = useMemo(() => {
@@ -578,7 +642,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
   // Early return DOPO tutti gli hook (Rules of Hooks): rows può passare da
   // vuoto a popolato quando il ricettario si carica async — il return non deve
   // mai precedere gli useMemo, altrimenti il numero di hook cambia tra render.
-  if (!rows.length) return (
+  if (!rows.length && !(chiusure || []).length) return (
     <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', padding: '32px 24px',
       background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
       <div style={{ width: 48, height: 48, borderRadius: R.md, background: T.bgSubtle,
@@ -595,7 +659,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
   return (
     <div style={{ maxWidth: 1200 }}>
       <PageHeader
-        subtitle={`${rows.length} prodotti · food cost medio ${pct(fcAvg)} · margine medio ${pct(avgMarg)}`}
+        subtitle={'Conto economico mensile reale + analisi di redditività del listino'}
         action={
           <button onClick={async () => {
             if (!(await gateExport('pl', { n_items: rows.length }, window.__foodos_notify))) return
@@ -615,6 +679,92 @@ export default function PLView({ ricettario, onUpdateRegola }) {
         }
       />
 
+      {/* ═══ P&L MENSILE REALE ═══ */}
+      <SH sub="Ricavi e food cost reali dalle chiusure di cassa, meno costo del personale e costi fissi. = utile vero del mese.">Conto economico · {meseLabel(mese)}</SH>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <select value={mese} onChange={e => setMese(e.target.value)}
+          style={{ padding: '8px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 600 }}>
+          {mesiDisponibili.map(m => <option key={m} value={m}>{meseLabel(m)}</option>)}
+        </select>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setEditCosti(v => !v)}
+          style={{ padding: '8px 14px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12.5, fontWeight: 600, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Icon name="gear" size={14} /> Costi fissi & personale
+        </button>
+      </div>
+
+      {editCosti && (
+        <div style={{ ...cardP, padding: 18, marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 14, alignItems: 'end' }}>
+          {[['affitto', 'Affitto / mese'], ['utenze', 'Utenze / mese'], ['altro', 'Altri costi fissi'], ['personale', 'Costo personale / mese']].map(([k, lbl]) => (
+            <div key={k}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textSoft, marginBottom: 6 }}>{lbl}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${T.border}`, borderRadius: 8, padding: '8px 10px', background: T.bgCard }}>
+                <span style={{ color: T.textSoft, fontSize: 13 }}>€</span>
+                <input type="number" inputMode="decimal" value={costi[k] || ''} onChange={e => setCosti(c => ({ ...c, [k]: e.target.value }))}
+                  placeholder="0" style={{ border: 'none', outline: 'none', width: '100%', fontSize: 14, fontWeight: 700, color: T.text, ...TNUM }} />
+              </div>
+            </div>
+          ))}
+          <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto', display: 'flex', gap: 8 }}>
+            <button onClick={() => salvaCosti({ affitto: +costi.affitto || 0, utenze: +costi.utenze || 0, altro: +costi.altro || 0, personale: +costi.personale || 0 })} disabled={savingCosti}
+              style={{ padding: '9px 16px', borderRadius: R.md, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{savingCosti ? 'Salvo…' : 'Salva'}</button>
+            <button onClick={() => { setEditCosti(false); sload(SK_PL_COSTI, orgId, sedeId).then(d => d && setCosti({ affitto: +d.affitto || 0, utenze: +d.utenze || 0, altro: +d.altro || 0, personale: +d.personale || 0 })).catch(() => {}) }}
+              style={{ padding: '9px 14px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.textMid, cursor: 'pointer' }}>Annulla</button>
+          </div>
+        </div>
+      )}
+
+      {plMese.cur.giorni === 0 ? (
+        <div style={{ ...cardP, padding: 32, textAlign: 'center', color: T.textSoft, fontSize: 13, marginBottom: 28 }}>
+          Nessuna chiusura di cassa registrata per {meseLabel(mese)}. Registra le chiusure (sezione Cassa) per vedere il conto economico del mese.
+        </div>
+      ) : (
+        <>
+          {/* KPI diagnosi */}
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
+            <KPI icon="barChart" label="Ricavi del mese" value={fmt0(plMese.cur.ricavi)} sub={`${plMese.cur.giorni} giorni${plMese.prev.ricavi ? ` · ${plMese.cur.ricavi >= plMese.prev.ricavi ? '+' : ''}${fmt0(plMese.cur.ricavi - plMese.prev.ricavi)} vs mese prec.` : ''}`} />
+            <KPI icon="bulb" label="Utile del mese" value={fmt0(plMese.utile)} highlight={plMese.utile >= 0} color={plMese.utile >= 0 ? undefined : T.brand}
+              sub={`margine operativo ${pct(plMese.margOpPct)}`} />
+            <KPI icon="receipt" label="Food cost" value={pct(plMese.fcPct)} color={plMese.fcPct <= 30 ? T.green : plMese.fcPct <= 40 ? T.amber : T.brand} sub={fmt0(plMese.cur.foodcost)} />
+            <KPI icon="users" label="Costo lavoro" value={pct(plMese.lavPct)} color={plMese.lavPct <= targetLavoro ? T.green : plMese.lavPct <= targetLavoro + 10 ? T.amber : T.brand} sub={`target ${targetLavoro}% · ${fmt0(plMese.personale)}`} />
+          </div>
+
+          {/* Conto economico a cascata */}
+          <div style={{ ...cardP, padding: isMobile ? '16px 18px' : '20px 26px', marginBottom: 28 }}>
+            {(() => {
+              const Row = ({ label, val, pctv, bold, neg, strong, sub }) => (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: strong ? '12px 0' : '8px 0', borderTop: strong ? `2px solid ${T.text}` : 'none' }}>
+                  <span style={{ fontSize: strong ? 14 : 13, fontWeight: strong || bold ? 800 : 500, color: strong ? T.text : T.textMid }}>{label}{sub && <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 500 }}> · {sub}</span>}</span>
+                  <span style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                    {pctv != null && <span style={{ fontSize: 11.5, color: T.textSoft, ...TNUM, minWidth: 46, textAlign: 'right' }}>{pct(pctv)}</span>}
+                    <span style={{ fontSize: strong ? 20 : 14, fontWeight: strong || bold ? 800 : 600, color: strong ? (val >= 0 ? T.green : T.brand) : (neg ? T.brand : T.text), ...TNUM, minWidth: 100, textAlign: 'right' }}>
+                      {neg && val !== 0 ? '−' : ''}{fmt0(Math.abs(val))}
+                    </span>
+                  </span>
+                </div>
+              )
+              return (
+                <>
+                  <Row label="Ricavi" val={plMese.cur.ricavi} pctv={100} bold />
+                  <Row label="Food cost (materie prime)" val={plMese.cur.foodcost} pctv={plMese.fcPct} neg />
+                  <Row label="Margine lordo" val={plMese.margineLordo} pctv={plMese.cur.ricavi > 0 ? plMese.margineLordo / plMese.cur.ricavi * 100 : 0} bold />
+                  <Row label="Costo del personale" val={plMese.personale} pctv={plMese.lavPct} neg />
+                  <Row label="Costi fissi (affitto, utenze, altro)" val={plMese.costiFissi} pctv={plMese.cur.ricavi > 0 ? plMese.costiFissi / plMese.cur.ricavi * 100 : 0} neg />
+                  <Row label={plMese.utile >= 0 ? 'UTILE DEL MESE' : 'PERDITA DEL MESE'} val={plMese.utile} pctv={plMese.margOpPct} strong />
+                  <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
+                    Break-even: servono <b style={{ color: T.text }}>{fmt0(plMese.breakeven)}</b> di ricavi/mese per coprire personale e costi fissi
+                    {(plMese.personale + plMese.costiFissi) === 0 && ' · imposta i costi fissi e il personale per un calcolo completo'}.
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        </>
+      )}
+
+      {rows.length > 0 && (<>
+      <SH sub="Redditività teorica di ogni ricetta ai prezzi di listino — utile per le decisioni su prezzi e ricette.">Analisi del listino (teorica)</SH>
       {/* Chiarisce il "quando": il P&L è teorico per-stampo, NON un periodo. */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
         <span style={{ lineHeight: 1, marginTop: 1, color: C.textMid }}><Icon name="bulb" size={16} /></span>
@@ -823,6 +973,7 @@ export default function PLView({ ricettario, onUpdateRegola }) {
           ))}
         </div>
       </div>
+      </>)}
     </div>
   )
 }
