@@ -20,6 +20,11 @@ function seedOrgId() {
   } catch { return null }
 }
 
+// true se il seed dell'account di test è andato a buon fine (orgId presente).
+// Gli spec browser (login + dato seed) devono skippare se è false: senza seed
+// l'onboarding non è soppresso e il test fallirebbe in modo fuorviante.
+export const SEED_OK = seedOrgId() !== null
+
 // Init script eseguito a ogni navigazione: marca onboarding come visto e apre
 // tutti i gruppi della sidebar (la nav per-testo richiede i gruppi espansi).
 async function primeLocalStorage(page) {

@@ -45,8 +45,20 @@ export default async function globalSetup() {
   const email = process.env.TEST_EMAIL
   const seedPath = join(__dirname, 'tests', '.seed-state.json')
 
+  // Env assente.
+  //  - In CI: è una misconfigurazione → fallisci CHIARO (i test di sicurezza
+  //    DEVONO girare; una CI verde con tutto skippato NASconderebbe il problema).
+  //  - In locale (dev): skip silenzioso, gli spec browser skippano via SEED_OK.
   if (!URL || !KEY || !email) {
-    console.warn('[globalSetup] SUPABASE_URL / SUPABASE_SERVICE_KEY / TEST_EMAIL mancanti — seed saltato.')
+    const msg = '[globalSetup] SUPABASE_URL / SUPABASE_SERVICE_KEY / TEST_EMAIL mancanti'
+    if (process.env.CI) {
+      throw new Error(
+        `${msg}. In CI questi secret sono richiesti per i test di sicurezza (RLS / accessi / ricette).\n` +
+        `→ Configura in GitHub Actions i secret: SUPABASE_URL, SUPABASE_SERVICE_KEY (sb_secret_…), ` +
+        `VITE_SUPABASE_ANON_KEY (sb_publishable_…), TEST_EMAIL, TEST_PASSWORD.`
+      )
+    }
+    console.warn(`${msg} — seed saltato (dev locale: spec browser skippati).`)
     writeFileSync(seedPath, JSON.stringify({ orgId: null }))
     return
   }
@@ -56,8 +68,23 @@ export default async function globalSetup() {
   // 1. Trova org del test user
   const { data: prof, error: pErr } = await sb
     .from('profiles').select('organization_id').eq('email', email).maybeSingle()
-  if (pErr || !prof?.organization_id) {
-    console.warn('[globalSetup] org per', email, 'non trovata:', pErr?.message || 'nessun profilo')
+
+  // Chiave PRESENTE ma non valida/disabilitata → fallisci SUBITO e chiaro,
+  // invece di lasciar fallire 5 spec browser con timeout criptici.
+  if (pErr) {
+    const disabled = /legacy|disabled|invalid|api key|jwt/i.test(pErr.message || '')
+    throw new Error(
+      `[globalSetup] SEED FALLITO — la SUPABASE_SERVICE_KEY non è valida` +
+      `${disabled ? ' (sembra una chiave legacy DISABILITATA)' : ''}: ${pErr.message}\n` +
+      `→ Aggiorna il secret GitHub Actions SUPABASE_SERVICE_KEY con la nuova chiave sb_secret_… ` +
+      `(e VITE_SUPABASE_ANON_KEY con sb_publishable_…) e rilancia il workflow.`
+    )
+  }
+
+  // Chiave valida ma account di test inesistente → niente seed (gli spec browser
+  // skippano via SEED_OK), ma i test DB self-contained continuano a girare.
+  if (!prof?.organization_id) {
+    console.warn(`[globalSetup] nessun profilo per TEST_EMAIL=${email} — spec browser skippati (i test DB girano lo stesso).`)
     writeFileSync(seedPath, JSON.stringify({ orgId: null }))
     return
   }

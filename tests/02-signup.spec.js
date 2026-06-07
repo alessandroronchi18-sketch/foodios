@@ -1,5 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test'
+import { SEED_OK } from './helpers/auth.js'
 
 // Email temporanea univoca per ogni run.
 function tempEmail() {
@@ -11,6 +12,7 @@ function tempEmail() {
 
 test.describe('Signup nuovo utente', () => {
   test('registrazione 2-step -> conferma email / onboarding', async ({ page }) => {
+    test.skip(!SEED_OK, 'infra CI non configurata (aggiorna i secret DB) — smoke signup skippato')
     const email = tempEmail()
     const password = 'TestPwd!' + Math.random().toString(36).slice(2, 8) + 'A1'
 

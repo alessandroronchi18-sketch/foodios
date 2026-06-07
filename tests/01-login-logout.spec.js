@@ -1,10 +1,10 @@
 // @ts-check
 import { test, expect } from '@playwright/test'
-import { login, logout, navTo, TEST_EMAIL, TEST_PASSWORD } from './helpers/auth.js'
+import { login, logout, navTo, TEST_EMAIL, TEST_PASSWORD , SEED_OK} from './helpers/auth.js'
 
 test.describe('Login / Logout', () => {
   test('login -> dashboard -> logout -> login', async ({ page }) => {
-    test.skip(!TEST_EMAIL || !TEST_PASSWORD, 'TEST_EMAIL / TEST_PASSWORD non impostati')
+    test.skip(!TEST_EMAIL || !TEST_PASSWORD || !SEED_OK, 'TEST_EMAIL/TEST_PASSWORD o seed non disponibili (aggiorna i secret DB)')
 
     await login(page)
     await expect(page.getByRole('button', { name: 'Dashboard', exact: true }).first()).toBeVisible({ timeout: 20000 })
