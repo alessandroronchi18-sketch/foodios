@@ -318,7 +318,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
     if (imported > 0) {
       notify(`✓ ${imported} fatture importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
-      await loadFatture()
+      try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
     } else if (scartati > 0) {
       notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
     }
@@ -346,7 +346,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
     if (imported > 0) {
       notify(`✓ ${imported} fatture XML importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
-      await loadFatture()
+      try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
     } else if (scartati > 0) {
       notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
     }
@@ -373,7 +373,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
     if (imported > 0) {
       notify(`✓ ${imported} fatture FatturaSMART importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
-      await loadFatture()
+      try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
     } else if (scartati > 0) {
       notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
     }
@@ -1133,17 +1133,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <label style={{ ...ghostBtn, cursor: 'pointer' }}>
             📄 XML SDI
             <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
-              onChange={e => e.target.files.length && handleImportXML(e.target.files)} />
+              onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportXML(files) }} />
           </label>
           <label style={{ ...ghostBtn, cursor: 'pointer' }}>
             📊 FatturaSMART
             <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
-              onChange={e => e.target.files.length && handleImportSMART(e.target.files)} />
+              onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportSMART(files) }} />
           </label>
           <label style={primaryBtn}>
             {importLoading ? '⏳ Importazione…' : '📂 Importa .xlsx'}
             <input type="file" accept=".xlsx,.xls" multiple style={{ display: 'none' }}
-              onChange={e => e.target.files.length && handleImportExcel(e.target.files)} />
+              onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
           </label>
         </div>
       </div>
@@ -1337,7 +1337,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <label style={primaryBtn}>
               📂 Importa .xlsx
-              <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => e.target.files.length && handleImportExcel(e.target.files)} />
+              <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
             </label>
           </div>
         </div>
