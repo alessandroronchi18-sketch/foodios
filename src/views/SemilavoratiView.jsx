@@ -27,11 +27,11 @@ function SemiCard({ ric, ingCosti, ricettario, onEdit, onDelete }) {
   const tnum = TNUM;
   const PURPLE = "#8E44AD", PURPLE_DARK = "#6B2FA0", PURPLE_BG = "#F5EBFB", PURPLE_BORDER = "#D4B0E8";
   return (
-    <div style={{background:T.bgCard,border:`1px solid ${PURPLE_BORDER}`,borderRadius:R.xl,overflow:"hidden",
-      boxShadow:"0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)",
+    <div style={{background:T.bgCard,border:`1px solid ${PURPLE_BORDER}`,borderRadius:18,overflow:"hidden",
+      boxShadow:"0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)",
       transition:`box-shadow ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}`}}
-      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 12px rgba(142,68,173,0.10), 0 1px 3px rgba(142,68,173,0.05)";}}
-      onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)";}}>
+      onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 1px 2px rgba(142,68,173,0.06), 0 14px 34px rgba(142,68,173,0.12)";}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)";}}>
       <div style={{padding:isMobile?"14px 16px":"18px 22px",display:"flex",flexDirection:isMobile?"column":"row",alignItems:isMobile?"stretch":"center",justifyContent:"space-between",gap:isMobile?14:16,borderBottom:open?`1px solid ${PURPLE_BORDER}`:"none"}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
@@ -248,8 +248,8 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
         {/* ── Lista semilavorati ── */}
         <div>
           {semilavorati.length === 0 && (
-            <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:R.xl,
-              padding:isMobile?"32px 20px":"48px 24px",textAlign:"center",marginBottom:24,boxShadow:S.sm}}>
+            <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:18,
+              padding:isMobile?"32px 20px":"48px 24px",textAlign:"center",marginBottom:24,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
               <div style={{width:56,height:56,borderRadius:"50%",background:"#F5EBFB",
                 display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#8E44AD",marginBottom:14}}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -316,7 +316,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
             else notify(`⚠ Nessun ingrediente valido estratto dalla foto`, false);
           }}/>
 
-          <div style={{background:T.bgCard,border:`1px solid #D4B0E8`,borderRadius:R.xl,padding:isMobile?"18px":"22px",boxShadow:"0 1px 3px rgba(142,68,173,0.06), 0 1px 2px rgba(142,68,173,0.04)"}}>
+          <div style={{background:T.bgCard,border:`1px solid #D4B0E8`,borderRadius:18,padding:isMobile?"18px":"22px",boxShadow:"0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)"}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,paddingBottom:14,borderBottom:`1px solid #E5D4F0`}}>
               <div style={{width:32,height:32,borderRadius:R.md,background:"#F5EBFB",
                 display:"flex",alignItems:"center",justifyContent:"center",color:"#8E44AD",flexShrink:0}}>

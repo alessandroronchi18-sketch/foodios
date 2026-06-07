@@ -68,7 +68,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const pieData = [...pieRaw, ...(resto > 0.01 ? [{ nome: 'Altri', costoCalc: parseFloat(resto.toFixed(3)) }] : [])]
 
   return (
-    <div style={{ background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`, borderRadius: R.xl, overflow: 'hidden', boxShadow: isSemi ? '0 1px 3px rgba(142,68,173,0.06)' : S.sm }}>
+    <div style={{ background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
       {/* Header */}
       <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: open ? `1px solid ${isSemi ? SEMI.divider : C.border}` : 'none' }}>
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
@@ -447,8 +447,8 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
             const mC = marg >= 60 ? T.green : marg >= 40 ? T.amber : T.brand
             const fC = fcPct <= 30 ? T.green : fcPct <= 40 ? T.amber : T.brand
             return (
-              <div key={ric.nome} onClick={() => onEditRicetta && onEditRicetta(ric.nome)}
-                style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: 18, boxShadow: S.sm, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div key={ric.nome} className="fos-tile" onClick={() => onEditRicetta && onEditRicetta(ric.nome)}
+                style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{ric.nome}</div>
                   <div style={{ fontSize: 11, color: T.textSoft, marginTop: 2, ...TNUM }}>{reg.unita || '?'} {reg.tipo || 'pz'} · {fmt(reg.prezzo)}</div>
@@ -477,7 +477,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, paddingTop: 24, borderTop: `1px solid ${T.borderSoft}` }}>
             <div style={{ flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: T.text }}>Semilavorati</h2>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Semilavorati</h2>
               <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>Impasti, creme e basi interne</div>
             </div>
             <span style={{ padding: '4px 10px', borderRadius: 999, background: '#F5EBFB', color: '#8E44AD', fontSize: 11, fontWeight: 600 }}>{semilavorati.length}</span>

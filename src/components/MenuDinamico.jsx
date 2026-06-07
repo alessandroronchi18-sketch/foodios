@@ -133,7 +133,7 @@ function BCGMatrix({ menuItems }) {
     <div style={{
       display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
       padding:"56px 20px", gap:12,
-      background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:R.xl, boxShadow:S.sm,
+      background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:18, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
     }}>
       <div style={{
         width:44, height:44, borderRadius:R.md, background:T.bgSubtle, color:T.textSoft,
@@ -184,8 +184,8 @@ function BCGMatrix({ menuItems }) {
           const info = bcgQuadrant(meta.sample.margPct, meta.sample.volRel)
           return (
             <div key={q} style={{
-              background:info.bg, borderRadius:R.xl, padding:"16px 20px",
-              border:`1px solid ${info.color}33`, boxShadow:S.xs,
+              background:info.bg, borderRadius:16, padding:"16px 20px",
+              border:`1px solid ${info.color}33`, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 8px 22px rgba(15,23,42,0.05)",
             }}>
               <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", marginBottom:4 }}>
                 <div style={{ fontSize:14, fontWeight:700, color:info.color, letterSpacing:"-0.01em" }}>
@@ -227,11 +227,11 @@ function BCGMatrix({ menuItems }) {
 
       {/* Scatter plot */}
       <div style={{
-        background:T.bgCard, borderRadius:R.xl, border:`1px solid ${T.border}`,
-        padding:"20px 24px", boxShadow:S.sm,
+        background:T.bgCard, borderRadius:18, border:`1px solid ${T.border}`,
+        padding:"20px 24px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
       }}>
         <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", marginBottom:16 }}>
-          <div style={{ fontSize:14, fontWeight:600, color:T.text, letterSpacing:"-0.01em" }}>
+          <div style={{ fontSize:15, fontWeight:700, color:T.text, letterSpacing:"-0.01em" }}>
             Mappa prodotti
           </div>
           <div style={{ fontSize:11, color:T.textSoft }}>margine % × popolarità</div>
@@ -362,7 +362,7 @@ function MenuPreview({ menuItems, nomeAttivita }) {
         <div style={{
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
           padding:"56px 20px", gap:12,
-          background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:R.xl, boxShadow:S.sm,
+          background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:18, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
         }}>
           <div style={{
             width:44, height:44, borderRadius:R.md, background:T.bgSubtle, color:T.textSoft,
@@ -385,11 +385,11 @@ function MenuPreview({ menuItems, nomeAttivita }) {
         <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
           {menuItems.map((m,i) => (
             <div key={m.nome} style={{
-              background:T.bgCard, borderRadius:R.xl,
+              background:T.bgCard, borderRadius:16,
               border:`1px solid ${m.visibile?T.border:T.borderSoft}`,
               padding:"14px 18px",
               opacity: m.visibile ? 1 : 0.55,
-              boxShadow:S.sm,
+              boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
               transition:`opacity ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}`,
             }}>
               <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 }}>
@@ -507,7 +507,7 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
         <div style={{
           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
           padding:"60px 24px", gap:12,
-          background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:R.xl, boxShadow:S.sm,
+          background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:18, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
         }}>
           <div style={{ fontSize:13, color:T.textMid, fontWeight:500 }}>Ricettario non caricato</div>
           <div style={{ fontSize:12, color:T.textSoft, maxWidth:320, textAlign:"center", lineHeight:1.5 }}>

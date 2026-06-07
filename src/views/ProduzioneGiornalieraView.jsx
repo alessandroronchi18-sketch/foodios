@@ -454,7 +454,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: 24 }}>
             <div>
-              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
                 <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data produzione</div>
@@ -551,7 +551,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 16 }}>📊 Riepilogo sessione</div>
                 {!hasQta ? (
                   <div style={{ color: C.textSoft, fontSize: 11, textAlign: 'center', padding: '20px 0' }}>Inserisci gli stampi prodotti</div>
@@ -592,7 +592,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               </div>
 
               {hasQta && (
-                <div style={{ background: '#FEF7F5', border: `1px solid ${C.red}30`, borderRadius: 12, padding: '14px 16px' }}>
+                <div style={{ background: '#FEF7F5', border: `1px solid ${C.red}30`, borderRadius: 16, padding: '14px 16px', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 8px 22px rgba(110,14,26,0.06)' }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: C.red, marginBottom: 8 }}>🍰 Stock vetrina dopo la sessione</div>
                   <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.55, marginBottom: 8 }}>
                     Una volta confermata, questi pezzi finiscono nello stock vetrina disponibile per la vendita:
@@ -613,7 +613,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               )}
 
               {hasQta && (
-                <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 12 }}>🧾 Ingredienti da scalare</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
                     {Object.entries(riepilogo.ings).sort((a, b) => b[1] - a[1]).map(([k, qty]) => {
@@ -680,7 +680,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {giornaliero.map((sess) => (
-                <div key={sess.id} style={{ background: C.bgCard, border: `1px solid ${deleteSessConf?.id === sess.id ? C.red : C.border}`, borderRadius: 10, padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                <div key={sess.id} style={{ background: C.bgCard, border: `1px solid ${deleteSessConf?.id === sess.id ? C.red : C.border}`, borderRadius: 16, padding: '16px 20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
