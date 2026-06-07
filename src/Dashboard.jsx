@@ -1904,6 +1904,14 @@ export default function Dashboard({
             )}
           </div>
 
+          {/* Campanella notifiche (con badge non letti) — scopribile a colpo d'occhio */}
+          <button onClick={()=>setShowNotifiche(true)} aria-label="Notifiche" title="Notifiche"
+            style={{position:"relative",flexShrink:0,width:36,height:36,borderRadius:10,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.82)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:`background ${M.durFast} ${M.ease}`}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.12)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E84B3A",color:"#fff",borderRadius:999,minWidth:17,height:17,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #1E0B11",lineHeight:1}}>{nonLette>9?"9+":nonLette}</span>}
+          </button>
+
           {/* Profilo (dx) con dropdown */}
           <div style={{position:"relative",flexShrink:0}}>
             <button onClick={()=>setProfileOpen(o=>!o)} aria-label="Menu profilo"
@@ -1920,7 +1928,6 @@ export default function Dashboard({
                 </div>
                 {[
                   {lbl:"Impostazioni",ic:"settings",on:()=>go("impostazioni")},
-                  {lbl:"Notifiche"+(nonLette>0?` (${nonLette})`:""),ic:"bell",on:()=>{setProfileOpen(false);setShowNotifiche(true);}},
                   {lbl:"Novità",ic:"bell",on:()=>go("changelog")},
                 ].map(r=>(
                   <button key={r.lbl} onClick={r.on} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize:12.5,fontWeight:500,color:C.text,fontFamily:"inherit"}}
