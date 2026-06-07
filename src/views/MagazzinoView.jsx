@@ -23,23 +23,49 @@ import {
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 
 // ─── KPI Card (interna al modulo) ────────────────────────────────────────────
+// Look premium coerente con la Dashboard home: chip icona 36px, decoro radiale,
+// accento colore, raggio 18.
 function KPI({ label, value, sub, color, highlight, icon }) {
+  const accent = color || T.brand
+  const chipBg = highlight ? 'rgba(255,255,255,0.14)' : `${accent}1F`
+  const chipColor = highlight ? '#fff' : accent
   return (
     <div className="fos-tile" style={{
+      position: 'relative', overflow: 'hidden',
       background: highlight ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
-      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 16,
-      padding: '20px 22px',
+      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 18,
+      padding: '18px 20px',
       boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
     }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
-        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 10 }}>
-        {icon && <span style={{ marginRight: 6 }}>{icon}</span>}{label}
-      </div>
-      <div style={{ fontSize: 30, fontWeight: 700, color: highlight ? T.textOnDark : color || T.text,
-        letterSpacing: '-0.03em', lineHeight: 1.05, ...TNUM }}>
+      {/* decoro radiale d'angolo */}
+      <div style={{ position: 'absolute', top: -28, right: -28, width: 92, height: 92, borderRadius: '50%',
+        background: highlight ? 'rgba(255,255,255,0.07)' : `${accent}14`, opacity: 0.6, pointerEvents: 'none' }}/>
+      {icon && (
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 11, background: chipBg, color: chipColor, fontSize: 17 }}>{icon}</span>
+        </div>
+      )}
+      <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase',
+        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6 }}>{label}</div>
+      <div style={{ position: 'relative', fontSize: 30, fontWeight: 800, color: highlight ? T.textOnDark : color || T.text,
+        letterSpacing: '-0.035em', lineHeight: 1.05, ...TNUM }}>
         {value}
       </div>
-      {sub && <div style={{ fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500 }}>{sub}</div>}
+      {sub && <div style={{ position: 'relative', fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500 }}>{sub}</div>}
+    </div>
+  )
+}
+
+// ─── Section header con barra brand (gerarchia premium) ──────────────────────
+function SectHead({ icon, title, sub, right }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+      <span style={{ width: 36, height: 36, borderRadius: 11, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>{title}</div>
+        {sub && <div style={{ fontSize: 12, color: T.textSoft, marginTop: 1 }}>{sub}</div>}
+      </div>
+      {right}
     </div>
   )
 }
@@ -141,13 +167,13 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       </div>
 
       {stock.length === 0 ? (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>
           Nessun prodotto in stock per questa sede.<br/>
           Lo stock si popola automaticamente alla conferma di una sessione di produzione.
         </div>
       ) : (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
@@ -196,8 +222,9 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
 
       {movimenti.length > 0 && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Movimenti recenti</div>
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
+          <SectHead icon="🕑" title="Movimenti recenti" sub="Ultimi carichi, scarichi e trasferimenti" />
+
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <tbody>
                 {movimenti.map(m => {
@@ -360,7 +387,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
         </div>
       )}
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 480 }}>
             <thead>
@@ -704,11 +731,11 @@ export default function MagazzinoView({
 
       {tab === 'giacenze' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <button onClick={() => setShowAddIng(true)} style={{ padding: '7px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>+ Aggiungi ingrediente</button>
-          </div>
+          <SectHead icon="📦" title="Materie prime" sub="Giacenze, soglie di riordino e giorni di scorta"
+            right={<button onClick={() => setShowAddIng(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)' }}>+ Aggiungi ingrediente</button>} />
+
           {showAddIng && (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '16px 20px', marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end', boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '16px 20px', marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end', boxShadow: SHADOW_PREMIUM }}>
               {[{ lbl: 'Nome ingrediente', val: newIngNome, set: setNewIngNome, ph: 'es. burro' },
                 { lbl: 'Giacenza (g)', val: newIngQty, set: setNewIngQty, ph: 'es. 1000', type: 'number' },
                 { lbl: 'Soglia alert (g)', val: newIngSoglia, set: setNewIngSoglia, ph: 'es. 500', type: 'number' }].map(({ lbl, val, set, ph, type }) => (
@@ -724,7 +751,7 @@ export default function MagazzinoView({
               </div>
             </div>
           )}
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 600 }}>
                 <thead>
@@ -801,6 +828,7 @@ export default function MagazzinoView({
 
       {tab === 'carica' && (
         <div style={{ maxWidth: 680 }}>
+          <SectHead icon="🚚" title="Carica merce" sub="Registra rifornimenti, scarichi e rettifiche di magazzino" />
           <FotoOCR mode="magazzino" notify={notify} ricettario={ricettario} onResult={async res => {
             const now = new Date().toISOString()
             const nm = { ...magazzino }
@@ -842,7 +870,7 @@ export default function MagazzinoView({
             if (onImportPrezziOCR) onImportPrezziOCR(nuoviCosti)
             notify(`📷 ${validi.length} prezzi aggiornati`)
           }}/>
-          <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: 16, padding: '28px', boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: 18, padding: '28px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
               {[['carico', '➕ Carico merce', 'Rifornimento in entrata'], ['scarico', '➖ Scarico / Rettifica', 'Rimuovi quantità']].map(([m, lbl, sub]) => (
                 <button key={m} onClick={() => setFormMode(m)}
@@ -897,13 +925,14 @@ export default function MagazzinoView({
 
       {tab === 'log' && (
         <div>
+          <SectHead icon="📋" title="Log rifornimenti" sub="Storico carichi e scarichi di materie prime" />
           {(!logRif || logRif.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '50px 20px', color: C.textSoft }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>Nessun rifornimento registrato</div>
             </div>
           ) : (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
