@@ -21,6 +21,17 @@ export function serviceClient() {
   return createClient(URL, SERVICE, noPersist)
 }
 
+// Client autenticato (RLS attive) per un utente esistente, via anon sign-in.
+export async function signInClient(email, password) {
+  const anon = createClient(URL, ANON, noPersist)
+  const { data: sess, error } = await anon.auth.signInWithPassword({ email, password })
+  if (error || !sess?.session) throw new Error('signIn: ' + (error?.message || 'no session'))
+  return createClient(URL, ANON, {
+    ...noPersist,
+    global: { headers: { Authorization: `Bearer ${sess.session.access_token}` } },
+  })
+}
+
 // Crea un'org effimera: nuovo auth user con email confermata → il trigger
 // handle_new_user crea organizations + sedi + profiles. Ritorna anche un client
 // autenticato col token dell'utente (per testare RLS/RPC dal lato client).
