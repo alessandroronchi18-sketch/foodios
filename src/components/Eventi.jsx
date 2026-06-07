@@ -4,6 +4,7 @@ import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 import { onEnterAutoComplete } from '../lib/autocomplete'
+import Icon from './Icon'
 import { KPI, PageHeader } from '../views/_shared'
 
 export const SK_EVENTI = 'pasticceria-eventi-v1'
@@ -187,7 +188,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
     try {
       await ssave(SK_EVENTI, next, orgId, sedeId || null)
     } catch (e) {
-      notify?.('⚠ Errore salvataggio eventi: ' + (e.message || 'rete'), false)
+      notify?.('Errore salvataggio eventi: ' + (e.message || 'rete'), false)
       return
     }
     setEventi(next)
@@ -259,7 +260,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
   async function confermaEliminazione() {
     if (!eliminaId) return
     if (eliminaPin !== 'ELIMINA') {
-      notify?.('⚠ Scrivi ELIMINA in maiuscolo per confermare', false)
+      notify?.('Scrivi ELIMINA in maiuscolo per confermare', false)
       return
     }
     await salvaTutti(eventi.filter(e => e.id !== eliminaId))
@@ -361,7 +362,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   {eventiAttivi.length > 0 && (
                     <button onClick={() => exportSettimanaPDF(eventiAttivi, ricetteMap, nomeAttivita)}
                       title="Scarica la scheda di produzione dei prossimi 7 giorni (stampabile)"
-                      style={{ ...btn(T.blueLight, '#1E40AF'), border: `1px solid #BFDBFE` }}>📄 PDF settimana</button>
+                      style={{ ...btn(T.blueLight, '#1E40AF'), border: `1px solid #BFDBFE` }}><Icon name="fileText" size={14} /> PDF settimana</button>
                   )}
                   <button onClick={nuovo} style={btn(T.brand, '#FFF')}>+ Nuovo evento</button>
                 </>
@@ -383,10 +384,10 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
         const margC = kpiArchivio.margPct >= 50 ? T.green : kpiArchivio.margPct >= 30 ? T.amber : T.brand
         return (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
-            <KPI label="Eventi" value={kpiArchivio.eventi} icon="📅" color={T.text} />
-            <KPI label="Ricavi" value={fmtEur(kpiArchivio.ricavi)} icon="💶" color={T.green} />
-            <KPI label="Food cost" value={fmtEur(kpiArchivio.fc)} sub={`${kpiArchivio.fcPct.toFixed(1)}% sui ricavi`} icon="🧾" color={T.amber} />
-            <KPI label="Margine" value={fmtEur(kpiArchivio.margine)} sub={`${kpiArchivio.margPct.toFixed(1)}% sui ricavi`} icon="📈" color={margC} />
+            <KPI label="Eventi" value={kpiArchivio.eventi} icon={<Icon name="calendar" size={18} />} color={T.text} />
+            <KPI label="Ricavi" value={fmtEur(kpiArchivio.ricavi)} icon={<Icon name="euro" size={18} />} color={T.green} />
+            <KPI label="Food cost" value={fmtEur(kpiArchivio.fc)} sub={`${kpiArchivio.fcPct.toFixed(1)}% sui ricavi`} icon={<Icon name="receipt" size={18} />} color={T.amber} />
+            <KPI label="Margine" value={fmtEur(kpiArchivio.margine)} sub={`${kpiArchivio.margPct.toFixed(1)}% sui ricavi`} icon={<Icon name="trendUp" size={18} />} color={margC} />
           </div>
         )
       })()}
@@ -394,7 +395,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
       {editing != null && draft && (
         <div style={{ ...card, border: `1px solid ${T.brand}`, background: '#FEF7F5', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 10px 28px rgba(110,14,26,0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{draft._new ? '➕' : '✏️'}</span>
+            <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{draft._new ? <Icon name="plus" size={16} /> : <Icon name="edit" size={16} />}</span>
             <div style={{ fontWeight: 700, fontSize: 15, color: T.text, letterSpacing: '-0.01em' }}>
               {draft._new ? 'Nuovo evento' : 'Modifica evento'}
             </div>
@@ -540,7 +541,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
 
       {editing == null && eventiCorrentiTab.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: T.textSoft }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="calendar" size={48} color={T.textSoft} /></div>
           <div style={{ fontSize: 14, marginBottom: 6, color: T.text, fontWeight: 600 }}>
             {tab === 'archivio' ? 'Nessun evento passato in archivio.' : 'Nessun evento in programma.'}
           </div>
@@ -569,13 +570,13 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   {!isArch && ft && (
                     <span title={`Evento ${fmtDate(ev.data)} — pianifica la produzione di conseguenza`}
                       style={{ fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: ft.bg, color: ft.fg, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      {ft.urgente ? '⏰ ' : ''}{ft.label}
+                      {ft.urgente ? <Icon name="clock" size={11} /> : null}{ft.label}
                     </span>
                   )}
                   {isArch && <span style={{ fontSize: 10, background: T.bgSubtle, color: T.textSoft, padding: '2px 8px', borderRadius: 999, fontWeight: 700, letterSpacing: '0.04em' }}>{ev.archiviato ? 'ARCHIVIATO' : 'PASSATO'}</span>}
                 </div>
-                <div style={{ fontSize: 12, color: T.textMid }}>
-                  📅 {fmtDate(ev.data)} · {(ev.righe || []).length} prodotti
+                <div style={{ fontSize: 12, color: T.textMid, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="calendar" size={13} /> {fmtDate(ev.data)} · {(ev.righe || []).length} prodotti
                 </div>
                 {ev.note && <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, fontStyle: 'italic' }}>{ev.note}</div>}
               </div>
@@ -595,14 +596,14 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                 Modifica
               </button>
               <button onClick={() => exportPreventivoPDF(ev, ricetteMap, null, nomeAttivita)}
-                style={{ padding: '6px 12px', background: T.blueLight, border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#1E40AF', cursor: 'pointer' }}>
-                📄 Esporta PDF
+                style={{ padding: '6px 12px', background: T.blueLight, border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#1E40AF', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Icon name="fileText" size={13} /> Esporta PDF
               </button>
               {!inArchivioTab && (
                 <button onClick={() => { setArchiviaId(ev.id); setEliminaId(null) }}
                   title="Sposta in archivio (riportabile in qualsiasi momento)"
-                  style={{ padding: '6px 12px', background: '#FEF3C7', border: `1px solid ${T.amber}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#92400E', cursor: 'pointer' }}>
-                  📦 Archivia
+                  style={{ padding: '6px 12px', background: '#FEF3C7', border: `1px solid ${T.amber}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#92400E', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="package" size={13} /> Archivia
                 </button>
               )}
               {inArchivioTab && ev.archiviato && (
@@ -614,16 +615,16 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               )}
               {inArchivioTab && (
                 <button onClick={() => { setEliminaId(ev.id); setEliminaPin('') }}
-                  style={{ padding: '6px 12px', background: T.brandLight, border: `1px solid ${T.brandSoft}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: T.brand, cursor: 'pointer' }}>
-                  🗑 Elimina definitivamente
+                  style={{ padding: '6px 12px', background: T.brandLight, border: `1px solid ${T.brandSoft}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: T.brand, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="trash" size={13} /> Elimina definitivamente
                 </button>
               )}
             </div>
 
             {isInArchiveConfirm && (
               <div style={{ marginTop: 12, padding: '14px 16px', background: '#FFFBEB', border: `1px solid ${T.amber}`, borderRadius: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#92400E', marginBottom: 6 }}>
-                  📦 Archiviare "{ev.cliente || 'evento'}"?
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#92400E', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="package" size={14} /> Archiviare "{ev.cliente || 'evento'}"?
                 </div>
                 <div style={{ fontSize: 11, color: T.textMid, marginBottom: 10, lineHeight: 1.5 }}>
                   L'evento sparirà dagli attivi e finirà in archivio. Nessun dato viene perso: potrai ripristinarlo in qualsiasi momento dalla scheda Archivio.
@@ -643,8 +644,8 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
 
             {isInDeleteConfirm && (
               <div style={{ marginTop: 12, padding: '14px 16px', background: T.brandLight, border: `1px solid ${T.brandSoft}`, borderRadius: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: T.brand, marginBottom: 6 }}>
-                  ⚠️ Eliminazione definitiva di "{ev.cliente || 'evento'}"
+                <div style={{ fontSize: 12, fontWeight: 800, color: T.brand, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="warning" size={14} /> Eliminazione definitiva di "{ev.cliente || 'evento'}"
                 </div>
                 <div style={{ fontSize: 11, color: T.textMid, marginBottom: 8, lineHeight: 1.5 }}>
                   Questa azione è irreversibile: i dati dell'evento e il preventivo verranno rimossi per sempre.

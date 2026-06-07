@@ -8,6 +8,7 @@ import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
+import Icon from '../components/Icon'
 import { C, fmt, fmtp, margColor, margBadge } from './_shared'
 
 // Ombra premium coerente con la Dashboard home.
@@ -96,7 +97,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   }, [editingRicetta, ricettario]);
 
   const handleDeleteRicetta = async nome => {
-    if (deletePin !== "ELIMINA") { notify("⚠ Scrivi ELIMINA in maiuscolo per confermare", false); return; }
+    if (deletePin !== "ELIMINA") { notify("Scrivi ELIMINA in maiuscolo per confermare", false); return; }
     const nuovoRic = { ...ricettario, ricette: Object.fromEntries(Object.entries(ricettario.ricette||{}).filter(([k])=>k!==nome)) };
     delete REGOLE[nome];
     onSave(nuovoRic, {}, true); // noRedirect=true — rimane sulla pagina
@@ -127,8 +128,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   };
 
   const handleSave = () => {
-    if (!form.nome.trim()) { notify("⚠ Inserisci il nome della ricetta", false); return; }
-    if (form.ingredienti.length===0) { notify("⚠ Nessun ingrediente — aggiungine almeno uno prima di salvare", false); return; }
+    if (!form.nome.trim()) { notify("Inserisci il nome della ricetta", false); return; }
+    if (form.ingredienti.length===0) { notify("Nessun ingrediente — aggiungine almeno uno prima di salvare", false); return; }
     const nomeUp = form.nome.trim().toUpperCase();
     const esiste = ricettario?.ricette?.[nomeUp];
     const isEditing = editMode === nomeUp;
@@ -160,7 +161,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         costoPerG: 0, costo1stampo: 0
       }));
     const nomeUp = (datiConfermati.nome || '').trim().toUpperCase();
-    if (!nomeUp || !ings.length) { notify('⚠ Dati incompleti — inserisci nome e almeno un ingrediente', false); return; }
+    if (!nomeUp || !ings.length) { notify('Dati incompleti — inserisci nome e almeno un ingrediente', false); return; }
     const nuovaRic = {
       nome: nomeUp, sheetName: 'manuale', numStampi:1, totImpasto1:0, foodCost1:0,
       ingredienti: ings, note: datiConfermati.procedimento || '',
@@ -225,8 +226,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           {ricetteEsistenti.length>0&&(
             <div style={{marginTop:12,borderTop:`1px solid ${C.border}`,paddingTop:10}}>
               {deleteConf===null ? (
-                <button onClick={()=>setDeleteConf("")} style={{fontSize:10,fontWeight:700,color:C.red,background:"transparent",border:`1px solid ${C.red}22`,borderRadius:6,padding:"4px 12px",cursor:"pointer"}}>
-                  🗑 Elimina una ricetta…
+                <button onClick={()=>setDeleteConf("")} style={{fontSize:10,fontWeight:700,color:C.red,background:"transparent",border:`1px solid ${C.red}22`,borderRadius:6,padding:"4px 12px",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>
+                  <Icon name="trash" size={12} /> Elimina una ricetta…
                 </button>
               ) : (
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -241,7 +242,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   </div>
                   {deleteConf && (
                     <div style={{background:"#FFF5F5",border:`1px solid ${C.red}30`,borderRadius:8,padding:"12px 14px"}}>
-                      <div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:6}}>⚠️ Stai per eliminare <b>{deleteConf}</b> in modo permanente.</div>
+                      <div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Icon name="warning" size={13} /> Stai per eliminare <b>{deleteConf}</b> in modo permanente.</div>
                       <div style={{fontSize:10,color:C.textSoft,marginBottom:8}}>Scrivi <b>ELIMINA</b> in maiuscolo per confermare:</div>
                       <div style={{display:"flex",gap:8}}>
                         <input value={deletePin} onChange={e=>setDeletePin(e.target.value)} placeholder="ELIMINA"
@@ -299,7 +300,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           if (!nomeIT || ings.length === 0 || !isRicettaValida(nomeIT.toLowerCase())) return false; // skip invalidi
           // Se già esiste e forceOverwrite è false → salta
           if ((ricAcc||ricettario)?.ricette?.[nomeIT] && !forceOverwrite) {
-            notify(`⚠ "${nomeIT}" già esistente — saltata (attiva "Sovrascrivi esistenti" per aggiornare)`, false);
+            notify(`"${nomeIT}" già esistente — saltata (attiva "Sovrascrivi esistenti" per aggiornare)`, false);
             return false;
           }
           const nuovaRic = {
@@ -342,16 +343,16 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
           {/* Nome + tipo + vendita */}
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:SHADOW_PREMIUM}}>
-            <PanelHead icon="📋" title={`Informazioni ${LEX.prodotto}`} color={C.text} />
+            <PanelHead icon={<Icon name="clipboard" size={15} />} title={`Informazioni ${LEX.prodotto}`} color={C.text} />
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               {[
                 {lbl:`Nome ${LEX.ricetta}`,span:2,el:<input value={form.nome} onChange={e=>setForm(f=>({...f,nome:e.target.value.toUpperCase()}))} placeholder="es. TORTA AL CIOCCOLATO" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:13,color:C.text,fontWeight:700}}/>},
                 {lbl:"Tipo unità",el:<>
                   <select value={form.tipo} onChange={e=>setForm(f=>({...f,tipo:e.target.value,unita:e.target.value==="semilavorato"||e.target.value==="interno"?0:f.unita,prezzo:e.target.value==="semilavorato"||e.target.value==="interno"?0:f.prezzo}))} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text,background:C.white}}>
-                    <option value="fetta">Fetta</option><option value="pezzo">Pezzo</option><option value="interno">Uso interno</option><option value="semilavorato">🧁 Semilavorato (base/impasto)</option>
+                    <option value="fetta">Fetta</option><option value="pezzo">Pezzo</option><option value="interno">Uso interno</option><option value="semilavorato">Semilavorato (base/impasto)</option>
                   </select>
-                  {form.tipo==="semilavorato"&&<div style={{marginTop:6,padding:"6px 10px",background:"#F9F2FD",border:"1px solid #D4B0E8",borderRadius:6,fontSize:10,color:"#8E44AD"}}>
-                    💡 Per i semilavorati usa la sezione dedicata <strong>"🧁 Semilavorati"</strong> in sidebar — ha template rapidi e import da foto.
+                  {form.tipo==="semilavorato"&&<div style={{marginTop:6,padding:"6px 10px",background:"#F9F2FD",border:"1px solid #D4B0E8",borderRadius:6,fontSize:10,color:"#8E44AD",display:"flex",alignItems:"center",gap:5}}>
+                    <Icon name="bulb" size={13} /> <span>Per i semilavorati usa la sezione dedicata <strong>"Semilavorati"</strong> in sidebar — ha template rapidi e import da foto.</span>
                   </div>}
                 </>,},
                 {lbl:"Unità per stampo",el:<input type="number" min="0" value={form.unita} onChange={e=>setForm(f=>({...f,unita:parseFloat(e.target.value)||0}))} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:13,color:C.text}}/>},
@@ -371,8 +372,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <div style={{position:"absolute",top:2,left:form.congelabile?18:2,width:16,height:16,borderRadius:8,background:"#FFF",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
               </div>
               <div>
-                <div style={{fontSize:11,fontWeight:800,color:form.congelabile?"#2980B9":C.textMid}}>
-                  {form.congelabile?"❄ Prodotto congelabile":"❄ Congelabile"}
+                <div style={{fontSize:11,fontWeight:800,color:form.congelabile?"#2980B9":C.textMid,display:"flex",alignItems:"center",gap:5}}>
+                  <Icon name="snow" size={13} /> {form.congelabile?"Prodotto congelabile":"Congelabile"}
                 </div>
                 <div style={{fontSize:9,color:C.textSoft,marginTop:1}}>
                   {form.congelabile?"Può essere prodotto e conservato in freezer — la vendita può avvenire nei giorni successivi":"Attiva se questo prodotto può essere congelato e venduto in giorni diversi dalla produzione"}
@@ -383,7 +384,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
           {/* Allergeni — auto-rilevati dagli ingredienti */}
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:SHADOW_PREMIUM}}>
-            <PanelHead icon="⚠️" title="Allergeni presenti" color={C.amber}
+            <PanelHead icon={<Icon name="warning" size={15} />} title="Allergeni presenti" color={C.amber}
               badge={<span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:20,background:"#E0F2FE",color:"#0369A1",textTransform:"uppercase",letterSpacing:"0.05em"}}>Auto</span>}/>
             <div style={{fontSize:10,color:C.textSoft,marginBottom:14,marginTop:-8}}>
               Calcolati automaticamente dagli ingredienti (Reg. UE 1169/2011). Aggiungi manualmente quelli mancanti se necessario.
@@ -402,7 +403,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   return (
                     <span key={aid} title="Rilevato automaticamente dagli ingredienti"
                       style={{display:"inline-flex",alignItems:"center",gap:6,padding:"5px 11px",borderRadius:20,background:`${ALLERGENE_COLORS[aid]}15`,color:ALLERGENE_COLORS[aid],border:`1.5px solid ${ALLERGENE_COLORS[aid]}55`,fontSize:11,fontWeight:700}}>
-                      <span style={{fontSize:13}}>{a.emoji}</span>{a.label}<span style={{fontSize:9,opacity:0.7}}>✓ auto</span>
+                      {a.label}<span style={{fontSize:9,opacity:0.7}}>✓ auto</span>
                     </span>
                   );
                 })}
@@ -421,7 +422,6 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     <label key={a.id} style={{display:"flex",alignItems:"center",gap:7,padding:"6px 10px",borderRadius:7,cursor:"pointer",border:`1px solid ${sel?ALLERGENE_COLORS[a.id]:"#E2D9D5"}`,background:sel?`${ALLERGENE_COLORS[a.id]}10`:"#FDFAF8",transition:"all 0.15s"}}>
                       <input type="checkbox" checked={sel} style={{display:"none"}}
                         onChange={()=>setForm(f=>({...f,allergeniManual:sel?(f.allergeniManual||[]).filter(x=>x!==a.id):[...(f.allergeniManual||[]),a.id]}))}/>
-                      <span style={{fontSize:13}}>{a.emoji}</span>
                       <span style={{fontSize:10,fontWeight:sel?700:500,color:sel?ALLERGENE_COLORS[a.id]:C.textMid}}>{a.label}</span>
                       {sel&&<span style={{marginLeft:"auto",fontSize:9,fontWeight:900,color:ALLERGENE_COLORS[a.id]}}>✓</span>}
                     </label>
@@ -436,7 +436,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
           {/* Ingredienti */}
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:SHADOW_PREMIUM}}>
-            <PanelHead icon="🧾" title="Ingredienti" color={C.text} />
+            <PanelHead icon={<Icon name="receipt" size={15} />} title="Ingredienti" color={C.text} />
             {form.ingredienti.length>0 && (
               <div style={{marginBottom:14,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
@@ -503,13 +503,13 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
           {overwriteConf && (
             <div style={{padding:"14px 16px",background:C.amberLight,border:`2px solid ${C.amber}`,borderRadius:10,marginBottom:4}}>
-              <div style={{fontSize:12,fontWeight:800,color:C.amber,marginBottom:8}}>
-                ⚠️ "{overwriteConf}" esiste già — sovrascrivere?
+              <div style={{fontSize:12,fontWeight:800,color:C.amber,marginBottom:8,display:"flex",alignItems:"center",gap:5}}>
+                <Icon name="warning" size={14} /> "{overwriteConf}" esiste già — sovrascrivere?
               </div>
               <div style={{fontSize:11,color:C.textMid,marginBottom:10}}>La ricetta esistente verrà sostituita con i nuovi ingredienti e dati.</div>
               <div style={{display:"flex",gap:8}}>
-                <button onClick={doSaveRicetta} style={{padding:"8px 18px",background:C.amber,color:C.white,border:"none",borderRadius:7,fontWeight:800,fontSize:11,cursor:"pointer"}}>
-                  ✅ Sì, sovrascrivi
+                <button onClick={doSaveRicetta} style={{padding:"8px 18px",background:C.amber,color:C.white,border:"none",borderRadius:7,fontWeight:800,fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>
+                  <Icon name="checkCircle" size={13} /> Sì, sovrascrivi
                 </button>
                 <button onClick={()=>setOverwriteConf(null)} style={{padding:"8px 14px",background:C.white,border:`1px solid ${C.border}`,borderRadius:7,fontSize:11,color:C.textMid,cursor:"pointer"}}>
                   ✕ Annulla
@@ -517,15 +517,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </div>
             </div>
           )}
-          <button onClick={handleSave} style={{padding:"13px",background:C.red,color:C.white,border:"none",borderRadius:10,fontWeight:900,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(110,14,26,0.25)"}}>
-            💾 {editMode?"Salva modifiche a "+editMode:`Salva ${LEX.nuovaRicetta.toLowerCase()}`}
+          <button onClick={handleSave} style={{padding:"13px",background:C.red,color:C.white,border:"none",borderRadius:10,fontWeight:900,fontSize:13,cursor:"pointer",boxShadow:"0 2px 10px rgba(110,14,26,0.25)",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            <Icon name="save" size={15} /> {editMode?"Salva modifiche a "+editMode:`Salva ${LEX.nuovaRicetta.toLowerCase()}`}
           </button>
         </div>
 
         {/* P&L preview destra */}
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",boxShadow:SHADOW_PREMIUM,position:"sticky",top:20}}>
-            <PanelHead icon="📊" title="Anteprima P&L" color={C.text} />
+            <PanelHead icon={<Icon name="barChart" size={15} />} title="Anteprima P&L" color={C.text} />
             {form.ingredienti.length===0 ? (
               <div style={{color:C.textSoft,fontSize:11,textAlign:"center",padding:"20px 0"}}>Aggiungi ingredienti per vedere il calcolo</div>
             ) : (
@@ -548,8 +548,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     <span style={{fontWeight:700,color:margColor(margPctLive)}}>{fmtp(margPctLive)}</span>
                   </div>
                 </div>
-                <div style={{fontSize:10,color:C.textSoft,lineHeight:1.6,marginTop:4}}>
-                  💡 Per unità: FC {fmt(form.unita>0?fcLive/form.unita:0)} · Marg. {fmt(form.unita>0?margLive/form.unita:0)}
+                <div style={{fontSize:10,color:C.textSoft,lineHeight:1.6,marginTop:4,display:"flex",alignItems:"center",gap:5}}>
+                  <Icon name="bulb" size={12} /> Per unità: FC {fmt(form.unita>0?fcLive/form.unita:0)} · Marg. {fmt(form.unita>0?margLive/form.unita:0)}
                 </div>
                 {margPctLive>0 && margBadge(margPctLive)}
               </div>

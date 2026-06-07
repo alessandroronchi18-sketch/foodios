@@ -8,6 +8,7 @@ import {
   loadClientiB2B, salvaClienteB2B, eliminaClienteB2B,
   loadVenditeB2B, salvaVenditaB2B, setStatoVenditaB2B, eliminaVenditaB2B,
 } from '../lib/venditeB2B'
+import Icon from '../components/Icon'
 import { C, PageHeader, KPI } from './_shared'
 
 const eur = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -64,10 +65,10 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     try {
       const cliente = clienti.find(c => c.id === vForm.cliente_id)
       const res = await salvaVenditaB2B({ orgId, sedeId, clienteId: vForm.cliente_id || null, clienteNome: cliente?.nome, data: vForm.data, righe: vForm.righe, note: vForm.note, id: vForm.id || null })
-      if (res.warnings?.length) notify?.(`✓ Vendita salvata (${eur(res.totale)}) · ⚠ ${res.warnings.slice(0, 2).join(' · ')}`, false)
+      if (res.warnings?.length) notify?.(`✓ Vendita salvata (${eur(res.totale)}) · ${res.warnings.slice(0, 2).join(' · ')}`, false)
       else notify?.(`✓ Vendita B2B ${vForm.id ? 'aggiornata' : 'salvata'} · ${eur(res.totale)}`)
       setVForm(null); ricarica()
-    } catch (e) { notify?.('⚠ ' + e.message, false) }
+    } catch (e) { notify?.(e.message, false) }
     setSaving(false)
   }
 
@@ -77,17 +78,17 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     if (saving) return
     setSaving(true)
     try { await salvaClienteB2B(orgId, cForm); notify?.('✓ Cliente salvato'); setCForm(null); ricarica() }
-    catch (e) { notify?.('⚠ ' + e.message, false) }
+    catch (e) { notify?.(e.message, false) }
     setSaving(false)
   }
   const toggleFattura = async (v) => {
     try { await setStatoVenditaB2B(v.id, v.stato === 'fatturata' ? 'consegnata' : 'fatturata'); ricarica() }
-    catch (e) { notify?.('⚠ ' + e.message, false) }
+    catch (e) { notify?.(e.message, false) }
   }
 
   const inp = { padding: '9px 11px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.white, fontFamily: 'inherit', boxSizing: 'border-box', width: '100%' }
   const tabBtn = (id, lbl) => (
-    <button key={id} onClick={() => setTab(id)} style={{ padding: '8px 18px', borderRadius: R.md, border: 'none', cursor: 'pointer', fontWeight: tab === id ? 600 : 500, fontSize: 13, letterSpacing: '-0.005em', background: tab === id ? T.bgCard : 'transparent', color: tab === id ? T.text : T.textSoft, boxShadow: tab === id ? S.sm : 'none', transition: 'background .15s, color .15s' }}>{lbl}</button>
+    <button key={id} onClick={() => setTab(id)} style={{ padding: '8px 18px', borderRadius: R.md, border: 'none', cursor: 'pointer', fontWeight: tab === id ? 600 : 500, fontSize: 13, letterSpacing: '-0.005em', background: tab === id ? T.bgCard : 'transparent', color: tab === id ? T.text : T.textSoft, boxShadow: tab === id ? S.sm : 'none', transition: 'background .15s, color .15s', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{lbl}</button>
   )
 
   return (
@@ -95,23 +96,23 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
       <PageHeader subtitle="Vendite all'ingrosso a clienti business (bar, ristoranti) — canale separato dal banco" />
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
-        <KPI icon="💼" label="Ricavo B2B (mese)" value={eur(ricavoMese)} color={C.green} highlight />
-        <KPI icon="🏢" label="Clienti" value={clienti.length} />
-        <KPI icon="🧾" label="Da fatturare" value={daFatturare.length} sub={totDaFatturare > 0 ? eur(totDaFatturare) : ''} color={daFatturare.length ? C.amber : C.textSoft} />
+        <KPI icon={<Icon name="briefcase" size={18} />} label="Ricavo B2B (mese)" value={eur(ricavoMese)} color={C.green} highlight />
+        <KPI icon={<Icon name="building" size={18} />} label="Clienti" value={clienti.length} />
+        <KPI icon={<Icon name="receipt" size={18} />} label="Da fatturare" value={daFatturare.length} sub={totDaFatturare > 0 ? eur(totDaFatturare) : ''} color={daFatturare.length ? C.amber : C.textSoft} />
       </div>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 18, background: T.bgSubtle, borderRadius: R.lg, padding: 3, width: 'fit-content', border: `1px solid ${T.borderSoft}` }}>
-        {tabBtn('vendite', '💰 Vendite')}{tabBtn('clienti', '🏢 Clienti')}
+        {tabBtn('vendite', <><Icon name="money" size={14} /> Vendite</>)}{tabBtn('clienti', <><Icon name="building" size={14} /> Clienti</>)}
       </div>
 
       {loading ? <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div> : tab === 'vendite' ? (
         <>
           {!vForm && (
-            <button onClick={apriVendita} style={{ padding: '11px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16 }}>➕ Nuova vendita B2B</button>
+            <button onClick={apriVendita} style={{ padding: '11px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={15} /> Nuova vendita B2B</button>
           )}
           {vForm && (
             <div style={{ background: T.brandLight, border: `1px solid ${C.red}30`, borderRadius: 16, padding: '20px 22px', marginBottom: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 12 }}>{vForm.id ? '✏️ Modifica vendita' : '➕ Nuova vendita B2B'}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>{vForm.id ? <><Icon name="edit" size={14} /> Modifica vendita</> : <><Icon name="plus" size={14} /> Nuova vendita B2B</>}</div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                 <select value={vForm.cliente_id} onChange={e => setVForm(f => ({ ...f, cliente_id: e.target.value }))} style={{ ...inp, flex: 1, minWidth: 160 }}>
                   <option value="">Cliente…</option>
@@ -140,16 +141,16 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                 <button onClick={() => setVForm(f => ({ ...f, righe: [...f.righe, { prodotto: '', qta: '', prezzo: '' }] }))} style={{ padding: '8px 14px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 8, fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>+ Riga</button>
                 <input value={vForm.note} onChange={e => setVForm(f => ({ ...f, note: e.target.value }))} placeholder="Note (opz.)" style={{ ...inp, flex: 1, minWidth: 120 }} />
                 <button onClick={() => setVForm(null)} style={{ padding: '9px 16px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, color: C.textSoft, cursor: 'pointer' }}>Annulla</button>
-                <button onClick={salvaV} disabled={saving} style={{ padding: '9px 18px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? '💾 …' : '💾 Salva vendita'}</button>
+                <button onClick={salvaV} disabled={saving} style={{ padding: '9px 18px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="save" size={14} /> {saving ? '…' : 'Salva vendita'}</button>
               </div>
               {sedeId ? <div style={{ fontSize: 10, color: C.textSoft, marginTop: 8 }}>Lo stock dei prodotti finiti verrà scaricato dalla sede attiva.</div>
-                      : <div style={{ fontSize: 10, color: C.amber, marginTop: 8 }}>⚠ Nessuna sede attiva: la vendita viene registrata ma lo stock non sarà scaricato.</div>}
+                      : <div style={{ fontSize: 10, color: C.amber, marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} /> Nessuna sede attiva: la vendita viene registrata ma lo stock non sarà scaricato.</div>}
             </div>
           )}
 
           {vendite.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px', background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, color: C.textSoft, fontSize: 13, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>💼</div>Nessuna vendita B2B registrata.
+              <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}><Icon name="briefcase" size={32} color={C.textSoft} /></div>Nessuna vendita B2B registrata.
             </div>
           ) : (
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
@@ -187,7 +188,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                             <button onClick={() => toggleFattura(v)} title={v.stato === 'fatturata' ? 'Segna da fatturare' : 'Segna fatturata'} style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               {v.stato === 'fatturata' ? '↩ Riapri' : '✓ Fattura'}
                             </button>
-                            <button aria-label="Elimina vendita" onClick={async () => { if (confirm('Eliminare questa vendita B2B? Lo stock dei prodotti verrà ripristinato.')) { try { await eliminaVenditaB2B(v.id); ricarica() } catch (e) { notify?.('⚠ ' + e.message, false) } } }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
+                            <button aria-label="Elimina vendita" onClick={async () => { if (confirm('Eliminare questa vendita B2B? Lo stock dei prodotti verrà ripristinato.')) { try { await eliminaVenditaB2B(v.id); ricarica() } catch (e) { notify?.(e.message, false) } } }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
                           </div>
                         </div>
                       )
@@ -201,7 +202,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
       ) : (
         <>
           {!cForm && (
-            <button onClick={() => apriCliente(null)} style={{ padding: '11px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16 }}>➕ Nuovo cliente</button>
+            <button onClick={() => apriCliente(null)} style={{ padding: '11px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={15} /> Nuovo cliente</button>
           )}
           {cForm && (
             <div style={{ background: T.brandLight, border: `1px solid ${C.red}30`, borderRadius: 16, padding: '20px 22px', marginBottom: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
@@ -222,7 +223,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
                 <button onClick={() => setCForm(null)} style={{ padding: '9px 16px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, color: C.textSoft, cursor: 'pointer' }}>Annulla</button>
-                <button onClick={salvaC} disabled={saving} style={{ padding: '9px 18px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? '💾 …' : '💾 Salva cliente'}</button>
+                <button onClick={salvaC} disabled={saving} style={{ padding: '9px 18px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="save" size={14} /> {saving ? '…' : 'Salva cliente'}</button>
               </div>
             </div>
           )}
@@ -237,7 +238,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                     <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{[c.partita_iva && `P.IVA ${c.partita_iva}`, c.citta, c.telefono].filter(Boolean).join(' · ') || '—'}</div>
                   </div>
                   <button onClick={() => apriCliente(c)} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Modifica</button>
-                  <button aria-label="Elimina cliente" onClick={async () => { if (confirm(`Eliminare ${c.nome}?`)) { try { await eliminaClienteB2B(c.id); ricarica() } catch (e) { notify?.('⚠ ' + e.message, false) } } }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
+                  <button aria-label="Elimina cliente" onClick={async () => { if (confirm(`Eliminare ${c.nome}?`)) { try { await eliminaClienteB2B(c.id); ricarica() } catch (e) { notify?.(e.message, false) } } }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
                 </div>
               ))}
             </div>

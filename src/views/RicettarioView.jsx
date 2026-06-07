@@ -11,6 +11,7 @@ import { ALLERGENI, ALLERGENE_COLORS } from '../lib/allergeni'
 import { lessico } from '../lib/lessico'
 import { exportRicettaPDF } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
+import Icon from '../components/Icon'
 import {
   C, TNUM, margColor, margBadge, Badge, Tip, KPI,
 } from './_shared'
@@ -106,7 +107,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                 if (!a) return null
                 return (
                   <span key={aid} style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: `${ALLERGENE_COLORS[aid]}18`, color: ALLERGENE_COLORS[aid], border: `1px solid ${ALLERGENE_COLORS[aid]}40` }}>
-                    {a.emoji} {a.label}
+                    {a.label}
                   </span>
                 )
               })}
@@ -141,14 +142,14 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           </button>
           {!isSemi && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
-              style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer' }}>
-              ✏️ Prezzo
+              style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Icon name="edit" size={13} /> Prezzo
             </button>
           )}
           {onEdit && (
             <button onClick={() => onEdit(ric.nome)}
-              style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
-              ✏️ Modifica
+              style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Icon name="edit" size={13} /> Modifica
             </button>
           )}
           <button onClick={async () => {
@@ -156,8 +157,8 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             const c = getExportCtx()
             exportRicettaPDF(ric, { tot: fc, perc: ricavo > 0 ? fc / ricavo * 100 : 0 }, ingCosti, c.nomeAttivita, c.email)
           }}
-            style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer' }}>
-            📄 PDF
+            style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="fileText" size={13} /> PDF
           </button>
         </div>
       </div>
@@ -182,7 +183,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           </div>
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
             <button onClick={() => setEditMode(false)} style={{ padding: '7px 14px', borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
-            <button onClick={handleSaveRegola} style={{ padding: '7px 18px', borderRadius: 7, border: 'none', background: C.red, color: C.white, fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>💾 Salva</button>
+            <button onClick={handleSaveRegola} style={{ padding: '7px 18px', borderRadius: 7, border: 'none', background: C.red, color: C.white, fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="save" size={13} /> Salva</button>
           </div>
         </div>
       )}
@@ -191,7 +192,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
       {open && (
         <div style={{ padding: '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 0.9fr', gap: 28 }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 12 }}>🧾 Distinta costi</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="receipt" size={14} /> Distinta costi</div>
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
@@ -248,7 +249,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               const totPie = pieData.reduce((s, x) => s + (x.costoCalc || 0), 0) || 1
               return (
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12 }}>📊 Composizione food cost</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="barChart" size={14} /> Composizione food cost</div>
                 {pieData.map((ing, i) => {
                   const pct = ing.costoCalc / totPie * 100
                   const col = PIE_COLORS[i % PIE_COLORS.length]
@@ -270,7 +271,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 
             {!isSemi && (
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12 }}>💰 Conto economico per stampo</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="money" size={14} /> Conto economico per stampo</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ padding: '10px 14px', background: C.greenLight, border: `1px solid ${C.green}25`, borderRadius: 8, display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>+ Ricavo</span>
@@ -296,7 +297,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 
             {!isSemi && (
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10 }}>🍰 Per singola {reg.tipo}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="gift" size={14} /> Per singola {reg.tipo}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 8 }}>
                   {[
                     { lbl: 'Prezzo', val: fmt(reg.prezzo), c: C.text },
@@ -314,7 +315,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 
             {isSemi && (
               <div style={{ background: SEMI.panel, borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10 }}>⚖️ Riepilogo batch</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="bank" size={14} /> Riepilogo batch</div>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 8 }}>
                   {[
                     { lbl: 'Peso totale', val: pesoTotSemi >= 1000 ? `${(pesoTotSemi / 1000).toFixed(2)} kg` : `${Math.round(pesoTotSemi)} g`, c: C.text },
@@ -402,18 +403,18 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
 
         {ricette.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: isMobile ? 10 : 16 }}>
-            <KPI label={LEX.ricette} value={ricette.length} icon="🍰" color={T.text} sub={`${Object.keys(ricettario?.ricette || {}).length} voci totali`} />
-            <KPI label="Food cost medio" value={`${(fcMedio * 100).toFixed(1)}%`} icon="📊"
+            <KPI label={LEX.ricette} value={ricette.length} icon={<Icon name="gift" size={18} />} color={T.text} sub={`${Object.keys(ricettario?.ricette || {}).length} voci totali`} />
+            <KPI label="Food cost medio" value={`${(fcMedio * 100).toFixed(1)}%`} icon={<Icon name="barChart" size={18} />}
               color={fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand}
               sub={fcMedio < 0.30 ? 'sotto controllo' : fcMedio < 0.35 ? 'da monitorare' : 'alto — rivedere'} />
-            <KPI label="Semilavorati" value={semilavorati.length} icon="🧁" color="#8E44AD" sub="basi e impasti interni" />
+            <KPI label="Semilavorati" value={semilavorati.length} icon={<Icon name="gift" size={18} />} color="#8E44AD" sub="basi e impasti interni" />
           </div>
         )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isMobile ? 16 : 20, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`🔍 Cerca ${LEX.ricetta}…`}
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Cerca ${LEX.ricetta}…`}
             style={{ width: '100%', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: R.md,
               fontSize: 13, color: T.text, background: T.bgCard, outline: 'none', fontFamily: 'inherit',
               boxSizing: 'border-box', boxShadow: S.xs }}/>
