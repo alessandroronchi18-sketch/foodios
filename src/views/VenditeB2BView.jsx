@@ -32,6 +32,8 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   const [vForm, setVForm] = useState(null) // null = chiuso
   // form cliente
   const [cForm, setCForm] = useState(null)
+  // avvisi scorte insufficienti (persistenti, non toast volatile)
+  const [stockWarn, setStockWarn] = useState([])
 
   useEffect(() => { if (orgId) ricarica() }, [orgId])
   async function ricarica() {
@@ -125,8 +127,10 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     try {
       const cliente = clienti.find(c => c.id === vForm.cliente_id)
       const res = await salvaVenditaB2B({ orgId, sedeId, clienteId: vForm.cliente_id || null, clienteNome: cliente?.nome, data: vForm.data, righe: vForm.righe, note: vForm.note, id: vForm.id || null })
-      if (res.warnings?.length) notify?.(`✓ Vendita salvata (${eur(res.totale)}) · ${res.warnings.slice(0, 2).join(' · ')}`, false)
-      else notify?.(`✓ Vendita B2B ${vForm.id ? 'aggiornata' : 'salvata'} · ${eur(res.totale)}`)
+      notify?.(`✓ Vendita B2B ${vForm.id ? 'aggiornata' : 'salvata'} · ${eur(res.totale)}`)
+      // Le scorte insufficienti NON bloccano la vendita, ma vanno comunicate in
+      // modo persistente (un toast sparisce): banner dismissibile in cima.
+      setStockWarn(res.warnings?.length ? res.warnings : [])
       setVForm(null); ricarica()
     } catch (e) { notify?.(e.message, false) }
     setSaving(false)
@@ -169,6 +173,23 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
         <KPI icon={<Icon name="receipt" size={18} />} label="Da fatturare" value={daFatturare.length} sub={totDaFatturare > 0 ? eur(totDaFatturare) : ''} color={daFatturare.length ? C.amber : C.textSoft} />
         <KPI icon={<Icon name="card" size={18} />} label="Da incassare" value={eur(totInsoluto)} sub={nInsoluti > 0 ? `${nInsoluti} ${nInsoluti === 1 ? 'vendita' : 'vendite'}` : 'tutto incassato'} color={totInsoluto > 0 ? C.red : C.green} />
       </div>
+
+      {stockWarn.length > 0 && (
+        <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <span style={{ color: '#C2410C', flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={18} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#9A3412', marginBottom: 4 }}>Scorte insufficienti dopo l'ultima vendita</div>
+            <div style={{ fontSize: 12, color: '#9A3412', lineHeight: 1.5 }}>
+              La vendita è stata salvata, ma alcuni prodotti sono ora in negativo in magazzino:
+              <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {stockWarn.map((w, i) => <span key={i} style={{ background: '#FFEDD5', color: '#9A3412', fontWeight: 700, fontSize: 11, padding: '3px 9px', borderRadius: 8 }}>{w}</span>)}
+              </div>
+              <div style={{ marginTop: 6, color: '#B45309' }}>Registra un <b>carico merce</b> (Magazzino) o un <b>trasferimento</b> tra sedi per riallineare.</div>
+            </div>
+          </div>
+          <button onClick={() => setStockWarn([])} aria-label="Chiudi avviso" style={{ flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer', color: '#9A3412', padding: 2 }}><Icon name="x" size={16} /></button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 18, background: T.bgSubtle, borderRadius: R.lg, padding: 3, width: 'fit-content', border: `1px solid ${T.borderSoft}` }}>
         {tabBtn('vendite', <><Icon name="money" size={14} /> Vendite</>)}{tabBtn('analisi', <><Icon name="barChart" size={14} /> Analisi</>)}{tabBtn('clienti', <><Icon name="building" size={14} /> Clienti</>)}
