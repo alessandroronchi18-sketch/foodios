@@ -822,7 +822,8 @@ function TurniTab({ orgId, notify, isMobile }) {
 
 function AnalisiCostoTab({ orgId, isMobile }) {
   const [mese, setMese] = useState(() => new Date().toISOString().slice(0,7))
-  const [dati, setDati] = useState({ turni:[], dipendenti:[], ricavi:0 })
+  const [target, setTarget] = useState(30) // incidenza costo-lavoro obiettivo (%)
+  const [dati, setDati] = useState({ turni:[], dipendenti:[], ricavi:0, organigramma:{reparti:[]}, consuntivo:{} })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { carica() }, [orgId, mese])
@@ -833,21 +834,23 @@ function AnalisiCostoTab({ orgId, isMobile }) {
     const from = mese + "-01"
     const last = new Date(mese.split("-")[0], mese.split("-")[1], 0).getDate()
     const to = `${mese}-${last}`
-    const [{ data:t, error:et },{ data:d, error:ed }, chiusurePerSede] = await Promise.all([
+    const [{ data:t, error:et },{ data:d, error:ed }, chiusurePerSede, org, cons] = await Promise.all([
       supabase.from("turni").select("*, dipendenti(nome,ruolo)").eq("organization_id", orgId).gte("data", from).lte("data", to),
       supabase.from("dipendenti").select("*").eq("organization_id", orgId).eq("attivo", true),
       sloadAllSedi('pasticceria-chiusure-v1', orgId).catch(() => ({})),
+      sload(SK_ORG, orgId, null).catch(() => null),
+      sload(SK_CONSUNTIVO, orgId, null).catch(() => null),
     ])
     if (et || ed) console.warn("analisi costo load:", et?.message || ed?.message)
     // Fatturato del mese = somma kpi.totV delle chiusure (tutte le sedi) in range.
     const ricavi = Object.values(chiusurePerSede || {}).flat()
       .filter(c => c && typeof c.data === 'string' && c.data >= from && c.data <= to)
       .reduce((s, c) => s + (c.kpi?.totV || 0), 0)
-    setDati({ turni:t||[], dipendenti:d||[], ricavi })
+    setDati({ turni:t||[], dipendenti:d||[], ricavi, organigramma: (org && Array.isArray(org.reparti) ? org : {reparti:[]}), consuntivo: cons || {} })
     setLoading(false)
   }
 
-  const { turni, dipendenti, ricavi } = dati
+  const { turni, dipendenti, ricavi, organigramma, consuntivo } = dati
   const totOre = turni.reduce((s,t)=>s+(t.ore||0), 0)
   const totCosto = turni.reduce((s,t)=>s+(t.costo||0), 0)
   const costoFissoMese = dipendenti.reduce((s,d)=>s+(d.costo_orario||0)*(d.ore_settimana||0)*4.33, 0)
@@ -855,16 +858,32 @@ function AnalisiCostoTab({ orgId, isMobile }) {
   const costoMedioOra = totOre>0 ? totCosto/totOre : 0
   const costoGiorno = giorniLavorati>0 ? totCosto/giorniLavorati : 0
   // Incidenza del costo del lavoro sul fatturato: la metrica chiave nella
-  // ristorazione (sano 25–35%; oltre il 40% margine a rischio).
+  // ristorazione. Soglia configurabile (target).
   const incidenza = ricavi>0 ? (totCosto/ricavi*100) : null
-  const incColor = incidenza==null ? C.textSoft : incidenza<=30 ? C.green : incidenza<=40 ? C.amber : C.red
+  const incColor = incidenza==null ? C.textSoft : incidenza<=target ? C.green : incidenza<=target+10 ? C.amber : C.red
   const incVerdetto = incidenza==null ? "Registra le chiusure di cassa per vedere quanto pesa il personale sugli incassi."
-    : incidenza<=30 ? "Ottimo: il costo del personale è sotto controllo rispetto agli incassi."
-    : incidenza<=40 ? "Sotto controllo, ma tieni d'occhio: ogni punto sopra il 30% erode il margine."
+    : incidenza<=target ? "Ottimo: il costo del personale è sotto controllo rispetto agli incassi."
+    : incidenza<=target+10 ? `Sotto controllo, ma tieni d'occhio: ogni punto sopra il ${target}% erode il margine.`
     : "Attenzione: il costo del personale è alto rispetto agli incassi. Rivedi turni o ricavi."
   // Scostamento costo effettivo (turni) vs teorico da contratto.
   const scost = totCosto - costoFissoMese
   const scostPct = costoFissoMese>0 ? (scost/costoFissoMese*100) : 0
+  // Produttività: € di fatturato per ora lavorata.
+  const fatturatoPerOra = totOre>0 ? ricavi/totOre : 0
+  // Pianificato vs lavorato: ore_effettive (consuntivo) vs ore pianificate dei turni.
+  const oreEffettive = turni.reduce((s,t)=>s+(Number(consuntivo?.[t.id]) ?? (t.ore||0)), 0)
+  const deltaOre = oreEffettive - totOre
+  // Costo per reparto: somma costo turni dei membri di ogni reparto (organigramma).
+  const repartoDi = {}
+  for (const r of (organigramma?.reparti || [])) for (const m of (r.membri || [])) repartoDi[m] = r.nome
+  const byReparto = {}
+  for (const t of turni) {
+    const nome = repartoDi[t.dipendente_id] || "Senza reparto"
+    if (!byReparto[nome]) byReparto[nome] = { ore:0, costo:0 }
+    byReparto[nome].ore += t.ore||0; byReparto[nome].costo += t.costo||0
+  }
+  const repRows = Object.entries(byReparto).sort(([,a],[,b])=>b.costo-a.costo)
+  const maxCostoRep = Math.max(1, ...repRows.map(([,r])=>r.costo))
 
   const byDip = turni.reduce((acc,t)=>{
     const n = t.dipendenti?.nome||"?"
@@ -878,10 +897,17 @@ function AnalisiCostoTab({ orgId, isMobile }) {
 
   return (
     <div>
-      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, flexWrap:"wrap" }}>
         <input type="month" value={mese} onChange={e=>setMese(e.target.value)}
-          style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text, width: isMobile ? "100%" : "auto" }}/>
+          style={{ padding: isMobile ? "10px 14px" : "8px 12px", borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color:C.text }}/>
         <span style={{ fontSize:12, color:C.textSoft, textTransform:"capitalize" }}>{meseLbl}</span>
+        <div style={{ flex:1 }} />
+        <span style={{ fontSize:11, color:C.textSoft }}>Target incidenza</span>
+        <div style={{ display:"flex", gap:2, padding:3, background:C.bgSubtle, borderRadius:8 }}>
+          {[25,30,35].map(tg=>(
+            <button key={tg} onClick={()=>setTarget(tg)} style={{ padding:"5px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:12, fontWeight: target===tg?700:500, ...tnum, background: target===tg?C.bgCard:"transparent", color: target===tg?C.red:C.textSoft, boxShadow: target===tg?"0 1px 3px rgba(15,23,42,0.10)":"none" }}>{tg}%</button>
+          ))}
+        </div>
       </div>
 
       {loading ? <div style={{ color:C.textSoft }}>Caricamento…</div> : turni.length===0 ? (
@@ -914,8 +940,9 @@ function AnalisiCostoTab({ orgId, isMobile }) {
           <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(160px,1fr))", gap: isMobile ? 8 : 12, marginBottom: 16 }}>
             {[
               { lbl:"Costo effettivo", val:fmt(totCosto), c:C.red, sub:`${fmtH(totOre)} lavorate` },
+              { lbl:"Fatturato / ora", val: ricavi>0?fmt(fatturatoPerOra):"—", c: fatturatoPerOra>=costoMedioOra*2.5?C.green:C.text, sub:"produttività del lavoro" },
               { lbl:"Costo medio orario", val:fmt(costoMedioOra), c:C.text, sub:"per ora lavorata" },
-              { lbl:"Costo medio / giorno", val:fmt(costoGiorno), c:C.text, sub:`${giorniLavorati} gg con turni` },
+              { lbl:"Ore piani. vs lavorate", val: fmtH(oreEffettive), c: Math.abs(deltaOre)<2?C.green:deltaOre>0?C.amber:C.text, sub: `pianificate ${fmtH(totOre)}${Math.abs(deltaOre)>=0.5?` · ${deltaOre>0?'+':''}${fmtH(deltaOre)}`:''}` },
               { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${scostPct.toFixed(0)}% (straordinari?)`:`${scostPct.toFixed(0)}% sotto teorico` },
               { lbl:"Proiezione annua", val:fmt0(costoFissoMese*12), c:C.amber, sub:"costo fisso × 12" },
             ].map(({lbl,val,c,sub})=>(
@@ -946,6 +973,31 @@ function AnalisiCostoTab({ orgId, isMobile }) {
                     </div>
                     <div style={{ height:7, background:"#F0EAE6", borderRadius:5, overflow:"hidden" }}>
                       <div style={{ width:`${d.costo/maxCostoDip*100}%`, height:"100%", background:C.red, borderRadius:5 }}/>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Costo per reparto (da organigramma) */}
+          {repRows.length > 0 && (organigramma?.reparti||[]).length > 0 && (
+            <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding:"16px 20px", marginTop:16, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
+              <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14, letterSpacing:'-0.01em' }}>Costo per reparto</div>
+              {repRows.map(([nome,r])=>{
+                const quota = totCosto>0 ? r.costo/totCosto*100 : 0
+                return (
+                  <div key={nome} style={{ marginBottom:12 }}>
+                    <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:10, marginBottom:4 }}>
+                      <span style={{ fontSize:12, fontWeight:700, color: nome==="Senza reparto"?C.textSoft:C.text }}>{nome}</span>
+                      <span style={{ display:"flex", gap:14, alignItems:"baseline" }}>
+                        <span style={{ fontSize:10, color:C.textSoft }}>{fmtH(r.ore)}</span>
+                        <span style={{ fontSize:12, fontWeight:800, color:C.red, ...tnum, minWidth:64, textAlign:"right" }}>{fmt(r.costo)}</span>
+                        <span style={{ fontSize:10, color:C.textSoft, minWidth:34, textAlign:"right" }}>{quota.toFixed(0)}%</span>
+                      </span>
+                    </div>
+                    <div style={{ height:7, background:"#F0EAE6", borderRadius:5, overflow:"hidden" }}>
+                      <div style={{ width:`${r.costo/maxCostoRep*100}%`, height:"100%", background: nome==="Senza reparto"?C.textSoft:C.red, borderRadius:5 }}/>
                     </div>
                   </div>
                 )
