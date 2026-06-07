@@ -33,9 +33,24 @@ npm run test:e2e           # richiede env: BASE_URL, TEST_EMAIL, TEST_PASSWORD,
                            # SUPABASE_URL, SUPABASE_SERVICE_KEY
 ```
 
-Spec in `tests/e2e/`. CI in `.github/workflows/playwright.yml` (su push a `main`,
-usa i GitHub Secrets). Priorità di copertura da aggiungere (vedi CLAUDE.md):
-isolamento RLS tra clienti, stock prodotti finiti (carico/scarico), webhook Stripe.
+CI in `.github/workflows/playwright.yml` (su push a `main`, usa i GitHub Secrets).
+
+### Secret richiesti in CI (GitHub → Settings → Secrets and variables → Actions)
+| Secret | Valore |
+|---|---|
+| `SUPABASE_URL` | URL del progetto Supabase (pubblico) |
+| `SUPABASE_SERVICE_KEY` | chiave **secret** `sb_secret_…` (cifrata; mai nei log; non passata alle PR da fork) |
+| `VITE_SUPABASE_ANON_KEY` | chiave **publishable** `sb_publishable_…` (pubblica) |
+| `TEST_EMAIL` / `TEST_PASSWORD` | account **titolare** reale per gli smoke browser |
+
+Senza questi secret: in CI `global-setup` fallisce con messaggio azionabile (i
+test di sicurezza DEVONO girare); in locale skippa in modo pulito (vedi `SEED_OK`).
+
+### Copertura sicurezza (self-contained, girano col solo service key)
+- `06-rls-isolation` — un cliente non vede/scrive i dati di un altro.
+- `07-dipendente-rls` — il dipendente non legge dati sensibili (stipendi, ricette, ecc.).
+- `08-accessi-dipendenti` — invito→attesa→attivazione→accesso; ricette sanitizzate via RPC.
+- `07-stripe-webhook`, `08-stock-pf` — firma webhook, stock PF carico/scarico/scarto.
 
 ## Convenzione
 
