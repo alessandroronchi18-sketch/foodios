@@ -13,7 +13,7 @@ import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, normIng } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
-import { C, fmt, fmt0, TNUM } from './_shared'
+import { C, fmt, fmt0, TNUM, KPI, PageHeader, SH } from './_shared'
 
 export const SK_DISCREPANZE = 'pasticceria-discrepanze-v1'
 
@@ -164,35 +164,14 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
   return (
     <div style={{ maxWidth: 1200, padding: isMobile ? 8 : 0 }}>
       {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.5 }}>
-          Traccia tutto ciò che <b>non finisce nella cassa</b>: regali, porzioni fuori standard, sprechi, errori in produzione.
-          Capire dove perdi è il primo passo per smettere di farlo.
-        </div>
-      </div>
+      <PageHeader subtitle={<>Traccia tutto ciò che <b style={{ color: C.text }}>non finisce nella cassa</b>: regali, porzioni fuori standard, sprechi, errori in produzione. Capire dove perdi è il primo passo per smettere di farlo.</>} />
 
       {/* KPI mese */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
-        <div style={{ ...card, marginBottom: 0 }}>
-          <div style={lbl}>Registrate</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.text, ...TNUM }}>{kpi.n}</div>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{meseFiltro}</div>
-        </div>
-        <div style={{ ...card, marginBottom: 0 }}>
-          <div style={lbl}>Costo perso</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#92400E', ...TNUM }} title={fmt(kpi.totCosto)}>{fmt0(kpi.totCosto)}</div>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Materie prime regalate/buttate</div>
-        </div>
-        <div style={{ ...card, marginBottom: 0 }}>
-          <div style={lbl}>Mancato ricavo</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.red, ...TNUM }} title={fmt(kpi.totMancato)}>{fmt0(kpi.totMancato)}</div>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Vendite non realizzate</div>
-        </div>
-        <div style={{ ...card, marginBottom: 0 }}>
-          <div style={lbl}>Impatto totale</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.red, ...TNUM }} title={fmt(kpi.totCosto + kpi.totMancato)}>{fmt0(kpi.totCosto + kpi.totMancato)}</div>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Costo + mancato ricavo</div>
-        </div>
+        <KPI icon="📋" label="Registrate" value={kpi.n} sub={meseFiltro} />
+        <KPI icon="📉" label="Costo perso" value={fmt0(kpi.totCosto)} sub="Materie prime regalate/buttate" color="#92400E" />
+        <KPI icon="🚫" label="Mancato ricavo" value={fmt0(kpi.totMancato)} sub="Vendite non realizzate" color={C.red} />
+        <KPI icon="💥" label="Impatto totale" value={fmt0(kpi.totCosto + kpi.totMancato)} sub="Costo + mancato ricavo" color={C.red} highlight />
       </div>
 
       {/* Tabs + filtro mese + nuovo */}
@@ -358,8 +337,9 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
 
       {/* Breakdown per tipo */}
       {!draft && Object.keys(kpi.perTipo).length > 0 && (
+        <>
+        <SH sub={`Quanto pesa ogni categoria di perdita · ${meseFiltro}`}>Breakdown per tipo</SH>
         <div style={card}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 12, letterSpacing: '-0.01em' }}>📊 Breakdown per tipo · {meseFiltro}</div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
             {Object.entries(kpi.perTipo).sort((a, b) => b[1].costo - a[1].costo).map(([tid, v]) => {
               const t = TIPI.find(x => x.id === tid)
@@ -372,6 +352,7 @@ export default function DiscrepanzeView({ orgId, sedeId, ricettario, notify, LEX
             })}
           </div>
         </div>
+        </>
       )}
     </div>
   )

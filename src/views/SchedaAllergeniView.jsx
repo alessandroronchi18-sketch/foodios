@@ -2,6 +2,7 @@
 // Allergeni effettivi per ricetta: usa quelli salvati, altrimenti auto-detect
 // dagli ingredienti (le ricette importate da Excel spesso non li hanno salvati).
 import React, { useMemo } from 'react'
+import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti } from '../lib/allergeni'
 import { C } from './_shared'
 
@@ -76,12 +77,12 @@ export default function SchedaAllergeniView({ ricettario }) {
   return (
     <div style={{maxWidth:1100}}>
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
-        <div>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.18em",textTransform:"uppercase",color:C.red,marginBottom:6}}>Sicurezza alimentare</div>
-          <p style={{margin:0,fontSize:12,color:C.textSoft}}>Panoramica degli allergeni per tutte le ricette — Regolamento UE 1169/2011</p>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.brand,marginBottom:6}}>Sicurezza alimentare</div>
+          <p style={{margin:0,fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>Panoramica degli allergeni per tutte le ricette — Regolamento UE 1169/2011</p>
         </div>
         <button onClick={esportaPDF}
-          style={{padding:"10px 22px",background:C.red,color:C.white,border:"none",borderRadius:9,fontWeight:800,fontSize:12,cursor:"pointer",boxShadow:"0 2px 10px rgba(110,14,26,0.25)"}}>
+          style={{padding:"10px 16px",borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,fontSize:13,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",display:"inline-flex",alignItems:"center",gap:6,boxShadow:S.sm}}>
           📄 Esporta PDF
         </button>
       </div>
@@ -93,7 +94,7 @@ export default function SchedaAllergeniView({ ricettario }) {
       ) : (
         <>
           {/* Tabella allergeni × ricette */}
-          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,overflow:"auto",boxShadow:"0 1px 6px rgba(0,0,0,0.05)",marginBottom:24}}>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",marginBottom:24}}>
             <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
               <thead>
                 <tr style={{background:"#F8F4F2"}}>

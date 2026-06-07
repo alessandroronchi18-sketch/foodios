@@ -168,13 +168,13 @@ ${azioniStr}
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft,marginBottom:10}}>Domande rapide</div>
               <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:8}}>
                 {QUICK_PROMPTS.map(({icon,label,q})=>(
-                  <button key={label} onClick={()=>sendMessage(q)}
-                    style={{padding:"12px 14px",borderRadius:10,border:`1px solid ${C.border}`,background:C.white,
-                      cursor:"pointer",textAlign:"left",transition:"all 0.15s",
-                      boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-                    <div style={{fontSize:18,marginBottom:4}}>{icon}</div>
-                    <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:2}}>{label}</div>
-                    <div style={{fontSize:9,color:C.textSoft,lineHeight:1.4}}>{q.slice(0,55)}…</div>
+                  <button key={label} onClick={()=>sendMessage(q)} className="fos-tile"
+                    style={{padding:"14px 16px",borderRadius:16,border:`1px solid ${C.border}`,background:C.bgCard,
+                      cursor:"pointer",textAlign:"left",
+                      boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                    <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:34,height:34,borderRadius:11,background:"rgba(110,14,26,0.10)",fontSize:17,marginBottom:8}}>{icon}</span>
+                    <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:3,letterSpacing:"-0.01em"}}>{label}</div>
+                    <div style={{fontSize:10,color:C.textSoft,lineHeight:1.45}}>{q.slice(0,55)}…</div>
                   </button>
                 ))}
               </div>
@@ -183,8 +183,9 @@ ${azioniStr}
 
           {/* Messages */}
           {messages.length > 0 && (
-            <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,
-              maxHeight:480,overflowY:"auto",padding:"20px"}}>
+            <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,
+              maxHeight:480,overflowY:"auto",padding:"20px",
+              boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
               <div style={{display:"flex",flexDirection:"column",gap:14}}>
                 {messages.map((m,i)=>(
                   <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",
@@ -280,7 +281,7 @@ ${azioniStr}
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft}}>Aperte / In corso · {aperte.length}</div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {aperte.map(a=>(
-                  <div key={a.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:"14px 18px",display:"flex",gap:14,alignItems:"flex-start",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+                  <div key={a.id} className="fos-tile" style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 20px",display:"flex",gap:14,alignItems:"flex-start",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{flex:1}}>
                       <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:4}}>{a.label}</div>
                       <div style={{fontSize:11,color:C.textMid,lineHeight:1.6}}>{a.azione}</div>

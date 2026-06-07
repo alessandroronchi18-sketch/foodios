@@ -328,7 +328,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         ) : listaView.length === 0 ? (
           <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun dipendente trovato per "{search}".</div>
         ) : isMobile ? listaView.map(d=>(
-          <div key={d.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding:"12px 14px", marginBottom:8, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
+          <div key={d.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding:"14px 16px", marginBottom:8, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{d.nome}</div>
@@ -348,7 +348,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             </div>
           </div>
         )) : listaView.map(d=>(
-          <div key={d.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding:"14px 18px", marginBottom:10, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
+          <div key={d.id} className="fos-tile" style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding:"16px 18px", marginBottom:10, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap: 'wrap' }}>
@@ -571,10 +571,10 @@ function TurniTab({ orgId, notify, isMobile }) {
     <div style={{ paddingBottom: isMobile ? 80 : 0 }}>
       {/* Switch periodo: Giorno / Settimana / Mese */}
       <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}>
-        <div style={{ display:"flex", background:"#F0EAE6", borderRadius:9, padding:3, gap:2 }}>
+        <div style={{ display:"flex", background:T.bgSubtle, borderRadius:R.lg, padding:3, gap:2, border:`1px solid ${T.borderSoft}` }}>
           {[["giorno","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
             <button key={id} onClick={()=>setPeriodo(id)}
-              style={{ padding:"6px 18px", borderRadius:7, border:"none", cursor:"pointer", fontWeight:600, fontSize:11, background:periodo===id?"rgba(110,14,26,0.18)":"transparent", color:periodo===id?C.red:C.textMid, transition:"all 0.15s" }}>
+              style={{ padding:"7px 18px", borderRadius:R.md, border:"none", cursor:"pointer", fontWeight:periodo===id?600:500, fontSize:12, letterSpacing:"-0.005em", background:periodo===id?T.bgCard:"transparent", color:periodo===id?T.text:T.textSoft, boxShadow:periodo===id?S.sm:"none", transition:"all 0.15s" }}>
               {lbl}
             </button>
           ))}
@@ -885,7 +885,7 @@ function AnalisiCostoTab({ orgId, isMobile }) {
       ) : (
         <>
           {/* INSIGHT CHIAVE: incidenza del costo lavoro sul fatturato */}
-          <div style={{ background:"linear-gradient(135deg,#1C0A0A,#3D1515)", borderRadius:14, padding: isMobile?"18px 18px":"22px 26px", marginBottom:16, boxShadow:"0 8px 22px rgba(110,14,26,0.28)" }}>
+          <div style={{ background:"linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)", borderRadius:18, padding: isMobile?"18px 18px":"22px 26px", marginBottom:16, boxShadow:"0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:16, flexWrap:"wrap" }}>
               <div style={{ flex:1, minWidth:200 }}>
                 <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Incidenza costo lavoro</div>
@@ -915,7 +915,7 @@ function AnalisiCostoTab({ orgId, isMobile }) {
               { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${scostPct.toFixed(0)}% (straordinari?)`:`${scostPct.toFixed(0)}% sotto teorico` },
               { lbl:"Proiezione annua", val:fmt0(costoFissoMese*12), c:C.amber, sub:"costo fisso × 12" },
             ].map(({lbl,val,c,sub})=>(
-              <div key={lbl} style={{ background:C.bgCard, borderRadius:14, border:`1px solid ${C.border}`, padding: isMobile ? "12px 14px" : "14px 18px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
+              <div key={lbl} className="fos-tile" style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "14px 16px" : "16px 18px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
                 <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>{lbl}</div>
                 <div style={{ fontSize: isMobile ? 16 : 20, fontWeight:900, color:c, ...tnum }}>{val}</div>
                 {sub && <div style={{ fontSize:9, color:C.textSoft, marginTop:3 }}>{sub}</div>}
@@ -1109,7 +1109,7 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
             const membriOrdinati = [...(r.membri || [])].sort((a, b) => (b === r.capoId ? 1 : 0) - (a === r.capoId ? 1 : 0) || nomeById(a).localeCompare(nomeById(b), 'it'))
             return (
               <div key={r.id} className="fos-tile" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'linear-gradient(135deg,#1C0A0A,#3D1515)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' }}>
                   {renamingId === r.id ? (
                     <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') confermaRename(); if (e.key === 'Escape') { setRenamingId(null); setRenameVal('') } }}

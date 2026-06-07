@@ -1,6 +1,7 @@
 // VenditeB2BView — vendite all'ingrosso a clienti business (canale separato dal retail).
 import React, { useEffect, useMemo, useState } from 'react'
 import useIsMobile from '../lib/useIsMobile'
+import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { isRicettaValida, getR } from '../lib/foodcost'
 import { todayLocal } from '../lib/dateLocal'
 import {
@@ -86,7 +87,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
 
   const inp = { padding: '9px 11px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.white, fontFamily: 'inherit', boxSizing: 'border-box', width: '100%' }
   const tabBtn = (id, lbl) => (
-    <button key={id} onClick={() => setTab(id)} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: tab === id ? C.red : 'transparent', color: tab === id ? C.white : C.textMid }}>{lbl}</button>
+    <button key={id} onClick={() => setTab(id)} style={{ padding: '8px 18px', borderRadius: R.md, border: 'none', cursor: 'pointer', fontWeight: tab === id ? 600 : 500, fontSize: 13, letterSpacing: '-0.005em', background: tab === id ? T.bgCard : 'transparent', color: tab === id ? T.text : T.textSoft, boxShadow: tab === id ? S.sm : 'none', transition: 'background .15s, color .15s' }}>{lbl}</button>
   )
 
   return (
@@ -99,7 +100,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
         <KPI icon="🧾" label="Da fatturare" value={daFatturare.length} sub={totDaFatturare > 0 ? eur(totDaFatturare) : ''} color={daFatturare.length ? C.amber : C.textSoft} />
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 18, background: '#F0EAE6', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 2, marginBottom: 18, background: T.bgSubtle, borderRadius: R.lg, padding: 3, width: 'fit-content', border: `1px solid ${T.borderSoft}` }}>
         {tabBtn('vendite', '💰 Vendite')}{tabBtn('clienti', '🏢 Clienti')}
       </div>
 
@@ -109,7 +110,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
             <button onClick={apriVendita} style={{ padding: '11px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16 }}>➕ Nuova vendita B2B</button>
           )}
           {vForm && (
-            <div style={{ background: '#FFF0F0', border: `1px solid ${C.red}30`, borderRadius: 12, padding: '18px 20px', marginBottom: 18 }}>
+            <div style={{ background: T.brandLight, border: `1px solid ${C.red}30`, borderRadius: 16, padding: '20px 22px', marginBottom: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 12 }}>{vForm.id ? '✏️ Modifica vendita' : '➕ Nuova vendita B2B'}</div>
               <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                 <select value={vForm.cliente_id} onChange={e => setVForm(f => ({ ...f, cliente_id: e.target.value }))} style={{ ...inp, flex: 1, minWidth: 160 }}>
@@ -203,7 +204,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
             <button onClick={() => apriCliente(null)} style={{ padding: '11px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16 }}>➕ Nuovo cliente</button>
           )}
           {cForm && (
-            <div style={{ background: '#FFF0F0', border: `1px solid ${C.red}30`, borderRadius: 12, padding: '18px 20px', marginBottom: 18 }}>
+            <div style={{ background: T.brandLight, border: `1px solid ${C.red}30`, borderRadius: 16, padding: '20px 22px', marginBottom: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                 {[
                   ['nome', 'Nome / Ragione sociale *', 'text'], ['partita_iva', 'Partita IVA', 'text'],
