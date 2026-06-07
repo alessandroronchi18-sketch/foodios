@@ -28,7 +28,7 @@ function buildGrid(anno, mese) {
   return cells
 }
 
-export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sedeId, setView, notify, isMobile }) {
+export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sedeId, setView, notify, isMobile, isDipendente = false }) {
   const oggi      = useMemo(() => new Date(), [])
   const oggiStr   = useMemo(() => toISO(oggi), [oggi])
   const [anno, setAnno]   = useState(oggi.getFullYear())
@@ -40,17 +40,18 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
   const [noteErr, setNoteErr] = useState(false) // table might not exist yet
 
   // ── lookup maps ──────────────────────────────────────────────────────────────
+  // Per i DIPENDENTI: niente info dei giorni passati → includo solo oggi/futuro.
   const prodMap = useMemo(() => {
     const m = {}
-    for (const g of (giornaliero || [])) if (g.data) m[g.data] = g
+    for (const g of (giornaliero || [])) if (g.data && (!isDipendente || g.data >= oggiStr)) m[g.data] = g
     return m
-  }, [giornaliero])
+  }, [giornaliero, isDipendente, oggiStr])
 
   const cassaMap = useMemo(() => {
     const m = {}
-    for (const c of (chiusure || [])) if (c.data) m[c.data] = c
+    for (const c of (chiusure || [])) if (c.data && (!isDipendente || c.data >= oggiStr)) m[c.data] = c
     return m
-  }, [chiusure])
+  }, [chiusure, isDipendente, oggiStr])
 
   // ── load notes for current month ────────────────────────────────────────────
   useEffect(() => {
@@ -177,12 +178,13 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
         {/* Header */}
         <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:14 }}>
           <div style={{ minWidth:0, flex:1 }}>
+            {/* Statistiche sui giorni PASSATI: non mostrate ai dipendenti. */}
             <div style={{ display:'flex', gap:14, fontSize:13, color:T.textSoft, flexWrap:'wrap', letterSpacing:'-0.005em', ...tnum }}>
-              <span>
+              {!isDipendente && <span>
                 {completati}/{totPassati} giorni completi —{' '}
                 <strong style={{ color: pct>=80?T.green:pct>=50?T.amber:T.red, fontWeight:600 }}>{pct}%</strong>
-              </span>
-              {streak >= 1 && (
+              </span>}
+              {!isDipendente && streak >= 1 && (
                 <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill={T.amber} stroke="none">
                     <path d="M12 2c1 3 3 5 3 8a3 3 0 11-6 0c0-1 .5-2 1-3-2 1-4 3-4 7a6 6 0 0012 0c0-5-3-8-6-12z"/>

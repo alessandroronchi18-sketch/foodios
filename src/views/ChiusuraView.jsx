@@ -689,8 +689,15 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', boxShadow: SHADOW_PREMIUM }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data chiusura</div>
-          <input type="date" value={dataFiltro} onChange={e => { setDataFiltro(e.target.value); setVenduto(null); setPreview(null); setImg(null); setSalvato(false) }}
-            style={{ padding: '7px 10px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text }}/>
+          {isDipendente ? (
+            // Il dipendente può registrare solo la chiusura di OGGI: niente giorni passati.
+            <div style={{ padding: '7px 12px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.bgSubtle, fontSize: 12, fontWeight: 700, color: C.text }}>
+              Oggi · {new Date(today + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </div>
+          ) : (
+            <input type="date" value={dataFiltro} onChange={e => { setDataFiltro(e.target.value); setVenduto(null); setPreview(null); setImg(null); setSalvato(false) }}
+              style={{ padding: '7px 10px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text }}/>
+          )}
         </div>
         <div style={{ flex: 1, minWidth: 220 }}>
           {sessione ? (

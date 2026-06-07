@@ -413,7 +413,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       />
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}` }}>
-        {[['nuova', 'Nuova sessione'], ['storico', 'Storico']].map(([id, lbl]) => (
+        {/* Il dipendente vede solo "Nuova sessione" (oggi): niente storico giorni passati. */}
+        {(isDipendente ? [['nuova', 'Nuova sessione']] : [['nuova', 'Nuova sessione'], ['storico', 'Storico']]).map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer',
               fontSize: 13, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
@@ -694,7 +695,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         </div>
       )}
 
-      {tab === 'storico' && (
+      {!isDipendente && tab === 'storico' && (
         <div>
           {(!giornaliero || giornaliero.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: C.textSoft }}>
