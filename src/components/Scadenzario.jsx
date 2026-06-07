@@ -164,8 +164,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [loading, setLoading]             = useState(true)
   const [importLoading, setImportLoading] = useState(false)
   const [filtro, setFiltro]               = useState('tutte')
-  // 'attiva' = solo fatture della sede attiva + condivise; 'tutte' = tutte le sedi
-  const [scopeSede, setScopeSede]         = useState('attiva')
+  // Lo scope sede è comandato dal SELETTORE GLOBALE in topbar (un solo controllo):
+  // sede specifica → solo quella + condivise; "Tutte le sedi" (sedeId assente) → tutte.
+  const scopeSede = sedeId ? 'attiva' : 'tutte'
   const [toast, setToast]                 = useState(null)
   const [pagandoId, setPagandoId]         = useState(null)
   // Data locale del browser (not UTC): toISOString() darebbe il giorno
@@ -209,7 +210,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     loadFornitori()
     loadAzienda()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, sedeId, scopeSede])
+  }, [orgId, sedeId])
 
   async function loadFornitori() {
     try {
@@ -1305,15 +1306,6 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             )
           })}
         </div>
-        {haPiuSedi && (
-          <select value={scopeSede} onChange={e => setScopeSede(e.target.value)}
-            style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${T.border}`,
-              fontSize: 12, color: T.textMid, background: T.bgCard, cursor: 'pointer' }}
-            title="Quali fatture mostrare">
-            <option value="attiva">Solo sede attiva</option>
-            <option value="tutte">Tutte le sedi</option>
-          </select>
-        )}
         <div style={{ flex: 1 }} />
         {totaliFiltrati.n > 0 && (
           <div style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em', ...tnum }}>

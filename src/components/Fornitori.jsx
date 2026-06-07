@@ -85,7 +85,9 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, onMutate }) 
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [scopeSede, setScopeSede] = useState('attiva') // 'attiva' | 'tutte'
+  // Scope comandato dal selettore GLOBALE in topbar: sede specifica → quella + azienda;
+  // "Tutte le sedi" (sedeId assente) → tutte. Niente toggle interno (un solo controllo).
+  const scopeSede = sedeId ? 'attiva' : 'tutte'
   const [vista, setVista] = useState('attivi') // 'attivi' | 'archivio'
   const [archCount, setArchCount] = useState(0)
   const [q, setQ] = useState("")
@@ -94,7 +96,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, onMutate }) 
   const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
   const inArchivio = vista === 'archivio'
 
-  useEffect(() => { carica() }, [orgId, sedeId, scopeSede, vista])
+  useEffect(() => { carica() }, [orgId, sedeId, vista])
 
   async function carica() {
     if (!orgId) { setLoading(false); return }
@@ -315,14 +317,6 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, onMutate }) 
               style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`, background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid, fontSize: 11, fontWeight: vista === id ? 800 : 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={ico} size={12} /> {lbl}</button>
           ))}
         </div>
-        {haPiuSedi && (
-          <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
-            {[['attiva', 'pin', 'Solo sede attiva'], ['tutte', 'building', 'Tutte le sedi']].map(([id, ico, lbl]) => (
-              <button key={id} onClick={() => setScopeSede(id)}
-                style={{ padding: '4px 10px', borderRadius: 999, border: `1px solid ${C.border}`, background: scopeSede === id ? C.text : C.white, color: scopeSede === id ? C.white : C.textMid, fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={ico} size={12} /> {lbl}</button>
-            ))}
-          </div>
-        )}
 
         {loading ? <div style={{ color: C.textSoft, fontSize: 13, padding: 20 }}>Caricamento…</div> : listaFiltrata.length === 0 ? (
           <div style={{ color: C.textSoft, fontSize: 13, textAlign: "center", padding: 40 }}>{q.trim() ? "Nessun fornitore trovato." : inArchivio ? "Nessun fornitore archiviato." : "Nessun fornitore ancora."}</div>

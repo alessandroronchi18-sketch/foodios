@@ -87,7 +87,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [scopeSede, setScopeSede] = useState('attiva')
+  // Scope comandato dal selettore GLOBALE in topbar (un solo controllo, niente toggle qui):
+  // sede specifica → quella + azienda; "Tutte le sedi" (sedeId assente) → tutte.
+  const scopeSede = sedeId ? 'attiva' : 'tutte'
   const [vista, setVista] = useState('attivi') // 'attivi' | 'archivio'
   const [archCount, setArchCount] = useState(0)
   const [search, setSearch] = useState('')
@@ -104,7 +106,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
   const inArchivio = vista === 'archivio'
 
-  useEffect(() => { carica() }, [orgId, sedeId, scopeSede, vista])
+  useEffect(() => { carica() }, [orgId, sedeId, vista])
 
   async function carica() {
     if (!orgId) { setLoading(false); return }
@@ -305,17 +307,6 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
                 display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={icon} size={13} />{lbl}</button>
           ))}
         </div>
-        {haPiuSedi && (
-          <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
-            {[['attiva','Solo sede attiva','pin'], ['tutte','Tutte le sedi','building']].map(([id,lbl,icon]) => (
-              <button key={id} onClick={()=>setScopeSede(id)}
-                style={{ padding:'4px 10px', borderRadius: 999, border: `1px solid ${C.border}`,
-                  background: scopeSede===id ? C.text : C.white, color: scopeSede===id ? C.white : C.textMid,
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                  display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={icon} size={12} />{lbl}</button>
-            ))}
-          </div>
-        )}
         {/* Barra di ricerca per nome/cognome */}
         {lista.length > 0 && (
           <div style={{ position:"relative", marginBottom:10 }}>
