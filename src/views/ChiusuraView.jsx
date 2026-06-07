@@ -25,6 +25,9 @@ import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
 // Persiste fra unmount/remount durante l'analisi AI di uno scontrino
 const _receiptPending = { current: null }
 
+// Ombra premium coerente con la Dashboard home (card/contenitori principali).
+const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
+
 export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId, isDipendente = false, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -502,7 +505,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const vendutoBox = () => {
     if (!venduto || loading) return null
     return (
-      <div style={{ background: C.white, border: `1px solid ${C.green}30`, borderRadius: 10, padding: '14px' }}>
+      <div style={{ background: C.white, border: `1px solid ${C.green}30`, borderRadius: 16, padding: '16px', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 2 }}>✓ {venduto.length} prodotti pronti per il confronto</div>
         {!salvato && <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 8 }}>Tocca ✕ per rimuovere una riga sbagliata prima di salvare</div>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 180, overflowY: 'auto', marginBottom: 10 }}>
@@ -668,7 +671,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         </div>
       )}
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', boxShadow: SHADOW_PREMIUM }}>
         <div>
           <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data chiusura</div>
           <input type="date" value={dataFiltro} onChange={e => { setDataFiltro(e.target.value); setVenduto(null); setPreview(null); setImg(null); setSalvato(false) }}
@@ -694,7 +697,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         )}
       </div>
 
-      <div style={{ background: '#F8F4F2', border: `2px dashed ${C.borderStr}`, borderRadius: 14, padding: '20px 24px', marginBottom: 20 }}>
+      <div style={{ background: '#F8F4F2', border: `2px dashed ${C.borderStr}`, borderRadius: 16, padding: '20px 24px', marginBottom: 20 }}>
         {/* Toggle: foto scontrino (OCR) vs inserimento manuale */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
           {[['foto', '📷 Foto scontrino'], ['manuale', '✍️ Inserimento manuale']].map(([id, lbl]) => (
@@ -834,8 +837,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             return [...confronto].sort((a, b) => { const va = col.get(a), vb = col.get(b); return (col.str ? String(va).localeCompare(String(vb), 'it') : (va - vb)) * dir })
           })()
           return (
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-            <div style={{ padding: '13px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Produzione vs Venduto · {new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}</div>
               {salvato && <div style={{ fontSize: 10, fontWeight: 700, color: C.green }}>✓ Salvato</div>}
             </div>
@@ -893,8 +896,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           )})()}
 
           {formatiRiconc.righe.length > 0 && (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              <div style={{ padding: '13px 20px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Formati di vendita</div>
                 <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>Righe senza dettaglio gusto/ripieno · food cost stimato sulla media della categoria</div>
               </div>
@@ -964,7 +967,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           )}
 
           {!isDipendente && confronto.filter(r => r.spreco > 2).length > 0 && (
-            <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}30`, borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
+            <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}30`, borderRadius: 16, padding: '18px 20px', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 12 }}>💡 Ottimizza la produzione di domani</div>
               {/* Griglia incolonnata: Prodotto · Rimaste · Spreco · Suggerito */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto' : '1.8fr 0.9fr 0.9fr 1.4fr', gap: isMobile ? '2px 12px' : '7px 16px', alignItems: 'baseline' }}>
@@ -995,7 +998,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           )}
 
           {confronto.length > 0 && (
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 12 }}>Sell-through per {LEX.prodotto}</div>
             {(() => { const nameW = isMobile ? 96 : 160, vendW = isMobile ? 52 : 64, rvW = isMobile ? 60 : 80; return (<>
             {/* Intestazioni colonne destre, allineate alle celle dati */}
@@ -1032,7 +1035,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       )}
 
       {venduto && confronto.length === 0 && formatiRiconc.righe.length === 0 && !loading && (
-        <div style={{ textAlign: 'center', padding: '36px', background: C.bgCard, borderRadius: 12, border: `1px solid ${C.border}` }}>
+        <div style={{ textAlign: 'center', padding: '36px', background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ fontSize: 30, marginBottom: 10 }}>🔍</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun prodotto del ricettario trovato</div>
           <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 8 }}>I nomi sullo scontrino non corrispondono alle ricette. Se la cassa batte prodotti generici (cono, vaschetta, panino…), configura i <b>Formati di vendita</b>.</div>

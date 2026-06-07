@@ -19,14 +19,17 @@ import {
   C, TNUM, PageHeader, useSortable, SortTH,
 } from './_shared'
 
+// Ombra premium coerente con la Dashboard home (card/contenitori principali).
+const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
+
 // ─── KPI Card (interna al modulo) ────────────────────────────────────────────
 function KPI({ label, value, sub, color, highlight, icon }) {
   return (
-    <div style={{
+    <div className="fos-tile" style={{
       background: highlight ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
-      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 14,
+      border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 16,
       padding: '20px 22px',
-      boxShadow: highlight ? '0 12px 28px rgba(110,14,26,0.34), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.05), 0 4px 12px rgba(15,23,42,0.04)',
+      boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
     }}>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
         color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 10 }}>
@@ -138,13 +141,13 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       </div>
 
       {stock.length === 0 ? (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13 }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>
           Nessun prodotto in stock per questa sede.<br/>
           Lo stock si popola automaticamente alla conferma di una sessione di produzione.
         </div>
       ) : (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
@@ -194,7 +197,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       {movimenti.length > 0 && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Movimenti recenti</div>
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
               <tbody>
                 {movimenti.map(m => {
@@ -223,7 +226,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
       {scartoForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
           onClick={() => setScartoForm(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 14, padding: 24, maxWidth: 420, width: '100%' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 16, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,0.28)' }}>
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text }}>⚠️ Registra scarto</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>{LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong></p>
             <div style={{ marginBottom: 12 }}>
@@ -321,8 +324,8 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
       </div>
 
       {showLog && (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 18, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-          <div style={{ padding: '10px 14px', background: '#F8F4F2', fontSize: 11, fontWeight: 700, color: C.textMid, borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ padding: '11px 14px', background: '#F8F4F2', fontSize: 11, fontWeight: 700, color: C.textMid, borderBottom: `1px solid ${C.border}` }}>
             Storico modifiche prezzi · ultime {Math.min(50, logPrezzi?.length || 0)} di {logPrezzi?.length || 0}
           </div>
           {(!logPrezzi || logPrezzi.length === 0) ? (
@@ -357,7 +360,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
         </div>
       )}
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 480 }}>
             <thead>
@@ -424,7 +427,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
             onClick={() => setConfirmKey(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 16, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,0.3)' }}>
               <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 8 }}>Conferma modifica prezzo</div>
               <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.55 }}>
                 Sei sicuro di voler aggiornare il prezzo di <b style={{ color: C.text, textTransform: 'capitalize' }}>{row.nome}</b>?
@@ -705,7 +708,7 @@ export default function MagazzinoView({
             <button onClick={() => setShowAddIng(true)} style={{ padding: '7px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>+ Aggiungi ingrediente</button>
           </div>
           {showAddIng && (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 20px', marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end' }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '16px 20px', marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end', boxShadow: SHADOW_PREMIUM }}>
               {[{ lbl: 'Nome ingrediente', val: newIngNome, set: setNewIngNome, ph: 'es. burro' },
                 { lbl: 'Giacenza (g)', val: newIngQty, set: setNewIngQty, ph: 'es. 1000', type: 'number' },
                 { lbl: 'Soglia alert (g)', val: newIngSoglia, set: setNewIngSoglia, ph: 'es. 500', type: 'number' }].map(({ lbl, val, set, ph, type }) => (
@@ -721,7 +724,7 @@ export default function MagazzinoView({
               </div>
             </div>
           )}
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 600 }}>
                 <thead>
@@ -839,7 +842,7 @@ export default function MagazzinoView({
             if (onImportPrezziOCR) onImportPrezziOCR(nuoviCosti)
             notify(`📷 ${validi.length} prezzi aggiornati`)
           }}/>
-          <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: 12, padding: '28px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: 16, padding: '28px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
               {[['carico', '➕ Carico merce', 'Rifornimento in entrata'], ['scarico', '➖ Scarico / Rettifica', 'Rimuovi quantità']].map(([m, lbl, sub]) => (
                 <button key={m} onClick={() => setFormMode(m)}
@@ -900,7 +903,7 @@ export default function MagazzinoView({
               <div style={{ fontSize: 13, fontWeight: 600 }}>Nessun rifornimento registrato</div>
             </div>
           ) : (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
@@ -929,7 +932,7 @@ export default function MagazzinoView({
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           role="dialog" aria-modal="true" aria-labelledby="delete-ing-title"
           onClick={e => { if (e.target === e.currentTarget) { setDeleteIngConf(null); setDeleteIngPin('') } }}>
-          <div style={{ background: C.white, borderRadius: 14, padding: '28px 32px', maxWidth: 420, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.25)' }}>
+          <div style={{ background: C.white, borderRadius: 16, padding: '28px 32px', maxWidth: 420, width: '90%', boxShadow: '0 24px 60px rgba(15,23,42,0.28)' }}>
             <div id="delete-ing-title" style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8 }}>🗑 Elimina ingrediente</div>
             <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>
               Stai per eliminare <b style={{ textTransform: 'capitalize' }}>{magazzino?.[deleteIngConf]?.nome || deleteIngConf}</b> dal magazzino.
