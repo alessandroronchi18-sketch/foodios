@@ -190,6 +190,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   // Editing anagrafica fornitore (IBAN/termini) dal rollup
   const [editForn, setEditForn]           = useState(null) // nome_norm in edit
   const [editFornData, setEditFornData]   = useState({ iban: '', termini: 30, categoria: '' })
+  // Eliminazione bulk con doppia conferma (modale + frase da digitare)
+  const [bulkOpen, setBulkOpen]           = useState(false)
+  const [bulkConfirm, setBulkConfirm]     = useState('')
+  const [bulkDeleting, setBulkDeleting]   = useState(false)
 
   const haPiuSedi = (sedi || []).filter(s => s.attiva !== false).length > 1
 
@@ -473,6 +477,29 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       notify('✓ Fattura eliminata')
     } catch (e) {
       notify('Errore: ' + (e?.message || 'eliminazione fallita'), false)
+    }
+  }
+
+  // Elimina in blocco TUTTE le fatture attualmente caricate (rispetta lo scope
+  // sede corrente). Protetta da doppia conferma: modale + frase "ELIMINA".
+  async function eliminaTutte() {
+    if (bulkConfirm.trim().toUpperCase() !== 'ELIMINA') return
+    setBulkDeleting(true)
+    try {
+      const ids = fatture.map(f => f.id).filter(Boolean)
+      for (let i = 0; i < ids.length; i += 200) {
+        const { error } = await supabase.from('fatture').delete().in('id', ids.slice(i, i + 200))
+        if (error) throw error
+      }
+      const n = ids.length
+      setFatture([])
+      setBulkOpen(false)
+      setBulkConfirm('')
+      notify(`✓ Eliminate ${n} ${n === 1 ? 'fattura' : 'fatture'}`)
+    } catch (e) {
+      notify('Errore eliminazione: ' + (e?.message || 'riprova'), false)
+    } finally {
+      setBulkDeleting(false)
     }
   }
 
@@ -1038,6 +1065,42 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
       )}
 
+      {/* Modale eliminazione bulk — doppia conferma (frase da digitare) */}
+      {bulkOpen && (
+        <div onClick={() => !bulkDeleting && (setBulkOpen(false), setBulkConfirm(''))}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: T.bgCard, borderRadius: 16, maxWidth: 460, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+            <div style={{ padding: '18px 22px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ width: 40, height: 40, borderRadius: 10, background: '#FEE2E2', color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+              </span>
+              <div style={{ fontSize: 16, fontWeight: 800, color: T.text, letterSpacing: '-0.01em' }}>Eliminare tutte le fatture?</div>
+            </div>
+            <div style={{ padding: '18px 22px' }}>
+              <div style={{ fontSize: 13, color: T.textMid, lineHeight: 1.6, marginBottom: 16 }}>
+                Stai per eliminare <b style={{ color: T.brand }}>{fatture.length} {fatture.length === 1 ? 'fattura' : 'fatture'}</b>{haPiuSedi ? (scopeSede === 'attiva' ? ' della sede attiva (e condivise)' : ' di tutte le sedi') : ''}. <b>L'azione è irreversibile</b>: una volta eliminate non si possono recuperare.
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: T.textMid, marginBottom: 7 }}>
+                Per confermare scrivi <b style={{ color: T.brand, letterSpacing: '0.08em' }}>ELIMINA</b>
+              </div>
+              <input value={bulkConfirm} onChange={e => setBulkConfirm(e.target.value)} placeholder="ELIMINA" autoFocus
+                onKeyDown={e => { if (e.key === 'Enter' && bulkConfirm.trim().toUpperCase() === 'ELIMINA') eliminaTutte() }}
+                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${bulkConfirm && bulkConfirm.trim().toUpperCase() !== 'ELIMINA' ? '#F3C7C2' : T.border}`, borderRadius: 9, fontSize: 14, boxSizing: 'border-box', letterSpacing: '0.06em', textTransform: 'uppercase', outline: 'none' }} />
+            </div>
+            <div style={{ padding: '14px 22px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setBulkOpen(false); setBulkConfirm('') }} disabled={bulkDeleting} style={ghostBtn}>Annulla</button>
+              <button onClick={eliminaTutte}
+                disabled={bulkConfirm.trim().toUpperCase() !== 'ELIMINA' || bulkDeleting}
+                style={{ padding: '10px 16px', borderRadius: R.md, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 700,
+                  cursor: (bulkConfirm.trim().toUpperCase() === 'ELIMINA' && !bulkDeleting) ? 'pointer' : 'not-allowed',
+                  opacity: (bulkConfirm.trim().toUpperCase() === 'ELIMINA' && !bulkDeleting) ? 1 : 0.5 }}>
+                {bulkDeleting ? 'Eliminazione…' : `Elimina ${fatture.length} ${fatture.length === 1 ? 'fattura' : 'fatture'}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
@@ -1055,6 +1118,16 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 const c = getExportCtx();
                 exportScadenzario(list, c.nomeAttivita, c.email);
               }} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>📄 Esporta PDF</button>
+              <button onClick={() => { setBulkConfirm(''); setBulkOpen(true) }}
+                title="Elimina tutte le fatture caricate"
+                style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto', color: T.brand, borderColor: '#F3C7C2' }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2' }}
+                onMouseLeave={e => { e.currentTarget.style.background = T.bgCard }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 2 }}>
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+                Elimina tutte
+              </button>
             </>
           )}
           <label style={{ ...ghostBtn, cursor: 'pointer' }}>
@@ -1168,7 +1241,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               style={{ padding: '7px 10px', border: `1px solid ${azienda.iban && !ibanIsValid(azienda.iban) ? T.brand : T.border}`, borderRadius: 8, fontSize: 12, minWidth: 220, flex: '1 1 220px', ...tnum }} />
             <input placeholder="BIC (opz.)" value={azienda.bic} onChange={e => setAzienda(a => ({ ...a, bic: e.target.value }))}
               style={{ padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, width: 110 }} />
-            <button onClick={() => salvaAzienda(azienda)} disabled={!ibanIsValid(azienda.iban) || !azienda.nome} style={{ ...primaryBtn, padding: '7px 14px', opacity: (!ibanIsValid(azienda.iban) || !azienda.nome) ? 0.5 : 1 }}>Salva</button>
+            <button onClick={() => salvaAzienda(azienda)} disabled={!ibanIsValid(azienda.iban)} style={{ ...primaryBtn, padding: '7px 14px', opacity: !ibanIsValid(azienda.iban) ? 0.5 : 1 }}>Salva</button>
             <button onClick={() => { setEditAzienda(false); loadAzienda() }} style={{ ...ghostBtn, padding: '7px 12px' }}>Annulla</button>
           </div>
         )}
@@ -1203,15 +1276,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
       </div>
 
-      {/* Vista PER FORNITORE */}
-      {vista === 'fornitore' && !loading && fatture.length > 0 && (
-        <RollupView />
-      )}
+      {/* Vista PER FORNITORE — chiamata come funzione (non <RollupView/>): così
+          NON viene rimontata a ogni render e gli input non perdono il focus. */}
+      {vista === 'fornitore' && !loading && fatture.length > 0 && RollupView()}
 
       {/* Vista CASSA IN USCITA */}
-      {vista === 'cassa' && !loading && fatture.length > 0 && (
-        <CassaView />
-      )}
+      {vista === 'cassa' && !loading && fatture.length > 0 && CassaView()}
 
       {/* Filtri rapidi — solo nella vista per scadenza */}
       {vista === 'scadenza' && (<>
