@@ -909,3 +909,46 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
   }
   return { tot: parseFloat(tot.toFixed(3)), mancanti }
 }
+
+// Come calcolaFC ma ritorna anche il DETTAGLIO per ingrediente di primo livello
+// (ogni semilavorato resta una riga singola col suo costo totale). La somma dei
+// .costo coincide con .tot. Serve a spiegare "dove sta il food cost" di un prodotto.
+export function calcolaFCDettaglio(ricetta, ingCosti, ricettario) {
+  const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""]
+  const righe = []
+  let tot = 0
+  for (const ing of (ricetta?.ingredienti || [])) {
+    const nomeNorm = normIng((ing.nome || '').toLowerCase().trim())
+    if (SKIP_ING.includes(nomeNorm)) continue
+    const qty = ing.qty1stampo || 0
+    if (!qty) continue
+
+    if (ricettario) {
+      const semiKey = Object.keys(ricettario.ricette || {}).find(k => {
+        const r = ricettario.ricette[k]
+        if (r.tipo !== 'semilavorato') return false
+        return normIng(k.toLowerCase()) === nomeNorm || normIng((r.nome || '').toLowerCase()) === nomeNorm
+      })
+      if (semiKey) {
+        const semiRic = ricettario.ricette[semiKey]
+        const semiHasResa = hasResaIngrediente(nomeNorm)
+        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, 1, [semiKey], semiHasResa)
+        const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
+        if (semiPeso > 0) {
+          const costo = qty * costoNettoPerG(semiTot / semiPeso, nomeNorm)
+          righe.push({ nome: ing.nome, qty, costo, isSemilavorato: true })
+          tot += costo
+        }
+        continue
+      }
+    }
+
+    const c = ingCosti[normIng(ing.nome)]
+    if (!c) { righe.push({ nome: ing.nome, qty, costo: 0, mancante: true }); continue }
+    const costo = qty * costoNettoPerG(c.costoG, nomeNorm)
+    righe.push({ nome: ing.nome, qty, costo })
+    tot += costo
+  }
+  righe.sort((a, b) => b.costo - a.costo)
+  return { tot: parseFloat(tot.toFixed(3)), righe }
+}

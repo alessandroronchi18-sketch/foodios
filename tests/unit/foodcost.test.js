@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
-  calcolaFC, calcolaFCStorico, buildIngCosti, getPrezzoStoricoKg, normIng,
+  calcolaFC, calcolaFCStorico, calcolaFCDettaglio, buildIngCosti, getPrezzoStoricoKg, normIng,
 } from '../../src/lib/foodcost.js'
 import { setResaIngrediente, getStoreRese } from '../../src/lib/rese.js'
 
@@ -50,6 +50,32 @@ describe('calcolaFC — base', () => {
     ])
     const { mancanti } = calcolaFC(r, ingCosti, { ricette: {} })
     expect(mancanti).toContain('ingrediente_inesistente_q')
+  })
+})
+
+describe('calcolaFCDettaglio — breakdown', () => {
+  it('la somma delle righe coincide col totale di calcolaFC, ordinate per costo', () => {
+    const ingCosti = buildIngCosti(ic({ ing_a: 1.0, ing_b: 4.0 })) // 0.001, 0.004 €/g
+    const r = ricetta('R', [
+      { nome: 'ing_a', qty1stampo: 100 }, // 0.1
+      { nome: 'ing_b', qty1stampo: 50 },  // 0.2
+    ])
+    const { tot } = calcolaFC(r, ingCosti, { ricette: {} })
+    const dett = calcolaFCDettaglio(r, ingCosti, { ricette: {} })
+    expect(dett.tot).toBeCloseTo(tot, 3)
+    const somma = dett.righe.reduce((s, x) => s + x.costo, 0)
+    expect(somma).toBeCloseTo(tot, 3)
+    expect(dett.righe[0].nome).toBe('ing_b') // il più caro in cima
+  })
+
+  it('segnala gli ingredienti senza prezzo come mancante', () => {
+    const ingCosti = buildIngCosti(ic({ ing_a: 1.0 }))
+    const r = ricetta('R', [
+      { nome: 'ing_a', qty1stampo: 100 },
+      { nome: 'ingrediente_inesistente_z', qty1stampo: 10 },
+    ])
+    const dett = calcolaFCDettaglio(r, ingCosti, { ricette: {} })
+    expect(dett.righe.some(x => x.mancante)).toBe(true)
   })
 })
 
