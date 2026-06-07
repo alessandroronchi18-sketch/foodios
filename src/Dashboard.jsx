@@ -1121,13 +1121,17 @@ class ErrorBoundary extends React.Component {
 // Viste operative consentite a un utente con ruolo 'dipendente'. Tutto ciò che
 // espone ricette, food cost, marginalità, dati societari o impostazioni resta
 // riservato al titolare. Vedi anche la RLS in 20260605_ruolo_dipendente.sql.
+// Viste consentite al DIPENDENTE. Tutto il resto (P&L, food cost, storico,
+// previsioni, personale, registro, confronto sedi, scadenzario, fornitori, B2B,
+// menu, semilavorati, importa dati, nuova ricetta, eventi, ricettario, ecc.) è
+// NASCOSTO — sia in UI (questo set) sia a livello DB (RLS, vedi migration
+// 20260607_dipendente_no_lettura_sensibili.sql).
 const DIPENDENTE_VIEWS = new Set([
-  'giornaliero',     // Produzione — "caricare i prodotti"
-  'chiusura',        // Cassa
+  'giornaliero',     // Produzione — "caricare i prodotti" (solo oggi)
+  'chiusura',        // Cassa (solo oggi)
   'magazzino',       // Stock e rifornimenti
   'sprechi-omaggi',  // Operativo: sia titolare sia dipendente registrano
-  'eventi',
-  'calendario',
+  'calendario',      // solo oggi/futuro
   'haccp',
   'changelog',
 ]);
