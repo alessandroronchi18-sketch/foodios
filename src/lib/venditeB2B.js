@@ -169,6 +169,18 @@ export async function setStatoVenditaB2B(id, stato) {
   if (error) throw error
 }
 
+// Segna una vendita come pagata / da incassare. Resiliente: se le colonne
+// pagamento non sono ancora migrate, ritorna { degraded:true } senza rompere.
+export async function setPagamentoVenditaB2B(id, pagata, dataPagamento) {
+  const patch = { pagata: !!pagata, data_pagamento: pagata ? (dataPagamento || new Date().toISOString().slice(0, 10)) : null }
+  let { error } = await supabase.from('vendite_b2b').update(patch).eq('id', id)
+  if (error && /does not exist|schema cache|PGRST204|could not find/i.test(error.message || '')) {
+    return { degraded: true }
+  }
+  if (error) throw error
+  return {}
+}
+
 export async function eliminaVenditaB2B(id) {
   const { data: v } = await supabase.from('vendite_b2b').select('*').eq('id', id).single()
   if (v) await ripristinaStock(v, 'Annullo vendita B2B (eliminata)')

@@ -2,11 +2,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
-import { isRicettaValida, getR } from '../lib/foodcost'
+import { isRicettaValida, getR, buildIngCosti, calcolaFC } from '../lib/foodcost'
 import { todayLocal } from '../lib/dateLocal'
 import {
   loadClientiB2B, salvaClienteB2B, eliminaClienteB2B,
   loadVenditeB2B, salvaVenditaB2B, setStatoVenditaB2B, eliminaVenditaB2B,
+  setPagamentoVenditaB2B,
 } from '../lib/venditeB2B'
 import Icon from '../components/Icon'
 import { C, PageHeader, KPI } from './_shared'
@@ -51,6 +52,65 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   const daFatturare = vendite.filter(v => v.stato === 'consegnata')
   const totDaFatturare = daFatturare.reduce((s, v) => s + Number(v.totale || 0), 0)
 
+  // Food cost per pezzo di ogni prodotto (dal ricettario) → margine per vendita.
+  const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
+  const fcUnit = useMemo(() => {
+    const m = {}
+    for (const r of Object.values(ricettario?.ricette || {})) {
+      const reg = getR(r.nome, r)
+      const { tot } = calcolaFC(r, ingCosti, ricettario)
+      m[(r.nome || '').toUpperCase().trim()] = reg.unita > 0 ? tot / reg.unita : 0
+    }
+    return m
+  }, [ricettario, ingCosti])
+  const fcVendita = (v) => (v.righe || []).reduce((s, r) => s + (fcUnit[(r.prodotto || '').toUpperCase().trim()] || 0) * (Number(r.qta) || 0), 0)
+
+  // Vendite arricchite con margine + stato pagamento
+  const venditeExt = useMemo(() => vendite.map(v => {
+    const foodcost = fcVendita(v)
+    const tot = Number(v.totale || 0)
+    return { ...v, foodcost, margine: tot - foodcost, margPct: tot > 0 ? (tot - foodcost) / tot * 100 : 0, nonPagata: v.stato !== 'annullata' && !v.pagata }
+  }), [vendite, fcUnit])
+
+  // Rollup per cliente (fatturato, margine, ultimo ordine, insoluto)
+  const rollupClienti = useMemo(() => {
+    const oggi = todayLocal()
+    const m = {}
+    for (const v of venditeExt) {
+      if (v.stato === 'annullata') continue
+      const k = v.cliente_id || v.clienti_b2b?.nome || 'sconosciuto'
+      if (!m[k]) m[k] = { nome: v.clienti_b2b?.nome || clienti.find(c => c.id === v.cliente_id)?.nome || 'Cliente', n: 0, fatturato: 0, margine: 0, insoluto: 0, ultimo: '' }
+      const g = m[k]
+      g.n++; g.fatturato += Number(v.totale || 0); g.margine += v.margine
+      if (v.nonPagata) g.insoluto += Number(v.totale || 0)
+      if (!g.ultimo || (v.data || '') > g.ultimo) g.ultimo = v.data || ''
+    }
+    return Object.values(m).map(g => ({
+      ...g, margPct: g.fatturato > 0 ? g.margine / g.fatturato * 100 : 0,
+      giorniDaUltimo: g.ultimo ? Math.round((new Date(oggi) - new Date(g.ultimo)) / 86400000) : null,
+    })).sort((a, b) => b.fatturato - a.fatturato)
+  }, [venditeExt, clienti])
+
+  // Ranking prodotti B2B (quantità, ricavo)
+  const rankProdotti = useMemo(() => {
+    const m = {}
+    for (const v of venditeExt) {
+      if (v.stato === 'annullata') continue
+      for (const r of (v.righe || [])) {
+        const k = (r.prodotto || '').toUpperCase().trim(); if (!k) continue
+        if (!m[k]) m[k] = { nome: r.prodotto, qta: 0, ricavo: 0 }
+        m[k].qta += Number(r.qta) || 0
+        m[k].ricavo += (Number(r.qta) || 0) * (Number(r.prezzo) || 0)
+      }
+    }
+    return Object.values(m).sort((a, b) => b.ricavo - a.ricavo)
+  }, [venditeExt])
+
+  // KPI estesi
+  const margineMese = venditeExt.filter(v => (v.data || '').startsWith(mese)).reduce((s, v) => s + v.margine, 0)
+  const totInsoluto = venditeExt.filter(v => v.nonPagata).reduce((s, v) => s + Number(v.totale || 0), 0)
+  const nInsoluti = venditeExt.filter(v => v.nonPagata).length
+
   if (!orgId) return <div style={{ padding: 24, color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
 
   // ── handlers vendita ──
@@ -85,6 +145,14 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     try { await setStatoVenditaB2B(v.id, v.stato === 'fatturata' ? 'consegnata' : 'fatturata'); ricarica() }
     catch (e) { notify?.(e.message, false) }
   }
+  const togglePagata = async (v) => {
+    try {
+      const res = await setPagamentoVenditaB2B(v.id, !v.pagata, todayLocal())
+      if (res?.degraded) { notify?.('Applica la migration pagamenti B2B per tracciare gli incassi.', false); return }
+      notify?.(v.pagata ? 'Segnata come da incassare' : '✓ Incasso registrato')
+      ricarica()
+    } catch (e) { notify?.(e.message, false) }
+  }
 
   const inp = { padding: '9px 11px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.white, fontFamily: 'inherit', boxSizing: 'border-box', width: '100%' }
   const tabBtn = (id, lbl) => (
@@ -95,15 +163,67 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     <div style={{ maxWidth: 1100 }}>
       <PageHeader subtitle="Vendite all'ingrosso a clienti business (bar, ristoranti) — canale separato dal banco" />
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3,1fr)' : 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
         <KPI icon={<Icon name="briefcase" size={18} />} label="Ricavo B2B (mese)" value={eur(ricavoMese)} color={C.green} highlight />
-        <KPI icon={<Icon name="building" size={18} />} label="Clienti" value={clienti.length} />
+        <KPI icon={<Icon name="trendUp" size={18} />} label="Margine (mese)" value={eur(margineMese)} sub={ricavoMese > 0 ? `${(margineMese / ricavoMese * 100).toFixed(0)}% sul ricavo` : ''} color={C.green} />
         <KPI icon={<Icon name="receipt" size={18} />} label="Da fatturare" value={daFatturare.length} sub={totDaFatturare > 0 ? eur(totDaFatturare) : ''} color={daFatturare.length ? C.amber : C.textSoft} />
+        <KPI icon={<Icon name="card" size={18} />} label="Da incassare" value={eur(totInsoluto)} sub={nInsoluti > 0 ? `${nInsoluti} ${nInsoluti === 1 ? 'vendita' : 'vendite'}` : 'tutto incassato'} color={totInsoluto > 0 ? C.red : C.green} />
       </div>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 18, background: T.bgSubtle, borderRadius: R.lg, padding: 3, width: 'fit-content', border: `1px solid ${T.borderSoft}` }}>
-        {tabBtn('vendite', <><Icon name="money" size={14} /> Vendite</>)}{tabBtn('clienti', <><Icon name="building" size={14} /> Clienti</>)}
+        {tabBtn('vendite', <><Icon name="money" size={14} /> Vendite</>)}{tabBtn('analisi', <><Icon name="barChart" size={14} /> Analisi</>)}{tabBtn('clienti', <><Icon name="building" size={14} /> Clienti</>)}
       </div>
+
+      {!loading && tab === 'analisi' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Per cliente */}
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+            <div style={{ padding: '12px 18px', borderBottom: `1px solid ${C.border}`, fontSize: 14, fontWeight: 700, color: C.text }}>Per cliente</div>
+            {rollupClienti.length === 0 ? <div style={{ padding: 28, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Nessuna vendita registrata.</div> : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                  <thead><tr style={{ background: '#FAFAF8' }}>
+                    {['Cliente', 'Ordini', 'Ultimo', 'Fatturato', 'Margine', 'Da incassare'].map((h, i) => (
+                      <th key={h} style={{ padding: '9px 14px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {rollupClienti.map((g, i) => (
+                      <tr key={i} style={{ borderTop: i ? `1px solid ${C.borderSoft}` : 'none' }}>
+                        <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>{g.nome}</td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textMid, fontVariantNumeric: 'tabular-nums' }}>{g.n}</td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right', color: g.giorniDaUltimo > 30 ? C.amber : C.textSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{g.giorniDaUltimo != null ? `${g.giorniDaUltimo}g fa` : '—'}</td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: C.text, fontVariantNumeric: 'tabular-nums' }}>{eur(g.fatturato)}</td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>{eur(g.margine)} <span style={{ color: C.textSoft, fontSize: 10 }}>{g.margPct.toFixed(0)}%</span></td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.red : C.textSoft, fontVariantNumeric: 'tabular-nums' }}>{g.insoluto > 0 ? eur(g.insoluto) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          {/* Per prodotto */}
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+            <div style={{ padding: '12px 18px', borderBottom: `1px solid ${C.border}`, fontSize: 14, fontWeight: 700, color: C.text }}>Prodotti più venduti all'ingrosso</div>
+            {rankProdotti.length === 0 ? <div style={{ padding: 28, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Nessun prodotto venduto.</div> : (
+              <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {rankProdotti.slice(0, 12).map((p, i) => {
+                  const max = rankProdotti[0].ricavo || 1
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ flex: '0 0 38%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: i === 0 ? 700 : 500, color: C.text }}>{p.nome}</span>
+                      <span style={{ flex: 1, height: 16, background: T.bgSubtle, borderRadius: 5, overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, p.ricavo / max * 100)}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} /></span>
+                      <span style={{ flex: '0 0 50px', textAlign: 'right', fontSize: 11.5, color: C.textSoft, fontVariantNumeric: 'tabular-nums' }}>{p.qta} pz</span>
+                      <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, fontVariantNumeric: 'tabular-nums' }}>{eur(p.ricavo)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {loading ? <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div> : tab === 'vendite' ? (
         <>
