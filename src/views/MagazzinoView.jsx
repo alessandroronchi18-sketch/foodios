@@ -9,7 +9,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ssave as _ssave } from '../lib/storage'
 import { todayLocal } from '../lib/dateLocal'
-import { normIng, getR, translateIngredienteEN } from '../lib/foodcost'
+import { normIng, getR, translateIngredienteEN, buildIngCosti } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { SK_MAG, SK_EXCL, SK_LOGRIF } from '../lib/storageKeys'
 import { lessico } from '../lib/lessico'
@@ -17,7 +17,7 @@ import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
 import { loadStockPF, loadMovimentiPF, scartoPF } from '../lib/stockPF'
 import {
-  C, TNUM, PageHeader, useSortable, SortTH,
+  C, TNUM, PageHeader, useSortable, SortTH, fmt0,
 } from './_shared'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
@@ -578,6 +578,14 @@ export default function MagazzinoView({
 
   const fabbisogno = useMemo(() => calcolaFabbisognoSettimana(ricettario, giornaliero), [ricettario, giornaliero])
 
+  // Mappa costi €/kg (€/g): prezzi utente (ingredienti_costi) con fallback HORECA.
+  // Serve a valorizzare la giacenza (valore stock €) — sola lettura, non scrive nulla.
+  const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi), [ricettario])
+
+  // Copertura target per il suggerimento di riordino: porta la scorta a coprire
+  // ~14 giorni di consumo (2 cicli settimanali), arrotondando a step pratici.
+  const GIORNI_TARGET = 14
+
   const righe = tuttiIngNomi.map(k => {
     const m = magazzino?.[k] || {}
     const giacenza = m.giacenza_g || 0
@@ -591,11 +599,28 @@ export default function MagazzinoView({
       giorniScorta !== null && giorniScorta < 3 ? 'critico' :
       giorniScorta !== null && giorniScorta < 7 ? 'attenzione' :
       'ok'
-    return { k, nome: m.nome || k, giacenza, soglia, fabb, consumoG, giorniScorta, stato, ultimoRif: m.ultimoRifornimento }
+    // Valore a magazzino: giacenza (g) × costo (€/g). costoG può mancare → 0.
+    const costoG = ingCosti[k]?.costoG || 0
+    const costoKg = ingCosti[k]?.costoKg || 0
+    const valore = giacenza * costoG
+    // Suggerimento riordino (g): copri GIORNI_TARGET di consumo + rispetta la soglia,
+    // sottrai la giacenza. Se non c'è storico consumo usiamo la soglia come riferimento.
+    const targetG = Math.max(consumoG * GIORNI_TARGET, soglia > 0 ? soglia * 1.5 : 0)
+    const riordinoG = targetG > giacenza ? targetG - giacenza : 0
+    return { k, nome: m.nome || k, giacenza, soglia, fabb, consumoG, giorniScorta, stato, ultimoRif: m.ultimoRifornimento, valore, costoG, costoKg, riordinoG }
   })
 
   const critici = righe.filter(r => r.stato === 'critico' || r.stato === 'esaurito')
   const attenzione = righe.filter(r => r.stato === 'attenzione')
+
+  // ── Diagnosi aggregata (banda premium) ─────────────────────────────────────
+  const valoreStock = righe.reduce((s, r) => s + (r.valore || 0), 0)
+  const conCopertura = righe.filter(r => r.giorniScorta !== null)
+  const coperturaMedia = conCopertura.length > 0
+    ? conCopertura.reduce((s, r) => s + r.giorniScorta, 0) / conCopertura.length
+    : null
+  // Semaforo salute magazzino: rosso se ci sono critici, ambra se solo esaurimenti, verde altrimenti.
+  const salute = critici.length > 0 ? 'critico' : attenzione.length > 0 ? 'attenzione' : 'ok'
 
   const handleCarica = async () => {
     if (saving) return
@@ -668,7 +693,14 @@ export default function MagazzinoView({
   const statoColor = s => s === 'esaurito' ? C.red : s === 'critico' ? C.red : s === 'attenzione' ? C.amber : C.green
   const statoBg = s => s === 'esaurito' ? C.redLight : s === 'critico' ? C.redLight : s === 'attenzione' ? C.amberLight : C.greenLight
   const statoLabel = s => s === 'esaurito' ? 'Esaurito' : s === 'critico' ? 'Critico' : s === 'attenzione' ? 'Attenzione' : 'OK'
-  const fmtG = g => g >= 1000 ? `${(g / 1000).toFixed(2)} kg` : `${Math.round(g)} g`
+  const fmtG = g => g >= 1000 ? `${(g / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString('it-IT')} g`
+  // Suggerimento riordino arrotondato a step pratici: <1kg → step 100g, ≥1kg → 0,5kg.
+  const fmtRiordino = g => {
+    if (!(g > 0)) return null
+    if (g < 1000) return `${Math.ceil(g / 100) * 100} g`
+    const kg = Math.ceil((g / 1000) * 2) / 2
+    return `${kg.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg`
+  }
 
   return (
     <div style={{ maxWidth: 1200 }}>
@@ -686,35 +718,116 @@ export default function MagazzinoView({
         )}
       />
 
-      {(critici.length > 0 || attenzione.length > 0) && (
-        <div style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {critici.length > 0 && (
-            <div style={{ background: T.redLight, border: '1px solid rgba(220,38,38,0.20)', borderRadius: R.xl, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: R.md, background: 'rgba(220,38,38,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.red, flexShrink: 0 }}><Icon name="warning" size={16} /></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: T.red, marginBottom: 4 }}>Riordino urgente — {critici.length} ingredient{critici.length > 1 ? 'i' : 'e'}</div>
-                <div style={{ fontSize: 12, color: T.red, lineHeight: 1.6, opacity: 0.9 }}>{critici.map(r => `${r.nome} (${fmtG(r.giacenza)})`).join(' · ')}</div>
+      {/* ── BANDA DIAGNOSI (premium): valore stock, critici, esaurimento, copertura ── */}
+      <div style={{ marginBottom: 18 }}>
+        {(() => {
+          const sem = salute === 'critico'
+            ? { col: C.red, bg: 'rgba(220,38,38,0.10)', lbl: 'Magazzino sotto pressione', ic: 'alert' }
+            : salute === 'attenzione'
+            ? { col: C.amber, bg: 'rgba(217,119,6,0.12)', lbl: 'Scorte da tenere d’occhio', ic: 'warning' }
+            : { col: C.green, bg: 'rgba(22,163,74,0.12)', lbl: 'Scorte in equilibrio', ic: 'checkCircle' }
+          const msg = salute === 'critico'
+            ? `${critici.length} ingrediente/i da riordinare subito${attenzione.length > 0 ? `, ${attenzione.length} in esaurimento` : ''}.`
+            : salute === 'attenzione'
+            ? `${attenzione.length} ingrediente/i scenderanno sotto scorta entro la settimana.`
+            : 'Nessun ingrediente critico: le giacenze coprono il fabbisogno previsto.'
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', marginBottom: 14,
+              background: sem.bg, border: `1px solid ${sem.col}33`, borderRadius: 14 }}>
+              <span style={{ width: 30, height: 30, borderRadius: '50%', background: sem.col, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name={sem.ic} size={16} />
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 800, color: sem.col, letterSpacing: '-0.01em' }}>{sem.lbl}</div>
+                <div style={{ fontSize: 12, color: T.textMid, marginTop: 1 }}>{msg}</div>
               </div>
             </div>
-          )}
-          {attenzione.length > 0 && (
-            <div style={{ background: T.amberLight, border: '1px solid rgba(217,119,6,0.22)', borderRadius: R.xl, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: R.md, background: 'rgba(217,119,6,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.amber, flexShrink: 0 }}><Icon name="clock" size={16} /></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: T.amber, marginBottom: 4 }}>Scorte in esaurimento — {attenzione.length}</div>
-                <div style={{ fontSize: 12, color: T.amber, lineHeight: 1.6, opacity: 0.9 }}>{attenzione.map(r => `${r.nome} (~${r.giorniScorta?.toFixed(0)} giorni)`).join(' · ')}</div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+          )
+        })()}
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 28 }}>
-        <KPI icon={<Icon name="package" size={18} />} label="Ingredienti" value={righe.length} highlight/>
-        <KPI icon={<Icon name="alert" size={18} />} label="Critici" value={critici.length} color={critici.length > 0 ? C.red : C.green} sub={critici.length > 0 ? 'riordino urgente' : 'tutto ok'}/>
-        <KPI icon={<Icon name="warning" size={18} />} label="In esaurimento" value={attenzione.length} color={attenzione.length > 0 ? C.amber : C.green} sub={attenzione.length > 0 ? '< 7 giorni' : 'ok'}/>
-        <KPI icon={<Icon name="checkCircle" size={18} />} label="Sufficienti" value={righe.filter(r => r.stato === 'ok').length} color={C.green}/>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
+          <KPI icon={<Icon name="money" size={18} />} label="Valore a magazzino" value={fmt0(valoreStock)} highlight
+            sub={`${righe.filter(r => r.valore > 0).length} ingredienti valorizzati`}/>
+          <KPI icon={<Icon name="alert" size={18} />} label="Critici" value={critici.length}
+            color={critici.length > 0 ? C.red : C.green} sub={critici.length > 0 ? 'riordino urgente' : 'tutto ok'}/>
+          <KPI icon={<Icon name="warning" size={18} />} label="In esaurimento" value={attenzione.length}
+            color={attenzione.length > 0 ? C.amber : C.green} sub={attenzione.length > 0 ? '< 7 giorni' : 'ok'}/>
+          <KPI icon={<Icon name="clock" size={18} />} label="Copertura media"
+            value={coperturaMedia !== null ? `${coperturaMedia.toFixed(0)} gg` : '—'}
+            color={coperturaMedia === null ? undefined : coperturaMedia < 3 ? C.red : coperturaMedia < 7 ? C.amber : C.green}
+            sub={coperturaMedia !== null ? 'giorni di scorta' : 'storico assente'}/>
+        </div>
       </div>
+
+      {/* ── RIORDINO URGENTE (azionabile): cosa ordinare e quanto ── */}
+      {(critici.length > 0 || attenzione.length > 0) && (() => {
+        const daRiordinare = [...critici, ...attenzione]
+          .filter(r => r.riordinoG > 0)
+          .sort((a, b) => ({ esaurito: 0, critico: 1, attenzione: 2 }[a.stato] ?? 3) - ({ esaurito: 0, critico: 1, attenzione: 2 }[b.stato] ?? 3))
+        if (daRiordinare.length === 0) return null
+        const costoStimato = daRiordinare.reduce((s, r) => s + (r.riordinoG * r.costoG || 0), 0)
+        return (
+          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 24, boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: `1px solid ${C.border}`,
+              background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' }}>
+              <span style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.16)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="truck" size={17} />
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>Lista di riordino consigliata</div>
+                <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
+                  {daRiordinare.length} ingrediente/i · per coprire ~{GIORNI_TARGET} giorni di consumo
+                </div>
+              </div>
+              {costoStimato > 0 && (
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Spesa stimata</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', ...TNUM }}>{fmt0(costoStimato)}</div>
+                </div>
+              )}
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 540 }}>
+                <thead>
+                  <tr style={{ background: '#F8F4F2' }}>
+                    {[['Ingrediente', 'left'], ['Giacenza', 'right'], ['Giorni scorta', 'right'], ['Da ordinare', 'right'], ['Costo stim.', 'right'], ['', 'right']].map(([h, al], i) => (
+                      <th key={i} style={{ padding: '9px 14px', textAlign: al, fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {daRiordinare.map((r, i) => (
+                    <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text, textTransform: 'capitalize' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: statoColor(r.stato), flexShrink: 0 }}/>
+                          {r.nome}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>{fmtG(r.giacenza)}</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>
+                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg` : '—'}
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: C.text, ...TNUM }}>
+                        {fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '—'}
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>
+                        {r.costoG > 0 ? fmt0(r.riordinoG * r.costoG) : '—'}
+                      </td>
+                      <td style={{ padding: '8px 14px', textAlign: 'right' }}>
+                        <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); setTimeout(() => document.getElementById('mag-qty-input')?.focus(), 100) }}
+                          style={{ padding: '5px 12px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Icon name="plus" size={12} />Carica
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      })()}
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}`, overflowX: 'auto' }}>
         {[['giacenze', 'Materie prime'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['carica', 'Carica merce'], ['log', 'Log rifornimenti']].map(([id, lbl]) => (
@@ -754,13 +867,15 @@ export default function MagazzinoView({
           )}
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 600 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 760 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     <SortTH k="nome" active={magKey === 'nome'} dir={magDir} onToggle={magToggle}>Ingrediente</SortTH>
                     <SortTH k="giacenza" right active={magKey === 'giacenza'} dir={magDir} onToggle={magToggle}>Giacenza</SortTH>
                     <SortTH k="fabb" right active={magKey === 'fabb'} dir={magDir} onToggle={magToggle} tip="Fabbisogno settimanale stimato dal consumo degli ultimi 7 giorni">Fabb. sett.</SortTH>
                     <SortTH k="giorniScorta" right active={magKey === 'giorniScorta'} dir={magDir} onToggle={magToggle} tip="Giorni di scorta rimanenti al ritmo di consumo attuale">Giorni scorta</SortTH>
+                    <SortTH k="valore" right active={magKey === 'valore'} dir={magDir} onToggle={magToggle} tip="Valore della giacenza = quantità × prezzo €/kg">Valore</SortTH>
+                    <SortTH k="riordino" right active={magKey === 'riordino'} dir={magDir} onToggle={magToggle} tip="Quantità consigliata da ordinare per coprire ~14 giorni di consumo">Da ordinare</SortTH>
                     <SortTH k="soglia" right active={magKey === 'soglia'} dir={magDir} onToggle={magToggle} tip="Soglia minima sotto la quale scatta l'alert di riordino">Soglia alert</SortTH>
                     <SortTH k="stato" active={magKey === 'stato'} dir={magDir} onToggle={magToggle}>Stato</SortTH>
                     <SortTH k="ultimoRif" right active={magKey === 'ultimoRif'} dir={magDir} onToggle={magToggle} tip="Data dell'ultimo rifornimento registrato">Ultimo riforn.</SortTH>
@@ -771,6 +886,7 @@ export default function MagazzinoView({
                   {sortMag(righe, (r, k) => ({
                     nome: r.nome, giacenza: r.giacenza, fabb: r.fabb,
                     giorniScorta: r.giorniScorta ?? 9999, soglia: r.soglia,
+                    valore: r.valore, riordino: r.riordinoG,
                     stato: ({ esaurito: 0, critico: 1, attenzione: 2, ok: 3 }[r.stato] ?? 3),
                     ultimoRif: r.ultimoRif ? new Date(r.ultimoRif).getTime() : 0,
                   })[k] ?? 0).map((r, i) => (
@@ -793,6 +909,23 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textMid }}>{r.fabb > 0 ? fmtG(r.fabb) : '—'}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: statoColor(r.stato) }}>
                         {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)}gg` : '—'}
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: r.valore > 0 ? C.text : C.textSoft, fontWeight: r.valore > 0 ? 700 : 400, ...TNUM }}>
+                        {r.valore > 0 ? fmt0(r.valore) : '—'}
+                        {r.valore > 0 && r.costoKg > 0 && (
+                          <div style={{ fontSize: 9, color: C.textSoft, fontWeight: 500 }}>
+                            € {r.costoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', ...TNUM }}>
+                        {(r.stato === 'critico' || r.stato === 'esaurito' || r.stato === 'attenzione') && fmtRiordino(r.riordinoG) ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 8, background: statoBg(r.stato), color: statoColor(r.stato), fontWeight: 800, fontSize: 11 }}>
+                            <Icon name="truck" size={11} />~ {fmtRiordino(r.riordinoG)}
+                          </span>
+                        ) : (
+                          <span style={{ color: C.textSoft }}>—</span>
+                        )}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         {editSoglia?.nome === r.k ? (
