@@ -1,17 +1,6 @@
 // Italian electronic invoice (FatturaPA SDI) parser + TeamSystem FatturaSMART parser
-
-async function loadXLSX() {
-  return new Promise((resolve, reject) => {
-    if (window.XLSX) return resolve(window.XLSX)
-    const s = document.createElement('script')
-    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
-    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
-    s.crossOrigin = 'anonymous'
-    s.onload = () => resolve(window.XLSX)
-    s.onerror = reject
-    document.head.appendChild(s)
-  })
-}
+// Loader XLSX unico e robusto (multi-CDN, no SRI) — vedi src/lib/xlsx.js.
+import { loadXLSX } from './xlsx'
 
 // Parse a cell into ISO date string (YYYY-MM-DD). Uses LOCAL date components
 // so a date authored in Italy doesn't shift backwards via UTC conversion.

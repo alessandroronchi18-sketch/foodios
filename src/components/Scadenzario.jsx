@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
+import { loadXLSX } from '../lib/xlsx'
 import { exportScadenzario } from '../lib/exportPDF'
 import { getExportCtx, gateExport } from '../lib/exportGuard'
 import useIsMobile from '../lib/useIsMobile'
@@ -23,18 +24,7 @@ function pickFattura(r, orgId, sedeId) {
 // quando in DB non e' specificata: 30 giorni dalla data fattura.
 const PAYMENT_TERMS_DAYS = 30
 
-async function loadXLSX() {
-  return new Promise((resolve, reject) => {
-    if (window.XLSX) return resolve(window.XLSX)
-    const s = document.createElement('script')
-    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
-    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
-    s.crossOrigin = 'anonymous'
-    s.onload = () => resolve(window.XLSX)
-    s.onerror = reject
-    document.head.appendChild(s)
-  })
-}
+// loadXLSX importato da ../lib/xlsx (loader unico multi-CDN, no SRI)
 
 // ─── Date / numero helpers ────────────────────────────────────────────────────
 function dueDateObj(f) {

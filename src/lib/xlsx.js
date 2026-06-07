@@ -1,17 +1,34 @@
-// Caricamento dinamico di SheetJS (XLSX) da CDN con SRI hash.
-// Usiamo CDN invece del npm package perché ha vulnerabilità high senza fix.
-// Cache su window.XLSX per evitare richieste multiple.
+// Caricamento dinamico di SheetJS (XLSX) da CDN, con FALLBACK su più CDN e
+// SENZA SRI integrity. Motivo del fix: l'hash SRI fisso (stale o non combaciante
+// col file servito dal CDN) faceva RIFIUTARE lo script al browser → l'utente
+// vedeva "Impossibile caricare il parser Excel (rete bloccata?)" e l'import si
+// rompeva. Il npm package ha una vuln high non patchata sul registry, quindi
+// restiamo su CDN affidabili, ma con più host di fallback per non dipendere da
+// un singolo punto di rottura. Cache su window.XLSX per non ricaricarlo.
+const CDN_URLS = [
+  'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
+]
 
-export function loadXLSX() {
+function loadFrom(url) {
   return new Promise((resolve, reject) => {
-    if (typeof window === 'undefined') return reject(new Error('XLSX richiede browser'))
-    if (window.XLSX) return resolve(window.XLSX)
     const s = document.createElement('script')
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
-    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
-    s.crossOrigin = 'anonymous'
-    s.onload = () => resolve(window.XLSX)
-    s.onerror = () => reject(new Error('Impossibile caricare XLSX'))
+    s.src = url
+    s.async = true
+    s.onload = () => (window.XLSX ? resolve(window.XLSX) : reject(new Error('XLSX non inizializzato')))
+    s.onerror = () => reject(new Error('script error: ' + url))
     document.head.appendChild(s)
   })
+}
+
+export async function loadXLSX() {
+  if (typeof window === 'undefined') throw new Error('XLSX richiede browser')
+  if (window.XLSX) return window.XLSX
+  let lastErr
+  for (const url of CDN_URLS) {
+    try { return await loadFrom(url) }
+    catch (e) { lastErr = e }
+  }
+  throw new Error('Impossibile caricare il parser Excel (tutti i CDN non raggiungibili). Controlla la connessione e riprova.')
 }

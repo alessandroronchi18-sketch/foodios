@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sloadAllSedi } from '../lib/storage'
+import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
 
 const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
@@ -35,19 +36,6 @@ function csvEscape(v) {
   const s = String(v)
   if (/[",;\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
   return s
-}
-
-async function loadXLSX() {
-  if (window.XLSX) return window.XLSX
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
-    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
-    s.crossOrigin = 'anonymous'
-    s.onload = () => resolve(window.XLSX)
-    s.onerror = () => reject(new Error('Impossibile caricare XLSX'))
-    document.head.appendChild(s)
-  })
 }
 
 function eurNum(n) { return Number(n || 0).toFixed(2).replace('.', ',') }

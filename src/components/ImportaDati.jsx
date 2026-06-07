@@ -1,20 +1,7 @@
 import React, { useState } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
-
-// Carica SheetJS da CDN con SRI hash (xlsx npm pkg ha vuln high senza fix).
-async function loadXLSX() {
-  if (window.XLSX) return window.XLSX
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
-    s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw'
-    s.crossOrigin = 'anonymous'
-    s.onload = () => resolve(window.XLSX)
-    s.onerror = () => reject(new Error('Impossibile caricare XLSX'))
-    document.head.appendChild(s)
-  })
-}
+import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
 
 // ─── Definizione dei tipi di import ───────────────────────────────────────────
 // Ogni voce ha: descrizione, colonne (con nota), righe di esempio per il template,
