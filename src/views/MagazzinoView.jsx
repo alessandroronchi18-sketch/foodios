@@ -510,7 +510,7 @@ export default function MagazzinoView({
   ricettario, magazzino, setMagazzino, logRif, setLogRif,
   logPrezzi = [], onUpdatePrezzoIng, giornaliero, notify,
   esclusi = new Set(), setEsclusi, onImportPrezzi, onImportPrezziOCR,
-  orgId, sedeId, LEX = lessico(),
+  orgId, sedeId, isDipendente = false, LEX = lessico(),
 }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -830,7 +830,7 @@ export default function MagazzinoView({
       })()}
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}`, overflowX: 'auto' }}>
-        {[['giacenze', 'Materie prime'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['carica', 'Carica merce'], ['log', 'Log rifornimenti']].map(([id, lbl]) => (
+        {[['giacenze', 'Materie prime'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['carica', 'Carica merce'], ['log', 'Log rifornimenti']].filter(([id]) => !(isDipendente && id === 'prezzi')).map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer',
               fontSize: 13, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
@@ -1053,7 +1053,7 @@ export default function MagazzinoView({
         </div>
       )}
 
-      {tab === 'prezzi' && (
+      {tab === 'prezzi' && !isDipendente && (
         <PrezziIngredientiTab ricettario={ricettario} logPrezzi={logPrezzi} onUpdatePrezzo={onUpdatePrezzoIng} isMobile={isMobile}/>
       )}
 

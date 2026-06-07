@@ -4,6 +4,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { ssave as _ssave } from '../lib/storage'
+import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateProdottoEN } from '../lib/foodcost'
@@ -314,9 +315,77 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   // 3. Aggiorna state locale
   // 4. RPC stock_pf (carico produzione + eventuale trasferimento auto). Errori
   //    qui sono notificati ma non bloccano: la sessione e' gia' salvata.
+  // Stock PF (carico vetrina + eventuale trasferimento) — condiviso tra il flusso
+  // titolare e quello dipendente. Usa solo nome/vendibile (niente ingredienti).
+  const eseguiStockPF = async () => {
+    const sedeProduttiva = sedeAttiva?.id
+    if (!orgId || !sedeProduttiva) return
+    const sedeDest = destinazioneSedeId && destinazioneSedeId !== sedeProduttiva ? destinazioneSedeId : null
+    const stockErrors = [], transferErrors = []
+    for (const r of ricette) {
+      const stampi = qtaMap[r.nome] || 0
+      const vendibile = vendibileMap[r.nome] || stampi
+      if (vendibile <= 0) continue
+      const reg = getR(r.nome, r)
+      const unitaFactor = Number(reg.unita)
+      const pezzi = vendibile * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
+      if (pezzi <= 0) continue
+      const prodottoKey = r.nome.toUpperCase().trim()
+      try {
+        await caricoProduzionePF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Sessione ${data}${sessNote ? ' · ' + sessNote : ''}` })
+      } catch (e) { stockErrors.push(`${r.nome}: ${e.message}`); continue }
+      if (sedeDest) {
+        try {
+          await creaTrasferimento({ orgId, sedeDa: sedeProduttiva, sedeA: sedeDest, tipo: 'prodotto', prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Da produzione del ${data}`, autoInvia: true })
+        } catch (e) {
+          transferErrors.push(`${r.nome}: ${e.message}`)
+          try { await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: 'Rollback trasferimento fallito' }) } catch (rb) { console.error('Rollback carico fallito:', rb) }
+        }
+      }
+    }
+    if (stockErrors.length || transferErrors.length) {
+      notify('Alcuni movimenti stock falliti: ' + [...stockErrors, ...transferErrors].slice(0, 2).join('; '), false)
+    }
+  }
+
   const handleConferma = async () => {
     if (!hasQta || salvando) return
     setSalvando(true)
+
+    // DIPENDENTE: niente ingredienti lato client → lo scarico magazzino e la
+    // scrittura del giornaliero li fa il server (api/produzione-registra), che
+    // restituisce dati SANITIZZATI (senza composizione/costi). Lo stock PF resta
+    // qui (non richiede gli ingredienti). Save-first garantito dal server.
+    if (isDipendente) {
+      const prodottiPayload = ricette
+        .filter(r => (qtaMap[r.nome] || 0) > 0 || (vendibileMap[r.nome] || 0) > 0)
+        .map(r => ({ nome: r.nome, stampi: qtaMap[r.nome] || 0, vendibile: vendibileMap[r.nome] || qtaMap[r.nome] || 0, congelabile: isCongelabile(r.nome) }))
+      let resp
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch('/api/produzione-registra', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+          body: JSON.stringify({
+            sedeId, data, prodotti: prodottiPayload, note: sessNote,
+            destinazioneSedeId: destinazioneSedeId || null,
+            destinazioneSedeNome: destinazioneSedeId ? (sediMapProd[destinazioneSedeId]?.nome || null) : null,
+          }),
+        })
+        resp = await res.json().catch(() => null)
+        if (!res.ok || !resp?.ok) throw new Error(resp?.error || `errore server (${res.status})`)
+      } catch (e) {
+        setSalvando(false)
+        notify(`Salvataggio fallito: ${e.message || 'errore di rete'}. I dati non sono stati persi, riprova.`, false)
+        return
+      }
+      setMagazzino(resp.magazzino); setGiornaliero(resp.giornaliero)
+      await eseguiStockPF()
+      setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false); setSalvando(false)
+      const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id ? ` — trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}` : ''
+      notify(`Produzione registrata${msgDest} — magazzino e stock vetrina aggiornati`)
+      return
+    }
 
     const nm = { ...magazzino }
     for (const [k, qty] of Object.entries(riepilogo.ings)) {
@@ -664,7 +733,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 </div>
               )}
 
-              {hasQta && (
+              {hasQta && !isDipendente && (
                 <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
                   <PanelHead icon={<Icon name="receipt" size={16} />} title="Ingredienti da scalare" color={C.text} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
@@ -685,7 +754,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 </div>
               )}
 
-              {problemi.length > 0 && (
+              {problemi.length > 0 && !isDipendente && (
                 <div style={{ background: C.redLight, border: `1px solid ${C.red}25`, borderRadius: 10, padding: '14px 16px' }}>
                   <div style={{ fontSize: 11, fontWeight: 800, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />Scorte insufficienti</div>
                   {problemi.map(p => (

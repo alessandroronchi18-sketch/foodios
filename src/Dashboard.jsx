@@ -1358,9 +1358,19 @@ export default function Dashboard({
     // "Tutte le sedi": carica le chiavi PER-SEDE aggregate da tutte le sedi.
     const allM = !!sedeAttiva?._all;
     const loadPS = (key, merge) => allM ? sloadAllSedi(key, orgId).then(merge) : sload(key);
+    // Dipendente: ricettario e giornaliero arrivano SANITIZZATI dal server (senza
+    // ingredienti/quantità/costi/ingredientiUsati). La RLS blocca la lettura raw
+    // di queste chiavi al dipendente; le RPC SECURITY DEFINER restituiscono la
+    // versione sicura. Vedi migration 20260607b + api/produzione-registra.js.
+    const loadRicettario = isDip
+      ? supabase.rpc('fos_ricettario_dip').then(({ data }) => data ?? null)
+      : sload(SK_RIC);
+    const loadGiornaliero = isDip
+      ? supabase.rpc('fos_giornaliero_dip', { p_sede: sedeId || null }).then(({ data }) => data ?? null)
+      : loadPS(SK_GIOR, _mergeArr);
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
     Promise.race([
-      Promise.all([sload(SK_RIC),loadPS(SK_PROD,()=>({})),sload(SK_ACT),loadPS(SK_MAG,_mergeMag),loadPS(SK_LOGRIF,_mergeArr),loadPS(SK_GIOR,_mergeArr),loadPS(SK_CHIUS,_mergeArr),sload(SK_EXCL),sload(SK_LOG_PRZ)]),
+      Promise.all([loadRicettario,loadPS(SK_PROD,()=>({})),sload(SK_ACT),loadPS(SK_MAG,_mergeMag),loadPS(SK_LOGRIF,_mergeArr),loadGiornaliero,loadPS(SK_CHIUS,_mergeArr),sload(SK_EXCL),sload(SK_LOG_PRZ)]),
       timeout
     ]).then(([ric,prod,act,mag,logrif,gior,chius,excl,logprz])=>{
       setOfflineMode(false);
@@ -2654,7 +2664,7 @@ export default function Dashboard({
         {view==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} LEX={LEX}/>}
         {view==="discrepanze"&&<DiscrepanzeView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} LEX={LEX}/>}
-        {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} LEX={LEX}/>}
+        {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
