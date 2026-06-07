@@ -52,15 +52,6 @@ begin
   end loop;
 end $$;
 
--- ── 4) righe_ordine: protetta in modo transitivo (no organization_id proprio) ─
-do $$
-declare p record;
-begin
-  if to_regclass('public.righe_ordine') is not null then
-    execute 'alter table public.righe_ordine enable row level security';
-    for p in select policyname from pg_policies where schemaname='public' and tablename='righe_ordine' loop
-      execute format('drop policy if exists %I on public.righe_ordine', p.policyname);
-    end loop;
-    execute 'create policy righe_ordine_solo_titolare on public.righe_ordine for all using (not public.is_dipendente() and ordine_id in (select id from public.ordini_fornitori where organization_id = public.get_user_org_id())) with check (not public.is_dipendente() and ordine_id in (select id from public.ordini_fornitori where organization_id = public.get_user_org_id()))';
-  end if;
-end $$;
+-- ── 4) righe_ordine: NON serve toccarla. La sua policy esistente isola via join
+-- su ordini_fornitori; avendo bloccato i dipendenti su ordini_fornitori (punto 3),
+-- la subquery non restituisce righe → righe_ordine è già inaccessibile ai dipendenti.
