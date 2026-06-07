@@ -2437,8 +2437,8 @@ export default function Dashboard({
           const sedeCorrente = (sedi||[]).find(s => s.id === sedeAttiva);
           const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
           return (
-            <div style={{position:"sticky",top:52,zIndex:Z.topbar,height:44,boxSizing:"border-box",
-              background:"linear-gradient(180deg, #FFFBFA 0%, #FAF4F2 100%)",
+            <div style={{position:"sticky",top:52,zIndex:Z.topbar,height:42,boxSizing:"border-box",
+              background:C.bg,
               borderBottom:`1px solid ${C.borderSoft}`,
               padding:"0 32px",display:"flex",alignItems:"center",gap:14}}>
               {/* Sezione attiva: indicatore visivo brand a sinistra */}
