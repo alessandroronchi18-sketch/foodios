@@ -1099,7 +1099,7 @@ class ErrorBoundary extends React.Component {
     if (err && import.meta.env.PROD) return (
       <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F8FAFC",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}>
         <div style={{maxWidth:420,textAlign:"center",background:"#fff",border:"1px solid #E8E0DC",borderRadius:16,padding:"36px 28px",boxShadow:"0 4px 20px rgba(15,23,42,0.08)"}}>
-          <div style={{fontSize:38,marginBottom:12}}>😕</div>
+          <div style={{marginBottom:12,color:C.textSoft}}><Icon name="frown" size={38} /></div>
           <h1 style={{margin:"0 0 10px",fontSize:19,fontWeight:800,color:"#1C0A0A"}}>Qualcosa è andato storto</h1>
           <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>L'errore è stato segnalato automaticamente. Ricarica la pagina per continuare.</p>
           <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica</button>

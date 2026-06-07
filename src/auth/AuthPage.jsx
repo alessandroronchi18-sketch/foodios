@@ -43,21 +43,21 @@ const TIPI_ATTIVITA = [
 
 // Prefissi telefonici internazionali — default Italia (+39)
 const PREFISSI_TELEFONO = [
-  { code: '+39',  flag: '🇮🇹', label: 'Italia' },
-  { code: '+378', flag: '🇸🇲', label: 'San Marino' },
-  { code: '+377', flag: '🇲🇨', label: 'Monaco' },
-  { code: '+33',  flag: '🇫🇷', label: 'Francia' },
-  { code: '+34',  flag: '🇪🇸', label: 'Spagna' },
-  { code: '+41',  flag: '🇨🇭', label: 'Svizzera' },
-  { code: '+49',  flag: '🇩🇪', label: 'Germania' },
-  { code: '+44',  flag: '🇬🇧', label: 'Regno Unito' },
-  { code: '+43',  flag: '🇦🇹', label: 'Austria' },
-  { code: '+30',  flag: '🇬🇷', label: 'Grecia' },
-  { code: '+31',  flag: '🇳🇱', label: 'Paesi Bassi' },
-  { code: '+32',  flag: '🇧🇪', label: 'Belgio' },
-  { code: '+351', flag: '🇵🇹', label: 'Portogallo' },
-  { code: '+352', flag: '🇱🇺', label: 'Lussemburgo' },
-  { code: '+1',   flag: '🇺🇸', label: 'USA / Canada' },
+  { code: '+39',  label: 'Italia' },
+  { code: '+378', label: 'San Marino' },
+  { code: '+377', label: 'Monaco' },
+  { code: '+33',  label: 'Francia' },
+  { code: '+34',  label: 'Spagna' },
+  { code: '+41',  label: 'Svizzera' },
+  { code: '+49',  label: 'Germania' },
+  { code: '+44',  label: 'Regno Unito' },
+  { code: '+43',  label: 'Austria' },
+  { code: '+30',  label: 'Grecia' },
+  { code: '+31',  label: 'Paesi Bassi' },
+  { code: '+32',  label: 'Belgio' },
+  { code: '+351', label: 'Portogallo' },
+  { code: '+352', label: 'Lussemburgo' },
+  { code: '+1',   label: 'USA / Canada' },
 ]
 
 function useIsMobile(bp = 920) {
@@ -343,7 +343,6 @@ function PhoneInput({ prefisso, numero, onPrefisso, onNumero }) {
           fontSize: 14, color: T.ink, fontWeight: 600, cursor: 'pointer',
           fontFamily: SANS, minWidth: 84,
         }}>
-        <span style={{ fontSize: 18, lineHeight: 1 }}>{sel.flag}</span>
         <span>{sel.code}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textSoft} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms' }}>
           <polyline points="6 9 12 15 18 9"/>
@@ -381,7 +380,6 @@ function PhoneInput({ prefisso, numero, onPrefisso, onNumero }) {
               }}
               onMouseEnter={e => e.currentTarget.style.background = T.cream}
               onMouseLeave={e => e.currentTarget.style.background = p.code === prefisso ? T.cream : 'transparent'}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>{p.flag}</span>
               <span style={{ fontWeight: 600, minWidth: 50 }}>{p.code}</span>
               <span style={{ color: T.textMid }}>{p.label}</span>
             </button>

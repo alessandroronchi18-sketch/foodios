@@ -157,7 +157,7 @@ export default function ChangelogView() {
               {entry.fix.length > 0 && (
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                    🔧 Fix e miglioramenti
+                    Fix e miglioramenti
                   </div>
                   <ul style={{ margin: 0, padding: '0 0 0 18px' }}>
                     {entry.fix.map((f, i) => (

@@ -86,6 +86,8 @@ const P = {
   iceCream:   '<path d="M8 8a4 4 0 0 1 8 0M7 8h10l-5 13z"/>',
   restaurant: '<path d="M7 2v20M5 2v6a2 2 0 0 0 2 2 2 2 0 0 0 2-2V2M17 2c-1.5 0-3 1.5-3 5s1.5 4 3 4v11"/>',
   broom:      '<path d="M19.4 4.6 14 10M9.5 21.5 3 15l4-4 6.5 6.5zM13 11l-2 2M22 2l-6 6"/>',
+  pause:      '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
+  frown:      '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
 }
 
 // alias: più emoji → stessa icona

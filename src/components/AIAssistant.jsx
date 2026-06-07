@@ -85,7 +85,7 @@ export default function AIAssistant() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Ciao! Sono l\'assistente di FoodOS. Posso aiutarti a capire come usare l\'app — chiedi pure 😊' }
+    { role: 'assistant', content: 'Ciao! Sono l\'assistente di FoodOS. Posso aiutarti a capire come usare l\'app — chiedi pure ' }
   ])
   const [loading, setLoading] = useState(false)
   const scrollRef = useRef(null)

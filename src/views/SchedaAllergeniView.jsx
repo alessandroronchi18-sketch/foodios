@@ -52,7 +52,7 @@ export default function SchedaAllergeniView({ ricettario }) {
 
     ALLERGENI.forEach(a => {
       doc.setFontSize(7); doc.setFont(undefined,'normal');
-      doc.text(`${a.emoji} ${a.label}`, startX, y+rowH*0.6);
+      doc.text(`${a.label}`, startX, y+rowH*0.6);
       ricette.forEach((r,i)=>{
         const has = algMap[r.nome]?.has(a.id);
         if(has){
@@ -111,7 +111,6 @@ export default function SchedaAllergeniView({ ricettario }) {
                 {ALLERGENI.map((a,ai)=>(
                   <tr key={a.id} style={{background:ai%2===0?C.white:"#FDFAF8",borderBottom:`1px solid ${C.border}`}}>
                     <td style={{padding:"10px 16px",fontWeight:600,fontSize:12,color:C.text,position:"sticky",left:0,background:ai%2===0?C.white:"#FDFAF8",display:"flex",alignItems:"center",gap:8,minWidth:160}}>
-                      <span style={{fontSize:16}}>{a.emoji}</span>
                       <div>
                         <div style={{fontSize:11,fontWeight:700,color:C.text}}>{a.label}</div>
                       </div>

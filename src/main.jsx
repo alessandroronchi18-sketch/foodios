@@ -105,7 +105,9 @@ function AppErrorFallback({ resetError }) {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F8FAFC', padding: 24, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div style={{ maxWidth: 440, textAlign: 'center', background: '#fff', border: '1px solid #E8E0DC', borderRadius: 16, padding: '36px 28px', boxShadow: '0 4px 20px rgba(15,23,42,0.08)' }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>😕</div>
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', color: '#9C887F' }}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </div>
         <h1 style={{ margin: '0 0 10px', fontSize: 20, fontWeight: 800, color: '#1C0A0A' }}>Qualcosa è andato storto</h1>
         <p style={{ margin: '0 0 22px', fontSize: 14, color: '#6B4C44', lineHeight: 1.6 }}>
           Si è verificato un errore imprevisto. È stato segnalato automaticamente: riprova ricaricando la pagina.

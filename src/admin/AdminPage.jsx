@@ -1598,7 +1598,7 @@ export default function AdminPage() {
             <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Caricamento da Stripe…</div>
           ) : stripeMrr?.unavailable ? (
             <div style={{ padding: '10px 14px', background: COLORS.warnBg, border: `1px solid ${COLORS.warn}`, borderRadius: 8, color: COLORS.warn, fontSize: 12 }}>
-              ⏸ Stripe non disponibile: {stripeMrr.reason || 'configurazione mancante'}
+              <Icon name="pause" size={14} /> Stripe non disponibile: {stripeMrr.reason || 'configurazione mancante'}
               <div style={{ fontSize: 11, marginTop: 6, opacity: 0.85 }}>
                 Pre-revenue: aspettato. Configura <code>STRIPE_SECRET_KEY</code> su Vercel quando passi a Stripe live.
               </div>
@@ -1833,7 +1833,7 @@ export default function AdminPage() {
                               </Btn>
                             ) : (
                               <Btn kind="danger" size="sm" onClick={() => { if (confirm(`Bloccare ${c.nome_attivita}?`)) azione(c.org_id, 'blocca') }} disabled={inAzione('blocca')} title="Blocca">
-                                ⏸
+                                <Icon name="pause" size={14} />
                               </Btn>
                             )}
                             <Btn kind="neutral" size="sm" onClick={() => {
@@ -2099,7 +2099,7 @@ export default function AdminPage() {
                                   } catch (e) { toast.error(e.message) }
                                 }}
                                 title="Disattiva">
-                                ⏸
+                                <Icon name="pause" size={14} />
                               </Btn>
                             )}
                             <Btn kind="danger" size="sm"
@@ -2331,7 +2331,7 @@ export default function AdminPage() {
                             await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'banner_disattiva', id: b.id }) })
                             fetchBanners()
                           } catch (e) { toast.error(e.message) }
-                        }}>⏸ Disattiva</Btn>
+                        }}><Icon name="pause" size={14} /> Disattiva</Btn>
                       )}
                       <Btn kind="danger" size="sm" onClick={async () => {
                         if (!confirm('Eliminare definitivamente?')) return

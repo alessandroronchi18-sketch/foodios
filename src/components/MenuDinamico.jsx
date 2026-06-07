@@ -170,9 +170,9 @@ function BCGMatrix({ menuItems }) {
 
   const QUAD_META = {
     Star:   { title:"Star",   sub:"Alto margine · Molto venduto",  desc:"I tuoi cavalli di battaglia: rendono bene e vendono tanto. Tienili sempre disponibili e ben in vista.", sample:{ margPct:70, volRel:0.8 } },
-    Puzzle: { title:"❓ Puzzle", sub:"Alto margine · Poco venduto",   desc:"Rendono bene ma li compra in pochi: spingili (vetrina, consiglio, promo) per trasformarli in Star.", sample:{ margPct:70, volRel:0.2 } },
-    Plow:   { title:"🐴 Plow",   sub:"Basso margine · Molto venduto", desc:"Piacciono e vendono, ma guadagni poco: rivedi food cost o ritocca il prezzo per alzare il margine.", sample:{ margPct:20, volRel:0.8 } },
-    Dog:    { title:"🐶 Dog",    sub:"Basso margine · Poco venduto",  desc:"Vendono poco e rendono poco: valuta se rinnovarli, sostituirli o toglierli dal menù.", sample:{ margPct:20, volRel:0.2 } },
+    Puzzle: { title:"Puzzle", sub:"Alto margine · Poco venduto",   desc:"Rendono bene ma li compra in pochi: spingili (vetrina, consiglio, promo) per trasformarli in Star.", sample:{ margPct:70, volRel:0.2 } },
+    Plow:   { title:"Plow",   sub:"Basso margine · Molto venduto", desc:"Piacciono e vendono, ma guadagni poco: rivedi food cost o ritocca il prezzo per alzare il margine.", sample:{ margPct:20, volRel:0.8 } },
+    Dog:    { title:"Dog",    sub:"Basso margine · Poco venduto",  desc:"Vendono poco e rendono poco: valuta se rinnovarli, sostituirli o toglierli dal menù.", sample:{ margPct:20, volRel:0.2 } },
   }
 
   return (

@@ -63,7 +63,7 @@ export function useAuth() {
       timeoutMs: IDLE_TIMEOUT_MS,
       onTimeout: async () => {
         try {
-          console.warn('🕓 Sessione scaduta per inattività — logout automatico')
+          console.warn('Sessione scaduta per inattività — logout automatico')
           clearIdleTimestamp()
           await supabase.auth.signOut()
         } catch (e) { /* ignore */ }

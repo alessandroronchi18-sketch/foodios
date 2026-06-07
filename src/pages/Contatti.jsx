@@ -45,7 +45,7 @@ export default function Contatti() {
         a chi sviluppa.
       </LegalP>
 
-      <LegalH2>🤝 Vuoi essere design partner?</LegalH2>
+      <LegalH2>Vuoi essere design partner?</LegalH2>
       <LegalP>
         FoodOS cresce su feedback reale. Se sei una pasticceria/gelateria/bar disposta a usare il
         prodotto e a darci un feedback strutturato (1 call settimanale di 30 min), offriamo
