@@ -13,11 +13,35 @@ const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'"
 // componente → esistono di certo nel DB). I parser possono produrre campi extra
 // (piva, cf, note) che, se la tabella non li ha, fanno fallire l'INSERT con un
 // errore PostgREST. Inseriamo SOLO le colonne sicure per non rompere l'import.
-const FATTURA_COLS_SICURE = ['numero_rif', 'data_fattura', 'fornitore', 'imponibile', 'imposta', 'totale', 'stato']
+const FATTURA_COLS_SICURE = ['numero_rif', 'data_fattura', 'data_scadenza', 'tipo', 'fornitore', 'piva', 'cf', 'iban', 'imponibile', 'imposta', 'totale', 'stato', 'importo_pagato', 'note']
 function pickFattura(r, orgId, sedeId) {
   const out = { organization_id: orgId, sede_id: sedeId || null }
   for (const k of FATTURA_COLS_SICURE) if (r[k] !== undefined && r[k] !== null) out[k] = r[k]
   return out
+}
+
+// Colonne "core" sempre presenti (anche prima della migration scadenzario).
+const FATTURA_COLS_CORE = ['numero_rif', 'data_fattura', 'fornitore', 'imponibile', 'imposta', 'totale', 'stato']
+
+// INSERT resiliente: prova con tutte le colonne sicure (scadenza/iban/tipo/…);
+// se la migration delle nuove colonne NON è ancora applicata, PostgREST risponde
+// "column does not exist" / PGRST204 → ripieghiamo sulle sole colonne core, così
+// l'import funziona comunque (degradando i campi nuovi) invece di rompersi.
+async function insertFattureResilient(supabase, rows) {
+  if (!rows.length) return
+  for (let i = 0; i < rows.length; i += 100) {
+    const chunk = rows.slice(i, i + 100)
+    let { error } = await supabase.from('fatture').insert(chunk)
+    if (error && /does not exist|schema cache|PGRST204|could not find/i.test(error.message || '')) {
+      const core = chunk.map(r => {
+        const o = { organization_id: r.organization_id, sede_id: r.sede_id }
+        for (const k of FATTURA_COLS_CORE) if (r[k] !== undefined && r[k] !== null) o[k] = r[k]
+        return o
+      })
+      error = (await supabase.from('fatture').insert(core)).error
+    }
+    if (error) throw error
+  }
 }
 
 // Chiave di deduplica fattura: numero + fornitore + data, normalizzati.
@@ -52,10 +76,17 @@ const PAYMENT_TERMS_DAYS = 30
 
 // ─── Date / numero helpers ────────────────────────────────────────────────────
 function dueDateObj(f) {
+  // 1) Scadenza REALE dall'XML (DatiPagamento) se presente.
+  if (f?.data_scadenza && /^\d{4}-\d{2}-\d{2}/.test(f.data_scadenza)) {
+    const d = new Date(f.data_scadenza.slice(0, 10) + 'T12:00:00')
+    if (!isNaN(d.getTime())) return d
+  }
+  // 2) Altrimenti deriva da data_fattura + termini (per-fornitore se noti, else 30gg).
   if (!f?.data_fattura) return null
   const d = new Date(f.data_fattura + 'T12:00:00')
   if (isNaN(d.getTime())) return null
-  d.setDate(d.getDate() + PAYMENT_TERMS_DAYS)
+  const termini = Number.isFinite(f?._termini) ? f._termini : PAYMENT_TERMS_DAYS
+  d.setDate(d.getDate() + termini)
   return d
 }
 function dueDateISO(f) {
@@ -182,10 +213,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         const { nuovi, scartati: sc } = dedupFatture(records, seen)
         scartati += sc
         const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
-        for (let i = 0; i < toInsert.length; i += 100) {
-          const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
-          if (error) throw error
-        }
+        await insertFattureResilient(supabase, toInsert)
         imported += nuovi.length
       } catch (e) {
         const msg = e?.message || (typeof e === 'string' ? e : '') || 'errore sconosciuto'
@@ -214,10 +242,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         const { nuovi, scartati: sc } = dedupFatture(records, seen)
         scartati += sc
         const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
-        for (let i = 0; i < toInsert.length; i += 100) {
-          const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
-          if (error) throw error
-        }
+        await insertFattureResilient(supabase, toInsert)
         imported += nuovi.length
       } catch (e) {
         notify('Errore import XML ' + file.name + ': ' + (e?.message || 'sconosciuto'), false)
@@ -244,10 +269,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         const { nuovi, scartati: sc } = dedupFatture(records, seen)
         scartati += sc
         const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
-        for (let i = 0; i < toInsert.length; i += 100) {
-          const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
-          if (error) throw error
-        }
+        await insertFattureResilient(supabase, toInsert)
         imported += nuovi.length
       } catch (e) {
         notify('Errore import FatturaSMART ' + file.name + ': ' + (e?.message || 'sconosciuto'), false)
@@ -299,11 +321,22 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const now = new Date()
     return fatture.map(f => {
       const dd = dueDateObj(f)
+      const segno = f.tipo === 'nota_credito' ? -1 : 1
+      const importoNetto = segno * (Number(f.totale) || 0)       // NC = negativo
+      const pagato = Number(f.importo_pagato) || 0
+      // Residuo da pagare: per le NC è un credito (negativo); per le fatture è
+      // totale - quanto già pagato (acconti). Le pagate hanno residuo 0.
+      const residuo = f.stato === 'pagata' ? 0 : importoNetto - segno * pagato
       return {
         ...f,
         urgenza: computeUrgenza(f, now),
         dueIso: dueDateISO(f),
         dueDays: dd ? diffDays(dd, now) : null,
+        segno,
+        isNC: segno < 0,
+        importoNetto,
+        pagato,
+        residuo,
       }
     })
   }, [fatture])
@@ -327,14 +360,19 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
   // Riepilogo finanziario (sempre globale, non filtrato)
   const summary = useMemo(() => {
-    const sum = arr => arr.reduce((s, f) => s + (f.totale || 0), 0)
+    // Netto (NC comprese): usa il residuo firmato di ogni fattura.
+    const sum = arr => arr.reduce((s, f) => s + (f.residuo || 0), 0)
+    const aperte = [...gruppi.scaduta, ...gruppi.settimana, ...gruppi.mese, ...gruppi.futura]
+    const creditiNC = aperte.filter(f => f.isNC).reduce((s, f) => s + Math.abs(f.residuo || 0), 0)
     return {
-      daPagare:     sum([...gruppi.scaduta, ...gruppi.settimana, ...gruppi.mese, ...gruppi.futura]),
+      daPagare:     sum(aperte),               // netto NC
       scaduto:      sum(gruppi.scaduta),
       settimanaTot: sum(gruppi.settimana),
-      nDaPagare:    gruppi.scaduta.length + gruppi.settimana.length + gruppi.mese.length + gruppi.futura.length,
-      nScadute:     gruppi.scaduta.length,
-      nSettimana:   gruppi.settimana.length,
+      creditiNC,                               // crediti da note di credito ancora aperte
+      nDaPagare:    aperte.filter(f => !f.isNC).length,
+      nScadute:     gruppi.scaduta.filter(f => !f.isNC).length,
+      nSettimana:   gruppi.settimana.filter(f => !f.isNC).length,
+      nNC:          aperte.filter(f => f.isNC).length,
     }
   }, [gruppi])
 

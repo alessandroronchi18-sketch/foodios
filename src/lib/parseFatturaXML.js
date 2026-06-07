@@ -85,6 +85,27 @@ export function parseFatturaXML(xmlString) {
     const totaleRaw = dgd?.querySelector('ImportoTotaleDocumento')?.textContent?.trim() || '0'
     const totale = Math.round((parseFloat(totaleRaw) || 0) * 100) / 100
 
+    // Tipo documento: TD04/TD08 = nota di credito (compensa il dovuto).
+    const tipoDoc = (dgd?.querySelector('TipoDocumento')?.textContent?.trim() || '').toUpperCase()
+    const tipo = (tipoDoc === 'TD04' || tipoDoc === 'TD08') ? 'nota_credito' : 'fattura'
+
+    // DatiPagamento → scadenza REALE + IBAN (per il bonifico). Possono esserci
+    // più rate (DettaglioPagamento): prendiamo la scadenza più lontana e il
+    // primo IBAN valorizzato.
+    let data_scadenza = null
+    let iban = ''
+    body.querySelectorAll('DettaglioPagamento').forEach(dp => {
+      const scad = dp.querySelector('DataScadenzaPagamento')?.textContent?.trim()
+      if (scad && /^\d{4}-\d{2}-\d{2}/.test(scad)) {
+        const iso = scad.slice(0, 10)
+        if (!data_scadenza || iso > data_scadenza) data_scadenza = iso
+      }
+      if (!iban) {
+        const ib = dp.querySelector('IBAN')?.textContent?.trim()
+        if (ib) iban = ib.replace(/\s+/g, '').toUpperCase()
+      }
+    })
+
     // Prefer DatiRiepilogo for imponibile/imposta
     let imponibile = 0
     let imposta = 0
@@ -114,9 +135,12 @@ export function parseFatturaXML(xmlString) {
     fatture.push({
       numero_rif: numero,
       data_fattura: data,
+      data_scadenza,
+      tipo,
       fornitore,
       piva,
       cf,
+      iban,
       imponibile: Math.round(imponibile * 100) / 100,
       imposta: Math.round(imposta * 100) / 100,
       totale,

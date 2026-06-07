@@ -65,4 +65,39 @@ describe('parseFatturaXML', () => {
     expect(f).toHaveLength(2)
     expect(f[1]).toMatchObject({ numero_rif: '124', totale: 61, imponibile: 50 })
   })
+
+  it('default: tipo=fattura, scadenza null, iban vuoto se non specificati', () => {
+    const f = parseFatturaXML(XML_OK)
+    expect(f[0].tipo).toBe('fattura')
+    expect(f[0].data_scadenza).toBeNull()
+    expect(f[0].iban).toBe('')
+  })
+
+  it('estrae scadenza reale e IBAN dal blocco DatiPagamento', () => {
+    const xml = XML_OK.replace('</DatiBeniServizi>', `</DatiBeniServizi>
+      <DatiPagamento><DettaglioPagamento>
+        <DataScadenzaPagamento>2026-03-15</DataScadenzaPagamento>
+        <ImportoPagamento>122.00</ImportoPagamento>
+        <IBAN>IT60 X054 2811 1010 0000 0123 456</IBAN>
+      </DettaglioPagamento></DatiPagamento>`)
+    const f = parseFatturaXML(xml)
+    expect(f[0].data_scadenza).toBe('2026-03-15')
+    expect(f[0].iban).toBe('IT60X0542811101000000123456')
+  })
+
+  it('con più rate prende la scadenza più lontana', () => {
+    const xml = XML_OK.replace('</DatiBeniServizi>', `</DatiBeniServizi>
+      <DatiPagamento>
+        <DettaglioPagamento><DataScadenzaPagamento>2026-03-15</DataScadenzaPagamento></DettaglioPagamento>
+        <DettaglioPagamento><DataScadenzaPagamento>2026-04-15</DataScadenzaPagamento></DettaglioPagamento>
+      </DatiPagamento>`)
+    const f = parseFatturaXML(xml)
+    expect(f[0].data_scadenza).toBe('2026-04-15')
+  })
+
+  it('riconosce la nota di credito (TD04) come tipo=nota_credito', () => {
+    const xml = XML_OK.replace('<Numero>123</Numero>', '<TipoDocumento>TD04</TipoDocumento><Numero>NC1</Numero>')
+    const f = parseFatturaXML(xml)
+    expect(f[0].tipo).toBe('nota_credito')
+  })
 })
