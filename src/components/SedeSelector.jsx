@@ -104,8 +104,36 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
           <div style={{ padding: '8px 12px', fontSize: 9, fontWeight: 700, color: P.panelLabel, textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: `1px solid ${top ? '#F0EAE6' : 'rgba(255,255,255,0.05)'}` }}>
             Cambia sede · {sedi.length}
           </div>
+          {/* Vista aggregata azienda: dati di TUTTE le sedi insieme */}
+          {(() => {
+            const active = !!sedeAttiva?._all
+            return (
+              <button
+                onClick={() => { onSelect({ _all: true, nome: 'Tutte le sedi' }); setOpen(false) }}
+                onMouseEnter={e => { e.currentTarget.style.background = active ? (top ? 'rgba(110,14,26,0.14)' : 'rgba(110,14,26,0.28)') : (top ? '#F4EEEA' : 'rgba(255,255,255,0.05)') }}
+                onMouseLeave={e => { e.currentTarget.style.background = active ? (top ? 'rgba(110,14,26,0.10)' : 'rgba(110,14,26,0.22)') : 'transparent' }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 12px', textAlign: 'left',
+                  background: active ? (top ? 'rgba(110,14,26,0.10)' : 'rgba(110,14,26,0.22)') : 'transparent',
+                  border: 'none', borderLeft: active ? `2px solid ${BRAND}` : '2px solid transparent',
+                  borderBottom: `1px solid ${top ? '#F0EAE6' : 'rgba(255,255,255,0.05)'}`,
+                  color: P.itemTxt, fontSize: 12.5, cursor: 'pointer', transition: 'background 100ms ease',
+                }}
+              >
+                <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: active ? BRAND : (top ? '#EDE6E2' : 'rgba(255,255,255,0.08)'), flexShrink: 0 }}>
+                  {active
+                    ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={P.itemSub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>}
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: active ? 700 : 600, color: P.itemTxt }}>Tutte le sedi</div>
+                  <div style={{ fontSize: 10.5, color: P.itemSub, marginTop: 2 }}>vista azienda aggregata</div>
+                </div>
+              </button>
+            )
+          })()}
           {sedi.map(sede => {
-            const active = sede.id === sedeCorrente?.id
+            const active = !sedeAttiva?._all && sede.id === sedeCorrente?.id
             return (
               <button
                 key={sede.id}

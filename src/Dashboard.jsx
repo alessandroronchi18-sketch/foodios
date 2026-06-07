@@ -118,6 +118,22 @@ function ssave(key, val) {
 }
 function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
 
+// ── Vista azienda ("Tutte le sedi"): merge dei dati per-sede ──────────────────
+// Array (giornaliero/chiusure/logrif) → concatenati; magazzino → giacenze sommate.
+function _mergeArr(map) { return Object.values(map || {}).filter(Array.isArray).flat(); }
+function _mergeMag(map) {
+  const out = {};
+  for (const m of Object.values(map || {})) {
+    if (!m || typeof m !== 'object' || Array.isArray(m)) continue;
+    for (const [k, v] of Object.entries(m)) {
+      if (!v || typeof v !== 'object') continue;
+      if (!out[k]) out[k] = { ...v };
+      else out[k] = { ...out[k], giacenza_g: (out[k].giacenza_g || 0) + (v.giacenza_g || 0), soglia_g: Math.max(out[k].soglia_g || 0, v.soglia_g || 0) };
+    }
+  }
+  return out;
+}
+
 // ─── CENTRALIZZATA ANALISI FOTO AI ───────────────────────────────────────────
 async function analizzaFotoAI(file, tipo = 'ricetta') {
   const base64 = await new Promise((resolve, reject) => {
@@ -1136,6 +1152,10 @@ const DIPENDENTE_VIEWS = new Set([
   'changelog',
 ]);
 
+// Viste operative che SCRIVONO dati per-sede: in "Tutte le sedi" (vista aggregata)
+// richiedono di scegliere prima una sede specifica.
+const SEDE_RICHIESTA = new Set(['giornaliero','chiusura','magazzino','sprechi-omaggi','trasferimenti']);
+
 export default function Dashboard({
   auth,
   orgId = null,
@@ -1152,6 +1172,9 @@ export default function Dashboard({
   // Sync module-level storage context with current org/sede
   _ctx_orgId = orgId;
   _ctx_sedeId = sedeId;
+  // "Tutte le sedi": vista aggregata azienda (sola lettura). Le viste operative
+  // che scrivono dati per-sede richiedono una sede specifica.
+  const isAllSedi = !!sedeAttiva?._all;
 
   // Lessico per categoria (gelateria→gusti, pizzeria→pizze, …); fallback generico.
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita]);
@@ -1332,9 +1355,12 @@ export default function Dashboard({
                    .catch(e => console.error(`Ripristino ${label} fallito:`, e));
     };
 
+    // "Tutte le sedi": carica le chiavi PER-SEDE aggregate da tutte le sedi.
+    const allM = !!sedeAttiva?._all;
+    const loadPS = (key, merge) => allM ? sloadAllSedi(key, orgId).then(merge) : sload(key);
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
     Promise.race([
-      Promise.all([sload(SK_RIC),sload(SK_PROD),sload(SK_ACT),sload(SK_MAG),sload(SK_LOGRIF),sload(SK_GIOR),sload(SK_CHIUS),sload(SK_EXCL),sload(SK_LOG_PRZ)]),
+      Promise.all([sload(SK_RIC),loadPS(SK_PROD,()=>({})),sload(SK_ACT),loadPS(SK_MAG,_mergeMag),loadPS(SK_LOGRIF,_mergeArr),loadPS(SK_GIOR,_mergeArr),loadPS(SK_CHIUS,_mergeArr),sload(SK_EXCL),sload(SK_LOG_PRZ)]),
       timeout
     ]).then(([ric,prod,act,mag,logrif,gior,chius,excl,logprz])=>{
       setOfflineMode(false);
@@ -1374,12 +1400,14 @@ export default function Dashboard({
         } catch {}
         restoreIfEmpty(null, SK_RIC, 'ricettario'); // anche dal nuovo bk format
       }
-      if(prod)  { setProd(prod);          bkWriteLS(SK_PROD,   prod,   orgId, sedeId); } else { restoreIfEmpty(prod,   SK_PROD,   'produzione'); }
+      // In "Tutte le sedi" (allM) i dati sono aggregati: applico solo lo stato,
+      // SENZA backup né restore per-sede (eviterei di sporcare la cache di una sede).
+      if(prod)  { setProd(prod);          if(!allM) bkWriteLS(SK_PROD,   prod,   orgId, sedeId); } else if(!allM){ restoreIfEmpty(prod,   SK_PROD,   'produzione'); }
       if(act)   { setAct(act);            bkWriteLS(SK_ACT,    act,    orgId, null);   } else { restoreIfEmpty(act,    SK_ACT,    'actions'); }
-      if(mag)   { setMagazzino(mag);      bkWriteLS(SK_MAG,    mag,    orgId, sedeId); } else { restoreIfEmpty(mag,    SK_MAG,    'magazzino'); }
-      if(logrif){ setLogRif(logrif);      bkWriteLS(SK_LOGRIF, logrif, orgId, sedeId); } else { restoreIfEmpty(logrif, SK_LOGRIF, 'logRif'); }
-      if(gior)  { setGiornaliero(gior);   bkWriteLS(SK_GIOR,   gior,   orgId, sedeId); } else { restoreIfEmpty(gior,   SK_GIOR,   'giornaliero'); }
-      if(chius) { setChiusure(chius);     bkWriteLS(SK_CHIUS,  chius,  orgId, sedeId); } else { restoreIfEmpty(chius,  SK_CHIUS,  'chiusure'); }
+      if(mag)   { setMagazzino(mag);      if(!allM) bkWriteLS(SK_MAG,    mag,    orgId, sedeId); } else if(!allM){ restoreIfEmpty(mag,    SK_MAG,    'magazzino'); }
+      if(logrif){ setLogRif(logrif);      if(!allM) bkWriteLS(SK_LOGRIF, logrif, orgId, sedeId); } else if(!allM){ restoreIfEmpty(logrif, SK_LOGRIF, 'logRif'); }
+      if(gior)  { setGiornaliero(gior);   if(!allM) bkWriteLS(SK_GIOR,   gior,   orgId, sedeId); } else if(!allM){ restoreIfEmpty(gior,   SK_GIOR,   'giornaliero'); }
+      if(chius) { setChiusure(chius);     if(!allM) bkWriteLS(SK_CHIUS,  chius,  orgId, sedeId); } else if(!allM){ restoreIfEmpty(chius,  SK_CHIUS,  'chiusure'); }
       if(excl)  { setEsclusi(new Set(excl)); bkWriteLS(SK_EXCL, excl,  orgId, null);   } else { restoreIfEmpty(excl,   SK_EXCL,   'esclusi'); }
       if(logprz){ setLogPrezzi(logprz); }
       // Migration: convert known semilavorati from tipo "interno" or missing tipo
@@ -1416,7 +1444,7 @@ export default function Dashboard({
       }
       setReady(true);
     });
-  },[orgId, sedeId]);
+  },[orgId, sedeId, sedeAttiva?._all]);
 
   useEffect(()=>{
     if(!ready) return;
@@ -2575,6 +2603,17 @@ export default function Dashboard({
           />
         )}
 
+        {/* Vista "Tutte le sedi": le pagine operative richiedono una sede specifica. */}
+        {isAllSedi && SEDE_RICHIESTA.has(view) && (
+          <div style={{ maxWidth: 560, margin: '40px auto', textAlign: 'center', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '32px 28px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: C.bgSubtle, color: C.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 8 }}>Sei in "Tutte le sedi"</div>
+            <div style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.55 }}>Questa pagina registra dati di una sede specifica. Scegli una sede dal selettore in alto a destra per continuare.</div>
+          </div>
+        )}
+
         {/* Home dashboard */}
         {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}
 
@@ -2585,7 +2624,7 @@ export default function Dashboard({
         {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
 
         {/* Sprechi e omaggi — titolare e dipendente, per-sede */}
-        {view==="sprechi-omaggi"&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} auth={auth} notify={notify}/>}
+        {view==="sprechi-omaggi"&&!isAllSedi&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} auth={auth} notify={notify}/>}
 
         {/* Ricettario — mostra upload se non ancora caricato */}
         {view==="ricettario"&&!ricettario&&(
@@ -2612,11 +2651,11 @@ export default function Dashboard({
         {view==="haccp"&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
         {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
-        {view==="chiusura"&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
+        {view==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} LEX={LEX}/>}
         {view==="discrepanze"&&<DiscrepanzeView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} LEX={LEX}/>}
-        {view==="magazzino"&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} LEX={LEX}/>}
-        {view==="giornaliero"&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
+        {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} LEX={LEX}/>}
+        {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="importa-dati"&&<ImportaDatiView
@@ -2628,7 +2667,7 @@ export default function Dashboard({
           notify={notify}/>}
         {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita}/>}
-        {view==="trasferimenti"&&(canAccessView("trasferimenti",piano)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="integrazioni"&&(canAccessView("integrazioni",piano)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
