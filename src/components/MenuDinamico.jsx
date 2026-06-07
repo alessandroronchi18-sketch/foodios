@@ -1,11 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { sload, ssave } from '../lib/storage'
+import useIsMobile from '../lib/useIsMobile'
+import Icon from './Icon'
+import { KPI, SH, PageHeader, Tip, C, fmt, fmtp } from '../views/_shared'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
-function fmt(n)  { return `€ ${Number(n).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}` }
-function fmtp(n) { return `${Number(n).toFixed(1)}%` }
+const SK_MENU = 'menu-giorno-v1'
 
 // BCG quadrant: margine% × popolarità (relative volume)
 // Colors map to semantic tokens where possible; quadrant tints kept neutral.
@@ -18,8 +21,39 @@ function bcgQuadrant(margPct, volRel) {
   return                    { q:"Dog",   color:T.red,   bg:T.redLight,   tip:"Bassa redditività e bassa popolarità — rivalutare o rimuovere" }
 }
 
+// Suggerimento azionabile per quadrante BCG.
+const QUAD_SUGGEST = {
+  Star:   { icon:"star",      label:"Tieni in vetrina",        hint:"Cavalli di battaglia: tienili sempre disponibili e ben in vista." },
+  Puzzle: { icon:"bulb",      label:"Promuovi",                hint:"Rendono ma vendono poco: spingili (consiglio, vetrina, promo)." },
+  Plow:   { icon:"trendUp",   label:"Alza prezzo / riduci FC", hint:"Vendono ma rendono poco: ritocca il prezzo o ottimizza il food cost." },
+  Dog:    { icon:"trendDown", label:"Valuta rimozione",        hint:"Vendono poco e rendono poco: valuta se rinnovarli o toglierli." },
+}
+
+// Popolarità reale dal venduto: somma unitaV per nome prodotto sugli ultimi `giorni` giorni.
+// Le chiavi sono i nomi prodotto NORMALIZZATI (uppercase + trim), come in chiusure[].confronto[].nome.
+// Fallback alla stima `unita` (pezzi/ricetta) solo se non esiste storico venduto.
+function popolaritaDalVenduto(chiusure, giorni = 60) {
+  const out = {}
+  if (!Array.isArray(chiusure)) return out
+  const soglia = new Date(Date.now() - giorni * 24 * 60 * 60 * 1000)
+  for (const ch of chiusure) {
+    if (!ch) continue
+    // ch.data = "YYYY-MM-DD". Senza data valida includiamo comunque (storico parziale).
+    if (typeof ch.data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ch.data)) {
+      const d = new Date(ch.data + 'T00:00:00')
+      if (!Number.isNaN(d.getTime()) && d < soglia) continue
+    }
+    for (const r of (ch.confronto || [])) {
+      const key = String(r?.nome || '').toUpperCase().trim()
+      if (!key) continue
+      out[key] = (out[key] || 0) + (Number(r?.unitaV) || 0)
+    }
+  }
+  return out
+}
+
 /* ─── EDITOR ─────────────────────────────────────────────────────────── */
-function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems }) {
+function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems, isMobile }) {
   const [search, setSearch] = useState("")
 
   const ricette = Object.values(ricettario?.ricette||{}).filter(r => {
@@ -59,17 +93,15 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
   return (
     <div>
       <div style={{ position:"relative", marginBottom:16 }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textSoft}
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)" }}>
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
+        <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", display:"inline-flex", color:T.textSoft }}>
+          <Icon name="search" size={15}/>
+        </span>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca ricetta…"
           style={{
             width:"100%", padding:"10px 14px 10px 36px", borderRadius:R.lg,
-            border:`1px solid ${T.border}`, fontSize:13, color:T.text,
+            border:`1px solid ${T.border}`, fontSize: isMobile?16:13, color:T.text,
             background:T.bgCard, outline:"none",
-            letterSpacing:"-0.005em",
+            letterSpacing:"-0.005em", boxSizing:"border-box",
             transition:`border-color ${M.durFast} ${M.ease}, box-shadow ${M.durFast} ${M.ease}`,
           }}
           onFocus={e=>{ e.currentTarget.style.borderColor=T.borderStr; e.currentTarget.style.boxShadow=`0 0 0 3px ${T.brandSoft}`; }}
@@ -80,19 +112,20 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:12, flexWrap:"wrap" }}>
         <div style={{ fontSize:12, color:T.textSoft }}>{menuItems.length} nel menù · {filtrate.length} {search ? "trovate" : "ricette"}</div>
         <button type="button" onClick={tutteInMenu ? deselezionaTutti : selezionaTutti}
-          style={{ padding:"7px 14px", borderRadius:R.md, border:`1px solid ${T.brand}`, background: tutteInMenu ? T.bgCard : T.brand, color: tutteInMenu ? T.brand : T.white, fontSize:12, fontWeight:700, cursor:"pointer" }}>
-          {tutteInMenu ? "Deseleziona tutti" : `✓ Seleziona tutti${search ? " (filtrati)" : ""}`}
+          style={{ padding:"8px 14px", minHeight:40, borderRadius:R.md, border:`1px solid ${T.brand}`, background: tutteInMenu ? T.bgCard : T.brand, color: tutteInMenu ? T.brand : T.white, fontSize:12, fontWeight:700, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
+          {!tutteInMenu && <Icon name="check" size={13} color={T.white}/>}
+          {tutteInMenu ? "Deseleziona tutti" : `Seleziona tutti${search ? " (filtrati)" : ""}`}
         </button>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
+      <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
         {filtrate.map(r => {
           const sel = inMenu.has(r.nome)
           const reg = getR(r.nome, r)
           return (
             <button key={r.nome} type="button" onClick={()=>toggleItem(r)}
               style={{
-                padding:"12px 14px", borderRadius:R.lg,
+                padding:"12px 14px", borderRadius:R.lg, minHeight:40,
                 border:`1px solid ${sel ? T.brand : T.border}`,
                 background: sel ? T.brandLight : T.bgCard,
                 cursor:"pointer", textAlign:"left",
@@ -112,10 +145,7 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
               {sel && (
                 <div style={{ fontSize:10, fontWeight:600, color:T.brand, marginTop:5,
                   display:"flex", alignItems:"center", gap:4, letterSpacing:"-0.005em" }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
+                  <Icon name="check" size={11} strokeWidth={3}/>
                   nel menù
                 </div>
               )}
@@ -128,7 +158,7 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
 }
 
 /* ─── BCG MATRIX ─────────────────────────────────────────────────────── */
-function BCGMatrix({ menuItems }) {
+function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile }) {
   if (!menuItems.length) return (
     <div style={{
       display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
@@ -139,12 +169,7 @@ function BCGMatrix({ menuItems }) {
         width:44, height:44, borderRadius:R.md, background:T.bgSubtle, color:T.textSoft,
         display:"flex", alignItems:"center", justifyContent:"center",
       }}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="3" y1="3" x2="3" y2="21"/><line x1="3" y1="21" x2="21" y2="21"/>
-          <circle cx="9" cy="14" r="1.5" fill="currentColor"/>
-          <circle cx="15" cy="9"  r="1.5" fill="currentColor"/>
-        </svg>
+        <Icon name="barChart" size={22} strokeWidth={1.7}/>
       </div>
       <div style={{ fontSize:13, color:T.textMid, fontWeight:500, letterSpacing:"-0.005em" }}>
         Nessun prodotto nel menù
@@ -155,13 +180,18 @@ function BCGMatrix({ menuItems }) {
     </div>
   )
 
-  const maxVol = Math.max(...menuItems.map(m=>m.unita), 1)
+  // Volume reale dal venduto se disponibile, altrimenti stima `unita` (pezzi/ricetta).
+  const volOf = (m) => {
+    const v = popVenduto[m.nome.toUpperCase().trim()]
+    return v != null ? v : (Number(m.unita) || 0)
+  }
+  const maxVol = Math.max(...menuItems.map(volOf), 1)
 
-  const withBcg = menuItems.map(m => ({
-    ...m,
-    volRel: m.unita / maxVol,
-    bcg: bcgQuadrant(m.margPct, m.unita/maxVol),
-  }))
+  const withBcg = menuItems.map(m => {
+    const vol = volOf(m)
+    const volRel = vol / maxVol
+    return { ...m, vol, volRel, bcg: bcgQuadrant(m.margPct, volRel) }
+  })
 
   const quadrants = ["Star","Puzzle","Plow","Dog"]
   const byQ = quadrants.reduce((acc,q)=>({ ...acc, [q]: withBcg.filter(m=>m.bcg.q===q) }), {})
@@ -177,11 +207,20 @@ function BCGMatrix({ menuItems }) {
 
   return (
     <div>
+      {/* Sorgente popolarità */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, fontSize:12, color:T.textMid }}>
+        <Icon name={hasStorico ? "checkCircle" : "warning"} size={15} color={hasStorico ? T.green : T.amber}/>
+        {hasStorico
+          ? "Popolarità calcolata sul venduto reale (ultimi 60 giorni)."
+          : "Nessuno storico venduto: popolarità stimata dai pezzi per ricetta."}
+      </div>
+
       {/* Quadrant cards */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:24 }}>
+      <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap:14, marginBottom:24 }}>
         {quadrants.map(q => {
           const meta = QUAD_META[q]
           const info = bcgQuadrant(meta.sample.margPct, meta.sample.volRel)
+          const sg = QUAD_SUGGEST[q]
           return (
             <div key={q} style={{
               background:info.bg, borderRadius:16, padding:"16px 20px",
@@ -201,8 +240,18 @@ function BCGMatrix({ menuItems }) {
               <div style={{ fontSize:11, color:T.textMid, marginBottom:10, lineHeight:1.5 }}>
                 {meta.desc}
               </div>
+              {/* Suggerimento azionabile */}
+              <Tip text={sg.hint}>
+                <span style={{
+                  display:"inline-flex", alignItems:"center", gap:6, marginBottom:10,
+                  padding:"5px 10px", borderRadius:R.full, background:`${info.color}1a`,
+                  color:info.color, fontSize:11, fontWeight:700, cursor:"help",
+                }}>
+                  <Icon name={sg.icon} size={12} color={info.color}/>{sg.label}
+                </span>
+              </Tip>
               {byQ[q].length === 0 ? (
-                <div style={{ fontSize:12, color:T.textSoft, fontStyle:"italic" }}>
+                <div style={{ fontSize:12, color:T.textSoft, fontStyle:"italic", marginTop:8 }}>
                   Nessun prodotto
                 </div>
               ) : byQ[q].map((m,i)=>(
@@ -228,7 +277,7 @@ function BCGMatrix({ menuItems }) {
       {/* Scatter plot */}
       <div style={{
         background:T.bgCard, borderRadius:18, border:`1px solid ${T.border}`,
-        padding:"20px 24px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
+        padding: isMobile ? "16px 14px" : "20px 24px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
       }}>
         <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", marginBottom:16 }}>
           <div style={{ fontSize:15, fontWeight:700, color:T.text, letterSpacing:"-0.01em" }}>
@@ -237,7 +286,7 @@ function BCGMatrix({ menuItems }) {
           <div style={{ fontSize:11, color:T.textSoft }}>margine % × popolarità</div>
         </div>
         <div style={{
-          position:"relative", width:"100%", paddingBottom:"58%",
+          position:"relative", width:"100%", paddingBottom: isMobile ? "82%" : "58%",
           background:T.bgSubtle, borderRadius:R.md, border:`1px solid ${T.borderSoft}`, overflow:"hidden",
         }}>
           {/* Tinte quadranti */}
@@ -249,17 +298,17 @@ function BCGMatrix({ menuItems }) {
           <div style={{ position:"absolute", left:"50%", top:0, bottom:0, width:1, background:T.border }}/>
           <div style={{ position:"absolute", top:"50%", left:0, right:0, height:1, background:T.border }}/>
           <div style={{ position:"absolute", top:6, left:8,  fontSize:10, fontWeight:700, color:T.blue }}>Puzzle</div>
-          <div style={{ position:"absolute", top:6, right:8, fontSize:10, fontWeight:700, color:T.green }}>★ Star</div>
+          <div style={{ position:"absolute", top:6, right:8, fontSize:10, fontWeight:700, color:T.green, display:"inline-flex", alignItems:"center", gap:3 }}><Icon name="star" size={10} color={T.green}/>Star</div>
           <div style={{ position:"absolute", bottom:18, left:8,  fontSize:10, fontWeight:700, color:T.red }}>Dog</div>
           <div style={{ position:"absolute", bottom:18, right:8, fontSize:10, fontWeight:700, color:T.amber }}>Plow</div>
           {/* Captions assi */}
           <div style={{ position:"absolute", bottom:3, left:"50%", transform:"translateX(-50%)", fontSize:9, color:T.textSoft }}>popolarità →</div>
           <div style={{ position:"absolute", top:"50%", left:3, transform:"translateY(-50%) rotate(180deg)", writingMode:"vertical-rl", fontSize:9, color:T.textSoft }}>margine →</div>
           {ranked.map((m,idx) => {
-            const x = (m.unita / maxVol) * 90 + 5
+            const x = m.volRel * 90 + 5
             const y = 100 - (Math.min(100,m.margPct) / 100 * 90 + 5)
             return (
-              <div key={m.nome} title={`${m.nome}: ${fmtp(m.margPct)} margine · ${m.unita} vendite`}
+              <div key={m.nome} title={`${m.nome}: ${fmtp(m.margPct)} margine · ${m.vol.toLocaleString('it-IT')} ${hasStorico ? "vendite" : "pz/ric"}`}
                 style={{
                   position:"absolute", left:`${x}%`, top:`${y}%`, transform:"translate(-50%,-50%)",
                   width:22, height:22, borderRadius:"50%", background:m.bcg.color, color:"#fff",
@@ -270,7 +319,7 @@ function BCGMatrix({ menuItems }) {
           })}
         </div>
         {/* Legenda numerata: numero → prodotto → margine */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(190px, 1fr))", gap:"6px 16px", marginTop:16 }}>
+        <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(190px, 1fr))", gap:"6px 16px", marginTop:16 }}>
           {ranked.map((m,idx)=>(
             <div key={m.nome} style={{ display:"flex", alignItems:"center", gap:8, fontSize:11, color:T.textMid }}>
               <span style={{ width:17, height:17, borderRadius:"50%", background:m.bcg.color, color:"#fff", fontSize:9, fontWeight:800, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{idx+1}</span>
@@ -285,7 +334,7 @@ function BCGMatrix({ menuItems }) {
 }
 
 /* ─── PREVIEW + PDF EXPORT ───────────────────────────────────────────── */
-function MenuPreview({ menuItems, nomeAttivita }) {
+function MenuPreview({ menuItems, setMenuItems, nomeAttivita, isMobile }) {
   const [editIdx, setEditIdx]   = useState(null)
   const [editDesc, setEditDesc] = useState("")
 
@@ -328,6 +377,17 @@ function MenuPreview({ menuItems, nomeAttivita }) {
     doc.save('menu.pdf')
   }
 
+  // Salva la descrizione in modo immutabile (spread), così React aggiorna.
+  function salvaDescrizione(i) {
+    setMenuItems(prev => prev.map((m,idx)=> idx===i ? { ...m, descrizione: editDesc } : m))
+    setEditIdx(null)
+  }
+  // Toggle visibilità immutabile (spread).
+  function toggleVisibile(i) {
+    setMenuItems(prev => prev.map((m,idx)=> idx===i ? { ...m, visibile: !m.visibile } : m))
+    setEditIdx(null)
+  }
+
   const visibili = menuItems.filter(m=>m.visibile)
 
   return (
@@ -340,7 +400,7 @@ function MenuPreview({ menuItems, nomeAttivita }) {
         </div>
         <button type="button" onClick={esportaPDF}
           style={{
-            padding:"9px 18px", background:T.brand, color:T.white,
+            padding:"9px 18px", minHeight:40, background:T.brand, color:T.white,
             border:`1px solid ${T.brand}`, borderRadius:R.full,
             fontWeight:600, fontSize:13, cursor:"pointer", letterSpacing:"-0.005em",
             boxShadow:S.brandSoft,
@@ -349,11 +409,7 @@ function MenuPreview({ menuItems, nomeAttivita }) {
           }}
           onMouseEnter={e=>{ e.currentTarget.style.background=T.brandDark; }}
           onMouseLeave={e=>{ e.currentTarget.style.background=T.brand; }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
+          <Icon name="download" size={14} color={T.white}/>
           Esporta PDF
         </button>
       </div>
@@ -368,11 +424,7 @@ function MenuPreview({ menuItems, nomeAttivita }) {
             width:44, height:44, borderRadius:R.md, background:T.bgSubtle, color:T.textSoft,
             display:"flex", alignItems:"center", justifyContent:"center",
           }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
+            <Icon name="fileText" size={22} strokeWidth={1.7}/>
           </div>
           <div style={{ fontSize:13, color:T.textMid, fontWeight:500, letterSpacing:"-0.005em" }}>
             Nessun prodotto nel menù
@@ -413,15 +465,16 @@ function MenuPreview({ menuItems, nomeAttivita }) {
                       <input value={editDesc} onChange={e=>setEditDesc(e.target.value)}
                         placeholder="Descrizione per il menù…"
                         autoFocus
+                        onKeyDown={e=>{ if(e.key==='Enter') salvaDescrizione(i) }}
                         style={{
                           flex:1, padding:"8px 12px", borderRadius:R.md,
-                          border:`1px solid ${T.borderStr}`, fontSize:12, color:T.text,
-                          background:T.bgCard, outline:"none",
+                          border:`1px solid ${T.borderStr}`, fontSize: isMobile?16:12, color:T.text,
+                          background:T.bgCard, outline:"none", boxSizing:"border-box",
                         }}/>
                       <button type="button"
-                        onClick={()=>{ menuItems[i].descrizione=editDesc; setEditIdx(null) }}
+                        onClick={()=>salvaDescrizione(i)}
                         style={{
-                          padding:"8px 16px", background:T.brand, color:T.white,
+                          padding:"8px 16px", minHeight:40, background:T.brand, color:T.white,
                           border:"none", borderRadius:R.md, fontSize:12, fontWeight:600,
                           cursor:"pointer", letterSpacing:"-0.005em",
                         }}>
@@ -444,7 +497,7 @@ function MenuPreview({ menuItems, nomeAttivita }) {
                     {m.visibile ? "visibile" : "nascosto"}
                   </span>
                   <div
-                    onClick={()=>{ menuItems[i].visibile = !m.visibile; setEditIdx(null) }}
+                    onClick={()=>toggleVisibile(i)}
                     style={{
                       width:34, height:20, borderRadius:R.full,
                       background: m.visibile ? T.brand : T.borderStr,
@@ -468,10 +521,72 @@ function MenuPreview({ menuItems, nomeAttivita }) {
   )
 }
 
+/* ─── BANDA DIAGNOSI ─────────────────────────────────────────────────── */
+function BandaDiagnosi({ menuItems, popVenduto, isMobile }) {
+  const n = menuItems.length
+  const margMedio = n ? menuItems.reduce((s,m)=>s+(Number(m.margPct)||0),0)/n : 0
+  // Food cost medio % sul ricavo (FC / ricavo).
+  const fcVals = menuItems.map(m => (Number(m.ricavo)>0 ? (Number(m.fc)/Number(m.ricavo))*100 : 0))
+  const fcMedio = n ? fcVals.reduce((s,v)=>s+v,0)/n : 0
+  // Dog = basso margine (<55%) e bassa popolarità (volRel < 0.5).
+  const volOf = (m) => {
+    const v = popVenduto[m.nome.toUpperCase().trim()]
+    return v != null ? v : (Number(m.unita) || 0)
+  }
+  const maxVol = Math.max(...(n ? menuItems.map(volOf) : [1]), 1)
+  const nDog = menuItems.filter(m => bcgQuadrant(m.margPct, volOf(m)/maxVol).q === "Dog").length
+
+  return (
+    <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap:14, marginBottom:24 }}>
+      <KPI label="Prodotti nel menù" value={n.toLocaleString('it-IT')}
+        icon={<Icon name="fileText" size={18}/>}/>
+      <KPI label="Margine medio" value={fmtp(margMedio)} color={margMedio>=55?T.green:T.amber}
+        icon={<Icon name="trendUp" size={18}/>}/>
+      <KPI label="Food cost medio" value={fmtp(fcMedio)} color={fcMedio<=45?T.green:T.amber}
+        icon={<Icon name="barChart" size={18}/>}/>
+      <KPI label="Da rivedere (Dog)" value={nDog.toLocaleString('it-IT')} color={nDog>0?T.red:T.green}
+        sub={nDog>0 ? "valuta rimozione" : "nessuno"}
+        icon={<Icon name={nDog>0?"warning":"checkCircle"} size={18}/>}/>
+    </div>
+  )
+}
+
 /* ─── MAIN WRAPPER ───────────────────────────────────────────────────── */
-export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, nomeAttivita }) {
+export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, nomeAttivita, chiusure, orgId, sedeId }) {
+  const isMobile = useIsMobile()
   const [tab, setTab] = useState("editor")
   const [menuItems, setMenuItems] = useState([])
+  const [loaded, setLoaded] = useState(false)
+  const [errSave, setErrSave] = useState(false)
+  // Evita di salvare durante il caricamento iniziale (sennò sovrascrive con []).
+  const skipNextSave = useRef(true)
+
+  // Popolarità reale dal venduto (ultimi ~60 giorni). Memoizzata su chiusure.
+  const popVenduto = useMemo(() => popolaritaDalVenduto(chiusure, 60), [chiusure])
+  const hasStorico = useMemo(() => Object.keys(popVenduto).length > 0, [popVenduto])
+
+  // Carica il menù persistito al mount (per-sede).
+  useEffect(() => {
+    let alive = true
+    skipNextSave.current = true
+    setLoaded(false)
+    ;(async () => {
+      const saved = await sload(SK_MENU, orgId, sedeId)
+      if (!alive) return
+      setMenuItems(Array.isArray(saved) ? saved : [])
+      setLoaded(true)
+    })()
+    return () => { alive = false }
+  }, [orgId, sedeId])
+
+  // Persisti il menù quando cambia la selezione (dopo il load iniziale).
+  useEffect(() => {
+    if (!loaded || !orgId) return
+    if (skipNextSave.current) { skipNextSave.current = false; return }
+    ssave(SK_MENU, menuItems, orgId, sedeId)
+      .then(() => setErrSave(false))
+      .catch(e => { console.error('menu save failed', e); setErrSave(true) })
+  }, [menuItems, loaded, orgId, sedeId])
 
   const TABS = [
     ["editor",    "Editor"],
@@ -482,26 +597,18 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
   return (
     <div style={{ maxWidth: 1200, margin:"0 auto", animation:`fos_pageIn ${M.durSlow} ${M.ease}` }}>
 
-      {/* Header */}
-      <div style={{ marginBottom:24, display:"flex", alignItems:"center", gap:14 }}>
+      <PageHeader subtitle="Costruisci il menù, analizza la redditività con la matrice BCG ed esporta in PDF." />
+
+      {errSave && (
         <div style={{
-          width:48, height:48, borderRadius:R.lg, background:T.brandLight, color:T.brand,
-          display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+          display:"flex", alignItems:"center", gap:8, marginBottom:16,
+          padding:"10px 14px", borderRadius:R.md, background:T.redLight,
+          border:`1px solid ${T.red}33`, color:T.red, fontSize:12, fontWeight:600,
         }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/>
-            <circle cx="6" cy="6"  r="1" fill="currentColor"/>
-            <circle cx="6" cy="12" r="1" fill="currentColor"/>
-            <circle cx="6" cy="18" r="1" fill="currentColor"/>
-          </svg>
+          <Icon name="warning" size={15} color={T.red}/>
+          Salvataggio del menù non riuscito. Le modifiche potrebbero non essere conservate.
         </div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <p style={{ margin:0, fontSize:13, color:T.textSoft, lineHeight:1.5, letterSpacing:"-0.005em" }}>
-            Costruisci il menù, analizza la redditività con la matrice BCG ed esporta in PDF.
-          </p>
-        </div>
-      </div>
+      )}
 
       {!ricettario ? (
         <div style={{
@@ -516,6 +623,11 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
         </div>
       ) : (
         <>
+          {/* Banda diagnosi */}
+          <BandaDiagnosi menuItems={menuItems} popVenduto={popVenduto} isMobile={isMobile}/>
+
+          <SH sub="Seleziona le ricette, analizza i quadranti BCG ed esporta il menù.">Menù del giorno</SH>
+
           {/* Tabs */}
           <div style={{
             display:"flex", gap:2, marginBottom:22,
@@ -539,9 +651,9 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
             })}
           </div>
 
-          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems}/>}
-          {tab === "bcg"       && <BCGMatrix     menuItems={menuItems}/>}
-          {tab === "anteprima" && <MenuPreview   menuItems={menuItems} nomeAttivita={nomeAttivita}/>}
+          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems} isMobile={isMobile}/>}
+          {tab === "bcg"       && <BCGMatrix     menuItems={menuItems} popVenduto={popVenduto} hasStorico={hasStorico} isMobile={isMobile}/>}
+          {tab === "anteprima" && <MenuPreview   menuItems={menuItems} setMenuItems={setMenuItems} nomeAttivita={nomeAttivita} isMobile={isMobile}/>}
         </>
       )}
     </div>

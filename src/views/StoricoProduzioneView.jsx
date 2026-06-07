@@ -6,7 +6,7 @@ import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
-import { C, KPI, SH, margColor, margBadge, fmt, fmtp, ChartTip } from './_shared'
+import { C, KPI, SH, margColor, margBadge, fmt, fmtp, ChartTip, Tip } from './_shared'
 
 // Nomi mese italiani per fmtKey (vista="mese"). L'index 0 è vuoto perché
 // k.slice(5) restituisce mesi 01-12 e parseInt('01') = 1.
@@ -201,6 +201,125 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // Tabelle: € con separatore migliaia IT + 2 decimali (es. € 1.234,56).
   const eurIT = v => `€ ${Number(v||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  // ── DIAGNOSI: KPI di salute sul periodo selezionato + confronto col precedente ──
+  // I numeri "reali" vengono dalle chiusure (periodiVend); se non ci sono chiusure
+  // in range si ripiega sul ricavo/margine STIMATO dalla produzione, così la banda
+  // resta sempre informativa. Il confronto usa la finestra di pari ampiezza (stesso
+  // numero di periodi) immediatamente precedente, calcolata sui dati NON filtrati.
+  const diagnosi = useMemo(()=>{
+    const usaVend = periodiVend.length>0;
+    // Aggrega un set di period-bucket in metriche di salute.
+    const aggrega = (vendList, prodList) => {
+      if (vendList.length>0) {
+        const rv  = vendList.reduce((s,p)=>s+p.rvTot,0);
+        const fc  = vendList.reduce((s,p)=>s+p.fcTot,0);
+        const spr = vendList.reduce((s,p)=>s+p.sproTot,0);
+        const st  = vendList.reduce((s,p)=>s+p.avgST,0)/vendList.length;
+        return { rv, marg:rv-fc, margPct:rv>0?((rv-fc)/rv*100):0, st, spreco:spr, stimato:false };
+      }
+      // fallback stimato da produzione (niente sell-through reale, niente spreco)
+      const rv = prodList.reduce((s,p)=>s+p.ricavoTot,0);
+      const fc = prodList.reduce((s,p)=>s+p.fcTot,0);
+      return { rv, marg:rv-fc, margPct:rv>0?((rv-fc)/rv*100):0, st:null, spreco:null, stimato:true };
+    };
+    const cur = aggrega(periodiVend, periodiProd);
+
+    // Finestra precedente: stessi N period-key, presi prima del più vecchio in range.
+    // Ricostruisco i bucket sull'INTERO dataset (non filtrato) per avere lo storico.
+    const buildKeys = (list, getD) => {
+      const m = {};
+      for (const it of (list||[])) { const k=getKey(getD(it)); (m[k]=m[k]||[]).push(it); }
+      return m;
+    };
+    const allChiuByKey = buildKeys(chiusure, c=>c.data);
+    const allProdByKey = buildKeys(giornaliero, s=>s.data);
+    const refList = usaVend ? periodiVend : periodiProd;
+    const curKeys = refList.map(p=>p.key).sort();
+    let prev = null;
+    if (curKeys.length>0) {
+      const allKeysSorted = [...new Set([...Object.keys(allChiuByKey), ...Object.keys(allProdByKey)])].sort();
+      const oldest = curKeys[0];
+      const before = allKeysSorted.filter(k=>k<oldest);
+      const prevKeys = before.slice(-curKeys.length); // finestra di pari ampiezza
+      if (prevKeys.length>0) {
+        if (usaVend) {
+          // ricalcola le metriche vendite sui prevKeys
+          let rv=0,fc=0,spr=0,stSum=0,stCnt=0;
+          for (const k of prevKeys) for (const ch of (allChiuByKey[k]||[])) {
+            rv+=ch.kpi?.totV||0; fc+=ch.kpi?.totFC||0; spr+=ch.kpi?.totS||0; stSum+=ch.kpi?.avgST||0; stCnt++;
+          }
+          if (stCnt>0) prev = { rv, margPct:rv>0?((rv-fc)/rv*100):0, st:stSum/stCnt, spreco:spr };
+        } else {
+          let rv=0,fc=0;
+          for (const k of prevKeys) for (const sess of (allProdByKey[k]||[])) {
+            for (const prod of (sess.prodotti||[])) {
+              const ric = ricettario?.ricette?.[prod.nome];
+              const reg = getR(prod.nome, ric);
+              const {tot:f} = ric ? calcolaFCStorico(ric, ingCosti, ricettario, logPrezzi, sess.data+'T12:00:00') : {tot:0};
+              rv += prod.stampi*reg.unita*reg.prezzo; fc += prod.stampi*f;
+            }
+          }
+          if (rv>0) prev = { rv, margPct:rv>0?((rv-fc)/rv*100):0, st:null, spreco:null };
+        }
+      }
+    }
+    return { cur, prev, usaVend };
+  }, [periodiVend, periodiProd, chiusure, giornaliero, vista, ricettario, ingCosti, logPrezzi]);
+
+  // Variazione % vs periodo precedente (per le frecce). null se non confrontabile.
+  const deltaPct = (now, before) => (before==null || before===0 || now==null) ? null : ((now-before)/Math.abs(before)*100);
+  // Semaforo: verde/ambra/rosso secondo soglie passate.
+  const semaforo = (val, green, amber) => val==null ? C.textSoft : val>=green ? C.green : val>=amber ? C.amber : C.red;
+  // Freccia di confronto: ▲ verde / ▼ rosso (o invertita per metriche dove "meno è meglio").
+  const Delta = ({ now, before, invert=false, suffix='%' }) => {
+    const d = deltaPct(now, before);
+    if (d==null) return <span style={{fontSize:11,color:C.textSoft,fontWeight:600}}>n/d</span>;
+    const positivo = invert ? d<0 : d>0;
+    const col = Math.abs(d)<0.05 ? C.textSoft : positivo ? C.green : C.red;
+    return (
+      <span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:11.5,fontWeight:800,color:col,fontVariantNumeric:'tabular-nums'}}>
+        <Icon name={d>=0?'trendUp':'trendDown'} size={12} />{d>=0?'+':''}{d.toFixed(1)}{suffix}
+      </span>
+    );
+  };
+
+  // ── RANKING PRODOTTI: migliori/peggiori per sell-through e per margine % ──────
+  // Aggrega le righe `confronto` delle chiusure IN RANGE per prodotto. Sell-through
+  // e margine% sono pesati (somma unità / somma ricavo), non medie semplici, così
+  // un prodotto venduto poco non falsa la classifica.
+  const ranking = useMemo(()=>{
+    const chiuFiltered = filterByDate(chiusure||[], c=>c.data);
+    const byProd = {};
+    for (const ch of chiuFiltered) {
+      for (const r of (ch.confronto||[])) {
+        const nome = r.nome;
+        if (!byProd[nome]) byProd[nome] = { nome, unitaP:0, unitaV:0, rv:0, marg:0, spreco:0 };
+        byProd[nome].unitaP += r.unitaP||0;
+        byProd[nome].unitaV += r.unitaV||0;
+        byProd[nome].rv     += r.rv||0;
+        byProd[nome].marg   += r.marg||0;
+        byProd[nome].spreco += r.spreco||0;
+      }
+    }
+    const rows = Object.values(byProd).map(p=>({
+      ...p,
+      st:      p.unitaP>0 ? (p.unitaV/p.unitaP*100) : null,
+      margPct: p.rv>0     ? (p.marg/p.rv*100)       : null,
+    }));
+    // Solo prodotti con dati sensati per ciascuna classifica.
+    const conST   = rows.filter(p=>p.st!=null && p.unitaP>0);
+    const conMarg = rows.filter(p=>p.margPct!=null && p.rv>0);
+    const byST   = [...conST].sort((a,b)=>b.st-a.st);
+    const byMarg = [...conMarg].sort((a,b)=>b.margPct-a.margPct);
+    return {
+      hasData: rows.length>0,
+      stTop:   byST.slice(0,4),
+      stBot:   byST.slice(-4).reverse(),
+      margTop: byMarg.slice(0,4),
+      margBot: byMarg.slice(-4).reverse(),
+    };
+  }, [chiusure, dateFrom, dateTo]);
+
   // Vendite: top 5 prodotti per ricavo + "Altri" (come per la produzione),
   // così il grafico ricavi reali resta leggibile invece di impilare decine di serie.
   const topProdVend = (() => {
@@ -385,6 +504,69 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         </>}
       </div>
 
+      {/* ─── BANDA DIAGNOSI (sempre visibile, sul periodo selezionato) ─── */}
+      {(() => {
+        const { cur, prev, usaVend } = diagnosi;
+        const stimato = cur.stimato;
+        // Soglie: margine verde≥60 / ambra≥40; sell-through verde≥85 / ambra≥65 (coerenti col resto della view).
+        const margC = semaforo(cur.margPct, 60, 40);
+        const stC   = cur.st!=null ? semaforo(cur.st, 85, 65) : C.textSoft;
+        const periodoTxt = (dateFrom||dateTo)
+          ? [dateFrom&&`dal ${dateFrom}`, dateTo&&`al ${dateTo}`].filter(Boolean).join(' ')
+          : 'tutto lo storico disponibile';
+        const Cell = ({ icon, label, value, color, sub, delta, tip }) => (
+          <div style={{flex:1,minWidth:isMobile?'45%':140,padding:isMobile?'12px 12px':'14px 16px',
+            display:'flex',flexDirection:'column',gap:5,
+            borderRight:isMobile?'none':`1px solid rgba(255,255,255,0.10)`}}>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{display:'inline-flex',color:'rgba(255,255,255,0.55)'}}><Icon name={icon} size={14} /></span>
+              <span style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(255,255,255,0.6)'}}>
+                {tip ? <Tip text={tip}><span style={{cursor:'help',borderBottom:'1px dotted rgba(255,255,255,0.35)'}}>{label}</span></Tip> : label}
+              </span>
+            </div>
+            <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap'}}>
+              <span style={{fontSize:isMobile?19:22,fontWeight:900,color:color||C.white,letterSpacing:'-0.02em',fontVariantNumeric:'tabular-nums'}}>{value}</span>
+              {delta}
+            </div>
+            {sub && <div style={{fontSize:9.5,color:'rgba(255,255,255,0.5)',lineHeight:1.4}}>{sub}</div>}
+          </div>
+        );
+        return (
+          <div style={{borderRadius:18,marginBottom:22,overflow:'hidden',
+            background:'linear-gradient(135deg,#1C0A0A 0%,#3D1515 100%)',
+            boxShadow:'0 14px 34px rgba(110,14,26,0.30), inset 0 1px 0 rgba(255,255,255,0.10)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,
+              padding:isMobile?'12px 14px 0':'14px 18px 0',flexWrap:'wrap'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+                <span style={{display:'inline-flex',color:'#fff'}}><Icon name="target" size={16} /></span>
+                <span style={{fontSize:11,fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',color:'#fff'}}>Diagnosi</span>
+                <span style={{fontSize:10.5,color:'rgba(255,255,255,0.55)',fontWeight:500}}>· {periodoTxt}</span>
+              </div>
+              <span style={{fontSize:9.5,fontWeight:700,color:'rgba(255,255,255,0.55)'}}>
+                {stimato ? 'dati stimati da produzione' : 'dati reali da chiusure'}{prev ? ' · confronto vs periodo precedente' : ''}
+              </span>
+            </div>
+            <div style={{display:'flex',flexWrap:'wrap',padding:isMobile?'4px 4px 10px':'8px 4px 10px'}}>
+              <Cell icon="money" label={stimato?'Ricavi stimati':'Ricavi reali'} value={eur0(cur.rv)}
+                delta={prev && <Delta now={cur.rv} before={prev.rv} />} />
+              <Cell icon="trendUp" label="Margine %" value={fmtp(cur.margPct)} color={margC}
+                tip="Quota di ricavo che resta dopo il food cost. Soglie: verde da 60%, ambra da 40%, sotto è rosso (rivedere prezzi o food cost)."
+                delta={prev && <Delta now={cur.margPct} before={prev.margPct} suffix=" pt" />}
+                sub={`${eur0(cur.marg)} di margine`} />
+              <Cell icon="target" label="Sell-through %" value={cur.st!=null?fmtp(cur.st):'n/d'} color={stC}
+                tip="Percentuale del prodotto venduto rispetto a quello prodotto. Soglie: verde da 85%, ambra da 65%, sotto è rosso (troppo invenduto). Disponibile solo con le chiusure."
+                delta={prev && cur.st!=null && prev.st!=null && <Delta now={cur.st} before={prev.st} suffix=" pt" />}
+                sub={cur.st==null?'serve una chiusura cassa':undefined} />
+              <Cell icon="trash" label="Spreco" value={cur.spreco!=null?eur0(cur.spreco):'n/d'}
+                color={cur.spreco==null?undefined:cur.spreco>cur.rv*0.05?C.amber:'#fff'}
+                tip="Valore (a food cost) dell'invenduto buttato. Sopra il 5% dei ricavi è un campanello d'allarme."
+                delta={prev && cur.spreco!=null && prev.spreco!=null && <Delta now={cur.spreco} before={prev.spreco} invert />}
+                sub={cur.spreco!=null && cur.rv>0 ? `${(cur.spreco/cur.rv*100).toFixed(1)}% dei ricavi` : (cur.spreco==null?'serve una chiusura cassa':undefined)} />
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ─── TAB PRODUZIONE ─── */}
       {tab==="produzione"&&(
         <>
@@ -557,6 +739,75 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   L'altezza della colonna è il <b>ricavo</b>. Più verde = più margine. Passa il mouse per vedere anche lo spreco.
                 </div>
               </div>
+
+              {/* ─── RANKING PRODOTTI (sell-through e margine) ─── */}
+              {ranking.hasData && (() => {
+                const nomePulito = n => n.replace("TORTA DI ","").replace("TORTA ","");
+                // Lista classifica con barre orizzontali proporzionali al valore max della lista.
+                const ListaRank = ({ rows, valKey, fmtVal, colorOf, max, positivo }) => (
+                  <div style={{display:"flex",flexDirection:"column",gap:9}}>
+                    {rows.length===0 && <div style={{fontSize:11,color:C.textSoft}}>Dati non sufficienti.</div>}
+                    {rows.map((p,i)=>{
+                      const v = p[valKey];
+                      const w = max>0 ? Math.max(3, Math.abs(v)/max*100) : 3;
+                      const col = colorOf(p);
+                      return (
+                        <div key={p.nome} style={{display:"flex",alignItems:"center",gap:9}}>
+                          <span style={{fontSize:11,fontWeight:900,color:C.textSoft,width:16,textAlign:"right",flexShrink:0}}>{positivo?i+1:""}</span>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:"flex",justifyContent:"space-between",gap:8,marginBottom:3}}>
+                              <span style={{fontSize:11,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nomePulito(p.nome)}</span>
+                              <span style={{fontSize:11.5,fontWeight:900,color:col,fontVariantNumeric:"tabular-nums",flexShrink:0}}>{fmtVal(v)}</span>
+                            </div>
+                            <div style={{height:6,background:"#F0EAE6",borderRadius:3,overflow:"hidden"}}>
+                              <div style={{height:6,width:`${w}%`,background:col,borderRadius:3,transition:"width .3s"}}/>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+                const maxST   = Math.max(1, ...ranking.stTop.map(p=>p.st||0));
+                const maxMarg = Math.max(1, ...ranking.margTop.map(p=>Math.abs(p.margPct||0)));
+                const Card = ({ titolo, icon, sub, children }) => (
+                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 18px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+                      <span style={{display:"inline-flex",color:C.red}}><Icon name={icon} size={14} /></span>
+                      <span style={{fontSize:12,fontWeight:800,color:C.text}}>{titolo}</span>
+                    </div>
+                    <div style={{fontSize:10.5,color:C.textSoft,marginBottom:12}}>{sub}</div>
+                    {children}
+                  </div>
+                );
+                return (
+                  <>
+                    <SH sub="Classifica prodotti per quanto rendono (margine) e per quanto si vendono (sell-through), sul periodo selezionato">Ranking Prodotti</SH>
+                    <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,1fr)",gap:12,marginBottom:24}}>
+                      <Card icon="trophy" titolo="Sell-through migliore"
+                        sub={<>I prodotti che vendi quasi tutti. <Tip text="Sell-through = quanto venduto / quanto prodotto. Verde da 85%, ambra da 65%, sotto è rosso."><span style={{cursor:"help",borderBottom:"1px dotted "+C.textSoft}}>Cos'è?</span></Tip></>}>
+                        <ListaRank rows={ranking.stTop} valKey="st" max={maxST} positivo
+                          fmtVal={v=>fmtp(v)} colorOf={p=>p.st>=85?C.green:p.st>=65?C.amber:C.red} />
+                      </Card>
+                      <Card icon="warning" titolo="Sell-through peggiore"
+                        sub="Troppo invenduto: rivedi le quantità in produzione o il prezzo.">
+                        <ListaRank rows={ranking.stBot} valKey="st" max={maxST}
+                          fmtVal={v=>fmtp(v)} colorOf={p=>p.st>=85?C.green:p.st>=65?C.amber:C.red} />
+                      </Card>
+                      <Card icon="trophy" titolo="Margine % migliore"
+                        sub={<>I prodotti più redditizi. <Tip text="Margine % = quota di ricavo che resta dopo il food cost. Verde da 60%, ambra da 40%, sotto è rosso."><span style={{cursor:"help",borderBottom:"1px dotted "+C.textSoft}}>Cos'è?</span></Tip></>}>
+                        <ListaRank rows={ranking.margTop} valKey="margPct" max={maxMarg} positivo
+                          fmtVal={v=>fmtp(v)} colorOf={p=>margColor(p.margPct)} />
+                      </Card>
+                      <Card icon="warning" titolo="Margine % peggiore"
+                        sub="Marginano poco: candidati a ritocco prezzo o ricetta.">
+                        <ListaRank rows={ranking.margBot} valKey="margPct" max={maxMarg}
+                          fmtVal={v=>fmtp(v)} colorOf={p=>margColor(p.margPct)} />
+                      </Card>
+                    </div>
+                  </>
+                );
+              })()}
 
               {/* BATCH RESULTS */}
 
@@ -842,16 +1093,32 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {/* ─── TAB CONFRONTO PRODUZIONE VS VENDITE ─── */}
       {tab==="confronto"&&(
         <>
-          {(!hasProd||!hasVend)&&(
-            <div style={{textAlign:"center",padding:"48px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-              <div style={{marginBottom:12,color:C.textSoft}}><Icon name="refresh" size={32} /></div>
-              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Servono sia produzioni che chiusure</div>
-              <div style={{fontSize:12,color:C.textSoft}}>Registra la produzione giornaliera <b>e</b> carica gli scontrini di chiusura per vedere il confronto.</div>
-            </div>
-          )}
+          {(!hasProd||!hasVend)&&(()=>{
+            // Stato vuoto chiaro: spiega QUALE delle due fonti manca, non un generico "servono entrambe".
+            const manca = !hasProd && !hasVend
+              ? { t:"Nessun dato da confrontare", d:<>Il confronto mette a fianco quanto hai <b>prodotto</b> e quanto hai <b>venduto</b>. Registra una sessione in <b>Produzione</b> e carica una <b>Chiusura</b> cassa per attivarlo.</> }
+              : !hasProd
+              ? { t:"Manca la produzione", d:<>Hai le chiusure cassa, ma nessuna sessione di produzione. Vai in <b>Produzione</b> per registrare cosa hai prodotto: solo così posso confrontarlo con il venduto.</> }
+              : { t:"Mancano le chiusure", d:<>Hai le produzioni, ma nessuna chiusura cassa. Carica gli scontrini di fine giornata dalla sezione <b>Chiusura</b> per confrontare lo stimato con l'incassato reale.</> };
+            return (
+              <div style={{textAlign:"center",padding:"48px 32px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                <div style={{marginBottom:12,color:C.textSoft}}><Icon name={!hasProd?"package":"receipt"} size={32} /></div>
+                <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>{manca.t}</div>
+                <div style={{fontSize:12,color:C.textSoft,lineHeight:1.55,maxWidth:440,margin:"0 auto"}}>{manca.d}</div>
+              </div>
+            );
+          })()}
           {hasProd&&hasVend&&(()=>{
             // Confronto ricavo stimato vs reale per periodo
             const allKeys = [...new Set([...periodiProd.map(p=>p.key),...periodiVend.map(p=>p.key)])].sort();
+            // Il filtro data potrebbe escludere ogni periodo: stato vuoto chiaro invece di grafici/righe vuote.
+            if (allKeys.length===0) return (
+              <div style={{textAlign:"center",padding:"48px 32px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                <div style={{marginBottom:12,color:C.textSoft}}><Icon name="search" size={30} /></div>
+                <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Nessun periodo nell'intervallo scelto</div>
+                <div style={{fontSize:12,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:"0 auto"}}>Non ci sono né produzioni né chiusure tra le date selezionate. Allarga l'intervallo o azzera il filtro <b>Periodo</b> qui sopra.</div>
+              </div>
+            );
             const dataConf = allKeys.map(k=>{
               const pp = periodiProd.find(p=>p.key===k);
               const pv = periodiVend.find(p=>p.key===k);
