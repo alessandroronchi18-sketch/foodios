@@ -127,6 +127,7 @@ export default function ImportaDatiView({
 }) {
   const isMobile = useIsMobile()
   const [expanded, setExpanded] = useState(null) // id tipo aperto in dettaglio
+  const [importingId, setImportingId] = useState(null) // id tipo in caricamento → spinner
 
   const handlers = {
     onImportRicettario,
@@ -138,6 +139,7 @@ export default function ImportaDatiView({
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+      <style>{`@keyframes impspin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ marginBottom: isMobile ? 16 : 20 }}>
         <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5 }}>
           Importa i tuoi dati in Foodios da Excel, CSV o esportazioni dei sistemi cassa/delivery.
@@ -211,31 +213,48 @@ export default function ImportaDatiView({
                   Scarica template Excel
                 </button>
 
+                {(() => { const busy = importingId === tipo.id; const disabled = !handler || importingId !== null; return (
                 <label style={{
                   flex: '1 1 140px', minWidth: 140,
                   padding: '9px 14px', borderRadius: 8,
                   border: 'none', background: T.brand,
-                  color: '#FFF', fontSize: 12, fontWeight: 800, cursor: handler ? 'pointer' : 'not-allowed',
-                  opacity: handler ? 1 : 0.5,
+                  color: '#FFF', fontSize: 12, fontWeight: 800, cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: handler ? (importingId !== null && !busy ? 0.5 : 1) : 0.5,
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   textAlign: 'center', boxShadow: handler ? '0 2px 6px rgba(110,14,26,0.25)' : 'none',
                 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                  </svg>
-                  Importa file
+                  {busy ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" style={{ animation: 'impspin 0.7s linear infinite' }}>
+                      <circle cx="12" cy="12" r="9" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="3"/>
+                      <path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                  )}
+                  {busy ? 'Importazione…' : 'Importa file'}
                   <input type="file" accept={tipo.accept} multiple style={{ display: 'none' }}
-                    disabled={!handler}
-                    onChange={e => {
+                    disabled={disabled}
+                    onChange={async e => {
                       if (!handler) return notify?.('⚠ Importazione non ancora disponibile per questo tipo', false)
                       const files = e.target.files
                       if (files && files.length > 0) {
-                        handler(files)
+                        setImportingId(tipo.id)
                         notify?.(`📂 ${files.length} file in importazione…`)
+                        try {
+                          await handler(files)
+                          notify?.(`✓ Import "${tipo.titolo}" completato`)
+                        } catch (err) {
+                          notify?.(`⚠ Errore import: ${err?.message || 'riprova'}`, false)
+                        } finally {
+                          setImportingId(null)
+                        }
                       }
                       e.target.value = ''
                     }}/>
                 </label>
+                ) })()}
 
                 <button onClick={() => setExpanded(o => o === tipo.id ? null : tipo.id)}
                   style={{
