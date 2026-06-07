@@ -325,7 +325,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
             </div>
           )}
         </>
-      ) : (
+      ) : tab === 'clienti' ? (
         <>
           {!cForm && (
             <button onClick={() => apriCliente(null)} style={{ padding: '11px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={15} /> Nuovo cliente</button>
@@ -370,7 +370,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
             </div>
           )}
         </>
-      )}
+      ) : null}
     </div>
   )
 }
