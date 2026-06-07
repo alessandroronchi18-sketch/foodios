@@ -2406,8 +2406,9 @@ export default function Dashboard({
 
       {/* CONTENT */}
       <div style={{marginLeft:0,marginTop:isMobile?0:52,flex:1,padding:0,paddingBottom:isMobile?0:28,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
-        {/* Desktop topbar */}
-        {!isMobile&&(()=>{
+        {/* Desktop topbar (breadcrumb). Nascosta sulla HOME: lì l'hero saluta già
+            e ha il suo switch sede → niente banda ridondante, zero spazio sopra. */}
+        {!isMobile&&view!=="home"&&(()=>{
           const VIEW_LABELS = {
             home:"Dashboard", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
             ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
@@ -2436,10 +2437,10 @@ export default function Dashboard({
           const sedeCorrente = (sedi||[]).find(s => s.id === sedeAttiva);
           const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
           return (
-            <div style={{position:"sticky",top:52,zIndex:Z.topbar,
+            <div style={{position:"sticky",top:52,zIndex:Z.topbar,height:44,boxSizing:"border-box",
               background:"linear-gradient(180deg, #FFFBFA 0%, #FAF4F2 100%)",
               borderBottom:`1px solid ${C.borderSoft}`,
-              padding:"4px 32px",display:"flex",alignItems:"center",gap:14}}>
+              padding:"0 32px",display:"flex",alignItems:"center",gap:14}}>
               {/* Sezione attiva: indicatore visivo brand a sinistra */}
               <div style={{width:4,height:22,borderRadius:4,
                 background:"linear-gradient(180deg, #6E0E1A 0%, #E84B3A 100%)",
@@ -2525,7 +2526,7 @@ export default function Dashboard({
         {/* Inner content padding. Suspense globale: copre tutte le view lazy
             (44 component lazy-loaded via React.lazy). Fallback minimale per
             evitare flash bianco — l'utente vede un loader breve. */}
-        <div className="fos-page" key={view} style={{padding:isMobile?"18px 16px 88px":"26px 32px 28px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
+        <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 88px":"16px 32px 28px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         <React.Suspense fallback={
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 20px',color:T.textSoft,fontSize:13,gap:10}}>
             <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${T.border}`,borderTopColor:T.brand,animation:'fos_spin 0.6s linear infinite'}}/>
