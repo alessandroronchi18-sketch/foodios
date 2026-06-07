@@ -5,7 +5,16 @@ import { loadXLSX } from '../lib/xlsx'
 import { exportScadenzario } from '../lib/exportPDF'
 import { getExportCtx, gateExport } from '../lib/exportGuard'
 import useIsMobile from '../lib/useIsMobile'
+import { sload, ssave } from '../lib/storage'
+import { generateSepaXml, ibanIsValid, normalizeIban, causaleFattura, bonificoText } from '../lib/sepa'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+
+// Chiave storage per i dati di pagamento dell'azienda (intestatario + IBAN da
+// cui partono i bonifici). Shared a livello org (sede null).
+const SK_AZIENDA_PAG = 'azienda-pagamenti-v1'
+
+// Normalizza il nome fornitore per il match con l'anagrafica.
+const normNome = s => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ')
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
@@ -165,6 +174,22 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   })
   const [eliminandoId, setEliminandoId]   = useState(null)
+  // Vista: 'scadenza' (timeline urgenza) | 'fornitore' (rollup) | 'cassa' (forward)
+  const [vista, setVista]                 = useState('scadenza')
+  const [search, setSearch]               = useState('')
+  // Anagrafica fornitori (enrichment: iban di default, termini) keyed per nome_norm
+  const [fornitori, setFornitori]         = useState([])
+  // Dati pagamento azienda (debtor del bonifico SEPA)
+  const [azienda, setAzienda]             = useState({ nome: '', iban: '', bic: '' })
+  const [editAzienda, setEditAzienda]     = useState(false)
+  // Selezione fatture per il bonifico massivo
+  const [selez, setSelez]                 = useState(() => new Set())
+  // Pagamento: stato esteso (acconto + metodo) per il popup "segna pagata"
+  const [pagImporto, setPagImporto]       = useState('')
+  const [pagMetodo, setPagMetodo]         = useState('bonifico')
+  // Editing anagrafica fornitore (IBAN/termini) dal rollup
+  const [editForn, setEditForn]           = useState(null) // nome_norm in edit
+  const [editFornData, setEditFornData]   = useState({ iban: '', termini: 30, categoria: '' })
 
   const haPiuSedi = (sedi || []).filter(s => s.attiva !== false).length > 1
 
@@ -176,8 +201,69 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   useEffect(() => {
     if (!orgId) { setLoading(false); return }
     loadFatture()
+    loadFornitori()
+    loadAzienda()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, sedeId, scopeSede])
+
+  async function loadFornitori() {
+    try {
+      const { data, error } = await supabase.from('fornitori').select('*').eq('organization_id', orgId)
+      if (error) {
+        // tabella non ancora creata (migration non applicata) → enrichment vuoto
+        if (/does not exist|schema cache|could not find/i.test(error.message || '')) { setFornitori([]); return }
+        throw error
+      }
+      setFornitori(data || [])
+    } catch { setFornitori([]) }
+  }
+
+  async function loadAzienda() {
+    try {
+      const a = await sload(SK_AZIENDA_PAG, orgId, null)
+      if (a && typeof a === 'object') setAzienda({ nome: a.nome || '', iban: a.iban || '', bic: a.bic || '' })
+    } catch { /* nessun dato salvato */ }
+  }
+
+  async function salvaAzienda(next) {
+    try {
+      await ssave(SK_AZIENDA_PAG, next, orgId, null)
+      setAzienda(next)
+      setEditAzienda(false)
+      notify('✓ Dati di pagamento azienda salvati')
+    } catch (e) {
+      notify('Errore salvataggio: ' + (e?.message || 'rete'), false)
+    }
+  }
+
+  // Mappa nome_norm → fornitore (per arricchire le fatture con IBAN/termini).
+  const fornitoriMap = useMemo(() => {
+    const m = {}
+    for (const f of fornitori) m[f.nome_norm || normNome(f.nome)] = f
+    return m
+  }, [fornitori])
+
+  // Upsert anagrafica fornitore (IBAN/termini/categoria) dal rollup.
+  async function salvaFornitore(nome, patch) {
+    const nome_norm = normNome(nome)
+    try {
+      const esistente = fornitoriMap[nome_norm]
+      const row = {
+        organization_id: orgId, nome, nome_norm,
+        iban: patch.iban !== undefined ? normalizeIban(patch.iban) : (esistente?.iban || null),
+        termini_pagamento: patch.termini_pagamento !== undefined ? patch.termini_pagamento : (esistente?.termini_pagamento ?? 30),
+        categoria: patch.categoria !== undefined ? patch.categoria : (esistente?.categoria || null),
+        updated_at: new Date().toISOString(),
+      }
+      const { error } = await supabase.from('fornitori').upsert(row, { onConflict: 'organization_id,nome_norm' })
+      if (error) throw error
+      setEditForn(null)
+      await loadFornitori()
+      notify('✓ Anagrafica fornitore aggiornata')
+    } catch (e) {
+      notify('Errore: ' + (e?.message || 'salvataggio fallito') + ' — applica la migration fornitori', false)
+    }
+  }
 
   async function loadFatture() {
     if (!orgId) { setLoading(false); return }
@@ -284,20 +370,88 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     setImportLoading(false)
   }
 
+  // Segna pagata o registra un ACCONTO. Se l'importo inserito copre il residuo
+  // → saldata; altrimenti aggiorna solo importo_pagato (pagamento parziale).
+  // Salva anche il metodo. Resiliente: se le colonne nuove non esistono, ripiega
+  // sul semplice stato=pagata.
   async function segnaComePagata(id) {
+    const f = fatture.find(x => x.id === id)
+    const totale = Math.abs(Number(f?.totale) || 0)
+    const giaPagato = Number(f?.importo_pagato) || 0
+    const importoInput = pagImporto !== ''
+      ? Math.max(0, Number(String(pagImporto).replace(',', '.')) || 0)
+      : Math.max(0, totale - giaPagato)
+    const nuovoPagato = Math.round((giaPagato + importoInput) * 100) / 100
+    const saldata = nuovoPagato >= totale - 0.01
+    const patch = saldata
+      ? { stato: 'pagata', data_pagamento: dataPag, importo_pagato: totale, metodo_pagamento: pagMetodo }
+      : { importo_pagato: nuovoPagato, metodo_pagamento: pagMetodo }
     try {
-      const { error } = await supabase
-        .from('fatture')
-        .update({ stato: 'pagata', data_pagamento: dataPag })
-        .eq('id', id)
+      let applied = patch
+      let { error } = await supabase.from('fatture').update(patch).eq('id', id)
+      if (error && /does not exist|schema cache|could not find|PGRST204/i.test(error.message || '')) {
+        applied = { stato: 'pagata', data_pagamento: dataPag } // fallback pre-migration
+        error = (await supabase.from('fatture').update(applied).eq('id', id)).error
+      }
       if (error) throw error
-      setFatture(prev => prev.map(f => f.id === id ? { ...f, stato: 'pagata', data_pagamento: dataPag } : f))
-      setPagandoId(null)
-      notify('✓ Fattura segnata come pagata')
+      setFatture(prev => prev.map(x => x.id === id ? { ...x, ...applied } : x))
+      setPagandoId(null); setPagImporto('')
+      notify(saldata || applied.stato === 'pagata'
+        ? '✓ Fattura saldata'
+        : `✓ Acconto registrato (${fmtEuro(importoInput)}) · residuo ${fmtEuro(totale - nuovoPagato)}`)
     } catch (e) {
       notify('Errore: ' + (e?.message || 'aggiornamento fallito'), false)
     }
   }
+
+  // ── Bonifico ────────────────────────────────────────────────────────────────
+  // Genera e scarica il file SEPA pain.001 con le fatture selezionate.
+  function generaBonificoSEPA(items) {
+    if (!ibanIsValid(azienda.iban)) {
+      setEditAzienda(true)
+      notify('Inserisci prima l’IBAN dell’azienda (in alto) per generare il bonifico.', false)
+      return
+    }
+    const payments = items.map(f => ({
+      id: f.id,
+      beneficiario: f.fornitore,
+      iban: f.iban,
+      importo: Math.abs(f.residuo || f.totale || 0),
+      causale: causaleFattura(f),
+    }))
+    try {
+      const today = new Date()
+      const exec = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+      const { xml, included, skipped, totale } = generateSepaXml({ debtor: azienda, payments, executionDate: exec })
+      const blob = new Blob([xml], { type: 'application/xml' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `bonifico_sepa_${exec}.xml`
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+      notify(`✓ Bonifico SEPA pronto: ${included.length} pagamenti · ${fmtEuro(totale)}${skipped.length ? ` · ${skipped.length} saltati (IBAN mancante)` : ''} — caricalo nell’home banking`)
+    } catch (e) {
+      notify('Bonifico non generato: ' + (e?.message || 'errore') + (e?.skipped?.length ? ` (${e.skipped.length} senza IBAN)` : ''), false)
+    }
+  }
+
+  // Copia i dati del bonifico della singola fattura negli appunti.
+  async function copiaBonifico(f) {
+    const txt = bonificoText({ beneficiario: f.fornitore, iban: f.iban, importo: Math.abs(f.residuo || f.totale || 0), causale: causaleFattura(f) })
+    try {
+      await navigator.clipboard.writeText(txt)
+      notify('✓ Dati bonifico copiati')
+    } catch {
+      notify('Copia non riuscita — IBAN: ' + (normalizeIban(f.iban) || 'n/d'), false)
+    }
+  }
+
+  const toggleSelez = (id) => setSelez(prev => {
+    const n = new Set(prev)
+    n.has(id) ? n.delete(id) : n.add(id)
+    return n
+  })
 
   function chiediElimina(id) {
     setEliminandoId(id)
@@ -320,7 +474,15 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const fattureExt = useMemo(() => {
     const now = new Date()
     return fatture.map(f => {
-      const dd = dueDateObj(f)
+      // Arricchimento da anagrafica fornitore: termini di pagamento (per la
+      // scadenza derivata) e IBAN di default (per il bonifico).
+      const anag = fornitoriMap[normNome(f.fornitore)]
+      const fEnriched = {
+        ...f,
+        _termini: Number.isFinite(anag?.termini_pagamento) ? anag.termini_pagamento : undefined,
+        iban: f.iban || anag?.iban || '',
+      }
+      const dd = dueDateObj(fEnriched)
       const segno = f.tipo === 'nota_credito' ? -1 : 1
       const importoNetto = segno * (Number(f.totale) || 0)       // NC = negativo
       const pagato = Number(f.importo_pagato) || 0
@@ -328,18 +490,19 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       // totale - quanto già pagato (acconti). Le pagate hanno residuo 0.
       const residuo = f.stato === 'pagata' ? 0 : importoNetto - segno * pagato
       return {
-        ...f,
-        urgenza: computeUrgenza(f, now),
-        dueIso: dueDateISO(f),
+        ...fEnriched,
+        urgenza: computeUrgenza(fEnriched, now),
+        dueIso: dueDateISO(fEnriched),
         dueDays: dd ? diffDays(dd, now) : null,
         segno,
         isNC: segno < 0,
         importoNetto,
         pagato,
         residuo,
+        ibanValido: ibanIsValid(f.iban || anag?.iban || ''),
       }
     })
-  }, [fatture])
+  }, [fatture, fornitoriMap])
 
   // Gruppi: date ASC poi totale DESC (le piu' vecchie e grosse in testa al gruppo)
   const gruppi = useMemo(() => {
@@ -384,6 +547,61 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const items = gruppiVisibili.flatMap(k => gruppi[k] || [])
     return { n: items.length, tot: items.reduce((s, f) => s + (f.totale || 0), 0) }
   }, [gruppi, gruppiVisibili])
+
+  // Match ricerca (fornitore o numero documento)
+  const matchSearch = (f) => {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (f.fornitore || '').toLowerCase().includes(q) || (f.numero_rif || '').toLowerCase().includes(q)
+  }
+
+  // ── Rollup per fornitore (solo aperte, netto NC) ─────────────────────────────
+  const rollupFornitori = useMemo(() => {
+    const map = {}
+    for (const f of fattureExt) {
+      if (f.stato === 'pagata') continue
+      if (!matchSearch(f)) continue
+      const key = normNome(f.fornitore)
+      if (!map[key]) {
+        const anag = fornitoriMap[key]
+        map[key] = {
+          nome: f.fornitore, nome_norm: key, n: 0, nFatt: 0, nNC: 0,
+          totale: 0, scaduto: 0, iban: f.iban || anag?.iban || '',
+          termini: anag?.termini_pagamento ?? null, categoria: anag?.categoria || '',
+          anyScaduta: false, items: [],
+        }
+      }
+      const g = map[key]
+      g.n++
+      if (f.isNC) g.nNC++; else g.nFatt++
+      g.totale += f.residuo
+      if (f.urgenza === 'scaduta') { g.scaduto += f.residuo; g.anyScaduta = true }
+      if (!g.iban && f.iban) g.iban = f.iban
+      g.items.push(f)
+    }
+    return Object.values(map).sort((a, b) => b.totale - a.totale)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fattureExt, fornitoriMap, search])
+
+  // ── Cassa in uscita: bucket per settimana (forward) ──────────────────────────
+  const cashflow = useMemo(() => {
+    const scaduto = { label: 'Scaduto', tot: 0, n: 0, scaduto: true }
+    const buckets = []
+    for (let w = 0; w < 8; w++) buckets.push({ label: w === 0 ? 'Questa sett.' : `+${w} sett.`, tot: 0, n: 0 })
+    const oltre = { label: 'Oltre', tot: 0, n: 0 }
+    for (const f of fattureExt) {
+      if (f.stato === 'pagata') continue
+      const amt = f.residuo
+      if (f.dueDays == null) { oltre.tot += amt; oltre.n++; continue }
+      if (f.dueDays < 0) { scaduto.tot += amt; scaduto.n++; continue }
+      const w = Math.floor(f.dueDays / 7)
+      if (w < 8) { buckets[w].tot += amt; buckets[w].n++ } else { oltre.tot += amt; oltre.n++ }
+    }
+    const all = [scaduto, ...buckets, oltre]
+    const max = Math.max(1, ...all.map(b => Math.abs(b.tot)))
+    let cum = 0
+    return all.map(b => { cum += b.tot; return { ...b, cum, max } })
+  }, [fattureExt])
 
   async function exportExcel() {
     try {
@@ -451,13 +669,29 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
 
     if (isPag) {
+      const totale = Math.abs(Number(f.totale) || 0)
+      const residuoTot = Math.max(0, totale - (Number(f.importo_pagato) || 0))
       return (
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
           <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
             style={{ padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: T.text }} />
+          <input type="number" inputMode="decimal" value={pagImporto} onChange={e => setPagImporto(e.target.value)}
+            placeholder={`€ ${residuoTot.toFixed(2)}`}
+            title="Vuoto = salda l'intero residuo. Importo minore = acconto."
+            style={{ width: 86, padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: T.text }} />
+          <select value={pagMetodo} onChange={e => setPagMetodo(e.target.value)}
+            title="Metodo di pagamento"
+            style={{ padding: '4px 6px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: T.text, background: T.bgCard }}>
+            <option value="bonifico">Bonifico</option>
+            <option value="contanti">Contanti</option>
+            <option value="riba">RiBa</option>
+            <option value="rid">RID/SDD</option>
+            <option value="carta">Carta</option>
+            <option value="altro">Altro</option>
+          </select>
           <button onClick={() => segnaComePagata(f.id)}
             style={{ padding: '4px 9px', background: T.green, color: T.white, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
-          <button onClick={() => setPagandoId(null)}
+          <button onClick={() => { setPagandoId(null); setPagImporto('') }}
             style={{ padding: '4px 7px', background: 'transparent', color: T.textSoft, border: 'none', fontSize: 12, cursor: 'pointer' }}>✕</button>
         </div>
       )
@@ -473,9 +707,15 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             {f.data_pagamento ? fmtDate(f.data_pagamento) : 'Pagata'}
           </span>
         ) : (
-          <button onClick={() => { setPagandoId(f.id); setEliminandoId(null); setDataPag(new Date().toISOString().slice(0,10)) }}
+          <button onClick={() => { setPagandoId(f.id); setEliminandoId(null); setPagImporto(''); setPagMetodo('bonifico'); setDataPag(new Date().toISOString().slice(0,10)) }}
             style={{ padding: compact ? '4px 9px' : '5px 10px', background: '#F0FDF4', color: T.green, border: `1px solid ${T.green}`, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            ✓ Segna pagata
+            ✓ {f.pagato > 0 ? 'Salda/acconto' : 'Segna pagata'}
+          </button>
+        )}
+        {f.stato !== 'pagata' && f.ibanValido && (
+          <button onClick={() => copiaBonifico(f)} title="Copia dati bonifico (IBAN, importo, causale)"
+            style={{ padding: '5px 8px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            € Bonifico
           </button>
         )}
         <button onClick={() => chiediElimina(f.id)}
@@ -695,6 +935,93 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     )
   }
 
+  // ─── Vista: rollup per fornitore ─────────────────────────────────────────────
+  function RollupView() {
+    if (!rollupFornitori.length) {
+      return <div style={{ ...card, padding: 40, textAlign: 'center', color: T.textSoft, fontSize: 13 }}>
+        Nessuna fattura aperta{search ? ' per la ricerca' : ''}.
+      </div>
+    }
+    const totGlob = rollupFornitori.reduce((s, g) => s + g.totale, 0)
+    return (
+      <div style={{ ...card, overflow: 'hidden', marginBottom: 14 }}>
+        <div style={{ padding: isMobile ? '12px 14px' : '12px 18px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Dovuto per fornitore</div>
+            <div style={{ fontSize: 11, color: T.textSoft }}>{rollupFornitori.length} fornitori · netto note di credito · spunta per il bonifico</div>
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: T.text, ...tnum }}>{fmtEuro(totGlob)}</div>
+        </div>
+        {rollupFornitori.map(g => {
+          const isEdit = editForn === g.nome_norm
+          const selectable = g.items.some(f => f.ibanValido && f.residuo > 0)
+          const sel = selez.has(g.nome_norm)
+          const ibanN = normalizeIban(g.iban)
+          return (
+            <div key={g.nome_norm} style={{ borderBottom: `1px solid ${T.border}`, padding: isMobile ? '11px 14px' : '12px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <input type="checkbox" checked={sel} disabled={!selectable} onChange={() => toggleSelez(g.nome_norm)}
+                  title={selectable ? 'Includi nel bonifico SEPA' : 'IBAN mancante: impostalo (⚙) per poter pagare'}
+                  style={{ width: 17, height: 17, cursor: selectable ? 'pointer' : 'not-allowed', accentColor: T.brand, flexShrink: 0 }} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.nome}</div>
+                  <div style={{ fontSize: 11, color: T.textSoft, ...tnum }}>
+                    {g.nFatt} fatt.{g.nNC > 0 ? ` · ${g.nNC} NC` : ''}{g.termini != null ? ` · ${g.termini}gg` : ''}
+                    {' · '}{ibanN ? `${ibanN.slice(0, 2)}…${ibanN.slice(-4)}` : <span style={{ color: T.brand }}>no IBAN</span>}
+                  </div>
+                </div>
+                {g.scaduto > 0 && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '3px 8px', borderRadius: 8, whiteSpace: 'nowrap' }}>scaduto {fmtEuro0(g.scaduto)}</span>}
+                <div style={{ fontSize: 15, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 92, textAlign: 'right' }}>{fmtEuro(g.totale)}</div>
+                <button onClick={() => { if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, categoria: g.categoria || '' }) } }}
+                  title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: '5px 9px' }}>⚙</button>
+              </div>
+              {isEdit && (
+                <div style={{ marginTop: 10, padding: 12, background: T.bgSubtle, borderRadius: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input placeholder="IBAN fornitore" value={editFornData.iban} onChange={e => setEditFornData(d => ({ ...d, iban: e.target.value }))}
+                    style={{ padding: '7px 10px', border: `1px solid ${editFornData.iban && !ibanIsValid(editFornData.iban) ? T.brand : T.border}`, borderRadius: 8, fontSize: 12, flex: '1 1 220px', minWidth: 200, ...tnum }} />
+                  <input type="number" placeholder="Termini (gg)" value={editFornData.termini} onChange={e => setEditFornData(d => ({ ...d, termini: e.target.value }))}
+                    title="Giorni di pagamento (per derivare la scadenza quando non è nell'XML)"
+                    style={{ padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, width: 110 }} />
+                  <input placeholder="Categoria (opz.)" value={editFornData.categoria} onChange={e => setEditFornData(d => ({ ...d, categoria: e.target.value }))}
+                    style={{ padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, flex: '1 1 140px', minWidth: 120 }} />
+                  <button onClick={() => salvaFornitore(g.nome, { iban: editFornData.iban, termini_pagamento: Number(editFornData.termini) || 30, categoria: editFornData.categoria })}
+                    style={{ ...primaryBtn, padding: '7px 14px' }}>Salva</button>
+                  <button onClick={() => setEditForn(null)} style={{ ...ghostBtn, padding: '7px 12px' }}>Annulla</button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ─── Vista: cassa in uscita (forward) ────────────────────────────────────────
+  function CassaView() {
+    return (
+      <div style={{ ...card, padding: isMobile ? 16 : 20, marginBottom: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: '-0.01em', marginBottom: 3 }}>Cassa in uscita — prossime settimane</div>
+        <div style={{ fontSize: 11.5, color: T.textSoft, marginBottom: 16 }}>Quanto esce e quando (netto note di credito). A destra il saldo cumulato.</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {cashflow.map((b, i) => {
+            const pct = Math.min(100, (Math.abs(b.tot) / b.max) * 100)
+            const col = b.scaduto ? T.brand : (b.tot < 0 ? T.green : '#F97316')
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
+                <div style={{ width: isMobile ? 74 : 88, fontSize: 11.5, color: b.scaduto ? T.brand : T.textMid, fontWeight: b.scaduto ? 700 : 500, flexShrink: 0 }}>{b.label}</div>
+                <div style={{ flex: 1, height: 22, background: T.bgSubtle, borderRadius: 6, position: 'relative', overflow: 'hidden' }}>
+                  {b.tot !== 0 && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: col, borderRadius: 6, minWidth: b.n ? 6 : 0, transition: 'width 0.3s' }} />}
+                </div>
+                <div style={{ width: isMobile ? 78 : 96, textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: b.tot < 0 ? T.green : T.text, ...tnum, flexShrink: 0 }}>{b.n ? fmtEuro0(b.tot) : '—'}</div>
+                {!isMobile && <div style={{ width: 90, textAlign: 'right', fontSize: 11, color: T.textSoft, ...tnum, flexShrink: 0 }} title="Saldo cumulato">{fmtEuro0(b.cum)}</div>}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div style={{ maxWidth: 1180, padding: isMobile ? 12 : 0, paddingBottom: isMobile ? 80 : 0 }}>
@@ -809,7 +1136,79 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         ))}
       </div>
 
-      {/* Filtri rapidi */}
+      {/* Conto pagamenti azienda (debtor del bonifico SEPA) */}
+      <div style={{ ...card, padding: isMobile ? '10px 12px' : '10px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: T.textMid, fontWeight: 600 }}>
+          <span style={{ width: 28, height: 28, borderRadius: 8, background: ibanIsValid(azienda.iban) ? '#EFF6FF' : T.bgSubtle, color: ibanIsValid(azienda.iban) ? '#1D4ED8' : T.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          </span>
+          Conto pagamenti
+        </span>
+        {!editAzienda ? (
+          <>
+            <span style={{ fontSize: 12.5, color: ibanIsValid(azienda.iban) ? T.text : T.textSoft, ...tnum }}>
+              {ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : 'IBAN azienda non impostato — serve per generare i bonifici SEPA'}
+            </span>
+            <div style={{ flex: 1 }} />
+            <button onClick={() => setEditAzienda(true)} style={{ ...ghostBtn, padding: '6px 12px' }}>
+              {ibanIsValid(azienda.iban) ? 'Modifica' : 'Imposta IBAN'}
+            </button>
+          </>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
+            <input placeholder="Intestatario conto (azienda)" value={azienda.nome} onChange={e => setAzienda(a => ({ ...a, nome: e.target.value }))}
+              style={{ padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, minWidth: 180, flex: '1 1 180px' }} />
+            <input placeholder="IBAN azienda" value={azienda.iban} onChange={e => setAzienda(a => ({ ...a, iban: e.target.value }))}
+              style={{ padding: '7px 10px', border: `1px solid ${azienda.iban && !ibanIsValid(azienda.iban) ? T.brand : T.border}`, borderRadius: 8, fontSize: 12, minWidth: 220, flex: '1 1 220px', ...tnum }} />
+            <input placeholder="BIC (opz.)" value={azienda.bic} onChange={e => setAzienda(a => ({ ...a, bic: e.target.value }))}
+              style={{ padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, width: 110 }} />
+            <button onClick={() => salvaAzienda(azienda)} disabled={!ibanIsValid(azienda.iban) || !azienda.nome} style={{ ...primaryBtn, padding: '7px 14px', opacity: (!ibanIsValid(azienda.iban) || !azienda.nome) ? 0.5 : 1 }}>Salva</button>
+            <button onClick={() => { setEditAzienda(false); loadAzienda() }} style={{ ...ghostBtn, padding: '7px 12px' }}>Annulla</button>
+          </div>
+        )}
+      </div>
+
+      {/* Toggle vista + ricerca */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'inline-flex', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10, padding: 3, gap: 2 }}>
+          {[
+            { id: 'scadenza', label: '📅 Per scadenza' },
+            { id: 'fornitore', label: '🏭 Per fornitore' },
+            { id: 'cassa', label: '💸 Cassa in uscita' },
+          ].map(v => {
+            const active = vista === v.id
+            return (
+              <button key={v.id} onClick={() => setVista(v.id)}
+                style={{ padding: isMobile ? '7px 10px' : '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                  fontSize: 12, fontWeight: active ? 700 : 500, letterSpacing: '-0.005em',
+                  background: active ? T.bgCard : 'transparent', color: active ? T.text : T.textMid,
+                  boxShadow: active ? '0 1px 3px rgba(15,23,42,0.10)' : 'none', transition: 'all 0.14s' }}>
+                {v.label}
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ position: 'relative', flex: 1, minWidth: 180, maxWidth: 320 }}>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca fornitore o numero…"
+            style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: 9, border: `1px solid ${T.border}`, fontSize: 13, color: T.text, boxSizing: 'border-box' }} />
+          <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textSoft, display: 'flex', pointerEvents: 'none' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+        </div>
+      </div>
+
+      {/* Vista PER FORNITORE */}
+      {vista === 'fornitore' && !loading && fatture.length > 0 && (
+        <RollupView />
+      )}
+
+      {/* Vista CASSA IN USCITA */}
+      {vista === 'cassa' && !loading && fatture.length > 0 && (
+        <CassaView />
+      )}
+
+      {/* Filtri rapidi — solo nella vista per scadenza */}
+      {vista === 'scadenza' && (<>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {FILTRI.map(f => {
@@ -875,11 +1274,32 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
       ) : (
         <div>
-          {gruppiVisibili.map(k => (
-            <Gruppo key={k} keyU={k} items={gruppi[k]} />
-          ))}
+          {gruppiVisibili.map(k => {
+            const items = (gruppi[k] || []).filter(matchSearch)
+            return items.length ? <Gruppo key={k} keyU={k} items={items} /> : null
+          })}
         </div>
       )}
+      </>)}
+
+      {/* Barra azione bonifico SEPA (fornitori selezionati dal rollup) */}
+      {selez.size > 0 && (() => {
+        const selItems = fattureExt.filter(f => f.stato !== 'pagata' && f.ibanValido && f.residuo > 0 && selez.has(normNome(f.fornitore)))
+        const tot = selItems.reduce((s, f) => s + Math.abs(f.residuo), 0)
+        return (
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: isMobile ? 64 : 0, zIndex: 900, background: T.bgCard, borderTop: `1px solid ${T.border}`, boxShadow: '0 -6px 24px rgba(15,23,42,0.14)', padding: isMobile ? '12px 14px' : '14px 28px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 13, color: T.text, fontWeight: 600, ...tnum }}>
+              {selez.size} fornitor{selez.size === 1 ? 'e' : 'i'} · {selItems.length} fatture pagabili · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
+            </div>
+            <div style={{ flex: 1 }} />
+            <button onClick={() => setSelez(new Set())} style={ghostBtn}>Deseleziona</button>
+            <button onClick={() => generaBonificoSEPA(selItems)} disabled={!selItems.length}
+              style={{ ...primaryBtn, opacity: selItems.length ? 1 : 0.5 }}>
+              ⬇ Genera bonifico SEPA
+            </button>
+          </div>
+        )
+      })()}
     </div>
   )
 }
