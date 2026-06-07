@@ -16,7 +16,7 @@ import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
-import { C, TNUM, margColor, fmt, fmt0, PageHeader } from './_shared'
+import { C, TNUM, margColor, fmt, fmt0, fmtp, KPI, PageHeader } from './_shared'
 
 // Ombra premium coerente con la Dashboard home.
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -279,11 +279,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
   const riepilogo = useMemo(() => {
     const ings = {}
-    let fcTot = 0, ricavoTot = 0
+    let fcTot = 0, ricavoTot = 0, stampiTot = 0, nProdotti = 0
     for (const ric of ricette) {
       const q = qtaMap[ric.nome] || 0
       const qv = vendibileMap[ric.nome] || q
       if (!q && !qv) continue
+      nProdotti++
+      stampiTot += q
       const reg = getR(ric.nome, ric)
       ricavoTot += qv * reg.unita * reg.prezzo
       const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
@@ -293,7 +295,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         ings[k] = (ings[k] || 0) + ing.qty1stampo * q
       }
     }
-    return { ings, fcTot, ricavoTot }
+    return { ings, fcTot, ricavoTot, stampiTot, nProdotti }
   }, [qtaMap, vendibileMap, ricette, ingCosti, ricettario])
 
   const problemi = useMemo(() => {
@@ -466,6 +468,30 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               </div>
             </div>
           )}
+
+          {/* Banda diagnosi LIVE: si aggiorna mentre aggiungi prodotti. */}
+          {!isDipendente && (() => {
+            const margine = riepilogo.ricavoTot - riepilogo.fcTot
+            const mc = hasQta ? margColor(margPct) : C.textSoft
+            const semaforo = !hasQta ? 'Inizia ad aggiungere i prodotti di oggi'
+              : margPct >= 60 ? 'Margine sano' : margPct >= 40 ? 'Margine da tenere d’occhio' : 'Margine basso — rivedi i prezzi'
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
+                <KPI icon={<Icon name="package" size={18} />} label="Stampi totali"
+                  value={riepilogo.stampiTot.toLocaleString('it-IT')}
+                  sub={riepilogo.nProdotti ? `${riepilogo.nProdotti} prodotti in sessione` : 'nessun prodotto'} />
+                <KPI icon={<Icon name="money" size={18} />} label="Ricavo potenziale"
+                  value={fmt0(riepilogo.ricavoTot)} color={C.green}
+                  sub="se vendi tutto il banco" />
+                <KPI icon={<Icon name="receipt" size={18} />} label="Food cost stimato"
+                  value={fmt0(riepilogo.fcTot)} color={C.red}
+                  sub={riepilogo.ricavoTot > 0 ? `${fmtp(riepilogo.fcTot / riepilogo.ricavoTot * 100)} sul ricavo` : 'materie prime'} />
+                <KPI icon={<Icon name="trendUp" size={18} />} label="Margine lordo"
+                  value={fmt0(margine)} highlight
+                  sub={`${hasQta ? fmtp(margPct) + ' · ' : ''}${semaforo}`} />
+              </div>
+            )
+          })()}
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: 24 }}>
             <div>
@@ -705,6 +731,23 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(() => {
+                const tot = giornaliero.reduce((a, s) => {
+                  a.ric += s.ricavoTot || 0; a.fc += s.fcTot || 0
+                  a.stampi += (s.prodotti || []).reduce((x, p) => x + (Number(p.stampi) || 0), 0)
+                  return a
+                }, { ric: 0, fc: 0, stampi: 0 })
+                const mtot = tot.ric - tot.fc
+                const mpct = tot.ric > 0 ? (mtot / tot.ric * 100) : 0
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 6 }}>
+                    <KPI icon={<Icon name="calendar" size={18} />} label="Sessioni" value={giornaliero.length.toLocaleString('it-IT')} sub={`${tot.stampi.toLocaleString('it-IT')} stampi totali`} />
+                    <KPI icon={<Icon name="money" size={18} />} label="Ricavo potenziale" value={fmt0(tot.ric)} color={C.green} sub="somma sessioni" />
+                    <KPI icon={<Icon name="receipt" size={18} />} label="Food cost" value={fmt0(tot.fc)} color={C.red} sub={tot.ric > 0 ? `${fmtp(tot.fc / tot.ric * 100)} sul ricavo` : 'materie prime'} />
+                    <KPI icon={<Icon name="trendUp" size={18} />} label="Margine lordo" value={fmt0(mtot)} highlight sub={tot.ric > 0 ? `${fmtp(mpct)} sul ricavo` : '—'} />
+                  </div>
+                )
+              })()}
               {giornaliero.map((sess) => (
                 <div key={sess.id} className={editSessId === sess.id ? undefined : 'fos-tile'} style={{ background: C.bgCard, border: `1px solid ${deleteSessConf?.id === sess.id ? C.red : C.border}`, borderRadius: 16, padding: '16px 20px', boxShadow: SHADOW_PREMIUM }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -721,14 +764,22 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       {sess.note && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{sess.note}</div>}
                     </div>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      {!isDipendente && (
-                        <div style={{ display: 'flex', gap: 16, textAlign: 'right' }}>
-                          <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Ricavo pot.</div><div style={{ fontSize: 14, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt0(sess.ricavoTot || 0)}</div></div>
-                          <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Food cost</div><div style={{ fontSize: 14, fontWeight: 800, color: C.red, fontVariantNumeric: 'tabular-nums' }}>{fmt0(sess.fcTot || 0)}</div></div>
-                        </div>
-                      )}
+                      {!isDipendente && (() => {
+                        const stampiSess = (sess.prodotti || []).reduce((x, p) => x + (Number(p.stampi) || 0), 0)
+                        const margSess = (sess.ricavoTot || 0) - (sess.fcTot || 0)
+                        const mPctSess = (sess.ricavoTot || 0) > 0 ? margSess / sess.ricavoTot * 100 : 0
+                        const mcSess = margColor(mPctSess)
+                        return (
+                          <div style={{ display: 'flex', gap: isMobile ? 12 : 18, textAlign: 'right', alignItems: 'flex-start' }}>
+                            {!isMobile && <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Stampi</div><div style={{ fontSize: 14, fontWeight: 800, color: C.text, ...TNUM }}>{stampiSess.toLocaleString('it-IT')}</div></div>}
+                            <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Ricavo pot.</div><div style={{ fontSize: 14, fontWeight: 800, color: C.green, ...TNUM }}>{fmt0(sess.ricavoTot || 0)}</div></div>
+                            <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Food cost</div><div style={{ fontSize: 14, fontWeight: 800, color: C.red, ...TNUM }}>{fmt0(sess.fcTot || 0)}</div></div>
+                            <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Margine</div><div style={{ fontSize: 14, fontWeight: 800, color: mcSess, ...TNUM }}>{fmt0(margSess)}</div></div>
+                          </div>
+                        )
+                      })()}
                       <button onClick={() => editSessId === sess.id ? annullaModifica() : apriModificaSessione(sess)}
-                        style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}>{editSessId === sess.id ? <>✕ Chiudi</> : <><Icon name="edit" size={11} />Modifica</>}</button>
+                        style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}>{editSessId === sess.id ? <><Icon name="x" size={11} />Chiudi</> : <><Icon name="edit" size={11} />Modifica</>}</button>
                       <button onClick={() => { setDeleteSessConf(sess); setDeleteSessPin(''); annullaModifica() }}
                         style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="trash" size={11} />Elimina</button>
                     </div>

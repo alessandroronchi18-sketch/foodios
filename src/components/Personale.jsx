@@ -1106,6 +1106,8 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
   const [newRepNome, setNewRepNome] = useState('')
   const [renamingId, setRenamingId] = useState(null)
   const [renameVal, setRenameVal] = useState('')
+  const [dragId, setDragId] = useState(null)        // dipendente in trascinamento
+  const [dropTarget, setDropTarget] = useState(null) // reparto sotto il cursore
 
   useEffect(() => {
     if (!orgId) return

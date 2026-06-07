@@ -1,12 +1,25 @@
+// Calendario operativo — pagina di DIAGNOSI → CAPISCI → AGISCI (POV proprietario).
+// 1) Banda diagnosi del mese (solo titolare): copertura %, semaforo, streak, anomalie.
+// 2) Griglia calendario premium: ogni cella con indicatori produzione/cassa + colore stato.
+// 3) Pannello dettaglio giorno premium: dati produzione/cassa + link alle sezioni + nota.
+//
+// VINCOLO: per i dipendenti prodMap/cassaMap includono SOLO oggi/futuro e le
+// statistiche storiche (completati/streak/anomalie) sono nascoste.
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { useIsTablet } from '../lib/useIsMobile'
 
 const GIORNI  = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
 const MESI    = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
                   'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
-const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
+const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
+const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
+
+// Palette stato (verde/ambra/rosso = semaforo food cost coerente con le altre view)
+const STATUS = { completo: T.green, parziale: T.amber, vuoto: T.red }
 
 function toISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -28,7 +41,11 @@ function buildGrid(anno, mese) {
   return cells
 }
 
+const eur0 = v => `€ ${Math.round(Number(v) || 0).toLocaleString('it-IT')}`
+const eur2 = v => `€ ${(Number(v) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
 export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sedeId, setView, notify, isMobile, isDipendente = false }) {
+  const isTablet  = useIsTablet()
   const oggi      = useMemo(() => new Date(), [])
   const oggiStr   = useMemo(() => toISO(oggi), [oggi])
   const [anno, setAnno]   = useState(oggi.getFullYear())
@@ -75,34 +92,44 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
   // ── calendar grid ─────────────────────────────────────────────────────────
   const grid = useMemo(() => buildGrid(anno, mese), [anno, mese])
 
-  // ── stats for header ──────────────────────────────────────────────────────
-  const { completati, totPassati, streak } = useMemo(() => {
+  // ── diagnosi del mese (solo titolare) ───────────────────────────────────────
+  const diag = useMemo(() => {
     const daysInM = new Date(anno, mese+1, 0).getDate()
-    let comp = 0, tot = 0
+    let completi = 0, totPassati = 0, soloProd = 0, soloCassa = 0, vuoti = 0, incasso = 0
     for (let d = 1; d <= daysInM; d++) {
       const k = `${anno}-${String(mese+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
       if (k > oggiStr) break
-      tot++
-      if (prodMap[k] && cassaMap[k]) comp++
+      totPassati++
+      const hp = !!prodMap[k], hc = !!cassaMap[k]
+      if (hp && hc) completi++
+      else if (hp && !hc) soloProd++
+      else if (!hp && hc) soloCassa++
+      else vuoti++
+      if (cassaMap[k]?.kpi?.totV != null) incasso += Number(cassaMap[k].kpi.totV) || 0
     }
-    // streak: consecutive complete days ending at / before today
-    let s = 0
+    // streak: giorni completi consecutivi che finiscono a/prima di oggi
+    let streak = 0
     const day = new Date(oggi)
     for (let i = 0; i < 366; i++) {
       const k = toISO(day)
       if (k > oggiStr) { day.setDate(day.getDate()-1); continue }
-      if (prodMap[k] && cassaMap[k]) { s++; day.setDate(day.getDate()-1) }
-      else if (k === oggiStr) { day.setDate(day.getDate()-1) } // today may still be in progress
+      if (prodMap[k] && cassaMap[k]) { streak++; day.setDate(day.getDate()-1) }
+      else if (k === oggiStr) { day.setDate(day.getDate()-1) } // oggi può essere ancora in corso
       else break
     }
-    return { completati: comp, totPassati: tot, streak: s }
+    // anomalie = giorni passati con produzione senza cassa o cassa senza produzione
+    const anomalie = soloProd + soloCassa
+    const pct = totPassati > 0 ? Math.round(completi/totPassati*100) : 0
+    return { completi, totPassati, soloProd, soloCassa, vuoti, anomalie, streak, pct, incasso }
   }, [prodMap, cassaMap, anno, mese, oggiStr, oggi])
 
-  const pct = totPassati > 0 ? Math.round(completati/totPassati*100) : 0
+  const semaforo = diag.pct >= 80 ? T.green : diag.pct >= 50 ? T.amber : T.red
 
   // ── navigation ───────────────────────────────────────────────────────────
   const prev = () => { setSel(null); if (mese===0){setMese(11);setAnno(a=>a-1)} else setMese(m=>m-1) }
   const next = () => { setSel(null); if (mese===11){setMese(0);setAnno(a=>a+1)} else setMese(m=>m+1) }
+  const goOggi = () => { setSel(null); setAnno(oggi.getFullYear()); setMese(oggi.getMonth()) }
+  const isMeseCorrente = anno === oggi.getFullYear() && mese === oggi.getMonth()
 
   const handleDay = useCallback((dateStr) => {
     setSel(dateStr)
@@ -130,14 +157,13 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
       }
       if (saveError) throw saveError
       setNote(prev => ({ ...prev, [sel]: notaEdit.trim() }))
-      notify?.('✓ Nota salvata')
+      notify?.('Nota salvata')
     } catch (e) {
       notify?.(e.message, false)
     } finally { setSavingNota(false) }
   }
 
-  // ── status ────────────────────────────────────────────────────────────────
-  const STATUS = { completo:'#22C55E', parziale:'#F59E0B', vuoto:'#EF4444' }
+  // ── status di un giorno ─────────────────────────────────────────────────────
   function getStatus(k, cur) {
     if (!cur) return null
     if (k > oggiStr) return 'futuro'
@@ -155,6 +181,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
     cassaD:    cassaMap[sel],
     isFuture:  sel > oggiStr,
     isToday:   sel === oggiStr,
+    isAnomalia: sel <= oggiStr && sel !== oggiStr && (!!prodMap[sel] !== !!cassaMap[sel]),
   } : null
 
   // ── mobile list of last 30 days ──────────────────────────────────────────
@@ -170,278 +197,368 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: isMobile ? 'block' : 'flex', gap:24, alignItems:'flex-start', maxWidth: 1200 }}>
+    <div style={{ maxWidth: 1200 }}>
 
-      {/* ── MAIN CALENDAR ─────────────────────────────────────────────── */}
-      <div style={{ flex:1, minWidth:0 }}>
-
-        {/* Header */}
-        <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:14 }}>
-          <div style={{ minWidth:0, flex:1 }}>
-            {/* Statistiche sui giorni PASSATI: non mostrate ai dipendenti. */}
-            <div style={{ display:'flex', gap:14, fontSize:13, color:T.textSoft, flexWrap:'wrap', letterSpacing:'-0.005em', ...tnum }}>
-              {!isDipendente && <span>
-                {completati}/{totPassati} giorni completi —{' '}
-                <strong style={{ color: pct>=80?T.green:pct>=50?T.amber:T.red, fontWeight:600 }}>{pct}%</strong>
-              </span>}
-              {!isDipendente && streak >= 1 && (
-                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill={T.amber} stroke="none">
-                    <path d="M12 2c1 3 3 5 3 8a3 3 0 11-6 0c0-1 .5-2 1-3-2 1-4 3-4 7a6 6 0 0012 0c0-5-3-8-6-12z"/>
-                  </svg>
-                  {streak} giorni di fila
-                </span>
-              )}
-            </div>
-          </div>
-          {/* Month nav */}
-          <div style={{ display:'flex', alignItems:'center', gap:8, background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:R.lg, padding:'4px 6px', boxShadow:S.sm }}>
-            <button onClick={prev} style={NAV_BTN} aria-label="Mese precedente">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <div style={{ textAlign:'center', minWidth:110, padding:'4px 0' }}>
-              <div style={{ fontSize:14, fontWeight:600, color:T.text, letterSpacing:'-0.01em' }}>{MESI[mese]}</div>
-              <div style={{ fontSize:11, color:T.textSoft, marginTop:1, ...tnum }}>{anno}</div>
-            </div>
-            <button onClick={next} style={NAV_BTN} aria-label="Mese successivo">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-        </div>
-
-        {isMobile ? (
-          /* ── Mobile list view: last 30 days ── */
-          <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:16 }}>
-            {mobileList.map(k => {
-              const status  = getStatus(k, true)
-              const isOggi  = k === oggiStr
-              const isSel   = k === sel
-              const prod    = prodMap[k]
-              const cassa   = cassaMap[k]
-              const totale  = cassa?.kpi?.totV
-              const hasNota = !!note[k]
-              const dotColor = STATUS[status]
-              const d = new Date(k+'T12:00')
-              return (
-                <div key={k} onClick={() => handleDay(k)}
-                  style={{
-                    display:'flex', alignItems:'center', gap:10, padding:'10px 14px',
-                    borderRadius:10,
-                    background: isSel ? '#FEF0EE' : '#FFF',
-                    border: isOggi ? '2px solid #6E0E1A' : isSel ? '2px solid #E07040' : '1px solid #E8DDD8',
-                    cursor:'pointer', boxSizing:'border-box',
-                  }}>
-                  <div style={{ width:8, height:8, borderRadius:'50%', background: dotColor||'#E2E8F0', flexShrink:0 }} />
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight: isOggi?800:500, color: isOggi?'#6E0E1A':'#1A0A08' }}>
-                      {d.toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'})}
-                      {isOggi && <span style={{ marginLeft:6, fontSize:9, fontWeight:700, color:'#6E0E1A', background:'#FEF0EE', borderRadius:4, padding:'1px 5px' }}>OGGI</span>}
-                    </div>
-                    <div style={{ display:'flex', gap:5, marginTop:3 }}>
-                      {prod   && <Pill bg="#EAF5EE" color="#1B7A3E"><Icon name="factory" size={10} /> Prod.</Pill>}
-                      {cassa  && <Pill bg="#EFF6FF" color="#1D4ED8"><Icon name="card" size={10} /> Cassa</Pill>}
-                      {hasNota && <Pill bg="#FEF9C3" color="#92400E"><Icon name="edit" size={10} /></Pill>}
-                    </div>
-                  </div>
-                  {totale != null && (
-                    <div style={{ fontSize:12, color:'#6B4C44', fontWeight:600, flexShrink:0, ...tnum }}>€ {Math.round(totale).toLocaleString('it-IT')}</div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <>
-          {/* Day-of-week header */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3, marginBottom:3 }}>
-            {GIORNI.map(g => (
-              <div key={g} style={{ textAlign:'center', fontSize:10, fontWeight:700, padding:'4px 0',
-                textTransform:'uppercase', letterSpacing:'0.05em',
-                color: (g==='Sab'||g==='Dom') ? '#6E0E1A' : '#9C7B76' }}>
-                {g}
-              </div>
-            ))}
-          </div>
-
-          {/* Grid */}
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:3 }}>
-            {grid.map(({ date, cur }, idx) => {
-              const k = toISO(date)
-              const status   = getStatus(k, cur)
-              const isOggi   = k === oggiStr
-              const isWeek   = date.getDay()===0 || date.getDay()===6
-              const isSel    = k === sel
-              const prod     = prodMap[k]
-              const cassa    = cassaMap[k]
-              const totale   = cassa?.kpi?.totV
-              const hasNota  = !!note[k]
-
-              return (
-                <div key={idx} onClick={() => cur && handleDay(k)}
-                  style={{
-                    borderRadius:10, padding:'7px 6px', minHeight:68,
-                    background: isSel ? '#FEF0EE' : isWeek && cur ? '#FAF5F3' : cur ? '#FFF' : '#F5F5F5',
-                    border: isOggi ? '2px solid #6E0E1A' : isSel ? '2px solid #E07040' : '1px solid #E8DDD8',
-                    cursor: cur ? 'pointer' : 'default',
-                    opacity: cur ? 1 : 0.28,
-                    transition:'background 0.13s',
-                    position:'relative', boxSizing:'border-box',
-                  }}>
-                  <div style={{ fontSize:13, fontWeight: isOggi?800:500, color: isOggi?'#6E0E1A': cur?'#1A0A08':'#BBB', marginBottom:3 }}>
-                    {date.getDate()}
-                  </div>
-                  {status && status !== 'futuro' && (
-                    <div style={{
-                      position:'absolute', top:6, right:6,
-                      width:8, height:8, borderRadius:'50%',
-                      background: STATUS[status],
-                      boxShadow: status==='completo' ? '0 0 5px rgba(34,197,94,0.55)' : 'none',
-                    }} />
-                  )}
-                  {cur && status !== 'futuro' && (
-                    <div style={{ display:'flex', gap:2, flexWrap:'wrap', marginBottom:2 }}>
-                      {prod  && <Pill bg="#EAF5EE" color="#1B7A3E"><Icon name="factory" size={10} /></Pill>}
-                      {cassa && <Pill bg="#EFF6FF" color="#1D4ED8"><Icon name="card" size={10} /></Pill>}
-                      {hasNota && <Pill bg="#FEF9C3" color="#92400E"><Icon name="edit" size={10} /></Pill>}
-                    </div>
-                  )}
-                  {totale != null && (
-                    <div style={{ fontSize:9, color:'#6B4C44', fontWeight:600, ...tnum }}>
-                      €&nbsp;{Math.round(totale).toLocaleString('it-IT')}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          </>
-        )}
-
-        {/* Legend */}
-        <div style={{ display:'flex', gap:16, marginTop:14, paddingTop:12, borderTop:'1px solid #E8DDD8', flexWrap:'wrap' }}>
-          {[['#22C55E','Tutto compilato'],['#F59E0B','Parziale'],['#EF4444','Non compilato']].map(([c,l])=>(
-            <div key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'#6B4C44' }}>
-              <div style={{ width:9, height:9, borderRadius:'50%', background:c }} />{l}
-            </div>
-          ))}
-          <div style={{ fontSize:11, color:'#9C7B76', display:'inline-flex', alignItems:'center', gap:5 }}>
-            <Icon name="factory" size={11} /> Produzione · <Icon name="card" size={11} /> Cassa · <Icon name="edit" size={11} /> Nota
-          </div>
-        </div>
-
-      </div>
-
-      {/* ── DETAIL PANEL ──────────────────────────────────────────────── */}
-      {sel && selDetail && (
+      {/* ── ① BANDA DIAGNOSI (solo titolare) ──────────────────────────────── */}
+      {!isDipendente && (
         <div style={{
-          width: isMobile ? '100%' : 272, flexShrink:0,
-          background:'#FFF', borderRadius:18, border:'1px solid #E8DDD8',
-          boxShadow:'0 1px 2px rgba(15,23,42,0.04), 0 14px 34px rgba(15,23,42,0.07)',
-          padding:20, position: isMobile ? 'static' : 'sticky', top:24,
-          marginTop: isMobile ? 16 : 0,
-          animation:'slideIn 0.15s ease',
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
+          gap: isMobile ? 10 : 16, marginBottom: isMobile ? 14 : 18,
         }}>
-          {/* Header */}
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#1A0A08', lineHeight:1.3 }}>
-                {new Date(sel+'T12:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}
-              </div>
-              {selDetail.isToday && <div style={{ fontSize:10, color:'#6E0E1A', fontWeight:700, marginTop:2 }}>OGGI</div>}
-            </div>
-            <button aria-label="Chiudi dettaglio" onClick={()=>setSel(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'#9C7B76', fontSize:16, padding:2, lineHeight:1 }}>✕</button>
-          </div>
-
-          {/* Sections */}
-          <div style={{ marginBottom:16 }}>
-            {[
-              { icon:'factory', label:'Produzione', has:selDetail.haProd, view:'giornaliero',
-                sub: selDetail.prodD ? `${selDetail.prodD.prodotti?.length||0} prodotti · € ${Math.round(selDetail.prodD.ricavoTot||0).toLocaleString('it-IT')} stim.` : null },
-              { icon:'card', label:'Cassa', has:selDetail.haCassa, view:'chiusura',
-                sub: selDetail.cassaD?.kpi ? `€ ${(selDetail.cassaD.kpi.totV||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} incasso` : null },
-            ].map(({ icon, label, has, sub, view:v }) => (
-              <div key={label} style={{
-                display:'flex', alignItems:'center', gap:10, padding:'10px 12px',
-                borderRadius:10, marginBottom:7,
-                background: has ? '#F0FDF4' : selDetail.isFuture ? '#F8FAFC' : '#FEF2F2',
-                border:`1px solid ${has ? '#BBF7D0' : selDetail.isFuture ? '#E2E8F0' : '#FECACA'}`,
-              }}>
-                <span style={{ display:'inline-flex', lineHeight:1 }}><Icon name={icon} size={20} color={has ? '#166534' : selDetail.isFuture ? '#64748B' : '#6E0E1A'} /></span>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:12, fontWeight:600, display:'inline-flex', alignItems:'center', gap:5,
-                    color: has ? '#166534' : selDetail.isFuture ? '#64748B' : '#6E0E1A' }}>
-                    {has ? <Icon name="checkCircle" size={12} /> : selDetail.isFuture ? '—' : <Icon name="xCircle" size={12} />} {label}
-                  </div>
-                  {sub && <div style={{ fontSize:10, color:'#6B4C44', marginTop:1 }}>{sub}</div>}
-                </div>
-                {!has && !selDetail.isFuture && (
-                  <button onClick={()=>setView(v)} style={{
-                    fontSize:10, fontWeight:700, color:'#6E0E1A', background:'none',
-                    border:'1px solid #6E0E1A', borderRadius:8, padding:'3px 8px', cursor:'pointer',
-                  }}>Vai →</button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Note */}
-          <div>
-            <div style={{ fontSize:11, fontWeight:700, color:'#6B4C44', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6, display:'inline-flex', alignItems:'center', gap:5 }}>
-              <Icon name="edit" size={11} /> Nota del giorno
-            </div>
-            {noteErr ? (
-              <div style={{ fontSize:11, color:'#9C7B76', background:'#F8FAFC', borderRadius:8, padding:'8px 10px' }}>
-                Esegui il SQL per le note_giornaliere su Supabase per abilitare questa funzione.
-              </div>
-            ) : (
-              <>
-                <textarea
-                  value={notaEdit}
-                  onChange={e => setNotaEdit(e.target.value)}
-                  placeholder="Aggiungi una nota…"
-                  rows={3}
-                  style={{
-                    width:'100%', padding:'8px 10px', border:'1px solid #E8DDD8',
-                    borderRadius:8, fontSize:12, resize:'vertical', fontFamily:'inherit',
-                    color:'#1A0A08', background:'#FAFAFA', boxSizing:'border-box', outline:'none',
-                  }}
-                />
-                <button
-                  onClick={handleSalvaNota}
-                  disabled={savingNota || notaEdit === (note[sel]||'')}
-                  style={{
-                    marginTop:7, width:'100%', padding:'8px 0',
-                    background:'#6E0E1A', color:'#FFF', border:'none', borderRadius:8,
-                    fontSize:12, fontWeight:700, cursor:'pointer',
-                    opacity:(savingNota || notaEdit===(note[sel]||''))?0.45:1,
-                    transition:'opacity 0.15s',
-                  }}>
-                  {savingNota ? 'Salvo…' : 'Salva nota'}
-                </button>
-              </>
-            )}
-          </div>
+          <Kpi icon="checkCircle" label={`Giorni completi · ${MESI[mese]}`}
+            value={`${diag.completi}/${diag.totPassati}`} color={T.text}
+            sub={diag.totPassati > 0 ? 'produzione + cassa' : 'nessun giorno trascorso'} />
+          <Kpi icon="barChart" label="Copertura mese" value={`${diag.pct}%`} color={semaforo}
+            sub={diag.pct >= 80 ? 'sotto controllo' : diag.pct >= 50 ? 'da migliorare' : 'molti giorni scoperti'}
+            bar={diag.pct} barColor={semaforo} />
+          <Kpi icon="warning" label="Giorni con anomalie"
+            value={String(diag.anomalie)} color={diag.anomalie ? T.amber : T.green}
+            sub={diag.anomalie
+              ? `${diag.soloProd} senza cassa · ${diag.soloCassa} senza prod.`
+              : 'nessuna anomalia'} />
+          <Kpi icon="trendUp" label="Giorni di fila"
+            value={String(diag.streak)} highlight
+            sub={diag.streak >= 1 ? 'completi consecutivi' : 'chiudi oggi per ripartire'} />
         </div>
       )}
 
+      <div style={{ display: isMobile ? 'block' : 'flex', gap: 24, alignItems: 'flex-start' }}>
+
+        {/* ── ② GRIGLIA CALENDARIO ───────────────────────────────────────── */}
+        <div style={{
+          flex: 1, minWidth: 0,
+          background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16,
+          boxShadow: SHADOW_PREMIUM, padding: isMobile ? 14 : 18,
+        }}>
+
+          {/* Header: titolo mese + nav */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 11, background: T.brandLight, color: T.brand, flexShrink: 0 }}>
+                <Icon name="calendar" size={18} />
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.015em' }}>{MESI[mese]} <span style={{ ...tnum }}>{anno}</span></div>
+                <div style={{ fontSize: 11.5, color: T.textSoft, ...tnum }}>
+                  {diag.incasso > 0 ? `${eur0(diag.incasso)} incassati nel mese` : 'registra produzione e cassa ogni giorno'}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {!isMeseCorrente && (
+                <button onClick={goOggi} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 11px',
+                  borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
+                  fontSize: 12, fontWeight: 600, color: T.textMid, cursor: 'pointer', boxShadow: S.sm,
+                }}>
+                  <Icon name="clock" size={13} />Oggi
+                </button>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: R.lg, padding: 3 }}>
+                <button onClick={prev} style={NAV_BTN} aria-label="Mese precedente">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button onClick={next} style={NAV_BTN} aria-label="Mese successivo">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {isMobile ? (
+            /* ── Mobile list view: last 30 days ── */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {mobileList.map(k => {
+                const status  = getStatus(k, true)
+                const isOggi  = k === oggiStr
+                const isSel   = k === sel
+                const prod    = prodMap[k]
+                const cassa   = cassaMap[k]
+                const totale  = cassa?.kpi?.totV
+                const hasNota = !!note[k]
+                const dotColor = STATUS[status]
+                const d = new Date(k+'T12:00')
+                return (
+                  <div key={k} onClick={() => handleDay(k)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                      borderRadius: 12, minHeight: 44,
+                      background: isSel ? T.brandLight : T.bgCard,
+                      border: isOggi ? `2px solid ${T.brand}` : isSel ? `2px solid ${T.brand}` : `1px solid ${T.border}`,
+                      cursor: 'pointer', boxSizing: 'border-box',
+                    }}>
+                    <div style={{ width: 9, height: 9, borderRadius: '50%', background: dotColor || T.borderStr, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: isOggi ? 800 : 600, color: isOggi ? T.brand : T.text }}>
+                        {d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        {isOggi && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: T.brand, background: T.brandLight, borderRadius: 4, padding: '1px 5px' }}>OGGI</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+                        {prod   && <Pill bg={T.greenLight} color={T.green}><Icon name="package" size={11} /> Prod.</Pill>}
+                        {cassa  && <Pill bg={T.blueLight} color={T.blue}><Icon name="receipt" size={11} /> Cassa</Pill>}
+                        {hasNota && <Pill bg={T.amberLight} color={T.amber}><Icon name="edit" size={11} /></Pill>}
+                        {status === 'futuro' && <Pill bg={T.bgSubtle} color={T.textSoft}>In arrivo</Pill>}
+                      </div>
+                    </div>
+                    {totale != null && (
+                      <div style={{ fontSize: 13, color: T.textMid, fontWeight: 700, flexShrink: 0, ...tnum }}>{eur0(totale)}</div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <>
+            {/* Day-of-week header */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
+              {GIORNI.map(g => (
+                <div key={g} style={{
+                  textAlign: 'center', fontSize: 10, fontWeight: 700, padding: '4px 0',
+                  textTransform: 'uppercase', letterSpacing: '0.05em',
+                  color: (g==='Sab'||g==='Dom') ? T.brand : T.textSoft,
+                }}>
+                  {g}
+                </div>
+              ))}
+            </div>
+
+            {/* Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+              {grid.map(({ date, cur }, idx) => {
+                const k = toISO(date)
+                const status   = getStatus(k, cur)
+                const isOggi   = k === oggiStr
+                const isWeek   = date.getDay()===0 || date.getDay()===6
+                const isSel    = k === sel
+                const prod     = prodMap[k]
+                const cassa    = cassaMap[k]
+                const totale   = cassa?.kpi?.totV
+                const hasNota  = !!note[k]
+                const accent   = status && status !== 'futuro' ? STATUS[status] : null
+
+                return (
+                  <div key={idx} onClick={() => cur && handleDay(k)}
+                    style={{
+                      borderRadius: 12, padding: '8px 7px', minHeight: 74,
+                      background: isSel ? T.brandLight : !cur ? T.bgSubtle : isWeek ? T.bgSubtle : T.bgCard,
+                      border: isOggi ? `2px solid ${T.brand}` : isSel ? `2px solid ${T.brand}` : `1px solid ${T.border}`,
+                      borderLeft: accent && !isOggi && !isSel ? `3px solid ${accent}` : undefined,
+                      cursor: cur ? 'pointer' : 'default',
+                      opacity: cur ? 1 : 0.4,
+                      transition: `background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}`,
+                      position: 'relative', boxSizing: 'border-box',
+                    }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13, fontWeight: isOggi ? 800 : 600, color: isOggi ? T.brand : cur ? T.text : T.textFaint, ...tnum }}>
+                        {date.getDate()}
+                      </span>
+                      {accent && (
+                        <span style={{
+                          width: 8, height: 8, borderRadius: '50%', background: accent, flexShrink: 0,
+                          boxShadow: status==='completo' ? `0 0 5px ${T.green}88` : 'none',
+                        }} />
+                      )}
+                    </div>
+                    {cur && status !== 'futuro' && (
+                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 6 }}>
+                        {prod    && <Pill bg={T.greenLight} color={T.green}><Icon name="package" size={11} /></Pill>}
+                        {cassa   && <Pill bg={T.blueLight} color={T.blue}><Icon name="receipt" size={11} /></Pill>}
+                        {hasNota && <Pill bg={T.amberLight} color={T.amber}><Icon name="edit" size={11} /></Pill>}
+                      </div>
+                    )}
+                    {totale != null && (
+                      <div style={{ fontSize: 10, color: T.textMid, fontWeight: 700, marginTop: 4, ...tnum }}>
+                        {eur0(totale)}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            </>
+          )}
+
+          {/* Legend */}
+          <div style={{ display: 'flex', gap: 16, marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.border}`, flexWrap: 'wrap', alignItems: 'center' }}>
+            {[[T.green,'Completo'],[T.amber,'Parziale'],[T.red,'Da compilare']].map(([c,l])=>(
+              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: T.textMid }}>
+                <div style={{ width: 9, height: 9, borderRadius: '50%', background: c }} />{l}
+              </div>
+            ))}
+            <div style={{ fontSize: 11, color: T.textSoft, display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Icon name="package" size={12} /> Produzione
+              <Icon name="receipt" size={12} /> Cassa
+              <Icon name="edit" size={12} /> Nota
+            </div>
+          </div>
+        </div>
+
+        {/* ── ③ PANNELLO DETTAGLIO GIORNO ──────────────────────────────────── */}
+        {sel && selDetail && (
+          <div style={{
+            width: isMobile ? '100%' : 288, flexShrink: 0,
+            background: T.bgCard, borderRadius: 16, border: `1px solid ${T.border}`,
+            boxShadow: SHADOW_PREMIUM,
+            padding: 20, position: isMobile ? 'static' : 'sticky', top: 24,
+            marginTop: isMobile ? 16 : 0,
+            animation: 'fos_calSlideIn 0.16s ease',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 8 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.text, lineHeight: 1.3, textTransform: 'capitalize' }}>
+                  {new Date(sel+'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                  {selDetail.isToday && <span style={{ fontSize: 9, fontWeight: 800, color: T.brand, background: T.brandLight, borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em' }}>OGGI</span>}
+                  {selDetail.isFuture && <span style={{ fontSize: 9, fontWeight: 700, color: T.textSoft, background: T.bgSubtle, borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em' }}>IN ARRIVO</span>}
+                  {selDetail.isAnomalia && (
+                    <span style={{ fontSize: 9, fontWeight: 800, color: T.amber, background: T.amberLight, borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <Icon name="warning" size={10} /> ANOMALIA
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button aria-label="Chiudi dettaglio" onClick={()=>setSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textSoft, padding: 2, lineHeight: 1, display: 'inline-flex' }}>
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+
+            {/* Sezioni produzione / cassa */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {[
+                { icon: 'package', label: 'Produzione', has: selDetail.haProd, view: 'giornaliero',
+                  sub: selDetail.prodD
+                    ? `${selDetail.prodD.prodotti?.length || 0} prodotti · ${eur0(selDetail.prodD.ricavoTot || 0)} stim.`
+                    : null },
+                { icon: 'receipt', label: 'Cassa', has: selDetail.haCassa, view: 'chiusura',
+                  sub: selDetail.cassaD?.kpi?.totV != null
+                    ? `${eur2(selDetail.cassaD.kpi.totV)} incasso${selDetail.cassaD.kpi.totMP != null ? ` · margine ${(Number(selDetail.cassaD.kpi.totMP)||0).toFixed(1)}%` : ''}`
+                    : null },
+              ].map(({ icon, label, has, sub, view: v }) => {
+                const accent = has ? T.green : selDetail.isFuture ? T.textSoft : T.brand
+                const bg     = has ? T.greenLight : selDetail.isFuture ? T.bgSubtle : T.redLight
+                const bd     = has ? T.green+'33' : selDetail.isFuture ? T.border : T.red+'33'
+                return (
+                  <div key={label} style={{
+                    display: 'flex', alignItems: 'center', gap: 11, padding: '11px 12px',
+                    borderRadius: 12, background: bg, border: `1px solid ${bd}`,
+                  }}>
+                    <span style={{ display: 'inline-flex', lineHeight: 1 }}><Icon name={icon} size={18} color={accent} /></span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5, color: accent }}>
+                        {has ? <Icon name="checkCircle" size={13} /> : selDetail.isFuture ? <Icon name="clock" size={13} /> : <Icon name="xCircle" size={13} />} {label}
+                      </div>
+                      {sub && <div style={{ fontSize: 10.5, color: T.textMid, marginTop: 2, ...tnum }}>{sub}</div>}
+                      {!sub && !has && !selDetail.isFuture && <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>Non registrata</div>}
+                    </div>
+                    {!has && !selDetail.isFuture && setView && (
+                      <button onClick={()=>setView(v)} style={{
+                        fontSize: 10.5, fontWeight: 700, color: T.brand, background: T.bgCard,
+                        border: `1px solid ${T.brand}`, borderRadius: 8, padding: '5px 9px', cursor: 'pointer', whiteSpace: 'nowrap',
+                      }}>Vai</button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Nota */}
+            <div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Icon name="edit" size={12} /> Nota del giorno
+              </div>
+              {noteErr ? (
+                <div style={{ fontSize: 11, color: T.textMid, background: T.bgSubtle, borderRadius: 10, padding: '10px 12px', lineHeight: 1.5 }}>
+                  Esegui il SQL per <code>note_giornaliere</code> su Supabase per abilitare le note.
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    value={notaEdit}
+                    onChange={e => setNotaEdit(e.target.value)}
+                    placeholder="Aggiungi una nota…"
+                    rows={3}
+                    style={{
+                      width: '100%', padding: '9px 11px', border: `1px solid ${T.border}`,
+                      borderRadius: 10, fontSize: isMobile ? 16 : 12.5, resize: 'vertical', fontFamily: 'inherit',
+                      color: T.text, background: T.bgSubtle, boxSizing: 'border-box', outline: 'none', lineHeight: 1.5,
+                    }}
+                  />
+                  <button
+                    onClick={handleSalvaNota}
+                    disabled={savingNota || notaEdit === (note[sel]||'')}
+                    style={{
+                      marginTop: 8, width: '100%', padding: '10px 0', minHeight: 40,
+                      background: T.brand, color: '#FFF', border: 'none', borderRadius: 10,
+                      fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                      opacity: (savingNota || notaEdit===(note[sel]||'')) ? 0.45 : 1,
+                      transition: `opacity ${M.durBase} ${M.ease}`,
+                    }}>
+                    {savingNota ? 'Salvo…' : 'Salva nota'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+      </div>
+
       {/* Keyframe animation */}
-      <style>{`@keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}`}</style>
+      <style>{`@keyframes fos_calSlideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}`}</style>
+    </div>
+  )
+}
+
+// KPI compatto della banda diagnosi — coerente con il KPI premium di _shared (chip icona + decoro).
+function Kpi({ icon, label, value, sub, color, highlight, bar, barColor }) {
+  const accent = color || T.brand
+  return (
+    <div style={{
+      position: 'relative', overflow: 'hidden',
+      background: highlight ? T.brandGradient : T.bgCard,
+      border: `1px solid ${highlight ? T.brandDarker : T.border}`, borderRadius: 16,
+      padding: '16px 18px',
+      boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.30), inset 0 1px 0 rgba(255,255,255,0.18)' : SHADOW_PREMIUM,
+    }}>
+      <div style={{ position: 'absolute', top: -28, right: -28, width: 84, height: 84, borderRadius: '50%',
+        background: highlight ? 'rgba(255,255,255,0.07)' : `${accent}14`, opacity: 0.6, pointerEvents: 'none' }} />
+      <div style={{ position: 'relative', marginBottom: 11 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 11,
+          background: highlight ? 'rgba(255,255,255,0.14)' : 'rgba(110,14,26,0.10)', color: highlight ? '#fff' : accent }}>
+          <Icon name={icon} size={18} />
+        </span>
+      </div>
+      <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
+        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6, lineHeight: 1.3 }}>{label}</div>
+      <div style={{ position: 'relative', fontSize: 26, fontWeight: 800, color: highlight ? T.textOnDark : accent,
+        letterSpacing: '-0.03em', lineHeight: 1.05, ...tnum }}>
+        {value}
+      </div>
+      {bar != null && (
+        <div style={{ position: 'relative', height: 5, borderRadius: 3, background: highlight ? 'rgba(255,255,255,0.2)' : T.bgSubtle, marginTop: 9, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, bar))}%`, background: barColor || accent, borderRadius: 3, transition: `width ${M.durSlow} ${M.ease}` }} />
+        </div>
+      )}
+      {sub && <div style={{ position: 'relative', fontSize: 11.5, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500 }}>{sub}</div>}
     </div>
   )
 }
 
 function Pill({ bg, color, children }) {
   return (
-    <span style={{ fontSize:9, padding:'1px 4px', background:bg, color, borderRadius:4, fontWeight:700, lineHeight:1.4 }}>
+    <span style={{ fontSize: 9, padding: '2px 5px', background: bg, color, borderRadius: 5, fontWeight: 700, lineHeight: 1.4, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
       {children}
     </span>
   )
 }
 
 const NAV_BTN = {
-  width:32, height:32, borderRadius:R.sm, border:'none',
-  background:'transparent', cursor:'pointer',
-  display:'flex', alignItems:'center', justifyContent:'center',
-  color:T.textMid,
-  transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
+  width: 32, height: 32, borderRadius: R.md, border: 'none',
+  background: 'transparent', cursor: 'pointer',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  color: T.textMid,
+  transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
 }
