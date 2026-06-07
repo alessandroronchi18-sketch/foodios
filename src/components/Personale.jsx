@@ -1148,6 +1148,15 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
   function addMembro(repId, dipId) { if (!dipId) return; update(rs => rs.map(r => r.id === repId ? { ...r, membri: [...new Set([...(r.membri || []), dipId])] } : r)) }
   function removeMembro(repId, dipId) { update(rs => rs.map(r => r.id === repId ? { ...r, membri: (r.membri || []).filter(m => m !== dipId), capoId: r.capoId === dipId ? null : r.capoId } : r)) }
   function setCapo(repId, dipId) { update(rs => rs.map(r => r.id === repId ? { ...r, capoId: r.capoId === dipId ? null : dipId, membri: [...new Set([...(r.membri || []), dipId])] } : r)) }
+  // Fallback touch/mobile per spostare una persona tra reparti (senza drag&drop).
+  function moveMembro(fromRepId, dipId, toRepId) {
+    if (!toRepId || toRepId === fromRepId) return
+    update(rs => rs.map(r => {
+      if (r.id === fromRepId) return { ...r, membri: (r.membri || []).filter(m => m !== dipId), capoId: r.capoId === dipId ? null : r.capoId }
+      if (r.id === toRepId) return { ...r, membri: [...new Set([...(r.membri || []), dipId])] }
+      return r
+    }))
+  }
 
   if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
 
@@ -1173,49 +1182,78 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
     removeMembro(d.fromRepId, d.dipId)
   }
 
-  // Box-persona trascinabile (con azioni: responsabile / rimuovi)
-  const personBox = (dipId, repId, isCapo) => (
-    <div key={dipId} draggable onDragStart={e => startDrag(e, dipId, repId)} onDragEnd={() => setDragId(null)}
-      title="Trascina per spostare in un altro reparto"
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'grab',
-        background: isCapo ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : C.bgCard,
-        color: isCapo ? C.white : C.text, border: `1px solid ${isCapo ? '#4A0612' : C.border}`,
-        borderRadius: 10, padding: '7px 7px 7px 11px', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
-        boxShadow: '0 1px 3px rgba(15,23,42,0.08)', opacity: dragId === dipId ? 0.4 : 1,
-      }}>
-      {isCapo && <Icon name="star" size={11} color={C.white} />}
-      <span>{nomeById(dipId)}</span>
-      <button onClick={() => setCapo(repId, dipId)} title={isCapo ? 'Rimuovi da responsabile' : 'Rendi responsabile'}
-        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: isCapo ? 'rgba(255,255,255,0.85)' : C.amber, padding: 0, display: 'inline-flex' }}><Icon name="star" size={12} /></button>
-      <button onClick={() => removeMembro(repId, dipId)} aria-label="Rimuovi dal reparto"
-        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: isCapo ? 'rgba(255,255,255,0.85)' : C.textSoft, padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
-    </div>
-  )
+  // Box-persona trascinabile. Nome e controlli vivono in una riga flex pulita
+  // (mai sovrapposti): [icona stato] nome ... [toggle responsabile] [rimuovi].
+  // Su mobile, dove il drag&drop non e' affidabile, aggiunge un select "Sposta in…".
+  const personBox = (dipId, repId, isCapo) => {
+    const ctrlBtn = {
+      background: isCapo ? 'rgba(255,255,255,0.14)' : C.bg,
+      border: `1px solid ${isCapo ? 'rgba(255,255,255,0.22)' : C.border}`,
+      borderRadius: 7, cursor: 'pointer', padding: '4px 5px', flexShrink: 0,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+    }
+    const altriReparti = org.reparti.filter(r => r.id !== repId)
+    return (
+      <div key={dipId} draggable onDragStart={e => startDrag(e, dipId, repId)} onDragEnd={() => setDragId(null)}
+        title="Trascina per spostare in un altro reparto"
+        style={{
+          display: 'flex', flexDirection: 'column', gap: 6, cursor: 'grab',
+          background: isCapo ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : C.bgCard,
+          color: isCapo ? C.white : C.text, border: `1px solid ${isCapo ? '#4A0612' : C.border}`,
+          borderRadius: 10, padding: '6px 8px 6px 10px', fontSize: 12, fontWeight: 700,
+          boxShadow: '0 1px 3px rgba(15,23,42,0.08)', opacity: dragId === dipId ? 0.4 : 1,
+          minWidth: 0, maxWidth: isMobile ? '100%' : 240, width: isMobile ? '100%' : undefined,
+        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          {isCapo && <span style={{ display: 'inline-flex', flexShrink: 0 }}><Icon name="star" size={12} color={C.amber} /></span>}
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nomeById(dipId)}</span>
+          <span style={{ display: 'inline-flex', gap: 4, flexShrink: 0 }}>
+            <button onClick={() => setCapo(repId, dipId)} title={isCapo ? 'Rimuovi da responsabile' : 'Rendi responsabile'}
+              style={{ ...ctrlBtn, color: C.amber }}><Icon name="star" size={12} /></button>
+            <button onClick={() => removeMembro(repId, dipId)} title="Rimuovi dal reparto" aria-label="Rimuovi dal reparto"
+              style={{ ...ctrlBtn, color: isCapo ? 'rgba(255,255,255,0.9)' : C.textSoft }}><Icon name="x" size={12} /></button>
+          </span>
+        </div>
+        {isMobile && altriReparti.length > 0 && (
+          <select value="" aria-label="Sposta in un altro reparto"
+            onChange={e => moveMembro(repId, dipId, e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${isCapo ? 'rgba(255,255,255,0.3)' : C.border}`, fontSize: 16, fontWeight: 600, color: isCapo ? C.white : C.textMid, background: isCapo ? 'rgba(255,255,255,0.12)' : C.white, cursor: 'pointer' }}>
+            <option value="">Sposta in…</option>
+            {altriReparti.map(r => <option key={r.id} value={r.id} style={{ color: C.text }}>{r.nome}</option>)}
+          </select>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div>
       <style>{`
-        .orgtree{ display:flex; flex-direction:column; align-items:center; }
-        .orgkids{ display:flex; justify-content:center; padding-top:26px; position:relative; }
-        .orgkids::before{ content:''; position:absolute; top:0; left:50%; width:2px; height:13px; background:#E6D9D5; }
-        .orgkid{ position:relative; padding:0 14px; display:flex; flex-direction:column; align-items:center; }
-        .orgkid::before{ content:''; position:absolute; top:13px; left:0; right:0; height:2px; background:#E6D9D5; }
-        .orgkid::after{ content:''; position:absolute; top:13px; left:50%; width:2px; height:13px; background:#E6D9D5; }
+        /* --- Connettori organigramma ---
+           Stem verticale dal genitore (orgkids::before) -> bus orizzontale che unisce
+           i figli (orgkid::before) -> linea di discesa in ogni figlio (orgkid::after).
+           Tutte le linee usano la stessa altezza (var) per restare allineate. */
+        .orgtree{ --org-gap:16px; --org-stem:14px; display:flex; flex-direction:column; align-items:center; }
+        .orgkids{ display:flex; justify-content:center; align-items:flex-start; padding-top:calc(var(--org-stem) * 2); position:relative; }
+        .orgkids::before{ content:''; position:absolute; top:0; left:50%; transform:translateX(-50%); width:2px; height:var(--org-stem); background:#E6D9D5; }
+        .orgkid{ position:relative; padding:0 var(--org-gap); display:flex; flex-direction:column; align-items:center; }
+        .orgkid::before{ content:''; position:absolute; top:var(--org-stem); left:0; right:0; height:2px; background:#E6D9D5; }
+        .orgkid::after{ content:''; position:absolute; top:var(--org-stem); left:50%; transform:translateX(-50%); width:2px; height:var(--org-stem); background:#E6D9D5; }
         .orgkid:first-child::before{ left:50%; }
         .orgkid:last-child::before{ right:50%; }
         .orgkid:only-child::before{ display:none; }
         @media (max-width:760px){
+          .orgtree{ align-items:stretch; }
           .orgkids{ flex-direction:column; align-items:stretch; padding-top:14px; gap:12px; }
           .orgkids::before{ display:none; }
-          .orgkid{ padding:0; }
+          .orgkid{ padding:0; align-items:stretch; }
           .orgkid::before, .orgkid::after{ display:none; }
         }
       `}</style>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
-          Organigramma gerarchico. <b style={{ color: C.red }}>★</b> = responsabile. Trascina una persona da un box all'altro per spostarla{nonAssegnati.length > 0 ? ` · ${nonAssegnati.length} non ancora assegnati.` : '. Tutti assegnati.'}
+          Organigramma gerarchico. <span style={{ display: 'inline-flex', verticalAlign: 'middle', color: C.amber }}><Icon name="star" size={12} /></span> = responsabile. Trascina una persona da un box all'altro per spostarla{nonAssegnati.length > 0 ? ` · ${nonAssegnati.length} non ancora assegnati.` : '. Tutti assegnati.'}
         </div>
         {addingRep ? (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -1224,7 +1262,7 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
               placeholder="Nome reparto (es. Laboratorio)"
               style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, width: 200 }} />
             <button onClick={confermaAddReparto} style={{ padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Aggiungi</button>
-            <button onClick={() => { setAddingRep(false); setNewRepNome('') }} style={{ padding: '8px 10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>✕</button>
+            <button onClick={() => { setAddingRep(false); setNewRepNome('') }} aria-label="Annulla" style={{ padding: '8px 10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="x" size={13} /></button>
           </div>
         ) : (
           <button onClick={() => setAddingRep(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={14} /> Reparto</button>
@@ -1268,11 +1306,11 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
                             onBlur={confermaRename}
                             style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.12)', color: C.white, fontSize: 13, fontWeight: 700 }} />
                         ) : (
-                          <span style={{ fontSize: 13, fontWeight: 800, color: C.white, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</span>
+                          <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 800, color: C.white, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</span>
                         )}
                         <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                          <button onClick={() => avviaRename(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, cursor: 'pointer', padding: '3px 8px' }}><Icon name="edit" size={13} /></button>
-                          <button onClick={() => delReparto(r.id)} title="Elimina reparto" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, cursor: 'pointer', padding: '3px 8px' }}><Icon name="trash" size={13} /></button>
+                          <button onClick={() => avviaRename(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, cursor: 'pointer', padding: '3px 8px', display: 'inline-flex', alignItems: 'center' }}><Icon name="edit" size={13} /></button>
+                          <button onClick={() => delReparto(r.id)} title="Elimina reparto" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, cursor: 'pointer', padding: '3px 8px', display: 'inline-flex', alignItems: 'center' }}><Icon name="trash" size={13} /></button>
                         </span>
                       </div>
                       <div style={{ padding: '10px 12px', textAlign: 'center' }}>
