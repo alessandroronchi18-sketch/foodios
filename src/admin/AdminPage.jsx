@@ -1676,7 +1676,7 @@ export default function AdminPage() {
             <div style={{ flex: 1 }} />
             <input
               value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="🔍 Cerca per nome, email…"
+              placeholder="Cerca per nome, email…"
               style={{
                 padding: '6px 12px', borderRadius: 8, border: `1px solid ${COLORS.border}`,
                 fontSize: 12, minWidth: 220,
@@ -1714,13 +1714,13 @@ export default function AdminPage() {
               </strong>
               <span style={{ flex: 1 }} />
               <Btn kind="primary" size="sm" onClick={() => setBulkEmailFor(clienti.filter(c => selezionati.has(c.org_id)))}>
-                📧 Email
+                <Icon name="mail" size={14} /> Email
               </Btn>
               <Btn kind="neutral" size="sm" onClick={bulkEstendiTrial}>
-                ⏱ Estendi trial
+                <Icon name="clock" size={14} /> Estendi trial
               </Btn>
               <Btn kind="neutral" size="sm" onClick={bulkExportCsv}>
-                📊 Export CSV
+                <Icon name="barChart" size={14} /> Export CSV
               </Btn>
               <Btn kind="ghost" size="sm" onClick={() => setSelezionati(new Set())}>
                 ✕ Deseleziona
@@ -1797,7 +1797,7 @@ export default function AdminPage() {
                         <td style={{ ...td(), color: COLORS.textSoft }}>
                           {c.email}
                           {!c.email_confermata && (
-                            <div style={{ fontSize: 10, color: COLORS.warn, marginTop: 2 }}>✉️ non confermata</div>
+                            <div style={{ fontSize: 10, color: COLORS.warn, marginTop: 2 }}><Icon name="mail" size={11} /> non confermata</div>
                           )}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{fmtData(c.registrata_il)}</td>
@@ -1840,25 +1840,25 @@ export default function AdminPage() {
                               const g = prompt(`Estendi trial di ${c.nome_attivita} di quanti giorni?`, '30')
                               if (g) azione(c.org_id, 'estendi_trial', { valore: g })
                             }} disabled={inAzione('estendi_trial')} title="Estendi trial">
-                              ⏱
+                              <Icon name="clock" size={14} />
                             </Btn>
                             <Btn kind="neutral" size="sm" onClick={() => setEmailFor(c)} title="Invia email">
-                              📧
+                              <Icon name="mail" size={14} />
                             </Btn>
                             <Btn kind="warn" size="sm" onClick={() => handleImpersona(c)} disabled={inAzione('impersona')} title="Genera magic link">
-                              🔑
+                              <Icon name="key" size={14} />
                             </Btn>
                             <Btn kind="neutral" size="sm" onClick={() => handleResetPassword(c)} disabled={inAzione('reset_password')} title="Reset password">
-                              🔁
+                              <Icon name="refresh" size={14} />
                             </Btn>
                             <Btn kind="success" size="sm" onClick={() => setRegalaFor(c)} title="Regala mesi gratis">
-                              🎁
+                              <Icon name="gift" size={14} />
                             </Btn>
                             <Btn kind="neutral" size="sm" onClick={() => handlePulisciDemo(c)} disabled={inAzione('pulisci_demo_fatture')} title="Pulisci fatture demo">
                               🧹
                             </Btn>
                             <Btn kind="danger" size="sm" onClick={() => setDeleteFor(c)} title="Elimina">
-                              🗑
+                              <Icon name="trash" size={14} />
                             </Btn>
                           </div>
                         </td>
@@ -1875,7 +1875,7 @@ export default function AdminPage() {
         {metricheAvanzate && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
             <Card style={{ padding: 18 }}>
-              <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800 }}>🏆 Top 5 clienti più attivi</h3>
+              <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800 }}><Icon name="trophy" size={16} /> Top 5 clienti più attivi</h3>
               {metricheAvanzate.topAttivi.length === 0 ? (
                 <div style={{ color: COLORS.textMute, fontSize: 12 }}>Nessuna attività registrata</div>
               ) : (
@@ -1900,7 +1900,7 @@ export default function AdminPage() {
                 😴 Inattivi da &gt;7 giorni ({metricheAvanzate.inattivi.length})
               </h3>
               {metricheAvanzate.inattivi.length === 0 ? (
-                <div style={{ color: COLORS.textMute, fontSize: 12 }}>Tutti i clienti sono attivi 🎉</div>
+                <div style={{ color: COLORS.textMute, fontSize: 12 }}>Tutti i clienti sono attivi <Icon name="party" size={14} /></div>
               ) : (
                 <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                   {metricheAvanzate.inattivi.slice(0, 10).map(c => (
@@ -1932,10 +1932,10 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}>💶 Prezzi piani</strong>
+              <strong style={{ fontSize: 14 }}><Icon name="euro" size={16} /> Prezzi piani</strong>
               <span style={{ fontSize: 12, color: COLORS.textMute }}>display landing + pannello abbonamento · checkout</span>
             </div>
-            <Btn kind="neutral" size="sm" onClick={fetchPricing} disabled={pricingLoading}>{pricingLoading ? '…' : '🔄'}</Btn>
+            <Btn kind="neutral" size="sm" onClick={fetchPricing} disabled={pricingLoading}>{pricingLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           <div style={{ padding: '14px 18px' }}>
             <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 12, lineHeight: 1.5 }}>
@@ -1959,7 +1959,7 @@ export default function AdminPage() {
                     </div>
                     {!inEdit && (
                       <Btn kind="neutral" size="sm" onClick={() => { setPriceDraft({ plan, euro: euroAttuale, stripe_price_id: row.stripe_price_id || '' }); setPriceConfirm(false) }}>
-                        ✏️ Modifica
+                        <Icon name="edit" size={14} /> Modifica
                       </Btn>
                     )}
                   </div>
@@ -2008,14 +2008,14 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}>🎟 Codici sconto</strong>
+              <strong style={{ fontSize: 14 }}><Icon name="ticket" size={16} /> Codici sconto</strong>
               <span style={{ fontSize: 12, color: COLORS.textMute }}>
                 {codici.length} codici · {codici.filter(c => c.attivo).length} attivi · {codici.reduce((s, c) => s + (c.redemptions || 0), 0)} utilizzi totali
               </span>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Btn kind="neutral" size="sm" onClick={fetchCodici} disabled={codiciLoading}>
-                {codiciLoading ? '…' : '🔄'}
+                {codiciLoading ? '…' : <Icon name="refresh" size={14} />}
               </Btn>
               <Btn kind="primary" size="sm" onClick={() => setShowNuovoCodice(true)}>
                 + Nuovo codice
@@ -2061,7 +2061,7 @@ export default function AdminPage() {
                             {c.tipo_sconto === 'percent' ? `-${c.valore_sconto}%` : `-€${(c.valore_sconto / 100).toFixed(2)}`}
                           </span>
                           {c.valore_sconto === 100 && c.tipo_sconto === 'percent' && (
-                            <div style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>🎁 Gratis</div>
+                            <div style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}><Icon name="gift" size={11} /> Gratis</div>
                           )}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft }}>
@@ -2087,7 +2087,7 @@ export default function AdminPage() {
                         <td style={td()}>
                           <div style={{ display: 'flex', gap: 4 }}>
                             <Btn kind="neutral" size="sm" onClick={() => { navigator.clipboard.writeText(c.codice).catch(() => {}) }} title="Copia codice">
-                              📋
+                              <Icon name="clipboard" size={14} />
                             </Btn>
                             {c.attivo && (
                               <Btn kind="warn" size="sm"
@@ -2104,14 +2104,14 @@ export default function AdminPage() {
                             )}
                             <Btn kind="danger" size="sm"
                               onClick={async () => {
-                                if (!confirm(`Eliminare definitivamente il codice ${c.codice}?\n${usato > 0 ? '⚠️ Ha già ' + usato + ' utilizzi.' : ''}`)) return
+                                if (!confirm(`Eliminare definitivamente il codice ${c.codice}?\n${usato > 0 ? 'Ha già ' + usato + ' utilizzi.' : ''}`)) return
                                 try {
                                   await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'elimina_codice_sconto', id: c.id }) })
                                   fetchCodici()
                                 } catch (e) { toast.error(e.message) }
                               }}
                               title="Elimina">
-                              🗑
+                              <Icon name="trash" size={14} />
                             </Btn>
                           </div>
                         </td>
@@ -2131,7 +2131,7 @@ export default function AdminPage() {
               <strong style={{ fontSize: 14 }}>🔔 Eventi Stripe recenti</strong>
               <span style={{ fontSize: 12, color: COLORS.textMute }}>{stripeEvents.length} eventi · subscription, charge, invoice, checkout</span>
             </div>
-            <Btn kind="neutral" size="sm" onClick={fetchStripeEvents} disabled={stripeEventsLoading}>{stripeEventsLoading ? '…' : '🔄'}</Btn>
+            <Btn kind="neutral" size="sm" onClick={fetchStripeEvents} disabled={stripeEventsLoading}>{stripeEventsLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           {stripeEvents.length === 0 ? (
             <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
@@ -2174,7 +2174,7 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}>📨 Feedback dai clienti</strong>
+              <strong style={{ fontSize: 14 }}><Icon name="mail" size={16} /> Feedback dai clienti</strong>
               <span style={{ fontSize: 12, color: COLORS.textMute }}>
                 {feedback.length}{feedbackSoloDaGestire ? ' da gestire' : ' totali'}
               </span>
@@ -2184,21 +2184,21 @@ export default function AdminPage() {
                 <input type="checkbox" checked={feedbackSoloDaGestire} onChange={e => setFeedbackSoloDaGestire(e.target.checked)} />
                 Solo da gestire
               </label>
-              <Btn kind="neutral" size="sm" onClick={fetchFeedback} disabled={feedbackLoading}>{feedbackLoading ? '…' : '🔄'}</Btn>
+              <Btn kind="neutral" size="sm" onClick={fetchFeedback} disabled={feedbackLoading}>{feedbackLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
             </div>
           </div>
           {feedback.length === 0 ? (
             <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
-              {feedbackSoloDaGestire ? 'Nessun feedback da gestire 🎉' : 'Nessun feedback ricevuto ancora'}
+              {feedbackSoloDaGestire ? 'Nessun feedback da gestire' : 'Nessun feedback ricevuto ancora'}
             </div>
           ) : (
             <div style={{ maxHeight: 420, overflowY: 'auto' }}>
               {feedback.map(f => {
                 const sentMap = {
-                  bug:         { bg: COLORS.errBg,  fg: COLORS.err,  lbl: '🐛 Bug' },
-                  feature:     { bg: COLORS.blueBg, fg: COLORS.blue, lbl: '💡 Idea' },
-                  feedback:    { bg: COLORS.rowAlt, fg: COLORS.textSoft, lbl: '💬 Feedback' },
-                  complimento: { bg: COLORS.okBg,   fg: COLORS.ok,   lbl: '🎉 Complimento' },
+                  bug:         { bg: COLORS.errBg,  fg: COLORS.err,  icon: 'bug',  lbl: 'Bug' },
+                  feature:     { bg: COLORS.blueBg, fg: COLORS.blue, icon: 'bulb', lbl: 'Idea' },
+                  feedback:    { bg: COLORS.rowAlt, fg: COLORS.textSoft, icon: 'chat', lbl: 'Feedback' },
+                  complimento: { bg: COLORS.okBg,   fg: COLORS.ok,   icon: 'party', lbl: 'Complimento' },
                 }
                 const s = sentMap[f.sentiment] || sentMap.feedback
                 return (
@@ -2209,7 +2209,7 @@ export default function AdminPage() {
                     opacity: f.gestito ? 0.7 : 1,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                      <span style={{ background: s.bg, color: s.fg, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>{s.lbl}</span>
+                      <span style={{ background: s.bg, color: s.fg, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={s.icon} size={11} /> {s.lbl}</span>
                       <strong style={{ fontSize: 13, color: COLORS.text }}>{f.nome_attivita || '—'}</strong>
                       <span style={{ fontSize: 11, color: COLORS.textMute }}>·</span>
                       <span style={{ fontSize: 11, color: COLORS.textSoft }}>{f.user_email}</span>
@@ -2221,7 +2221,7 @@ export default function AdminPage() {
                       {f.messaggio}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: COLORS.textMute }}>
-                      {f.view_corrente && <span>📍 {f.view_corrente}</span>}
+                      {f.view_corrente && <span><Icon name="pin" size={11} /> {f.view_corrente}</span>}
                       {f.url && <a href={f.url} target="_blank" rel="noreferrer" style={{ color: COLORS.accent, textDecoration: 'none' }}>🔗 apri pagina</a>}
                       <span style={{ flex: 1 }} />
                       {f.gestito ? (
@@ -2257,7 +2257,7 @@ export default function AdminPage() {
               <strong style={{ fontSize: 14 }}>📢 Banner globali</strong>
               <span style={{ fontSize: 12, color: COLORS.textMute }}>annuncio mostrato a tutti i clienti in cima all'app</span>
             </div>
-            <Btn kind="neutral" size="sm" onClick={fetchBanners} disabled={bannersLoading}>{bannersLoading ? '…' : '🔄'}</Btn>
+            <Btn kind="neutral" size="sm" onClick={fetchBanners} disabled={bannersLoading}>{bannersLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
             <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 8 }}>Nuovo banner</div>
@@ -2275,10 +2275,10 @@ export default function AdminPage() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <select value={nuovoBanner.tipo} onChange={e => setNuovoBanner(b => ({ ...b, tipo: e.target.value }))}
                 style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
-                <option value="info">ℹ️ info</option>
-                <option value="warn">⚠️ warn</option>
-                <option value="critical">🚨 critical</option>
-                <option value="success">✅ success</option>
+                <option value="info">info</option>
+                <option value="warn">warn</option>
+                <option value="critical">critical</option>
+                <option value="success">success</option>
               </select>
               <input type="datetime-local" value={nuovoBanner.scade_il}
                 onChange={e => setNuovoBanner(b => ({ ...b, scade_il: e.target.value }))}
@@ -2300,10 +2300,10 @@ export default function AdminPage() {
               {banners.map(b => {
                 const scaduto = b.scade_il && new Date(b.scade_il) < new Date()
                 const tipoMap = {
-                  info: { bg: '#EFF6FF', fg: '#1E3A8A', lbl: 'ℹ️ info' },
-                  warn: { bg: '#FEF9C3', fg: '#854D0E', lbl: '⚠️ warn' },
-                  critical: { bg: '#FEE2E2', fg: '#991B1B', lbl: '🚨 critical' },
-                  success: { bg: '#DCFCE7', fg: '#166534', lbl: '✅ success' },
+                  info: { bg: '#EFF6FF', fg: '#1E3A8A', icon: null, lbl: 'info' },
+                  warn: { bg: '#FEF9C3', fg: '#854D0E', icon: 'warning', lbl: 'warn' },
+                  critical: { bg: '#FEE2E2', fg: '#991B1B', icon: 'alert', lbl: 'critical' },
+                  success: { bg: '#DCFCE7', fg: '#166534', icon: 'checkCircle', lbl: 'success' },
                 }
                 const t = tipoMap[b.tipo] || tipoMap.info
                 return (
@@ -2313,7 +2313,7 @@ export default function AdminPage() {
                     opacity: !b.attivo || scaduto ? 0.6 : 1,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <span style={{ background: t.bg, color: t.fg, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>{t.lbl}</span>
+                      <span style={{ background: t.bg, color: t.fg, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{t.icon && <Icon name={t.icon} size={11} />}{t.lbl}</span>
                       {b.attivo && !scaduto && <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>● live</span>}
                       {!b.attivo && <span style={{ background: COLORS.blockedBg, color: COLORS.blocked, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>spento</span>}
                       {scaduto && <span style={{ background: COLORS.errBg, color: COLORS.err, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700 }}>scaduto</span>}
@@ -2339,7 +2339,7 @@ export default function AdminPage() {
                           await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ tipo: 'banner_elimina', id: b.id }) })
                           fetchBanners()
                         } catch (e) { toast.error(e.message) }
-                      }}>🗑</Btn>
+                      }}><Icon name="trash" size={14} /></Btn>
                     </div>
                   </div>
                 )
@@ -2354,7 +2354,7 @@ export default function AdminPage() {
             padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`,
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <strong style={{ fontSize: 14 }}>📋 Log attività recenti</strong>
+            <strong style={{ fontSize: 14 }}><Icon name="clipboard" size={16} /> Log attività recenti</strong>
             <span style={{ fontSize: 11, color: COLORS.textMute }}>{auditLog.length} eventi</span>
           </div>
           {auditLog.length === 0 ? (
@@ -2388,7 +2388,7 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 20, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800 }}>🔐 Migrazione integrazioni → AES-256-GCM</h3>
+              <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800 }}><Icon name="lock" size={16} /> Migrazione integrazioni → AES-256-GCM</h3>
               <div style={{ fontSize: 11, color: COLORS.textMute, maxWidth: 600 }}>
                 Cifra in batch tutte le righe <code>public.integrazioni</code> con <code>encryption_version=0</code> (legacy). Idempotente: ri-eseguire non tocca le righe gia' v=1. Richiede <code>INTEGRATIONS_ENCRYPTION_KEY</code> in Vercel.
               </div>
@@ -2405,7 +2405,7 @@ export default function AdminPage() {
                   toast.error(`Errore migrazione: ${e.message}`)
                 }
               }}>
-              🔐 Esegui migrazione
+              <Icon name="lock" size={14} /> Esegui migrazione
             </Btn>
           </div>
         </Card>
@@ -2414,16 +2414,16 @@ export default function AdminPage() {
         <Card style={{ marginBottom: 30, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <strong style={{ fontSize: 14 }}>🐛 Errori produzione</strong>
+              <strong style={{ fontSize: 14 }}><Icon name="bug" size={16} /> Errori produzione</strong>
               <span style={{ fontSize: 12, color: COLORS.textMute }}>
                 {errori.length} eventi · raccolti via safeError(supabase) da edge functions
               </span>
             </div>
-            <Btn kind="neutral" size="sm" onClick={fetchErrori} disabled={erroriLoading}>{erroriLoading ? '…' : '🔄'}</Btn>
+            <Btn kind="neutral" size="sm" onClick={fetchErrori} disabled={erroriLoading}>{erroriLoading ? '…' : <Icon name="refresh" size={14} />}</Btn>
           </div>
           {errori.length === 0 ? (
             <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
-              {erroriLoading ? 'Caricamento…' : '✅ Nessun errore catturato. Bene così.'}
+              {erroriLoading ? 'Caricamento…' : 'Nessun errore catturato. Bene così.'}
             </div>
           ) : (
             <div style={{ maxHeight: 400, overflowY: 'auto' }}>

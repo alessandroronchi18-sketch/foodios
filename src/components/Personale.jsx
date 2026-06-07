@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import Icon from './Icon'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
@@ -114,7 +115,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       q = q.or(`sede_id.eq.${sedeId},sede_id.is.null`)
     }
     const { data, error } = await q
-    if (error) notify?.("⚠ Errore caricamento dipendenti: " + error.message, false)
+    if (error) notify?.("Errore caricamento dipendenti: " + error.message, false)
     setLista(data || [])
     // Conteggio archiviati per il badge del toggle
     const { count } = await supabase.from("dipendenti").select("id", { count: "exact", head: true })
@@ -140,8 +141,8 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   }
 
   async function salva() {
-    if (!form.nome.trim()) { notify("⚠ Inserisci il nome del dipendente", false); return }
-    if (!orgId) { notify("⚠ Profilo non pronto, riprova", false); return }
+    if (!form.nome.trim()) { notify("Inserisci il nome del dipendente", false); return }
+    if (!orgId) { notify("Profilo non pronto, riprova", false); return }
     setSaving(true)
     const payload = {
       nome: form.nome.trim(),
@@ -161,10 +162,10 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       const { data: ins, error: e2 } = await supabase.from("dipendenti").insert(payload).select("id").single()
       err = e2; dipId = ins?.id
     }
-    if (err) { notify("⚠ Errore: " + err.message, false); setSaving(false); return }
+    if (err) { notify("Errore: " + err.message, false); setSaving(false); return }
     // Assegna i reparti scelti (incl. ibrido) all'organigramma.
     if (dipId) await assegnaReparti(dipId, [form.reparto1, form.reparto2])
-    notify(editId ? "✓ Dipendente aggiornato" : "✓ Dipendente aggiunto"); reset()
+    notify(editId ? "Dipendente aggiornato" : "Dipendente aggiunto"); reset()
     setSaving(false)
     carica()
   }
@@ -173,16 +174,16 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     if (!orgId) return
     if (!confirm("Archiviare questo dipendente? Potrai riattivarlo dall'archivio quando vuoi.")) return
     const { error } = await supabase.from("dipendenti").update({ attivo: false }).eq("id", id).eq("organization_id", orgId)
-    if (error) { notify("⚠ Errore archiviazione: " + error.message, false); return }
-    notify("✓ Dipendente archiviato")
+    if (error) { notify("Errore archiviazione: " + error.message, false); return }
+    notify("Dipendente archiviato")
     carica()
   }
 
   async function riattiva(id) {
     if (!orgId) return
     const { error } = await supabase.from("dipendenti").update({ attivo: true }).eq("id", id).eq("organization_id", orgId)
-    if (error) { notify("⚠ Errore riattivazione: " + error.message, false); return }
-    notify("✓ Dipendente riattivato")
+    if (error) { notify("Errore riattivazione: " + error.message, false); return }
+    notify("Dipendente riattivato")
     carica()
   }
 
@@ -212,8 +213,8 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         overflowY: isMobile ? "auto" : "visible",
       }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:800, color:C.text }}>
-            {editId ? "✏️ Modifica dipendente" : "➕ Nuovo dipendente"}
+          <div style={{ fontSize:13, fontWeight:800, color:C.text, display:"inline-flex", alignItems:"center", gap:6 }}>
+            <Icon name={editId ? "edit" : "plus"} size={15} />{editId ? "Modifica dipendente" : "Nuovo dipendente"}
           </div>
           {isMobile && (
             <button onClick={reset} aria-label="Chiudi form" style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
@@ -268,9 +269,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
           <div style={{ marginBottom:12 }}>
             <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Sede primaria</div>
             <select value={form.sede_id} onChange={e=>setForm(f=>({...f,sede_id:e.target.value}))} style={inputSt}>
-              <option value="">🏢 Tutte le sedi (azienda)</option>
+              <option value="">Tutte le sedi (azienda)</option>
               {sedi.filter(s => s.attiva !== false).map(s => (
-                <option key={s.id} value={s.id}>📍 {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
+                <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
               ))}
             </select>
           </div>
@@ -293,27 +294,29 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       <div>
         {/* Toggle Attivi / Archivio */}
         <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
-          {[['attivi', '👥 Attivi'], ['archivio', `📦 Archivio${archCount > 0 ? ` (${archCount})` : ''}`]].map(([id, lbl]) => (
+          {[['attivi', 'Attivi', 'users'], ['archivio', `Archivio${archCount > 0 ? ` (${archCount})` : ''}`, 'package']].map(([id, lbl, icon]) => (
             <button key={id} onClick={() => setVista(id)}
               style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${vista === id ? C.red : C.border}`,
                 background: vista === id ? C.redLight : C.white, color: vista === id ? C.red : C.textMid,
-                fontSize: 11, fontWeight: vista === id ? 800 : 600, cursor: 'pointer' }}>{lbl}</button>
+                fontSize: 11, fontWeight: vista === id ? 800 : 600, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={icon} size={13} />{lbl}</button>
           ))}
         </div>
         {haPiuSedi && (
           <div style={{ marginBottom: 10, display: 'flex', gap: 6 }}>
-            {[['attiva','📍 Solo sede attiva'], ['tutte','🏢 Tutte le sedi']].map(([id,lbl]) => (
+            {[['attiva','Solo sede attiva','pin'], ['tutte','Tutte le sedi','building']].map(([id,lbl,icon]) => (
               <button key={id} onClick={()=>setScopeSede(id)}
                 style={{ padding:'4px 10px', borderRadius: 999, border: `1px solid ${C.border}`,
                   background: scopeSede===id ? C.text : C.white, color: scopeSede===id ? C.white : C.textMid,
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{lbl}</button>
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={icon} size={12} />{lbl}</button>
             ))}
           </div>
         )}
         {/* Barra di ricerca per nome/cognome */}
         {lista.length > 0 && (
           <div style={{ position:"relative", marginBottom:10 }}>
-            <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:13, color:C.textSoft, pointerEvents:"none" }}>🔍</span>
+            <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:C.textSoft, pointerEvents:"none", display:"inline-flex" }}><Icon name="search" size={14} /></span>
             <input
               type="text" value={search} onChange={e=>setSearch(e.target.value)}
               placeholder="Cerca dipendente per nome o cognome…" aria-label="Cerca dipendente"
@@ -357,22 +360,23 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
                   {haPiuSedi && (
                     <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 999,
                       background: d.sede_id ? C.amberLight : '#F1F5F9',
-                      color: d.sede_id ? '#92400E' : C.textSoft, fontWeight: 700 }}>
-                      {d.sede_id ? `📍 ${sediMap[d.sede_id]?.nome || 'Sede'}` : '🏢 Azienda'}
+                      color: d.sede_id ? '#92400E' : C.textSoft, fontWeight: 700,
+                      display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Icon name={d.sede_id ? "pin" : "building"} size={10} />{d.sede_id ? (sediMap[d.sede_id]?.nome || 'Sede') : 'Azienda'}
                     </span>
                   )}
                 </div>
-                {d.ruolo && <div style={{ fontSize:11, color:C.textMid, marginBottom:2 }}>💼 {d.ruolo}</div>}
+                {d.ruolo && <div style={{ fontSize:11, color:C.textMid, marginBottom:2, display:"inline-flex", alignItems:"center", gap:5 }}><Icon name="briefcase" size={12} />{d.ruolo}</div>}
                 <div style={{ fontSize:11, color:C.textSoft }}>
                   {fmt(d.costo_orario)}/h · {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt((d.costo_orario||0)*(d.ore_settimana||0)*4.33)}/mese</strong>
                 </div>
                 {d.note && <div style={{ fontSize:10, color:C.textSoft, marginTop:3, fontStyle:"italic" }}>{d.note}</div>}
               </div>
               <div style={{ display:"flex", gap:6, flexShrink:0 }}>
-                <button onClick={()=>initEdit(d)} style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}>✏️</button>
+                <button onClick={()=>initEdit(d)} title="Modifica" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.borderStr}`, background:C.white, fontSize:10, color:C.textMid, cursor:"pointer" }}><Icon name="edit" size={13} /></button>
                 {inArchivio
                   ? <button onClick={()=>riattiva(d.id)} title="Riattiva" style={{ padding:"5px 10px", borderRadius:8, border:"1px solid #10B981", background:"#ECFDF5", fontSize:10, color:"#065F46", cursor:"pointer", fontWeight:700 }}>↩ Riattiva</button>
-                  : <button onClick={()=>disattiva(d.id)} title="Archivia" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}>📦</button>}
+                  : <button onClick={()=>disattiva(d.id)} title="Archivia" style={{ padding:"5px 10px", borderRadius:8, border:`1px solid ${C.red}40`, background:C.redLight, fontSize:10, color:C.red, cursor:"pointer" }}><Icon name="package" size={13} /></button>}
               </div>
             </div>
           </div>
@@ -443,7 +447,7 @@ function TurniTab({ orgId, notify, isMobile }) {
       sload(SK_ORG, orgId, null).catch(() => null),
       sload(SK_CONSUNTIVO, orgId, null).catch(() => null),
     ])
-    if (et || ed) notify?.("⚠ Errore caricamento turni: " + (et?.message || ed?.message), false)
+    if (et || ed) notify?.("Errore caricamento turni: " + (et?.message || ed?.message), false)
     setTurni(t || [])
     setDipendenti(d || [])
     setOrganigramma(org && Array.isArray(org.reparti) ? org : { reparti: [] })
@@ -473,14 +477,14 @@ function TurniTab({ orgId, notify, isMobile }) {
   }
 
   async function salvaTurno() {
-    if (!form.dipendente_id || !form.data) { notify("⚠ Seleziona dipendente e data", false); return }
-    if (!orgId) { notify("⚠ Profilo non pronto, riprova", false); return }
+    if (!form.dipendente_id || !form.data) { notify("Seleziona dipendente e data", false); return }
+    if (!orgId) { notify("Profilo non pronto, riprova", false); return }
     // Avviso sovrapposizione: stesso dipendente, stesso giorno, orari che si accavallano.
     const ni = _toMin(form.ora_inizio), nf = _toMin(form.ora_fine)
     const conflitto = turni.find(t => t.id !== editId && t.dipendente_id === form.dipendente_id && t.data === form.data && ni < _toMin(t.ora_fine) && _toMin(t.ora_inizio) < nf)
     if (conflitto) {
       const nomeDip = dipendenti.find(d => d.id === form.dipendente_id)?.nome || 'Il dipendente'
-      const ok = typeof window !== "undefined" && window.confirm(`⚠ Turno sovrapposto\n\n${nomeDip} ha già un turno il ${form.data} dalle ${_hm(_toMin(conflitto.ora_inizio))} alle ${_hm(_toMin(conflitto.ora_fine))}, che si accavalla con ${form.ora_inizio}–${form.ora_fine}.\n\nVuoi salvarlo comunque?`)
+      const ok = typeof window !== "undefined" && window.confirm(`Turno sovrapposto\n\n${nomeDip} ha già un turno il ${form.data} dalle ${_hm(_toMin(conflitto.ora_inizio))} alle ${_hm(_toMin(conflitto.ora_fine))}, che si accavalla con ${form.ora_inizio}–${form.ora_fine}.\n\nVuoi salvarlo comunque?`)
       if (!ok) return
     }
     const ore = calcOre(form.ora_inizio, form.ora_fine)
@@ -500,7 +504,7 @@ function TurniTab({ orgId, notify, isMobile }) {
     const { error } = editId
       ? await supabase.from("turni").update(payload).eq("id", editId).eq("organization_id", orgId)
       : await supabase.from("turni").insert(payload)
-    if (error) { notify("⚠ Errore: " + error.message, false); setSaving(false); return }
+    if (error) { notify("Errore: " + error.message, false); setSaving(false); return }
     // Consuntivo ore effettive (solo su turno esistente): salva/aggiorna la mappa.
     if (editId) {
       const eff = parseFloat(String(form.ore_effettive).replace(',', '.'))
@@ -509,7 +513,7 @@ function TurniTab({ orgId, notify, isMobile }) {
       else delete next[editId]
       try { await ssave(SK_CONSUNTIVO, next, orgId, null); setConsuntivo(next) } catch {}
     }
-    notify(editId ? "✓ Turno aggiornato" : "✓ Turno aggiunto"); resetForm()
+    notify(editId ? "Turno aggiornato" : "Turno aggiunto"); resetForm()
     setSaving(false)
     carica()
   }
@@ -517,8 +521,8 @@ function TurniTab({ orgId, notify, isMobile }) {
   async function eliminaTurno(id) {
     if (!orgId || !id) return
     const { error } = await supabase.from("turni").delete().eq("id", id).eq("organization_id", orgId)
-    if (error) { notify("⚠ Errore eliminazione turno: " + error.message, false); return }
-    notify("✓ Turno eliminato")
+    if (error) { notify("Errore eliminazione turno: " + error.message, false); return }
+    notify("Turno eliminato")
     resetForm()
     carica()
   }
@@ -600,8 +604,8 @@ function TurniTab({ orgId, notify, isMobile }) {
               </div>
             </div>
             <button onClick={()=> showForm ? resetForm() : apriNuovoTurno(week)}
-              style={{ padding:"8px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:11, cursor:"pointer" }}>
-              {showForm ? "✕" : "➕ Turno"}
+              style={{ padding:"8px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize:11, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:5 }}>
+              {showForm ? "✕" : <><Icon name="plus" size={13} />Turno</>}
             </button>
           </>
         )}
@@ -636,7 +640,7 @@ function TurniTab({ orgId, notify, isMobile }) {
           overflowY: isMobile ? "auto" : "visible",
         }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: isMobile ? 16 : 10 }}>
-            <div style={{ fontSize: isMobile ? 14 : 12, fontWeight:800, color:C.text }}>{editId ? "✏️ Modifica turno" : "➕ Nuovo turno"}</div>
+            <div style={{ fontSize: isMobile ? 14 : 12, fontWeight:800, color:C.text, display:"inline-flex", alignItems:"center", gap:6 }}><Icon name={editId ? "edit" : "plus"} size={14} />{editId ? "Modifica turno" : "Nuovo turno"}</div>
             <button aria-label="Chiudi form turno" onClick={resetForm} style={{ padding:"6px 12px", background:"transparent", border:"none", fontSize:18, color:C.textSoft, cursor:"pointer" }}>✕</button>
           </div>
           <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 100px 100px 1fr auto", gap: isMobile ? 12 : 10, alignItems: isMobile ? "stretch" : "end" }}>
@@ -650,7 +654,7 @@ function TurniTab({ orgId, notify, isMobile }) {
               { lbl:" ", el: (
                 <div style={{ display:"flex", gap:6 }}>
                   <button onClick={salvaTurno} disabled={saving} style={{ flex:1, padding: isMobile ? "14px" : "9px 16px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer" }}>{saving?"…":(editId?"Aggiorna":"Salva")}</button>
-                  {editId && <button onClick={()=>eliminaTurno(editId)} disabled={saving} title="Elimina turno" style={{ flexShrink:0, padding: isMobile ? "14px" : "9px 14px", background:C.white, color:C.red, border:`1px solid ${C.red}`, borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer" }}>🗑</button>}
+                  {editId && <button onClick={()=>eliminaTurno(editId)} disabled={saving} title="Elimina turno" style={{ flexShrink:0, padding: isMobile ? "14px" : "9px 14px", background:C.white, color:C.red, border:`1px solid ${C.red}`, borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer" }}><Icon name="trash" size={15} /></button>}
                 </div>
               ) },
             ].map(({lbl,el},i)=>(
@@ -770,7 +774,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                             return (
                               <span key={r.nome} style={{ display:"flex", alignItems:"center", gap:5, fontSize:9, fontWeight:700, color: n === 0 ? C.amber : C.textMid }}>
                                 <span style={{ width:7, height:7, borderRadius:2, background: n===0 ? "transparent" : r.color, border: n===0 ? `1px solid ${C.amber}` : "none", flexShrink:0 }}/>
-                                {r.nome}: {n === 0 ? "0 ⚠" : n}
+                                {r.nome}: {n === 0 ? <>0 <Icon name="warning" size={10} /></> : n}
                               </span>
                             )
                           })}
@@ -1046,7 +1050,7 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
   const nonAssegnati = dip.filter(d => !assegnati.has(d.id))
 
   async function persist(next) {
-    try { await ssave(SK_ORG, next, orgId, null) } catch { notify?.('⚠ Errore salvataggio organigramma', false); return }
+    try { await ssave(SK_ORG, next, orgId, null) } catch { notify?.('Errore salvataggio organigramma', false); return }
     setOrg(next)
   }
   const update = fn => persist({ ...org, reparti: fn(org.reparti.map(r => ({ ...r, membri: [...(r.membri || [])] }))) })
@@ -1099,7 +1103,7 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
 
       {org.reparti.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textSoft, background: C.bgCard, border: `1px dashed ${C.borderStr}`, borderRadius: 12 }}>
-          <div style={{ fontSize: 32, marginBottom: 10 }}>🗂️</div>
+          <div style={{ marginBottom: 10 }}><Icon name="folder" size={32} color={C.textSoft} /></div>
           <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun reparto</div>
           <div style={{ fontSize: 12 }}>Crea il primo reparto e assegna i dipendenti per costruire l'organigramma.</div>
         </div>
@@ -1119,8 +1123,8 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
                     <span style={{ fontSize: 13, fontWeight: 800, color: C.white }}>{r.nome}</span>
                   )}
                   <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                    <button onClick={() => avviaRename(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}>✏️</button>
-                    <button onClick={() => delReparto(r.id)} title="Elimina reparto" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}>🗑</button>
+                    <button onClick={() => avviaRename(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}><Icon name="edit" size={13} /></button>
+                    <button onClick={() => delReparto(r.id)} title="Elimina reparto" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, fontSize: 11, cursor: 'pointer', padding: '3px 8px' }}><Icon name="trash" size={13} /></button>
                   </span>
                 </div>
                 <div style={{ padding: '12px 14px' }}>
@@ -1159,10 +1163,10 @@ export default function Personale({ orgId, sedeId, sedi = [], notify }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState("dipendenti")
   const TABS = [
-    ["dipendenti", "Dipendenti", "👥"],
-    ["turni",      "Turni",      "📅"],
-    ["organigramma", "Organigramma", "🗂️"],
-    ["analisi",    "Analisi costo", "📊"],
+    ["dipendenti", "Dipendenti", "users"],
+    ["turni",      "Turni",      "calendar"],
+    ["organigramma", "Organigramma", "folder"],
+    ["analisi",    "Analisi costo", "barChart"],
   ]
 
   return (
@@ -1189,7 +1193,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify }) {
                 transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}, box-shadow ${M.durFast} ${M.ease}` }}
               onMouseEnter={e => { if (!active) e.currentTarget.style.color = T.textMid }}
               onMouseLeave={e => { if (!active) e.currentTarget.style.color = T.textSoft }}>
-              <span style={{ fontSize: 13, opacity: active ? 1 : 0.7 }}>{icon}</span>
+              <span style={{ opacity: active ? 1 : 0.7, display: 'inline-flex' }}><Icon name={icon} size={14} /></span>
               {lbl}
             </button>
           )

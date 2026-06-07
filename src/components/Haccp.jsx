@@ -10,6 +10,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import Icon from './Icon'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ALLERGENI } from '../lib/allergeni'
@@ -69,15 +70,15 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify }) {
   }
 
   async function salvaApparecchio() {
-    if (!formApp.nome.trim()) return notify?.('⚠ Inserisci un nome', false)
+    if (!formApp.nome.trim()) return notify?.('Inserisci un nome', false)
     const { error } = await supabase.from('haccp_apparecchi').insert({
       organization_id: orgId, sede_id: sedeId || null,
       nome: formApp.nome.trim(), tipo: formApp.tipo,
       temp_min: parseFloat(formApp.temp_min) || 0,
       temp_max: parseFloat(formApp.temp_max) || 0,
     })
-    if (error) return notify?.('⚠ ' + error.message, false)
-    notify?.('✓ Apparecchio aggiunto')
+    if (error) return notify?.(error.message, false)
+    notify?.('Apparecchio aggiunto')
     setFormApp({ nome:'', tipo:'frigo', temp_min:0, temp_max:8 })
     setShowAddApp(false)
     carica()
@@ -90,8 +91,8 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify }) {
   }
 
   async function salvaLog() {
-    if (!formLog.apparecchio_id) return notify?.('⚠ Seleziona un apparecchio', false)
-    if (formLog.temperatura === '') return notify?.('⚠ Inserisci la temperatura', false)
+    if (!formLog.apparecchio_id) return notify?.('Seleziona un apparecchio', false)
+    if (formLog.temperatura === '') return notify?.('Inserisci la temperatura', false)
     const temp = parseFloat(formLog.temperatura)
     const app = apparecchi.find(a => a.id === formLog.apparecchio_id)
     const fuoriRange = app ? (temp < app.temp_min || temp > app.temp_max) : false
@@ -103,10 +104,10 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify }) {
       note: formLog.note.trim() || null,
       fuori_range: fuoriRange,
     })
-    if (error) return notify?.('⚠ ' + error.message, false)
+    if (error) return notify?.(error.message, false)
     notify?.(fuoriRange
-      ? `⚠ Rilevato fuori range (${temp}°C, range ${app.temp_min}–${app.temp_max}°C)`
-      : '✓ Temperatura registrata')
+      ? `Rilevato fuori range (${temp}°C, range ${app.temp_min}–${app.temp_max}°C)`
+      : 'Temperatura registrata')
     setFormLog({ apparecchio_id:'', temperatura:'', operatore:'', note:'' })
     carica()
   }
@@ -120,7 +121,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify }) {
     <div>
       {/* Form rapido nuova rilevazione */}
       <div style={card}>
-        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:12 }}>📌 Registra rilevazione</div>
+        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}><Icon name="pin" size={18} />Registra rilevazione</div>
         {apparecchi.length === 0 ? (
           <div style={{ padding:'14px 16px', background:T.amberLight, color:T.amber, borderRadius:R.md, fontSize:13, fontWeight:600 }}>
             Prima aggiungi almeno un apparecchio sotto.
@@ -151,7 +152,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify }) {
       {/* Apparecchi */}
       <div style={card}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-          <div style={{ fontSize:15, fontWeight:700, color:T.text }}>🌡️ Apparecchi monitorati ({apparecchi.length})</div>
+          <div style={{ fontSize:15, fontWeight:700, color:T.text, display:'flex', alignItems:'center', gap:8 }}><Icon name="snow" size={18} />Apparecchi monitorati ({apparecchi.length})</div>
           <button onClick={() => setShowAddApp(s => !s)}
             style={{ height:34, padding:'0 14px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:12, fontWeight:700, cursor:'pointer' }}>
             {showAddApp ? '× Annulla' : '+ Aggiungi'}
@@ -199,7 +200,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify }) {
 
       {/* Storico recente */}
       <div style={card}>
-        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:12 }}>📋 Storico recente ({storico.length})</div>
+        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}><Icon name="clipboard" size={18} />Storico recente ({storico.length})</div>
         {storico.length === 0 ? (
           <div style={{ padding:16, color:T.textSoft, fontSize:13, textAlign:'center' }}>
             Nessuna rilevazione registrata.
@@ -221,7 +222,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify }) {
                     <td style={{ padding:'10px 14px', color:T.textMid }}>{FmtDt(s.rilevato_at)}</td>
                     <td style={{ padding:'10px 14px', color:T.text, fontWeight:600 }}>{s.haccp_apparecchi?.nome || '—'}</td>
                     <td style={{ padding:'10px 14px', textAlign:'right', fontVariantNumeric:'tabular-nums', color: s.fuori_range ? T.brand : T.text, fontWeight: s.fuori_range ? 800 : 600 }}>
-                      {s.temperatura}°C {s.fuori_range && '⚠'}
+                      {s.temperatura}°C {s.fuori_range && <Icon name="warning" size={13} />}
                     </td>
                     <td style={{ padding:'10px 14px', color:T.textSoft }}>{s.operatore || '—'}</td>
                   </tr>
@@ -265,7 +266,7 @@ function PulizieTab({ orgId, sedeId, isMobile, notify }) {
       nome: formT.nome.trim(), frequenza: formT.frequenza, ordine: tpl.length,
     })
     setFormT({ nome:'', frequenza:'giornaliera' })
-    notify?.('✓ Task aggiunto')
+    notify?.('Task aggiunto')
     carica()
   }
 
@@ -280,7 +281,7 @@ function PulizieTab({ orgId, sedeId, isMobile, notify }) {
       organization_id: orgId, sede_id: sedeId || null,
       template_id: id, operatore: operatore.trim() || null,
     })
-    notify?.('✓ Esecuzione registrata')
+    notify?.('Esecuzione registrata')
     carica()
   }
 
@@ -302,7 +303,7 @@ function PulizieTab({ orgId, sedeId, isMobile, notify }) {
     <div>
       {/* Form aggiunta task */}
       <div style={card}>
-        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:12 }}>➕ Aggiungi task pulizia</div>
+        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}><Icon name="plus" size={18} />Aggiungi task pulizia</div>
         <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'2fr 1fr auto', gap:10 }}>
           <input style={inp} placeholder="Es. Sanificazione banco lavoro"
             value={formT.nome} onChange={e=>setFormT(f=>({...f, nome:e.target.value}))}/>
@@ -331,8 +332,8 @@ function PulizieTab({ orgId, sedeId, isMobile, notify }) {
         if (items.length === 0) return null
         return (
           <div key={f.id} style={card}>
-            <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:12 }}>
-              📅 Pulizie {f.label.toLowerCase()} ({items.length})
+            <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+              <Icon name="calendar" size={18} />Pulizie {f.label.toLowerCase()} ({items.length})
             </div>
             {items.map(t => {
               const done = fattoNel(t.id, t.frequenza)
@@ -393,7 +394,7 @@ function AllergeniTab({ ricettario, isMobile }) {
   return (
     <div>
       <div style={card}>
-        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8 }}>📊 Sintesi allergeni nel ricettario</div>
+        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8, display:'flex', alignItems:'center', gap:8 }}><Icon name="barChart" size={18} />Sintesi allergeni nel ricettario</div>
         <div style={{ fontSize:12, color:T.textSoft, marginBottom:14 }}>
           Reg. UE 1169/2011 — informazioni obbligatorie sugli allergeni.
         </div>
@@ -416,9 +417,9 @@ function AllergeniTab({ ricettario, isMobile }) {
       </div>
 
       <div style={card}>
-        <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:6 }}>📋 Matrice allergeni × prodotti</div>
+        <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:6, display:'flex', alignItems:'center', gap:8 }}><Icon name="clipboard" size={16} />Matrice allergeni × prodotti</div>
         <div style={{ fontSize:11, color:T.textSoft, marginBottom:10, lineHeight:1.45 }}>
-          Riga: allergene · Colonna: prodotto · "●" = presente. Scorri orizzontalmente se ci sono molti prodotti.
+          Riga: allergene · Colonna: prodotto · pallino = presente. Scorri orizzontalmente se ci sono molti prodotti.
         </div>
         {ricette.length === 0 ? (
           <div style={{ padding:14, color:T.textSoft, fontSize:12, textAlign:'center' }}>
@@ -468,7 +469,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                         background:T.bgCard, borderBottom:`1px solid ${T.borderSoft}`,
                         position:'sticky', left:0, zIndex:1, whiteSpace:'nowrap',
                       }}>
-                        <span style={{ marginRight:4 }}>{a.emoji || '⚠️'}</span>{a.label}
+                        {a.label}
                         <span style={{ marginLeft:6, color:T.textSoft, fontWeight:500 }}>({totale})</span>
                       </td>
                       {ricetteCol.map((presente, i) => (
@@ -482,7 +483,7 @@ function AllergeniTab({ ricettario, isMobile }) {
                             borderLeft:`1px solid ${T.borderSoft}`,
                             borderBottom:`1px solid ${T.borderSoft}`,
                           }}>
-                          {presente ? '●' : ''}
+                          {presente ? <Icon name="dot" size={8} /> : ''}
                         </td>
                       ))}
                     </tr>
@@ -574,12 +575,12 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
           String(r.temperatura),
           r.operatore || '—',
           r.note || '',
-          r.fuori_range ? '⚠ FUORI RANGE' : 'OK',
+          r.fuori_range ? 'FUORI RANGE' : 'OK',
         ]),
         headStyles: { fillColor: RED, textColor: [255,255,255], fontStyle: 'bold' },
         bodyStyles: { fontSize: 8 },
         margin: { left: M_L, right: M_L },
-        didParseCell: d => { if (d.row.index >= 0 && d.column.index === 5 && d.cell.raw === '⚠ FUORI RANGE') d.cell.styles.textColor = RED },
+        didParseCell: d => { if (d.row.index >= 0 && d.column.index === 5 && d.cell.raw === 'FUORI RANGE') d.cell.styles.textColor = RED },
       })
       y = doc.lastAutoTable.finalY + 10
 
@@ -614,9 +615,9 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
       doc.text(lines, M_L, 285)
 
       doc.save(`registro_haccp_${from}_${to}.pdf`)
-      notify?.('✓ PDF generato')
+      notify?.('PDF generato')
     } catch (e) {
-      console.error(e); notify?.('⚠ Errore export: ' + e.message, false)
+      console.error(e); notify?.('Errore export: ' + e.message, false)
     } finally { setBusy(false) }
   }
 
@@ -626,7 +627,7 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
   return (
     <div>
       <div style={card}>
-        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8 }}>📄 Export "Registro HACCP" (PDF)</div>
+        <div style={{ fontSize:15, fontWeight:700, color:T.text, marginBottom:8, display:'flex', alignItems:'center', gap:8 }}><Icon name="fileText" size={18} />Export "Registro HACCP" (PDF)</div>
         <div style={{ fontSize:12, color:T.textSoft, marginBottom:16 }}>
           Genera un PDF formattato pronto per la consultazione da ispezione ASL. Include apparecchi, rilevazioni temperature, pulizie e disclaimer normativo.
         </div>
@@ -655,10 +656,10 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
   const [tab, setTab] = useState('temperature')
 
   const TABS = [
-    ['temperature', '🌡️ Temperature'],
-    ['pulizie',     '🧽 Pulizie'],
-    ['allergeni',   '⚠️ Allergeni'],
-    ['export',      '📄 Export PDF'],
+    ['temperature', 'Temperature', 'snow'],
+    ['pulizie',     'Pulizie',     null],
+    ['allergeni',   'Allergeni',   'warning'],
+    ['export',      'Export PDF',  'fileText'],
   ]
 
   return (
@@ -673,19 +674,20 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
         padding: '10px 14px', background: '#FFF8EB', border: '1px solid #FCD34D',
         borderRadius: R.md, marginBottom: 16, fontSize: 12, color: '#92400E', lineHeight: 1.5,
       }}>
-        <strong>⚠ Disclaimer:</strong> Questo registro è uno strumento di supporto.
+        <strong style={{ display:'inline-flex', alignItems:'center', gap:5, verticalAlign:'middle' }}><Icon name="warning" size={14} />Disclaimer:</strong> Questo registro è uno strumento di supporto.
         Consulta un tecnico HACCP certificato per la conformità normativa effettiva.
       </div>
 
       <div style={{ display:'flex', gap:2, marginBottom: isMobile?16:20, borderBottom:`1px solid ${T.border}`, overflowX:'auto' }}>
-        {TABS.map(([id, lbl]) => (
+        {TABS.map(([id, lbl, icon]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ padding:'10px 16px', border:'none', background:'transparent', cursor:'pointer',
               fontSize:13, fontWeight: tab===id?600:500, color: tab===id?T.text:T.textSoft,
               borderBottom: tab===id?`2px solid ${T.brand}`:'2px solid transparent',
               marginBottom:-1, letterSpacing:'-0.005em', whiteSpace:'nowrap',
+              display:'inline-flex', alignItems:'center', gap:6,
               transition:`color ${M.durFast} ${M.ease}`, fontFamily:'inherit' }}>
-            {lbl}
+            {icon && <Icon name={icon} size={15} />}{lbl}
           </button>
         ))}
       </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import Icon from './Icon'
 
 const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
@@ -23,7 +24,7 @@ export default function MfaSection({ notify }) {
       if (error) throw error
       setFactors([...(data?.totp || [])])
     } catch (e) {
-      notify?.('⚠ Errore lettura fattori: ' + (e.message || e), false)
+      notify?.('Errore lettura fattori: ' + (e.message || e), false)
     } finally {
       setLoading(false)
     }
@@ -49,7 +50,7 @@ export default function MfaSection({ notify }) {
       })
       setCode('')
     } catch (e) {
-      notify?.('⚠ Impossibile avviare enroll: ' + (e.message || e), false)
+      notify?.('Impossibile avviare enroll: ' + (e.message || e), false)
     }
   }
 
@@ -69,12 +70,12 @@ export default function MfaSection({ notify }) {
         code: code.trim(),
       })
       if (verErr) throw verErr
-      notify?.('✓ 2FA attivato — userai il codice ad ogni login')
+      notify?.('2FA attivato — userai il codice ad ogni login')
       setEnrolling(null)
       setCode('')
       await loadFactors()
     } catch (e) {
-      notify?.('⚠ Codice errato o scaduto: ' + (e.message || e), false)
+      notify?.('Codice errato o scaduto: ' + (e.message || e), false)
     } finally {
       setVerifying(false)
     }
@@ -114,12 +115,12 @@ export default function MfaSection({ notify }) {
       if (verErr) throw verErr
       const { error: unerr } = await supabase.auth.mfa.unenroll({ factorId: unenrolling.id })
       if (unerr) throw unerr
-      notify?.('✓ 2FA disattivato')
+      notify?.('2FA disattivato')
       setUnenrolling(null)
       setConfirmCode('')
       await loadFactors()
     } catch (e) {
-      notify?.('⚠ Errore rimozione: ' + (e.message || e), false)
+      notify?.('Errore rimozione: ' + (e.message || e), false)
     }
   }
 
@@ -127,7 +128,7 @@ export default function MfaSection({ notify }) {
     if (!enrolling?.secret) return
     try {
       await navigator.clipboard.writeText(enrolling.secret)
-      notify?.('✓ Chiave copiata')
+      notify?.('Chiave copiata')
     } catch {
       notify?.('Impossibile copiare automaticamente, copia manualmente', false)
     }
@@ -142,7 +143,7 @@ export default function MfaSection({ notify }) {
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6 }}>🔐 Verifica in due passaggi (2FA)</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="lock" size={18} />Verifica in due passaggi (2FA)</div>
             <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, maxWidth: 540 }}>
               Aggiunge un secondo passaggio al login: dopo la password ti chiediamo un codice
               a 6 cifre generato dalla tua app di autenticazione (Google Authenticator, Authy, 1Password, Bitwarden…).
@@ -150,12 +151,12 @@ export default function MfaSection({ notify }) {
             </div>
           </div>
           {verifiedFactors.length > 0 ? (
-            <span style={{ background: '#DCFCE7', color: '#166534', padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
-              ● ATTIVO
+            <span style={{ background: '#DCFCE7', color: '#166534', padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="dot" size={9} /> ATTIVO
             </span>
           ) : (
-            <span style={{ background: '#FEF3C7', color: '#92400E', padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
-              ● NON ATTIVO
+            <span style={{ background: '#FEF3C7', color: '#92400E', padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="dot" size={9} /> NON ATTIVO
             </span>
           )}
         </div>
@@ -234,8 +235,8 @@ export default function MfaSection({ notify }) {
 
         {unenrolling && (
           <div style={{ background: '#FEF7F5', border: '2px solid #6E0E1A', borderRadius: 12, padding: 20, marginTop: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#6E0E1A', marginBottom: 10 }}>
-              ⚠ Disattivare 2FA?
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#6E0E1A', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="warning" size={16} />Disattivare 2FA?
             </div>
             <div style={{ fontSize: 12, color: '#6B4C44', marginBottom: 14, lineHeight: 1.6 }}>
               Per confermare, inserisci il codice TOTP attuale generato dalla tua app.
@@ -306,7 +307,7 @@ export function MfaChallenge({ onComplete, onCancel }) {
   return (
     <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div style={{ maxWidth: 420, width: '100%', background: '#FFF', borderRadius: 16, padding: '36px 32px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }}>
-        <div style={{ fontSize: 48, marginBottom: 16, textAlign: 'center' }}>🔐</div>
+        <div style={{ marginBottom: 16, textAlign: 'center' }}><Icon name="lock" size={48} color="#6E0E1A" /></div>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', margin: '0 0 8px', textAlign: 'center' }}>
           Verifica in due passaggi
         </h1>

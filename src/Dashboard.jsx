@@ -1087,7 +1087,7 @@ class ErrorBoundary extends React.Component {
     if (err && isChunkLoadError(err)) return (
       <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#F8FAFC",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}>
         <div style={{maxWidth:420,textAlign:"center",background:"#fff",border:"1px solid #E8E0DC",borderRadius:16,padding:"36px 28px",boxShadow:"0 4px 20px rgba(15,23,42,0.08)"}}>
-          <div style={{fontSize:38,marginBottom:12}}>🔄</div>
+          <div style={{marginBottom:12}}><Icon name="refresh" size={38} color="#6E0E1A" /></div>
           <h1 style={{margin:"0 0 10px",fontSize:19,fontWeight:800,color:"#1C0A0A"}}>È disponibile una nuova versione</h1>
           <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>Ricarico la pagina per aggiornare FoodOS all'ultima versione…</p>
           <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica ora</button>
@@ -1108,7 +1108,7 @@ class ErrorBoundary extends React.Component {
     );
     if (err) return (
       <div style={{padding:40,fontFamily:"'JetBrains Mono', ui-monospace, monospace",color:"#6E0E1A",background:"#FFF5F5",minHeight:"100vh"}}>
-        <h2>⚠️ Errore runtime</h2>
+        <h2><Icon name="warning" size={18} /> Errore runtime</h2>
         <pre style={{whiteSpace:"pre-wrap",fontSize:11}}>{err.toString()}</pre>
         <pre style={{whiteSpace:"pre-wrap",fontSize:10,color:"#666"}}>{err.stack}</pre>
       </div>
@@ -1280,10 +1280,10 @@ export default function Dashboard({
 
   useEffect(()=>{
     if (!orgId) {
-      console.log('⏳ caricaDati: orgId non ancora disponibile, attendo...');
+      console.log('caricaDati: orgId non ancora disponibile, attendo...');
       return;
     }
-    console.log('📦 caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
+    console.log('caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
     // Reset stato per-sede prima di ricaricare (evita di mostrare brevemente
     // i dati della sede precedente mescolati ai nuovi). Le chiavi shared
     // (ricettario) le lasciamo: vengono comunque ricaricate sotto.
@@ -1299,15 +1299,15 @@ export default function Dashboard({
       const cached = localStorage.getItem(_RIC_CACHE_KEY);
       if (cached) {
         const { data, savedAt } = JSON.parse(cached);
-        if (data) { setRic(data); setOfflineCacheDate(savedAt); console.log('💾 cache ricettario:', Object.keys(data.ricette||{}).length, 'ricette'); }
+        if (data) { setRic(data); setOfflineCacheDate(savedAt); console.log('cache ricettario:', Object.keys(data.ricette||{}).length, 'ricette'); }
       }
     } catch {}
     try {
-      const bkMag    = bkReadLS(SK_MAG,    orgId, sedeId); if (bkMag)    { setMagazzino(bkMag);        console.log('💾 cache magazzino:', Object.keys(bkMag).length); }
-      const bkGior   = bkReadLS(SK_GIOR,   orgId, sedeId); if (bkGior)   { setGiornaliero(bkGior);     console.log('💾 cache giornaliero:', bkGior.length); }
-      const bkChius  = bkReadLS(SK_CHIUS,  orgId, sedeId); if (bkChius)  { setChiusure(bkChius);       console.log('💾 cache chiusure:', bkChius.length); }
-      const bkProd   = bkReadLS(SK_PROD,   orgId, sedeId); if (bkProd)   { setProd(bkProd);            console.log('💾 cache produzione:', Object.keys(bkProd).length); }
-      const bkAct    = bkReadLS(SK_ACT,    orgId, null);   if (bkAct)    { setAct(bkAct);              console.log('💾 cache actions:', bkAct.length); }
+      const bkMag    = bkReadLS(SK_MAG,    orgId, sedeId); if (bkMag)    { setMagazzino(bkMag);        console.log('cache magazzino:', Object.keys(bkMag).length); }
+      const bkGior   = bkReadLS(SK_GIOR,   orgId, sedeId); if (bkGior)   { setGiornaliero(bkGior);     console.log('cache giornaliero:', bkGior.length); }
+      const bkChius  = bkReadLS(SK_CHIUS,  orgId, sedeId); if (bkChius)  { setChiusure(bkChius);       console.log('cache chiusure:', bkChius.length); }
+      const bkProd   = bkReadLS(SK_PROD,   orgId, sedeId); if (bkProd)   { setProd(bkProd);            console.log('cache produzione:', Object.keys(bkProd).length); }
+      const bkAct    = bkReadLS(SK_ACT,    orgId, null);   if (bkAct)    { setAct(bkAct);              console.log('cache actions:', bkAct.length); }
       const bkExcl   = bkReadLS(SK_EXCL,   orgId, null);   if (bkExcl)   { setEsclusi(new Set(bkExcl)); }
       const bkLogRif = bkReadLS(SK_LOGRIF, orgId, sedeId); if (bkLogRif) { setLogRif(bkLogRif); }
     } catch (e) { console.warn('cache locale rec error:', e); }
@@ -1323,9 +1323,9 @@ export default function Dashboard({
                      : (typeof bk === 'object') ? Object.keys(bk).length > 0
                      : !!bk;
       if (!nonEmpty) return;
-      console.warn(`🔄 ${label}: Supabase vuoto, ripristino da backup locale…`);
-      ssave(sk, bk).then(() => console.log(`✅ ${label} ripristinato su Supabase`))
-                   .catch(e => console.error(`❌ Ripristino ${label} fallito:`, e));
+      console.warn(`${label}: Supabase vuoto, ripristino da backup locale…`);
+      ssave(sk, bk).then(() => console.log(`${label} ripristinato su Supabase`))
+                   .catch(e => console.error(`Ripristino ${label} fallito:`, e));
     };
 
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
@@ -1334,7 +1334,7 @@ export default function Dashboard({
       timeout
     ]).then(([ric,prod,act,mag,logrif,gior,chius,excl,logprz])=>{
       setOfflineMode(false);
-      console.log('📖 caricaDati SUPABASE:', {
+      console.log('caricaDati SUPABASE:', {
         ricette: ric ? Object.keys(ric.ricette||{}).length : 'VUOTO',
         produzione: prod ? Object.keys(prod).length : 'VUOTO',
         actions: act ? act.length : 'VUOTO',
@@ -1355,16 +1355,16 @@ export default function Dashboard({
           }
         }
       } else {
-        console.warn('⚠️ Supabase ricettario vuoto per orgId', orgId);
+        console.warn('Supabase ricettario vuoto per orgId', orgId);
         // Tenta restore dal cache ricettario (formato vecchio _RIC_CACHE_KEY)
         try {
           const cached = localStorage.getItem(_RIC_CACHE_KEY);
           if (cached) {
             const { data } = JSON.parse(cached);
             if (data && Object.keys(data.ricette||{}).length > 0) {
-              console.warn('🔄 ricettario: ripristino da cache locale…');
-              ssave(SK_RIC, data).then(() => console.log('✅ ricettario ripristinato su Supabase'))
-                                 .catch(e => console.error('❌ Ripristino ricettario fallito:', e));
+              console.warn('ricettario: ripristino da cache locale…');
+              ssave(SK_RIC, data).then(() => console.log('ricettario ripristinato su Supabase'))
+                                 .catch(e => console.error('Ripristino ricettario fallito:', e));
             }
           }
         } catch {}
@@ -1406,7 +1406,7 @@ export default function Dashboard({
       }
       setReady(true);
     }).catch(err => {
-      console.error('❌ caricaDati FALLITO:', err);
+      console.error('caricaDati FALLITO:', err);
       if (err.message === 'timeout' || err.message?.includes('network') || err.message?.includes('fetch')) {
         setOfflineMode(true);
       }
@@ -1511,7 +1511,7 @@ export default function Dashboard({
 
   // Fatture: per ora indirizza l'utente alla pagina Fornitori (parser XML lì)
   const handleImportFattureGlobal = useCallback(async (files) => {
-    notify(`📂 Per fatture XML/PDF usa la pagina Fornitori → Ordini → Importa fattura.`);
+    notify(`Per fatture XML/PDF usa la pagina Fornitori → Ordini → Importa fattura.`);
     setView('fornitori');
   }, [notify]);
 
@@ -1641,7 +1641,7 @@ export default function Dashboard({
     catch (e) { notify(`Creazione mese fallita: ${e.message || 'rete'}`, false); return; }
     setProd(np);
     setView(k);setShowMese(false);
-    notify(`📅 ${mese.label} creato`);
+    notify(`${mese.label} creato`);
   },[produzione]);
 
   // Aggiorna prezzo/fette da RicettarioView → propaga a tutte le dashboard
@@ -1675,9 +1675,9 @@ export default function Dashboard({
       effectiveOrgId = orgId || _ctx_orgId;
       tentativo++;
     }
-    console.log('💾 handleSalvaRicetta', { orgId, _ctx_orgId, effectiveOrgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
+    console.log('handleSalvaRicetta', { orgId, _ctx_orgId, effectiveOrgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
     if (!effectiveOrgId) {
-      notify('⚠ Sessione non valida (orgId mancante). Ricarica la pagina.', false);
+      notify('Sessione non valida (orgId mancante). Ricarica la pagina.', false);
       return;
     }
     // 1. REGOLE runtime
@@ -1687,9 +1687,9 @@ export default function Dashboard({
     // 3. Salvataggio su Supabase con feedback esplicito se fallisce
     try {
       await ssave(SK_RIC, nuovoRic);
-      console.log('✅ ricettario salvato su Supabase');
+      console.log('ricettario salvato su Supabase');
     } catch(err) {
-      console.error('❌ ERRORE salvataggio ricetta su Supabase:', err);
+      console.error('ERRORE salvataggio ricetta su Supabase:', err);
       // Backup localStorage perché Supabase ha fallito
       try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: nuovoRic, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
       notify(`Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta in cache locale — esegui SQL Supabase.`, false);
@@ -1740,7 +1740,7 @@ export default function Dashboard({
     const u=[a,...actions];
     try { await ssave(SK_ACT,u); }
     catch(e) { notify(`Errore tracciamento azione: ${e.message||'rete'}`,false); return; }
-    setAct(u); notify("✅ Azione tracciata");
+    setAct(u); notify("Azione tracciata");
   },[actions]);
   const handleUpdAct=useCallback(async(id,ch)=>{
     const u=actions.map(a=>a.id===id?{...a,...ch}:a);
@@ -2586,11 +2586,11 @@ export default function Dashboard({
         {/* Ricettario — mostra upload se non ancora caricato */}
         {view==="ricettario"&&!ricettario&&(
           <div style={{maxWidth:500,margin:"80px auto",textAlign:"center"}}>
-            <div style={{fontSize:52,marginBottom:18}}>📖</div>
+            <div style={{marginBottom:18}}><Icon name="book" size={52} color={C.red} /></div>
             <h2 style={{margin:"0 0 10px",fontSize:24,fontWeight:900,color:C.text}}>Carica il {LEX.Ricettario.toLowerCase()}</h2>
             <p style={{color:C.textSoft,marginBottom:32,fontSize:13,lineHeight:1.75}}>Importa il tuo file Excel con le {LEX.ricette} per vedere subito food cost, margini e ricavi per ogni {LEX.prodotto}.</p>
             <label style={{display:"inline-block",padding:"14px 32px",background:C.red,color:C.white,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:13,boxShadow:"0 4px 16px rgba(110,14,26,0.3)"}}>
-              📂 Carica .xlsx {LEX.Ricettario.toLowerCase()}
+              <Icon name="folder" size={14} /> Carica .xlsx {LEX.Ricettario.toLowerCase()}
               <input type="file" accept=".xlsx" multiple style={{display:"none"}} onChange={e=>e.target.files.length&&handleFile(Array.from(e.target.files))}/>
             </label>
           </div>
