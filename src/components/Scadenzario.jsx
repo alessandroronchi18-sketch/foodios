@@ -20,6 +20,30 @@ function pickFattura(r, orgId, sedeId) {
   return out
 }
 
+// Chiave di deduplica fattura: numero + fornitore + data, normalizzati.
+// Serve a NON reinserire righe già presenti se l'utente reimporta un file che
+// contiene fatture già caricate (es. export sovrapposti tra mesi). Le fatture
+// nuove di un mese diverso hanno chiave diversa → vengono comunque aggiunte.
+function fatturaKey(r) {
+  const norm = v => String(v ?? '').trim().toUpperCase()
+  return `${norm(r.numero_rif)}|${norm(r.fornitore)}|${norm(r.data_fattura)}`
+}
+
+// Filtra i record da inserire scartando quelli già presenti (set `seen`) e i
+// duplicati interni allo stesso import. Muta `seen` aggiungendo le chiavi nuove.
+// Ritorna { nuovi, scartati }.
+function dedupFatture(records, seen) {
+  const nuovi = []
+  let scartati = 0
+  for (const r of records) {
+    const k = fatturaKey(r)
+    if (seen.has(k)) { scartati++; continue }
+    seen.add(k)
+    nuovi.push(r)
+  }
+  return { nuovi, scartati }
+}
+
 // Termine di pagamento standard usato per derivare la data di scadenza
 // quando in DB non e' specificata: 30 giorni dalla data fattura.
 const PAYMENT_TERMS_DAYS = 30
@@ -149,25 +173,30 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   async function handleImportExcel(files) {
     if (!orgId) return
     setImportLoading(true)
-    let imported = 0
+    let imported = 0, scartati = 0
+    const seen = new Set(fatture.map(fatturaKey))
     for (const file of Array.from(files || [])) {
       try {
         const records = await parseFatturaSMART(file)
         if (!records.length) { notify('Nessuna fattura trovata nel file', false); continue }
-        const toInsert = records.map(r => pickFattura(r, orgId, sedeId))
+        const { nuovi, scartati: sc } = dedupFatture(records, seen)
+        scartati += sc
+        const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
         for (let i = 0; i < toInsert.length; i += 100) {
           const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
           if (error) throw error
         }
-        imported += records.length
+        imported += nuovi.length
       } catch (e) {
         const msg = e?.message || (typeof e === 'string' ? e : '') || 'errore sconosciuto'
         notify('Errore import ' + file.name + ': ' + msg, false)
       }
     }
     if (imported > 0) {
-      notify(`✓ ${imported} fatture importate`)
+      notify(`✓ ${imported} fatture importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       await loadFatture()
+    } else if (scartati > 0) {
+      notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
     }
     setImportLoading(false)
   }
@@ -175,25 +204,30 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   async function handleImportXML(files) {
     if (!orgId) return
     setImportLoading(true)
-    let imported = 0
+    let imported = 0, scartati = 0
+    const seen = new Set(fatture.map(fatturaKey))
     for (const file of Array.from(files || [])) {
       try {
         const text = await file.text()
         const records = parseFatturaXML(text)
         if (!records.length) { notify('Nessuna fattura trovata nel file XML', false); continue }
-        const toInsert = records.map(r => pickFattura(r, orgId, sedeId))
+        const { nuovi, scartati: sc } = dedupFatture(records, seen)
+        scartati += sc
+        const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
         for (let i = 0; i < toInsert.length; i += 100) {
           const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
           if (error) throw error
         }
-        imported += records.length
+        imported += nuovi.length
       } catch (e) {
         notify('Errore import XML ' + file.name + ': ' + (e?.message || 'sconosciuto'), false)
       }
     }
     if (imported > 0) {
-      notify(`✓ ${imported} fatture XML importate`)
+      notify(`✓ ${imported} fatture XML importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       await loadFatture()
+    } else if (scartati > 0) {
+      notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
     }
     setImportLoading(false)
   }
@@ -201,24 +235,29 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   async function handleImportSMART(files) {
     if (!orgId) return
     setImportLoading(true)
-    let imported = 0
+    let imported = 0, scartati = 0
+    const seen = new Set(fatture.map(fatturaKey))
     for (const file of Array.from(files || [])) {
       try {
         const records = await parseFatturaSMART(file)
         if (!records.length) { notify('Nessuna fattura trovata nel file FatturaSMART', false); continue }
-        const toInsert = records.map(r => pickFattura(r, orgId, sedeId))
+        const { nuovi, scartati: sc } = dedupFatture(records, seen)
+        scartati += sc
+        const toInsert = nuovi.map(r => pickFattura(r, orgId, sedeId))
         for (let i = 0; i < toInsert.length; i += 100) {
           const { error } = await supabase.from('fatture').insert(toInsert.slice(i, i + 100))
           if (error) throw error
         }
-        imported += records.length
+        imported += nuovi.length
       } catch (e) {
         notify('Errore import FatturaSMART ' + file.name + ': ' + (e?.message || 'sconosciuto'), false)
       }
     }
     if (imported > 0) {
-      notify(`✓ ${imported} fatture FatturaSMART importate`)
+      notify(`✓ ${imported} fatture FatturaSMART importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       await loadFatture()
+    } else if (scartati > 0) {
+      notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
     }
     setImportLoading(false)
   }
