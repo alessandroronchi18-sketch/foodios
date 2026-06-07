@@ -1904,6 +1904,9 @@ export default function Dashboard({
             )}
           </div>
 
+          {/* Sede attiva nella topbar (sostituisce la vecchia banda breadcrumb grigia) */}
+          {(sedi||[]).length>0 && <div style={{flexShrink:0}}><SedeSelector sedi={sedi} sedeAttiva={(sedi||[]).find(s=>s.id===sedeAttiva)||null} onSelect={onSetSedeAttiva} variant="topbarDark" /></div>}
+
           {/* Campanella notifiche (con badge non letti) — scopribile a colpo d'occhio */}
           <button onClick={()=>setShowNotifiche(true)} aria-label="Notifiche" title="Notifiche"
             style={{position:"relative",flexShrink:0,width:36,height:36,borderRadius:10,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.82)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:`background ${M.durFast} ${M.ease}`}}
@@ -2413,62 +2416,7 @@ export default function Dashboard({
 
       {/* CONTENT */}
       <div style={{marginLeft:0,marginTop:isMobile?0:52,flex:1,padding:0,paddingBottom:isMobile?0:28,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
-        {/* Desktop topbar (breadcrumb). Nascosta sulla HOME: lì l'hero saluta già
-            e ha il suo switch sede → niente banda ridondante, zero spazio sopra. */}
-        {!isMobile&&view!=="home"&&(()=>{
-          const VIEW_LABELS = {
-            home:"Dashboard", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
-            ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
-            simulatore:"Food Cost", pl:"P&L",
-            magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori", "vendite-b2b":"Vendite B2B",
-            personale:"Personale", haccp:"HACCP", menu:"Menù",
-            azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
-            calendario:"Calendario", previsione:"Previsioni",
-            "scheda-allergeni":"Scheda allergeni", impostazioni:"Impostazioni",
-            "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
-            "importa-dati":"Importa dati", "registro-attivita":"Registro attività",
-          };
-          const VIEW_GROUPS = {
-            home:"", giornaliero:"Oggi", chiusura:"Oggi", eventi:"Oggi", calendario:"Oggi",
-            ricettario:"Ricette & Menù", semilavorati:"Ricette & Menù", "nuova-ricetta":"Ricette & Menù",
-            "scheda-allergeni":"Ricette & Menù", menu:"Ricette & Menù",
-            simulatore:"Andamento & costi", pl:"Andamento & costi", storico:"Andamento & costi", previsione:"Andamento & costi", discrepanze:"Andamento & costi",
-            magazzino:"Magazzino & Acquisti", scadenzario:"Magazzino & Acquisti", "sprechi-omaggi":"Magazzino & Acquisti",
-            fornitori:"Magazzino & Acquisti", "vendite-b2b":"Magazzino & Acquisti", "importa-dati":"Magazzino & Acquisti",
-            personale:"Azienda", haccp:"Azienda", "registro-attivita":"Azienda", "confronto-sedi":"Azienda", trasferimenti:"Azienda",
-            azioni:"Strumenti", integrazioni:"Strumenti",
-            impostazioni:"", changelog:"",
-          };
-          const label = VIEW_LABELS[view] || (typeof view==="string"?view:"");
-          const group = VIEW_GROUPS[view] || "";
-          const sedeCorrente = (sedi||[]).find(s => s.id === sedeAttiva);
-          const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
-          return (
-            <div style={{position:"sticky",top:52,zIndex:Z.topbar,height:42,boxSizing:"border-box",
-              background:C.bg,
-              borderBottom:`1px solid ${C.borderSoft}`,
-              padding:"0 32px",display:"flex",alignItems:"center",gap:14}}>
-              {/* Sezione attiva: indicatore visivo brand a sinistra */}
-              <div style={{width:4,height:22,borderRadius:4,
-                background:"linear-gradient(180deg, #6E0E1A 0%, #E84B3A 100%)",
-                boxShadow:"0 2px 10px rgba(110,14,26,0.32)",flexShrink:0}}/>
-              {/* Titolo + breadcrumb (compatto) */}
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:9.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:8,marginBottom:1,lineHeight:1}}>
-                  <span style={{maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.brand,fontWeight:700,letterSpacing:"0.07em"}}>{nomeAttivita||"FoodOS"}</span>
-                  {group&&<>
-                    <span style={{color:T.borderStr,fontSize:11}}>›</span>
-                    <span style={{color:T.textSoft,letterSpacing:"0.05em"}}>{group}</span>
-                  </>}
-                </div>
-                <h1 style={{margin:0,fontSize:19,fontWeight:700,color:T.text,letterSpacing:"-0.02em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</h1>
-              </div>
-              {/* Sede (badge per sede unica, switcher per multi-sede) — variante
-                  chiara e compatta per la topbar. Notifiche/profilo/esci nel menu profilo. */}
-              {(sedi||[]).length>0 && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} variant="topbar" />}
-            </div>
-          );
-        })()}
+        {/* Banda breadcrumb grigia RIMOSSA: il titolo è dato dalla sezione attiva nella nav, il selettore sede è nella topbar. Niente barra grigia sopra le pagine. */}
         {/* Mobile topbar — sticky, flat */}
         {isMobile&&(()=>{
           const MOBILE_LABELS = {

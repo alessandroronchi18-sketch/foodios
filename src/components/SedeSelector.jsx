@@ -3,14 +3,16 @@ import React, { useState, useEffect, useRef } from 'react'
 const BRAND = '#6E0E1A'
 
 // variant: 'sidebar' (scuro, per la sidebar) | 'topbar' (chiaro e compatto, per
-// la barra superiore su sfondo chiaro). Le palette evitano testo bianco su chiaro.
+// barra chiara) | 'topbarDark' (compatto come topbar ma palette scura, per la
+// topbar scura). Le palette evitano testo bianco su chiaro.
 export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'sidebar' }) {
   const [open, setOpen] = useState(false)
   const [hover, setHover] = useState(false)
   const ref = useRef(null)
-  const top = variant === 'topbar'
+  const top = variant === 'topbar' || variant === 'topbarDark' // sizing compatto + dropdown a destra
+  const light = variant === 'topbar'                           // palette chiara
 
-  const P = top ? {
+  const P = light ? {
     txt: '#1C0A0A', sub: '#6B7280', label: '#9AA1AC',
     bg: '#FFFFFF', bgHover: '#F4EEEA', bgOpen: 'rgba(110,14,26,0.08)',
     border: '#E6E0DC', borderOpen: 'rgba(110,14,26,0.40)',
