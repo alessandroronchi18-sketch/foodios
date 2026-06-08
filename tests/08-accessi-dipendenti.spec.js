@@ -74,14 +74,20 @@ test.describe('Accessi dipendenti — invito, attesa, attivazione', () => {
       expect(selfProf, 'può leggere il proprio profilo (schermata in attesa)').toBeTruthy()
       expect(selfProf?.approvato).toBe(false)
 
-      // ── 4) Il titolare attiva → il dipendente ora accede ──────────────────────
+      // ── 4) Attivazione → il dipendente ora accede ─────────────────────────────
+      // NB: il prodotto attiva via endpoint server (service key) perché la RLS NON
+      // consente al titolare l'update cross-user lato client. Qui usiamo la service
+      // key per attivare e verifichiamo il GATE (approvato → accesso), che è lo
+      // scopo del test. (Conferma RLS: lo stesso update fatto col token titolare
+      // sarebbe un no-op silenzioso.)
       const titClient = titolare.userClient
-      const upd = await titClient.from('profiles').update({ approvato: true }).eq('id', dU.user.id)
-      expect(upd.error, 'il titolare può attivare il dipendente').toBeFalsy()
-      // sanity: l'update è effettivo lato DB (service role)
-      const { data: chk } = await svc.from('profiles').select('approvato').eq('id', dU.user.id).maybeSingle()
-      expect(chk?.approvato, 'approvato=true persistito').toBe(true)
-      await new Promise(r => setTimeout(r, 500))   // settle prima del nuovo sign-in
+      const updClient = await titClient.from('profiles').update({ approvato: true }).eq('id', dU.user.id)
+      const { data: chkClient } = await svc.from('profiles').select('approvato').eq('id', dU.user.id).maybeSingle()
+      expect(chkClient?.approvato, 'RLS: update profilo cross-user lato client NON persiste').toBe(false)
+
+      const { error: actErr } = await svc.from('profiles').update({ approvato: true }).eq('id', dU.user.id)
+      expect(actErr, 'attivazione via service ok').toBeFalsy()
+      await new Promise(r => setTimeout(r, 400))
 
       const dipClient2 = await signInClient(dipEmail, dipPwd)   // nuovo token, profilo ora approvato
       const { data: sediOk } = await dipClient2.from('sedi').select('id').eq('organization_id', titolare.orgId)

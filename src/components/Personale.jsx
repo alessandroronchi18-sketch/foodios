@@ -1407,13 +1407,31 @@ function AccessiTab({ orgId, notify, isMobile }) {
     carica()
   }
 
+  // Azioni sul profilo di UN ALTRO utente (attiva/disattiva/elimina): la RLS non
+  // consente al titolare l'update cross-user lato client (no-op silenzioso) →
+  // passano dall'endpoint server con service key.
+  async function azioneAccesso(targetUserId, azione) {
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/dipendente-accesso', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ targetUserId, azione }),
+    })
+    const j = await res.json().catch(() => null)
+    if (!res.ok || !j?.ok) throw new Error(j?.error || `errore (${res.status})`)
+    return j
+  }
+
   async function setApprovato(dipId, val) {
     setBusy(dipId)
-    const { error } = await supabase.from('profiles').update({ approvato: val }).eq('id', dipId).eq('organization_id', orgId)
-    setBusy(null)
-    if (error) { notify?.('Operazione fallita: ' + error.message, false); return }
-    notify?.(val ? 'Dipendente attivato' : 'Dipendente disattivato')
-    carica()
+    try {
+      await azioneAccesso(dipId, val ? 'attiva' : 'disattiva')
+      notify?.(val ? 'Dipendente attivato' : 'Dipendente disattivato')
+    } catch (e) {
+      notify?.('Operazione fallita: ' + e.message, false)
+    } finally {
+      setBusy(null); carica()
+    }
   }
 
   async function revocaInvito(invId) {
@@ -1427,14 +1445,7 @@ function AccessiTab({ orgId, notify, isMobile }) {
   async function elimina(dip) {
     setBusy(dip.id)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/dipendente-elimina', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
-        body: JSON.stringify({ targetUserId: dip.id }),
-      })
-      const j = await res.json().catch(() => null)
-      if (!res.ok || !j?.ok) throw new Error(j?.error || `errore (${res.status})`)
+      await azioneAccesso(dip.id, 'elimina')
       notify?.('Account eliminato')
     } catch (err) {
       notify?.('Eliminazione fallita: ' + err.message, false)
