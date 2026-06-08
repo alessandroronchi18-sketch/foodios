@@ -98,10 +98,14 @@ export async function navTo(page, target) {
  * Logout: apre il menu profilo (topbar) e clicca "Esci".
  */
 export async function logout(page) {
-  // Apri il menu profilo (topbar), poi clicca "Esci" tra i bottoni VISIBILI
-  // (esiste un duplicato nascosto nel drawer mobile: `.first()` lo prenderebbe).
-  await page.getByRole('button', { name: 'Menu profilo' }).first().click()
-  await page.locator('button:visible', { hasText: /esci/i }).first().click({ timeout: 15_000 })
+  // Click DOM diretto (el.click()): un overlay fixed (toast) può intercettare i
+  // pointer event sul bottone, ma il click DOM bubbla all'handler React comunque.
+  await page.getByRole('button', { name: 'Menu profilo' }).first().evaluate((el) => el.click())
+  // Nel dropdown aperto, clicca "Esci" tra i bottoni VISIBILI (c'è un duplicato
+  // nascosto nel drawer mobile).
+  const esci = page.locator('button:visible', { hasText: /esci/i }).first()
+  await esci.waitFor({ state: 'visible', timeout: 10_000 })
+  await esci.evaluate((el) => el.click())
   await page.getByRole('button', { name: 'Menu profilo' }).first().waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {})
 }
 
