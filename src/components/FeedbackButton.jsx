@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { apiFetch } from '../lib/apiFetch'
+import useIsMobile from '../lib/useIsMobile'
 import Icon from './Icon'
 
 // Bottone floating + modale per inviare feedback all'admin.
@@ -14,6 +15,7 @@ const SENTIMENTS = [
 ]
 
 export default function FeedbackButton({ viewCorrente }) {
+  const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const [sentiment, setSentiment] = useState('feedback')
   const [messaggio, setMessaggio] = useState('')
@@ -51,8 +53,10 @@ export default function FeedbackButton({ viewCorrente }) {
         onClick={() => setOpen(true)}
         style={{
           position: 'fixed',
-          bottom: 20, right: 20,
-          width: 52, height: 52,
+          // Su mobile la bottom-nav occupa il fondo: alzo il FAB sopra di essa
+          // (e lo rimpicciolisco) così non copre il pulsante "Altro".
+          bottom: isMobile ? 76 : 20, right: isMobile ? 14 : 20,
+          width: isMobile ? 46 : 52, height: isMobile ? 46 : 52,
           borderRadius: '50%',
           background: '#6E0E1A',
           color: '#FFF',

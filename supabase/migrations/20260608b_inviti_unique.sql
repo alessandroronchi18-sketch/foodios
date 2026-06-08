@@ -32,11 +32,7 @@ begin
     return new;
   end if;
 
-  select organization_id into invite_org_id
-  from public.org_inviti
-  where lower(email) = lower(new.email) and stato = 'pending'
-  order by created_at desc
-  limit 1;
+  select organization_id into invite_org_id from public.org_inviti where lower(email) = lower(new.email) and stato = 'pending' order by created_at desc limit 1;
 
   if invite_org_id is not null then
     insert into public.profiles (id, organization_id, email, nome_completo, ruolo, approvato)
