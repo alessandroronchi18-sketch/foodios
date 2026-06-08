@@ -15,7 +15,7 @@ import { test, expect } from '@playwright/test'
 import { hasDbEnv, serviceClient, createEphemeralOrg, signInClient, cleanupOrg } from './helpers/db.js'
 
 async function attendiProfilo(svc, userId) {
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 50; i++) {   // ~15s: il trigger handle_new_user è asincrono
     await new Promise(r => setTimeout(r, 300))
     const { data } = await svc.from('profiles').select('organization_id, ruolo, approvato').eq('id', userId).maybeSingle()
     if (data?.organization_id) return data
@@ -78,6 +78,10 @@ test.describe('Accessi dipendenti — invito, attesa, attivazione', () => {
       const titClient = titolare.userClient
       const upd = await titClient.from('profiles').update({ approvato: true }).eq('id', dU.user.id)
       expect(upd.error, 'il titolare può attivare il dipendente').toBeFalsy()
+      // sanity: l'update è effettivo lato DB (service role)
+      const { data: chk } = await svc.from('profiles').select('approvato').eq('id', dU.user.id).maybeSingle()
+      expect(chk?.approvato, 'approvato=true persistito').toBe(true)
+      await new Promise(r => setTimeout(r, 500))   // settle prima del nuovo sign-in
 
       const dipClient2 = await signInClient(dipEmail, dipPwd)   // nuovo token, profilo ora approvato
       const { data: sediOk } = await dipClient2.from('sedi').select('id').eq('organization_id', titolare.orgId)

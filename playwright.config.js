@@ -11,7 +11,7 @@ export default defineConfig({
   globalSetup: './global-setup.js',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 0 : 0,
   workers: process.env.CI ? 1 : 1,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
   timeout: 60_000,
