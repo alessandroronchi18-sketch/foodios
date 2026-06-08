@@ -25,22 +25,40 @@ function seedOrgId() {
 // l'onboarding non è soppresso e il test fallirebbe in modo fuorviante.
 export const SEED_OK = seedOrgId() !== null
 
-// Init script eseguito a ogni navigazione: marca onboarding come visto e apre
-// tutti i gruppi della sidebar (la nav per-testo richiede i gruppi espansi).
-async function primeLocalStorage(page) {
+// Etichette "umane" → id-view interni (lo stato `view` del Dashboard).
+const LABEL_TO_VIEW = {
+  Dashboard: 'home', Home: 'home',
+  Ricettario: 'ricettario',
+  Cassa: 'chiusura',
+  Magazzino: 'magazzino',
+  Produzione: 'giornaliero',
+  'Food cost': 'simulatore', Listino: 'simulatore',
+}
+
+// Init script (gira a ogni navigazione): sopprime l'onboarding, apre i gruppi
+// sidebar e — se passato — imposta la view attiva via sessionStorage (la nav
+// del Dashboard legge `foodios_view_<orgId>` al mount).
+async function primeLocalStorage(page, viewId = null) {
   const orgId = seedOrgId()
-  await page.addInitScript((oid) => {
+  await page.addInitScript(({ oid, view }) => {
     try {
       if (oid) localStorage.setItem(`onboarding_seen_${oid}`, '1')
       localStorage.setItem('foodios-sidebar-sec', JSON.stringify({
         oggi: true, ricette: true, numeri: true, acquisti: true, azienda: true, strumenti: true,
       }))
+      if (oid && view) sessionStorage.setItem(`foodios_view_${oid}`, view)
     } catch {}
-  }, orgId)
+  }, { oid: orgId, view: viewId })
+}
+
+// Appiglio stabile di "sei loggato": il bottone "Menu profilo" in topbar
+// (aria-label) esiste in ogni layout una volta dentro l'app.
+export async function attendiLoggato(page) {
+  await page.getByRole('button', { name: 'Menu profilo' }).first().waitFor({ state: 'visible', timeout: 30_000 })
 }
 
 /**
- * Login UI. Atterra in dashboard (onboarding soppresso via localStorage).
+ * Login UI. Atterra nell'app (onboarding soppresso via localStorage).
  */
 export async function login(page, email = TEST_EMAIL, password = TEST_PASSWORD) {
   if (!email || !password) {
@@ -56,41 +74,33 @@ export async function login(page, email = TEST_EMAIL, password = TEST_PASSWORD) 
   await emailInput.fill(email)
   await pwdInput.fill(password)
 
-  // Submit del form login: il bottone submit (non il tab toggle "Accedi").
   const submitBtn = page.locator('form button[type="submit"]').first()
-  if (await submitBtn.count()) {
-    await submitBtn.click()
-  } else {
-    await pwdInput.press('Enter')
-  }
+  if (await submitBtn.count()) await submitBtn.click()
+  else await pwdInput.press('Enter')
 
-  // Attendi che la dashboard sia montata: la voce "Dashboard" è sempre in cima alla sidebar.
-  await page.getByText(/^dashboard$/i).first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {})
+  await attendiLoggato(page)
   await page.waitForLoadState('networkidle').catch(() => {})
 }
 
 /**
- * Naviga a una view cliccando il BOTTONE di sidebar (le voci nav sono <button>).
- * `label` è una stringa esatta (es. 'Cassa', 'Magazzino', 'Ricettario').
- * I gruppi sono già aperti via initScript.
+ * Naviga a una view in modo ROBUSTO al layout: imposta `view` in sessionStorage
+ * e ricarica. `target` è una label (es. 'Ricettario') o direttamente un viewId.
  */
-export async function navTo(page, label) {
-  const btn = page.getByRole('button', { name: label, exact: true }).first()
-  await btn.waitFor({ state: 'visible', timeout: 15_000 })
-  // Un overlay fixed (toast) può "rubare" i pointer events sulla sidebar: anche
-  // force:true dispatcha alle coordinate coperte. Click DOM diretto → bubbla al
-  // handler React (setView) indipendentemente dall'overlay visivo.
-  await btn.evaluate((el) => el.click())
+export async function navTo(page, target) {
+  const viewId = LABEL_TO_VIEW[target] || target
+  await primeLocalStorage(page, viewId)
+  await page.goto('/')
+  await attendiLoggato(page).catch(() => {})
   await page.waitForLoadState('networkidle').catch(() => {})
 }
 
 /**
- * Logout UI. Il pulsante "Esci" è nel footer della sidebar.
+ * Logout: apre il menu profilo (topbar) e clicca "Esci".
  */
 export async function logout(page) {
-  await page.getByRole('button', { name: /esci/i }).first().evaluate((el) => el.click())
-  // Dopo logout la dashboard sparisce (si atterra sulla landing, non sul form login).
-  await page.getByText(/^dashboard$/i).first().waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {})
+  await page.getByRole('button', { name: 'Menu profilo' }).first().click().catch(() => {})
+  await page.getByRole('button', { name: /esci/i }).first().click()
+  await page.getByRole('button', { name: 'Menu profilo' }).first().waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {})
 }
 
 /**

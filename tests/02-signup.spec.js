@@ -38,6 +38,10 @@ test.describe('Signup nuovo utente', () => {
     const citta = page.getByPlaceholder(/Es\. Torino|Torino/i).first()
     if (await citta.count()) await citta.fill('Torino')
 
+    // Accetta i termini: checkbox obbligatorio (regStep2Valid) aggiunto nel redesign,
+    // altrimenti il bottone "crea account" resta disabilitato.
+    await page.locator('input[type="checkbox"]').first().check().catch(() => {})
+
     // Submit finale.
     await page.getByRole('button', { name: /crea il mio account|crea account/i }).first().click()
 

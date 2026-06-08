@@ -7,15 +7,16 @@ test.describe('Login / Logout', () => {
     test.skip(!TEST_EMAIL || !TEST_PASSWORD || !SEED_OK, 'TEST_EMAIL/TEST_PASSWORD o seed non disponibili (aggiorna i secret DB)')
 
     await login(page)
-    await expect(page.getByRole('button', { name: 'Dashboard', exact: true }).first()).toBeVisible({ timeout: 20000 })
+    // Loggato: il menu profilo (topbar) è presente in ogni layout.
+    await expect(page.getByRole('button', { name: 'Menu profilo' }).first()).toBeVisible({ timeout: 20000 })
 
     await logout(page)
-    // Dopo logout: landing page (bottoni Accedi / Prova gratis), niente dashboard.
-    await expect(page.getByRole('button', { name: 'Dashboard', exact: true })).toHaveCount(0, { timeout: 15000 })
+    // Dopo logout: landing/login, il menu profilo non c'è più.
+    await expect(page.getByRole('button', { name: 'Menu profilo' })).toHaveCount(0, { timeout: 15000 })
 
     await login(page)
-    await expect(page.getByRole('button', { name: 'Dashboard', exact: true }).first()).toBeVisible({ timeout: 20000 })
-    // Dato persistente (ricetta seed) ancora accessibile.
+    await expect(page.getByRole('button', { name: 'Menu profilo' }).first()).toBeVisible({ timeout: 20000 })
+    // Dato persistente (ricetta seed) ancora accessibile dopo re-login.
     await navTo(page, 'Ricettario')
     await expect(page.getByText('SEED TORTA TEST').first()).toBeVisible({ timeout: 15000 })
   })
