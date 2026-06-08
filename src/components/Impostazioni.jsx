@@ -60,13 +60,30 @@ const Icon = ({ name, size = 16, color = 'currentColor' }) => {
     menu:        <><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>,
     file:        <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></>,
     undo:        <><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></>,
+    logout:      <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+    lock:        <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>,
   }[name] || null
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>{p}</svg>
 }
 
+// ─── Input style helper (mobile: fontSize >= 16 per evitare zoom iOS) ─────────
+const mkInp = (isMobile) => ({
+  width:'100%', height:40, padding:'0 12px',
+  border:`1px solid ${T.borderStr}`, borderRadius:R.md,
+  fontSize: isMobile ? 16 : 13, color:T.text, background:T.bgCard,
+  outline:'none', boxSizing:'border-box', fontFamily:'inherit',
+})
+const mkBtn = (disabled) => ({
+  height:40, padding:'0 18px', borderRadius:R.md, border:'none',
+  background:T.brand, color:'#FFF', fontSize:13, fontWeight:700,
+  cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+  whiteSpace:'nowrap',
+})
+
 // ─── Sub-componenti generale (Profilo + Account + Email report + Changelog) ──
 
 function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify }) {
+  const isMobile = useIsMobile()
   const [nomeMod, setNomeMod] = useState(nomeAttivita || '')
   const [saving, setSaving] = useState(false)
 
@@ -85,21 +102,21 @@ function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify
     } finally { setSaving(false) }
   }
 
-  const inp = { width:'100%', height:40, padding:'0 12px', border:`1px solid ${T.borderStr}`, borderRadius:R.md, fontSize:13, color:T.text, background:T.bgCard, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
+  const inp = mkInp(isMobile)
   const ro  = { ...inp, background:T.bgSubtle, color:T.textMid, display:'flex', alignItems:'center' }
+  const disabled = saving || nomeMod === nomeAttivita || !nomeMod.trim()
 
   return (
     <SectionCard title="Profilo attività" description="Le informazioni di base usate ovunque nell'app, nelle email e nei PDF.">
       <FieldRow label="Nome attività">
         <div style={{ display:'flex', gap:8 }}>
           <input style={{ ...inp, flex:1 }} value={nomeMod} onChange={e=>setNomeMod(e.target.value)} placeholder="Pasticceria Rossi"/>
-          <button onClick={salva} disabled={saving || nomeMod === nomeAttivita || !nomeMod.trim()}
-            style={{ height:40, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:'#FFF', fontSize:13, fontWeight:700, cursor: (saving || nomeMod === nomeAttivita || !nomeMod.trim()) ? 'not-allowed':'pointer', opacity:(saving || nomeMod === nomeAttivita || !nomeMod.trim()) ? 0.5 : 1 }}>
+          <button onClick={salva} disabled={disabled} style={mkBtn(disabled)}>
             {saving ? '…' : 'Salva'}
           </button>
         </div>
       </FieldRow>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:14 }}>
         <FieldRow label="Tipo attività" hint="Modificabile solo dal supporto">
           <div style={ro}>{tipoAttivita || '—'}</div>
         </FieldRow>
@@ -113,24 +130,184 @@ function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify
   )
 }
 
-function AccountSection({ auth }) {
+// Cambio email reale via supabase.auth.updateUser({ email }).
+// Supabase invia una mail di conferma al nuovo indirizzo (e, se configurato,
+// al vecchio). Il cambio diventa effettivo solo dopo che l'utente clicca il link.
+function CambioEmailForm({ auth, notify }) {
+  const isMobile = useIsMobile()
+  const emailCorrente = auth?.user?.email || ''
+  const [nuova, setNuova] = useState('')
+  const [saving, setSaving] = useState(false)
+  const inp = mkInp(isMobile)
+
+  const valida = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nuova.trim())
+  const disabled = saving || !valida || nuova.trim().toLowerCase() === emailCorrente.toLowerCase()
+
+  async function salva() {
+    if (disabled) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ email: nuova.trim() })
+      if (error) throw error
+      notify('Ti abbiamo inviato un\'email di conferma al nuovo indirizzo. Il cambio sarà effettivo dopo la conferma.')
+      setNuova('')
+    } catch (e) {
+      notify(e.message || 'Errore durante il cambio email', false)
+    } finally { setSaving(false) }
+  }
+
   return (
-    <SectionCard title="Account" description="L'email è quella usata per il login. Per modificarla contatta il supporto.">
-      <FieldRow label="Email">
-        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:T.bgSubtle, borderRadius:R.md, fontSize:13, color:T.text }}>
-          <Icon name="mail" size={16} color={T.textSoft}/>
-          <span style={{ flex:1, fontWeight:600 }}>{auth?.user?.email || '—'}</span>
-          {auth?.user?.email_confirmed_at && (
-            <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700, color:T.green, padding:'2px 8px', borderRadius:999, background:T.greenLight }}>
-              <Icon name="check" size={12}/> Verificata
-            </span>
-          )}
-        </div>
-      </FieldRow>
-      <div style={{ fontSize:12, color:T.textSoft, lineHeight:1.6 }}>
-        Per cambiare email o password contatta <a href="mailto:support@foodios.it" style={{ color:T.brand, textDecoration:'none', fontWeight:600 }}>support@foodios.it</a>.
-        Per il 2FA vai in <strong>Sicurezza</strong>.
+    <FieldRow label="Cambia email" hint="Richiede conferma via link">
+      <div style={{ display:'flex', gap:8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        <input style={{ ...inp, flex:1, minWidth: isMobile ? '100%' : 180 }} type="email" autoComplete="email"
+          value={nuova} onChange={e=>setNuova(e.target.value)} placeholder="nuova@email.it"/>
+        <button onClick={salva} disabled={disabled} style={{ ...mkBtn(disabled), width: isMobile ? '100%' : 'auto' }}>
+          {saving ? '…' : 'Cambia email'}
+        </button>
       </div>
+    </FieldRow>
+  )
+}
+
+// Cambio password reale via supabase.auth.updateUser({ password }).
+// Validazione: lunghezza >= 8 + conferma combaciante.
+function CambioPasswordForm({ notify }) {
+  const isMobile = useIsMobile()
+  const [pwd, setPwd] = useState('')
+  const [conferma, setConferma] = useState('')
+  const [saving, setSaving] = useState(false)
+  const inp = mkInp(isMobile)
+
+  const troppoCorta = pwd.length > 0 && pwd.length < 8
+  const nonCombacia = conferma.length > 0 && pwd !== conferma
+  const disabled = saving || pwd.length < 8 || pwd !== conferma
+
+  async function salva() {
+    if (disabled) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pwd })
+      if (error) throw error
+      notify('Password aggiornata')
+      setPwd(''); setConferma('')
+    } catch (e) {
+      notify(e.message || 'Errore durante il cambio password', false)
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div>
+      <FieldRow label="Nuova password" hint="Almeno 8 caratteri">
+        <input style={{ ...inp, borderColor: troppoCorta ? T.red : T.borderStr }} type="password" autoComplete="new-password"
+          value={pwd} onChange={e=>setPwd(e.target.value)} placeholder="••••••••"/>
+        {troppoCorta && <div style={{ fontSize:11, color:T.red, marginTop:5 }}>La password deve avere almeno 8 caratteri.</div>}
+      </FieldRow>
+      <FieldRow label="Conferma password">
+        <div style={{ display:'flex', gap:8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+          <input style={{ ...inp, flex:1, minWidth: isMobile ? '100%' : 180, borderColor: nonCombacia ? T.red : T.borderStr }} type="password" autoComplete="new-password"
+            value={conferma} onChange={e=>setConferma(e.target.value)} placeholder="••••••••"/>
+          <button onClick={salva} disabled={disabled} style={{ ...mkBtn(disabled), width: isMobile ? '100%' : 'auto' }}>
+            {saving ? '…' : 'Aggiorna password'}
+          </button>
+        </div>
+        {nonCombacia && <div style={{ fontSize:11, color:T.red, marginTop:5 }}>Le due password non combaciano.</div>}
+      </FieldRow>
+    </div>
+  )
+}
+
+// Riga read-only con l'email corrente + badge "Verificata".
+function EmailCorrenteRow({ auth }) {
+  return (
+    <FieldRow label="Email attuale">
+      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:T.bgSubtle, borderRadius:R.md, fontSize:13, color:T.text }}>
+        <Icon name="mail" size={16} color={T.textSoft}/>
+        <span style={{ flex:1, fontWeight:600, wordBreak:'break-all' }}>{auth?.user?.email || '—'}</span>
+        {auth?.user?.email_confirmed_at && (
+          <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700, color:T.green, padding:'2px 8px', borderRadius:999, background:T.greenLight, flexShrink:0 }}>
+            <Icon name="check" size={12}/> Verificata
+          </span>
+        )}
+      </div>
+    </FieldRow>
+  )
+}
+
+// Account TITOLARE: email attuale + cambio email + cambio password + 2FA.
+function AccountSection({ auth, notify }) {
+  return (
+    <div>
+      <SectionCard title="Account" description="L'email è quella usata per accedere a FoodOS.">
+        <EmailCorrenteRow auth={auth}/>
+        <CambioEmailForm auth={auth} notify={notify}/>
+        <div style={{ borderTop:`1px solid ${T.borderSoft}`, margin:'18px 0' }}/>
+        <CambioPasswordForm notify={notify}/>
+      </SectionCard>
+      <MfaSection notify={notify}/>
+    </div>
+  )
+}
+
+// Account DIPENDENTE: nome completo + cambio password + 2FA + esci.
+// Nessuna informazione aziendale.
+function DipendenteAccountSection({ auth, notify }) {
+  const isMobile = useIsMobile()
+  const userId = auth?.user?.id
+  const [nome, setNome] = useState(auth?.profile?.nome_completo || '')
+  const [saving, setSaving] = useState(false)
+  const inp = mkInp(isMobile)
+
+  useEffect(() => { setNome(auth?.profile?.nome_completo || '') }, [auth?.profile?.nome_completo])
+
+  const disabled = saving || !nome.trim() || nome.trim() === (auth?.profile?.nome_completo || '')
+
+  async function salvaNome() {
+    if (disabled || !userId) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('profiles').update({ nome_completo: nome.trim() }).eq('id', userId)
+      if (error) throw error
+      notify('Nome aggiornato')
+    } catch (e) {
+      notify(e.message || 'Errore', false)
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div>
+      <SectionCard title="Il mio account" description="Gestisci i tuoi dati di accesso personali.">
+        <EmailCorrenteRow auth={auth}/>
+        <FieldRow label="Nome completo">
+          <div style={{ display:'flex', gap:8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+            <input style={{ ...inp, flex:1, minWidth: isMobile ? '100%' : 180 }} value={nome} onChange={e=>setNome(e.target.value)} placeholder="Mario Rossi"/>
+            <button onClick={salvaNome} disabled={disabled} style={{ ...mkBtn(disabled), width: isMobile ? '100%' : 'auto' }}>
+              {saving ? '…' : 'Salva'}
+            </button>
+          </div>
+        </FieldRow>
+        <div style={{ borderTop:`1px solid ${T.borderSoft}`, margin:'18px 0' }}/>
+        <CambioPasswordForm notify={notify}/>
+      </SectionCard>
+      <MfaSection notify={notify}/>
+      <LogoutCard auth={auth} notify={notify}/>
+    </div>
+  )
+}
+
+// Card "Esci" — chiude la sessione via auth.signOut().
+function LogoutCard({ auth, notify }) {
+  const [busy, setBusy] = useState(false)
+  async function esci() {
+    setBusy(true)
+    try { await auth?.signOut?.() }
+    catch (e) { notify?.(e.message || 'Errore durante il logout', false); setBusy(false) }
+  }
+  return (
+    <SectionCard title="Sessione" description="Esci da FoodOS su questo dispositivo.">
+      <button onClick={esci} disabled={busy}
+        style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.red, fontSize:13, fontWeight:700, cursor: busy ? 'not-allowed':'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
+        <Icon name="logout" size={15} color={T.red}/> {busy ? 'Uscita…' : 'Esci'}
+      </button>
     </SectionCard>
   )
 }
@@ -364,46 +541,61 @@ function PianoBadge({ piano, approvato }) {
 // ─── Sezioni registry ────────────────────────────────────────────────────────
 
 function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, onImportPrezzi, notify, onChangelogOpen }) {
-  const isPagante = auth?.org?.approvato === true && auth?.org?.stripe_subscription_id
+  // ─── DIPENDENTE: solo il proprio account, niente roba aziendale ───
+  if (auth?.isDipendente) {
+    return [
+      {
+        id: 'account', label: 'Account', icon: 'user',
+        items: [
+          {
+            id: 'mio-account', label: 'Il mio account', icon: 'user',
+            summary: auth?.user?.email,
+            render: () => <DipendenteAccountSection auth={auth} notify={notify}/>,
+          },
+        ],
+      },
+    ]
+  }
 
-  return [
+  // ─── TITOLARE ───
+  const isPagante = auth?.org?.approvato === true && auth?.org?.stripe_subscription_id
+  // White-label disponibile solo sul piano Chain (enterprise).
+  const whiteLabelOk = piano === 'enterprise'
+
+  const attivitaItems = [
     {
-      id: 'attivita', label: 'Attività', icon: 'building',
-      items: [
-        {
-          id: 'profilo', label: 'Profilo', icon: 'user',
-          summary: nomeAttivita || '—',
-          render: () => <ProfiloSection auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} notify={notify}/>,
-        },
-        {
-          id: 'account', label: 'Account', icon: 'mail',
-          summary: auth?.user?.email,
-          render: () => <AccountSection auth={auth}/>,
-        },
-        {
-          id: 'sedi', label: 'Sedi', icon: 'map',
-          summary: `${(sedi || []).filter(s => s.attiva !== false).length} sede/i`,
-          render: () => <ImpostazioniSedi orgId={orgId}/>,
-        },
-        {
-          id: 'brand', label: 'Personalizzazione', icon: 'palette',
-          summary: piano === 'enterprise' ? 'Logo & colori' : 'Solo piano Chain',
-          render: () => <WhiteLabel orgId={orgId} piano={piano} notify={notify}/>,
-        },
-      ],
+      id: 'profilo', label: 'Profilo azienda', icon: 'building',
+      summary: nomeAttivita || '—',
+      render: () => <ProfiloSection auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} notify={notify}/>,
     },
     {
-      id: 'fatturazione', label: 'Fatturazione', icon: 'creditCard',
+      id: 'account', label: 'Account', icon: 'user',
+      summary: auth?.user?.email,
+      render: () => <AccountSection auth={auth} notify={notify}/>,
+    },
+    {
+      id: 'sedi', label: 'Sedi', icon: 'map',
+      summary: `${(sedi || []).filter(s => s.attiva !== false).length} sede/i`,
+      render: () => <ImpostazioniSedi orgId={orgId}/>,
+    },
+  ]
+  if (whiteLabelOk) {
+    attivitaItems.push({
+      id: 'brand', label: 'Personalizzazione', icon: 'palette',
+      summary: 'Logo & colori',
+      render: () => <WhiteLabel orgId={orgId} piano={piano} notify={notify}/>,
+    })
+  }
+
+  return [
+    { id: 'attivita', label: 'Attività', icon: 'building', items: attivitaItems },
+    {
+      id: 'fatturazione', label: 'Abbonamento', icon: 'creditCard',
       items: [
         {
-          id: 'abbonamento', label: 'Abbonamento', icon: 'creditCard',
+          id: 'abbonamento', label: 'Piano e abbonamento', icon: 'creditCard',
           summary: isPagante ? (piano === 'enterprise' ? 'Chain attivo' : 'Pro attivo') : 'Trial / non attivo',
           render: () => <AbbonamentoPanel org={auth?.org} notify={notify}/>,
-        },
-        {
-          id: 'referral', label: 'Programma referral', icon: 'gift',
-          summary: 'Invita altri locali e guadagna sconti',
-          render: () => <SectionCard title="Programma referral" description="Invita altri locali e guadagna mesi gratuiti / sconti sul tuo abbonamento."><ReferralPanel auth={auth}/></SectionCard>,
         },
       ],
     },
@@ -421,24 +613,14 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, on
           render: () => <WhatsAppReportPanel org={auth?.org} orgId={orgId} notify={notify} onRefresh={() => auth?.refreshOrg?.()}/>,
         },
         {
-          id: 'tv', label: 'TV dashboard', icon: 'tv',
+          id: 'tv', label: 'TV vetrina', icon: 'tv',
           summary: 'Dashboard a schermo intero per il locale',
           render: () => <ImpostazioniTv orgId={orgId} sedi={sedi || []} notify={notify}/>,
         },
       ],
     },
     {
-      id: 'sicurezza', label: 'Sicurezza', icon: 'shield',
-      items: [
-        {
-          id: '2fa', label: 'Autenticazione 2FA', icon: 'shield',
-          summary: 'Protegge l\'account con un secondo fattore',
-          render: () => <MfaSection notify={notify}/>,
-        },
-      ],
-    },
-    {
-      id: 'dati', label: 'Dati & calcoli', icon: 'database',
+      id: 'avanzate', label: 'Avanzate', icon: 'sparkles',
       items: [
         {
           id: 'rese', label: 'Resa ingredienti', icon: 'pie',
@@ -460,11 +642,6 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, on
           summary: 'Per commercialista',
           render: () => <ExportContabilita orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} notify={notify}/>,
         },
-      ],
-    },
-    {
-      id: 'avanzate', label: 'Avanzate', icon: 'sparkles',
-      items: [
         {
           id: 'benchmark', label: 'Benchmark anonimi', icon: 'chart',
           summary: 'Confrontati con altri locali del tuo settore',
@@ -474,6 +651,21 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, on
           id: 'changelog', label: 'Changelog', icon: 'book',
           summary: 'Novità e aggiornamenti',
           render: () => <ChangelogSection onChangelogOpen={onChangelogOpen}/>,
+        },
+      ],
+    },
+    {
+      id: 'altro', label: 'Altro', icon: 'gift',
+      items: [
+        {
+          id: 'referral', label: 'Programma referral', icon: 'gift',
+          summary: 'Invita altri locali e guadagna sconti',
+          render: () => <SectionCard title="Programma referral" description="Invita altri locali e guadagna mesi gratuiti / sconti sul tuo abbonamento."><ReferralPanel auth={auth}/></SectionCard>,
+        },
+        {
+          id: 'sessione', label: 'Esci', icon: 'logout',
+          summary: 'Chiudi la sessione',
+          render: () => <LogoutCard auth={auth} notify={notify}/>,
         },
       ],
     },
@@ -571,30 +763,58 @@ export default function Impostazioni(props) {
     )
   }
 
+  const isDip = props.auth?.isDipendente === true
+  const isAdmin = props.auth?.isAdmin === true
+
+  function openAdmin() {
+    if (props.onOpenAdmin) props.onOpenAdmin()
+    else window.location.assign('/')
+  }
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+      {/* Banner admin */}
+      {isAdmin && (
+        <button onClick={openAdmin}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+            marginBottom: 16, padding: '12px 16px', textAlign: 'left',
+            background: T.brandLight, border: `1px solid ${T.brandSoft}`,
+            borderRadius: R.xl, cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+          <span style={{ display:'inline-flex' }}><Icon name="shield" size={18} color={T.brand}/></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.brand }}>Pannello amministratore</div>
+            <div style={{ fontSize: 12, color: T.textSoft }}>Clienti, KPI, MRR, errori e annunci</div>
+          </div>
+          <Icon name="chevR" size={16} color={T.brand}/>
+        </button>
+      )}
+
       {/* Header con search */}
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 220 }}>
           <p style={{ margin: 0, fontSize: 13, color: T.textSoft, lineHeight: 1.45 }}>
-            Gestisci attività, fatturazione, notifiche, sicurezza e dati.
+            {isDip ? 'Gestisci il tuo account personale.' : 'Gestisci attività, abbonamento, notifiche e dati.'}
           </p>
         </div>
-        <div style={{ position: 'relative', minWidth: isMobile ? '100%' : 280 }}>
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Cerca impostazione…"
-            style={{
-              width: '100%', height: 40, padding: '0 12px 0 36px',
-              border: `1px solid ${T.borderStr}`, borderRadius: R.md,
-              fontSize: 13, color: T.text, background: T.bgCard, outline: 'none',
-              boxSizing: 'border-box', fontFamily: 'inherit',
-            }}/>
-          <span style={{ position: 'absolute', left: 12, top: 12, pointerEvents: 'none' }}>
-            <Icon name="search" size={15} color={T.textSoft}/>
-          </span>
-        </div>
+        {!isDip && (
+          <div style={{ position: 'relative', minWidth: isMobile ? '100%' : 280 }}>
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Cerca impostazione…"
+              style={{
+                width: '100%', height: 40, padding: '0 12px 0 36px',
+                border: `1px solid ${T.borderStr}`, borderRadius: R.md,
+                fontSize: isMobile ? 16 : 13, color: T.text, background: T.bgCard, outline: 'none',
+                boxSizing: 'border-box', fontFamily: 'inherit',
+              }}/>
+            <span style={{ position: 'absolute', left: 12, top: 12, pointerEvents: 'none' }}>
+              <Icon name="search" size={15} color={T.textSoft}/>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Search results (overlay) */}
@@ -634,8 +854,10 @@ export default function Impostazioni(props) {
         </div>
       )}
 
-      {/* Layout 2 colonne (desktop) / accordion (mobile) */}
-      {!isMobile ? (
+      {/* Layout: con una sola voce (es. dipendente) render diretto senza sidebar */}
+      {allItems.length <= 1 ? (
+        <div>{activeItem.render()}</div>
+      ) : !isMobile ? (
         <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
           <div style={{ position: 'sticky', top: 16 }}>
             <Sidebar/>

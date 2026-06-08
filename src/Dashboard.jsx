@@ -1150,6 +1150,7 @@ const DIPENDENTE_VIEWS = new Set([
   'calendario',      // solo oggi/futuro
   'haccp',
   'changelog',
+  'impostazioni',    // solo il proprio account (nome, cambio password, 2FA) — vista role-aware
 ]);
 
 // Viste operative che SCRIVONO dati per-sede: in "Tutte le sedi" (vista aggregata)

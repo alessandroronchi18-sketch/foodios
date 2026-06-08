@@ -62,6 +62,7 @@ const P = {
   // sicurezza
   lock:       '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   lockOpen:   '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+  logout:     '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
   key:        '<path d="M21 2l-2 2m-7.6 7.6a5.5 5.5 0 1 0-1 1l9.5-9.5m-2.9 2.9 2 2m-4-4 2 2"/>',
   shield:     '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
   // stato / segnali

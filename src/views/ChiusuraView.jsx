@@ -396,6 +396,40 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     if (salvando) return // evita doppio scarico stock PF su doppio click sincrono
     if (!venduto || (confronto.length === 0 && formatiRiconc.righe.length === 0)) return
     setSalvando(true)
+
+    // DIPENDENTE: il ricettario è sanitizzato (calcolaFC=0) → NON deve salvare lui
+    // il food cost (sarebbe 0 e corromperebbe il P&L). Il record viene ricalcolato
+    // server-side col ricettario reale (api/chiusura-registra). Lo scarico stock PF
+    // resta qui (usa nome+quantità, non gli ingredienti).
+    if (isDipendente) {
+      const eraGiaChiusaDip = !!chiusuraSalvata
+      let resp
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch('/api/chiusura-registra', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+          body: JSON.stringify({ sedeId, data: dataFiltro, venduto }),
+        })
+        resp = await res.json().catch(() => null)
+        if (!res.ok || !resp?.ok) throw new Error(resp?.error || `errore (${res.status})`)
+      } catch (e) {
+        notify(`Errore salvataggio chiusura: ${e.message || 'rete'}. Riprova.`, false); setSalvando(false); return
+      }
+      setChiusure(resp.chiusure); setSalvato(true)
+      if (!eraGiaChiusaDip && orgId && sedeId) {
+        for (const row of confronto) {
+          const venduti = Number(row.unitaV || 0)
+          if (venduti <= 0) continue
+          try { await scaricoVenditaPF({ sedeId, prodotto: (row.nome || '').toUpperCase().trim(), quantita: venduti, unita: 'pz', note: `Chiusura ${dataFiltro}` }) }
+          catch (e) { console.error('Errore scarico vendita PF:', row.nome, e?.message) }
+        }
+      }
+      setSalvando(false)
+      notify(`Chiusura del ${new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT')} salvata nello storico`)
+      return
+    }
+
     const rec = {
       id: `ch-${dataFiltro}`, data: dataFiltro, salvatoAt: new Date().toISOString(), venduto,
       confronto: confronto.map(r => ({ nome: r.nome, stampiP: r.stampiP, unitaP: r.unitaP, unitaV: r.unitaV, unitaR: r.unitaR, st: r.st, rv: r.rv, fcV: r.fcV, marg: r.marg, spreco: r.spreco, inProd: r.inProd })),
