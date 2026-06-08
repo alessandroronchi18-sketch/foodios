@@ -250,12 +250,16 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       <style>{HOVER_CSS}</style>
 
       {/* HERO brand */}
-      <div className="fos-rise" style={{ position: 'relative', overflow: 'hidden', borderRadius: 22, padding: isMobile ? '22px 22px' : '30px 34px', marginBottom: isMobile ? 18 : 24,
+      <div className="fos-rise" style={{ position: 'relative', zIndex: 30, borderRadius: 22, padding: isMobile ? '22px 22px' : '30px 34px', marginBottom: isMobile ? 18 : 24,
         background: 'linear-gradient(135deg, #1C0A0A 0%, #4A0612 52%, #6E0E1A 100%)',
         boxShadow: '0 14px 40px rgba(110,14,26,0.32)' }}>
-        <div style={{ position: 'absolute', top: -60, right: -40, width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(232,75,58,0.35) 0%, transparent 70%)' }} />
-        <div style={{ position: 'absolute', bottom: -90, left: '30%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)' }} />
-        <div style={{ position: 'relative', display: 'flex', alignItems: isMobile ? 'flex-start' : 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        {/* Layer decorativo ritagliato a parte: NON clippa il dropdown del selettore
+            (che vive nel contenuto, fuori da questo overflow:hidden). */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: 22, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', top: -60, right: -40, width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(232,75,58,0.35) 0%, transparent 70%)' }} />
+          <div style={{ position: 'absolute', bottom: -90, left: '30%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)' }} />
+        </div>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: isMobile ? 'flex-start' : 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', textTransform: 'capitalize', fontWeight: 600, letterSpacing: '0.02em', marginBottom: 8 }}>{giornoLabel}</div>
             <h1 style={{ margin: 0, fontSize: isMobile ? 28 : 42, fontWeight: 800, color: '#FFF', letterSpacing: '-0.04em', lineHeight: 1.04 }}>

@@ -36,6 +36,20 @@ async function isAdminRequest(req, supabase) {
   } catch { return false }
 }
 
+// Ricava l'email del profilo dell'utente autenticato (dal Bearer token).
+// Usata per forzare i destinatari delle email programmatiche all'indirizzo
+// del chiamante stesso: nessuno puo' spedire a un indirizzo arbitrario.
+async function getAuthedUserEmail(req, supabase) {
+  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  const token = authHeader.replace('Bearer ', '').trim()
+  if (!token) return null
+  try {
+    const { data: { user } } = await supabase.auth.getUser(token)
+    return (user?.email || '').trim() || null
+  } catch { return null }
+}
+
 function escapeHtml(str) {
   return String(str || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -115,11 +129,33 @@ export default async function handler(req) {
     })
   }
 
+  // ── Anti-spoofing (audit M6) ──────────────────────────────────────────────
+  // I tipi che accettano un destinatario fornito dal chiamante ('email')
+  // potevano essere usati per spedire a indirizzi arbitrari (vettore phishing).
+  // Regola: il destinatario `email` e' fidato SOLO se la richiesta e' admin o
+  // interna. Per un normale utente autenticato il destinatario viene forzato
+  // alla SUA stessa email di profilo (derivata server-side dal token); se non
+  // e' autenticato la richiesta viene respinta. I tipi 'approvazione' (ricava
+  // il titolare dell'org) e 'custom' (gia' admin/interno) restano invariati.
+  const TIPI_CON_EMAIL = ['benvenuto', 'scadenza_trial',
+    'magazzino_sotto_soglia', 'fattura_in_scadenza', 'report_mensile']
+  let recipient = email
+  if (TIPI_CON_EMAIL.includes(tipo) && !isInternal && !adminAuth) {
+    const ownEmail = await getAuthedUserEmail(req, supabase)
+    if (!ownEmail || !validateEmail(ownEmail)) {
+      return new Response(JSON.stringify({ error: 'Autenticazione richiesta' }), {
+        status: 401, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req) },
+      })
+    }
+    // Ignora l'indirizzo fornito dal client: si invia solo all'utente stesso.
+    recipient = ownEmail
+  }
+
   try {
     if (tipo === 'benvenuto') {
-      if (!validateEmail(email)) throw new Error('Email destinatario mancante')
+      if (!validateEmail(recipient)) throw new Error('Email destinatario mancante')
       await sendEmail({
-        to: email,
+        to: recipient,
         subject: 'Benvenuto in FoodOS — la tua prova gratuita è iniziata 🍰',
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
@@ -223,9 +259,9 @@ export default async function handler(req) {
         `,
       })
     } else if (tipo === 'scadenza_trial') {
-      if (!validateEmail(email)) throw new Error('Email destinatario mancante')
+      if (!validateEmail(recipient)) throw new Error('Email destinatario mancante')
       await sendEmail({
-        to: email,
+        to: recipient,
         subject: 'La tua prova FoodOS scade tra 7 giorni ⏰',
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
@@ -248,7 +284,7 @@ export default async function handler(req) {
         `,
       })
     } else if (tipo === 'magazzino_sotto_soglia') {
-      if (!validateEmail(email)) throw new Error('Email destinatario mancante')
+      if (!validateEmail(recipient)) throw new Error('Email destinatario mancante')
       const ingredienti = Array.isArray(body.ingredienti) ? body.ingredienti : []
       const righe = ingredienti.map(i => `
         <tr>
@@ -257,7 +293,7 @@ export default async function handler(req) {
           <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#6B4C44;font-size:14px;text-align:right;">${escapeHtml(String(i.soglia ?? ''))}</td>
         </tr>`).join('')
       await sendEmail({
-        to: email,
+        to: recipient,
         subject: `⚠️ ${ingredienti.length} ingrediente${ingredienti.length === 1 ? '' : 'i'} sotto soglia — FoodOS`,
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
@@ -279,7 +315,7 @@ export default async function handler(req) {
         `,
       })
     } else if (tipo === 'fattura_in_scadenza') {
-      if (!validateEmail(email)) throw new Error('Email destinatario mancante')
+      if (!validateEmail(recipient)) throw new Error('Email destinatario mancante')
       const fatture = Array.isArray(body.fatture) ? body.fatture : []
       const righe = fatture.map(f => `
         <tr>
@@ -288,7 +324,7 @@ export default async function handler(req) {
           <td style="padding:8px 12px;border-bottom:1px solid #E8DDD8;color:#C0392B;font-size:14px;font-weight:700;text-align:right;">€ ${Number(f.totale || 0).toFixed(2)}</td>
         </tr>`).join('')
       await sendEmail({
-        to: email,
+        to: recipient,
         subject: `📄 ${fatture.length} fattur${fatture.length === 1 ? 'a' : 'e'} in scadenza — FoodOS`,
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
@@ -310,7 +346,7 @@ export default async function handler(req) {
         `,
       })
     } else if (tipo === 'report_mensile') {
-      if (!validateEmail(email)) throw new Error('Email destinatario mancante')
+      if (!validateEmail(recipient)) throw new Error('Email destinatario mancante')
       const mese = sanitize(body.mese || '', 50)
       const ricavi = Number(body.ricaviTotali || 0)
       const fcMedio = Number(body.foodCostMedio || 0)
@@ -322,7 +358,7 @@ export default async function handler(req) {
           <div style="font-size:18px;font-weight:800;color:#1C0A0A;">${val}</div>
         </div>`
       await sendEmail({
-        to: email,
+        to: recipient,
         subject: `📊 Report ${escapeHtml(mese)} — FoodOS`,
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">

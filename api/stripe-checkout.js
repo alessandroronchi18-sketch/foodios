@@ -34,6 +34,12 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: auth.error || 'Non autenticato' })
   }
 
+  // Solo il titolare puo' avviare un checkout di abbonamento. Un dipendente
+  // non deve poter sottoscrivere/cambiare il piano dell'organization.
+  if (auth.profile.ruolo === 'dipendente') {
+    return res.status(403).json({ error: 'Operazione riservata al titolare' })
+  }
+
   const { plan } = req.body || {}
   if (plan !== 'pro' && plan !== 'chain') return res.status(400).json({ error: `Piano non valido: ${plan}` })
 
@@ -51,14 +57,13 @@ export default async function handler(req, res) {
     if (pp?.stripe_price_id) priceId = pp.stripe_price_id
   } catch (e) { lookupErr = e?.message || 'exception' }
   if (!priceId) {
-    // Errore diagnostico: distinguere lookup DB fallito vs env var missing.
+    // Diagnostica completa solo lato log server; la risposta al client NON deve
+    // rivelare quali env var sono (o non sono) impostate.
     const envVar = `STRIPE_${plan.toUpperCase()}_PRICE_ID`
     console.error('[stripe-checkout] prezzo non trovato', { plan, envVar, envSet: !!PLAN_PRICE_MAP[plan], lookupErr })
     return res.status(400).json({
       error: `Prezzo non configurato per il piano ${plan}`,
-      hint: lookupErr
-        ? `plan_pricing lookup fallito (${lookupErr})`
-        : `${envVar} non impostata su Vercel — configurala in Settings → Environment Variables`,
+      hint: 'Configurazione prezzo mancante. Contatta support@foodios.it.',
     })
   }
 

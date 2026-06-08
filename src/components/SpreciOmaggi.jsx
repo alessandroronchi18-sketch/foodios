@@ -18,6 +18,7 @@ import useIsMobile from '../lib/useIsMobile'
 import Icon from './Icon'
 import { KPI, SH, PageHeader } from '../views/_shared'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
+import { supabase } from '../lib/supabase'
 import { todayLocal } from '../lib/dateLocal'
 import {
   CAUSALI_SPRECO, CAUSALI_OMAGGIO,
@@ -163,6 +164,33 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
     const fcTot = fcUnit * qta
     const valoreOmaggio = form.tipo === 'omaggio' ? (Number(form.valoreOmaggio) || 0) * qta : 0
     try {
+      // DIPENDENTE: il suo ricettario e' SANITIZZATO (calcolaFC=0), quindi il
+      // food cost va ricalcolato server-side col ricettario reale, altrimenti
+      // salverebbe fcTot=0 corrompendo report e P&L. Il server fa SAVE-FIRST e
+      // restituisce l'array aggiornato; aggiorniamo lo state solo su ok.
+      // Il titolare ha il ricettario completo → resta sul flusso client.
+      if (isDip) {
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch('/api/spreco-registra', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+          body: JSON.stringify({
+            sedeId,
+            movimento: {
+              ...form,
+              prodotto: form.prodotto.trim(),
+              categoria: (form.categoria || '').trim(),
+              qta, fcUnit, valoreOmaggio: Number(form.valoreOmaggio) || 0,
+            },
+          }),
+        })
+        const resp = await res.json().catch(() => null)
+        if (!res.ok || !resp?.ok) throw new Error(resp?.error || `errore server (${res.status})`)
+        setMovs(Array.isArray(resp.movimenti) ? resp.movimenti : [])
+        setForm(null)
+        notify?.(`${form.tipo === 'spreco' ? 'Spreco' : 'Omaggio'} registrato`)
+        return
+      }
       const saved = await aggiungiMovimento(orgId, sedeId, {
         ...form,
         prodotto: form.prodotto.trim(),
