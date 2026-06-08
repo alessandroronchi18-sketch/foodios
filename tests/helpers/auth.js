@@ -98,8 +98,10 @@ export async function navTo(page, target) {
  * Logout: apre il menu profilo (topbar) e clicca "Esci".
  */
 export async function logout(page) {
-  await page.getByRole('button', { name: 'Menu profilo' }).first().click().catch(() => {})
-  await page.getByRole('button', { name: /esci/i }).first().click()
+  // Apri il menu profilo (topbar), poi clicca "Esci" tra i bottoni VISIBILI
+  // (esiste un duplicato nascosto nel drawer mobile: `.first()` lo prenderebbe).
+  await page.getByRole('button', { name: 'Menu profilo' }).first().click()
+  await page.locator('button:visible', { hasText: /esci/i }).first().click({ timeout: 15_000 })
   await page.getByRole('button', { name: 'Menu profilo' }).first().waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {})
 }
 
