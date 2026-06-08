@@ -519,6 +519,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
   const [loading, setLoading] = useState(false)
   const [errore, setErrore] = useState('')
   const [msg, setMsg] = useState('')
+  const [emailEsistente, setEmailEsistente] = useState('')  // email già registrata in fase di signup
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPwd, setLoginPwd]     = useState('')
@@ -557,7 +558,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
   }, [])
 
   function setR(field) { return e => setReg(p => ({ ...p, [field]: e.target.value })) }
-  function clear() { setErrore(''); setMsg('') }
+  function clear() { setErrore(''); setMsg(''); setEmailEsistente('') }
 
   function getLockoutMessage(until) {
     const secs = Math.ceil((until - Date.now()) / 1000)
@@ -800,7 +801,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
       })
       setSuccesso(true)
     } catch (err) {
-      setErrore(err.message)
+      if (err.message === 'EMAIL_ESISTENTE') setEmailEsistente(reg.email)
+      else setErrore(err.message)
     } finally { setLoading(false) }
   }
 
@@ -976,6 +978,22 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                 {loading ? 'Aggiornamento…' : <>Salva nuova password <Icon name="arrowR" size={15} color="#FFF"/></>}
               </PrimaryBtn>
             </form>
+          )}
+
+          {emailEsistente && (
+            <div onClick={() => setEmailEsistente('')} style={{ position: 'fixed', inset: 0, background: 'rgba(15,9,7,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: T.paper, borderRadius: 18, padding: '28px 26px', maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', textAlign: 'center' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${T.brand}14`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}><Icon name="mail" size={22} color={T.brand} /></div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: T.brand, marginBottom: 8 }}>Sei già registrato</div>
+                <div style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.55, marginBottom: 20 }}>
+                  L'email <b>{emailEsistente}</b> è già associata a un account. Accedi con la tua password, oppure recuperala se l'hai dimenticata.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button type="button" onClick={() => { setMode('login'); setLoginEmail(emailEsistente); clear() }} style={{ padding: '12px', background: T.brand, color: '#FFF', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Accedi</button>
+                  <button type="button" onClick={() => { setMode('reset-request'); setResetEmail(emailEsistente); clear() }} style={{ padding: '12px', background: 'transparent', color: T.brand, border: `1px solid ${T.border}`, borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Recupera password</button>
+                </div>
+              </div>
+            </div>
           )}
 
           {mode === 'registrati' && (

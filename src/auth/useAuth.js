@@ -157,7 +157,7 @@ export function useAuth() {
   }
 
   async function signUp(email, password, meta) {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -165,7 +165,19 @@ export function useAuth() {
         emailRedirectTo: 'https://foodios-rose.vercel.app',
       }
     })
-    if (error) throw new Error(tradurciErrore(error.message))
+    if (error) {
+      // Alcune config restituiscono un errore esplicito sull'email già usata.
+      if (/already registered|already.*exist|user.*exist/i.test(error.message || '')) {
+        throw new Error('EMAIL_ESISTENTE')
+      }
+      throw new Error(tradurciErrore(error.message))
+    }
+    // Anti-enumeration di Supabase: per un'email GIÀ registrata e confermata, signUp
+    // ritorna un finto successo con identities=[] (nessun errore). Lo intercettiamo
+    // per mostrare "sei già registrato → accedi / recupera password".
+    if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      throw new Error('EMAIL_ESISTENTE')
+    }
   }
 
   async function refreshOrg() {
