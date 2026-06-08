@@ -95,7 +95,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       if (!ric) continue
       const reg = getR(p.nome, ric)
       const q = Number(p.stampi) || 0, qv = Number(p.vendibile) || q
-      ricavoTot += qv * reg.unita * reg.prezzo
+      ricavoTot += qv * (Number(reg.unita) || 0) * (Number(reg.prezzo) || 0)
       const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
       fcTot += q * fc
       for (const ing of (ric.ingredienti || [])) { const k = normIng(ing.nome); ings[k] = (ings[k] || 0) + ing.qty1stampo * q }
@@ -288,7 +288,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       nProdotti++
       stampiTot += q
       const reg = getR(ric.nome, ric)
-      ricavoTot += qv * reg.unita * reg.prezzo
+      ricavoTot += qv * (Number(reg.unita) || 0) * (Number(reg.prezzo) || 0)
       const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
       fcTot += q * fc
       for (const ing of (ric.ingredienti || [])) {

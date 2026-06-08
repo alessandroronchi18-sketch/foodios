@@ -171,7 +171,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
   return (
     <>
       <SH sub="Aggregato su tutti i prodotti — clicca le intestazioni per ordinare">Ingredienti per Impatto sul Food Cost</SH>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'visible', marginBottom: 28, boxShadow: SHADOW_PREMIUM, position: 'relative' }}>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM, position: 'relative' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
             <tr style={{ background: '#F8F4F2' }}>

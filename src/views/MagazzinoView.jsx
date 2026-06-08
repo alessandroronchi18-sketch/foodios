@@ -174,7 +174,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
           Lo stock si popola automaticamente alla conferma di una sessione di produzione.
         </div>
       ) : (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflowX: 'auto', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
@@ -359,7 +359,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
           {(!logPrezzi || logPrezzi.length === 0) ? (
             <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: C.textSoft }}>Nessuna modifica registrata.</div>
           ) : (
-            <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 240, overflowY: 'auto', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                 <thead>
                   <tr>

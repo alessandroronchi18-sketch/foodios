@@ -10,6 +10,7 @@ import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { lessico } from '../lib/lessico'
+import SedeSelector from '../components/SedeSelector'
 import { C, TNUM } from './_shared'
 import Icon from '../components/Icon'
 
@@ -154,7 +155,9 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
 
   const sediAttiveAll = (sedi || []).filter(s => s.attiva !== false)
-  const [viewAggregato, setViewAggregato] = useState(false)
+  // Coerenza con il resto dell'app: la vista aggregata segue il selettore sede
+  // GLOBALE (sedeAttiva._all), non un toggle locale separato.
+  const viewAggregato = !!sedeAttiva?._all
   const [aggrData, setAggrData] = useState(null)
 
   useEffect(() => {
@@ -260,14 +263,8 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
             </h1>
           </div>
           {sediAttiveAll.length > 1 && (
-            <div style={{ display: 'inline-flex', gap: 4, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 999, padding: 4, backdropFilter: 'blur(6px)' }}>
-              {[[false, 'pin', sedeAttiva?.nome || 'Sede attiva'], [true, 'building', `Tutte (${sediAttiveAll.length})`]].map(([agg, ic, lbl]) => (
-                <button key={String(agg)} onClick={() => setViewAggregato(agg)}
-                  style={{ padding: '6px 14px', border: 'none', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    background: viewAggregato === agg ? '#FFF' : 'transparent', color: viewAggregato === agg ? '#1C0A0A' : 'rgba(255,255,255,0.85)' }}><Icon name={ic} size={13} />{lbl}</button>
-              ))}
-            </div>
+            // Stesso selettore sede usato in tutta l'app (variante scura per l'hero).
+            <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={auth?.setSedeAttiva} variant="topbarDark" />
           )}
         </div>
       </div>

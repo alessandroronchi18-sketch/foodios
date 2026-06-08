@@ -158,7 +158,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     } catch (e) { notify?.(e.message, false) }
   }
 
-  const inp = { padding: '9px 11px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.white, fontFamily: 'inherit', boxSizing: 'border-box', width: '100%' }
+  const inp = { padding: '9px 11px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, background: C.white, fontFamily: 'inherit', boxSizing: 'border-box', width: '100%' }
   const tabBtn = (id, lbl) => (
     <button key={id} onClick={() => setTab(id)} style={{ padding: '8px 18px', borderRadius: R.md, border: 'none', cursor: 'pointer', fontWeight: tab === id ? 600 : 500, fontSize: 13, letterSpacing: '-0.005em', background: tab === id ? T.bgCard : 'transparent', color: tab === id ? T.text : T.textSoft, boxShadow: tab === id ? S.sm : 'none', transition: 'background .15s, color .15s', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{lbl}</button>
   )
@@ -262,6 +262,8 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                 <input type="date" value={vForm.data} onChange={e => setVForm(f => ({ ...f, data: e.target.value }))} style={{ ...inp, width: isMobile ? '100%' : 160 }} />
               </div>
               <datalist id="b2b-prod-list">{nomiProdotti.map(n => <option key={n} value={n} />)}</datalist>
+              <div style={{ overflowX: 'auto' }}>
+              <div style={{ minWidth: isMobile ? 320 : 'auto' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 90px 70px 28px', gap: 6, fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', padding: '0 4px', marginBottom: 4 }}>
                 <span>Prodotto</span><span style={{ textAlign: 'right' }}>Qtà</span><span style={{ textAlign: 'right' }}>€ cad.</span><span style={{ textAlign: 'right' }}>Tot</span><span />
               </div>
@@ -278,6 +280,8 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                   </div>
                 )
               })}
+              </div>
+              </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button onClick={() => setVForm(f => ({ ...f, righe: [...f.righe, { prodotto: '', qta: '', prezzo: '' }] }))} style={{ padding: '8px 14px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 8, fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>+ Riga</button>
                 <input value={vForm.note} onChange={e => setVForm(f => ({ ...f, note: e.target.value }))} placeholder="Note (opz.)" style={{ ...inp, flex: 1, minWidth: 120 }} />

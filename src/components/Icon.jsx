@@ -88,14 +88,27 @@ const P = {
   broom:      '<path d="M19.4 4.6 14 10M9.5 21.5 3 15l4-4 6.5 6.5zM13 11l-2 2M22 2l-6 6"/>',
   pause:      '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
   frown:      '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+  // frecce / navigazione
+  arrowR:     '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>',
+  arrowL:     '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
+  chevR:      '<polyline points="9 18 15 12 9 6"/>',
+  chevDown:   '<polyline points="6 9 12 15 18 9"/>',
+  // AI / magic
+  sparkles:   '<path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5 10.1 7.6 12 3z"/><path d="M19 14l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/>',
+  // riproduzione
+  play:       '<polygon points="6 4 20 12 6 20 6 4"/>',
+  // undo (freccia indietro ad arco)
+  undo:       '<polyline points="9 14 4 9 9 4"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/>',
 }
 
 // alias: più emoji → stessa icona
 const ALIAS = {
   trendDownUp: 'trendUp', cake: 'gift', cupcake: 'gift',
+  boltSm: 'bolt',          // piccolo fulmine → stesso glyph di bolt
+  checkCirc: 'checkCircle', // typo storico → alias all'icona corretta
 }
 
-const FILLED = new Set(['dot', 'star', 'bolt', 'party'])
+const FILLED = new Set(['dot', 'star', 'bolt', 'party', 'play', 'sparkles'])
 
 export default function Icon({ name, size = 16, color = 'currentColor', strokeWidth = 1.8, style, title, ...rest }) {
   const key = ALIAS[name] || name
