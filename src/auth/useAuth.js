@@ -170,6 +170,11 @@ export function useAuth() {
       if (/already registered|already.*exist|user.*exist/i.test(error.message || '')) {
         throw new Error('EMAIL_ESISTENTE')
       }
+      // Rate limit del provider email di Supabase (non è il blocco anti-brute-force
+      // del login, che è client-side e solo per il login). Messaggio chiaro per il signup.
+      if (/rate limit|too many|after \d+ seconds|email.*limit/i.test(error.message || '')) {
+        throw new Error('Troppe registrazioni in poco tempo (limite temporaneo del provider email). Attendi qualche minuto e riprova — l\'account potrebbe già essere stato creato: prova ad accedere.')
+      }
       throw new Error(tradurciErrore(error.message))
     }
     // Anti-enumeration di Supabase: per un'email GIÀ registrata e confermata, signUp
