@@ -40,16 +40,30 @@ $guard$;
 revoke execute on function public.applica_delta_stock_pf(uuid, uuid, text, numeric, text) from authenticated, anon;
 
 -- ── H3: clienti_b2b / vendite_b2b vietate ai dipendenti (con WITH CHECK) ───────
-do $$
-begin
-  if to_regclass('public.clienti_b2b') is not null then
-    execute 'drop policy if exists "clienti_b2b_own" on public.clienti_b2b';
-    execute 'drop policy if exists "clienti_b2b_titolare" on public.clienti_b2b';
-    execute 'create policy "clienti_b2b_titolare" on public.clienti_b2b for all using (organization_id = public.get_user_org_id() and not public.is_dipendente()) with check (organization_id = public.get_user_org_id() and not public.is_dipendente())';
-  end if;
-  if to_regclass('public.vendite_b2b') is not null then
-    execute 'drop policy if exists "vendite_b2b_own" on public.vendite_b2b';
-    execute 'drop policy if exists "vendite_b2b_titolare" on public.vendite_b2b';
-    execute 'create policy "vendite_b2b_titolare" on public.vendite_b2b for all using (organization_id = public.get_user_org_id() and not public.is_dipendente()) with check (organization_id = public.get_user_org_id() and not public.is_dipendente())';
-  end if;
-end $$;
+-- DDL diretto multi-riga (niente execute dinamico con stringhe lunghe, che si
+-- corrompono in alcuni editor). Le tabelle esistono (feature B2B in prod).
+drop policy if exists "clienti_b2b_own"      on public.clienti_b2b;
+drop policy if exists "clienti_b2b_titolare" on public.clienti_b2b;
+create policy "clienti_b2b_titolare" on public.clienti_b2b
+for all
+using (
+  organization_id = public.get_user_org_id()
+  and not public.is_dipendente()
+)
+with check (
+  organization_id = public.get_user_org_id()
+  and not public.is_dipendente()
+);
+
+drop policy if exists "vendite_b2b_own"      on public.vendite_b2b;
+drop policy if exists "vendite_b2b_titolare" on public.vendite_b2b;
+create policy "vendite_b2b_titolare" on public.vendite_b2b
+for all
+using (
+  organization_id = public.get_user_org_id()
+  and not public.is_dipendente()
+)
+with check (
+  organization_id = public.get_user_org_id()
+  and not public.is_dipendente()
+);
