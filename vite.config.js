@@ -32,6 +32,9 @@ export default defineConfig({
             if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('dompurify')) return 'pdf'
             if (id.includes('recharts') || id.includes('d3-')) return 'charts'
             if (id.includes('@supabase')) return 'supabase'
+            // @xyflow PRIMA dei check 'react': il suo path contiene "react/" e
+            // finirebbe nel chunk 'react' rompendo React↔ReactDOM (__SECRET_INTERNALS).
+            if (id.includes('@xyflow')) return 'xyflow'
             if (id.includes('react-dom')) return 'react-dom'
             if (id.includes('react/') || id.includes('/react.') || id.includes('scheduler')) return 'react'
           }
