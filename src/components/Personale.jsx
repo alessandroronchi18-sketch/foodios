@@ -1388,12 +1388,25 @@ function AccessiTab({ orgId, notify, isMobile }) {
     setLoading(false)
   }
   useEffect(() => { setLoading(true); carica() }, [orgId])
+  // Auto-aggiorna quando torni sulla pagina (es. dopo che il dipendente si è
+  // registrato in un'altra scheda) → vedi subito il nuovo account da attivare.
+  useEffect(() => {
+    if (!orgId) return
+    const reload = () => { if (document.visibilityState === 'visible') carica() }
+    window.addEventListener('focus', reload)
+    document.addEventListener('visibilitychange', reload)
+    return () => { window.removeEventListener('focus', reload); document.removeEventListener('visibilitychange', reload) }
+  }, [orgId])
 
   // Email già invitate (pending) o già con un account dipendente.
   const emailEsistenti = new Set([
     ...inviti.map(i => (i.email || '').toLowerCase()),
     ...dipendenti.map(d => (d.email || '').toLowerCase()),
   ])
+  // Inviti ancora rilevanti: nascondi quelli la cui email ha GIÀ un account
+  // dipendente (es. invito ricreato dopo che la persona si era già registrata).
+  const invitiVisibili = inviti.filter(i =>
+    !dipendenti.some(d => (d.email || '').toLowerCase() === (i.email || '').toLowerCase()))
 
   async function invita() {
     const e = email.trim().toLowerCase()
@@ -1493,7 +1506,10 @@ function AccessiTab({ orgId, notify, isMobile }) {
       </div>
 
       {/* Account dipendente esistenti */}
-      <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Account dipendente</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Account dipendente</div>
+        <button onClick={carica} title="Aggiorna" style={{ ...btn(C.white, C.textMid, `1px solid ${C.border}`), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
+      </div>
       {dipendenti.length === 0 && <div style={{ fontSize: 12, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>Nessun account dipendente ancora.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
         {dipendenti.map(d => (
@@ -1514,11 +1530,11 @@ function AccessiTab({ orgId, notify, isMobile }) {
       </div>
 
       {/* Inviti in attesa di registrazione */}
-      {inviti.length > 0 && (
+      {invitiVisibili.length > 0 && (
         <>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Inviti in attesa di registrazione</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {inviti.map(i => (
+            {invitiVisibili.map(i => (
               <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgSubtle, border: `1px dashed ${C.border}`, borderRadius: 10 }}>
                 <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.email}</div>
                 <span style={{ fontSize: 11, color: C.amber, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="hourglass" size={11} />Deve registrarsi</span>
