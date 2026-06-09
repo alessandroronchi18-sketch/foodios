@@ -252,8 +252,9 @@ export default function App() {
   // Trial scaduto
   if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} onSignOut={auth.signOut} />
 
-  // Onboarding al primo accesso
-  if (auth.orgId && onboardingVisto === false) {
+  // Onboarding al primo accesso — SOLO per il titolare. Il dipendente entra
+  // direttamente nelle viste operative (l'azienda è già configurata dal titolare).
+  if (auth.orgId && onboardingVisto === false && !auth.isDipendente) {
     return sus(
       <OnboardingWizard
         nomeAttivita={auth.org?.nome}

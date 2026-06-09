@@ -167,7 +167,6 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState(null)
   const [parseStats, setParseStats] = useState(null)
-  const [demoApplied, setDemoApplied] = useState(false)
   const [secondaSede, setSecondaSede] = useState({ nome: '', indirizzo: '', citta: '' })
   const [addingSecondaSede, setAddingSecondaSede] = useState(false)
   const [sedeSaving, setSedeSaving] = useState(false)
@@ -195,7 +194,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
       }
       await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
       setParseStats({ nRicette, nIngredienti })
-      setTimeout(() => setStep(3), 1200)
+      setTimeout(() => setStep(3), 1200)   // → seconda sede
     } catch (e) {
       setParseError(e.message || 'Errore durante l\'analisi del file')
     } finally {
@@ -203,23 +202,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
     }
   }
 
-  // ─── STEP 2 path B: usa dati demo (3 ricette pasticceria) ──
-  async function applyDemoData() {
-    if (!orgId) return
-    setParsing(true)
-    setParseError(null)
-    try {
-      await ssave('pasticceria-ricettario-v1', DEMO_RICETTARIO, orgId, null)
-      setDemoApplied(true)
-      setTimeout(() => setStep(3), 800)
-    } catch (e) {
-      setParseError('Errore caricamento dati demo: ' + e.message)
-    } finally {
-      setParsing(false)
-    }
-  }
-
-  // ─── STEP 4: seconda sede ──
+  // ─── STEP 3: seconda sede ──
   async function handleAggiungiSecondaSede() {
     if (!secondaSede.nome.trim() || !orgId) return
     setSedeSaving(true)
@@ -272,7 +255,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
           <div style={{ fontSize: 13, fontWeight: 600, color: '#0E1726', letterSpacing: '-0.01em' }}>FoodOS</div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          {[1,2,3,4].map(i => (
+          {[1,2,3].map(i => (
             <div key={i} style={{
               width: i === step ? 24 : 6,
               height: 6, borderRadius: 3,
@@ -353,46 +336,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
             </p>
 
             <div style={{ display: 'grid', gap: 12, marginBottom: 24 }}>
-              {/* Path A: dati demo */}
-              <button onClick={applyDemoData} disabled={parsing}
-                style={{
-                  textAlign: 'left', padding: '20px 22px',
-                  background: demoApplied ? '#F0FDF4' : '#FFF',
-                  border: `2px solid ${demoApplied ? '#16A34A' : '#E5E9EF'}`,
-                  borderRadius: 14, cursor: parsing ? 'wait' : 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 16,
-                  transition: 'all 0.18s',
-                  boxShadow: demoApplied ? '0 4px 14px rgba(22,163,74,0.18)' : '0 1px 2px rgba(15,23,42,0.04)',
-                }}
-                onMouseEnter={e => { if (!parsing && !demoApplied) e.currentTarget.style.borderColor = BRAND }}
-                onMouseLeave={e => { if (!parsing && !demoApplied) e.currentTarget.style.borderColor = '#E5E9EF' }}
-              >
-                <div style={{
-                  width: 48, height: 48, borderRadius: 12, flexShrink: 0,
-                  background: demoApplied ? '#16A34A' : `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22, color: '#FFF',
-                  boxShadow: demoApplied ? '0 4px 10px rgba(22,163,74,0.32)' : '0 4px 10px rgba(110,14,26,0.32)',
-                }}>{demoApplied ? '✓' : <Icon name="target" size={22}/>}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3,
-                    letterSpacing: '-0.01em' }}>
-                    {demoApplied ? 'Dati demo caricati!' : 'Inizia con dati demo'}
-                    <span style={{ display: 'inline-block', marginLeft: 8, fontSize: 10, fontWeight: 700,
-                      padding: '2px 7px', borderRadius: 4,
-                      background: '#FFF8EB', color: '#D97706', letterSpacing: '0.04em' }}>
-                      CONSIGLIATO
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 13, color: '#475264', lineHeight: 1.5 }}>
-                    {demoApplied
-                      ? 'Stiamo preparando la tua dashboard…'
-                      : '3 ricette di pasticceria + 14 ingredienti già configurati. Esplori subito, niente file da caricare.'}
-                  </div>
-                </div>
-              </button>
-
-              {/* Path B: file Excel */}
+              {/* Carica il ricettario Excel */}
               <div
                 onDragOver={e => { e.preventDefault(); setDragging(true) }}
                 onDragLeave={() => setDragging(false)}
@@ -483,65 +427,8 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
           </div>
         )}
 
-        {/* ═══════════════ STEP 3: Prima analisi (anteprima reale) ═══════════════ */}
+        {/* ═══════════════ STEP 3: Multi-sede ═══════════════ */}
         {step === 3 && (
-          <div>
-            <div style={{ marginBottom: 12, color: BRAND }}><Icon name="star" size={50}/></div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
-              margin: '0 0 12px', letterSpacing: '-0.025em' }}>
-              {demoApplied ? 'Ecco i tuoi food cost demo' : 'Ricettario importato!'}
-            </h1>
-            <p style={{ color: '#475264', fontSize: 14, lineHeight: 1.55, marginBottom: 24 }}>
-              {demoApplied
-                ? 'Questi sono i margini calcolati sui dati demo. Modificali dalla dashboard quando vuoi.'
-                : 'Margini calcolati. Puoi rivederli in dettaglio dalla sezione P&L.'}
-            </p>
-
-            <div style={{ display: 'grid', gap: 8, marginBottom: 28,
-              textAlign: 'left' }}>
-              {DEMO_FC_PREVIEW.map((r, i) => {
-                const t = TONE[r.tone]
-                return (
-                  <div key={i} style={{
-                    background: '#FFF', border: '1px solid #E5E9EF', borderRadius: 10,
-                    padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12,
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#0E1726',
-                        marginBottom: 2, letterSpacing: '-0.005em' }}>{r.nome}</div>
-                      <div style={{ fontSize: 11.5, color: '#8B95A7', fontVariantNumeric: 'tabular-nums' }}>
-                        Food cost € {r.fc.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · Ricavo € {r.prezzo.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 17, fontWeight: 700, color: t.fg,
-                        fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
-                        {r.margPct.toFixed(0)}%
-                      </div>
-                      <span style={{
-                        display: 'inline-block', padding: '2px 7px', borderRadius: 4,
-                        background: t.bg, color: t.fg,
-                        fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                      }}>{t.label}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <button onClick={() => setStep(4)} style={BTN_PRIMARY}>
-              Continua
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </button>
-          </div>
-        )}
-
-        {/* ═══════════════ STEP 4: Multi-sede ═══════════════ */}
-        {step === 4 && (
           <div>
             <div style={{ marginBottom: 12, color: BRAND }}><Icon name="store" size={50}/></div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
