@@ -18,7 +18,7 @@ returns void
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $fn$
 declare
   v_org  uuid;
   v_dip  boolean;
@@ -55,7 +55,7 @@ begin
       values (v_org, v_sede, v_key, v_val, now());
     end if;
   end loop;
-end $$;
+end $fn$;
 
 revoke execute on function public.fos_user_data_set_batch(jsonb, uuid) from anon;
 grant execute on function public.fos_user_data_set_batch(jsonb, uuid) to authenticated;
