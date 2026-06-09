@@ -87,7 +87,7 @@ const ProduzioneGiornalieraView = lazyWithReload(() => import('./views/Produzion
 const AzioniView = lazyWithReload(() => import('./views/AzioniView'))
 const NuovaRicettaView = lazyWithReload(() => import('./views/NuovaRicettaView'))
 const StoricoProduzioneView = lazyWithReload(() => import('./views/StoricoProduzioneView'))
-const DiscrepanzeView = lazyWithReload(() => import('./views/DiscrepanzeView'))
+// DiscrepanzeView rimosso: unito nella pagina "Perdite & cessioni" (SpreciOmaggi).
 const SemilavoratiView = lazyWithReload(() => import('./views/SemilavoratiView'))
 // React hooks are imported above — no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
@@ -1219,6 +1219,7 @@ export default function Dashboard({
   // Defense-in-depth: se un dipendente finisce su una vista non consentita (es.
   // ripristinata da sessionStorage o via link), riportalo alla produzione.
   useEffect(() => {
+    if (view === 'discrepanze') { setView('sprechi-omaggi'); return; }   // unita in Perdite & cessioni
     if (isDip && !DIPENDENTE_VIEWS.has(view)) setView('giornaliero');
   }, [isDip, view]);
   // Quando si clicca "Modifica" su una card ricetta, salviamo qui il nome
@@ -1253,7 +1254,7 @@ export default function Dashboard({
     giornaliero:'oggi', chiusura:'oggi', eventi:'oggi', calendario:'oggi',
     ricettario:'ricette', semilavorati:'ricette', 'nuova-ricetta':'ricette',
     'scheda-allergeni':'ricette', menu:'ricette',
-    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', discrepanze:'numeri',
+    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri',
     magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'vendite-b2b':'acquisti', 'importa-dati':'acquisti',
     personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
@@ -1846,7 +1847,7 @@ export default function Dashboard({
             {id:"scadenzario",label:"Scadenzario",icon:"fileText"},
             {id:"fornitori",label:"Fornitori",icon:"truck"},
             {id:"vendite-b2b",label:"Vendite B2B",icon:"building"},
-            {id:"sprechi-omaggi",label:"Sprechi e omaggi",icon:"sparkles"},
+            {id:"sprechi-omaggi",label:"Perdite & cessioni",icon:"sparkles"},
             {id:"importa-dati",label:"Importa dati",icon:"download"},
           ]},
           { id:"numeri", label:"Andamento & costi", items:[
@@ -1854,7 +1855,6 @@ export default function Dashboard({
             {id:"pl",label:"Profitti (P&L)",icon:"trendUp"},
             {id:"storico",label:"Storico",icon:"activity"},
             {id:"previsione",label:"Previsioni",icon:"forecast"},
-            {id:"discrepanze",label:"Discrepanze prod./vendite",icon:"fileText"},
           ]},
           { id:"azienda", label:"Azienda", items:[
             {id:"personale",label:"Personale",icon:"users"},
@@ -2297,7 +2297,7 @@ export default function Dashboard({
                   navItem("scadenzario","fileText","Scadenzario"),
                   navItem("fornitori","truck","Fornitori"),
                   navItem("vendite-b2b","building","Vendite B2B"),
-                  navItem("sprechi-omaggi","sparkles","Sprechi e omaggi"),
+                  navItem("sprechi-omaggi","sparkles","Perdite & cessioni"),
                   navItem("importa-dati","download","Importa dati"),
                 ] })}
 
@@ -2307,7 +2307,6 @@ export default function Dashboard({
                   navItem("pl","trendUp","Profitti (P&L)"),
                   navItem("storico","activity","Storico"),
                   navItem("previsione","forecast","Previsioni"),
-                  navItem("discrepanze","fileText","Discrepanze prod./vendite"),
                 ] })}
 
               {Group({ id:"azienda", iconKey:"briefcase", label:"Azienda",
@@ -2472,6 +2471,7 @@ export default function Dashboard({
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
             calendario:"Calendario", previsione:"Previsioni",
             "scheda-allergeni":"Scheda allergeni", impostazioni:"Impostazioni",
+            "sprechi-omaggi":"Perdite & cessioni",
             "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
             "importa-dati":"Importa dati", "registro-attivita":"Registro attività",
           };
@@ -2479,7 +2479,7 @@ export default function Dashboard({
             home:"", giornaliero:"Oggi", chiusura:"Oggi", eventi:"Oggi", calendario:"Oggi",
             ricettario:"Ricette & Menù", semilavorati:"Ricette & Menù", "nuova-ricetta":"Ricette & Menù",
             "scheda-allergeni":"Ricette & Menù", menu:"Ricette & Menù",
-            simulatore:"Andamento & costi", pl:"Andamento & costi", storico:"Andamento & costi", previsione:"Andamento & costi", discrepanze:"Andamento & costi",
+            simulatore:"Andamento & costi", pl:"Andamento & costi", storico:"Andamento & costi", previsione:"Andamento & costi",
             magazzino:"Magazzino & Acquisti", scadenzario:"Magazzino & Acquisti", "sprechi-omaggi":"Magazzino & Acquisti",
             fornitori:"Magazzino & Acquisti", "vendite-b2b":"Magazzino & Acquisti", "importa-dati":"Magazzino & Acquisti",
             personale:"Azienda", haccp:"Azienda", "registro-attivita":"Azienda", "confronto-sedi":"Azienda", trasferimenti:"Azienda",
@@ -2515,7 +2515,7 @@ export default function Dashboard({
             personale:"Personale", haccp:"HACCP", menu:"Menù",
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
             calendario:"Calendario", previsione:"Previsioni",
-            "scheda-allergeni":"Allergeni", impostazioni:"Impostazioni",
+            "scheda-allergeni":"Allergeni", impostazioni:"Impostazioni", "sprechi-omaggi":"Perdite & cessioni",
             "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
             "importa-dati":"Importa dati", "registro-attivita":"Registro attività",
           };
@@ -2634,7 +2634,7 @@ export default function Dashboard({
         {/* Registro attività — solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
         {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
 
-        {/* Sprechi e omaggi — titolare e dipendente, per-sede */}
+        {/* Perdite & cessioni — titolare e dipendente, per-sede */}
         {view==="sprechi-omaggi"&&!isAllSedi&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} auth={auth} notify={notify}/>}
 
         {/* Ricettario — mostra upload se non ancora caricato */}
@@ -2664,7 +2664,6 @@ export default function Dashboard({
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} LEX={LEX}/>}
-        {view==="discrepanze"&&<DiscrepanzeView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} LEX={LEX}/>}
         {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
