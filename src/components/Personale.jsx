@@ -1379,7 +1379,9 @@ function AccessiTab({ orgId, notify, isMobile }) {
     if (!orgId) return
     const [{ data: { user } }, dip, inv] = await Promise.all([
       supabase.auth.getUser(),
-      supabase.from('profiles').select('id,email,nome_completo,approvato').eq('organization_id', orgId).eq('ruolo', 'dipendente').order('email'),
+      // RPC dedicata: la RLS su profiles non garantisce al titolare la lettura dei
+      // profili degli altri membri → la lista passa da fos_dipendenti_org (solo-titolare).
+      supabase.rpc('fos_dipendenti_org'),
       supabase.from('org_inviti').select('id,email,stato,created_at').eq('organization_id', orgId).eq('stato', 'pending').order('created_at', { ascending: false }),
     ])
     setMeId(user?.id || null)
