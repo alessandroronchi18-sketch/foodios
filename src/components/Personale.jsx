@@ -1403,8 +1403,20 @@ function AccessiTab({ orgId, notify, isMobile }) {
     const { error } = await supabase.from('org_inviti').insert({ organization_id: orgId, email: e, ruolo: 'dipendente', invited_by: meId })
     setBusy(null)
     if (error) { notify?.('Invito fallito: ' + error.message, false); return }
-    setEmail(''); notify?.('Invito creato. Quando questa persona si registra con questa email, comparirà qui in attesa di attivazione.')
+    setEmail(''); notify?.('Invito creato. Comunica al dipendente di registrarsi con QUESTA email — non parte alcuna email automatica.')
     carica()
+  }
+
+  // Niente email automatica: il titolare condivide il link di registrazione col dipendente.
+  function copiaLink(emailDip) {
+    const url = (typeof window !== 'undefined' ? window.location.origin : '') + '/register'
+    const testo = `Registrati su FoodOS con l'email ${emailDip}: ${url}`
+    try {
+      navigator.clipboard.writeText(testo)
+      notify?.('Link copiato — incollalo al dipendente (WhatsApp, email, ecc.)')
+    } catch {
+      notify?.(url, true)
+    }
   }
 
   // Azioni sul profilo di UN ALTRO utente (attiva/disattiva/elimina): la RLS non
@@ -1460,9 +1472,14 @@ function AccessiTab({ orgId, notify, isMobile }) {
 
   return (
     <div style={{ maxWidth: 760 }}>
-      <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55, marginBottom: 16 }}>
+      <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
         Solo le email che inviti qui possono entrare nella tua azienda. Un nuovo dipendente parte <b>in attesa</b> e
         accede <b>solo dopo</b> che lo attivi. Puoi disattivarlo (revoca immediata) o eliminarlo in qualsiasi momento.
+      </div>
+      <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55, marginBottom: 16, padding: '10px 12px', background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 8 }}>
+        <b>Non viene inviata un'email automatica.</b> Dopo l'invito, comunica tu al dipendente (WhatsApp, di persona) di
+        registrarsi con <b>quella stessa email</b> su <b>{(typeof window !== 'undefined' ? window.location.origin : '') + '/register'}</b>.
+        Appena si registra comparirà qui sotto come "In attesa": allora lo attivi.
       </div>
 
       {/* Invito per email */}
@@ -1504,7 +1521,8 @@ function AccessiTab({ orgId, notify, isMobile }) {
             {inviti.map(i => (
               <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgSubtle, border: `1px dashed ${C.border}`, borderRadius: 10 }}>
                 <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.email}</div>
-                <span style={{ fontSize: 11, color: C.textSoft, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="mail" size={11} />Invito inviato</span>
+                <span style={{ fontSize: 11, color: C.amber, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="hourglass" size={11} />Deve registrarsi</span>
+                <button onClick={() => copiaLink(i.email)} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}><Icon name="clipboard" size={12} />Copia link</button>
                 <button onClick={() => revocaInvito(i.id)} disabled={busy === i.id} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Revoca</button>
               </div>
             ))}
