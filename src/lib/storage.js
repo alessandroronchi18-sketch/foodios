@@ -167,6 +167,33 @@ export async function ssave(key, value, orgId, sedeId) {
 }
 
 /**
+ * Scrive PIÙ chiavi user_data in UNA sola transazione (atomico) via RPC.
+ * items: [{ key, value, sedeId? }]. Le chiavi shared forzano sede_id=null.
+ * Usare quando due scritture devono restare coerenti (es. magazzino + giornaliero):
+ * o vanno entrambe, o nessuna — niente più drift su fallimento parziale.
+ */
+export async function ssaveBatch(items, orgId, sedeId) {
+  if (!orgId) {
+    const err = new Error('ssaveBatch: orgId mancante')
+    console.error(err.message)
+    throw err
+  }
+  const p_items = (items || []).map(it => ({
+    data_key: it.key,
+    sede_id: SHARED_KEYS.includes(it.key) ? null : (it.sedeId ?? sedeId ?? null),
+    data_value: it.value,
+  }))
+  return await withRetry(async () => {
+    const { error } = await supabase.rpc('fos_user_data_set_batch', { p_items })
+    if (error) {
+      const e = new Error(error.message || 'ssaveBatch failed')
+      e.code = error.code; e.status = error.status
+      throw e
+    }
+  })
+}
+
+/**
  * Carica una chiave PER-SEDE per tutte le sedi di un'org.
  * Restituisce { [sedeId]: data_value }.
  * Utile per la "Vista azienda" che aggrega KPI di tutte le sedi.

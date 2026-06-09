@@ -3,7 +3,7 @@
 // OCR foto appunto produzione. Richiede orgId/sedeId per persistenza e stock.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { ssave as _ssave } from '../lib/storage'
+import { ssave as _ssave, ssaveBatch as _ssaveBatch } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, motion as M } from '../lib/theme'
@@ -68,6 +68,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   const ricette = Object.values(ricettario?.ricette || {}).filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
     .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it')) // lista prodotti in ordine alfabetico
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
+  // Scrittura atomica di più chiavi insieme (magazzino + giornaliero): o entrambe o nessuna.
+  const ssaveBatch = (items) => _ssaveBatch(items, orgId, sedeId)
 
   const [tab, setTab] = useState('nuova')
   const [deleteSessConf, setDeleteSessConf] = useState(null)
@@ -125,8 +127,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     const ng = (giornaliero || []).map(s => s.id === sess.id ? nuovaSess : s)
 
     try {
-      await ssave(SK_GIOR, ng)
-      await ssave(SK_MAG, nm)
+      await ssaveBatch([{ key: SK_GIOR, value: ng }, { key: SK_MAG, value: nm }])
     } catch (e) {
       setSavingEdit(false)
       notify(`Impossibile salvare le modifiche: ${e.message || 'errore di rete'}. Riprova.`, false)
@@ -185,8 +186,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
     // SAVE FIRST: se fallisce, niente state mutation -> niente dati persi.
     try {
-      await ssave(SK_GIOR, ng)
-      if (nm) await ssave(SK_MAG, nm)
+      await ssaveBatch(nm ? [{ key: SK_GIOR, value: ng }, { key: SK_MAG, value: nm }] : [{ key: SK_GIOR, value: ng }])
     } catch (e) {
       setDeletingSess(false)
       notify(`Impossibile eliminare la sessione: ${e.message || 'errore di rete'}. Riprova.`, false)
@@ -404,8 +404,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
     // SAVE FIRST: se ssave fallisce -> niente state mutation, niente reset form.
     try {
-      await ssave(SK_MAG, nm)
-      await ssave(SK_GIOR, ng)
+      await ssaveBatch([{ key: SK_MAG, value: nm }, { key: SK_GIOR, value: ng }])
     } catch (e) {
       setSalvando(false)
       notify(`Salvataggio fallito: ${e.message || 'errore di rete'}. I dati non sono stati persi, riprova.`, false)

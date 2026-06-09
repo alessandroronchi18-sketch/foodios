@@ -129,10 +129,17 @@ export default async function handler(req) {
   }
   const ng = [sess, ...(Array.isArray(giornaliero) ? giornaliero : [])]
 
-  // SAVE FIRST: se la scrittura fallisce niente di mezzo viene esposto al client.
+  // SAVE FIRST + ATOMICO: magazzino e giornaliero in una sola transazione (RPC),
+  // così non possono disallinearsi su un fallimento parziale.
   try {
-    await writeUD(supabase, orgId, SK_MAG, sedeId, nm)
-    await writeUD(supabase, orgId, SK_GIOR, sedeId, ng)
+    const { error: wErr } = await supabase.rpc('fos_user_data_set_batch', {
+      p_items: [
+        { data_key: SK_MAG, sede_id: sedeId, data_value: nm },
+        { data_key: SK_GIOR, sede_id: sedeId, data_value: ng },
+      ],
+      p_org: orgId,
+    })
+    if (wErr) throw new Error(wErr.message)
   } catch (e) {
     return json({ error: 'Salvataggio fallito: ' + e.message }, 500, req)
   }
