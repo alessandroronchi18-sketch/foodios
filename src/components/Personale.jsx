@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { ReactFlow, Background, Controls, applyNodeChanges, applyEdgeChanges, addEdge, MarkerType } from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
@@ -1097,17 +1099,23 @@ function HeaderPersonale({ orgId, isMobile }) {
 // ─── ORGANIGRAMMA: reparti + assegnazione dipendenti, editabile dal titolare ──
 const SK_ORG = 'pasticceria-organigramma-v1'
 const SK_CONSUNTIVO = 'pasticceria-consuntivo-turni-v1' // { [turnoId]: oreEffettive }
-function OrganigrammaTab({ orgId, notify, isMobile }) {
+// ─── Editor organigramma LIBERO: box trascinabili + frecce disegnabili (React Flow) ──
+const ORG_NODE_BASE = { borderRadius: 12, padding: '10px 14px', fontSize: 13, fontWeight: 700, border: '1px solid', textAlign: 'center', minWidth: 130, boxShadow: '0 1px 3px rgba(15,23,42,0.12)' }
+const ORG_STYLE = {
+  admin:   { ...ORG_NODE_BASE, background: 'linear-gradient(135deg,#6E0E1A,#4A0612)', color: '#FFF', borderColor: '#4A0612', fontWeight: 800 },
+  reparto: { ...ORG_NODE_BASE, background: '#6E0E1A', color: '#FFF', borderColor: '#4A0612' },
+  persona: { ...ORG_NODE_BASE, background: '#FFF', color: '#1F2937', borderColor: '#E5E7EB', fontWeight: 600 },
+}
+
+function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
   const [dip, setDip] = useState([])
   const [org, setOrg] = useState({ reparti: [] })
   const [loading, setLoading] = useState(true)
-  // UI inline (niente prompt(): in alcuni browser è bloccato → "non si aggiunge").
   const [addingRep, setAddingRep] = useState(false)
   const [newRepNome, setNewRepNome] = useState('')
-  const [renamingId, setRenamingId] = useState(null)
-  const [renameVal, setRenameVal] = useState('')
-  const [dragId, setDragId] = useState(null)        // dipendente in trascinamento
-  const [dropTarget, setDropTarget] = useState(null) // reparto sotto il cursore
+  const [nodes, setNodes] = useState([])
+  const [edges, setEdges] = useState([])
+  const orgRef = useRef({ reparti: [] })
 
   useEffect(() => {
     if (!orgId) return
@@ -1116,248 +1124,108 @@ function OrganigrammaTab({ orgId, notify, isMobile }) {
       const { data } = await supabase.from('dipendenti').select('id,nome,ruolo').eq('organization_id', orgId).eq('attivo', true).order('nome')
       const saved = await sload(SK_ORG, orgId, null)
       if (cancelled) return
-      setDip(data || [])
-      setOrg(saved && Array.isArray(saved.reparti) ? saved : { reparti: [] })
-      setLoading(false)
+      const o = saved && Array.isArray(saved.reparti) ? saved : { reparti: [] }
+      setDip(data || []); setOrg(o); orgRef.current = o; setLoading(false)
     })()
     return () => { cancelled = true }
   }, [orgId])
 
-  const nomeById = id => dip.find(d => d.id === id)?.nome || '—'
-  const assegnati = new Set(org.reparti.flatMap(r => [r.capoId, ...(r.membri || [])]).filter(Boolean))
-  const nonAssegnati = dip.filter(d => !assegnati.has(d.id))
+  // Ricostruisce il canvas solo quando cambiano reparti o dipendenti (NON sulle sole
+  // posizioni → trascinare non resetta il layout). Posizioni e frecce salvate riusate.
+  const repartiKey = (org.reparti || []).map(r => r.id + ':' + r.nome).join('|')
+  const dipKey = dip.map(d => d.id + ':' + d.nome).join('|')
+  useEffect(() => {
+    if (loading) return
+    const o = orgRef.current
+    const pos = o.layout?.pos || {}
+    const reparti = o.reparti || []
+    const at = (id, x, y) => pos[id] || { x, y }
+    const N = []
+    N.push({ id: 'admin', type: 'default', position: at('admin', 380, 0), data: { label: adminNome || 'Amministratore' }, style: ORG_STYLE.admin, deletable: false })
+    reparti.forEach((r, i) => N.push({ id: 'rep-' + r.id, type: 'default', position: at('rep-' + r.id, i * 240, 130), data: { label: r.nome }, style: ORG_STYLE.reparto }))
+    dip.forEach((d, i) => N.push({ id: 'dip-' + d.id, type: 'default', position: at('dip-' + d.id, i * 200, 290), data: { label: d.nome }, style: ORG_STYLE.persona, deletable: false }))
+    setNodes(N)
+    let E
+    if (Array.isArray(o.layout?.edges)) E = o.layout.edges
+    else {
+      E = []
+      reparti.forEach(r => {
+        E.push({ id: 'e-admin-rep-' + r.id, source: 'admin', target: 'rep-' + r.id })
+        ;(r.membri || []).forEach(m => E.push({ id: 'e-rep-' + r.id + '-dip-' + m, source: 'rep-' + r.id, target: 'dip-' + m }))
+      })
+    }
+    setEdges(E.map(e => ({ ...e, markerEnd: { type: MarkerType.ArrowClosed } })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, repartiKey, dipKey, adminNome])
 
-  async function persist(next) {
-    try { await ssave(SK_ORG, next, orgId, null) } catch { notify?.('Errore salvataggio organigramma', false); return }
-    setOrg(next)
-  }
-  const update = fn => persist({ ...org, reparti: fn(org.reparti.map(r => ({ ...r, membri: [...(r.membri || [])] }))) })
+  // Salva posizioni + frecce senza ricostruire il canvas (preserva il riferimento reparti).
+  const salvaLayout = useCallback((nextNodes, nextEdges) => {
+    const pos = {}
+    for (const n of nextNodes) pos[n.id] = { x: Math.round(n.position.x), y: Math.round(n.position.y) }
+    const next = { ...orgRef.current, layout: { pos, edges: nextEdges.map(e => ({ id: e.id, source: e.source, target: e.target })) } }
+    orgRef.current = next; setOrg(next)
+    ssave(SK_ORG, next, orgId, null).catch(() => notify?.('Errore salvataggio organigramma', false))
+  }, [orgId, notify])
 
-  function confermaAddReparto() {
+  const onNodesChange = useCallback((ch) => setNodes(ns => applyNodeChanges(ch, ns)), [])
+  const onEdgesChange = useCallback((ch) => setEdges(es => {
+    const next = applyEdgeChanges(ch, es)
+    if (ch.some(c => c.type === 'remove')) salvaLayout(nodes, next)
+    return next
+  }), [nodes, salvaLayout])
+  const onNodeDragStop = useCallback(() => salvaLayout(nodes, edges), [nodes, edges, salvaLayout])
+  const onConnect = useCallback((params) => setEdges(es => {
+    const next = addEdge({ ...params, id: 'e-' + params.source + '-' + params.target + '-' + Date.now().toString(36), markerEnd: { type: MarkerType.ArrowClosed } }, es)
+    salvaLayout(nodes, next)
+    return next
+  }), [nodes, salvaLayout])
+  const onNodesDelete = useCallback((deleted) => {
+    const repIds = deleted.filter(n => n.id.startsWith('rep-')).map(n => n.id.slice(4))
+    if (!repIds.length) return
+    const next = { ...orgRef.current, reparti: (orgRef.current.reparti || []).filter(r => !repIds.includes(r.id)) }
+    orgRef.current = next; setOrg(next)
+    ssave(SK_ORG, next, orgId, null).catch(() => {})
+  }, [orgId])
+
+  function addReparto() {
     const nome = newRepNome.trim(); if (!nome) { setAddingRep(false); return }
-    update(rs => [...rs, { id: 'rep-' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3), nome, capoId: null, membri: [] }])
+    const id = 'rep-' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3)
+    const next = { ...orgRef.current, reparti: [...(orgRef.current.reparti || []), { id, nome, capoId: null, membri: [] }] }
+    orgRef.current = next; setOrg(next)
+    ssave(SK_ORG, next, orgId, null).catch(() => notify?.('Errore salvataggio', false))
     setNewRepNome(''); setAddingRep(false)
-  }
-  function avviaRename(id) { const r = org.reparti.find(x => x.id === id); setRenamingId(id); setRenameVal(r?.nome || '') }
-  function confermaRename() {
-    const nome = renameVal.trim(); const id = renamingId
-    if (id && nome) update(rs => rs.map(x => x.id === id ? { ...x, nome } : x))
-    setRenamingId(null); setRenameVal('')
-  }
-  function delReparto(id) { if (!confirm('Eliminare il reparto? I dipendenti tornano tra i non assegnati.')) return; update(rs => rs.filter(x => x.id !== id)) }
-  function addMembro(repId, dipId) { if (!dipId) return; update(rs => rs.map(r => r.id === repId ? { ...r, membri: [...new Set([...(r.membri || []), dipId])] } : r)) }
-  function removeMembro(repId, dipId) { update(rs => rs.map(r => r.id === repId ? { ...r, membri: (r.membri || []).filter(m => m !== dipId), capoId: r.capoId === dipId ? null : r.capoId } : r)) }
-  function setCapo(repId, dipId) { update(rs => rs.map(r => r.id === repId ? { ...r, capoId: r.capoId === dipId ? null : dipId, membri: [...new Set([...(r.membri || []), dipId])] } : r)) }
-  // Fallback touch/mobile per spostare una persona tra reparti (senza drag&drop).
-  function moveMembro(fromRepId, dipId, toRepId) {
-    if (!toRepId || toRepId === fromRepId) return
-    update(rs => rs.map(r => {
-      if (r.id === fromRepId) return { ...r, membri: (r.membri || []).filter(m => m !== dipId), capoId: r.capoId === dipId ? null : r.capoId }
-      if (r.id === toRepId) return { ...r, membri: [...new Set([...(r.membri || []), dipId])] }
-      return r
-    }))
   }
 
   if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
 
-  // Drag & drop (desktop): trascina una persona tra reparti o nei "non assegnati".
-  const startDrag = (e, dipId, fromRepId) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ dipId, fromRepId: fromRepId || null }))
-    e.dataTransfer.effectAllowed = 'move'
-    setDragId(dipId)
-  }
-  const readDrag = (e) => { try { return JSON.parse(e.dataTransfer.getData('text/plain')) } catch { return null } }
-  const dropOnReparto = (e, repId) => {
-    e.preventDefault(); setDropTarget(null); setDragId(null)
-    const d = readDrag(e); if (!d || !d.dipId || d.fromRepId === repId) return
-    update(rs => rs.map(r => {
-      if (r.id === d.fromRepId) return { ...r, membri: (r.membri || []).filter(m => m !== d.dipId), capoId: r.capoId === d.dipId ? null : r.capoId }
-      if (r.id === repId) return { ...r, membri: [...new Set([...(r.membri || []), d.dipId])] }
-      return r
-    }))
-  }
-  const dropOnNonAssegnati = (e) => {
-    e.preventDefault(); setDropTarget(null); setDragId(null)
-    const d = readDrag(e); if (!d || !d.dipId || !d.fromRepId) return
-    removeMembro(d.fromRepId, d.dipId)
-  }
-
-  // Box-persona trascinabile. Nome e controlli vivono in una riga flex pulita
-  // (mai sovrapposti): [icona stato] nome ... [toggle responsabile] [rimuovi].
-  // Su mobile, dove il drag&drop non e' affidabile, aggiunge un select "Sposta in…".
-  const personBox = (dipId, repId, isCapo) => {
-    const ctrlBtn = {
-      background: isCapo ? 'rgba(255,255,255,0.14)' : C.bg,
-      border: `1px solid ${isCapo ? 'rgba(255,255,255,0.22)' : C.border}`,
-      borderRadius: 7, cursor: 'pointer', padding: '4px 5px', flexShrink: 0,
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
-    }
-    const altriReparti = org.reparti.filter(r => r.id !== repId)
-    return (
-      <div key={dipId} draggable onDragStart={e => startDrag(e, dipId, repId)} onDragEnd={() => setDragId(null)}
-        title="Trascina per spostare in un altro reparto"
-        style={{
-          display: 'flex', flexDirection: 'column', gap: 6, cursor: 'grab',
-          background: isCapo ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : C.bgCard,
-          color: isCapo ? C.white : C.text, border: `1px solid ${isCapo ? '#4A0612' : C.border}`,
-          borderRadius: 10, padding: '6px 8px 6px 10px', fontSize: 12, fontWeight: 700,
-          boxShadow: '0 1px 3px rgba(15,23,42,0.08)', opacity: dragId === dipId ? 0.4 : 1,
-          minWidth: 0, maxWidth: isMobile ? '100%' : 240, width: isMobile ? '100%' : undefined,
-        }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          {isCapo && <span style={{ display: 'inline-flex', flexShrink: 0 }}><Icon name="star" size={12} color={C.amber} /></span>}
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nomeById(dipId)}</span>
-          <span style={{ display: 'inline-flex', gap: 4, flexShrink: 0 }}>
-            <button onClick={() => setCapo(repId, dipId)} title={isCapo ? 'Rimuovi da responsabile' : 'Rendi responsabile'}
-              style={{ ...ctrlBtn, color: C.amber }}><Icon name="star" size={12} /></button>
-            <button onClick={() => removeMembro(repId, dipId)} title="Rimuovi dal reparto" aria-label="Rimuovi dal reparto"
-              style={{ ...ctrlBtn, color: isCapo ? 'rgba(255,255,255,0.9)' : C.textSoft }}><Icon name="x" size={12} /></button>
-          </span>
-        </div>
-        {isMobile && altriReparti.length > 0 && (
-          <select value="" aria-label="Sposta in un altro reparto"
-            onChange={e => moveMembro(repId, dipId, e.target.value)}
-            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${isCapo ? 'rgba(255,255,255,0.3)' : C.border}`, fontSize: 16, fontWeight: 600, color: isCapo ? C.white : C.textMid, background: isCapo ? 'rgba(255,255,255,0.12)' : C.white, cursor: 'pointer' }}>
-            <option value="">Sposta in…</option>
-            {altriReparti.map(r => <option key={r.id} value={r.id} style={{ color: C.text }}>{r.nome}</option>)}
-          </select>
-        )}
-      </div>
-    )
-  }
-
   return (
     <div>
-      <style>{`
-        /* --- Connettori organigramma ---
-           Stem verticale dal genitore (orgkids::before) -> bus orizzontale che unisce
-           i figli (orgkid::before) -> linea di discesa in ogni figlio (orgkid::after).
-           Tutte le linee usano la stessa altezza (var) per restare allineate. */
-        .orgtree{ --org-gap:16px; --org-stem:14px; display:flex; flex-direction:column; align-items:center; }
-        .orgkids{ display:flex; justify-content:center; align-items:flex-start; padding-top:calc(var(--org-stem) * 2); position:relative; }
-        .orgkids::before{ content:''; position:absolute; top:0; left:50%; transform:translateX(-50%); width:2px; height:var(--org-stem); background:#E6D9D5; }
-        .orgkid{ position:relative; padding:0 var(--org-gap); display:flex; flex-direction:column; align-items:center; }
-        .orgkid::before{ content:''; position:absolute; top:var(--org-stem); left:0; right:0; height:2px; background:#E6D9D5; }
-        .orgkid::after{ content:''; position:absolute; top:var(--org-stem); left:50%; transform:translateX(-50%); width:2px; height:var(--org-stem); background:#E6D9D5; }
-        .orgkid:first-child::before{ left:50%; }
-        .orgkid:last-child::before{ right:50%; }
-        .orgkid:only-child::before{ display:none; }
-        @media (max-width:760px){
-          .orgtree{ align-items:stretch; }
-          .orgkids{ flex-direction:column; align-items:stretch; padding-top:14px; gap:12px; }
-          .orgkids::before{ display:none; }
-          .orgkid{ padding:0; align-items:stretch; }
-          .orgkid::before, .orgkid::after{ display:none; }
-        }
-      `}</style>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
-          Organigramma gerarchico. <span style={{ display: 'inline-flex', verticalAlign: 'middle', color: C.amber }}><Icon name="star" size={12} /></span> = responsabile. Trascina una persona da un box all'altro per spostarla{nonAssegnati.length > 0 ? ` · ${nonAssegnati.length} non ancora assegnati.` : '. Tutti assegnati.'}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5, maxWidth: 640 }}>
+          Organigramma libero: <b>trascina</b> le box dove vuoi e <b>collega</b> trascinando dal bordo di una box a un'altra per disegnare le frecce. Seleziona una freccia (o un reparto) e premi <b>Canc</b> per rimuoverla. Tutto si salva da solo. L'amministratore è in cima.
         </div>
         {addingRep ? (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input autoFocus value={newRepNome} onChange={e => setNewRepNome(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') confermaAddReparto(); if (e.key === 'Escape') { setAddingRep(false); setNewRepNome('') } }}
-              placeholder="Nome reparto (es. Laboratorio)"
-              style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, width: 200 }} />
-            <button onClick={confermaAddReparto} style={{ padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Aggiungi</button>
+            <input autoFocus value={newRepNome} onChange={e => setNewRepNome(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addReparto(); if (e.key === 'Escape') { setAddingRep(false); setNewRepNome('') } }} placeholder="Nome reparto" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, width: 180 }} />
+            <button onClick={addReparto} style={{ padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Aggiungi</button>
             <button onClick={() => { setAddingRep(false); setNewRepNome('') }} aria-label="Annulla" style={{ padding: '8px 10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="x" size={13} /></button>
           </div>
         ) : (
           <button onClick={() => setAddingRep(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={14} /> Reparto</button>
         )}
       </div>
-
-      {org.reparti.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textSoft, background: C.bgCard, border: `1px dashed ${C.borderStr}`, borderRadius: 12 }}>
-          <div style={{ marginBottom: 10 }}><Icon name="folder" size={32} color={C.textSoft} /></div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun reparto</div>
-          <div style={{ fontSize: 12 }}>Crea il primo reparto e assegna i dipendenti per costruire l'organigramma.</div>
-        </div>
-      ) : (
-        <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
-          <div className="orgtree" style={{ minWidth: 'fit-content' }}>
-            {/* ROOT: Azienda */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'linear-gradient(135deg, #1C0A0A 0%, #4A0612 60%, #6E0E1A 100%)', color: C.white, borderRadius: 14, padding: '12px 18px', boxShadow: '0 10px 28px rgba(110,14,26,0.30)' }}>
-              <Icon name="building" size={18} color={C.white} />
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 800 }}>Azienda</div>
-                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.7)' }}>{dip.length} {dip.length === 1 ? 'persona' : 'persone'} · {org.reparti.length} reparti</div>
-              </div>
-            </div>
-
-            {/* LIVELLO 1: reparti */}
-            <div className="orgkids">
-              {org.reparti.map(r => {
-                const membri = [...(r.membri || [])].sort((a, b) => (b === r.capoId ? 1 : 0) - (a === r.capoId ? 1 : 0) || nomeById(a).localeCompare(nomeById(b), 'it'))
-                const isDrop = dropTarget === r.id
-                return (
-                  <div className="orgkid" key={r.id}>
-                    {/* NODO REPARTO (drop zone) */}
-                    <div onDragOver={e => { e.preventDefault(); if (dropTarget !== r.id) setDropTarget(r.id) }}
-                      onDragLeave={() => setDropTarget(t => t === r.id ? null : t)}
-                      onDrop={e => dropOnReparto(e, r.id)}
-                      style={{ width: 210, background: C.bgCard, border: `2px solid ${isDrop ? C.red : C.border}`, borderRadius: 14, boxShadow: isDrop ? '0 0 0 4px rgba(110,14,26,0.12)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', overflow: 'hidden', transition: 'border-color .12s, box-shadow .12s' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' }}>
-                        {renamingId === r.id ? (
-                          <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') confermaRename(); if (e.key === 'Escape') { setRenamingId(null); setRenameVal('') } }}
-                            onBlur={confermaRename}
-                            style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.12)', color: C.white, fontSize: 13, fontWeight: 700 }} />
-                        ) : (
-                          <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 800, color: C.white, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</span>
-                        )}
-                        <span style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                          <button onClick={() => avviaRename(r.id)} title="Rinomina" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, cursor: 'pointer', padding: '3px 8px', display: 'inline-flex', alignItems: 'center' }}><Icon name="edit" size={13} /></button>
-                          <button onClick={() => delReparto(r.id)} title="Elimina reparto" style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: C.white, cursor: 'pointer', padding: '3px 8px', display: 'inline-flex', alignItems: 'center' }}><Icon name="trash" size={13} /></button>
-                        </span>
-                      </div>
-                      <div style={{ padding: '10px 12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
-                          {membri.length} {membri.length === 1 ? 'persona' : 'persone'}{r.capoId ? ` · resp. ${nomeById(r.capoId)}` : ''}
-                        </div>
-                        {nonAssegnati.length > 0 && (
-                          <select value="" onChange={e => addMembro(r.id, e.target.value)}
-                            style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.textMid, background: C.white, cursor: 'pointer' }}>
-                            <option value="">+ Aggiungi…</option>
-                            {nonAssegnati.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
-                          </select>
-                        )}
-                        {membri.length === 0 && nonAssegnati.length === 0 && <span style={{ fontSize: 11, color: C.textSoft, fontStyle: 'italic' }}>Nessuno assegnato</span>}
-                      </div>
-                    </div>
-
-                    {/* LIVELLO 2: persone del reparto (capo per primo, evidenziato) */}
-                    {membri.length > 0 && (
-                      <div className="orgkids">
-                        {membri.map(m => (
-                          <div className="orgkid" key={m}>{personBox(m, r.id, m === r.capoId)}</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Non assegnati: pool trascinabile + drop zone per rimuovere dal reparto */}
-      {nonAssegnati.length > 0 && (
-        <div onDragOver={e => e.preventDefault()} onDrop={dropOnNonAssegnati}
-          style={{ marginTop: 20, padding: '14px 16px', background: '#FFFBEB', border: '1px dashed #FCD34D', borderRadius: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', marginBottom: 8 }}>Non assegnati ({nonAssegnati.length}) — trascinali in un reparto, o trascina qui per rimuovere</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {nonAssegnati.map(d => (
-              <span key={d.id} draggable onDragStart={e => startDrag(e, d.id, null)} onDragEnd={() => setDragId(null)}
-                title="Trascina in un reparto"
-                style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: C.text, cursor: 'grab', boxShadow: '0 1px 3px rgba(15,23,42,0.06)', opacity: dragId === d.id ? 0.4 : 1 }}>{d.nome}</span>
-            ))}
-          </div>
-        </div>
-      )}
+      <div style={{ height: isMobile ? 460 : 600, border: `1px solid ${C.border}`, borderRadius: 14, overflow: 'hidden', background: '#FBFAF9' }}>
+        <ReactFlow
+          nodes={nodes} edges={edges}
+          onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+          onConnect={onConnect} onNodeDragStop={onNodeDragStop} onNodesDelete={onNodesDelete}
+          fitView minZoom={0.2}
+          defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#6E0E1A', strokeWidth: 2 } }}
+        >
+          <Background gap={18} color="#E8DDD8" />
+          <Controls showInteractive={false} />
+        </ReactFlow>
+      </div>
     </div>
   )
 }
@@ -1567,7 +1435,7 @@ function AccessiTab({ orgId, notify, isMobile }) {
   )
 }
 
-export default function Personale({ orgId, sedeId, sedi = [], notify }) {
+export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState("dipendenti")
   const TABS = [
@@ -1612,7 +1480,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify }) {
       {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
       {tab === "accessi"    && <AccessiTab    orgId={orgId} notify={notify} isMobile={isMobile}/>}
       {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
-      {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile}/>}
+      {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile} adminNome={adminNome}/>}
       {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile}/>}
     </div>
   )
