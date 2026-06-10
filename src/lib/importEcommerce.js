@@ -2,6 +2,8 @@
 // Restituisce sempre: [{ data: 'YYYY-MM-DD', importo, ordini, fonte, dettagli? }]
 // Aggrega per data ordini "pagati" / "completati".
 
+import { parseNum } from './importCassa'
+
 function parseItalianDate(str) {
   if (!str) return null
   str = String(str).trim()
@@ -16,12 +18,6 @@ function parseItalianDate(str) {
     return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
   }
   return null
-}
-
-function parseNum(str) {
-  if (str === undefined || str === null || str === '') return 0
-  if (typeof str === 'number') return str
-  return parseFloat(String(str).replace(/[^\d.,-]/g, '').replace(',', '.')) || 0
 }
 
 function detectSeparator(text) {
