@@ -111,10 +111,18 @@ export default async function handler(req) {
   // ── Confronto prodotto/venduto (identico a ChiusuraView 318-345) ──────────────
   const confronto = venduto.flatMap(v => {
     const nup = (v.nome || '').toUpperCase().trim()
-    const mk = Object.keys(ricetteNote).find(k =>
-      k === nup || k.includes(nup) || nup.includes(k) ||
-      k.replace(/[^A-Z0-9]/g, '').includes(nup.replace(/[^A-Z0-9]/g, '')) ||
-      nup.replace(/[^A-Z0-9]/g, '').includes(k.replace(/[^A-Z0-9]/g, '')))
+    const nupAN = nup.replace(/[^A-Z0-9]/g, '')
+    // Vedi ChiusuraView.confronto: cap minLen>=4 sui match per sottostringa
+    // per evitare mis-attribuzioni su scontrini cortissimi (es. "CONO").
+    const mk = Object.keys(ricetteNote).find(k => {
+      if (k === nup) return true
+      const kAN = k.replace(/[^A-Z0-9]/g, '')
+      const minLen = Math.min(k.length, nup.length)
+      const minLenAN = Math.min(kAN.length, nupAN.length)
+      if (minLen >= 4 && (k.includes(nup) || nup.includes(k))) return true
+      if (minLenAN >= 4 && (kAN.includes(nupAN) || nupAN.includes(kAN))) return true
+      return false
+    })
     if (!mk) return []
     const ric = ricetteNote[mk]
     const reg = getR(mk, ric)

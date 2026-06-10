@@ -310,16 +310,20 @@ ${azioniStr}
                       <div style={{fontSize:11,color:C.textMid,lineHeight:1.6}}>{a.azione}</div>
                       <div style={{fontSize:9,color:C.textSoft,marginTop:5}}>{new Date(a.createdAt).toLocaleDateString("it-IT")}</div>
                     </div>
-                    <div style={{display:"flex",gap:5,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                    <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
                       {["aperta","in_corso","chiusa"].map(s=>(
                         <button key={s} onClick={()=>onUpdate(a.id,{stato:s})}
-                          style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${a.stato===s?C.red:C.border}`,
+                          style={{padding: isMobile ? "10px 14px" : "6px 12px",borderRadius:8,
+                            minHeight: isMobile ? 40 : 32, minWidth: isMobile ? 60 : 'auto',
+                            border:`1px solid ${a.stato===s?C.red:C.border}`,
                             background:a.stato===s?C.redLight:C.white,color:a.stato===s?C.red:C.textSoft,
-                            fontSize:9,fontWeight:700,cursor:"pointer"}}>
+                            fontSize: isMobile ? 12 : 11, fontWeight:700,cursor:"pointer"}}>
                           {s==="aperta"?"Aperta":s==="in_corso"?"In corso":"✓ Chiudi"}
                         </button>
                       ))}
-                      <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding:"4px 8px",borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
+                      <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding: isMobile ? "10px 12px" : "6px 10px",borderRadius:8,
+                        minHeight: isMobile ? 40 : 32, minWidth: isMobile ? 40 : 32,
+                        border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize: isMobile ? 14 : 11,cursor:"pointer"}}>✕</button>
                     </div>
                   </div>
                 ))}

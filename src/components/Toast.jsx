@@ -4,6 +4,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react'
 import { color as T, z as Z } from '../lib/theme'
+import useIsMobile from '../lib/useIsMobile'
 import Icon from './Icon'
 
 const ToastCtx = createContext(null)
@@ -60,12 +61,19 @@ export function ToastProvider({ children }) {
 }
 
 function ToastStack({ toasts, dismiss }) {
+  const isMobile = useIsMobile()
   if (toasts.length === 0) return null
+  // Su mobile la bottom-nav e' alta ~58px: il toast a bottom:20 la copriva,
+  // nascondendo Cassa/Magazzino/Altro proprio dopo una conferma di salvataggio.
+  // Alziamo il toast sopra la nav + safe-area iOS.
+  const bottomOffset = isMobile
+    ? 'calc(70px + env(safe-area-inset-bottom, 0px))'
+    : '20px'
   return (
     <div
       role="region" aria-live="polite" aria-label="Notifiche"
       style={{
-        position: 'fixed', bottom: 20, right: 20, zIndex: Z.toast,
+        position: 'fixed', bottom: bottomOffset, right: isMobile ? 12 : 20, zIndex: Z.toast,
         display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 'calc(100vw - 40px)',
         pointerEvents: 'none',
       }}

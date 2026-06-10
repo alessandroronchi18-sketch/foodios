@@ -6,7 +6,11 @@
 // e va via. È una misura di igiene per dispositivi condivisi (cassa banco,
 // computer del laboratorio).
 
-const EVENTS = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'wheel', 'visibilitychange']
+// visibilitychange si dispatcha su `document`, non su `window`. Sui browser
+// moderni bubble fino a window, ma non e' garantito (Safari/iOS edge cases).
+// Lo registriamo separatamente su document; tutti gli altri restano su window.
+const WIN_EVENTS = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'wheel']
+const DOC_EVENTS = ['visibilitychange']
 const LS_KEY = 'foodios_last_activity_ts'
 // Persistiamo l'ultimo timestamp in localStorage così:
 //  - se l'utente apre più tab, l'attività in una tiene viva l'altra
@@ -36,9 +40,8 @@ export function startIdleTimeout({ timeoutMs, onTimeout, onWarning, warningBefor
     if (document.visibilityState === 'hidden') return
     touch()
   }
-  for (const ev of EVENTS) {
-    window.addEventListener(ev, handler, { passive: true })
-  }
+  for (const ev of WIN_EVENTS) window.addEventListener(ev, handler, { passive: true })
+  for (const ev of DOC_EVENTS) document.addEventListener(ev, handler, { passive: true })
 
   const check = setInterval(() => {
     const idle = now() - lastActivity()
@@ -55,9 +58,8 @@ export function startIdleTimeout({ timeoutMs, onTimeout, onWarning, warningBefor
 
   function cleanup() {
     clearInterval(check)
-    for (const ev of EVENTS) {
-      try { window.removeEventListener(ev, handler) } catch {}
-    }
+    for (const ev of WIN_EVENTS) { try { window.removeEventListener(ev, handler) } catch {} }
+    for (const ev of DOC_EVENTS) { try { document.removeEventListener(ev, handler) } catch {} }
   }
   return cleanup
 }

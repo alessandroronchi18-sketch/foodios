@@ -1172,24 +1172,29 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
     ssave(SK_ORG, next, orgId, null).catch(() => notify?.('Errore salvataggio organigramma', false))
   }, [orgId, notify])
 
-  const onNodesChange = useCallback((ch) => setNodes(ns => {
-    const next = applyNodeChanges(ch, ns)
+  // NB: il reducer di setNodes/setEdges DEVE essere puro. In StrictMode (dev)
+  // React esegue gli updater due volte: ogni side-effect (ssave, ref-write,
+  // notify) finirebbe duplicato. Calcoliamo `next` fuori, mutiamo i ref e
+  // salviamo dopo lo schedule del setState — il render successivo allinea lo
+  // state al ref senza re-entry.
+  const onNodesChange = useCallback((ch) => {
+    const next = applyNodeChanges(ch, nodesRef.current)
     nodesRef.current = next
-    return next
-  }), [])
-  const onEdgesChange = useCallback((ch) => setEdges(es => {
-    const next = applyEdgeChanges(ch, es)
+    setNodes(next)
+  }, [])
+  const onEdgesChange = useCallback((ch) => {
+    const next = applyEdgeChanges(ch, edgesRef.current)
     edgesRef.current = next
+    setEdges(next)
     if (ch.some(c => c.type === 'remove')) salvaLayout(nodesRef.current, next)
-    return next
-  }), [salvaLayout])
+  }, [salvaLayout])
   const onNodeDragStop = useCallback(() => salvaLayout(nodesRef.current, edgesRef.current), [salvaLayout])
-  const onConnect = useCallback((params) => setEdges(es => {
-    const next = addEdge({ ...params, id: 'e-' + params.source + '-' + params.target + '-' + Date.now().toString(36), markerEnd: { type: MarkerType.ArrowClosed } }, es)
+  const onConnect = useCallback((params) => {
+    const next = addEdge({ ...params, id: 'e-' + params.source + '-' + params.target + '-' + Date.now().toString(36), markerEnd: { type: MarkerType.ArrowClosed } }, edgesRef.current)
     edgesRef.current = next
+    setEdges(next)
     salvaLayout(nodesRef.current, next)
-    return next
-  }), [salvaLayout])
+  }, [salvaLayout])
   const onNodesDelete = useCallback((deleted) => {
     const repIds = deleted.filter(n => n.id.startsWith('rep-')).map(n => n.id.slice(4))
     if (!repIds.length) return
