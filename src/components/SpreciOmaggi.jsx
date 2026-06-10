@@ -36,6 +36,7 @@ import {
   nuovoMovimento, caricaMovimenti, aggiungiMovimento, eliminaMovimento,
   filtraPerIntervallo,
 } from '../lib/movimentiSpeciali'
+import { scartoPF } from '../lib/stockPF'
 
 const SK_DISCREPANZE = 'pasticceria-discrepanze-v1'
 
@@ -332,6 +333,21 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         qta, fcUnit, fcTot, valoreOmaggio,
       })
       setMovs(prev => [saved, ...prev])
+      // Scarico stock_prodotti_finiti se l'unita' e' pz e il prodotto matcha
+      // una ricetta dell'azienda. Best-effort: in caso di errore il movimento
+      // resta comunque salvato (il modello SK_MOV e' la verita' contabile) ma
+      // l'utente vede un avviso — meglio di un drift silenzioso dello stock
+      // vetrina che generava "ghost stock" sulle vendite successive.
+      if ((form.unita || 'pz') === 'pz' && form.prodotto.trim()) {
+        try {
+          const prodottoKey = form.prodotto.trim().toUpperCase()
+          const causale = `${form.tipo}:${form.causale || ''}`
+          await scartoPF({ sedeId, prodotto: prodottoKey, quantita: qta, note: causale })
+        } catch (e) {
+          console.warn('[SpreciOmaggi] scartoPF fallito (movimento salvato):', e.message)
+          notify?.('Movimento salvato ma scarico vetrina non riuscito: verifica lo stock', false)
+        }
+      }
       setForm(null)
       notify?.(`${form.tipo === 'spreco' ? 'Perdita' : 'Omaggio'} registrato`)
     } catch (e) {
