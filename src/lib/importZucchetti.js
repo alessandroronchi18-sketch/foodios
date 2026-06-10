@@ -2,6 +2,8 @@
 // 3a: Zucchetti Infinity CSV (Contabilità › Estratti conto › Export CSV)
 // 3b: Zucchetti Kassa CSV/XML (export giornaliero)
 
+import { parseNum as _parseNum } from './importCassa'
+
 function splitCSV(line, sep) {
   const result = []
   let cur = ''
@@ -29,9 +31,10 @@ function normDate(s) {
   return null
 }
 
-function normNum(s) {
-  return parseFloat(String(s || '0').replace(/[.]/g, '').replace(',', '.')) || 0
-}
+// normNum delega a importCassa.parseNum: il vecchio implementation strippava
+// SEMPRE il punto (per Zucchetti IT-it va, ma "5.50" diventava 550, e i numeri
+// quasi-interi puntati saltavano di 100×). Ora gestisce sia IT che EN.
+function normNum(s) { return _parseNum(s) }
 
 // Parse Zucchetti Infinity export CSV
 // Columns: Data, Causale, Dare, Avere, Saldo, Descrizione

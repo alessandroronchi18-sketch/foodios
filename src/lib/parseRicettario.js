@@ -15,11 +15,20 @@
 import { loadXLSX } from './xlsx'
 import { normIng } from './foodcost'
 
+// parseNum IT-aware: gestisce "1.234,56" (IT) e "1,234.56" (EN). Coerente con
+// importCassa.parseNum. Il vecchio `isNaN(v)` rifiutava le stringhe formattate
+// it-IT come "1.234,56" → 0, e l'utente vedeva ingredienti con costo/qty 0.
+import { parseNum as _parseNum } from './importCassa'
+
 export async function parseRicettario(file) {
   const XLSX = await loadXLSX()
   const buf = await file.arrayBuffer()
   const wb = XLSX.read(new Uint8Array(buf), { type: 'array' })
-  const num = v => (v !== null && v !== '' && !isNaN(v)) ? Number(v) : 0
+  const num = v => {
+    if (v === null || v === '') return 0
+    if (typeof v === 'number') return Number.isFinite(v) ? v : 0
+    return _parseNum(v)
+  }
   const ricette = {}
   const ingredienti_costi = {}
 
