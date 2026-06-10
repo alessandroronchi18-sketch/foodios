@@ -24,9 +24,25 @@ describe('buildIngCosti', () => {
     expect(built[normIng('uova')]).toBeTruthy()
     expect(built['uovo'].costoG).toBeCloseTo(0.003, 6)
   })
-  it('ignora gli ingredienti con costoG <= 0 (salvo stima HORECA)', () => {
+  it('accetta costoG=0 come valore valido (ingrediente gratis: omaggio/orto/scarto)', () => {
     const built = buildIngCosti({ ing_zero_xyz: { costoKg: 0, costoG: 0 } })
-    expect(built['ing_zero_xyz']).toBeUndefined()
+    expect(built['ing_zero_xyz']).toBeTruthy()
+    expect(built['ing_zero_xyz'].costoG).toBe(0)
+    expect(built['ing_zero_xyz'].isStima).toBe(false)
+  })
+  it('ignora costoG NaN/undefined ma non sostituisce con HORECA se l\'utente ha scritto 0', () => {
+    const built = buildIngCosti({
+      ing_bad: { costoKg: 'x', costoG: NaN },
+      ing_und: { costoKg: undefined },
+    })
+    expect(built['ing_bad']).toBeUndefined()
+    expect(built['ing_und']).toBeUndefined()
+  })
+  it('un costoG=0 utente vince sul HORECA stimato (non viene gonfiato)', () => {
+    // burro ha entry HORECA: se utente dice "il mio burro costa 0" → cost reale 0
+    const built = buildIngCosti({ burro: { costoKg: 0, costoG: 0 } })
+    expect(built['burro'].costoG).toBe(0)
+    expect(built['burro'].isStima).toBe(false)
   })
 })
 

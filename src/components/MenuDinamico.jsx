@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
+import { lessico } from '../lib/lessico'
 import Icon from './Icon'
 import { KPI, SH, PageHeader, Tip, C, fmt, fmtp } from '../views/_shared'
 
@@ -53,7 +54,7 @@ function popolaritaDalVenduto(chiusure, giorni = 60) {
 }
 
 /* ─── EDITOR ─────────────────────────────────────────────────────────── */
-function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems, isMobile }) {
+function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems, isMobile, LEX }) {
   const [search, setSearch] = useState("")
 
   const ricette = Object.values(ricettario?.ricette||{}).filter(r => {
@@ -96,7 +97,7 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
         <span style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", display:"inline-flex", color:T.textSoft }}>
           <Icon name="search" size={15}/>
         </span>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cerca ricetta…"
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`Cerca ${LEX.ricetta}…`}
           style={{
             width:"100%", padding:"10px 14px 10px 36px", borderRadius:R.lg,
             border:`1px solid ${T.border}`, fontSize: isMobile?16:13, color:T.text,
@@ -110,7 +111,7 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
 
       {/* Azioni rapide: seleziona / deseleziona tutte le ricette filtrate */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:12, flexWrap:"wrap" }}>
-        <div style={{ fontSize:12, color:T.textSoft }}>{menuItems.length} nel menù · {filtrate.length} {search ? "trovate" : "ricette"}</div>
+        <div style={{ fontSize:12, color:T.textSoft }}>{menuItems.length} nel menù · {filtrate.length} {search ? "trovate" : LEX.ricette}</div>
         <button type="button" onClick={tutteInMenu ? deselezionaTutti : selezionaTutti}
           style={{ padding:"8px 14px", minHeight:40, borderRadius:R.md, border:`1px solid ${T.brand}`, background: tutteInMenu ? T.bgCard : T.brand, color: tutteInMenu ? T.brand : T.white, fontSize:12, fontWeight:700, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
           {!tutteInMenu && <Icon name="check" size={13} color={T.white}/>}
@@ -552,8 +553,9 @@ function BandaDiagnosi({ menuItems, popVenduto, isMobile }) {
 }
 
 /* ─── MAIN WRAPPER ───────────────────────────────────────────────────── */
-export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, nomeAttivita, chiusure, orgId, sedeId }) {
+export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, nomeAttivita, tipoAttivita, chiusure, orgId, sedeId }) {
   const isMobile = useIsMobile()
+  const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const [tab, setTab] = useState("editor")
   const [menuItems, setMenuItems] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -616,9 +618,9 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
           padding:"60px 24px", gap:12,
           background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:18, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
         }}>
-          <div style={{ fontSize:13, color:T.textMid, fontWeight:500 }}>Ricettario non caricato</div>
+          <div style={{ fontSize:13, color:T.textMid, fontWeight:500 }}>{LEX.Ricettario} non caricato</div>
           <div style={{ fontSize:12, color:T.textSoft, maxWidth:320, textAlign:"center", lineHeight:1.5 }}>
-            Carica prima il ricettario dal menù laterale per costruire un menù.
+            Carica prima il {LEX.Ricettario.toLowerCase()} dal menù laterale per costruire un menù.
           </div>
         </div>
       ) : (
@@ -626,7 +628,7 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
           {/* Banda diagnosi */}
           <BandaDiagnosi menuItems={menuItems} popVenduto={popVenduto} isMobile={isMobile}/>
 
-          <SH sub="Seleziona le ricette, analizza i quadranti BCG ed esporta il menù.">Menù del giorno</SH>
+          <SH sub={`Seleziona ${LEX.ricette === 'pizze' || LEX.ricette === 'gusti' || LEX.ricette === 'piatti' || LEX.ricette === 'formati' ? `i ${LEX.ricette}` : `le ${LEX.ricette}`}, analizza i quadranti BCG ed esporta il menù.`}>Menù del giorno</SH>
 
           {/* Tabs */}
           <div style={{
@@ -651,7 +653,7 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
             })}
           </div>
 
-          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems} isMobile={isMobile}/>}
+          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems} isMobile={isMobile} LEX={LEX}/>}
           {tab === "bcg"       && <BCGMatrix     menuItems={menuItems} popVenduto={popVenduto} hasStorico={hasStorico} isMobile={isMobile}/>}
           {tab === "anteprima" && <MenuPreview   menuItems={menuItems} setMenuItems={setMenuItems} nomeAttivita={nomeAttivita} isMobile={isMobile}/>}
         </>

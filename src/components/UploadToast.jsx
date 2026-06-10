@@ -1,6 +1,6 @@
 import React from 'react'
 import { useUploadManager } from '../lib/useUploadManager'
-import { uploadManager } from '../lib/uploadManager'
+import { uploadManager } from '../lib/backgroundManager'
 import { color as T } from '../lib/theme'
 import Icon from './Icon'
 

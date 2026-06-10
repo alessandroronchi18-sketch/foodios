@@ -4,10 +4,27 @@ import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
+import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { C, PageHeader } from './_shared'
 
-export default function AzioniView({ actions, onUpdate, onDelete, ricettario, giornaliero, chiusure, magazzino }) {
+// Benchmark food cost realistici per tipo attivita' (range comuni della
+// letteratura settore IT). Servono solo per orientare il prompt AI; sopra
+// i max si raccomanda revisione prezzi, sotto i min si sospetta errore
+// di calcolo. Default cauto (pasticceria) se la categoria e' sconosciuta.
+const BENCH_FC = {
+  pasticceria:    { fcPctMax: 30, margPctMin: 70, settore: 'pasticceria artigianale' },
+  gelateria:      { fcPctMax: 28, margPctMin: 72, settore: 'gelateria artigianale' },
+  pizzeria:       { fcPctMax: 35, margPctMin: 65, settore: 'pizzeria' },
+  ristorante:     { fcPctMax: 32, margPctMin: 68, settore: 'ristorazione' },
+  pasta_fresca:   { fcPctMax: 33, margPctMin: 67, settore: 'pastificio artigianale' },
+  panificio:      { fcPctMax: 32, margPctMin: 68, settore: 'panificio artigianale' },
+  cioccolateria:  { fcPctMax: 28, margPctMin: 72, settore: 'cioccolateria artigianale' },
+  bar:            { fcPctMax: 25, margPctMin: 75, settore: 'bar/caffetteria' },
+  bar_caffè:      { fcPctMax: 25, margPctMin: 75, settore: 'bar/caffetteria' },
+}
+
+export default function AzioniView({ actions, onUpdate, onDelete, ricettario, giornaliero, chiusure, magazzino, nomeAttivita, tipoAttivita }) {
   const isMobile = useIsMobile();
   const [messages, setMessages] = useState([]);
   const [input, setInput]       = useState("");
@@ -18,6 +35,12 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
 
   // Scroll to bottom on new messages
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages]);
+
+  // Helper: format numero in formato IT per evitare "€32.00" anglosassone nel
+  // prompt → il modello eredita la formattazione e risponde con punti come
+  // separatore decimale (CLAUDE.md§Formattazione numeri).
+  const ftEur = (n) => `€ ${Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const ftPct = (n) => `${Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 
   // Build rich context from all dashboard state
   const buildContext = () => {
@@ -31,7 +54,7 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
       const margine = ricavo - fc;
       const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0;
       const ingList = (ric.ingredienti || []).map(i => `${i.nome} ${i.qty1stampo}g`).join(", ");
-      return `- ${ric.nome}: ${reg.unita} ${reg.tipo}e × €${reg.prezzo} = ricavo €${ricavo.toFixed(2)}, FC €${fc.toFixed(2)} (${fc > 0 ? (fc / ricavo * 100).toFixed(1) : 0}%), margine €${margine.toFixed(2)} (${margPct.toFixed(1)}%)${mancanti.length > 0 ? ` [prezzi mancanti: ${mancanti.join(", ")}]` : ""}. Ingredienti: ${ingList}`;
+      return `- ${ric.nome}: ${reg.unita} ${reg.tipo}e × ${ftEur(reg.prezzo)} = ricavo ${ftEur(ricavo)}, FC ${ftEur(fc)} (${ricavo > 0 ? ftPct(fc / ricavo * 100) : '0%'}), margine ${ftEur(margine)} (${ftPct(margPct)})${mancanti.length > 0 ? ` [prezzi mancanti: ${mancanti.join(", ")}]` : ""}. Ingredienti: ${ingList}`;
     }).join("\n");
 
     const totRicavo  = ricette.reduce((s, r) => { const rg = getR(r.nome, r); const { tot: fc } = calcolaFC(r, ingCosti, ricettario); return s + rg.unita * rg.prezzo; }, 0);
@@ -40,9 +63,11 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
     const avgMarg    = totRicavo > 0 ? (totMargine / totRicavo * 100) : 0;
 
     // Produzioni recenti
+    // NB: la sessione giornaliera espone i prodotti in `prodotti`, NON `sessione`.
+    // Il vecchio mapping leggeva un campo inesistente → stringa vuota nel context.
     const ultimi10 = [...(giornaliero || [])].sort((a,b) => b.data?.localeCompare(a.data)).slice(0, 10);
     const produzioneRec = ultimi10.map(s =>
-      `- ${s.data}: ${(s.sessione || []).map(p => `${p.nome} ${p.stampi} stampi (vendibile: ${p.vendibile})`).join(", ")}`
+      `- ${s.data}: ${(s.prodotti || []).map(p => `${p.nome} ${p.stampi} stampi (vendibile: ${p.vendibile})`).join(", ")}`
     ).join("\n");
 
     // Chiusure recenti
@@ -63,16 +88,20 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
       ? azioniAperte.map(a => `- ${a.label}: ${a.azione}`).join("\n")
       : "nessuna azione aperta";
 
-    return `Sei l'assistente AI della {nomeAttivita}. Hai accesso completo ai dati del gestionale. Rispondi in italiano, in modo professionale ma caldo, come un consulente esperto di pasticceria artigianale e food cost.
+    const nomeLocale = (nomeAttivita || '').toString().trim() || 'tua attività'
+    const tipoKey = String(tipoAttivita || '').toLowerCase().trim()
+    const bench = BENCH_FC[tipoKey] || BENCH_FC.pasticceria
+    const LEX = lessico(tipoAttivita)
+    return `Sei l'assistente AI di ${nomeLocale}. Hai accesso completo ai dati del gestionale. Rispondi in italiano, in modo professionale ma caldo, come un consulente esperto di ${bench.settore} e food cost.
 
 ## RICETTARIO E P&L
 ${riepilogoRicette}
 
 ## RIEPILOGO P&L TOTALE
-- Ricavo totale per stampo (tutti prodotti): €${totRicavo.toFixed(2)}
-- Food cost totale: €${totFC.toFixed(2)} (${totRicavo > 0 ? (totFC / totRicavo * 100).toFixed(1) : 0}%)
-- Margine lordo totale: €${totMargine.toFixed(2)} (${avgMarg.toFixed(1)}%)
-- Benchmark settore: margine ≥ 70%, FC < 30%
+- Ricavo totale per stampo (tutti prodotti): ${ftEur(totRicavo)}
+- Food cost totale: ${ftEur(totFC)} (${totRicavo > 0 ? ftPct(totFC / totRicavo * 100) : '0%'})
+- Margine lordo totale: ${ftEur(totMargine)} (${ftPct(avgMarg)})
+- Benchmark settore (${bench.settore}): margine ≥ ${bench.margPctMin}%, FC < ${bench.fcPctMax}%
 
 ## PRODUZIONI RECENTI (ultime 10 sessioni)
 ${produzioneRec || "nessuna sessione registrata"}
@@ -90,7 +119,8 @@ ${azioniStr}
 - Analizza i dati reali sopra quando rispondi
 - Fornisci insights concreti con numeri specifici
 - Suggerisci next step pratici e prioritizzati
-- Per domande sulla struttura del sito, spiega le sezioni disponibili: Ricettario, P&L, Simulatore Prezzi, Produzione Giornaliera, Chiusura, Storico, Magazzino, e questa sezione AI
+- Usa il lessico della categoria: parla di "${LEX.ricette}" e "${LEX.prodotti}", non di "ricette" generiche se l'utente e' di altra categoria
+- Per domande sulla struttura del sito, spiega le sezioni disponibili: ${LEX.Ricettario}, P&L, Simulatore Prezzi, Produzione Giornaliera, Chiusura, Storico, Magazzino, e questa sezione AI
 - Se ti chiedono "cosa fare" suggerisci le 3 azioni più impattanti basandoti sui dati
 - Mantieni le risposte concise ma complete (max 300 parole)`;
   };
@@ -288,16 +318,20 @@ ${azioniStr}
                       <div style={{fontSize:11,color:C.textMid,lineHeight:1.6}}>{a.azione}</div>
                       <div style={{fontSize:9,color:C.textSoft,marginTop:5}}>{new Date(a.createdAt).toLocaleDateString("it-IT")}</div>
                     </div>
-                    <div style={{display:"flex",gap:5,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                    <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
                       {["aperta","in_corso","chiusa"].map(s=>(
                         <button key={s} onClick={()=>onUpdate(a.id,{stato:s})}
-                          style={{padding:"4px 10px",borderRadius:6,border:`1px solid ${a.stato===s?C.red:C.border}`,
+                          style={{padding: isMobile ? "10px 14px" : "6px 12px",borderRadius:8,
+                            minHeight: isMobile ? 40 : 32, minWidth: isMobile ? 60 : 'auto',
+                            border:`1px solid ${a.stato===s?C.red:C.border}`,
                             background:a.stato===s?C.redLight:C.white,color:a.stato===s?C.red:C.textSoft,
-                            fontSize:9,fontWeight:700,cursor:"pointer"}}>
+                            fontSize: isMobile ? 12 : 11, fontWeight:700,cursor:"pointer"}}>
                           {s==="aperta"?"Aperta":s==="in_corso"?"In corso":"✓ Chiudi"}
                         </button>
                       ))}
-                      <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding:"4px 8px",borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
+                      <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding: isMobile ? "10px 12px" : "6px 10px",borderRadius:8,
+                        minHeight: isMobile ? 40 : 32, minWidth: isMobile ? 40 : 32,
+                        border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize: isMobile ? 14 : 11,cursor:"pointer"}}>✕</button>
                     </div>
                   </div>
                 ))}

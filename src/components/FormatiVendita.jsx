@@ -18,6 +18,7 @@ import {
   componentiNormalizzati, costoComponentiUnita,
 } from '../lib/formatiVendita'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { lessico } from '../lib/lessico'
 import { KPI, fmt as fmtEuro, PageHeader, SH } from '../views/_shared'
 import Icon from './Icon'
 
@@ -32,7 +33,8 @@ const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: R.md, bo
 const labelStyle = { fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6, display: 'block' }
 const cardStyle = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
-export default function FormatiVendita({ orgId, ricettario, notify }) {
+export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita }) {
+  const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -272,7 +274,7 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
               {previewFC.avg == null ? (
                 <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, color: '#78350F', lineHeight: 1.55 }}>
                   <span style={{ flexShrink: 0, marginTop: 1, color: T.amber }}><Icon name="warning" size={15} /></span>
-                  <span>Nessuna ricetta con categoria <b>"{form.categoria}"</b> (con peso definito): il food cost coprirà solo i materiali di confezionamento. Assegna la categoria ai gusti nel Ricettario per stimare anche il prodotto.</span>
+                  <span>Nessuna {LEX.ricetta} con categoria <b>"{form.categoria}"</b> (con peso definito): il food cost coprirà solo i materiali di confezionamento. Assegna la categoria ai {LEX.prodotti} nel {LEX.Ricettario} per stimare anche il prodotto.</span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: isMobile ? 14 : 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -304,7 +306,7 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
           </div>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 6 }}>Nessun formato configurato</div>
           <div style={{ fontSize: 13, maxWidth: 420, margin: '0 auto', lineHeight: 1.55 }}>
-            Aggiungi un formato se la tua cassa batte prodotti senza il dettaglio del gusto (vaschette, coni, scatole, panini).
+            Aggiungi un formato se la tua cassa batte prodotti senza il dettaglio del {LEX.prodotto} (vaschette, coni, scatole, panini).
           </div>
         </div>
       ) : formati.length > 0 && (
@@ -389,7 +391,7 @@ export default function FormatiVendita({ orgId, ricettario, notify }) {
                         <BreakdownTot label="Materiali" val={fmt3(r.costoMateriali)} />
                         <BreakdownTot label={`Prodotto (${(Number(f.baseQtaG) || 0).toLocaleString('it-IT')}g)`}
                           val={r.fcKnown ? fmt3(r.fcBase) : '—'}
-                          hint={r.fcKnown ? `FC ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg` : 'categoria senza gusti pesati'} />
+                          hint={r.fcKnown ? `FC ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg` : `categoria senza ${LEX.prodotti} pesati`} />
                         <BreakdownTot label="FC stimato / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.green : T.amber} big />
                         {r.prezzo > 0 && <BreakdownTot label={`Margine (prezzo ${fmtEuro(r.prezzo)})`} val={r.margPct != null ? `${r.margPct.toFixed(0)}%` : '—'} color={margCol} />}
                       </div>

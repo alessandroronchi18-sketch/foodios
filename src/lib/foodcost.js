@@ -492,14 +492,12 @@ export const SING_PLUR = [
   ["semi di girasole","seme di girasole"],["semi di zucca","seme di zucca"],
   ["semi di sesamo","seme di sesamo"],["semi di papavero","seme di papavero"],
   ["semi  di papavero","seme di papavero"],
-  ["semi di papavero","seme di papavero"],
   ["papavero","seme di papavero"],
   ["scorze di limone","scorza di limone"],
   ["cioccolato domori 64%","cioccolato domori"],
   ["cioccolato fondente 64%","cioccolato domori"],
   ["cioccolato fondente 72%","cioccolato fondente"],
   ["cioccolato 70%","cioccolato fondente"],
-  ["cocco rapè","cocco rapè"],
   ["latte di cocco","cocco disidratato"],["scorze di arancia","scorza di arancia"],
   ["bacche di vaniglia","bacca di vaniglia"],
   ["chiodi di garofano","chiodo di garofano"],
@@ -710,8 +708,15 @@ export function buildIngCosti(fromFile) {
   // da SING_PLUR e non sarebbero raggiungibili altrimenti.
   for (const [k, v] of Object.entries(PREZZI_HORECA))
     out[normIng(k)] = { costoKg: v.costoKg, costoG: parseFloat((v.costoKg / 1000).toFixed(6)), isStima: true }
-  for (const [k, v] of Object.entries(fc))
-    if (v.costoG > 0) out[normIng(k)] = { costoKg: v.costoKg, costoG: v.costoG, isStima: false }
+  for (const [k, v] of Object.entries(fc)) {
+    // Accettiamo 0 come valore valido (ingrediente gratis: omaggio fornitore,
+    // materia prima da orto, scarto recuperato). Solo NaN/undefined fanno cadere
+    // sulla stima HORECA. Cfr. getPrezzoStoricoKg che usa la stessa logica sul
+    // ramo "storico" — senza questo i due rami davano food cost diversi.
+    if (Number.isFinite(v.costoG) && v.costoG >= 0) {
+      out[normIng(k)] = { costoKg: v.costoKg, costoG: v.costoG, isStima: false }
+    }
+  }
   return out
 }
 

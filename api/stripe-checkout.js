@@ -16,9 +16,31 @@ const PLAN_PRICE_MAP = {
   chain: process.env.STRIPE_CHAIN_PRICE_ID,
 }
 
+// Whitelist degli origin validi per le success_url/cancel_url. Origin/Referer
+// sono attacker-controlled (curl/fetch): un Checkout su Stripe punta poi
+// l'utente target a una URL arbitraria. Whitelist dura per evitare l'apertura
+// del flusso a host non nostri.
+const ALLOWED_ORIGINS = new Set([
+  'https://foodios.it',
+  'https://www.foodios.it',
+  'https://foodios-rose.vercel.app',
+])
 function origin(req) {
   const h = req.headers
-  return (h.origin || h.referer || 'https://foodios-rose.vercel.app').replace(/\/$/, '').split('/').slice(0, 3).join('/')
+  const raw = (h.origin || h.referer || '').toString()
+  if (raw) {
+    const o = raw.replace(/\/$/, '').split('/').slice(0, 3).join('/')
+    if (ALLOWED_ORIGINS.has(o)) return o
+    // In preview Vercel l'origin e' *.vercel.app: lo accettiamo se finisce
+    // con .vercel.app e .foodios.it, fallback hardcoded altrimenti.
+    try {
+      const u = new URL(o)
+      if (u.hostname.endsWith('.vercel.app') || u.hostname.endsWith('.foodios.it')) {
+        return o
+      }
+    } catch {}
+  }
+  return 'https://foodios.it'
 }
 
 export default async function handler(req, res) {

@@ -69,6 +69,18 @@ export default async function handler(req) {
   if (!sedeId || typeof sedeId !== 'string') return json({ error: 'sedeId mancante' }, 400, req)
   if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return json({ error: 'data non valida' }, 400, req)
   if (!Array.isArray(prodotti) || prodotti.length === 0) return json({ error: 'prodotti mancanti' }, 400, req)
+  // Cap difensivi: una produzione realistica ha decine di prodotti e stampi
+  // <1000. Senza cap, un payload p.stampi=1e9 avrebbe scalato il magazzino
+  // a 0 + scritto ricavoTot/fcTot enormi.
+  if (prodotti.length > 200) return json({ error: 'prodotti: max 200 voci per sessione' }, 400, req)
+  const MAX_STAMPI = 100000
+  for (const p of prodotti) {
+    if (typeof p !== 'object' || p === null) return json({ error: 'prodotti: voce non valida' }, 400, req)
+    const st = Number(p.stampi)
+    if (st && (!Number.isFinite(st) || st < 0 || st > MAX_STAMPI)) return json({ error: 'prodotti.stampi fuori range' }, 400, req)
+    const v = Number(p.vendibile)
+    if (p.vendibile != null && (!Number.isFinite(v) || v < 0 || v > MAX_STAMPI)) return json({ error: 'prodotti.vendibile fuori range' }, 400, req)
+  }
 
   // La sede deve appartenere all'org del chiamante (no cross-org / cross-sede).
   const { data: sede } = await supabase.from('sedi').select('id').eq('id', sedeId).eq('organization_id', orgId).maybeSingle()

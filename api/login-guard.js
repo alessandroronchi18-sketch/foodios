@@ -111,8 +111,12 @@ export default async function handler(req) {
 
   if (action === 'check') {
     if (fails.length >= MAX_FAIL) {
-      const oldest = fails[fails.length - 1]
-      const blockEnd = new Date(new Date(oldest.created_at).getTime() + BLOCK_SEC * 1000)
+      // Il blocco di BLOCK_SEC va calcolato dal fail piu' RECENTE: con il piu'
+      // vecchio, dopo il 5° fail un attaccante puo' attendere ~15min e ritentare
+      // 5 volte ogni 15min (perche' la finestra di recentFails scivola via).
+      // Usare il piu' recente fa scattare BLOCK_SEC pieni dall'ultima azione.
+      const newest = fails[0]
+      const blockEnd = new Date(new Date(newest.created_at).getTime() + BLOCK_SEC * 1000)
       const now = new Date()
       if (now < blockEnd) {
         return json({

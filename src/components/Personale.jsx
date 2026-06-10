@@ -1116,6 +1116,10 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
   const [nodes, setNodes] = useState([])
   const [edges, setEdges] = useState([])
   const orgRef = useRef({ reparti: [] })
+  // Ref allineati allo state per evitare closure stale nei callback di React Flow
+  // (onNodeDragStop, onConnect, ecc. potrebbero leggere `nodes`/`edges` vecchi).
+  const nodesRef = useRef([])
+  const edgesRef = useRef([])
 
   useEffect(() => {
     if (!orgId) return
@@ -1144,7 +1148,7 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
     N.push({ id: 'admin', type: 'default', position: at('admin', 380, 0), data: { label: adminNome || 'Amministratore' }, style: ORG_STYLE.admin, deletable: false })
     reparti.forEach((r, i) => N.push({ id: 'rep-' + r.id, type: 'default', position: at('rep-' + r.id, i * 240, 130), data: { label: r.nome }, style: ORG_STYLE.reparto }))
     dip.forEach((d, i) => N.push({ id: 'dip-' + d.id, type: 'default', position: at('dip-' + d.id, i * 200, 290), data: { label: d.nome }, style: ORG_STYLE.persona, deletable: false }))
-    setNodes(N)
+    setNodes(N); nodesRef.current = N
     let E
     if (Array.isArray(o.layout?.edges)) E = o.layout.edges
     else {
@@ -1154,7 +1158,8 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
         ;(r.membri || []).forEach(m => E.push({ id: 'e-rep-' + r.id + '-dip-' + m, source: 'rep-' + r.id, target: 'dip-' + m }))
       })
     }
-    setEdges(E.map(e => ({ ...e, markerEnd: { type: MarkerType.ArrowClosed } })))
+    const Ewith = E.map(e => ({ ...e, markerEnd: { type: MarkerType.ArrowClosed } }))
+    setEdges(Ewith); edgesRef.current = Ewith
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, repartiKey, dipKey, adminNome])
 
@@ -1167,22 +1172,43 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
     ssave(SK_ORG, next, orgId, null).catch(() => notify?.('Errore salvataggio organigramma', false))
   }, [orgId, notify])
 
-  const onNodesChange = useCallback((ch) => setNodes(ns => applyNodeChanges(ch, ns)), [])
-  const onEdgesChange = useCallback((ch) => setEdges(es => {
-    const next = applyEdgeChanges(ch, es)
-    if (ch.some(c => c.type === 'remove')) salvaLayout(nodes, next)
-    return next
-  }), [nodes, salvaLayout])
-  const onNodeDragStop = useCallback(() => salvaLayout(nodes, edges), [nodes, edges, salvaLayout])
-  const onConnect = useCallback((params) => setEdges(es => {
-    const next = addEdge({ ...params, id: 'e-' + params.source + '-' + params.target + '-' + Date.now().toString(36), markerEnd: { type: MarkerType.ArrowClosed } }, es)
-    salvaLayout(nodes, next)
-    return next
-  }), [nodes, salvaLayout])
+  // NB: il reducer di setNodes/setEdges DEVE essere puro. In StrictMode (dev)
+  // React esegue gli updater due volte: ogni side-effect (ssave, ref-write,
+  // notify) finirebbe duplicato. Calcoliamo `next` fuori, mutiamo i ref e
+  // salviamo dopo lo schedule del setState — il render successivo allinea lo
+  // state al ref senza re-entry.
+  const onNodesChange = useCallback((ch) => {
+    const next = applyNodeChanges(ch, nodesRef.current)
+    nodesRef.current = next
+    setNodes(next)
+  }, [])
+  const onEdgesChange = useCallback((ch) => {
+    const next = applyEdgeChanges(ch, edgesRef.current)
+    edgesRef.current = next
+    setEdges(next)
+    if (ch.some(c => c.type === 'remove')) salvaLayout(nodesRef.current, next)
+  }, [salvaLayout])
+  const onNodeDragStop = useCallback(() => salvaLayout(nodesRef.current, edgesRef.current), [salvaLayout])
+  const onConnect = useCallback((params) => {
+    const next = addEdge({ ...params, id: 'e-' + params.source + '-' + params.target + '-' + Date.now().toString(36), markerEnd: { type: MarkerType.ArrowClosed } }, edgesRef.current)
+    edgesRef.current = next
+    setEdges(next)
+    salvaLayout(nodesRef.current, next)
+  }, [salvaLayout])
   const onNodesDelete = useCallback((deleted) => {
     const repIds = deleted.filter(n => n.id.startsWith('rep-')).map(n => n.id.slice(4))
     if (!repIds.length) return
-    const next = { ...orgRef.current, reparti: (orgRef.current.reparti || []).filter(r => !repIds.includes(r.id)) }
+    // Rimuovi anche pos/edges orfani che puntavano ai reparti cancellati,
+    // così non resta garbage nel layout salvato.
+    const orphanIds = new Set(repIds.map(id => 'rep-' + id))
+    const prevLayout = orgRef.current.layout || {}
+    const cleanedPos = Object.fromEntries(Object.entries(prevLayout.pos || {}).filter(([k]) => !orphanIds.has(k)))
+    const cleanedEdges = (prevLayout.edges || []).filter(e => !orphanIds.has(e.source) && !orphanIds.has(e.target))
+    const next = {
+      ...orgRef.current,
+      reparti: (orgRef.current.reparti || []).filter(r => !repIds.includes(r.id)),
+      layout: { pos: cleanedPos, edges: cleanedEdges },
+    }
     orgRef.current = next; setOrg(next)
     ssave(SK_ORG, next, orgId, null).catch(() => {})
   }, [orgId])

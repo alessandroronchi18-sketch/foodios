@@ -4,6 +4,7 @@ import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 import { onEnterAutoComplete } from '../lib/autocomplete'
+import { lessico } from '../lib/lessico'
 import Icon from './Icon'
 import { KPI, PageHeader } from '../views/_shared'
 
@@ -151,8 +152,9 @@ async function exportPreventivoPDF(evento, ricetteMap, ingCosti, nomeAttivita) {
   doc.save(filename)
 }
 
-export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAttivita }) {
+export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAttivita, tipoAttivita }) {
   const isMobile = useIsMobile()
+  const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const [eventi, setEventi] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null) // id evento aperto in form
@@ -432,7 +434,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
           {!isMobile && (draft.righe || []).length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: '2.4fr 0.9fr 1.1fr 0.6fr', gap: 8, marginBottom: 4, padding: '0 4px' }}>
               {[
-                ['Prodotto', 'Scegli dal ricettario'],
+                ['Prodotto', `Scegli dal ${LEX.Ricettario.toLowerCase()}`],
                 ['Quantità da produrre', 'N° di pezzi/porzioni'],
                 ['Prezzo di vendita unitario', 'Prezzo a cui vendi al cliente'],
                 ['Food cost', 'Costo ingredienti'],

@@ -244,6 +244,30 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
 
   async function handleDisattiva(id) {
     if (sediAttive.length <= 1) return notify('Non puoi disattivare l\'unica sede attiva', false)
+    const sede = (sedi || []).find(s => s.id === id)
+    const nome = sede?.nome || 'questa sede'
+    // Blocca se ci sono trasferimenti pending (inviato/in_consegna) verso o
+    // da questa sede: una volta disattivata, nessun utente puo' più chiamare
+    // riceviTrasferimento e lo stock di prodotti finiti resta perso a metà
+    // strada (gia' scalato dalla sede mittente, mai materializzato a B).
+    try {
+      const { data: pending, error: tErr } = await supabase
+        .from('trasferimenti')
+        .select('id, sede_a, sede_b, stato')
+        .or(`sede_a.eq.${id},sede_b.eq.${id}`)
+        .eq('stato', 'inviato')
+      if (tErr) throw tErr
+      if ((pending || []).length > 0) {
+        return notify(
+          `Ci sono ${pending.length} trasferimento/i pending su questa sede. Gestiscili (ricevi o annulla) prima di disattivare.`,
+          false,
+        )
+      }
+    } catch (e) {
+      // Se il check fallisce (RLS / rete), meglio non procedere con la disattivazione.
+      return notify('Errore verifica trasferimenti: ' + e.message, false)
+    }
+    if (!window.confirm(`Disattivare la sede "${nome}"? I dati restano salvati ma la sede non sarà più visibile finché non la riattivi.`)) return
     setLoading(true)
     try {
       const { error } = await supabase.from('sedi').update({ attiva: false }).eq('id', id)

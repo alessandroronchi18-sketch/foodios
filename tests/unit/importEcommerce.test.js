@@ -31,6 +31,20 @@ describe('parseShopifyOrders', () => {
   it('CSV vuoto → []', () => {
     expect(parseShopifyOrders('')).toEqual([])
   })
+
+  it('parsa correttamente totali italiani con migliaia (1.234,56) — non li divide per 1000', () => {
+    // Shopify store IT esporta totali in formato europeo "1.234,56".
+    // Il vecchio parseNum locale faceva parseFloat("1.234,56".replace(',','.'))
+    // → 1.234 (perdendo il fattore 1000).
+    const csv = [
+      'Name,Financial Status,Paid at,Total,Taxes,Shipping',
+      '#1,paid,2026-01-10 10:00:00,"1.234,56","100,00","10,00"',
+    ].join('\n')
+    const out = parseShopifyOrders(csv)
+    expect(out[0].importo).toBeCloseTo(1234.56, 2)
+    expect(out[0].iva).toBeCloseTo(100, 2)
+    expect(out[0].spedizione).toBeCloseTo(10, 2)
+  })
 })
 
 describe('parseWooCommerceOrders', () => {

@@ -318,11 +318,20 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     for (const p of (sessione?.prodotti || [])) prodottiOggi[p.nome.toUpperCase().trim()] = p.stampi || 0
     return venduto.flatMap(v => {
       const nup = v.nome.toUpperCase().trim()
-      const mk = Object.keys(ricetteNote).find(k =>
-        k === nup || k.includes(nup) || nup.includes(k) ||
-        k.replace(/[^A-Z0-9]/g, '').includes(nup.replace(/[^A-Z0-9]/g, '')) ||
-        nup.replace(/[^A-Z0-9]/g, '').includes(k.replace(/[^A-Z0-9]/g, ''))
-      )
+      // Fuzzy match cap: scontrini cortissimi (es. "CONO") matchavano qualunque
+      // ricetta che contenesse quella sottostringa (es. "BIGOLINO CON ONO" o "MIGNON"
+      // → mis-attribuzione). Richiediamo che la stringa piu' corta sia >=4 char
+      // per il match-by-substring; per match esatto resta nessun cap.
+      const nupAN = nup.replace(/[^A-Z0-9]/g, '')
+      const mk = Object.keys(ricetteNote).find(k => {
+        if (k === nup) return true
+        const kAN = k.replace(/[^A-Z0-9]/g, '')
+        const minLen = Math.min(k.length, nup.length)
+        const minLenAN = Math.min(kAN.length, nupAN.length)
+        if (minLen >= 4 && (k.includes(nup) || nup.includes(k))) return true
+        if (minLenAN >= 4 && (kAN.includes(nupAN) || nupAN.includes(kAN))) return true
+        return false
+      })
       if (!mk) return []
       const ric = ricetteNote[mk]
       const reg = getR(mk, ric)

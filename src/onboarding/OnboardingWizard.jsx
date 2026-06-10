@@ -10,81 +10,15 @@
 //     verde/giallo/rosso. Niente placeholder vaghi.
 //   - PROGRESS CHIARO: 4 dot in alto, skip annotato come "torna dopo".
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseRicettario } from '../lib/parseRicettario'
 import { ssave } from '../lib/storage'
+import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 
 const BRAND = '#6E0E1A'
 const BRAND_DARK = '#4A0612'
-
-// ─── Dataset demo realistico (3 ricette pasticceria classica) ──────────────
-// Importato direttamente nello stesso formato che parseRicettario produce,
-// senza dover scaricare/caricare file Excel. L'utente vede subito il valore.
-const DEMO_RICETTARIO = {
-  ricette: {
-    'TORTA MARGHERITA': {
-      nome: 'TORTA MARGHERITA',
-      tipo: 'fetta', unita: 8, prezzo: 4.00,
-      ingredienti: [
-        { nome: 'Uova', qty1stampo: 200, costoPerG: 0.003,   costo1stampo: 0.60 },
-        { nome: 'Zucchero', qty1stampo: 150, costoPerG: 0.00098, costo1stampo: 0.15 },
-        { nome: 'Farina 00', qty1stampo: 120, costoPerG: 0.00088, costo1stampo: 0.11 },
-        { nome: 'Burro', qty1stampo: 80, costoPerG: 0.0058, costo1stampo: 0.46 },
-        { nome: 'Lievito per dolci', qty1stampo: 8, costoPerG: 0.0075, costo1stampo: 0.06 },
-        { nome: 'Scorza di limone', qty1stampo: 5, costoPerG: 0.0032, costo1stampo: 0.02 },
-      ],
-    },
-    'CROSTATA MARMELLATA': {
-      nome: 'CROSTATA MARMELLATA',
-      tipo: 'fetta', unita: 8, prezzo: 3.50,
-      ingredienti: [
-        { nome: 'Farina 00', qty1stampo: 250, costoPerG: 0.00088, costo1stampo: 0.22 },
-        { nome: 'Burro', qty1stampo: 125, costoPerG: 0.0058, costo1stampo: 0.73 },
-        { nome: 'Zucchero a velo', qty1stampo: 90, costoPerG: 0.00145, costo1stampo: 0.13 },
-        { nome: 'Uova', qty1stampo: 50, costoPerG: 0.003, costo1stampo: 0.15 },
-        { nome: 'Marmellata', qty1stampo: 150, costoPerG: 0.004, costo1stampo: 0.60 },
-      ],
-    },
-    'TIRAMISU': {
-      nome: 'TIRAMISU',
-      tipo: 'fetta', unita: 8, prezzo: 5.50,
-      ingredienti: [
-        { nome: 'Mascarpone', qty1stampo: 500, costoPerG: 0.0062, costo1stampo: 3.10 },
-        { nome: 'Tuorli', qty1stampo: 100, costoPerG: 0.0062, costo1stampo: 0.62 },
-        { nome: 'Zucchero', qty1stampo: 100, costoPerG: 0.00098, costo1stampo: 0.10 },
-        { nome: 'Panna fresca', qty1stampo: 200, costoPerG: 0.0034, costo1stampo: 0.68 },
-        { nome: 'Savoiardi', qty1stampo: 150, costoPerG: 0.005, costo1stampo: 0.75 },
-        { nome: 'Caffè espresso', qty1stampo: 200, costoPerG: 0.014, costo1stampo: 0.28 },
-        { nome: 'Cacao amaro', qty1stampo: 20, costoPerG: 0.0095, costo1stampo: 0.19 },
-      ],
-    },
-  },
-  ingredienti_costi: {
-    'uova':            { costoKg: 3.00,  costoG: 0.003   },
-    'zucchero':        { costoKg: 0.98,  costoG: 0.00098 },
-    'farina 00':       { costoKg: 0.88,  costoG: 0.00088 },
-    'burro':           { costoKg: 5.80,  costoG: 0.0058  },
-    'lievito per dolci': { costoKg: 7.50, costoG: 0.0075 },
-    'scorza di limone': { costoKg: 3.20, costoG: 0.0032 },
-    'zucchero a velo': { costoKg: 1.45, costoG: 0.00145 },
-    'marmellata':      { costoKg: 4.00, costoG: 0.004  },
-    'mascarpone':      { costoKg: 6.20, costoG: 0.0062 },
-    'tuorli':          { costoKg: 6.20, costoG: 0.0062 },
-    'panna fresca':    { costoKg: 3.40, costoG: 0.0034 },
-    'savoiardi':       { costoKg: 5.00, costoG: 0.005  },
-    'caffè espresso':  { costoKg: 14.0, costoG: 0.014  },
-    'cacao amaro':     { costoKg: 9.50, costoG: 0.0095 },
-  },
-}
-
-// Anteprima food cost calcolati (mostrati nello step 3) — coerenti col demo.
-const DEMO_FC_PREVIEW = [
-  { nome: 'Torta Margherita',  fc: 1.40, prezzo: 32.00, margPct: 95.6, tone: 'green' },
-  { nome: 'Crostata Marmellata', fc: 1.83, prezzo: 28.00, margPct: 93.5, tone: 'green' },
-  { nome: 'Tiramisù',           fc: 5.72, prezzo: 44.00, margPct: 87.0, tone: 'amber' },
-]
 
 // ─── Helpers UI ─────────────────────────────────────────────────────────────
 async function downloadTemplate() {
@@ -131,12 +65,6 @@ async function downloadTemplate() {
   XLSX.writeFile(wb, 'template_ricettario_foodOS.xlsx')
 }
 
-const TONE = {
-  green: { bg: '#E7F6F0', fg: '#0E9F6E', label: 'Eccellente' },
-  amber: { bg: '#FFF8EB', fg: '#D97706', label: 'Buono' },
-  red:   { bg: '#FEF2F2', fg: '#DC2626', label: 'Da rivedere' },
-}
-
 const BTN_PRIMARY = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
   padding: '14px 30px',
@@ -161,7 +89,8 @@ const BTN_GHOST = {
   padding: '8px 12px', letterSpacing: '-0.005em',
 }
 
-export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSkip }) {
+export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, onComplete, onSkip }) {
+  const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const [step, setStep] = useState(1)
   const [dragging, setDragging] = useState(false)
   const [parsing, setParsing] = useState(false)
@@ -172,9 +101,16 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
   const [sedeSaving, setSedeSaving] = useState(false)
   const [sedeError, setSedeError] = useState(null)
 
-  // ESC chiude il wizard (skip silenzioso)
+  // ESC chiude il wizard (skip silenzioso) — ma non se l'utente sta scrivendo
+  // in un input (digitare ESC mentre compili "Nome sede" non deve far saltare
+  // tutto l'onboarding).
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onSkip?.() }
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      const tag = (e.target?.tagName || '').toUpperCase()
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
+      onSkip?.()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onSkip])
@@ -190,7 +126,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
       const nRicette = Object.keys(parsed?.ricette || {}).length
       const nIngredienti = Object.keys(parsed?.ingredienti_costi || {}).length
       if (nRicette === 0 && nIngredienti === 0) {
-        throw new Error('Nessuna ricetta riconosciuta nel file. Verifica il template.')
+        throw new Error(`Nessuna ${LEX.ricetta} riconosciuta nel file. Verifica il template.`)
       }
       await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
       setParseStats({ nRicette, nIngredienti })
@@ -234,7 +170,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
   }
 
   return (
-    <div style={{
+    <div role="dialog" aria-modal="true" aria-labelledby="onboard-h1" style={{
       minHeight: '100vh',
       background: 'linear-gradient(180deg, #FCFDFE 0%, #F4F6FA 100%)',
       display: 'flex',
@@ -284,7 +220,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
             }}>
               <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-1.5px' }}>F</span>
             </div>
-            <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0E1726',
+            <h1 id="onboard-h1" style={{ fontSize: 32, fontWeight: 700, color: '#0E1726',
               margin: '0 0 14px', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
               Benvenuto{nomeAttivita ? ', ' : ''}<br/>
               <span style={{ color: BRAND }}>{nomeAttivita || 'la tua attività'}</span>
@@ -369,13 +305,13 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3,
                     letterSpacing: '-0.01em' }}>
-                    {parseStats ? 'Ricettario importato!' : 'Carica il tuo ricettario Excel'}
+                    {parseStats ? `${LEX.Ricettario} importato!` : `Carica il tuo ${LEX.Ricettario.toLowerCase()} Excel`}
                   </div>
                   <div style={{ fontSize: 13, color: parseError ? '#DC2626' : '#475264', lineHeight: 1.5 }}>
                     {parseError
                       ? parseError
                       : parseStats
-                        ? `${parseStats.nRicette} ricette · ${parseStats.nIngredienti} prezzi importati`
+                        ? `${parseStats.nRicette} ${LEX.ricette} · ${parseStats.nIngredienti} prezzi importati`
                         : parsing
                           ? 'Analisi in corso…'
                           : 'Trascina qui o clicca per selezionare un file .xlsx'}
@@ -436,7 +372,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
               Hai altri punti vendita?
             </h1>
             <p style={{ color: '#475264', fontSize: 14, lineHeight: 1.55, marginBottom: 28 }}>
-              FoodOS supporta più sedi con dati separati ma ricette condivise.
+              FoodOS supporta più sedi con dati separati ma {LEX.ricette} condivise.
               Aggiungile anche più tardi da <strong>Impostazioni → Sedi</strong>.
             </p>
 

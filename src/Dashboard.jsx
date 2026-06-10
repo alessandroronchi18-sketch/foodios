@@ -6,9 +6,10 @@ import UpgradeGate from './components/UpgradeGate'
 import { canAccessView } from './lib/planAccess'
 import { lessico } from './lib/lessico'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-         Cell, PieChart, Pie, Legend, ReferenceLine, LineChart, Line,
-         AreaChart, Area } from 'recharts'
+// recharts NON e' importato qui: 0 simboli sono usati in Dashboard.jsx (era dead
+// import che trascinava il chunk recharts 120KB gzip sul critical path). I veri
+// consumatori — PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage —
+// sono tutti gia' lazy.
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
 import { supabase } from './lib/supabase'
 import { caricoProduzionePF, scaricoVenditaPF } from './lib/stockPF'
@@ -34,7 +35,7 @@ import { WL_KEY } from './components/WhiteLabel';
 const WhiteLabel = lazyWithReload(() => import('./components/WhiteLabel'))
 import { BenchmarkBadge } from './components/BenchmarkOptin';
 const BenchmarkOptin = lazyWithReload(() => import('./components/BenchmarkOptin'))
-const MfaSection = lazyWithReload(() => import('./components/Mfa'))
+import MfaSection from './components/Mfa'
 const EventiView = lazyWithReload(() => import('./components/Eventi'))
 const ConfrontoSedi = lazyWithReload(() => import('./components/ConfrontoSedi'))
 const TrasferimentiView = lazyWithReload(() => import('./components/TrasferimentiView'))
@@ -59,7 +60,7 @@ const PrevisioneDomanda = lazyWithReload(() => import('./components/PrevisioneDo
 const AIFotoAnalisi = lazyWithReload(() => import('./components/AIFotoAnalisi'))
 const AIAssistant = lazyWithReload(() => import('./components/AIAssistant'))
 const ImportaDatiView = lazyWithReload(() => import('./components/ImportaDati'))
-const AbbonamentoPanel = lazyWithReload(() => import('./components/AbbonamentoPanel'))
+import AbbonamentoPanel from './components/AbbonamentoPanel'
 const HaccpView = lazyWithReload(() => import('./components/Haccp'))
 const FormatiVendita = lazyWithReload(() => import('./components/FormatiVendita'))
 const RegistroAttivita = lazyWithReload(() => import('./components/RegistroAttivita'))
@@ -1726,31 +1727,44 @@ export default function Dashboard({
     }
     // 1. REGOLE runtime
     for (const [n,r] of Object.entries(nuoveRegole||{})) REGOLE[n]=r;
-    // 2. State locale immediato
-    setRic(nuovoRic);
-    // 3. Salvataggio su Supabase con feedback esplicito se fallisce
+    // 2. Salvataggio su Supabase PRIMA dello state (regola CLAUDE.md§Pattern
+    //    scrittura→state: lo state riflette solo dati persistiti). Se ssave
+    //    fallisce mostriamo errore e NON tocchiamo lo state — l'UI non
+    //    diverge dal DB.
     try {
       await ssave(SK_RIC, nuovoRic);
-      console.log('ricettario salvato su Supabase');
     } catch(err) {
       console.error('ERRORE salvataggio ricetta su Supabase:', err);
       // Backup localStorage perché Supabase ha fallito
       try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: nuovoRic, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
       notify(`Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta in cache locale — esegui SQL Supabase.`, false);
-      return; // non procedere — non redirect, non conferm toast
+      return; // non procedere — non redirect, non conferm toast, NO setRic
     }
-    // 4. Magazzino — aggiungi ingredienti mancanti con giacenza 0
+    // 3. State locale: solo dopo che il save e' riuscito
+    setRic(nuovoRic);
+    // 4. Magazzino — aggiungi ingredienti mancanti con giacenza 0 (save-first)
     const ings = (ricettaNome && nuovoRic.ricette?.[ricettaNome]?.ingredienti) || [];
     if (ings.length > 0 && !noRedirect) {
-      setMagazzino(prev => {
-        const nm = {...prev};
-        ings.forEach(ing => {
-          const k = normIng(ing.nome);
-          if (!nm[k]) nm[k]={nome:ing.nome.trim(),giacenza_g:0,soglia_g:0,ultimoRifornimento:null};
-        });
-        ssave(SK_MAG, nm).catch(e => console.error('ssave SK_MAG:', e));
-        return nm;
+      const nm = {...magazzino};
+      let changed = false;
+      ings.forEach(ing => {
+        const k = normIng(ing.nome);
+        if (!nm[k]) {
+          nm[k] = {nome:ing.nome.trim(),giacenza_g:0,soglia_g:0,ultimoRifornimento:null};
+          changed = true;
+        }
       });
+      if (changed) {
+        try {
+          await ssave(SK_MAG, nm);
+          setMagazzino(nm);
+        } catch(e) {
+          console.error('ssave SK_MAG:', e);
+          // Ricetta gia' salvata: ingredienti placeholder mancanti non bloccano
+          // il flusso utente, ma logghiamo e mostriamo un avviso non-fatale.
+          notify(`Ingredienti aggiunti in cache locale (errore DB)`, false);
+        }
+      }
     }
     // 5. Toast + redirect
     if (ricettaNome) notify(`✓ "${ricettaNome}" salvata`);
@@ -2629,7 +2643,7 @@ export default function Dashboard({
         {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
-        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify}/>}
+        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify} tipoAttivita={tipoAttivita}/>}
 
         {/* Registro attività — solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
         {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
@@ -2650,23 +2664,23 @@ export default function Dashboard({
           </div>
         )}
         {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} LEX={LEX}/>}
-        {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify}/>}
+        {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX}/>}
-        {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario}/>}
+        {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {/* Personale espone stipendi: MAI per i dipendenti (oltre a sidebar gate + RLS solo-titolare). */}
         {view==="personale"&&!isDip&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} adminNome={auth?.profile?.nome_completo || auth?.user?.email}/>}
         {view==="haccp"&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
-        {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
+        {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} LEX={LEX}/>}
         {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
-        {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
+        {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="importa-dati"&&<ImportaDatiView
           onImportRicettario={handleFile}
@@ -2676,7 +2690,7 @@ export default function Dashboard({
           onImportFatture={handleImportFattureGlobal}
           notify={notify}/>}
         {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={()=>setView("impostazioni")}/>)}
-        {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita}/>}
+        {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
         {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="integrazioni"&&(canAccessView("integrazioni",piano)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
