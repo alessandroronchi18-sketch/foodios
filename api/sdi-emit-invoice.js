@@ -36,11 +36,27 @@ async function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 }
 
+// Cap di sicurezza sul body: il payload e' solo JSON con poche chiavi (orgId,
+// stripeInvoiceId, importoNetto, ecc). Senza limite, un client malizioso con
+// internal-secret puo' streamare GB esaurendo memoria edge.
+const MAX_BODY_BYTES = 64 * 1024 // 64KB
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let raw = ''
-    req.on('data', c => { raw += c })
+    let size = 0
+    let aborted = false
+    req.on('data', c => {
+      if (aborted) return
+      size += c.length
+      if (size > MAX_BODY_BYTES) {
+        aborted = true
+        try { req.destroy() } catch {}
+        return reject(new Error(`body too large (>${MAX_BODY_BYTES} bytes)`))
+      }
+      raw += c
+    })
     req.on('end', () => {
+      if (aborted) return
       try { resolve(raw ? JSON.parse(raw) : {}) } catch (e) { reject(e) }
     })
     req.on('error', reject)
