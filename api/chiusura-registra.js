@@ -70,6 +70,18 @@ export default async function handler(req) {
   if (!sedeId || typeof sedeId !== 'string') return json({ error: 'sedeId mancante' }, 400, req)
   if (!data || !/^\d{4}-\d{2}-\d{2}$/.test(data)) return json({ error: 'data non valida' }, 400, req)
   if (!Array.isArray(venduto) || venduto.length === 0) return json({ error: 'venduto mancante' }, 400, req)
+  // Cap difensivo: una chiusura di giornata realistica ha <500 voci. Oltre
+  // significa input malformato o tentativo di esaurire memoria/CPU del server
+  // (writeUD scrive l'intera jsonb su user_data). Cap anche su numeri.
+  if (venduto.length > 500) return json({ error: 'venduto: max 500 voci per chiusura' }, 400, req)
+  const MAX_QTA = 100000
+  const MAX_EUR = 1_000_000
+  for (const v of venduto) {
+    if (typeof v !== 'object' || v === null) return json({ error: 'venduto: voce non valida' }, 400, req)
+    const qta = Number(v.qta); if (qta && (!Number.isFinite(qta) || qta < 0 || qta > MAX_QTA)) return json({ error: 'venduto.qta fuori range' }, 400, req)
+    const tot = Number(v.totale); if (tot && (!Number.isFinite(tot) || tot < 0 || tot > MAX_EUR)) return json({ error: 'venduto.totale fuori range' }, 400, req)
+    const pu = Number(v.prezzoUnitario); if (pu && (!Number.isFinite(pu) || pu < 0 || pu > MAX_EUR)) return json({ error: 'venduto.prezzoUnitario fuori range' }, 400, req)
+  }
 
   const { data: sede } = await supabase.from('sedi').select('id').eq('id', sedeId).eq('organization_id', orgId).maybeSingle()
   if (!sede) return json({ error: 'sede non valida' }, 403, req)
