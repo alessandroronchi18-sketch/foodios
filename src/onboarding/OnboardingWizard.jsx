@@ -101,9 +101,16 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
   const [sedeSaving, setSedeSaving] = useState(false)
   const [sedeError, setSedeError] = useState(null)
 
-  // ESC chiude il wizard (skip silenzioso)
+  // ESC chiude il wizard (skip silenzioso) — ma non se l'utente sta scrivendo
+  // in un input (digitare ESC mentre compili "Nome sede" non deve far saltare
+  // tutto l'onboarding).
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onSkip?.() }
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      const tag = (e.target?.tagName || '').toUpperCase()
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return
+      onSkip?.()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onSkip])
@@ -163,7 +170,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
   }
 
   return (
-    <div style={{
+    <div role="dialog" aria-modal="true" aria-labelledby="onboard-h1" style={{
       minHeight: '100vh',
       background: 'linear-gradient(180deg, #FCFDFE 0%, #F4F6FA 100%)',
       display: 'flex',
@@ -213,7 +220,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
             }}>
               <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-1.5px' }}>F</span>
             </div>
-            <h1 style={{ fontSize: 32, fontWeight: 700, color: '#0E1726',
+            <h1 id="onboard-h1" style={{ fontSize: 32, fontWeight: 700, color: '#0E1726',
               margin: '0 0 14px', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
               Benvenuto{nomeAttivita ? ', ' : ''}<br/>
               <span style={{ color: BRAND }}>{nomeAttivita || 'la tua attività'}</span>

@@ -36,6 +36,12 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
   // Scroll to bottom on new messages
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages]);
 
+  // Helper: format numero in formato IT per evitare "€32.00" anglosassone nel
+  // prompt → il modello eredita la formattazione e risponde con punti come
+  // separatore decimale (CLAUDE.md§Formattazione numeri).
+  const ftEur = (n) => `€ ${Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const ftPct = (n) => `${Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+
   // Build rich context from all dashboard state
   const buildContext = () => {
     const ingCosti = buildIngCosti(ricettario?.ingredienti_costi || {});
@@ -48,7 +54,7 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
       const margine = ricavo - fc;
       const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0;
       const ingList = (ric.ingredienti || []).map(i => `${i.nome} ${i.qty1stampo}g`).join(", ");
-      return `- ${ric.nome}: ${reg.unita} ${reg.tipo}e × €${reg.prezzo} = ricavo €${ricavo.toFixed(2)}, FC €${fc.toFixed(2)} (${fc > 0 ? (fc / ricavo * 100).toFixed(1) : 0}%), margine €${margine.toFixed(2)} (${margPct.toFixed(1)}%)${mancanti.length > 0 ? ` [prezzi mancanti: ${mancanti.join(", ")}]` : ""}. Ingredienti: ${ingList}`;
+      return `- ${ric.nome}: ${reg.unita} ${reg.tipo}e × ${ftEur(reg.prezzo)} = ricavo ${ftEur(ricavo)}, FC ${ftEur(fc)} (${ricavo > 0 ? ftPct(fc / ricavo * 100) : '0%'}), margine ${ftEur(margine)} (${ftPct(margPct)})${mancanti.length > 0 ? ` [prezzi mancanti: ${mancanti.join(", ")}]` : ""}. Ingredienti: ${ingList}`;
     }).join("\n");
 
     const totRicavo  = ricette.reduce((s, r) => { const rg = getR(r.nome, r); const { tot: fc } = calcolaFC(r, ingCosti, ricettario); return s + rg.unita * rg.prezzo; }, 0);
@@ -57,9 +63,11 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
     const avgMarg    = totRicavo > 0 ? (totMargine / totRicavo * 100) : 0;
 
     // Produzioni recenti
+    // NB: la sessione giornaliera espone i prodotti in `prodotti`, NON `sessione`.
+    // Il vecchio mapping leggeva un campo inesistente → stringa vuota nel context.
     const ultimi10 = [...(giornaliero || [])].sort((a,b) => b.data?.localeCompare(a.data)).slice(0, 10);
     const produzioneRec = ultimi10.map(s =>
-      `- ${s.data}: ${(s.sessione || []).map(p => `${p.nome} ${p.stampi} stampi (vendibile: ${p.vendibile})`).join(", ")}`
+      `- ${s.data}: ${(s.prodotti || []).map(p => `${p.nome} ${p.stampi} stampi (vendibile: ${p.vendibile})`).join(", ")}`
     ).join("\n");
 
     // Chiusure recenti
@@ -90,9 +98,9 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
 ${riepilogoRicette}
 
 ## RIEPILOGO P&L TOTALE
-- Ricavo totale per stampo (tutti prodotti): €${totRicavo.toFixed(2)}
-- Food cost totale: €${totFC.toFixed(2)} (${totRicavo > 0 ? (totFC / totRicavo * 100).toFixed(1) : 0}%)
-- Margine lordo totale: €${totMargine.toFixed(2)} (${avgMarg.toFixed(1)}%)
+- Ricavo totale per stampo (tutti prodotti): ${ftEur(totRicavo)}
+- Food cost totale: ${ftEur(totFC)} (${totRicavo > 0 ? ftPct(totFC / totRicavo * 100) : '0%'})
+- Margine lordo totale: ${ftEur(totMargine)} (${ftPct(avgMarg)})
 - Benchmark settore (${bench.settore}): margine ≥ ${bench.margPctMin}%, FC < ${bench.fcPctMax}%
 
 ## PRODUZIONI RECENTI (ultime 10 sessioni)
