@@ -710,8 +710,15 @@ export function buildIngCosti(fromFile) {
   // da SING_PLUR e non sarebbero raggiungibili altrimenti.
   for (const [k, v] of Object.entries(PREZZI_HORECA))
     out[normIng(k)] = { costoKg: v.costoKg, costoG: parseFloat((v.costoKg / 1000).toFixed(6)), isStima: true }
-  for (const [k, v] of Object.entries(fc))
-    if (v.costoG > 0) out[normIng(k)] = { costoKg: v.costoKg, costoG: v.costoG, isStima: false }
+  for (const [k, v] of Object.entries(fc)) {
+    // Accettiamo 0 come valore valido (ingrediente gratis: omaggio fornitore,
+    // materia prima da orto, scarto recuperato). Solo NaN/undefined fanno cadere
+    // sulla stima HORECA. Cfr. getPrezzoStoricoKg che usa la stessa logica sul
+    // ramo "storico" — senza questo i due rami davano food cost diversi.
+    if (Number.isFinite(v.costoG) && v.costoG >= 0) {
+      out[normIng(k)] = { costoKg: v.costoKg, costoG: v.costoG, isStima: false }
+    }
+  }
   return out
 }
 
