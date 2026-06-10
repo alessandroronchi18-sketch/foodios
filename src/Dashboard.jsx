@@ -6,9 +6,10 @@ import UpgradeGate from './components/UpgradeGate'
 import { canAccessView } from './lib/planAccess'
 import { lessico } from './lib/lessico'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-         Cell, PieChart, Pie, Legend, ReferenceLine, LineChart, Line,
-         AreaChart, Area } from 'recharts'
+// recharts NON e' importato qui: 0 simboli sono usati in Dashboard.jsx (era dead
+// import che trascinava il chunk recharts 120KB gzip sul critical path). I veri
+// consumatori — PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage —
+// sono tutti gia' lazy.
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
 import { supabase } from './lib/supabase'
 import { caricoProduzionePF, scaricoVenditaPF } from './lib/stockPF'
