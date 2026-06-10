@@ -34,7 +34,7 @@ import { WL_KEY } from './components/WhiteLabel';
 const WhiteLabel = lazyWithReload(() => import('./components/WhiteLabel'))
 import { BenchmarkBadge } from './components/BenchmarkOptin';
 const BenchmarkOptin = lazyWithReload(() => import('./components/BenchmarkOptin'))
-const MfaSection = lazyWithReload(() => import('./components/Mfa'))
+import MfaSection from './components/Mfa'
 const EventiView = lazyWithReload(() => import('./components/Eventi'))
 const ConfrontoSedi = lazyWithReload(() => import('./components/ConfrontoSedi'))
 const TrasferimentiView = lazyWithReload(() => import('./components/TrasferimentiView'))
@@ -59,7 +59,7 @@ const PrevisioneDomanda = lazyWithReload(() => import('./components/PrevisioneDo
 const AIFotoAnalisi = lazyWithReload(() => import('./components/AIFotoAnalisi'))
 const AIAssistant = lazyWithReload(() => import('./components/AIAssistant'))
 const ImportaDatiView = lazyWithReload(() => import('./components/ImportaDati'))
-const AbbonamentoPanel = lazyWithReload(() => import('./components/AbbonamentoPanel'))
+import AbbonamentoPanel from './components/AbbonamentoPanel'
 const HaccpView = lazyWithReload(() => import('./components/Haccp'))
 const FormatiVendita = lazyWithReload(() => import('./components/FormatiVendita'))
 const RegistroAttivita = lazyWithReload(() => import('./components/RegistroAttivita'))
@@ -2666,7 +2666,7 @@ export default function Dashboard({
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} LEX={LEX}/>}
         {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
-        {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino}/>}
+        {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="importa-dati"&&<ImportaDatiView
           onImportRicettario={handleFile}

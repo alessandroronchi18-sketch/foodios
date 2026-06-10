@@ -244,6 +244,9 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
 
   async function handleDisattiva(id) {
     if (sediAttive.length <= 1) return notify('Non puoi disattivare l\'unica sede attiva', false)
+    const sede = (sedi || []).find(s => s.id === id)
+    const nome = sede?.nome || 'questa sede'
+    if (!window.confirm(`Disattivare la sede "${nome}"? I dati restano salvati ma la sede non sarà più visibile finché non la riattivi.`)) return
     setLoading(true)
     try {
       const { error } = await supabase.from('sedi').update({ attiva: false }).eq('id', id)

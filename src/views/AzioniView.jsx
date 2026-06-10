@@ -7,7 +7,7 @@ import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost
 import Icon from '../components/Icon'
 import { C, PageHeader } from './_shared'
 
-export default function AzioniView({ actions, onUpdate, onDelete, ricettario, giornaliero, chiusure, magazzino }) {
+export default function AzioniView({ actions, onUpdate, onDelete, ricettario, giornaliero, chiusure, magazzino, nomeAttivita }) {
   const isMobile = useIsMobile();
   const [messages, setMessages] = useState([]);
   const [input, setInput]       = useState("");
@@ -63,7 +63,8 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
       ? azioniAperte.map(a => `- ${a.label}: ${a.azione}`).join("\n")
       : "nessuna azione aperta";
 
-    return `Sei l'assistente AI della {nomeAttivita}. Hai accesso completo ai dati del gestionale. Rispondi in italiano, in modo professionale ma caldo, come un consulente esperto di pasticceria artigianale e food cost.
+    const nomeLocale = (nomeAttivita || '').toString().trim() || 'tua attività'
+    return `Sei l'assistente AI di ${nomeLocale}. Hai accesso completo ai dati del gestionale. Rispondi in italiano, in modo professionale ma caldo, come un consulente esperto di pasticceria artigianale e food cost.
 
 ## RICETTARIO E P&L
 ${riepilogoRicette}

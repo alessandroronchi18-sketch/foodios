@@ -19,73 +19,6 @@ import Icon from '../components/Icon'
 const BRAND = '#6E0E1A'
 const BRAND_DARK = '#4A0612'
 
-// ─── Dataset demo realistico (3 ricette pasticceria classica) ──────────────
-// Importato direttamente nello stesso formato che parseRicettario produce,
-// senza dover scaricare/caricare file Excel. L'utente vede subito il valore.
-const DEMO_RICETTARIO = {
-  ricette: {
-    'TORTA MARGHERITA': {
-      nome: 'TORTA MARGHERITA',
-      tipo: 'fetta', unita: 8, prezzo: 4.00,
-      ingredienti: [
-        { nome: 'Uova', qty1stampo: 200, costoPerG: 0.003,   costo1stampo: 0.60 },
-        { nome: 'Zucchero', qty1stampo: 150, costoPerG: 0.00098, costo1stampo: 0.15 },
-        { nome: 'Farina 00', qty1stampo: 120, costoPerG: 0.00088, costo1stampo: 0.11 },
-        { nome: 'Burro', qty1stampo: 80, costoPerG: 0.0058, costo1stampo: 0.46 },
-        { nome: 'Lievito per dolci', qty1stampo: 8, costoPerG: 0.0075, costo1stampo: 0.06 },
-        { nome: 'Scorza di limone', qty1stampo: 5, costoPerG: 0.0032, costo1stampo: 0.02 },
-      ],
-    },
-    'CROSTATA MARMELLATA': {
-      nome: 'CROSTATA MARMELLATA',
-      tipo: 'fetta', unita: 8, prezzo: 3.50,
-      ingredienti: [
-        { nome: 'Farina 00', qty1stampo: 250, costoPerG: 0.00088, costo1stampo: 0.22 },
-        { nome: 'Burro', qty1stampo: 125, costoPerG: 0.0058, costo1stampo: 0.73 },
-        { nome: 'Zucchero a velo', qty1stampo: 90, costoPerG: 0.00145, costo1stampo: 0.13 },
-        { nome: 'Uova', qty1stampo: 50, costoPerG: 0.003, costo1stampo: 0.15 },
-        { nome: 'Marmellata', qty1stampo: 150, costoPerG: 0.004, costo1stampo: 0.60 },
-      ],
-    },
-    'TIRAMISU': {
-      nome: 'TIRAMISU',
-      tipo: 'fetta', unita: 8, prezzo: 5.50,
-      ingredienti: [
-        { nome: 'Mascarpone', qty1stampo: 500, costoPerG: 0.0062, costo1stampo: 3.10 },
-        { nome: 'Tuorli', qty1stampo: 100, costoPerG: 0.0062, costo1stampo: 0.62 },
-        { nome: 'Zucchero', qty1stampo: 100, costoPerG: 0.00098, costo1stampo: 0.10 },
-        { nome: 'Panna fresca', qty1stampo: 200, costoPerG: 0.0034, costo1stampo: 0.68 },
-        { nome: 'Savoiardi', qty1stampo: 150, costoPerG: 0.005, costo1stampo: 0.75 },
-        { nome: 'Caffè espresso', qty1stampo: 200, costoPerG: 0.014, costo1stampo: 0.28 },
-        { nome: 'Cacao amaro', qty1stampo: 20, costoPerG: 0.0095, costo1stampo: 0.19 },
-      ],
-    },
-  },
-  ingredienti_costi: {
-    'uova':            { costoKg: 3.00,  costoG: 0.003   },
-    'zucchero':        { costoKg: 0.98,  costoG: 0.00098 },
-    'farina 00':       { costoKg: 0.88,  costoG: 0.00088 },
-    'burro':           { costoKg: 5.80,  costoG: 0.0058  },
-    'lievito per dolci': { costoKg: 7.50, costoG: 0.0075 },
-    'scorza di limone': { costoKg: 3.20, costoG: 0.0032 },
-    'zucchero a velo': { costoKg: 1.45, costoG: 0.00145 },
-    'marmellata':      { costoKg: 4.00, costoG: 0.004  },
-    'mascarpone':      { costoKg: 6.20, costoG: 0.0062 },
-    'tuorli':          { costoKg: 6.20, costoG: 0.0062 },
-    'panna fresca':    { costoKg: 3.40, costoG: 0.0034 },
-    'savoiardi':       { costoKg: 5.00, costoG: 0.005  },
-    'caffè espresso':  { costoKg: 14.0, costoG: 0.014  },
-    'cacao amaro':     { costoKg: 9.50, costoG: 0.0095 },
-  },
-}
-
-// Anteprima food cost calcolati (mostrati nello step 3) — coerenti col demo.
-const DEMO_FC_PREVIEW = [
-  { nome: 'Torta Margherita',  fc: 1.40, prezzo: 32.00, margPct: 95.6, tone: 'green' },
-  { nome: 'Crostata Marmellata', fc: 1.83, prezzo: 28.00, margPct: 93.5, tone: 'green' },
-  { nome: 'Tiramisù',           fc: 5.72, prezzo: 44.00, margPct: 87.0, tone: 'amber' },
-]
-
 // ─── Helpers UI ─────────────────────────────────────────────────────────────
 async function downloadTemplate() {
   const XLSX = await new Promise((resolve, reject) => {
@@ -129,12 +62,6 @@ async function downloadTemplate() {
     XLSX.utils.book_append_sheet(wb, ws, nome)
   })
   XLSX.writeFile(wb, 'template_ricettario_foodOS.xlsx')
-}
-
-const TONE = {
-  green: { bg: '#E7F6F0', fg: '#0E9F6E', label: 'Eccellente' },
-  amber: { bg: '#FFF8EB', fg: '#D97706', label: 'Buono' },
-  red:   { bg: '#FEF2F2', fg: '#DC2626', label: 'Da rivedere' },
 }
 
 const BTN_PRIMARY = {
