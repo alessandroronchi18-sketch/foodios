@@ -69,29 +69,54 @@ export default async function handler(req, res) {
 
   const supabase = await getSupabase()
 
-  // Idempotenza: Stripe ritenta i webhook su risposte non-2xx/timeout. Registriamo
-  // event.id; se è già presente l'evento è già stato elaborato → rispondiamo 200 e
-  // ci fermiamo, evitando doppi conteggi (es. redemptions codici sconto).
+  // Idempotenza claim-then-confirm:
+  //   - row con processed_at NOT NULL  → event già elaborato con successo → 200 duplicate
+  //   - row con processed_at NULL      → claim incompleto (crash precedente / processo
+  //                                       in corso). Procediamo: l'handler è idempotente
+  //                                       lato applicativo e completare la run è meglio
+  //                                       che lasciare side-effects mancanti.
+  //   - nessuna row                    → prima volta: upsert (claim) e procedi.
+  //
+  // Confermiamo (UPDATE processed_at = now()) SOLO se l'handler completa senza eccezioni.
+  // Su errore non confermiamo → al retry Stripe ritrova claim NULL e riprova.
   //
   // Policy errori:
-  //   23505 = duplicate (atteso, è il caso happy: 200 + duplicate=true).
   //   42P01 = tabella non esiste (setup issue noto pre-migration). Fail-open
   //           per non perdere eventi durante il deploy iniziale.
-  //   Altri = sospetto (permission denied, schema corrotto). Fail-CLOSED: 503
-  //           così Stripe ritenta automaticamente quando lo stato è ripristinato.
+  //   Altri errori SQL = fail-CLOSED: 503 così Stripe ritenta.
+  let idempotencyAvailable = true
   try {
-    const { error: dupErr } = await supabase
+    const { data: existing, error: selErr } = await supabase
       .from('stripe_webhook_events')
-      .insert({ event_id: event.id, type: event.type })
-    if (dupErr) {
-      if (dupErr.code === '23505') {
-        return res.status(200).json({ received: true, duplicate: true })
-      }
-      if (dupErr.code === '42P01') {
+      .select('event_id, processed_at')
+      .eq('event_id', event.id)
+      .maybeSingle()
+    if (selErr) {
+      if (selErr.code === '42P01') {
+        idempotencyAvailable = false
         console.warn('[stripe-webhook] idempotency table missing — proceeding (FIX: applicare migration)')
+      } else if (selErr.code === '42703') {
+        // colonna processed_at non esiste → migration 20260624 non applicata.
+        // Comportamento legacy: la row presence stessa è il marker "fatto".
+        console.warn('[stripe-webhook] processed_at column missing — applicare 20260624 migration')
+        idempotencyAvailable = false
       } else {
-        console.error('[stripe-webhook] idempotency check failed, returning 503 for Stripe retry', dupErr.code, dupErr.message)
-        return res.status(503).json({ error: 'idempotency check failed', code: dupErr.code })
+        console.error('[stripe-webhook] idempotency select failed', selErr.code, selErr.message)
+        return res.status(503).json({ error: 'idempotency check failed', code: selErr.code })
+      }
+    } else if (existing?.processed_at) {
+      return res.status(200).json({ received: true, duplicate: true })
+    }
+
+    if (idempotencyAvailable) {
+      // Claim: upsert con processed_at=NULL. Se la row esiste già (retry dopo crash)
+      // l'upsert resta NULL, riprovando la finalizzazione.
+      const { error: upErr } = await supabase
+        .from('stripe_webhook_events')
+        .upsert({ event_id: event.id, type: event.type, processed_at: null }, { onConflict: 'event_id' })
+      if (upErr) {
+        console.error('[stripe-webhook] idempotency claim failed', upErr.code, upErr.message)
+        return res.status(503).json({ error: 'idempotency claim failed', code: upErr.code })
       }
     }
   } catch (e) {
@@ -319,7 +344,23 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error('[stripe-webhook] handler error', err)
+    // NON segnamo processed_at: al retry Stripe ritrova claim NULL e ritenta.
     return res.status(500).json({ error: err.message })
+  }
+
+  // Conferma idempotency: l'handler è completato senza eccezioni.
+  if (idempotencyAvailable) {
+    const { error: confirmErr } = await supabase
+      .from('stripe_webhook_events')
+      .update({ processed_at: new Date().toISOString() })
+      .eq('event_id', event.id)
+    if (confirmErr) {
+      // L'handler ha già applicato le side-effects. Il fail della UPDATE significa
+      // che al prossimo retry Stripe rifarà tutto — affidiamoci alla idempotency
+      // applicativa delle singole side-effects (organizations.update by id è
+      // idempotente; redemption codici ha unique constraint; SDI ha claim-first).
+      console.warn('[stripe-webhook] confirm update failed (retry possible)', confirmErr.code, confirmErr.message)
+    }
   }
 
   return res.status(200).json({ received: true })
