@@ -61,7 +61,12 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       if (!map[k]) map[k]={ key:k, sessioni:[], stampiTot:0, ricavoTot:0, fcTot:0, byRicetta:{} };
       map[k].sessioni.push(sess);
       for (const prod of (sess.prodotti||[])) {
-        const ric = ricettario?.ricette?.[prod.nome];
+        // Fallback su uppercase per nomi legacy: se cerchiamo per esatto e non
+        // c'e' match, riproviamo con UPPER().trim() — altrimenti getR cade su
+        // unita/prezzo di default e il margine apparirebbe 100% (rv calcolato,
+        // fc=0).
+        const ric = ricettario?.ricette?.[prod.nome]
+          || ricettario?.ricette?.[(prod.nome || '').toUpperCase().trim()];
         const reg = getR(prod.nome, ric);
         // Food cost STORICO: usa il prezzo materie prime valido nella data della sessione,
         // così le produzioni passate non vengono "rivalutate" se i prezzi cambiano oggi.
@@ -253,7 +258,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           let rv=0,fc=0;
           for (const k of prevKeys) for (const sess of (allProdByKey[k]||[])) {
             for (const prod of (sess.prodotti||[])) {
-              const ric = ricettario?.ricette?.[prod.nome];
+              const ric = ricettario?.ricette?.[prod.nome]
+                || ricettario?.ricette?.[(prod.nome || '').toUpperCase().trim()];
               const reg = getR(prod.nome, ric);
               const {tot:f} = ric ? calcolaFCStorico(ric, ingCosti, ricettario, logPrezzi, sess.data+'T12:00:00') : {tot:0};
               rv += prod.stampi*reg.unita*reg.prezzo; fc += prod.stampi*f;

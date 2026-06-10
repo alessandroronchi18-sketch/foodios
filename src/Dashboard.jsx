@@ -1726,31 +1726,44 @@ export default function Dashboard({
     }
     // 1. REGOLE runtime
     for (const [n,r] of Object.entries(nuoveRegole||{})) REGOLE[n]=r;
-    // 2. State locale immediato
-    setRic(nuovoRic);
-    // 3. Salvataggio su Supabase con feedback esplicito se fallisce
+    // 2. Salvataggio su Supabase PRIMA dello state (regola CLAUDE.md§Pattern
+    //    scrittura→state: lo state riflette solo dati persistiti). Se ssave
+    //    fallisce mostriamo errore e NON tocchiamo lo state — l'UI non
+    //    diverge dal DB.
     try {
       await ssave(SK_RIC, nuovoRic);
-      console.log('ricettario salvato su Supabase');
     } catch(err) {
       console.error('ERRORE salvataggio ricetta su Supabase:', err);
       // Backup localStorage perché Supabase ha fallito
       try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: nuovoRic, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
       notify(`Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta in cache locale — esegui SQL Supabase.`, false);
-      return; // non procedere — non redirect, non conferm toast
+      return; // non procedere — non redirect, non conferm toast, NO setRic
     }
-    // 4. Magazzino — aggiungi ingredienti mancanti con giacenza 0
+    // 3. State locale: solo dopo che il save e' riuscito
+    setRic(nuovoRic);
+    // 4. Magazzino — aggiungi ingredienti mancanti con giacenza 0 (save-first)
     const ings = (ricettaNome && nuovoRic.ricette?.[ricettaNome]?.ingredienti) || [];
     if (ings.length > 0 && !noRedirect) {
-      setMagazzino(prev => {
-        const nm = {...prev};
-        ings.forEach(ing => {
-          const k = normIng(ing.nome);
-          if (!nm[k]) nm[k]={nome:ing.nome.trim(),giacenza_g:0,soglia_g:0,ultimoRifornimento:null};
-        });
-        ssave(SK_MAG, nm).catch(e => console.error('ssave SK_MAG:', e));
-        return nm;
+      const nm = {...magazzino};
+      let changed = false;
+      ings.forEach(ing => {
+        const k = normIng(ing.nome);
+        if (!nm[k]) {
+          nm[k] = {nome:ing.nome.trim(),giacenza_g:0,soglia_g:0,ultimoRifornimento:null};
+          changed = true;
+        }
       });
+      if (changed) {
+        try {
+          await ssave(SK_MAG, nm);
+          setMagazzino(nm);
+        } catch(e) {
+          console.error('ssave SK_MAG:', e);
+          // Ricetta gia' salvata: ingredienti placeholder mancanti non bloccano
+          // il flusso utente, ma logghiamo e mostriamo un avviso non-fatale.
+          notify(`Ingredienti aggiunti in cache locale (errore DB)`, false);
+        }
+      }
     }
     // 5. Toast + redirect
     if (ricettaNome) notify(`✓ "${ricettaNome}" salvata`);
