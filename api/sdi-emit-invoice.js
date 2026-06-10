@@ -127,6 +127,12 @@ export default async function handler(req, res) {
       ? `stripe:${stripeInvoiceId}`
       : `manual:${orgId}:${Math.round(importoNetto * 100)}:${new Date().toISOString().slice(0, 7)}`)
 
+  // Soglia "stale": un claim pending oltre questa eta' indica un crash della
+  // function precedente (OOM, timeout, redeploy). 15 minuti e' il limite Vercel
+  // funziona + margine per FiC; oltre, e' sicuro reclaimare.
+  const STALE_CLAIM_MS = 15 * 60 * 1000
+  const staleCutoff = new Date(Date.now() - STALE_CLAIM_MS).toISOString()
+
   let claimId = null
   try {
     const { data: claim } = await supabase
@@ -143,10 +149,10 @@ export default async function handler(req, res) {
       .maybeSingle()
 
     if (!claim) {
-      // Chiave gia presente: emissione gia fatta o in corso.
+      // Chiave gia presente: emissione fatta, in corso o crashata.
       const { data: existingLog } = await supabase
         .from('sdi_invoice_log')
-        .select('fic_invoice_id, status')
+        .select('id, fic_invoice_id, status, created_at, updated_at')
         .eq('idempotency_key', idempotencyKey)
         .maybeSingle()
       if (existingLog?.fic_invoice_id) {
@@ -156,12 +162,51 @@ export default async function handler(req, res) {
           status: existingLog.status,
         })
       }
-      return res.status(409).json({
-        error: 'Emissione gia in corso per questa fattura, riprova tra poco',
-        status: existingLog?.status || 'pending',
-      })
+      // Reclaim di pending stale (crash precedente). Confrontiamo updated_at
+      // (più recente di created_at se qualcosa l'ha toccato) con la soglia.
+      const lastTouch = existingLog?.updated_at || existingLog?.created_at
+      const isStale = existingLog?.status === 'pending' && lastTouch && lastTouch < staleCutoff
+      if (isStale) {
+        // Conditional delete: solo se la row e' ANCORA stale e con lo stesso id
+        // (race-safe: due processi paralleli, solo uno vince la delete).
+        const { data: deleted } = await supabase
+          .from('sdi_invoice_log')
+          .delete()
+          .eq('id', existingLog.id)
+          .eq('status', 'pending')
+          .lt('updated_at', staleCutoff)
+          .select('id')
+          .maybeSingle()
+        if (deleted) {
+          // Riprova il claim ora che lo stale e' rimosso.
+          const { data: retryClaim } = await supabase
+            .from('sdi_invoice_log')
+            .upsert({
+              organization_id: orgId,
+              stripe_invoice_id: stripeInvoiceId || null,
+              idempotency_key: idempotencyKey,
+              importo_netto_cents: Math.round(importoNetto * 100),
+              status: 'pending',
+              emessa_da: adminUser?.email || 'webhook',
+            }, { onConflict: 'idempotency_key', ignoreDuplicates: true })
+            .select('id')
+            .maybeSingle()
+          if (retryClaim) {
+            claimId = retryClaim.id
+            console.warn('[sdi-emit-invoice] reclaim of stale pending', { idempotencyKey, prevId: existingLog.id })
+          }
+        }
+        // Se la delete non e' andata (un altro processo ha vinto) cadiamo nel 409 sotto.
+      }
+      if (!claimId) {
+        return res.status(409).json({
+          error: 'Emissione gia in corso per questa fattura, riprova tra poco',
+          status: existingLog?.status || 'pending',
+        })
+      }
+    } else {
+      claimId = claim.id
     }
-    claimId = claim.id
   } catch (e) {
     // Senza claim non possiamo garantire l'idempotenza: fail-closed (meglio non
     // emettere che rischiare la doppia fattura). Richiede la migration 20260617.
