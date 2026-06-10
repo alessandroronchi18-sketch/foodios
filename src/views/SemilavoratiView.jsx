@@ -10,6 +10,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCDettaglio, getR, isRicettaValida, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
+import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
 import { C, KPI, SH, PageHeader, Tip, Badge, TNUM, useSortable, SortTH } from './_shared'
@@ -22,7 +23,7 @@ const fmtBatch = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFra
 const fmtPeso = g => g >= 1000 ? `${(g / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString('it-IT')} g`
 
 // ─── Card premium di un singolo semilavorato ─────────────────────────────────
-function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete }) {
+function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
   const isMobile = useIsMobile()
   const [tab, setTab] = useState(null)  // 'ingredienti' | 'usato' | null
 
@@ -135,7 +136,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete }) {
           </div>
           {sm.usato.length === 0 ? (
             <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>
-              Questo semilavorato non è ancora ingrediente di nessuna ricetta. Aggiungi il suo nome (es. <em>"{sm.nome.toLowerCase()}"</em>) come ingrediente in un prodotto per usarlo.
+              Questo semilavorato non è ancora ingrediente di nessuna {LEX?.ricetta || 'ricetta'}. Aggiungi il suo nome (es. <em>"{sm.nome.toLowerCase()}"</em>) come ingrediente in un prodotto per usarlo.
             </div>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -171,7 +172,8 @@ function iconBtn(danger) {
 }
 
 // ─── SEMILAVORATI VIEW ────────────────────────────────────────────────────────
-export default function SemilavoratiView({ ricettario, onSave, notify }) {
+export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttivita }) {
+  const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -350,7 +352,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
             {semilavorati.map(sm => (
               <React.Fragment key={sm.nome}>
                 <SemiCard sm={sm} ricettario={ricettario} ingCosti={ingCosti}
-                  onEdit={loadForEdit} onDelete={n => setDeleteConf(n)} />
+                  onEdit={loadForEdit} onDelete={n => setDeleteConf(n)} LEX={LEX} />
                 {deleteConf === sm.nome && (
                   <div style={{ padding: '12px 16px', background: C.redLight, borderRadius: 12, border: `1px solid rgba(110,14,26,0.25)` }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 8 }}>Scrivi <strong>ELIMINA</strong> per confermare l'eliminazione di "{sm.nome}"</div>
@@ -542,7 +544,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify }) {
           </div>
 
           <div style={{ marginTop: 12, padding: '11px 14px', background: T.brandLight, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 12, color: T.textMid, lineHeight: 1.6, display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-            <Icon name="bulb" size={14} color={T.brand} style={{ marginTop: 2, flexShrink: 0 }} /><span>Per usare un semilavorato in una ricetta, aggiungi il suo nome come ingrediente (es. <em>"crema pasticcera"</em>) con la quantità in grammi — il costo si calcola automaticamente.</span>
+            <Icon name="bulb" size={14} color={T.brand} style={{ marginTop: 2, flexShrink: 0 }} /><span>Per usare un semilavorato in una {LEX.ricetta}, aggiungi il suo nome come ingrediente (es. <em>"crema pasticcera"</em>) con la quantità in grammi — il costo si calcola automaticamente.</span>
           </div>
         </>
       )}

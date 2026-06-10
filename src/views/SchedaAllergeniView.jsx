@@ -4,10 +4,12 @@
 import React, { useMemo } from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti } from '../lib/allergeni'
+import { lessico } from '../lib/lessico'
 import { C } from './_shared'
 import Icon from '../components/Icon'
 
-export default function SchedaAllergeniView({ ricettario }) {
+export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
+  const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const ricette = Object.values(ricettario?.ricette||{}).filter(r=>r.tipo!=="semilavorato"&&r.tipo!=="interno");
 
   const algMap = useMemo(() => {
@@ -80,7 +82,7 @@ export default function SchedaAllergeniView({ ricettario }) {
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.brand,marginBottom:6}}>Sicurezza alimentare</div>
-          <p style={{margin:0,fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>Panoramica degli allergeni per tutte le ricette — Regolamento UE 1169/2011</p>
+          <p style={{margin:0,fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>Panoramica degli allergeni per tutte le {LEX.ricette} — Regolamento UE 1169/2011</p>
         </div>
         <button onClick={esportaPDF}
           style={{padding:"10px 16px",borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,fontSize:13,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",display:"inline-flex",alignItems:"center",gap:6,boxShadow:S.sm}}>
@@ -90,7 +92,7 @@ export default function SchedaAllergeniView({ ricettario }) {
 
       {ricette.length===0 ? (
         <div style={{textAlign:"center",padding:"60px 0",color:C.textSoft,fontSize:13}}>
-          Nessuna ricetta nel ricettario. Aggiungi ricette con i loro allergeni per visualizzare la scheda.
+          {LEX.nessunaRicetta} nel {LEX.Ricettario.toLowerCase()}. Aggiungi {LEX.ricette} con i loro allergeni per visualizzare la scheda.
         </div>
       ) : (
         <>

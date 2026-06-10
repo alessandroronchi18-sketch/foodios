@@ -4,10 +4,27 @@ import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
+import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { C, PageHeader } from './_shared'
 
-export default function AzioniView({ actions, onUpdate, onDelete, ricettario, giornaliero, chiusure, magazzino, nomeAttivita }) {
+// Benchmark food cost realistici per tipo attivita' (range comuni della
+// letteratura settore IT). Servono solo per orientare il prompt AI; sopra
+// i max si raccomanda revisione prezzi, sotto i min si sospetta errore
+// di calcolo. Default cauto (pasticceria) se la categoria e' sconosciuta.
+const BENCH_FC = {
+  pasticceria:    { fcPctMax: 30, margPctMin: 70, settore: 'pasticceria artigianale' },
+  gelateria:      { fcPctMax: 28, margPctMin: 72, settore: 'gelateria artigianale' },
+  pizzeria:       { fcPctMax: 35, margPctMin: 65, settore: 'pizzeria' },
+  ristorante:     { fcPctMax: 32, margPctMin: 68, settore: 'ristorazione' },
+  pasta_fresca:   { fcPctMax: 33, margPctMin: 67, settore: 'pastificio artigianale' },
+  panificio:      { fcPctMax: 32, margPctMin: 68, settore: 'panificio artigianale' },
+  cioccolateria:  { fcPctMax: 28, margPctMin: 72, settore: 'cioccolateria artigianale' },
+  bar:            { fcPctMax: 25, margPctMin: 75, settore: 'bar/caffetteria' },
+  bar_caffè:      { fcPctMax: 25, margPctMin: 75, settore: 'bar/caffetteria' },
+}
+
+export default function AzioniView({ actions, onUpdate, onDelete, ricettario, giornaliero, chiusure, magazzino, nomeAttivita, tipoAttivita }) {
   const isMobile = useIsMobile();
   const [messages, setMessages] = useState([]);
   const [input, setInput]       = useState("");
@@ -64,7 +81,10 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
       : "nessuna azione aperta";
 
     const nomeLocale = (nomeAttivita || '').toString().trim() || 'tua attività'
-    return `Sei l'assistente AI di ${nomeLocale}. Hai accesso completo ai dati del gestionale. Rispondi in italiano, in modo professionale ma caldo, come un consulente esperto di pasticceria artigianale e food cost.
+    const tipoKey = String(tipoAttivita || '').toLowerCase().trim()
+    const bench = BENCH_FC[tipoKey] || BENCH_FC.pasticceria
+    const LEX = lessico(tipoAttivita)
+    return `Sei l'assistente AI di ${nomeLocale}. Hai accesso completo ai dati del gestionale. Rispondi in italiano, in modo professionale ma caldo, come un consulente esperto di ${bench.settore} e food cost.
 
 ## RICETTARIO E P&L
 ${riepilogoRicette}
@@ -73,7 +93,7 @@ ${riepilogoRicette}
 - Ricavo totale per stampo (tutti prodotti): €${totRicavo.toFixed(2)}
 - Food cost totale: €${totFC.toFixed(2)} (${totRicavo > 0 ? (totFC / totRicavo * 100).toFixed(1) : 0}%)
 - Margine lordo totale: €${totMargine.toFixed(2)} (${avgMarg.toFixed(1)}%)
-- Benchmark settore: margine ≥ 70%, FC < 30%
+- Benchmark settore (${bench.settore}): margine ≥ ${bench.margPctMin}%, FC < ${bench.fcPctMax}%
 
 ## PRODUZIONI RECENTI (ultime 10 sessioni)
 ${produzioneRec || "nessuna sessione registrata"}
@@ -91,7 +111,8 @@ ${azioniStr}
 - Analizza i dati reali sopra quando rispondi
 - Fornisci insights concreti con numeri specifici
 - Suggerisci next step pratici e prioritizzati
-- Per domande sulla struttura del sito, spiega le sezioni disponibili: Ricettario, P&L, Simulatore Prezzi, Produzione Giornaliera, Chiusura, Storico, Magazzino, e questa sezione AI
+- Usa il lessico della categoria: parla di "${LEX.ricette}" e "${LEX.prodotti}", non di "ricette" generiche se l'utente e' di altra categoria
+- Per domande sulla struttura del sito, spiega le sezioni disponibili: ${LEX.Ricettario}, P&L, Simulatore Prezzi, Produzione Giornaliera, Chiusura, Storico, Magazzino, e questa sezione AI
 - Se ti chiedono "cosa fare" suggerisci le 3 azioni più impattanti basandoti sui dati
 - Mantieni le risposte concise ma complete (max 300 parole)`;
   };

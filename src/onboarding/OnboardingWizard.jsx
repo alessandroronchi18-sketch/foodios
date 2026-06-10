@@ -10,10 +10,11 @@
 //     verde/giallo/rosso. Niente placeholder vaghi.
 //   - PROGRESS CHIARO: 4 dot in alto, skip annotato come "torna dopo".
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseRicettario } from '../lib/parseRicettario'
 import { ssave } from '../lib/storage'
+import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 
 const BRAND = '#6E0E1A'
@@ -88,7 +89,8 @@ const BTN_GHOST = {
   padding: '8px 12px', letterSpacing: '-0.005em',
 }
 
-export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSkip }) {
+export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, onComplete, onSkip }) {
+  const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const [step, setStep] = useState(1)
   const [dragging, setDragging] = useState(false)
   const [parsing, setParsing] = useState(false)
@@ -117,7 +119,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
       const nRicette = Object.keys(parsed?.ricette || {}).length
       const nIngredienti = Object.keys(parsed?.ingredienti_costi || {}).length
       if (nRicette === 0 && nIngredienti === 0) {
-        throw new Error('Nessuna ricetta riconosciuta nel file. Verifica il template.')
+        throw new Error(`Nessuna ${LEX.ricetta} riconosciuta nel file. Verifica il template.`)
       }
       await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
       setParseStats({ nRicette, nIngredienti })
@@ -296,13 +298,13 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3,
                     letterSpacing: '-0.01em' }}>
-                    {parseStats ? 'Ricettario importato!' : 'Carica il tuo ricettario Excel'}
+                    {parseStats ? `${LEX.Ricettario} importato!` : `Carica il tuo ${LEX.Ricettario.toLowerCase()} Excel`}
                   </div>
                   <div style={{ fontSize: 13, color: parseError ? '#DC2626' : '#475264', lineHeight: 1.5 }}>
                     {parseError
                       ? parseError
                       : parseStats
-                        ? `${parseStats.nRicette} ricette · ${parseStats.nIngredienti} prezzi importati`
+                        ? `${parseStats.nRicette} ${LEX.ricette} · ${parseStats.nIngredienti} prezzi importati`
                         : parsing
                           ? 'Analisi in corso…'
                           : 'Trascina qui o clicca per selezionare un file .xlsx'}
@@ -363,7 +365,7 @@ export default function OnboardingWizard({ nomeAttivita, orgId, onComplete, onSk
               Hai altri punti vendita?
             </h1>
             <p style={{ color: '#475264', fontSize: 14, lineHeight: 1.55, marginBottom: 28 }}>
-              FoodOS supporta più sedi con dati separati ma ricette condivise.
+              FoodOS supporta più sedi con dati separati ma {LEX.ricette} condivise.
               Aggiungile anche più tardi da <strong>Impostazioni → Sedi</strong>.
             </p>
 

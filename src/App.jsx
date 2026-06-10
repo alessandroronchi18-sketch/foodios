@@ -258,6 +258,7 @@ export default function App() {
     return sus(
       <OnboardingWizard
         nomeAttivita={auth.org?.nome}
+        tipoAttivita={auth.org?.tipo || 'pasticceria'}
         orgId={auth.orgId}
         onComplete={completaOnboarding}
         onSkip={completaOnboarding}

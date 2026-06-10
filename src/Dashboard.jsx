@@ -2642,7 +2642,7 @@ export default function Dashboard({
         {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
-        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify}/>}
+        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify} tipoAttivita={tipoAttivita}/>}
 
         {/* Registro attività — solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
         {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
@@ -2663,23 +2663,23 @@ export default function Dashboard({
           </div>
         )}
         {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} LEX={LEX}/>}
-        {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify}/>}
+        {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX}/>}
-        {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario}/>}
+        {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {/* Personale espone stipendi: MAI per i dipendenti (oltre a sidebar gate + RLS solo-titolare). */}
         {view==="personale"&&!isDip&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} adminNome={auth?.profile?.nome_completo || auth?.user?.email}/>}
         {view==="haccp"&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
-        {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
+        {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} LEX={LEX}/>}
         {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
-        {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome}/>}
+        {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="importa-dati"&&<ImportaDatiView
           onImportRicettario={handleFile}
@@ -2689,7 +2689,7 @@ export default function Dashboard({
           onImportFatture={handleImportFattureGlobal}
           notify={notify}/>}
         {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={()=>setView("impostazioni")}/>)}
-        {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita}/>}
+        {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
         {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="integrazioni"&&(canAccessView("integrazioni",piano)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
