@@ -361,15 +361,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
                 return (
                   <tr key={gustoKey} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
                     <td style={tdGusto}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        {nome}
-                        {orfano && (
-                          <span title="Questo gusto non e' nel ricettario. Per gestirne food cost e allergeni aggiungilo da Ricettario → Nuova ricetta."
-                            style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#FEF3C7', color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            non a ricettario
-                          </span>
-                        )}
-                      </div>
+                      <NomeGustoConFlag nome={nome} orfano={orfano} />
                     </td>
                     {GIORNI.map((_, i) => {
                       const dIso = addDays(lunediIso, i)
@@ -909,6 +901,37 @@ function SortChip({ label, color, active, dir, onClick }) {
   )
 }
 
+// ── Icona "gusto non a ricettario" con tooltip ────────────────────────────
+function IconaOrfano() {
+  return (
+    <span
+      title="Gusto non presente nel ricettario. Aggiungilo da Ricettario → Nuova ricetta per gestire food cost, allergeni e categorie."
+      aria-label="Gusto non nel ricettario"
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 18, height: 18, borderRadius: '50%',
+        background: '#FEF3C7', color: '#92400E',
+        fontSize: 11, fontWeight: 800, cursor: 'help',
+        flexShrink: 0,
+      }}>
+      ⚠
+    </span>
+  )
+}
+
+// ── Nome gusto + (eventuale) icona warning incolonnata a destra ───────────
+// Nome a sinistra, icona di alert a destra della cella. Usa justify-content:
+// space-between cosi' l'icona resta sempre allineata al margine destro
+// indipendentemente dalla lunghezza del nome.
+function NomeGustoConFlag({ nome, orfano }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%' }}>
+      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
+      {orfano && <IconaOrfano />}
+    </div>
+  )
+}
+
 // ── VistaMese: settimane in colonna, kg venduti per gusto/settimana + totale
 // Calcoliamo il venduto da righeMese (riman_prev + prod - riman - scarto)
 // raggruppato per settimana ISO del mese.
@@ -983,12 +1006,14 @@ function VistaMese({ gusti, righeMese, lunediIso }) {
             </tr>
           </thead>
           <tbody>
-            {(gusti || []).map(({ nome }) => {
+            {(gusti || []).map(({ nome, orfano }) => {
               const k = normGusto(nome)
               const r = m[k] || { per_sett: [0,0,0,0,0], totProd: 0, totVend: 0 }
               return (
                 <tr key={k} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-                  <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: C.text }}>{nome}</td>
+                  <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: C.text }}>
+                    <NomeGustoConFlag nome={nome} orfano={orfano} />
+                  </td>
                   {r.per_sett.map((v, i) => (
                     <td key={i} style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: v > 0 ? C.text : C.textSoft, fontSize: 12.5 }}>
                       {v > 0 ? (v / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + ' kg' : '—'}
@@ -1092,14 +1117,16 @@ function VistaStorico({ gusti, righeStorico, inizio }) {
             </tr>
           </thead>
           <tbody>
-            {(gusti || []).map(({ nome }) => {
+            {(gusti || []).map(({ nome, orfano }) => {
               const k = normGusto(nome)
               const arr = data.idx[k] || data.mesi.map(() => 0)
               const tot = arr.reduce((s, v) => s + v, 0)
               const max = Math.max(1, ...arr)
               return (
                 <tr key={k} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-                  <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: C.text, position: 'sticky', left: 0, background: C.bgCard }}>{nome}</td>
+                  <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: C.text, position: 'sticky', left: 0, background: C.bgCard, minWidth: 180 }}>
+                    <NomeGustoConFlag nome={nome} orfano={orfano} />
+                  </td>
                   {arr.map((v, i) => (
                     <td key={i} style={{ padding: '4px 8px', textAlign: 'right', ...TNUM, color: v > 0 ? C.text : C.textSoft, fontSize: 12, position: 'relative' }}>
                       {v > 0 && (
@@ -1143,7 +1170,7 @@ function VistaOggi({ gusti, matrice, saving, onSave }) {
         &nbsp;— Compila PROD (quanto hai prodotto) e RIMAN (quanto e' rimasto a fine giornata). I valori si salvano automaticamente.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {gusti.map(({ nome }) => {
+        {gusti.map(({ nome, orfano }) => {
           const gKey = normGusto(nome)
           const byData = matrice[gKey] || {}
           const cell = byData[oggiIso] || { prod: 0, riman: 0, venduto: null }
@@ -1156,7 +1183,10 @@ function VistaOggi({ gusti, matrice, saving, onSave }) {
               boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{nome}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  {nome}
+                  {orfano && <IconaOrfano />}
+                </div>
                 {cell.venduto != null && (
                   <div style={{ fontSize: 11, color: C.textSoft }}>
                     venduto stimato: <strong style={{ color: T.brand, ...TNUM }}>
