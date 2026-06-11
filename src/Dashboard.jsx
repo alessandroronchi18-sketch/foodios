@@ -85,6 +85,7 @@ import { compressImage } from './lib/imageUtils'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
 const ChiusuraView = lazyWithReload(() => import('./views/ChiusuraView'))
 const ProduzioneGiornalieraView = lazyWithReload(() => import('./views/ProduzioneGiornalieraView'))
+const InventarioSettimanaleView = lazyWithReload(() => import('./views/InventarioSettimanaleView'))
 const AzioniView = lazyWithReload(() => import('./views/AzioniView'))
 const NuovaRicettaView = lazyWithReload(() => import('./views/NuovaRicettaView'))
 const StoricoProduzioneView = lazyWithReload(() => import('./views/StoricoProduzioneView'))
@@ -1145,6 +1146,7 @@ class ErrorBoundary extends React.Component {
 // 20260607_dipendente_no_lettura_sensibili.sql).
 const DIPENDENTE_VIEWS = new Set([
   'giornaliero',     // Produzione — "caricare i prodotti" (solo oggi)
+  'inventario-gusti',// Inventario differenziale per gelaterie/yogurt (alternativa a giornaliero)
   'chiusura',        // Cassa (solo oggi)
   'magazzino',       // Stock e rifornimenti
   'sprechi-omaggi',  // Operativo: sia titolare sia dipendente registrano
@@ -1156,7 +1158,7 @@ const DIPENDENTE_VIEWS = new Set([
 
 // Viste operative che SCRIVONO dati per-sede: in "Tutte le sedi" (vista aggregata)
 // richiedono di scegliere prima una sede specifica.
-const SEDE_RICHIESTA = new Set(['giornaliero','chiusura','magazzino','sprechi-omaggi','trasferimenti']);
+const SEDE_RICHIESTA = new Set(['giornaliero','inventario-gusti','chiusura','magazzino','sprechi-omaggi','trasferimenti']);
 
 export default function Dashboard({
   auth,
@@ -1221,8 +1223,13 @@ export default function Dashboard({
   // ripristinata da sessionStorage o via link), riportalo alla produzione.
   useEffect(() => {
     if (view === 'discrepanze') { setView('sprechi-omaggi'); return; }   // unita in Perdite & cessioni
-    if (isDip && !DIPENDENTE_VIEWS.has(view)) setView('giornaliero');
-  }, [isDip, view]);
+    // Fallback dipendente: se sulla sede attiva e' attivo il metodo inventario,
+    // la "home produzione" del dipendente diventa 'inventario-gusti'.
+    if (isDip && !DIPENDENTE_VIEWS.has(view)) {
+      const isInv = sedeAttiva?.is_sede_produzione === true && sedeAttiva?.metodo_produzione === 'inventario'
+      setView(isInv ? 'inventario-gusti' : 'giornaliero')
+    }
+  }, [isDip, view, sedeAttiva]);
   // Quando si clicca "Modifica" su una card ricetta, salviamo qui il nome
   // così NuovaRicettaView lo carica nel form al mount.
   const [editingRicetta,setEditingRicetta]=useState(null);
@@ -1841,9 +1848,16 @@ export default function Dashboard({
         const hasProdOggi = (giornaliero||[]).some(s=>s.data===today2&&(s.prodotti||[]).length>0);
         const cassaMancante = !(chiusure||[]).some(c=>c.data===today2) && new Date().getHours()>=14;
         const multiSede = (sedi||[]).length>1;
+        // Metodo produzione della sede attiva: determina se mostrare la voce
+        // "Inventario gusti" (metodo=inventario, gelaterie/yogurt) al posto
+        // di "Produzione" (metodo=stampi, pasticcerie/panifici).
+        const isMetodoInventario = sedeAttiva?.is_sede_produzione === true
+          && sedeAttiva?.metodo_produzione === 'inventario'
         const NAV = [
           { id:"oggi", label:"Oggi", items:[
-            {id:"giornaliero",label:"Produzione",icon:"cal",alert:!hasProdOggi&&new Date().getHours()>=6},
+            ...(isMetodoInventario
+              ? [{id:"inventario-gusti",label:"Inventario gusti",icon:"layers"}]
+              : [{id:"giornaliero",label:"Produzione",icon:"cal",alert:!hasProdOggi&&new Date().getHours()>=6}]),
             {id:"chiusura",label:"Cassa",icon:"creditCard",alert:cassaMancante},
             {id:"eventi",label:"Eventi",icon:"cal"},
             {id:"calendario",label:"Calendario",icon:"cal"},
@@ -2288,7 +2302,9 @@ export default function Dashboard({
               {Group({ id:"oggi", iconKey:"today", label:"Oggi",
                 alert:(!hasProdOggi && new Date().getHours()>=6) || cassaMancante,
                 children:[
-                  navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6),
+                  ...((sedeAttiva?.is_sede_produzione && sedeAttiva?.metodo_produzione === 'inventario')
+                    ? [navItem("inventario-gusti","layers","Inventario gusti")]
+                    : [navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)]),
                   navItem("chiusura","creditCard","Cassa",0,cassaMancante),
                   navItem("eventi","cal","Eventi"),
                   navItem("calendario","cal","Calendario"),
@@ -2403,13 +2419,16 @@ export default function Dashboard({
 
           {/* Mobile bottom navigation */}
           {isMobile&&(()=>{
+            const isInv = sedeAttiva?.is_sede_produzione === true && sedeAttiva?.metodo_produzione === 'inventario'
             const BOTTOM_NAV = [
               {id:"home",        icon:"home",       label:"Oggi"},
-              {id:"giornaliero", icon:"cal",        label:"Produzione", alert:!hasProdOggi&&new Date().getHours()>=6},
+              isInv
+                ? {id:"inventario-gusti", icon:"layers", label:"Inventario"}
+                : {id:"giornaliero", icon:"cal", label:"Produzione", alert:!hasProdOggi&&new Date().getHours()>=6},
               {id:"chiusura",    icon:"creditCard", label:"Cassa",      alert:cassaMancante},
               {id:"magazzino",   icon:"pkg",        label:"Magazzino",  badge:criticeMag},
               {id:"__more",      icon:"menu",       label:"Altro"},
-            ].filter(item => item.id === "__more" || !isDip || DIPENDENTE_VIEWS.has(item.id));
+            ].filter(item => item.id === "__more" || !isDip || DIPENDENTE_VIEWS.has(item.id) || item.id === 'inventario-gusti');
             return (
               <nav style={{position:"fixed",bottom:0,left:0,right:0,zIndex:Z.bottomNav,
                 background:"rgba(255,255,255,0.94)",
@@ -2680,6 +2699,7 @@ export default function Dashboard({
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} LEX={LEX}/>}
         {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
+        {view==="inventario-gusti"&&!isAllSedi&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} notify={notify}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="importa-dati"&&<ImportaDatiView
