@@ -57,7 +57,11 @@ function fmtG(n) {
   return Number(n).toLocaleString('it-IT')
 }
 
-export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, magazzino, setMagazzino, tipoAttivita, notify }) {
+export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAttiva, ricettario, magazzino, setMagazzino, tipoAttivita, notify }) {
+  // "Tutte le sedi" attivo: vista AGGREGATA read-only. Somma PROD/RIMAN di
+  // tutte le sedi produttive con metodo='inventario'. Niente save, niente
+  // import: si scelgono prima una sede specifica.
+  const isAllSedi = sedeAttiva?._all === true
   const isMobile = useIsMobile()
   const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
   const [righe, setRighe] = useState([])
@@ -86,40 +90,112 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
 
   useEffect(() => {
     let alive = true
-    if (!orgId || !sedeId) { setLoading(false); return }
+    if (!orgId) { setLoading(false); return }
     setLoading(true)
-    caricaSettimana(orgId, sedeId, lunediIso)
-      .then(data => { if (alive) { setRighe(data); setLoading(false) } })
-      .catch(e => { if (alive) { console.error(e); setLoading(false) } })
+    if (isAllSedi) {
+      // Aggregazione cross-sede: prendiamo TUTTE le righe della settimana
+      // (e del giorno prima per il calcolo venduto) di TUTTE le sedi
+      // produttive con metodo inventario, e le sommiamo per gusto×data.
+      const sediProd = (sedi || []).filter(s =>
+        s.attiva !== false && s.is_sede_produzione && s.metodo_produzione === 'inventario'
+      )
+      Promise.all(sediProd.map(s => caricaSettimana(orgId, s.id, lunediIso)))
+        .then(perSede => {
+          if (!alive) return
+          // Somma per (gusto, data).
+          const map = {}
+          for (const arr of perSede) {
+            for (const r of (arr || [])) {
+              const k = `${r.gusto_nome}|${r.data}`
+              if (!map[k]) {
+                map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }
+              }
+              map[k].produzione_g += Number(r.produzione_g) || 0
+              map[k].rimanenza_g += Number(r.rimanenza_g) || 0
+              map[k].scarto_g += Number(r.scarto_g) || 0
+            }
+          }
+          setRighe(Object.values(map))
+          setLoading(false)
+        })
+        .catch(e => { if (alive) { console.error(e); setLoading(false) } })
+    } else {
+      if (!sedeId) { setLoading(false); return }
+      caricaSettimana(orgId, sedeId, lunediIso)
+        .then(data => { if (alive) { setRighe(data); setLoading(false) } })
+        .catch(e => { if (alive) { console.error(e); setLoading(false) } })
+    }
     return () => { alive = false }
-  }, [orgId, sedeId, lunediIso])
+  }, [orgId, sedeId, lunediIso, isAllSedi, sedi])
+
+  // ID delle sedi su cui leggere: una se sede attiva, tutte le produttive
+  // se isAllSedi. Computed con stabilita' tramite JSON.stringify per evitare
+  // re-render infiniti.
+  const sediProdIds = useMemo(() => {
+    if (!isAllSedi) return sedeId ? [sedeId] : []
+    return (sedi || [])
+      .filter(s => s.attiva !== false && s.is_sede_produzione && s.metodo_produzione === 'inventario')
+      .map(s => s.id)
+  }, [isAllSedi, sedeId, sedi])
 
   // Caricamento dati MESE quando si seleziona la vista mese.
-  // Carica tutte le righe del mese corrente del lunediIso.
   useEffect(() => {
-    if (vista !== 'mese' || !orgId || !sedeId) return
+    if (vista !== 'mese' || !orgId || sediProdIds.length === 0) return
     const d = new Date(lunediIso)
     const inizio = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
     const fine = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString().slice(0, 10)
     supabase.from('inventario_produzione')
-      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g')
-      .eq('organization_id', orgId).eq('sede_id', sedeId)
+      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id')
+      .eq('organization_id', orgId).in('sede_id', sediProdIds)
       .gte('data', inizio).lt('data', fine)
-      .then(({ data }) => setMeseData({ righe: data || [], inizio, fine }))
-  }, [vista, orgId, sedeId, lunediIso])
+      .then(({ data }) => {
+        // Aggrega per (gusto, data) se isAllSedi (somma sedi)
+        if (isAllSedi) {
+          const map = {}
+          for (const r of (data || [])) {
+            const k = `${r.gusto_nome}|${r.data}`
+            if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }
+            map[k].produzione_g += Number(r.produzione_g) || 0
+            map[k].rimanenza_g += Number(r.rimanenza_g) || 0
+            map[k].scarto_g += Number(r.scarto_g) || 0
+          }
+          setMeseData({ righe: Object.values(map), inizio, fine })
+        } else {
+          setMeseData({ righe: data || [], inizio, fine })
+        }
+      })
+  }, [vista, orgId, sediProdIds, lunediIso, isAllSedi])
 
   // Caricamento dati STORICO (ultimi 6 mesi) quando si apre vista storico.
   useEffect(() => {
-    if (vista !== 'storico' || !orgId || !sedeId) return
+    if (vista !== 'storico' || !orgId || sediProdIds.length === 0) return
     const oggi = new Date()
     const inizio = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1).toISOString().slice(0, 10)
     supabase.from('inventario_produzione')
-      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g')
-      .eq('organization_id', orgId).eq('sede_id', sedeId)
+      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id')
+      .eq('organization_id', orgId).in('sede_id', sediProdIds)
       .gte('data', inizio)
       .order('data')
-      .then(({ data }) => setStoricoData({ righe: data || [], inizio }))
-  }, [vista, orgId, sedeId])
+      .then(({ data }) => {
+        if (isAllSedi) {
+          // Aggreghiamo per (gusto, data) sommando sedi. La logica del venduto
+          // poi e' calcolata in VistaStorico (richiede continuita' giornaliera);
+          // sommare RIMAN cross-sede e' coerente perche' RIMAN(N-1)+PROD(N)-RIMAN(N)
+          // sommato per sede e' uguale a (sum RIMAN_prev) + (sum PROD) - (sum RIMAN).
+          const map = {}
+          for (const r of (data || [])) {
+            const k = `${r.gusto_nome}|${r.data}`
+            if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }
+            map[k].produzione_g += Number(r.produzione_g) || 0
+            map[k].rimanenza_g += Number(r.rimanenza_g) || 0
+            map[k].scarto_g += Number(r.scarto_g) || 0
+          }
+          setStoricoData({ righe: Object.values(map), inizio })
+        } else {
+          setStoricoData({ righe: data || [], inizio })
+        }
+      })
+  }, [vista, orgId, sediProdIds, isAllSedi])
 
   const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
   const totali = useMemo(() => totaliVenduti(matrice), [matrice])
@@ -247,6 +323,19 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       <PageHeader subtitle={`Foglio settimanale per la registrazione di produzione e rimanenze. Il sistema calcola automaticamente il venduto: rimanenza(ieri) + produzione(oggi) − rimanenza(oggi) − scarto.`} />
 
+      {isAllSedi && (
+        <div style={{
+          padding: '10px 14px', background: '#EFF6FF',
+          border: '1px solid #BFDBFE', borderRadius: 10, marginBottom: 12,
+          fontSize: 12.5, color: '#1E3A8A', lineHeight: 1.5,
+        }}>
+          🌍 <strong>Vista aggregata "Tutte le sedi"</strong> — Stai vedendo la
+          somma di tutte le sedi produttive con metodo inventario. La compilazione
+          e l'import sono <strong>disabilitati</strong>: per modificare i dati,
+          seleziona una sede specifica dal selettore in alto.
+        </div>
+      )}
+
       {/* Segmented control Oggi/Settimana + bottone Importa file */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{
@@ -268,11 +357,16 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
           })}
         </div>
         <button onClick={() => setImportDlg({ step: 'pick' })}
+          disabled={isAllSedi}
+          title={isAllSedi ? 'Per importare, seleziona prima una sede specifica' : undefined}
           style={{
             padding: '8px 16px', minHeight: 40,
-            background: T.brand, color: '#FFFFFF', border: 'none', borderRadius: 8,
-            fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+            background: isAllSedi ? '#94A3B8' : T.brand,
+            color: '#FFFFFF', border: 'none', borderRadius: 8,
+            fontSize: 12.5, fontWeight: 700,
+            cursor: isAllSedi ? 'not-allowed' : 'pointer',
             display: 'inline-flex', alignItems: 'center', gap: 6,
+            opacity: isAllSedi ? 0.6 : 1,
           }}>
           <Icon name="download" size={14} color="#FFFFFF" />
           Importa file
@@ -310,7 +404,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
       ) : vista === 'oggi' ? (
         <VistaOggi
           gusti={gustiOrdinati} matrice={matrice} saving={saving}
-          onSave={handleSave}
+          onSave={handleSave} readOnly={isAllSedi}
         />
       ) : vista === 'mese' ? (
         <VistaMese gusti={gustiOrdinati} righeMese={meseData?.righe || []} lunediIso={lunediIso} />
@@ -374,7 +468,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
                             <CellInput
                               value={cell.prod || ''}
                               saving={!!saving[kProd]}
-                              accent="#0EA5E9"
+                              accent="#0EA5E9" readOnly={isAllSedi}
                               onCommit={v => handleSave(gustoKey, dIso, 'produzione_g', v)}
                             />
                           </td>
@@ -382,7 +476,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
                             <CellInput
                               value={cell.riman || ''}
                               saving={!!saving[kRim]}
-                              accent="#F59E0B"
+                              accent="#F59E0B" readOnly={isAllSedi}
                               onCommit={v => handleSave(gustoKey, dIso, 'rimanenza_g', v)}
                             />
                           </td>
@@ -1158,7 +1252,7 @@ function VistaStorico({ gusti, righeStorico, inizio }) {
 // ── VistaOggi: lista verticale mobile-first per il dipendente ─────────────
 // Mostra SOLO il giorno corrente (today). Per ogni gusto, 2 input grandi
 // (PROD, RIMAN). Pensata per essere usata in laboratorio dal cellulare.
-function VistaOggi({ gusti, matrice, saving, onSave }) {
+function VistaOggi({ gusti, matrice, saving, onSave, readOnly }) {
   const oggiIso = new Date().toISOString().slice(0, 10)
   return (
     <div>
@@ -1200,14 +1294,14 @@ function VistaOggi({ gusti, matrice, saving, onSave }) {
                   label="PROD oggi"
                   accent="#0EA5E9"
                   value={cell.prod || 0}
-                  saving={!!saving[kProd]}
+                  saving={!!saving[kProd]} readOnly={readOnly}
                   onCommit={v => onSave(gKey, oggiIso, 'produzione_g', v)}
                 />
                 <BigField
                   label="RIMAN. fine giornata"
                   accent="#F59E0B"
                   value={cell.riman || 0}
-                  saving={!!saving[kRim]}
+                  saving={!!saving[kRim]} readOnly={readOnly}
                   onCommit={v => onSave(gKey, oggiIso, 'rimanenza_g', v)}
                 />
               </div>
@@ -1220,7 +1314,7 @@ function VistaOggi({ gusti, matrice, saving, onSave }) {
 }
 
 // Campo grande per la VistaOggi: input touch-friendly con label sopra.
-function BigField({ label, accent, value, saving, onCommit }) {
+function BigField({ label, accent, value, saving, onCommit, readOnly }) {
   const [local, setLocal] = useState(value === 0 ? '' : String(value))
   useEffect(() => { setLocal(value === 0 ? '' : String(value)) }, [value])
   const commit = () => {
@@ -1234,7 +1328,7 @@ function BigField({ label, accent, value, saving, onCommit }) {
       </div>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 4,
-        background: saving ? 'rgba(110,14,26,0.04)' : '#FAFBFC',
+        background: saving ? 'rgba(110,14,26,0.04)' : (readOnly ? '#F1F5F9' : '#FAFBFC'),
         border: `2px solid ${local ? accent : C.border}`,
         borderRadius: 10, padding: '0 10px',
         minHeight: 52,
@@ -1243,14 +1337,17 @@ function BigField({ label, accent, value, saving, onCommit }) {
           type="text"
           inputMode="numeric"
           value={local}
-          onChange={e => setLocal(e.target.value.replace(/[^\d.,]/g, ''))}
-          onBlur={commit}
+          readOnly={readOnly}
+          onChange={e => { if (!readOnly) setLocal(e.target.value.replace(/[^\d.,]/g, '')) }}
+          onBlur={readOnly ? undefined : commit}
           onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
           placeholder="0"
           style={{
             flex: 1, border: 'none', outline: 'none', background: 'transparent',
             fontSize: 18, fontWeight: 700, color: C.text, textAlign: 'right',
-            padding: '12px 0', ...TNUM,
+            padding: '12px 0',
+            cursor: readOnly ? 'default' : 'text',
+            ...TNUM,
           }}
         />
         <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>g</span>
@@ -1262,7 +1359,7 @@ function BigField({ label, accent, value, saving, onCommit }) {
 // ── Cella input controllata con salvataggio on-blur ───────────────────────
 // Lo state locale serve solo a non commitare ad ogni keypress. Su blur (o
 // Enter) chiama onCommit con il valore numerico finale.
-function CellInput({ value, saving, accent, onCommit }) {
+function CellInput({ value, saving, accent, onCommit, readOnly }) {
   const [local, setLocal] = useState(value === '' || value === 0 ? '' : String(value))
   // Quando il valore di props cambia (refresh dati), riallineiamo lo state.
   useEffect(() => {
@@ -1277,8 +1374,9 @@ function CellInput({ value, saving, accent, onCommit }) {
       type="text"
       inputMode="numeric"
       value={local}
-      onChange={e => setLocal(e.target.value.replace(/[^\d.,]/g, ''))}
-      onBlur={commit}
+      readOnly={readOnly}
+      onChange={e => { if (!readOnly) setLocal(e.target.value.replace(/[^\d.,]/g, '')) }}
+      onBlur={readOnly ? undefined : commit}
       onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
       style={{
         width: '100%', minWidth: 56, padding: '8px 6px', textAlign: 'right',
@@ -1287,6 +1385,7 @@ function CellInput({ value, saving, accent, onCommit }) {
         background: saving ? 'rgba(110,14,26,0.05)' : 'transparent',
         color: C.text, fontWeight: local ? 600 : 400,
         borderBottom: `2px solid ${local ? accent : 'transparent'}`,
+        cursor: readOnly ? 'default' : 'text',
         ...TNUM,
       }}
     />
