@@ -182,16 +182,28 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   const sessioniOggi = (giornEff || []).filter(s => s.data === today)
   const hasProdOggi = sessioniOggi.some(s => (s.prodotti || []).length > 0)
   const prodCount = sessioniOggi.reduce((acc, s) => acc + (s.prodotti || []).reduce((a, p) => {
-    const reg = getR(p.nome, ricettario?.ricette?.[p.nome])
+    // Fallback uppercase per nomi legacy: senza, getR cade su default
+    // {unita:8, prezzo:4} e prodCount mostra valori falsati nei record vecchi.
+    const ric = ricettario?.ricette?.[p.nome]
+      || ricettario?.ricette?.[(p.nome || '').toUpperCase().trim()]
+    const reg = getR(p.nome, ric)
     const u = Number(reg?.unita)
     return a + (p.stampi || 0) * (Number.isFinite(u) && u > 0 ? u : 1)
   }, 0), 0)
 
   const cassaOggiList = (chiusEff || []).filter(c => c.data === today)
+  // Le chiusure ChiusuraView salvano i ricavi su c.kpi.totV (cfr. ChiusuraView
+  // rec building). c.totale e' un campo legacy/non garantito. Senza il
+  // fallback su kpi.totV il KPI hero "Ricavi oggi" risultava sempre 0.
+  const totaleChiusura = (c) => Number(c?.kpi?.totV || c?.totale || 0)
   const cassaOggi = viewAggregato
-    ? (cassaOggiList.length > 0 ? { totale: cassaOggiList.reduce((s, c) => s + (c.totale || 0), 0) } : null)
+    ? (cassaOggiList.length > 0
+        ? { totale: cassaOggiList.reduce((s, c) => s + totaleChiusura(c), 0) }
+        : null)
     : cassaOggiList[0] || null
-  const ricaviOggi = cassaOggi?.totale || 0
+  const ricaviOggi = viewAggregato
+    ? (cassaOggi?.totale || 0)
+    : totaleChiusura(cassaOggi)
 
   const ricette = Object.values(ricettario?.ricette || {})
     .filter(r => getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')

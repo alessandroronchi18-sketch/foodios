@@ -4,6 +4,7 @@ import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { getCorsHeaders, handleOptions, getClientIP, json } from './lib/cors.js'
 import { sanitize, sanitizeStrict, validateUUID, validateEmail } from './lib/validate.js'
 import { safeError } from './lib/safeError.js'
+import { verificaAdmin } from './lib/auth.js'
 
 // ADMIN_EMAIL deve essere configurato su Vercel come env var.
 // Nessun default hardcoded: se manca, l'endpoint rifiuta SEMPRE.
@@ -41,66 +42,10 @@ async function getSupabase() {
   return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 }
 
-// Decodifica un claim dal payload di un JWT senza verifica firma.
-// Sicuro qui perche' chiamato solo DOPO supabase.auth.getUser(token) che
-// verifica la firma; serve solo a estrarre claim non esposti dall'API.
-function decodeJwtClaim(token, claim) {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-    while (b64.length % 4) b64 += '='
-    const payload = JSON.parse(atob(b64))
-    return payload[claim] ?? null
-  } catch {
-    return null
-  }
-}
-
-async function verificaAdmin(req, supabase) {
-  // Fail-closed: senza ADMIN_EMAIL configurato, nessuno è admin.
-  if (!ADMIN_EMAIL) return { user: null, reason: 'admin_email_not_configured' }
-
-  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { user: null, reason: 'no_bearer' }
-  }
-  const token = authHeader.replace('Bearer ', '').trim()
-  if (!token) return { user: null, reason: 'empty_token' }
-
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(token)
-    if (error) return { user: null, reason: `getUser_error:${error.message}` }
-    if (!user) return { user: null, reason: 'no_user' }
-    if ((user.email || '').toLowerCase() !== ADMIN_EMAIL) {
-      return { user: null, reason: `not_admin:${user.email}` }
-    }
-    // ── Enforce MFA per admin ────────────────────────────────────────────
-    // L'admin e' target ad alto valore: MFA e' obbligatoria salvo override
-    // esplicito via DISABLE_ADMIN_MFA=true (utile in fase pre-revenue prima
-    // di configurare TOTP; rimuovere appena MFA e' attiva).
-    if ((process.env.DISABLE_ADMIN_MFA || '').toLowerCase() === 'true') {
-      return { user, reason: 'ok_mfa_disabled' }
-    }
-    // La AAL e' un claim del JWT (gia' verificato da getUser sopra), quindi
-    // possiamo leggerla decodificando il payload — piu' robusto che
-    // supabase.auth.mfa.getAuthenticatorAssuranceLevel(), che richiede una
-    // sessione utente sul client e con service_role lancia eccezione.
-    const aalLevel = decodeJwtClaim(token, 'aal')
-    if (aalLevel !== 'aal2') {
-      // Distingue "ha MFA ma non l'ha usata" da "MFA non configurata".
-      let hasVerifiedFactor = false
-      try {
-        const { data: f } = await supabase.auth.admin.mfa.listFactors({ userId: user.id })
-        hasVerifiedFactor = (f?.factors || []).some(x => x.status === 'verified')
-      } catch { /* se la query factor fallisce, conservativo: mfa_required */ hasVerifiedFactor = true }
-      return { user: null, reason: hasVerifiedFactor ? 'mfa_required' : 'mfa_not_enrolled' }
-    }
-    return { user, reason: 'ok' }
-  } catch (err) {
-    return { user: null, reason: `exception:${err.message}` }
-  }
-}
+// verificaAdmin importato da ./lib/auth.js — consolidato per evitare drift
+// (avevamo una copia locale che non riceveva il guard isProd su
+// DISABLE_ADMIN_MFA introdotto nell'audit giu 2026, che lasciava il pannello
+// admin esposto a single-factor in prod). Un solo punto di verita'.
 
 async function logAdmin(supabase, adminEmail, azione, orgId, ip, userAgent) {
   try {
