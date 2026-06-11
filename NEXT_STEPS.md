@@ -3,6 +3,23 @@
 > Questo documento elenca **solo le azioni che richiedono chiavi/account esterni** o decisioni umane.
 > Il codice e' pronto, ma alcune configurazioni sono fuori da git.
 
+## ⚠️ STATO DEPLOY (giu 2026)
+
+- `main` HEAD `b3f98b6` contiene audit profondo (4 CRITICAL + 9 HIGH + 13 MEDIUM/LOW)
+- Migration `20260624` (stripe processed_at) e `20260625` (hot-path indexes) APPLICATE in Supabase
+- **Prod live serve ancora il deploy `vbyj6hnh8` su HEAD `0f09e9c`** (precedente all'audit)
+- Deploy nuovo bloccato: Vercel Hobby limita a 12 functions, repo ne ha 27
+- Compatibilita' garantita: le migration aggiungono solo colonne/indici, zero breaking change
+
+**Per sbloccare**: upgrade Vercel Pro ($20/mese) — poi
+`git commit --allow-empty -m "trigger redeploy" && git push`
+e l'autodeploy riallinea la prod automaticamente.
+
+Alternativa (non raccomandata, vale ~30 giorni): consolidare 5 endpoint
+in router unici per scendere a 12 functions. Documentato in chat audit.
+
+---
+
 ## 🔴 Bloccanti per il primo pagante
 
 ### 1. Dominio `foodios.it` agganciato
