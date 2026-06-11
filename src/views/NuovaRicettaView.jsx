@@ -57,7 +57,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     return [...s].filter(k => k && k.length > 1).sort();
   }, [ricettario]);
 
-  const empty = { nome: "", categoria: "", unita: 8, prezzo: 4, tipo: "fetta", note: "", ingredienti: [], congelabile: false, allergeniManual: [], is_gusto: false };
+  const empty = { nome: "", categoria: "", unita: 8, prezzo: 4, tipo: "fetta", note: "", ingredienti: [], congelabile: false, allergeniManual: [] };
   const [form, setForm] = useState(empty);
   const [targetPct, setTargetPct] = useState(30); // food cost obiettivo (%) — modificabile
 
@@ -94,7 +94,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const ings = r.ingredienti.map(i => ({ ...i }));
     const auto = detectAllergeniFromIngredienti(ings);
     const manual = (r.allergeni || []).filter(a => !auto.includes(a));
-    setForm({ nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual, is_gusto: !!r.is_gusto });
+    setForm({ nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual });
     setEditMode(nome);
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
   };
@@ -131,10 +131,6 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         congelabile: form.congelabile || false,
         allergeni: effectiveAllergeni,
         categoria: (form.categoria || "").trim() || undefined,
-        // Flag "gusto" per il metodo inventario differenziale (gelaterie):
-        // marca questa ricetta come da gestire nel foglio settimanale
-        // gusti × giorni invece che come ricetta-per-scontrino.
-        is_gusto: form.is_gusto === true,
       };
       const nuovoRic = {
         ingredienti_costi: ricettario?.ingredienti_costi || {},
@@ -403,23 +399,10 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 {form.tipo === "semilavorato" && <div style={{ marginTop: 6, padding: "6px 10px", background: "#F9F2FD", border: "1px solid #D4B0E8", borderRadius: 6, fontSize: 10, color: "#8E44AD", display: "flex", alignItems: "center", gap: 5 }}>
                   <Icon name="bulb" size={13} /> <span>Per i semilavorati usa la sezione dedicata <strong>"Semilavorati"</strong> in sidebar — ha template rapidi e import da foto.</span>
                 </div>}
-                {/* Flag "gusto" per metodo inventario differenziale. Appare
-                    sotto il selettore tipo: chi produce gusti di gelato/yogurt
-                    spunta qui e la ricetta entrera' nel foglio settimanale
-                    inventario invece che nel flusso scontrino-match. */}
-                {!isSemiOrInterno && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 10, padding: '8px 10px', background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 6, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={form.is_gusto === true}
-                      onChange={e => setForm(f => ({ ...f, is_gusto: e.target.checked }))}
-                      style={{ marginTop: 2 }} />
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0C4A6E' }}>È un gusto da inventario (gelateria/yogurt/pasta fresca)</div>
-                      <div style={{ fontSize: 10.5, color: '#075985', lineHeight: 1.4, marginTop: 2 }}>
-                        Comparirà nel foglio settimanale "Inventario gusti" delle sedi di produzione configurate col metodo inventario.
-                      </div>
-                    </div>
-                  </label>
-                )}
+                {/* Niente flag is_gusto qui: in modalita' inventario, tutte
+                    le ricette tipo fetta/pezzo sono trattate automaticamente
+                    come gusti — la scelta del metodo si fa una sola volta
+                    nelle Impostazioni sedi, non per ricetta. */}
               </div>
 
               {/* N° pezzi/fette per stampo */}

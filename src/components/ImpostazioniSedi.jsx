@@ -153,12 +153,11 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
   const [form, setForm] = useState({ nome: '', indirizzo: '', citta: '', is_default: false })
   const [editForm, setEditForm] = useState({})
   const [toast, setToast] = useState(null)
-  const [scenario, setScenario] = useState(null)
 
-  useEffect(() => {
-    if (!orgId) return
-    sload(SK_SCENARIO, orgId, null).then(v => setScenario(v?.scenario || null))
-  }, [orgId])
+  // Lo state "scenario operativo" e relativo load da SK_SCENARIO sono stati
+  // rimossi insieme al box UI in giu 2026. Il dato resta in DB per
+  // retrocompatibilita ma non viene piu' usato. La fonte di verita per
+  // produzione/inventario e' ora il toggle is_sede_produzione su ogni sede.
 
   const sediAttive = sedi.filter(s => s.attiva !== false)
   const canAddMore = true
@@ -314,11 +313,11 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
         </div>
       )}
 
-      <ScenarioOperativoCard
-        orgId={orgId}
-        scenarioCorrente={scenario}
-        onCambia={(id) => { setScenario(id); notify('✓ Scenario aggiornato') }}
-      />
+      {/* Lo "Scenario operativo" e' stato rimosso dalla UI giu 2026: era solo
+          descrittivo e sovrapponeva semanticamente al toggle "Sede di produzione"
+          per-sede (che e' la fonte di verita' reale). Il dato resta in DB
+          (SK_SCENARIO) per le org esistenti; il pannello UI e il setter sono
+          ora gestiti per-sede dalla card Modifica di ogni sede. */}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: 15, fontWeight: 800, color: TXT }}>Gestione Sedi</div>

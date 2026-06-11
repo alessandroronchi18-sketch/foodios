@@ -19,19 +19,28 @@ export function normGusto(s) {
   return (s || '').toString().toUpperCase().trim()
 }
 
-// Estrae l'elenco dei gusti dal ricettario filtrando per flag `is_gusto`. Se
-// l'org non ha ancora marcato nessuna ricetta, fallback alla categoria del
-// tipo_attivita (gelateria → tutti i gelati; altre categorie → vuoto: serve
-// che il titolare marchi esplicitamente).
-export function elencoGusti(ricettario, tipoAttivita) {
+// Estrae l'elenco dei gusti dal ricettario.
+//
+// Decisione UX (giu 2026): il proprietario sceglie il metodo di produzione
+// UNA volta nelle impostazioni; pretendere che spunti poi un flag su ogni
+// ricetta era una sovraconfigurazione inutile. In modalita' inventario,
+// TUTTE le ricette che hanno senso essere prodotte/vendute (tipo fetta o
+// pezzo) sono trattate come gusti. I semilavorati/interni restano fuori
+// perche' sono basi di lavorazione, non prodotti finiti.
+//
+// Esclusione esplicita possibile via flag `is_gusto === false` sulla ricetta
+// (caso raro: gelateria che ha 1 torta classica non-gusto). Lasciato come
+// escape hatch ma non esposto in UI MVP.
+export function elencoGusti(ricettario /* , tipoAttivita */) {
   const ricette = ricettario?.ricette || {}
-  const conFlag = Object.values(ricette).filter(r => r.is_gusto === true)
-  if (conFlag.length > 0) {
-    return conFlag.map(r => ({ nome: r.nome, ricetta: r }))
-  }
-  // Fallback per la prima esperienza utente: se nessun gusto e' marcato,
-  // mostriamo zero (così l'utente deve passare dal ricettario per marcarli).
-  return []
+  return Object.values(ricette)
+    .filter(r => {
+      const tipo = (r.tipo || 'fetta').toString()
+      if (tipo === 'semilavorato' || tipo === 'interno') return false
+      if (r.is_gusto === false) return false  // escape hatch
+      return true
+    })
+    .map(r => ({ nome: r.nome, ricetta: r }))
 }
 
 // ── CRUD inventario_produzione ────────────────────────────────────────────

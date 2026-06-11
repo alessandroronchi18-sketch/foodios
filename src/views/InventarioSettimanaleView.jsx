@@ -152,11 +152,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '60px 24px', textAlign: 'center' }}>
         <Icon name="bulb" size={48} color={T.brand} />
         <h2 style={{ fontSize: 18, fontWeight: 700, color: C.text, marginTop: 16, marginBottom: 8 }}>
-          Nessun gusto configurato
+          Nessun gusto nel ricettario
         </h2>
         <p style={{ fontSize: 13, color: C.textSoft, lineHeight: 1.6 }}>
-          Vai nel <strong>Ricettario</strong>, apri o crea una ricetta e attiva l'opzione
-          <em> "È un gusto da inventario"</em>. Quel gusto apparirà qui per la registrazione settimanale.
+          Vai nel <strong>Ricettario</strong> e crea le tue ricette (gusti di gelato, yogurt, ecc.).
+          Tutte le ricette tipo <em>fetta</em> o <em>pezzo</em> compariranno automaticamente qui per
+          la registrazione settimanale. I semilavorati restano fuori.
         </p>
       </div>
     )
