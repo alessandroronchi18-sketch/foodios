@@ -202,6 +202,144 @@ function addGiorni(dataIso, n) {
   return d.toISOString().slice(0, 10)
 }
 
+// ── Helper: identifica sheet "sede" in un workbook ─────────────────────────
+// Un workbook reale del cliente gelateria contiene piu' sheet, uno per ogni
+// sede di produzione (es. CARLINA, BERTHOLLET, DE GASPERI), piu' uno TOTALI
+// (cross-sede), piu' alcuni B2B (RISTORANTI, GELATO ELIMINATO) e ALTRI
+// PRODOTTI (per pastorizzata/cioccolata/zabaione).
+//
+// Riconosciamo gli sheet sede cercando il pattern "GUSTI" + "PROD/RIMAN" nelle
+// prime righe — coerenza con parseFoglioInventario. Gli altri li classifichiamo
+// per nome (TOTALI / GELATO ELIMINATO / RISTORANTI / ALTRI ...).
+
+export function classificaSheet(XLSX, workbook) {
+  const out = { sedi: [], totali: null, b2b: [], altri: [] }
+  for (const sheetName of (workbook.SheetNames || [])) {
+    const ws = workbook.Sheets[sheetName]
+    if (!ws) continue
+    const matrice = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
+    const nameUp = sheetName.toString().trim().toUpperCase()
+
+    // Pattern sede: cerca "GUSTI" nelle prime 5 righe + "PROD"/"RIMAN" nei
+    // sub-header. Se trovato, e' uno sheet sede.
+    const isSedeSheet = (() => {
+      let trovatoGusti = false, trovatoProd = false
+      for (let i = 0; i < Math.min(matrice.length, 5); i++) {
+        const row = matrice[i] || []
+        for (const c of row.slice(0, 25)) {
+          const v = (c || '').toString().trim().toUpperCase()
+          if (v === 'GUSTI' || v === 'GUSTO') trovatoGusti = true
+          if (v === 'PROD' || v.startsWith('PROD ')) trovatoProd = true
+        }
+      }
+      return trovatoGusti && trovatoProd
+    })()
+
+    if (isSedeSheet) {
+      out.sedi.push({ sheetName, matrice })
+    } else if (nameUp === 'TOTALI' || nameUp.includes('TOTAL')) {
+      out.totali = { sheetName, matrice }
+    } else if (nameUp.includes('RISTORANT') || nameUp.includes('B2B') || nameUp.includes('ELIMINAT')) {
+      out.b2b.push({ sheetName, matrice })
+    } else {
+      out.altri.push({ sheetName, matrice })
+    }
+  }
+  return out
+}
+
+// Normalizza il nome di una sede per il matching tra sheet e DB.
+// Es: "DE GASPERI" / "de gasperi" / "Dega" tutti collassano a "degasperi".
+export function normNomeSede(s) {
+  return (s || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+// Trova la sede dell'org che corrisponde al nome dello sheet. Match per
+// nome normalizzato. Ritorna l'oggetto sede o null.
+export function trovaSedePerSheet(sheetName, sediOrg) {
+  if (!Array.isArray(sediOrg)) return null
+  const key = normNomeSede(sheetName)
+  if (!key) return null
+  // Match esatto first.
+  let match = sediOrg.find(s => normNomeSede(s.nome) === key)
+  if (match) return match
+  // Match per substring (es. "CARLINA" vs "Sede Carlina centro").
+  match = sediOrg.find(s => normNomeSede(s.nome).includes(key) || key.includes(normNomeSede(s.nome)))
+  return match || null
+}
+
+// ── Check totali cross-sheet vs sheet TOTALI ───────────────────────────────
+// Confronta la somma del venduto per gusto calcolata dai sheet sede contro
+// la colonna "TOTALE GUSTI TUTTI NEGOZI" del foglio TOTALI. La logica del
+// foglio TOTALI: per ogni gusto, ogni 6 colonne contiene (sett1, sett2,
+// sett3, sett4, sett5, totale_mese) per UNA sede. L'ultima colonna numerica
+// (penultima del foglio) e' "TOTALE GUSTI TUTTI NEGOZI".
+//
+// Per ogni gusto calcoliamo:
+//   - calcolato = somma_kg_venduti su tutti gli sheet sede (dal nostro parsing)
+//   - dichiarato = TOTALE GUSTI TUTTI NEGOZI letto dal foglio TOTALI
+// e ritorniamo le divergenze (oltre soglia 5%).
+
+export function checkTotaliCrossSheet(perSedeRighe, totaliMatrice) {
+  if (!Array.isArray(totaliMatrice) || totaliMatrice.length < 2) return { coerente: true, divergenze: [] }
+
+  // Trova la colonna "TOTALE GUSTI TUTTI NEGOZI" dall'header (R0).
+  const r0 = totaliMatrice[0] || []
+  let colTotale = -1
+  for (let j = 0; j < r0.length; j++) {
+    const v = (r0[j] || '').toString().trim().toUpperCase()
+    if (v.includes('TOTALE GUSTI') || v.includes('TOTALE TUTTI')) { colTotale = j; break }
+  }
+  if (colTotale < 0) return { coerente: true, divergenze: [], warning: 'colonna TOTALE GUSTI TUTTI NEGOZI non trovata' }
+
+  // Indicizza: per ogni gusto, somma calcolata dalle sedi.
+  const calcolato = {}
+  for (const righe of (perSedeRighe || [])) {
+    for (const r of (righe || [])) {
+      const k = r.gusto_nome
+      const v = (r.rimanenza_g != null && r.produzione_g != null)
+        ? (r.produzione_g + (calcolato[k]?.prevRiman || 0) - r.rimanenza_g)
+        : 0
+      // semplificazione: somma direttamente il venduto stimato per cella
+      // (riman_prev + prod - riman). Per il check non ci serve precisione
+      // estrema; vogliamo segnalare divergenze grossolane.
+      calcolato[k] = calcolato[k] || { vendutoG: 0 }
+      // qui usiamo prod_g come proxy se non sappiamo bilanciare bene il
+      // riman_prev cross-settimana — il check resta indicativo.
+      calcolato[k].vendutoG = (calcolato[k].vendutoG || 0)
+    }
+  }
+
+  // Per coerenza: ricalcolare il venduto cross-sede in modo robusto richiede
+  // tutta la matrice ordinata per data. Per il check MVP, sommiamo i kg di
+  // PRODUZIONE (proxy non perfetto ma utile per "ordini di grandezza").
+  for (const righe of (perSedeRighe || [])) {
+    for (const r of (righe || [])) {
+      const k = r.gusto_nome
+      calcolato[k] = calcolato[k] || { prodG: 0 }
+      calcolato[k].prodG = (calcolato[k].prodG || 0) + (Number(r.produzione_g) || 0)
+    }
+  }
+
+  const divergenze = []
+  for (let i = 2; i < totaliMatrice.length; i++) {
+    const row = totaliMatrice[i] || []
+    const nome = (row[0] || '').toString().trim().toUpperCase()
+    if (!nome) continue
+    const dichiarato = Number(row[colTotale]) || 0
+    if (dichiarato === 0) continue
+    const calc = (calcolato[nome]?.prodG) || 0
+    if (calc === 0) continue
+    const diff = Math.abs(calc - dichiarato)
+    const diffPct = (diff / dichiarato) * 100
+    if (diffPct > 5) {
+      divergenze.push({ gusto: nome, calcolato: calc, dichiarato, diffPct })
+    }
+  }
+
+  return { coerente: divergenze.length === 0, divergenze }
+}
+
 // ── Helper: diff vs DB ─────────────────────────────────────────────────────
 // Confronta le righe parsate dal file con quelle gia' in DB per la stessa
 // (sede, gusto, data). Ritorna 4 categorie:

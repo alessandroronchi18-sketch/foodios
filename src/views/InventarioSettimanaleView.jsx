@@ -32,8 +32,10 @@ import {
 } from '../lib/inventarioProduzione'
 import {
   parseNomeFile, lunediSettimana1DelMese, parseFoglioInventario, diffConDb,
+  classificaSheet, trovaSedePerSheet, checkTotaliCrossSheet,
 } from '../lib/inventarioImport'
 import { loadXLSX } from '../lib/xlsx'
+import { supabase } from '../lib/supabase'
 
 const GIORNI = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom']
 const GIORNI_LUNGHI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
@@ -61,10 +63,13 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
   const [righe, setRighe] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState({}) // key = `${gusto}|${data}|${campo}`
-  // Vista: 'settimana' (foglio Excel completo) | 'oggi' (lista verticale
-  // mobile-friendly per il dipendente che compila in laboratorio dal cellulare).
+  // Vista: 'oggi' (mobile-friendly) | 'settimana' (Excel-like) | 'mese' (KPI
+  // settimanali del mese intero) | 'storico' (timeline multi-mese kg/mese).
   // Default: oggi su mobile, settimana su desktop.
   const [vista, setVista] = useState(() => isMobile ? 'oggi' : 'settimana')
+  // Stato dati per le viste estese (mese, storico)
+  const [meseData, setMeseData] = useState(null)
+  const [storicoData, setStoricoData] = useState(null)
   // Ordinamento gusti: di default alfabetico ascendente. Click sui label di
   // header colonna (PROD/RIMAN giorno N o VENDUTO SETT) toggla la metrica
   // di sort e direzione.
@@ -85,6 +90,33 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
       .catch(e => { if (alive) { console.error(e); setLoading(false) } })
     return () => { alive = false }
   }, [orgId, sedeId, lunediIso])
+
+  // Caricamento dati MESE quando si seleziona la vista mese.
+  // Carica tutte le righe del mese corrente del lunediIso.
+  useEffect(() => {
+    if (vista !== 'mese' || !orgId || !sedeId) return
+    const d = new Date(lunediIso)
+    const inizio = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+    const fine = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString().slice(0, 10)
+    supabase.from('inventario_produzione')
+      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g')
+      .eq('organization_id', orgId).eq('sede_id', sedeId)
+      .gte('data', inizio).lt('data', fine)
+      .then(({ data }) => setMeseData({ righe: data || [], inizio, fine }))
+  }, [vista, orgId, sedeId, lunediIso])
+
+  // Caricamento dati STORICO (ultimi 6 mesi) quando si apre vista storico.
+  useEffect(() => {
+    if (vista !== 'storico' || !orgId || !sedeId) return
+    const oggi = new Date()
+    const inizio = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1).toISOString().slice(0, 10)
+    supabase.from('inventario_produzione')
+      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g')
+      .eq('organization_id', orgId).eq('sede_id', sedeId)
+      .gte('data', inizio)
+      .order('data')
+      .then(({ data }) => setStoricoData({ righe: data || [], inizio }))
+  }, [vista, orgId, sedeId])
 
   const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
   const totali = useMemo(() => totaliVenduti(matrice), [matrice])
@@ -218,7 +250,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
           display: 'inline-flex', gap: 2, padding: 4,
           background: C.bgSubtle, borderRadius: 10,
         }}>
-          {[['oggi','Oggi'], ['settimana','Settimana']].map(([k, lbl]) => {
+          {[['oggi','Oggi'], ['settimana','Settimana'], ['mese','Mese'], ['storico','Storico']].map(([k, lbl]) => {
             const sel = vista === k
             return (
               <button key={k} onClick={() => setVista(k)}
@@ -277,6 +309,10 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
           gusti={gustiOrdinati} matrice={matrice} saving={saving}
           onSave={handleSave}
         />
+      ) : vista === 'mese' ? (
+        <VistaMese gusti={gustiOrdinati} righeMese={meseData?.righe || []} lunediIso={lunediIso} />
+      ) : vista === 'storico' ? (
+        <VistaStorico gusti={gustiOrdinati} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} />
       ) : (
         <div style={{
           background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
@@ -370,26 +406,32 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
           righeDb={righe}
           state={importDlg}
           setState={setImportDlg}
-          onCommit={async (nuoveRighe) => {
-            // upsert in serie tutte le righe accettate
+          onCommit={async (batch) => {
+            // batch: [{sheetName, sedeId, righe}] — uno per sheet sede.
+            // Upsertiamo in serie. Conta totale ok/ko.
             let ok = 0, ko = 0
-            for (const r of nuoveRighe) {
-              try {
-                await salvaCella(orgId, sedeId, r.gusto_nome, r.data, {
-                  produzione_g: r.produzione_g,
-                  rimanenza_g: r.rimanenza_g,
-                  scarto_g: 0,
-                })
-                ok++
-              } catch (e) { console.error('salvaCella import:', e); ko++ }
+            const sediCoinvolte = new Set()
+            for (const blocco of (batch || [])) {
+              for (const r of (blocco.righe || [])) {
+                try {
+                  await salvaCella(orgId, blocco.sedeId, r.gusto_nome, r.data, {
+                    produzione_g: r.produzione_g,
+                    rimanenza_g: r.rimanenza_g,
+                    scarto_g: 0,
+                  })
+                  ok++
+                } catch (e) { console.error('salvaCella import:', e); ko++ }
+              }
+              sediCoinvolte.add(blocco.sedeId)
             }
-            // ricarica settimana corrente
+            // Ricarica la settimana corrente per la sede attiva.
             const fresh = await caricaSettimana(orgId, sedeId, lunediIso)
             setRighe(fresh)
             setImportDlg(null)
+            const nSedi = sediCoinvolte.size
             notify?.(ko > 0
-              ? `Import: ${ok} righe salvate, ${ko} errori`
-              : `Import: ${ok} righe salvate con successo`,
+              ? `Import: ${ok} righe salvate, ${ko} errori (su ${nSedi} sedi)`
+              : `Import: ${ok} righe salvate in ${nSedi} ${nSedi === 1 ? 'sede' : 'sedi'}`,
               ko === 0)
           }}
         />
@@ -417,7 +459,7 @@ function DialogImport({ orgId, sedeId, righeDb, state, setState, onCommit }) {
       }}
       onClick={(e) => { if (e.target === e.currentTarget) close() }}>
       <div style={{
-        background: '#FFFFFF', borderRadius: 16, maxWidth: 700, width: '100%',
+        background: '#FFFFFF', borderRadius: 16, maxWidth: 860, width: '100%',
         boxShadow: '0 20px 60px rgba(15,23,42,0.30)',
         padding: '22px 24px', maxHeight: '92vh', overflowY: 'auto',
       }}>
@@ -431,21 +473,18 @@ function DialogImport({ orgId, sedeId, righeDb, state, setState, onCommit }) {
           </button>
         </div>
 
-        {dlg.step === 'pick' && <StepPick onParsed={(parsed) => setState({ ...dlg, ...parsed, step: parsed.bisognaSceglieMese ? 'mese' : 'preview' })} onCancel={close} />}
-
-        {dlg.step === 'mese' && <StepMese fileName={dlg.fileName} matrice={dlg.matrice}
-          onChosen={(mese, anno) => {
-            const lun = lunediSettimana1DelMese(mese, anno)
-            const parsed = parseFoglioInventario(dlg.matrice, lun)
-            setState({ ...dlg, mese, anno, lunediBase: lun, parsato: parsed, step: 'preview' })
-          }}
-          onBack={() => setState({ ...dlg, step: 'pick' })}
+        {dlg.step === 'pick' && <StepPick
+          onParsed={(parsed) => setState({ ...dlg, ...parsed, step: 'setup' })}
+          onCancel={close}
         />}
 
-        {dlg.step === 'preview' && <StepPreview parsato={dlg.parsato} righeDb={righeDb}
-          mese={dlg.mese} anno={dlg.anno}
+        {dlg.step === 'setup' && <StepSetupMulti
+          orgId={orgId} sedeCorrenteId={sedeId}
+          classif={dlg.classif}
+          fileName={dlg.fileName}
+          meseRilevato={dlg.meseRilevato}
           onBack={() => setState({ ...dlg, step: 'pick' })}
-          onConferma={(righeAccettate) => onCommit(righeAccettate)}
+          onConferma={(righeBatch) => onCommit(righeBatch)}
         />}
       </div>
     </div>
@@ -464,27 +503,17 @@ function StepPick({ onParsed, onCancel }) {
       const XLSX = await loadXLSX()
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(new Uint8Array(buf), { type: 'array' })
-      const ws = wb.Sheets[wb.SheetNames[0]]
-      const matrice = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
+
+      // Classifichiamo i sheet: sedi (con layout GUSTI/PROD), totali, b2b, altri.
+      const classif = classificaSheet(XLSX, wb)
       const meseAnno = parseNomeFile(file.name)
-      if (meseAnno) {
-        const lun = lunediSettimana1DelMese(meseAnno.mese, meseAnno.anno)
-        const parsato = parseFoglioInventario(matrice, lun)
-        onParsed({
-          fileName: file.name,
-          matrice,
-          mese: meseAnno.mese, anno: meseAnno.anno,
-          lunediBase: lun, parsato,
-          bisognaSceglieMese: false,
-        })
-      } else {
-        // Mese non rilevato: passa allo step manuale.
-        onParsed({
-          fileName: file.name,
-          matrice,
-          bisognaSceglieMese: true,
-        })
-      }
+
+      onParsed({
+        fileName: file.name,
+        classif,
+        meseRilevato: meseAnno,  // null se non riconosciuto
+        bisognaSceglieMese: !meseAnno,
+      })
     } catch (e) {
       console.error(e)
       setErr(`Errore nel leggere il file: ${e.message || 'formato non valido'}`)
@@ -532,132 +561,246 @@ function StepPick({ onParsed, onCancel }) {
   )
 }
 
-function StepMese({ fileName, matrice, onChosen, onBack }) {
-  const [mese, setMese] = useState(new Date().getMonth() + 1)
-  const [anno, setAnno] = useState(new Date().getFullYear())
-  const MESI_LABEL = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
+// ── StepSetupMulti: setup unico per file multi-sheet ──────────────────────
+// Mostra:
+//   - selettore mese/anno (sempre cambiabile, anche se rilevato dal nome)
+//   - tabella sheet rilevati con mapping sede + checkbox includi
+//   - check totali cross-sheet vs sheet TOTALI (informativo)
+//   - bottone "Importa N righe in M sedi"
+const MESI_LABEL = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
+
+function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato, onBack, onConferma }) {
+  // Mese/anno: di default usa rilevato, altrimenti mese corrente.
+  const oggi = new Date()
+  const [mese, setMese] = useState(meseRilevato?.mese || (oggi.getMonth() + 1))
+  const [anno, setAnno] = useState(meseRilevato?.anno || oggi.getFullYear())
+  // Sedi dell'org (per il mapping sheet -> sede)
+  const [sedi, setSedi] = useState([])
+  // mappaSede[sheetName] = sede_id (selezionata dall'utente) | '' (skip)
+  const [mappaSede, setMappaSede] = useState({})
+
+  useEffect(() => {
+    if (!orgId) return
+    supabase.from('sedi').select('id, nome, is_default, is_sede_produzione, metodo_produzione, attiva')
+      .eq('organization_id', orgId).eq('attiva', true)
+      .then(({ data }) => {
+        const lista = data || []
+        setSedi(lista)
+        // Auto-mapping iniziale: per ogni sheet sede, trova la sede dell'org
+        // col nome che corrisponde. Sheet senza match -> '' (skip).
+        const m = {}
+        for (const sh of (classif?.sedi || [])) {
+          const sede = trovaSedePerSheet(sh.sheetName, lista)
+          m[sh.sheetName] = sede?.id || ''
+        }
+        setMappaSede(m)
+      })
+  }, [orgId])
+
+  const lunediBase = useMemo(() => lunediSettimana1DelMese(mese, anno), [mese, anno])
+
+  // Parsing in tempo reale di tutti gli sheet sede usando lunediBase corrente.
+  const parsatiPerSheet = useMemo(() => {
+    return (classif?.sedi || []).map(sh => ({
+      sheetName: sh.sheetName,
+      parsato: parseFoglioInventario(sh.matrice, lunediBase),
+    }))
+  }, [classif, lunediBase])
+
+  // Check totali cross-sheet (sommiamo solo gli sheet inclusi nel mapping).
+  const checkTot = useMemo(() => {
+    const inclusi = parsatiPerSheet
+      .filter(x => mappaSede[x.sheetName])
+      .map(x => x.parsato.righe)
+    if (!classif?.totali) return { coerente: true, divergenze: [] }
+    return checkTotaliCrossSheet(inclusi, classif.totali.matrice)
+  }, [parsatiPerSheet, mappaSede, classif])
+
+  // Conteggio finale: numero righe totali da importare.
+  const totRighe = useMemo(() => parsatiPerSheet
+    .filter(x => mappaSede[x.sheetName])
+    .reduce((s, x) => s + (x.parsato?.righe?.length || 0), 0)
+  , [parsatiPerSheet, mappaSede])
+
+  const numSediIncluse = Object.values(mappaSede).filter(Boolean).length
+
+  function confermaImport() {
+    // Batch: per ogni sede, lista delle righe. Il chiamante (DialogImport)
+    // le inoltra al commit.
+    const batch = parsatiPerSheet
+      .filter(x => mappaSede[x.sheetName])
+      .map(x => ({
+        sheetName: x.sheetName,
+        sedeId: mappaSede[x.sheetName],
+        righe: x.parsato.righe,
+      }))
+    onConferma(batch)
+  }
+
   return (
     <div>
+      {!meseRilevato && (
+        <div style={{
+          padding: '12px 14px', background: '#FEF9EB',
+          border: '1px solid #FDE68A', borderRadius: 10, marginBottom: 14,
+          fontSize: 12.5, color: '#78350F', lineHeight: 1.55,
+        }}>
+          <strong>Mese non riconosciuto dal nome file</strong>
+          (<code style={{ background: '#FFFFFF', padding: '1px 6px', borderRadius: 4 }}>{fileName}</code>).
+          Scegli manualmente qui sotto.
+        </div>
+      )}
+
+      {/* SELETTORE MESE/ANNO: sempre cambiabile, anche post-detect (es. per
+          la demo dove vogliamo trattare un file dicembre come maggio). */}
       <div style={{
-        padding: '12px 14px', background: '#FEF9EB',
-        border: '1px solid #FDE68A', borderRadius: 10, marginBottom: 14,
-        fontSize: 12.5, color: '#78350F', lineHeight: 1.55,
+        padding: 14, background: C.bgSubtle, borderRadius: 10, marginBottom: 16,
+        border: `1px solid ${C.border}`,
       }}>
-        <strong>Non riesco a capire quale mese sia.</strong>&nbsp;
-        Il nome del file (<code style={{ background: '#FFFFFF', padding: '1px 6px', borderRadius: 4 }}>{fileName}</code>) non contiene un mese riconoscibile.
-        Scegli manualmente mese e anno qui sotto.
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
-        <div>
-          <label style={lblForm}>Mese</label>
-          <select value={mese} onChange={e => setMese(+e.target.value)} style={inpForm}>
-            {MESI_LABEL.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          Periodo a cui appartiene il file
         </div>
-        <div>
-          <label style={lblForm}>Anno</label>
-          <input type="number" value={anno} min={2020} max={2099}
-            onChange={e => setAnno(+e.target.value)} style={inpForm} />
-        </div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-        <button onClick={onBack} style={btnSecondary}>← Indietro</button>
-        <button onClick={() => onChosen(mese, anno)} style={btnPrimary}>
-          Continua
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function StepPreview({ parsato, righeDb, mese, anno, onBack, onConferma }) {
-  const MESI_LABEL = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
-  const diff = useMemo(() => diffConDb(parsato?.righe || [], righeDb || []), [parsato, righeDb])
-  const haDivergenze = diff.divergenti.length > 0
-  const totRighe = (parsato?.righe || []).length
-
-  return (
-    <div>
-      <div style={{ fontSize: 13, color: C.textMid, marginBottom: 12, lineHeight: 1.55 }}>
-        File: <strong>{MESI_LABEL[mese - 1]} {anno}</strong> &middot; {parsato?.gusti?.length || 0} gusti riconosciuti &middot; {totRighe} righe.
-      </div>
-
-      {parsato?.warnings?.length > 0 && (
-        <div style={{ padding: '10px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, marginBottom: 12, fontSize: 12.5, color: '#78350F' }}>
-          <strong>Avvisi:</strong>
-          <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
-            {parsato.warnings.map((w, i) => <li key={i}>{w}</li>)}
-          </ul>
-        </div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
-        <KpiBoxDlg label="Nuovi" val={diff.nuovi.length} color="#0E9F6E" />
-        <KpiBoxDlg label="Identici" val={diff.identici.length} color={C.textSoft} />
-        <KpiBoxDlg label="Divergenti" val={diff.divergenti.length} color={haDivergenze ? '#DC2626' : C.textSoft} />
-      </div>
-
-      {haDivergenze && (
-        <div style={{ padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#991B1B', marginBottom: 8 }}>
-            ⚠️ Trovate {diff.divergenti.length} celle con valori diversi rispetto a quelli già nel sistema.
-            Ricontrolla i dati: i valori del file sovrascriveranno quelli attuali.
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={lblForm}>Mese</label>
+            <select value={mese} onChange={e => setMese(+e.target.value)} style={inpForm}>
+              {MESI_LABEL.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </select>
           </div>
-          <div style={{ maxHeight: 220, overflowY: 'auto', background: '#FFFFFF', border: `1px solid ${C.border}`, borderRadius: 8 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#FAFBFC' }}>
-                  <th style={{ padding: '8px 10px', textAlign: 'left', color: C.textSoft, fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>Gusto</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'left', color: C.textSoft, fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>Data</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', color: C.textSoft, fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>PROD prima → nuovo</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', color: C.textSoft, fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }}>RIMAN prima → nuovo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {diff.divergenti.slice(0, 100).map((d, i) => (
-                  <tr key={i} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-                    <td style={{ padding: '6px 10px', fontWeight: 600, color: C.text }}>{d.gusto_nome}</td>
-                    <td style={{ padding: '6px 10px', color: C.textMid }}>{d.data}</td>
-                    <td style={{ padding: '6px 10px', textAlign: 'right', ...TNUM,
-                                 color: d.produzione.vecchio === d.produzione.nuovo ? C.textSoft : C.text }}>
-                      {d.produzione.vecchio} → <strong>{d.produzione.nuovo}</strong>
-                    </td>
-                    <td style={{ padding: '6px 10px', textAlign: 'right', ...TNUM,
-                                 color: d.rimanenza.vecchio === d.rimanenza.nuovo ? C.textSoft : C.text }}>
-                      {d.rimanenza.vecchio} → <strong>{d.rimanenza.nuovo}</strong>
-                    </td>
+          <div>
+            <label style={lblForm}>Anno</label>
+            <input type="number" value={anno} min={2020} max={2099}
+              onChange={e => setAnno(+e.target.value)} style={inpForm} />
+          </div>
+        </div>
+        {meseRilevato && (meseRilevato.mese !== mese || meseRilevato.anno !== anno) && (
+          <div style={{ fontSize: 11.5, color: '#92400E', marginTop: 8 }}>
+            ⚠️ Stai cambiando il mese rispetto a quello rilevato nel nome file ({MESI_LABEL[meseRilevato.mese - 1]} {meseRilevato.anno}).
+          </div>
+        )}
+      </div>
+
+      {/* MAPPING SHEET -> SEDE */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+          Sedi rilevate nel file ({classif?.sedi?.length || 0})
+        </div>
+        {(classif?.sedi || []).length === 0 ? (
+          <div style={{ fontSize: 13, color: C.textSoft, fontStyle: 'italic' }}>
+            Nessun foglio sede riconosciuto nel file.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {parsatiPerSheet.map((x) => {
+              const nRighe = x.parsato?.righe?.length || 0
+              const nGusti = x.parsato?.gusti?.length || 0
+              const sedeAttuale = mappaSede[x.sheetName]
+              return (
+                <div key={x.sheetName} style={{
+                  padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10,
+                  background: sedeAttuale ? '#F0FDF4' : '#FFFFFF',
+                  display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+                }}>
+                  <div style={{ flex: '0 0 auto' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                      Foglio: {x.sheetName}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.textSoft }}>
+                      {nGusti} gusti · {nRighe} righe
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <label style={lblForm}>Importa nella sede</label>
+                    <select value={sedeAttuale}
+                      onChange={e => setMappaSede(m => ({ ...m, [x.sheetName]: e.target.value }))}
+                      style={{ ...inpForm, minWidth: 200 }}>
+                      <option value="">— Ignora questo foglio —</option>
+                      {sedi.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.nome}{s.is_default ? ' (principale)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* CHECK TOTALI */}
+      {classif?.totali && numSediIncluse > 0 && (
+        checkTot.divergenze.length === 0 ? (
+          <div style={{
+            padding: '10px 14px', background: '#ECFDF5', border: '1px solid #A7F3D0',
+            borderRadius: 10, marginBottom: 14, fontSize: 12.5, color: '#065F46',
+          }}>
+            ✓ Check totali OK: la somma dei fogli sede corrisponde ai totali dichiarati.
+          </div>
+        ) : (
+          <div style={{
+            padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FECACA',
+            borderRadius: 10, marginBottom: 14,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#991B1B', marginBottom: 6 }}>
+              ⚠️ Trovati {checkTot.divergenze.length} gusti con totali divergenti
+            </div>
+            <div style={{ fontSize: 11.5, color: '#7F1D1D', marginBottom: 8 }}>
+              La somma dei fogli sede non coincide col valore dichiarato nel foglio TOTALI (oltre il 5%).
+              L'import procede comunque: ricontrolla i dati nel file originale.
+            </div>
+            <div style={{ maxHeight: 140, overflowY: 'auto', background: '#FFFFFF', border: `1px solid ${C.border}`, borderRadius: 8 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
+                <thead>
+                  <tr style={{ background: '#FAFBFC' }}>
+                    <th style={tdHead}>Gusto</th>
+                    <th style={{ ...tdHead, textAlign: 'right' }}>Calcolato (kg)</th>
+                    <th style={{ ...tdHead, textAlign: 'right' }}>Dichiarato (kg)</th>
+                    <th style={{ ...tdHead, textAlign: 'right' }}>Diff %</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {diff.divergenti.length > 100 && (
-              <div style={{ padding: '6px 10px', fontSize: 11, color: C.textSoft, textAlign: 'center' }}>
-                ... e altre {diff.divergenti.length - 100} righe divergenti.
-              </div>
-            )}
+                </thead>
+                <tbody>
+                  {checkTot.divergenze.slice(0, 20).map((d, i) => (
+                    <tr key={i} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
+                      <td style={tdCell}>{d.gusto}</td>
+                      <td style={{ ...tdCell, textAlign: 'right', ...TNUM }}>{(d.calcolato / 1000).toFixed(1)}</td>
+                      <td style={{ ...tdCell, textAlign: 'right', ...TNUM }}>{(d.dichiarato / 1000).toFixed(1)}</td>
+                      <td style={{ ...tdCell, textAlign: 'right', ...TNUM, color: '#991B1B', fontWeight: 700 }}>
+                        {d.diffPct.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
+        )
+      )}
+
+      {/* INFO SU SHEET IGNORATI */}
+      {(classif?.b2b?.length > 0 || classif?.altri?.length > 0) && (
+        <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
+          <strong>Fogli ignorati</strong> (non importati in questa fase):{' '}
+          {[...(classif.b2b || []), ...(classif.altri || [])].map(x => x.sheetName).join(' · ')}
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, paddingTop: 12, borderTop: `1px solid ${C.borderSoft}` }}>
         <button onClick={onBack} style={btnSecondary}>← Carica altro file</button>
-        <button onClick={() => onConferma(parsato?.righe || [])}
-          disabled={totRighe === 0} style={{ ...btnPrimary, opacity: totRighe === 0 ? 0.5 : 1 }}>
-          {haDivergenze ? `Sovrascrivi ${diff.divergenti.length + diff.nuovi.length} righe` : `Importa ${totRighe} righe`}
+        <button onClick={confermaImport}
+          disabled={totRighe === 0 || numSediIncluse === 0}
+          style={{ ...btnPrimary, opacity: (totRighe === 0 || numSediIncluse === 0) ? 0.5 : 1 }}>
+          Importa {totRighe} righe in {numSediIncluse} {numSediIncluse === 1 ? 'sede' : 'sedi'}
         </button>
       </div>
     </div>
   )
 }
 
-function KpiBoxDlg({ label, val, color }) {
-  return (
-    <div style={{ padding: '10px 12px', background: C.bgSubtle, borderRadius: 8, textAlign: 'center' }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color, ...TNUM, marginTop: 2 }}>{val}</div>
-    </div>
-  )
-}
+const tdHead = { padding: '6px 10px', textAlign: 'left', color: T.textSoft, fontWeight: 700, fontSize: 10, textTransform: 'uppercase' }
+const tdCell = { padding: '5px 10px', color: T.text }
+
 
 const btnPrimary = {
   padding: '10px 18px', minHeight: 42, background: T.brand,
@@ -704,6 +847,225 @@ function SortChip({ label, color, active, dir, onClick }) {
       {label}
       {active && <span style={{ fontSize: 8 }}>{dir === 'asc' ? '▲' : '▼'}</span>}
     </span>
+  )
+}
+
+// ── VistaMese: settimane in colonna, kg venduti per gusto/settimana + totale
+// Calcoliamo il venduto da righeMese (riman_prev + prod - riman - scarto)
+// raggruppato per settimana ISO del mese.
+function VistaMese({ gusti, righeMese, lunediIso }) {
+  const m = useMemo(() => {
+    // Indicizza per gusto+data
+    const idx = {}
+    for (const r of (righeMese || [])) {
+      const k = `${r.gusto_nome}|${r.data}`
+      idx[k] = r
+    }
+    // Per ogni gusto, calcola venduto giorno per giorno e raggruppa per settimana.
+    const out = {}
+    const start = new Date(lunediIso); start.setDate(1)  // primo del mese del lunediIso
+    const inizioMese = new Date(start.getFullYear(), start.getMonth(), 1)
+    const fineMese = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+    const nGg = fineMese.getDate()
+    for (const { nome } of (gusti || [])) {
+      const k = normGusto(nome)
+      const per_sett = [0, 0, 0, 0, 0]  // 5 settimane max
+      let totProd = 0, totVend = 0
+      let rimanPrev = 0
+      for (let d = 1; d <= nGg; d++) {
+        const dateIso = `${inizioMese.getFullYear()}-${String(inizioMese.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+        const r = idx[`${k}|${dateIso}`]
+        if (!r) {
+          rimanPrev = 0
+          continue
+        }
+        const prod = Number(r.produzione_g) || 0
+        const riman = Number(r.rimanenza_g) || 0
+        const scarto = Number(r.scarto_g) || 0
+        const venduto = Math.max(0, rimanPrev + prod - riman - scarto)
+        totProd += prod
+        totVend += venduto
+        // Settimana del mese (0-indexed, max 4): (giorno - 1) / 7 arrotondato
+        const sw = Math.min(4, Math.floor((d - 1) / 7))
+        per_sett[sw] += venduto
+        rimanPrev = riman
+      }
+      out[k] = { per_sett, totProd, totVend }
+    }
+    return out
+  }, [gusti, righeMese, lunediIso])
+
+  const meseLabel = (() => {
+    const d = new Date(lunediIso)
+    return `${MESI_LABEL[d.getMonth()]} ${d.getFullYear()}`
+  })()
+
+  return (
+    <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+      <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        Riepilogo mensile · {meseLabel}
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
+          <thead>
+            <tr style={{ background: '#F8FAFC' }}>
+              <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Gusto</th>
+              {[1,2,3,4,5].map(w => (
+                <th key={w} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  W{w}
+                </th>
+              ))}
+              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}>
+                Tot. venduto
+              </th>
+              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Tot. prodotto
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {(gusti || []).map(({ nome }) => {
+              const k = normGusto(nome)
+              const r = m[k] || { per_sett: [0,0,0,0,0], totProd: 0, totVend: 0 }
+              return (
+                <tr key={k} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
+                  <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: C.text }}>{nome}</td>
+                  {r.per_sett.map((v, i) => (
+                    <td key={i} style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: v > 0 ? C.text : C.textSoft, fontSize: 12.5 }}>
+                      {v > 0 ? (v / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + ' kg' : '—'}
+                    </td>
+                  ))}
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 800, fontSize: 13, background: '#FEF9EB' }}>
+                    {(r.totVend / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg
+                  </td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: C.textMid, fontSize: 12.5 }}>
+                    {(r.totProd / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: 12, fontSize: 11, color: C.textSoft, lineHeight: 1.5 }}>
+        W1–W5 = settimane del mese. Il venduto e' calcolato dal differenziale di inventario; le settimane parziali a inizio/fine mese possono mostrare valori 0 se non hai compilato quei giorni.
+      </div>
+    </div>
+  )
+}
+
+// ── VistaStorico: timeline scorrevole multi-mese (ultimi 6 mesi) ──────────
+function VistaStorico({ gusti, righeStorico, inizio }) {
+  const data = useMemo(() => {
+    const mesi = []
+    const oggi = new Date()
+    const inizioD = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1)
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(inizioD.getFullYear(), inizioD.getMonth() + i, 1)
+      mesi.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: MESI_LABEL[d.getMonth()].slice(0, 3) + ` '${String(d.getFullYear()).slice(2)}`,
+        month: d.getMonth(),
+        year: d.getFullYear(),
+      })
+    }
+    // Indicizza venduto per gusto+mese.
+    const idx = {}
+    for (const { nome } of (gusti || [])) {
+      idx[normGusto(nome)] = mesi.map(() => 0)
+    }
+    // Calcolo venduto per riga: (riman_prev + prod - riman - scarto). Iteriamo
+    // ordinato per gusto+data.
+    const perGusto = {}
+    for (const r of (righeStorico || [])) {
+      const k = r.gusto_nome
+      perGusto[k] = perGusto[k] || []
+      perGusto[k].push(r)
+    }
+    for (const [k, righe] of Object.entries(perGusto)) {
+      righe.sort((a, b) => a.data.localeCompare(b.data))
+      let rimanPrev = 0
+      let prevDataDay = null
+      for (const r of righe) {
+        const prod = Number(r.produzione_g) || 0
+        const riman = Number(r.rimanenza_g) || 0
+        const scarto = Number(r.scarto_g) || 0
+        // Se data non e' il giorno dopo prevDataDay -> reset rimanPrev (gap).
+        const d = new Date(r.data)
+        if (prevDataDay !== null) {
+          const diffGg = Math.round((d - prevDataDay) / 86400000)
+          if (diffGg !== 1) rimanPrev = 0
+        }
+        const venduto = Math.max(0, rimanPrev + prod - riman - scarto)
+        rimanPrev = riman
+        prevDataDay = d
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        const meseIdx = mesi.findIndex(m => m.key === ym)
+        if (meseIdx >= 0) {
+          idx[k] = idx[k] || mesi.map(() => 0)
+          idx[k][meseIdx] += venduto
+        }
+      }
+    }
+    return { mesi, idx }
+  }, [gusti, righeStorico])
+
+  return (
+    <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+      <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        Storico vendite (kg) · Ultimi 6 mesi
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+          <thead>
+            <tr style={{ background: '#F8FAFC' }}>
+              <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', position: 'sticky', left: 0, background: '#F8FAFC' }}>
+                Gusto
+              </th>
+              {data.mesi.map(m => (
+                <th key={m.key} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 80 }}>
+                  {m.label}
+                </th>
+              ))}
+              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}>
+                Totale
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {(gusti || []).map(({ nome }) => {
+              const k = normGusto(nome)
+              const arr = data.idx[k] || data.mesi.map(() => 0)
+              const tot = arr.reduce((s, v) => s + v, 0)
+              const max = Math.max(1, ...arr)
+              return (
+                <tr key={k} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
+                  <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: C.text, position: 'sticky', left: 0, background: C.bgCard }}>{nome}</td>
+                  {arr.map((v, i) => (
+                    <td key={i} style={{ padding: '4px 8px', textAlign: 'right', ...TNUM, color: v > 0 ? C.text : C.textSoft, fontSize: 12, position: 'relative' }}>
+                      {v > 0 && (
+                        <div style={{ position: 'absolute', left: 4, right: 4, bottom: 2, height: 3, background: '#F0EAE6', borderRadius: 2 }}>
+                          <div style={{ width: `${(v / max) * 100}%`, height: '100%', background: T.brand, borderRadius: 2 }} />
+                        </div>
+                      )}
+                      <span style={{ position: 'relative', zIndex: 1 }}>
+                        {v > 0 ? (v / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) : '—'}
+                      </span>
+                    </td>
+                  ))}
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 800, fontSize: 13, background: '#FEF9EB' }}>
+                    {(tot / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: 12, fontSize: 11, color: C.textSoft, lineHeight: 1.5 }}>
+        Quantità in kg. Le barre rossastre danno il peso visivo del mese più alto per ogni gusto. Scrolla orizzontalmente per i mesi precedenti.
+      </div>
+    </div>
   )
 }
 
