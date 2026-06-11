@@ -153,6 +153,9 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
   const [form, setForm] = useState({ nome: '', indirizzo: '', citta: '', is_default: false })
   const [editForm, setEditForm] = useState({})
   const [toast, setToast] = useState(null)
+  // Dialog di conferma per cambio metodo produzione (decisione strutturale,
+  // serve doppio click + lettura avviso prima di applicare). Vedi handleSave.
+  const [confirmMethodChange, setConfirmMethodChange] = useState(null)
 
   // Lo state "scenario operativo" e relativo load da SK_SCENARIO sono stati
   // rimossi insieme al box UI in giu 2026. Il dato resta in DB per
@@ -206,25 +209,12 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
     }
   }
 
-  async function handleSave(id) {
-    if (!editForm.nome?.trim()) return notify('Il nome è obbligatorio', false)
+  // Salva DAVVERO la patch (senza nessun controllo aggiuntivo). E' chiamata
+  // SOLO da handleSave (quando il metodo NON cambia) o dal dialog di conferma
+  // (quando il metodo cambia ed e' stato confermato dall'utente).
+  async function applicaPatch(id, patch) {
     setLoading(true)
     try {
-      // is_sede_produzione + metodo_produzione: nuovo flag introdotto con il
-      // metodo "inventario differenziale" per gelaterie. Una sede ricevente
-      // (punto vendita non produttivo) lascia is_sede_produzione=false e
-      // non vede la voce "Inventario gusti".
-      const patch = {
-        nome: editForm.nome.trim(),
-        indirizzo: editForm.indirizzo?.trim() || null,
-        citta: editForm.citta?.trim() || null,
-      }
-      if (typeof editForm.is_sede_produzione === 'boolean') {
-        patch.is_sede_produzione = editForm.is_sede_produzione
-      }
-      if (editForm.metodo_produzione && ['stampi','inventario'].includes(editForm.metodo_produzione)) {
-        patch.metodo_produzione = editForm.metodo_produzione
-      }
       const { error } = await supabase.from('sedi').update(patch).eq('id', id)
       if (error) throw error
       notify('Modifiche salvate')
@@ -235,6 +225,51 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleSave(id) {
+    if (!editForm.nome?.trim()) return notify('Il nome è obbligatorio', false)
+    // is_sede_produzione + metodo_produzione: nuovo flag introdotto con il
+    // metodo "inventario differenziale" per gelaterie. Una sede ricevente
+    // (punto vendita non produttivo) lascia is_sede_produzione=false e
+    // non vede la voce "Inventario gusti".
+    const patch = {
+      nome: editForm.nome.trim(),
+      indirizzo: editForm.indirizzo?.trim() || null,
+      citta: editForm.citta?.trim() || null,
+    }
+    if (typeof editForm.is_sede_produzione === 'boolean') {
+      patch.is_sede_produzione = editForm.is_sede_produzione
+    }
+    if (editForm.metodo_produzione && ['stampi','inventario'].includes(editForm.metodo_produzione)) {
+      patch.metodo_produzione = editForm.metodo_produzione
+    }
+
+    // Cambio strutturale: se sta cambiando il metodo di produzione (stampi
+    // <-> inventario) o sta attivando/disattivando la produzione della sede,
+    // chiediamo conferma esplicita con avviso. Decisione di prodotto:
+    // questo toggle cambia profondamente i meccanismi del prodotto e non
+    // deve essere flippato per sbaglio.
+    const sedeOrig = (sedi || []).find(s => s.id === id) || {}
+    const oldMetodo = sedeOrig.metodo_produzione || 'stampi'
+    const oldProd = !!sedeOrig.is_sede_produzione
+    const newMetodo = patch.metodo_produzione || oldMetodo
+    const newProd = (patch.is_sede_produzione !== undefined) ? !!patch.is_sede_produzione : oldProd
+    const metodoCambiato = newProd && (newMetodo !== oldMetodo)
+    const produzioneAttivata = newProd && !oldProd
+    const produzioneDisattivata = !newProd && oldProd
+    if (metodoCambiato || produzioneAttivata || produzioneDisattivata) {
+      setConfirmMethodChange({
+        id,
+        patch,
+        nomeSede: sedeOrig.nome || 'questa sede',
+        oldMetodo, newMetodo, oldProd, newProd,
+        metodoCambiato, produzioneAttivata, produzioneDisattivata,
+      })
+      return
+    }
+    // Cambio non strutturale (solo nome/indirizzo/citta): salvataggio diretto.
+    applicaPatch(id, patch)
   }
 
   async function handleSetDefault(id) {
@@ -472,6 +507,126 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
 
       <div style={{ fontSize: 11, color: SOFT, marginTop: 8, lineHeight: 1.6 }}>
         Ricarica la pagina dopo le modifiche per aggiornare il selettore sede nella sidebar.
+      </div>
+
+      {confirmMethodChange && (
+        <DialogCambioMetodo
+          info={confirmMethodChange}
+          onAnnulla={() => setConfirmMethodChange(null)}
+          onConferma={() => {
+            const c = confirmMethodChange
+            setConfirmMethodChange(null)
+            applicaPatch(c.id, c.patch)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Dialog conferma cambio metodo produzione ──────────────────────────────
+// Il cambio del metodo produzione (stampi <-> inventario) o l'attivazione/
+// disattivazione "Sede di produzione" sono decisioni strutturali: cambiano
+// quali viste appaiono, come funziona la registrazione, come si calcola il
+// venduto. Pretendiamo un click esplicito + lettura dell'avviso.
+function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
+  const labelMetodo = m => m === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'
+  const titolo = info.produzioneDisattivata
+    ? `Disattivare la produzione su "${info.nomeSede}"?`
+    : info.produzioneAttivata
+      ? `Attivare la produzione su "${info.nomeSede}"?`
+      : `Cambiare metodo di produzione su "${info.nomeSede}"?`
+
+  const cosaCambia = []
+  if (info.produzioneAttivata) {
+    cosaCambia.push(`Comparirà la sezione "${info.newMetodo === 'inventario' ? 'Inventario gusti' : 'Produzione'}" nel menu di questa sede.`)
+    if (info.newMetodo === 'inventario') {
+      cosaCambia.push('Tutte le ricette tipo fetta/pezzo saranno trattate come gusti da inventario settimanale.')
+      cosaCambia.push('Sarà disponibile la "Quadratura inventario" per confrontare i kg venduti con la cassa.')
+    }
+  }
+  if (info.produzioneDisattivata) {
+    cosaCambia.push('Sparirà la voce di produzione dal menu di questa sede.')
+    cosaCambia.push('I dati storici (sessioni, magazzino, inventario) rimangono salvati ma non visibili.')
+  }
+  if (info.metodoCambiato) {
+    cosaCambia.push(`Cambio da "${labelMetodo(info.oldMetodo)}" a "${labelMetodo(info.newMetodo)}".`)
+    cosaCambia.push('La nuova modalità userà tabelle e logiche diverse: lo storico nella vecchia modalità resta visibile ma non si potranno più registrare nuovi dati nello stesso modo.')
+    cosaCambia.push('Il magazzino materie prime e il ricettario non vengono modificati: cambia solo COME registri la produzione giornaliera.')
+  }
+
+  return (
+    <div role="dialog" aria-modal="true" aria-labelledby="dlg-cambio-metodo-title"
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999, padding: 16,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onAnnulla() }}>
+      <div style={{
+        background: '#FFFFFF', borderRadius: 16, maxWidth: 520, width: '100%',
+        boxShadow: '0 20px 60px rgba(15,23,42,0.30)',
+        padding: '24px 26px', maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <span style={{
+            width: 32, height: 32, borderRadius: 8, background: '#FEF3C7',
+            color: '#92400E', display: 'inline-flex',
+            alignItems: 'center', justifyContent: 'center', fontSize: 18,
+          }}>⚠️</span>
+          <h2 id="dlg-cambio-metodo-title"
+            style={{ margin: 0, fontSize: 17, fontWeight: 800, color: TXT, letterSpacing: '-0.01em' }}>
+            {titolo}
+          </h2>
+        </div>
+
+        <p style={{ fontSize: 13, color: MID, lineHeight: 1.6, marginTop: 4, marginBottom: 14 }}>
+          Questa è una decisione <strong>strutturale</strong>: cambia profondamente come funziona
+          il prodotto per questa sede. Leggi con attenzione cosa succede.
+        </p>
+
+        <div style={{
+          padding: '12px 14px', background: '#F8FAFC',
+          border: `1px solid ${BOR}`, borderRadius: 10, marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            Cosa cambia
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: TXT, lineHeight: 1.55 }}>
+            {cosaCambia.map((t, i) => <li key={i} style={{ marginBottom: 4 }}>{t}</li>)}
+          </ul>
+        </div>
+
+        <div style={{
+          padding: '12px 14px', background: '#FEF9EB',
+          border: '1px solid #FDE68A', borderRadius: 10, marginBottom: 18,
+          fontSize: 12.5, color: '#78350F', lineHeight: 1.55,
+        }}>
+          <strong>Nessun dato verrà cancellato.</strong>&nbsp;
+          Se hai dubbi prima di confermare,&nbsp;
+          <a href="mailto:support@foodios.it" style={{ color: '#92400E', textDecoration: 'underline', fontWeight: 600 }}>
+            contatta il supporto
+          </a>.
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onAnnulla} autoFocus
+            style={{
+              padding: '11px 22px', minHeight: 44,
+              background: '#FFFFFF', border: `1px solid ${BOR}`, borderRadius: 10,
+              fontSize: 13.5, fontWeight: 700, color: TXT, cursor: 'pointer',
+            }}>
+            Annulla
+          </button>
+          <button onClick={onConferma}
+            style={{
+              padding: '11px 22px', minHeight: 44,
+              background: R, border: 'none', borderRadius: 10,
+              fontSize: 13.5, fontWeight: 700, color: '#FFFFFF', cursor: 'pointer',
+            }}>
+            Ho letto, confermo
+          </button>
+        </div>
       </div>
     </div>
   )
