@@ -19,28 +19,68 @@ export function normGusto(s) {
   return (s || '').toString().toUpperCase().trim()
 }
 
-// Estrae l'elenco dei gusti dal ricettario.
+// Estrae l'elenco dei gusti dal ricettario E dalle righe gia' presenti in
+// inventario (DB). L'unione e' importante perche':
+//   - gusti nel ricettario ma senza dati DB -> riga vuota (utente compila)
+//   - gusti in DB ma non nel ricettario -> riga visibile col dato (orfani:
+//     scenario tipico dopo import file del cliente con gusti non ancora
+//     formalizzati nel ricettario)
 //
 // Decisione UX (giu 2026): il proprietario sceglie il metodo di produzione
-// UNA volta nelle impostazioni; pretendere che spunti poi un flag su ogni
-// ricetta era una sovraconfigurazione inutile. In modalita' inventario,
-// TUTTE le ricette che hanno senso essere prodotte/vendute (tipo fetta o
-// pezzo) sono trattate come gusti. I semilavorati/interni restano fuori
-// perche' sono basi di lavorazione, non prodotti finiti.
+// UNA volta nelle impostazioni; in modalita' inventario, TUTTE le ricette
+// tipo fetta/pezzo sono trattate come gusti. I semilavorati/interni restano
+// fuori perche' sono basi di lavorazione.
 //
-// Esclusione esplicita possibile via flag `is_gusto === false` sulla ricetta
-// (caso raro: gelateria che ha 1 torta classica non-gusto). Lasciato come
-// escape hatch ma non esposto in UI MVP.
-export function elencoGusti(ricettario /* , tipoAttivita */) {
+// Esclusione esplicita possibile via flag `is_gusto === false` sulla ricetta.
+//
+// `righeInventario` (opzionale) = array di righe da inventario_produzione
+// per la sede corrente, usato per scoprire gusti orfani (in DB ma non nel
+// ricettario).
+//
+// Ritorna: [{ nome, ricetta: ricetta|null, orfano: bool }]
+//   - orfano=true significa "in DB ma non nel ricettario": il proprietario
+//     dovrebbe aggiungere la ricetta per gestire food cost / allergeni.
+export function elencoGusti(ricettario, righeInventario) {
   const ricette = ricettario?.ricette || {}
-  return Object.values(ricette)
+  const dalRic = Object.values(ricette)
     .filter(r => {
       const tipo = (r.tipo || 'fetta').toString()
       if (tipo === 'semilavorato' || tipo === 'interno') return false
-      if (r.is_gusto === false) return false  // escape hatch
+      if (r.is_gusto === false) return false
       return true
     })
-    .map(r => ({ nome: r.nome, ricetta: r }))
+    .map(r => ({ nome: r.nome, ricetta: r, orfano: false }))
+
+  // Gusti orfani: presenti in righe inventario ma non nel ricettario.
+  if (Array.isArray(righeInventario) && righeInventario.length > 0) {
+    const nomiRic = new Set(dalRic.map(g => normGusto(g.nome)))
+    const orfaniSet = new Set()
+    for (const r of righeInventario) {
+      const k = normGusto(r.gusto_nome)
+      if (k && !nomiRic.has(k)) orfaniSet.add(k)
+    }
+    for (const k of orfaniSet) {
+      dalRic.push({ nome: k, ricetta: null, orfano: true })
+    }
+  }
+  return dalRic
+}
+
+// Variante che fa l'unione di ricettario + righe note + un elenco esterno di
+// nomi (es. quelli appena parsati da un file in import). Utile per il dialog
+// import che vuole vedere "tutti i nomi che riceverà l'org" prima del save.
+export function elencoGustiConExtra(ricettario, righeInventario, nomiExtra) {
+  const base = elencoGusti(ricettario, righeInventario)
+  if (!Array.isArray(nomiExtra) || nomiExtra.length === 0) return base
+  const giaVisti = new Set(base.map(g => normGusto(g.nome)))
+  for (const n of nomiExtra) {
+    const k = normGusto(n)
+    if (k && !giaVisti.has(k)) {
+      base.push({ nome: k, ricetta: null, orfano: true })
+      giaVisti.add(k)
+    }
+  }
+  return base
 }
 
 // ── CRUD inventario_produzione ────────────────────────────────────────────

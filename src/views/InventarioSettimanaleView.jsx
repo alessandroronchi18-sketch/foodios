@@ -79,7 +79,10 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
   // Stato dialog import file (multi-step). null = chiuso.
   const [importDlg, setImportDlg] = useState(null)
 
-  const gusti = useMemo(() => elencoGusti(ricettario, tipoAttivita), [ricettario, tipoAttivita])
+  // Lista gusti = unione di ricettario + gusti orfani (presenti in DB ma
+  // non nel ricettario). Cosi' un file importato con nomi non ancora a
+  // ricettario non viene "nascosto" nel foglio settimanale.
+  const gusti = useMemo(() => elencoGusti(ricettario, righe), [ricettario, righe])
 
   useEffect(() => {
     let alive = true
@@ -352,12 +355,22 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
               </tr>
             </thead>
             <tbody>
-              {gustiOrdinati.map(({ nome }) => {
+              {gustiOrdinati.map(({ nome, orfano }) => {
                 const gustoKey = normGusto(nome)
                 const byData = matrice[gustoKey] || {}
                 return (
                   <tr key={gustoKey} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-                    <td style={tdGusto}>{nome}</td>
+                    <td style={tdGusto}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        {nome}
+                        {orfano && (
+                          <span title="Questo gusto non e' nel ricettario. Per gestirne food cost e allergeni aggiungilo da Ricettario → Nuova ricetta."
+                            style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: '#FEF3C7', color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            non a ricettario
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     {GIORNI.map((_, i) => {
                       const dIso = addDays(lunediIso, i)
                       const cell = byData[dIso] || { prod: 0, riman: 0 }
@@ -404,6 +417,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
         <DialogImport
           orgId={orgId} sedeId={sedeId}
           righeDb={righe}
+          ricettario={ricettario}
           state={importDlg}
           setState={setImportDlg}
           onCommit={async (batch) => {
@@ -446,7 +460,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
 //   2. 'mese'    — se mese non rilevato dal nome file, scelta manuale
 //   3. 'preview' — mostra diff vs DB (nuovi/divergenti/identici)
 //   4. 'apply'   — confermato, applica via onCommit
-function DialogImport({ orgId, sedeId, righeDb, state, setState, onCommit }) {
+function DialogImport({ orgId, sedeId, righeDb, ricettario: ricettarioProp, state, setState, onCommit }) {
   const dlg = state || {}
   const close = () => setState(null)
 
@@ -483,6 +497,7 @@ function DialogImport({ orgId, sedeId, righeDb, state, setState, onCommit }) {
           classif={dlg.classif}
           fileName={dlg.fileName}
           meseRilevato={dlg.meseRilevato}
+          ricettario={ricettarioProp}
           onBack={() => setState({ ...dlg, step: 'pick' })}
           onConferma={(righeBatch) => onCommit(righeBatch)}
         />}
@@ -569,7 +584,7 @@ function StepPick({ onParsed, onCancel }) {
 //   - bottone "Importa N righe in M sedi"
 const MESI_LABEL = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
 
-function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato, onBack, onConferma }) {
+function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato, onBack, onConferma, ricettario }) {
   // Mese/anno: di default usa rilevato, altrimenti mese corrente.
   const oggi = new Date()
   const [mese, setMese] = useState(meseRilevato?.mese || (oggi.getMonth() + 1))
@@ -621,6 +636,29 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
     .filter(x => mappaSede[x.sheetName])
     .reduce((s, x) => s + (x.parsato?.righe?.length || 0), 0)
   , [parsatiPerSheet, mappaSede])
+
+  // Gusti orfani: presenti nel file ma non nel ricettario. Informativi:
+  // l'import procede comunque ma segnaliamo che andrebbero aggiunti al
+  // ricettario per gestire food cost, allergeni, categorie.
+  const gustiOrfani = useMemo(() => {
+    if (!ricettario?.ricette) return []
+    const nomiRic = new Set(
+      Object.values(ricettario.ricette || {})
+        .filter(r => {
+          const tipo = (r.tipo || 'fetta').toString()
+          return tipo !== 'semilavorato' && tipo !== 'interno'
+        })
+        .map(r => (r.nome || '').toUpperCase().trim())
+    )
+    const trovati = new Set()
+    for (const x of parsatiPerSheet) {
+      if (!mappaSede[x.sheetName]) continue
+      for (const g of (x.parsato?.gusti || [])) {
+        if (!nomiRic.has(g)) trovati.add(g)
+      }
+    }
+    return [...trovati].sort()
+  }, [parsatiPerSheet, mappaSede, ricettario])
 
   const numSediIncluse = Object.values(mappaSede).filter(Boolean).length
 
@@ -776,6 +814,27 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
             </div>
           </div>
         )
+      )}
+
+      {/* WARNING GUSTI ORFANI: nomi nel file non presenti nel ricettario */}
+      {gustiOrfani.length > 0 && (
+        <div style={{
+          padding: '12px 14px', background: '#FEF9EB',
+          border: '1px solid #FDE68A', borderRadius: 10, marginBottom: 14,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#78350F', marginBottom: 6 }}>
+            ℹ️ {gustiOrfani.length} {gustiOrfani.length === 1 ? 'gusto non e\'' : 'gusti non sono'} nel ricettario
+          </div>
+          <div style={{ fontSize: 12, color: '#78350F', lineHeight: 1.5, marginBottom: 8 }}>
+            L'import procede comunque: questi gusti compariranno nel foglio con un badge "non a ricettario".
+            Per gestire food cost, allergeni e categorie, aggiungi le ricette in <strong>Ricettario → Nuova ricetta</strong>.
+          </div>
+          <div style={{ fontSize: 11.5, color: '#78350F', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {gustiOrfani.map(g => (
+              <span key={g} style={{ background: '#FFFFFF', padding: '2px 8px', borderRadius: 4, border: '1px solid #FCD34D', fontWeight: 600 }}>{g}</span>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* INFO SU SHEET IGNORATI */}
