@@ -1445,8 +1445,12 @@ export default function Dashboard({
         }
         if (changed) {
           const migrated = { ...ric, ricette: nuoveRicette };
-          setRic(migrated);
-          ssave(SK_RIC, migrated).catch(e => console.error('ssave migrazione:', e));
+          // save-first: applichiamo lo state solo se la migrazione e' persistita,
+          // altrimenti al refresh torna allo stato precedente e l'UI diverge
+          // (ricette mostrate come semilavorato senza FC, ma DB legacy interno).
+          ssave(SK_RIC, migrated)
+            .then(() => setRic(migrated))
+            .catch(e => console.error('ssave migrazione:', e));
         }
       }
       setReady(true);
@@ -1479,19 +1483,24 @@ export default function Dashboard({
         onProgress(100);
         return p;
       }, {
-        onComplete: (result) => {
+        onComplete: async (result) => {
           if (!result) return;
-          setRic(prev => {
-            const merged = prev ? {
-              ...prev,
-              ricette: { ...prev.ricette, ...result.ricette },
-              ingredienti_costi: { ...prev.ingredienti_costi, ...result.ingredienti_costi },
-            } : result;
-            ssave(SK_RIC, merged);
+          // save-first: niente side-effect dentro l'updater di setState (in
+          // StrictMode viene chiamato due volte → doppio ssave). Calcoliamo
+          // il merged fuori, salviamo, e solo se ok aggiorniamo state+cache.
+          const merged = ricettario ? {
+            ...ricettario,
+            ricette: { ...ricettario.ricette, ...result.ricette },
+            ingredienti_costi: { ...ricettario.ingredienti_costi, ...result.ingredienti_costi },
+          } : result;
+          try {
+            await ssave(SK_RIC, merged);
+            setRic(merged);
             try { localStorage.setItem(cacheKey, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
-            return merged;
-          });
-          notify(`✓ ${f.name} — ${Object.keys(result.ricette || {}).length} ricette importate`);
+            notify(`✓ ${f.name} — ${Object.keys(result.ricette || {}).length} ricette importate`);
+          } catch (e) {
+            notify(`${f.name}: errore salvataggio (${e.message || 'rete'})`, false);
+          }
         },
         onError: (err) => {
           notify(`${f.name}: ${err.message}`, false);
@@ -1634,13 +1643,14 @@ export default function Dashboard({
       nuoviCosti[k] = { costoKg: parseFloat(newKg.toFixed(4)), costoG: parseFloat((newKg/1000).toFixed(6)) };
     }
     const nuovoRic = { ...ricettario, ingredienti_costi: nuoviCosti };
-    setRic(nuovoRic);
-    ssave(SK_RIC, nuovoRic).catch(() => {});
-
     const idsApplicati = new Set(daApplicare.map(e => e.id));
     const nextLog = logPrezzi.map(e => idsApplicati.has(e.id) ? { ...e, pianificato: false, applicato_il: new Date().toISOString() } : e);
-    setLogPrezzi(nextLog);
-    ssave(SK_LOG_PRZ, nextLog).catch(() => {});
+    // save-first: senza l'await il client vede prezzi aggiornati ma al refresh
+    // ricarica dal DB i vecchi (ssave silenzioso fallito). Applichiamo solo se
+    // entrambe le scritture vanno a buon fine.
+    Promise.all([ssave(SK_RIC, nuovoRic), ssave(SK_LOG_PRZ, nextLog)])
+      .then(() => { setRic(nuovoRic); setLogPrezzi(nextLog); })
+      .catch(e => { notify(`Applicazione prezzi pianificati fallita: ${e?.message || 'rete'}`, false); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ricettario, logPrezzi.length]);
 
@@ -1657,15 +1667,18 @@ export default function Dashboard({
         onProgress(100);
         return result;
       }, {
-        onComplete: ({ prezzi, count } = {}) => {
+        onComplete: async ({ prezzi, count } = {}) => {
           if (!prezzi || !count) return;
-          setRic(prev => {
-            if (!prev) return prev;
-            const nuovoRic = { ...prev, ingredienti_costi: { ...(prev.ingredienti_costi||{}), ...prezzi } };
-            ssave(SK_RIC, nuovoRic);
-            return nuovoRic;
-          });
-          notify(`✓ ${f.name} — ${count} prezzi aggiornati`);
+          if (!ricettario) return;
+          // save-first (no side-effect dentro setRic updater)
+          const nuovoRic = { ...ricettario, ingredienti_costi: { ...(ricettario.ingredienti_costi||{}), ...prezzi } };
+          try {
+            await ssave(SK_RIC, nuovoRic);
+            setRic(nuovoRic);
+            notify(`✓ ${f.name} — ${count} prezzi aggiornati`);
+          } catch (e) {
+            notify(`${f.name}: errore salvataggio prezzi (${e.message || 'rete'})`, false);
+          }
         },
         onError: (err) => {
           notify(`${f.name}: ${err.message}`, false);

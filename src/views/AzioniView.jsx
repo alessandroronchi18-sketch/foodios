@@ -41,6 +41,19 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
   // separatore decimale (CLAUDE.md§Formattazione numeri).
   const ftEur = (n) => `€ ${Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   const ftPct = (n) => `${Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+  // Pluralizza correttamente l'unita' di vendita di una ricetta. Il vecchio
+  // `${reg.tipo}e` produceva stringhe rotte tipo "stampoe", "pezzoe", "fettae"
+  // → output AI degradato. Tabella minima per i tipi noti, fallback all'unita'.
+  const PLURALE_TIPO = {
+    fetta: 'fette', pezzo: 'pezzi', stampo: 'stampi',
+    porzione: 'porzioni', coppetta: 'coppette', pizza: 'pizze',
+    piatto: 'piatti', coperto: 'coperti', gusto: 'gusti', formato: 'formati',
+  }
+  const pluralizza = (tipo, n) => {
+    const t = String(tipo || 'pezzo').toLowerCase()
+    if (Number(n) === 1) return t
+    return PLURALE_TIPO[t] || `${t}i`
+  }
 
   // Build rich context from all dashboard state
   const buildContext = () => {
@@ -54,7 +67,7 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
       const margine = ricavo - fc;
       const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0;
       const ingList = (ric.ingredienti || []).map(i => `${i.nome} ${i.qty1stampo}g`).join(", ");
-      return `- ${ric.nome}: ${reg.unita} ${reg.tipo}e × ${ftEur(reg.prezzo)} = ricavo ${ftEur(ricavo)}, FC ${ftEur(fc)} (${ricavo > 0 ? ftPct(fc / ricavo * 100) : '0%'}), margine ${ftEur(margine)} (${ftPct(margPct)})${mancanti.length > 0 ? ` [prezzi mancanti: ${mancanti.join(", ")}]` : ""}. Ingredienti: ${ingList}`;
+      return `- ${ric.nome}: ${reg.unita} ${pluralizza(reg.tipo, reg.unita)} × ${ftEur(reg.prezzo)} = ricavo ${ftEur(ricavo)}, FC ${ftEur(fc)} (${ricavo > 0 ? ftPct(fc / ricavo * 100) : '0%'}), margine ${ftEur(margine)} (${ftPct(margPct)})${mancanti.length > 0 ? ` [prezzi mancanti: ${mancanti.join(", ")}]` : ""}. Ingredienti: ${ingList}`;
     }).join("\n");
 
     const totRicavo  = ricette.reduce((s, r) => { const rg = getR(r.nome, r); const { tot: fc } = calcolaFC(r, ingCosti, ricettario); return s + rg.unita * rg.prezzo; }, 0);
