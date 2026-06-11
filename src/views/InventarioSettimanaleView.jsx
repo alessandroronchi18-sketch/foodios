@@ -57,6 +57,10 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
   const [righe, setRighe] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState({}) // key = `${gusto}|${data}|${campo}`
+  // Vista: 'settimana' (foglio Excel completo) | 'oggi' (lista verticale
+  // mobile-friendly per il dipendente che compila in laboratorio dal cellulare).
+  // Default: oggi su mobile, settimana su desktop.
+  const [vista, setVista] = useState(() => isMobile ? 'oggi' : 'settimana')
 
   const gusti = useMemo(() => elencoGusti(ricettario, tipoAttivita), [ricettario, tipoAttivita])
 
@@ -162,32 +166,59 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       <PageHeader subtitle={`Foglio settimanale per la registrazione di produzione e rimanenze. Il sistema calcola automaticamente il venduto: rimanenza(ieri) + produzione(oggi) − rimanenza(oggi) − scarto.`} />
 
-      {/* Toolbar navigazione settimana */}
+      {/* Segmented control Oggi/Settimana */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
-        background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
-        padding: '12px 16px',
+        display: 'inline-flex', gap: 2, marginBottom: 12, padding: 4,
+        background: C.bgSubtle, borderRadius: 10,
       }}>
-        <button onClick={settimanaPrec}
-          style={{ padding: '8px 14px', minHeight: 40, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 13, color: C.textMid, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          ← Sett. prec.
-        </button>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Settimana</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{fmtRange(lunediIso)}</div>
-        </div>
-        <button onClick={oggi}
-          style={{ padding: '8px 14px', minHeight: 40, background: '#F8FAFC', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, color: C.textMid }}>
-          Questa sett.
-        </button>
-        <button onClick={settimanaSucc}
-          style={{ padding: '8px 14px', minHeight: 40, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 13, color: C.textMid, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          Sett. succ. →
-        </button>
+        {[['oggi','Oggi'], ['settimana','Settimana']].map(([k, lbl]) => {
+          const sel = vista === k
+          return (
+            <button key={k} onClick={() => setVista(k)}
+              style={{
+                padding: '8px 16px', minHeight: 38, fontSize: 12.5, fontWeight: 700,
+                border: 'none', borderRadius: 8, cursor: 'pointer',
+                background: sel ? C.bgCard : 'transparent',
+                color: sel ? C.text : C.textMid,
+                boxShadow: sel ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
+              }}>{lbl}</button>
+          )
+        })}
       </div>
+
+      {/* Toolbar navigazione settimana (solo modalita' settimana) */}
+      {vista === 'settimana' && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
+          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+          padding: '12px 16px',
+        }}>
+          <button onClick={settimanaPrec}
+            style={{ padding: '8px 14px', minHeight: 40, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 13, color: C.textMid, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            ← Sett. prec.
+          </button>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Settimana</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{fmtRange(lunediIso)}</div>
+          </div>
+          <button onClick={oggi}
+            style={{ padding: '8px 14px', minHeight: 40, background: '#F8FAFC', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, color: C.textMid }}>
+            Questa sett.
+          </button>
+          <button onClick={settimanaSucc}
+            style={{ padding: '8px 14px', minHeight: 40, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 13, color: C.textMid, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            Sett. succ. →
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
+      ) : vista === 'oggi' ? (
+        <VistaOggi
+          gusti={gusti} matrice={matrice} saving={saving}
+          onSave={handleSave}
+        />
       ) : (
         <div style={{
           background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
@@ -259,6 +290,107 @@ export default function InventarioSettimanaleView({ orgId, sedeId, ricettario, m
         Per modificare il giorno precedente o successivo cambia settimana con i bottoni sopra.
       </div>
     </div>
+  )
+}
+
+// ── VistaOggi: lista verticale mobile-first per il dipendente ─────────────
+// Mostra SOLO il giorno corrente (today). Per ogni gusto, 2 input grandi
+// (PROD, RIMAN). Pensata per essere usata in laboratorio dal cellulare.
+function VistaOggi({ gusti, matrice, saving, onSave }) {
+  const oggiIso = new Date().toISOString().slice(0, 10)
+  return (
+    <div>
+      <div style={{
+        background: '#FEF9EB', border: '1px solid #FCD34D', borderRadius: 10,
+        padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400E',
+      }}>
+        <strong>Oggi {new Date(oggiIso).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}</strong>
+        &nbsp;— Compila PROD (quanto hai prodotto) e RIMAN (quanto e' rimasto a fine giornata). I valori si salvano automaticamente.
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {gusti.map(({ nome }) => {
+          const gKey = normGusto(nome)
+          const byData = matrice[gKey] || {}
+          const cell = byData[oggiIso] || { prod: 0, riman: 0, venduto: null }
+          const kProd = `${gKey}|${oggiIso}|produzione_g`
+          const kRim = `${gKey}|${oggiIso}|rimanenza_g`
+          return (
+            <div key={gKey} style={{
+              background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+              padding: '14px 16px',
+              boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{nome}</div>
+                {cell.venduto != null && (
+                  <div style={{ fontSize: 11, color: C.textSoft }}>
+                    venduto stimato: <strong style={{ color: T.brand, ...TNUM }}>
+                      {Number(cell.venduto).toLocaleString('it-IT')} g
+                    </strong>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <BigField
+                  label="PROD oggi"
+                  accent="#0EA5E9"
+                  value={cell.prod || 0}
+                  saving={!!saving[kProd]}
+                  onCommit={v => onSave(gKey, oggiIso, 'produzione_g', v)}
+                />
+                <BigField
+                  label="RIMAN. fine giornata"
+                  accent="#F59E0B"
+                  value={cell.riman || 0}
+                  saving={!!saving[kRim]}
+                  onCommit={v => onSave(gKey, oggiIso, 'rimanenza_g', v)}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// Campo grande per la VistaOggi: input touch-friendly con label sopra.
+function BigField({ label, accent, value, saving, onCommit }) {
+  const [local, setLocal] = useState(value === 0 ? '' : String(value))
+  useEffect(() => { setLocal(value === 0 ? '' : String(value)) }, [value])
+  const commit = () => {
+    const n = Number((local || '').replace(',', '.')) || 0
+    if (n !== Number(value || 0)) onCommit(n)
+  }
+  return (
+    <label style={{ display: 'block' }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+        {label}
+      </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        background: saving ? 'rgba(110,14,26,0.04)' : '#FAFBFC',
+        border: `2px solid ${local ? accent : C.border}`,
+        borderRadius: 10, padding: '0 10px',
+        minHeight: 52,
+      }}>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={local}
+          onChange={e => setLocal(e.target.value.replace(/[^\d.,]/g, ''))}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
+          placeholder="0"
+          style={{
+            flex: 1, border: 'none', outline: 'none', background: 'transparent',
+            fontSize: 18, fontWeight: 700, color: C.text, textAlign: 'right',
+            padding: '12px 0', ...TNUM,
+          }}
+        />
+        <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>g</span>
+      </div>
+    </label>
   )
 }
 

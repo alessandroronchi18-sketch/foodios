@@ -206,6 +206,92 @@ export function ricettaDelGusto(ricettario, gustoNomeUpper) {
     || null
 }
 
+// ── ANALISI QUADRATURA ────────────────────────────────────────────────────
+// Calcoli di alto livello per la vista "Quadratura inventario vs cassa".
+// Tutto in-memory dai dati gia' caricati.
+//
+// Euro/kg medio = stima del prezzo medio al kg dei formati di vendita.
+// Da formati con baseQtaG (grammi) + prezzoDefault (euro), calcola
+// (prezzo/grammi)*1000 e fa la media semplice. Se non ci sono formati
+// utilizzabili, ritorna null e l'UI mostrera' un avviso "configura formati".
+export function euroKgMedioFormati(formati) {
+  if (!Array.isArray(formati) || formati.length === 0) return null
+  const validi = formati
+    .map(f => ({ g: Number(f.baseQtaG) || 0, p: Number(f.prezzoDefault) || 0 }))
+    .filter(x => x.g > 0 && x.p > 0)
+  if (validi.length === 0) return null
+  const sumEurKg = validi.reduce((s, x) => s + (x.p / x.g) * 1000, 0)
+  return sumEurKg / validi.length
+}
+
+// KPI settimana: somma kg venduti, € attesi, drift vs cassa effettiva.
+// matrice = output di calcolaVendutoSettimana
+// chiusureSettimana = chiusure (SK_CHIUS entries) filtrate ai giorni della
+//                     settimana target
+// euroKg = euro/kg medio (output di euroKgMedioFormati)
+export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg) {
+  const totVendutoG = Object.values(matrice || {}).reduce((s, byData) =>
+    s + Object.values(byData).reduce((a, c) => a + Number(c.venduto || 0), 0)
+  , 0)
+  const totVendutoKg = totVendutoG / 1000
+
+  const cassaEffettiva = (Array.isArray(chiusureSettimana) ? chiusureSettimana : [])
+    .reduce((s, c) => s + Number(c?.kpi?.totV || c?.totale || 0), 0)
+
+  const ricavoAtteso = (euroKg != null) ? totVendutoKg * euroKg : null
+  const driftEur = (ricavoAtteso != null) ? cassaEffettiva - ricavoAtteso : null
+  const driftPct = (ricavoAtteso != null && ricavoAtteso > 0)
+    ? (driftEur / ricavoAtteso) * 100
+    : null
+
+  return { totVendutoG, totVendutoKg, cassaEffettiva, euroKg, ricavoAtteso, driftEur, driftPct }
+}
+
+// Classifica gusti per kg venduti nella settimana: top N + sofferenza.
+// "Sofferenza" = gusti con residuo medio alto rispetto alla produzione.
+// Soglia base: ratio residuo/produzione >= 0.5 (cioe' sopra il 50% non
+// venduto). E' una euristica MVP: il proprietario poi decide.
+export function classificaGusti(matrice, opts = {}) {
+  const topN = opts.topN || 5
+  const sofferenzaRatio = opts.sofferenzaRatio || 0.5
+
+  const agg = Object.entries(matrice || {}).map(([gusto, byData]) => {
+    let venduto = 0, prod = 0, residuoMedio = 0, ngiorni = 0
+    for (const cell of Object.values(byData)) {
+      venduto += Number(cell.venduto || 0)
+      prod += Number(cell.prod || 0)
+      residuoMedio += Number(cell.riman || 0)
+      ngiorni++
+    }
+    residuoMedio = ngiorni > 0 ? residuoMedio / ngiorni : 0
+    const ratio = prod > 0 ? (residuoMedio / prod) : 0
+    return { gusto, vendutoG: venduto, prodG: prod, residuoMedioG: residuoMedio, ratio }
+  })
+
+  const top = [...agg]
+    .filter(x => x.vendutoG > 0)
+    .sort((a, b) => b.vendutoG - a.vendutoG)
+    .slice(0, topN)
+
+  const sofferenza = agg
+    .filter(x => x.prodG > 0 && x.ratio >= sofferenzaRatio)
+    .sort((a, b) => b.ratio - a.ratio)
+
+  // Zero-venduto: gusti senza vendite in tutta la settimana. Candidati alla
+  // rimozione dal catalogo o all'analisi commerciale.
+  const zeroVenduto = agg.filter(x => x.vendutoG === 0 && x.prodG > 0)
+
+  return { top, sofferenza, zeroVenduto, totale: agg }
+}
+
+// Tendenza % rispetto a un valore precedente. Ritorna null se prev <= 0.
+export function variazione(curr, prev) {
+  const c = Number(curr) || 0
+  const p = Number(prev) || 0
+  if (p <= 0) return null
+  return ((c - p) / p) * 100
+}
+
 // ── Helper date: lunedi della settimana che contiene `dateIso` ────────────
 export function lunediDellaSettimana(dateIso) {
   const d = dateIso ? new Date(dateIso) : new Date()

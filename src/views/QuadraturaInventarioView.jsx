@@ -1,0 +1,370 @@
+// Quadratura inventario vs cassa — Dashboard del proprietario.
+//
+// Mostra (per la settimana selezionata) il confronto tra:
+//   - kg venduti calcolati dall inventario (riman+prod-riman-scarto)
+//   - euro effettivamente incassati dalla cassa (chiusure SK_CHIUS)
+//   - euro attesi al euro/kg medio dei formati di vendita
+// Diff = porzioni troppo grandi, omaggi non registrati, errori scontrino,
+// furti, o errori di compilazione inventario.
+//
+// E la "voce di verita" che mette in tensione i due dati: l inventario dice
+// quanto e uscito (kg), la cassa dice quanto e entrato (euro). Il sistema
+// suggerisce dove guardare per chiudere il gap.
+
+import React, { useEffect, useMemo, useState } from 'react'
+import { color as T, radius as R, shadow as S } from '../lib/theme'
+import useIsMobile from '../lib/useIsMobile'
+import { sload } from '../lib/storage'
+import { SK_FORMATI, SK_CHIUS } from '../lib/storageKeys'
+import Icon from '../components/Icon'
+import { C, KPI, PageHeader, TNUM, fmt0 } from './_shared'
+import {
+  caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
+  euroKgMedioFormati, kpiQuadraturaSettimana, classificaGusti, variazione,
+} from '../lib/inventarioProduzione'
+
+function addDays(dateIso, n) {
+  const d = new Date(dateIso); d.setDate(d.getDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+function fmtRange(lunediIso) {
+  const lun = new Date(lunediIso)
+  const dom = new Date(lunediIso); dom.setDate(dom.getDate() + 6)
+  const f = d => d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })
+  return `${f(lun)} - ${f(dom)} ${dom.getFullYear()}`
+}
+function n0(v) { return Number(v || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 }) }
+function nKg(g) { return (Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }
+function pct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
+
+export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
+  const isMobile = useIsMobile()
+  const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
+  const [righe, setRighe] = useState([])
+  const [righePrev, setRighePrev] = useState([])
+  const [formati, setFormati] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    if (!orgId || !sedeId) { setLoading(false); return }
+    setLoading(true)
+    const lunPrec = addDays(lunediIso, -7)
+    Promise.all([
+      caricaSettimana(orgId, sedeId, lunediIso),
+      caricaSettimana(orgId, sedeId, lunPrec),
+      sload(SK_FORMATI, orgId, null),
+    ]).then(([sett, prec, fmt]) => {
+      if (!alive) return
+      setRighe(sett || [])
+      setRighePrev(prec || [])
+      setFormati(Array.isArray(fmt) ? fmt : [])
+      setLoading(false)
+    }).catch(e => { if (alive) { console.error(e); setLoading(false) } })
+    return () => { alive = false }
+  }, [orgId, sedeId, lunediIso])
+
+  const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
+  const matricePrev = useMemo(
+    () => calcolaVendutoSettimana(righePrev, addDays(lunediIso, -7)),
+    [righePrev, lunediIso]
+  )
+  const euroKg = useMemo(() => euroKgMedioFormati(formati), [formati])
+
+  // Chiusure della settimana target (filtrate per data).
+  const chiusureSett = useMemo(() => {
+    const inizio = lunediIso
+    const fine = addDays(lunediIso, 7)
+    return (chiusure || []).filter(c => c.data >= inizio && c.data < fine)
+  }, [chiusure, lunediIso])
+  const chiusurePrev = useMemo(() => {
+    const inizio = addDays(lunediIso, -7)
+    const fine = lunediIso
+    return (chiusure || []).filter(c => c.data >= inizio && c.data < fine)
+  }, [chiusure, lunediIso])
+
+  const kpi = useMemo(
+    () => kpiQuadraturaSettimana(matrice, chiusureSett, euroKg),
+    [matrice, chiusureSett, euroKg]
+  )
+  const kpiPrev = useMemo(
+    () => kpiQuadraturaSettimana(matricePrev, chiusurePrev, euroKg),
+    [matricePrev, chiusurePrev, euroKg]
+  )
+  const classifica = useMemo(() => classificaGusti(matrice), [matrice])
+
+  const settimanaPrec = () => setLunediIso(addDays(lunediIso, -7))
+  const settimanaSucc = () => setLunediIso(addDays(lunediIso, 7))
+  const oggi = () => setLunediIso(lunediDellaSettimana())
+
+  // ── Render ─────────────────────────────────────────────────────────────
+
+  if (!orgId || !sedeId) {
+    return <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Seleziona una sede</div>
+  }
+
+  // Tone del drift: |drift%| < 5% verde, < 15% giallo, oltre rosso.
+  const driftTone = (p) => {
+    if (p == null) return { bg: C.bgSubtle, fg: C.textMid, label: 'n/d' }
+    const a = Math.abs(p)
+    if (a < 5) return { bg: '#ECFDF5', fg: '#065F46', label: 'in target' }
+    if (a < 15) return { bg: '#FFFBEB', fg: '#92400E', label: 'da osservare' }
+    return { bg: '#FEF2F2', fg: '#991B1B', label: 'attenzione' }
+  }
+  const tone = driftTone(kpi.driftPct)
+
+  return (
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <PageHeader subtitle="Quadratura settimanale: l'inventario dice quanto e' uscito (kg), la cassa quanto e' entrato (€). Il drift indica dove guardare." />
+
+      {/* Toolbar settimana */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
+        background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+        padding: '12px 16px',
+      }}>
+        <button onClick={settimanaPrec} style={btnNav}>← Sett. prec.</button>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Settimana</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{fmtRange(lunediIso)}</div>
+        </div>
+        <button onClick={oggi} style={btnNav}>Questa sett.</button>
+        <button onClick={settimanaSucc} style={btnNav}>Sett. succ. →</button>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 60, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
+      ) : !euroKg ? (
+        <div style={{
+          padding: '20px 24px', background: '#FFFBEB', border: '1px solid #FDE68A',
+          borderRadius: 12, marginBottom: 20, fontSize: 13, color: '#92400E', lineHeight: 1.5,
+        }}>
+          <Icon name="warning" size={16} /> &nbsp;
+          <strong>Imposta i formati di vendita</strong> in <em>Formati di vendita</em> per
+          calcolare il €/kg medio e abilitare la quadratura con la cassa.
+        </div>
+      ) : (
+        <>
+          {/* KPI hero quadratura */}
+          <div style={{
+            background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16,
+            padding: isMobile ? 18 : 26, marginBottom: 20,
+            boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 30px rgba(15,23,42,0.05)',
+          }}>
+            <div style={{
+              display: 'grid', gap: 14,
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+            }}>
+              <Tile
+                icon="layers"
+                label="Venduto inventario"
+                value={`${nKg(kpi.totVendutoG)} kg`}
+                tendVal={variazione(kpi.totVendutoG, kpiPrev.totVendutoG)}
+              />
+              <Tile
+                icon="creditCard"
+                label="Cassa effettiva"
+                value={fmt0(kpi.cassaEffettiva)}
+                tendVal={variazione(kpi.cassaEffettiva, kpiPrev.cassaEffettiva)}
+              />
+              <Tile
+                icon="barChart"
+                label={`Atteso (€/kg ${n0(euroKg)})`}
+                value={fmt0(kpi.ricavoAtteso || 0)}
+                muted
+              />
+              <Tile
+                icon="check"
+                label="Drift vs cassa"
+                value={kpi.driftEur != null ? `${kpi.driftEur > 0 ? '+' : ''}${fmt0(kpi.driftEur)} (${pct(kpi.driftPct)})` : '—'}
+                color={tone.fg}
+                bg={tone.bg}
+                badge={tone.label}
+              />
+            </div>
+            {kpi.driftPct != null && Math.abs(kpi.driftPct) >= 15 && (
+              <DiagnosiDrift driftEur={kpi.driftEur} driftPct={kpi.driftPct} />
+            )}
+          </div>
+
+          {/* Top + Sofferenza */}
+          <div style={{
+            display: 'grid', gap: 16,
+            gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr',
+            marginBottom: 20,
+          }}>
+            <PanelTop title="Top gusti per kg venduti" items={classifica.top}
+              total={kpi.totVendutoG} />
+            <PanelSofferenza
+              sofferenza={classifica.sofferenza}
+              zeroVenduto={classifica.zeroVenduto}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Tile KPI ──────────────────────────────────────────────────────────────
+function Tile({ icon, label, value, tendVal, muted, color, bg, badge }) {
+  return (
+    <div style={{
+      padding: '14px 16px',
+      background: bg || C.bgSubtle,
+      borderRadius: 12,
+      border: `1px solid ${C.border}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        <Icon name={icon} size={14} color={color || C.textSoft} />
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>
+          {label}
+        </div>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: color || (muted ? C.textMid : C.text), letterSpacing: '-0.02em', ...TNUM }}>
+        {value}
+      </div>
+      {badge && (
+        <div style={{ fontSize: 10, fontWeight: 700, marginTop: 4, color: color || C.textMid, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {badge}
+        </div>
+      )}
+      {tendVal != null && (
+        <div style={{ fontSize: 11, color: tendVal >= 0 ? '#065F46' : '#991B1B', marginTop: 4, fontWeight: 600 }}>
+          vs sett. prec.: {tendVal > 0 ? '+' : ''}{tendVal.toFixed(1)}%
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Diagnosi drift ────────────────────────────────────────────────────────
+function DiagnosiDrift({ driftEur, driftPct }) {
+  const tono = driftEur < 0 ? 'mancante' : 'sovrastimato'
+  const ipotesi = driftEur < 0
+    ? [
+        'Porzioni piu grandi di quelle pianificate dai formati (bilancia)',
+        'Omaggi non registrati alla cassa',
+        'Errori di scontrino (battiture non fatte / sottostimate)',
+        'Furti interni',
+      ]
+    : [
+        'Cassa con incassi aggiuntivi non collegati al gelato (es. articoli non da gusto)',
+        'Inventario sottostimato: residuo della mattina dopo letto basso o errore di pesata',
+        'Scarti registrati ma effettivamente venduti',
+      ]
+  return (
+    <div style={{
+      marginTop: 16, padding: '12px 14px', background: '#FEF2F2',
+      border: '1px solid #FECACA', borderRadius: 10,
+      fontSize: 12, color: '#7F1D1D', lineHeight: 1.5,
+    }}>
+      <strong>Cosa controllare</strong> (drift {tono} del {Math.abs(driftPct).toFixed(1)}%):
+      <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
+        {ipotesi.map((it, i) => <li key={i}>{it}</li>)}
+      </ul>
+    </div>
+  )
+}
+
+// ── Panel Top gusti ───────────────────────────────────────────────────────
+function PanelTop({ title, items, total }) {
+  if (!items || items.length === 0) {
+    return (
+      <div style={panelStyle}>
+        <div style={panelTitle}>{title}</div>
+        <div style={{ fontSize: 12, color: C.textSoft, padding: '12px 0' }}>
+          Nessun venduto registrato per questa settimana.
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div style={panelStyle}>
+      <div style={panelTitle}>{title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {items.map((it, i) => {
+          const pct = total > 0 ? (it.vendutoG / total * 100) : 0
+          return (
+            <div key={it.gusto} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 18, fontSize: 11, fontWeight: 800, color: C.textSoft, textAlign: 'center' }}>
+                {i + 1}
+              </span>
+              <span style={{ flex: '0 0 130px', fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {it.gusto}
+              </span>
+              <div style={{ flex: 1, height: 8, background: '#F0EAE6', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ width: `${Math.max(4, pct)}%`, height: '100%', background: '#6E0E1A', borderRadius: 4 }} />
+              </div>
+              <span style={{ flex: '0 0 60px', fontSize: 12, fontWeight: 700, textAlign: 'right', ...TNUM, color: C.text }}>
+                {nKg(it.vendutoG)} kg
+              </span>
+              <span style={{ flex: '0 0 36px', fontSize: 11, color: C.textSoft, textAlign: 'right', ...TNUM }}>
+                {pct.toFixed(0)}%
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Panel Sofferenza / Zero venduto ───────────────────────────────────────
+function PanelSofferenza({ sofferenza, zeroVenduto }) {
+  return (
+    <div style={panelStyle}>
+      <div style={panelTitle}>Gusti in sofferenza</div>
+
+      {zeroVenduto.length > 0 && (
+        <div style={{ marginBottom: 12, padding: '8px 10px', background: '#FEF2F2', borderRadius: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+            Zero venduto ({zeroVenduto.length})
+          </div>
+          <div style={{ fontSize: 12, color: '#7F1D1D', lineHeight: 1.5 }}>
+            {zeroVenduto.slice(0, 8).map(x => x.gusto).join(' · ')}
+            {zeroVenduto.length > 8 ? ` · +${zeroVenduto.length - 8}` : ''}
+          </div>
+        </div>
+      )}
+
+      {sofferenza.length === 0 ? (
+        <div style={{ fontSize: 12, color: C.textSoft }}>Nessun gusto con residuo persistente. Buon equilibrio produzione/vendita.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {sofferenza.slice(0, 6).map(x => (
+            <div key={x.gusto} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+              <span style={{ flex: 1, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {x.gusto}
+              </span>
+              <span style={{ color: C.textSoft, ...TNUM }}>
+                residuo medio {nKg(x.residuoMedioG)} kg
+              </span>
+              <span style={{ color: '#92400E', fontWeight: 700, ...TNUM, minWidth: 50, textAlign: 'right' }}>
+                {(x.ratio * 100).toFixed(0)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 10, lineHeight: 1.4 }}>
+        Soglia "sofferenza": residuo medio &gt;= 50% della produzione giornaliera.
+      </div>
+    </div>
+  )
+}
+
+// ── Stili condivisi ───────────────────────────────────────────────────────
+const btnNav = {
+  padding: '8px 14px', minHeight: 40, background: 'transparent',
+  border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer',
+  fontSize: 12, color: C.textMid, display: 'inline-flex', alignItems: 'center',
+}
+const panelStyle = {
+  background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
+  padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 6px 18px rgba(15,23,42,0.04)',
+}
+const panelTitle = {
+  fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+  letterSpacing: '0.08em', color: C.textSoft, marginBottom: 14,
+}

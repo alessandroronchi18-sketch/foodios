@@ -86,6 +86,7 @@ const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
 const ChiusuraView = lazyWithReload(() => import('./views/ChiusuraView'))
 const ProduzioneGiornalieraView = lazyWithReload(() => import('./views/ProduzioneGiornalieraView'))
 const InventarioSettimanaleView = lazyWithReload(() => import('./views/InventarioSettimanaleView'))
+const QuadraturaInventarioView = lazyWithReload(() => import('./views/QuadraturaInventarioView'))
 const AzioniView = lazyWithReload(() => import('./views/AzioniView'))
 const NuovaRicettaView = lazyWithReload(() => import('./views/NuovaRicettaView'))
 const StoricoProduzioneView = lazyWithReload(() => import('./views/StoricoProduzioneView'))
@@ -1158,7 +1159,7 @@ const DIPENDENTE_VIEWS = new Set([
 
 // Viste operative che SCRIVONO dati per-sede: in "Tutte le sedi" (vista aggregata)
 // richiedono di scegliere prima una sede specifica.
-const SEDE_RICHIESTA = new Set(['giornaliero','inventario-gusti','chiusura','magazzino','sprechi-omaggi','trasferimenti']);
+const SEDE_RICHIESTA = new Set(['giornaliero','inventario-gusti','quadratura-inventario','chiusura','magazzino','sprechi-omaggi','trasferimenti']);
 
 export default function Dashboard({
   auth,
@@ -1883,6 +1884,9 @@ export default function Dashboard({
             {id:"pl",label:"Profitti (P&L)",icon:"trendUp"},
             {id:"storico",label:"Storico",icon:"activity"},
             {id:"previsione",label:"Previsioni",icon:"forecast"},
+            // Quadratura inventario vs cassa: visibile solo se la sede attiva
+            // e' produttiva e usa il metodo inventario differenziale.
+            ...(isMetodoInventario ? [{id:"quadratura-inventario",label:"Quadratura inventario",icon:"check"}] : []),
           ]},
           { id:"azienda", label:"Azienda", items:[
             {id:"personale",label:"Personale",icon:"users"},
@@ -2337,6 +2341,8 @@ export default function Dashboard({
                   navItem("pl","trendUp","Profitti (P&L)"),
                   navItem("storico","activity","Storico"),
                   navItem("previsione","forecast","Previsioni"),
+                  ...((sedeAttiva?.is_sede_produzione && sedeAttiva?.metodo_produzione === 'inventario')
+                    ? [navItem("quadratura-inventario","check","Quadratura inventario")] : []),
                 ] })}
 
               {Group({ id:"azienda", iconKey:"briefcase", label:"Azienda",
@@ -2700,6 +2706,7 @@ export default function Dashboard({
         {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="inventario-gusti"&&!isAllSedi&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} notify={notify}/>}
+        {view==="quadratura-inventario"&&!isAllSedi&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} chiusure={chiusure}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="importa-dati"&&<ImportaDatiView
