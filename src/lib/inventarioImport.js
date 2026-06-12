@@ -213,34 +213,57 @@ function addGiorni(dataIso, n) {
 // per nome (TOTALI / GELATO ELIMINATO / RISTORANTI / ALTRI ...).
 
 export function classificaSheet(XLSX, workbook) {
-  const out = { sedi: [], totali: null, b2b: [], altri: [] }
+  const out = { sedi: [], totali: null, sprechi: null, b2b: null, altri: [] }
   for (const sheetName of (workbook.SheetNames || [])) {
     const ws = workbook.Sheets[sheetName]
     if (!ws) continue
     const matrice = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
     const nameUp = sheetName.toString().trim().toUpperCase()
 
-    // Pattern sede: cerca "GUSTI" nelle prime 5 righe + "PROD"/"RIMAN" nei
-    // sub-header. Se trovato, e' uno sheet sede.
-    const isSedeSheet = (() => {
-      let trovatoGusti = false, trovatoProd = false
-      for (let i = 0; i < Math.min(matrice.length, 5); i++) {
-        const row = matrice[i] || []
-        for (const c of row.slice(0, 25)) {
-          const v = (c || '').toString().trim().toUpperCase()
-          if (v === 'GUSTI' || v === 'GUSTO') trovatoGusti = true
-          if (v === 'PROD' || v.startsWith('PROD ')) trovatoProd = true
-        }
+    // Pattern strutturale: ispeziona le prime righe per riconoscere il tipo
+    // di foglio. Robusto a nomi diversi (es. "Sede 1", "Prodotti eliminati",
+    // "Vendite B2B", ecc.).
+    let trovatoGusti = false, trovatoProd = false
+    let trovatoRistorante = false, trovatoData = false
+    let trovatoNegozio = false, trovatoKg = false, trovatoMotivo = false
+    let trovatoTotale = false, trovatoVendutoSett = false
+    for (let i = 0; i < Math.min(matrice.length, 10); i++) {
+      const row = matrice[i] || []
+      for (const c of row.slice(0, 30)) {
+        const v = (c || '').toString().trim().toUpperCase()
+        if (v === 'GUSTI' || v === 'GUSTO') trovatoGusti = true
+        if (v === 'PROD' || v.startsWith('PROD ')) trovatoProd = true
+        if (v === 'RISTORANTE' || v === 'CLIENTE') trovatoRistorante = true
+        if (v === 'DATA') trovatoData = true
+        if (v === 'NEGOZIO' || v === 'SEDE') trovatoNegozio = true
+        if (v === 'KG' || v === 'QUANTITA' || v === 'QUANTITÀ') trovatoKg = true
+        if (v === 'MOTIVO' || v === 'CAUSA' || v === 'CAUSALE') trovatoMotivo = true
+        if (v.includes('TOTALE')) trovatoTotale = true
+        if (v.includes('VENDUTO SETTIMANA') || v.includes('VENDUTO_SETT')) trovatoVendutoSett = true
       }
-      return trovatoGusti && trovatoProd
-    })()
+    }
 
-    if (isSedeSheet) {
+    // Classificazione per pattern strutturale (preferito) + fallback nome:
+    // 1. sede produttiva: ha GUSTI + PROD nei sub-header
+    // 2. totali: header con multi "VENDUTO SETTIMANA" e "totale mese"
+    //    (puo' anche chiamarsi "Riepilogo", "Totale generale", ecc.)
+    // 3. b2b: ha RISTORANTE/CLIENTE + DATA + GUSTO
+    // 4. sprechi: ha NEGOZIO + KG + GUSTO + MOTIVO (e NON ha PROD)
+    if (trovatoGusti && trovatoProd) {
       out.sedi.push({ sheetName, matrice })
-    } else if (nameUp === 'TOTALI' || nameUp.includes('TOTAL')) {
+    } else if (trovatoVendutoSett && trovatoTotale) {
+      // Solo uno sheet TOTALI per workbook (l'ultimo trovato vince).
       out.totali = { sheetName, matrice }
-    } else if (nameUp.includes('RISTORANT') || nameUp.includes('B2B') || nameUp.includes('ELIMINAT')) {
-      out.b2b.push({ sheetName, matrice })
+    } else if (trovatoRistorante && trovatoData) {
+      out.b2b = { sheetName, matrice }
+    } else if (trovatoNegozio && trovatoKg && trovatoMotivo) {
+      out.sprechi = { sheetName, matrice }
+    } else if (nameUp === 'TOTALI' || nameUp.includes('TOTAL') || nameUp.includes('RIEPILOG')) {
+      out.totali = { sheetName, matrice }
+    } else if (nameUp.includes('RISTORANT') || nameUp.includes('B2B') || nameUp.includes('VENDIT')) {
+      out.b2b = { sheetName, matrice }
+    } else if (nameUp.includes('ELIMINAT') || nameUp.includes('SCART') || nameUp.includes('SPREC') || nameUp.includes('PERDIT')) {
+      out.sprechi = { sheetName, matrice }
     } else {
       out.altri.push({ sheetName, matrice })
     }
@@ -338,6 +361,128 @@ export function checkTotaliCrossSheet(perSedeRighe, totaliMatrice) {
   }
 
   return { coerente: divergenze.length === 0, divergenze }
+}
+
+// ── Parser sheet RISTORANTI (vendite B2B) ──────────────────────────────────
+// Layout cliente gelateria:
+//   R0: header tipo "PRODUZIONE PER RISTORANTI" (decorativo)
+//   R1: header colonne | RISTORANTE | DATA | GUSTO | KG | PAGAMENTO | negozio |
+//   R2+: dati. La DATA puo' essere un Excel serial (numero) o una stringa.
+// Ritorna array di { cliente, dataIso, gusto, qta, pagamento, sedeNome }.
+export function parseFoglioRistoranti(matrice) {
+  const out = { righe: [], warnings: [] }
+  if (!Array.isArray(matrice) || matrice.length === 0) return out
+
+  // Trova la riga header (RISTORANTE + DATA + GUSTO).
+  let idxHeader = -1
+  let mapCol = {}
+  for (let i = 0; i < Math.min(matrice.length, 10); i++) {
+    const row = matrice[i] || []
+    const upd = row.map(c => (c || '').toString().trim().toUpperCase())
+    const cliente = upd.indexOf('RISTORANTE')
+    const data = upd.indexOf('DATA')
+    const gusto = upd.indexOf('GUSTO')
+    if (cliente >= 0 && data >= 0 && gusto >= 0) {
+      idxHeader = i
+      mapCol = {
+        cliente, data, gusto,
+        qta: upd.indexOf('KG'),
+        pagamento: upd.indexOf('PAGAMENTO'),
+        sedeNome: upd.findIndex(v => v === 'NEGOZIO' || v === 'SEDE'),
+      }
+      break
+    }
+  }
+  if (idxHeader < 0) {
+    out.warnings.push('Header RISTORANTE/DATA/GUSTO non trovato nello sheet RISTORANTI.')
+    return out
+  }
+
+  for (let i = idxHeader + 1; i < matrice.length; i++) {
+    const row = matrice[i] || []
+    const cliente = (row[mapCol.cliente] || '').toString().trim()
+    if (!cliente) continue
+    const dataRaw = row[mapCol.data]
+    const dataIso = excelDateToIso(dataRaw)
+    const gusto = (row[mapCol.gusto] || '').toString().trim().toUpperCase()
+    const qta = Number(row[mapCol.qta]) || 0
+    const pagamento = (mapCol.pagamento >= 0 ? row[mapCol.pagamento] : '').toString().trim()
+    const sedeNome = (mapCol.sedeNome >= 0 ? row[mapCol.sedeNome] : '').toString().trim()
+    if (!gusto || qta <= 0) continue
+    out.righe.push({
+      cliente, dataIso, gusto, qta, pagamento, sedeNome,
+    })
+  }
+  return out
+}
+
+// Excel serial date -> 'YYYY-MM-DD'. Excel epoch: 1899-12-30 (con bug 1900).
+// Numero 45993 = ~ 30 nov 2025.
+export function excelDateToIso(v) {
+  if (v == null || v === '') return null
+  if (typeof v === 'string') {
+    // ISO?
+    if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10)
+    // dd/mm/yyyy?
+    const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/)
+    if (m) {
+      const y = m[3].length === 2 ? `20${m[3]}` : m[3]
+      return `${y}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
+    }
+    const n = parseFloat(v)
+    if (!Number.isFinite(n)) return null
+    v = n
+  }
+  if (typeof v === 'number') {
+    // Excel serial: giorni dal 1899-12-30 (UTC).
+    const epoch = Date.UTC(1899, 11, 30)
+    const ms = epoch + v * 86400000
+    return new Date(ms).toISOString().slice(0, 10)
+  }
+  return null
+}
+
+// ── Parser sheet GELATO ELIMINATO (sprechi) ───────────────────────────────
+// Layout:
+//   R0: header decorativo "GELATO ELIMINATO"
+//   R1: NEGOZIO | KG | GUSTO | MOTIVO
+//   R2+: dati. KG e' direttamente la quantita' (grammi=*1000).
+export function parseFoglioSprechi(matrice) {
+  const out = { righe: [], warnings: [] }
+  if (!Array.isArray(matrice) || matrice.length === 0) return out
+
+  let idxHeader = -1
+  let mapCol = {}
+  for (let i = 0; i < Math.min(matrice.length, 10); i++) {
+    const row = matrice[i] || []
+    const upd = row.map(c => (c || '').toString().trim().toUpperCase())
+    if (upd.includes('NEGOZIO') && upd.includes('KG') && upd.includes('GUSTO')) {
+      idxHeader = i
+      mapCol = {
+        sedeNome: upd.indexOf('NEGOZIO'),
+        kg: upd.indexOf('KG'),
+        gusto: upd.indexOf('GUSTO'),
+        motivo: upd.indexOf('MOTIVO'),
+      }
+      break
+    }
+  }
+  if (idxHeader < 0) {
+    out.warnings.push('Header NEGOZIO/KG/GUSTO non trovato nello sheet GELATO ELIMINATO.')
+    return out
+  }
+
+  for (let i = idxHeader + 1; i < matrice.length; i++) {
+    const row = matrice[i] || []
+    const sedeNome = (row[mapCol.sedeNome] || '').toString().trim()
+    if (!sedeNome) continue
+    const qta = Number(row[mapCol.kg]) || 0
+    const gusto = (row[mapCol.gusto] || '').toString().trim().toUpperCase()
+    const motivo = mapCol.motivo >= 0 ? (row[mapCol.motivo] || '').toString().trim() : ''
+    if (!gusto || qta <= 0) continue
+    out.righe.push({ sedeNome, qta, gusto, motivo })
+  }
+  return out
 }
 
 // ── Helper: diff vs DB ─────────────────────────────────────────────────────

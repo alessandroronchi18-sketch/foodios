@@ -33,9 +33,11 @@ import {
 import {
   parseNomeFile, lunediSettimana1DelMese, parseFoglioInventario, diffConDb,
   classificaSheet, trovaSedePerSheet, checkTotaliCrossSheet,
+  parseFoglioRistoranti, parseFoglioSprechi, normNomeSede,
 } from '../lib/inventarioImport'
 import { loadXLSX } from '../lib/xlsx'
 import { supabase } from '../lib/supabase'
+import { aggiungiMovimento as aggiungiMovimentoImport } from '../lib/movimentiSpeciali'
 
 const GIORNI = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom']
 const GIORNI_LUNGHI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
@@ -62,6 +64,17 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // tutte le sedi produttive con metodo='inventario'. Niente save, niente
   // import: si scelgono prima una sede specifica.
   const isAllSedi = sedeAttiva?._all === true
+  // Sedi produttive con metodo inventario tra cui scegliere quando isAllSedi.
+  const sediProduttive = useMemo(() => (sedi || [])
+    .filter(s => s.attiva !== false && s.is_sede_produzione && s.metodo_produzione === 'inventario')
+  , [sedi])
+  // Sub-selezione utente: array di sede_id da aggregare. Default: tutte.
+  const [sediFiltro, setSediFiltro] = useState(null)
+  useEffect(() => {
+    if (isAllSedi && sediFiltro === null) {
+      setSediFiltro(new Set(sediProduttive.map(s => s.id)))
+    }
+  }, [isAllSedi, sediProduttive, sediFiltro])
   const isMobile = useIsMobile()
   const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
   const [righe, setRighe] = useState([])
@@ -93,13 +106,9 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     if (!orgId) { setLoading(false); return }
     setLoading(true)
     if (isAllSedi) {
-      // Aggregazione cross-sede: prendiamo TUTTE le righe della settimana
-      // (e del giorno prima per il calcolo venduto) di TUTTE le sedi
-      // produttive con metodo inventario, e le sommiamo per gusto×data.
-      const sediProd = (sedi || []).filter(s =>
-        s.attiva !== false && s.is_sede_produzione && s.metodo_produzione === 'inventario'
-      )
-      Promise.all(sediProd.map(s => caricaSettimana(orgId, s.id, lunediIso)))
+      // Aggregazione cross-sede: usiamo il sub-set scelto dall'utente
+      // (sediProdIds), oppure tutte le produttive se non c'e' filtro.
+      Promise.all(sediProdIds.map(id => caricaSettimana(orgId, id, lunediIso)))
         .then(perSede => {
           if (!alive) return
           // Somma per (gusto, data).
@@ -128,15 +137,13 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     return () => { alive = false }
   }, [orgId, sedeId, lunediIso, isAllSedi, sedi])
 
-  // ID delle sedi su cui leggere: una se sede attiva, tutte le produttive
-  // se isAllSedi. Computed con stabilita' tramite JSON.stringify per evitare
-  // re-render infiniti.
+  // ID delle sedi su cui leggere: una se sede attiva, oppure il sub-set
+  // selezionato dall'utente in modalita' isAllSedi.
   const sediProdIds = useMemo(() => {
     if (!isAllSedi) return sedeId ? [sedeId] : []
-    return (sedi || [])
-      .filter(s => s.attiva !== false && s.is_sede_produzione && s.metodo_produzione === 'inventario')
-      .map(s => s.id)
-  }, [isAllSedi, sedeId, sedi])
+    if (sediFiltro instanceof Set && sediFiltro.size > 0) return [...sediFiltro]
+    return sediProduttive.map(s => s.id)
+  }, [isAllSedi, sedeId, sediProduttive, sediFiltro])
 
   // Caricamento dati MESE quando si seleziona la vista mese.
   useEffect(() => {
@@ -299,7 +306,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 
   // ── Render ─────────────────────────────────────────────────────────────
 
-  if (!orgId || !sedeId) {
+  if (!orgId) {
+    return <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
+  }
+  // Quando "Tutte le sedi" e' attivo non serve sedeId: aggreghiamo cross-sede.
+  if (!sedeId && !isAllSedi) {
     return <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Seleziona una sede</div>
   }
 
@@ -325,14 +336,50 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 
       {isAllSedi && (
         <div style={{
-          padding: '10px 14px', background: '#EFF6FF',
+          padding: '12px 14px', background: '#EFF6FF',
           border: '1px solid #BFDBFE', borderRadius: 10, marginBottom: 12,
-          fontSize: 12.5, color: '#1E3A8A', lineHeight: 1.5,
         }}>
-          🌍 <strong>Vista aggregata "Tutte le sedi"</strong> — Stai vedendo la
-          somma di tutte le sedi produttive con metodo inventario. La compilazione
-          e l'import sono <strong>disabilitati</strong>: per modificare i dati,
-          seleziona una sede specifica dal selettore in alto.
+          <div style={{ fontSize: 12.5, color: '#1E3A8A', lineHeight: 1.5, marginBottom: 10 }}>
+            🌍 <strong>Vista aggregata</strong> — Somma delle sedi selezionate qui sotto.
+            Compilazione e import disabilitati: per modificare i dati, seleziona una sede
+            specifica dal selettore in alto.
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>
+              Aggrega:
+            </span>
+            {sediProduttive.map(s => {
+              const sel = !sediFiltro || sediFiltro.has(s.id)
+              return (
+                <button key={s.id}
+                  onClick={() => setSediFiltro(prev => {
+                    const next = new Set(prev || sediProduttive.map(x => x.id))
+                    if (next.has(s.id)) next.delete(s.id)
+                    else next.add(s.id)
+                    // Non lasciare set vuoto: l'utente in tal caso vede 'tutte' di nuovo
+                    if (next.size === 0) return new Set(sediProduttive.map(x => x.id))
+                    return next
+                  })}
+                  style={{
+                    padding: '6px 12px', minHeight: 32,
+                    border: `1px solid ${sel ? '#1D4ED8' : '#BFDBFE'}`,
+                    background: sel ? '#1D4ED8' : '#FFFFFF',
+                    color: sel ? '#FFFFFF' : '#1E3A8A',
+                    borderRadius: 16, fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                  }}>
+                  {sel ? '✓ ' : ''}{s.nome}
+                </button>
+              )
+            })}
+            {sediProduttive.length > 1 && sediFiltro && sediFiltro.size < sediProduttive.length && (
+              <button onClick={() => setSediFiltro(new Set(sediProduttive.map(s => s.id)))}
+                style={{ padding: '4px 10px', minHeight: 28, fontSize: 11, fontWeight: 600, color: '#1E3A8A', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                Seleziona tutte
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -507,11 +554,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           state={importDlg}
           setState={setImportDlg}
           onCommit={async (batch) => {
-            // batch: [{sheetName, sedeId, righe}] — uno per sheet sede.
-            // Upsertiamo in serie. Conta totale ok/ko.
-            let ok = 0, ko = 0
+            // batch: { sedi: [{sheetName, sedeId, righe}], b2b: {righe}, sprechi: {righe} }
+            let ok = 0, ko = 0, okB2b = 0, okSpr = 0
             const sediCoinvolte = new Set()
-            for (const blocco of (batch || [])) {
+
+            // 1) INVENTARIO SEDI: upsert per gusto×data
+            for (const blocco of (batch?.sedi || [])) {
               for (const r of (blocco.righe || [])) {
                 try {
                   await salvaCella(orgId, blocco.sedeId, r.gusto_nome, r.data, {
@@ -524,14 +572,65 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               }
               sediCoinvolte.add(blocco.sedeId)
             }
+
+            // 2) VENDITE B2B: una riga per record in vendite_b2b (raggruppata
+            // per cliente+data per sede). Niente cliente_id strutturato:
+            // teniamo il nome cliente in note + righe.prodotto.
+            if (Array.isArray(batch?.b2b)) {
+              const agg = {}  // key = sedeId|cliente|data
+              for (const r of batch.b2b) {
+                const k = `${r.sedeId}|${r.cliente}|${r.dataIso}`
+                if (!agg[k]) agg[k] = { sedeId: r.sedeId, cliente: r.cliente, dataIso: r.dataIso, pagamento: r.pagamento, righe: [], totale: 0 }
+                agg[k].righe.push({ prodotto: r.gusto, qta: r.qta, unita: 'kg', prezzo: 0, totale: 0 })
+              }
+              for (const v of Object.values(agg)) {
+                try {
+                  const { error } = await supabase.from('vendite_b2b').insert({
+                    organization_id: orgId,
+                    sede_id: v.sedeId || null,
+                    data: v.dataIso,
+                    righe: v.righe,
+                    totale: v.totale,
+                    stato: 'consegnata',
+                    note: `${v.cliente}${v.pagamento ? ' · ' + v.pagamento : ''} (import)`,
+                  })
+                  if (error) throw error
+                  okB2b++
+                } catch (e) { console.error('vendite_b2b insert:', e); ko++ }
+              }
+            }
+
+            // 3) SPRECHI: un movimento per riga su SK_MOV della sede
+            if (Array.isArray(batch?.sprechi)) {
+              for (const r of batch.sprechi) {
+                try {
+                  await aggiungiMovimentoImport(orgId, r.sedeId, {
+                    tipo: 'spreco',
+                    prodotto: r.gusto,
+                    qta: r.qtaG, unita: 'g',
+                    causale: r.motivo || 'Altro',
+                    note: 'Importato da file',
+                    fcUnit: 0, fcTot: 0, valoreOmaggio: 0, categoria: '',
+                  })
+                  okSpr++
+                } catch (e) { console.error('movimento spreco:', e); ko++ }
+              }
+            }
+
             // Ricarica la settimana corrente per la sede attiva.
-            const fresh = await caricaSettimana(orgId, sedeId, lunediIso)
-            setRighe(fresh)
+            if (sedeId) {
+              const fresh = await caricaSettimana(orgId, sedeId, lunediIso)
+              setRighe(fresh)
+            }
             setImportDlg(null)
-            const nSedi = sediCoinvolte.size
+            const parts = []
+            if (ok) parts.push(`${ok} righe inventario`)
+            if (okB2b) parts.push(`${okB2b} vendite B2B`)
+            if (okSpr) parts.push(`${okSpr} sprechi`)
+            const sum = parts.join(' + ') || '0 righe'
             notify?.(ko > 0
-              ? `Import: ${ok} righe salvate, ${ko} errori (su ${nSedi} sedi)`
-              : `Import: ${ok} righe salvate in ${nSedi} ${nSedi === 1 ? 'sede' : 'sedi'}`,
+              ? `Import completato: ${sum}, ${ko} errori`
+              : `Import completato: ${sum}`,
               ko === 0)
           }}
         />
@@ -748,17 +847,59 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
 
   const numSediIncluse = Object.values(mappaSede).filter(Boolean).length
 
+  // Parsing aggiuntivo per b2b / sprechi se presenti negli sheet.
+  const parsatoB2b = useMemo(() => {
+    if (!classif?.b2b?.matrice) return null
+    return parseFoglioRistoranti(classif.b2b.matrice)
+  }, [classif])
+  const parsatoSprechi = useMemo(() => {
+    if (!classif?.sprechi?.matrice) return null
+    return parseFoglioSprechi(classif.sprechi.matrice)
+  }, [classif])
+
+  // Mapping NOME negozio (lowercase) -> sede_id, usato per b2b e sprechi.
+  // Cerca match esatto normalizzato; se non trova, lascia null e l'utente
+  // vedra' il warning.
+  const mappaNegozioSede = useMemo(() => {
+    const m = {}
+    const tutti = new Set([
+      ...(parsatoB2b?.righe || []).map(r => normNomeSede(r.sedeNome)),
+      ...(parsatoSprechi?.righe || []).map(r => normNomeSede(r.sedeNome)),
+    ].filter(Boolean))
+    for (const nego of tutti) {
+      const sede = sedi.find(s => normNomeSede(s.nome) === nego ||
+        normNomeSede(s.nome).includes(nego) || nego.includes(normNomeSede(s.nome)))
+      m[nego] = sede?.id || null
+    }
+    return m
+  }, [parsatoB2b, parsatoSprechi, sedi])
+
   function confermaImport() {
-    // Batch: per ogni sede, lista delle righe. Il chiamante (DialogImport)
-    // le inoltra al commit.
-    const batch = parsatiPerSheet
+    // Costruisce il batch completo: sedi (inventario) + b2b + sprechi.
+    const sediBlocchi = parsatiPerSheet
       .filter(x => mappaSede[x.sheetName])
       .map(x => ({
         sheetName: x.sheetName,
         sedeId: mappaSede[x.sheetName],
         righe: x.parsato.righe,
       }))
-    onConferma(batch)
+
+    // B2B: una riga per record, con sedeId risolto da mappaNegozioSede.
+    const b2bRighe = (parsatoB2b?.righe || [])
+      .map(r => ({ ...r, sedeId: mappaNegozioSede[normNomeSede(r.sedeNome)] || null }))
+      .filter(r => r.sedeId && r.gusto && r.qta > 0 && r.dataIso)
+
+    // Sprechi: KG → grammi (×1000). sedeId risolto come b2b.
+    const sprechiRighe = (parsatoSprechi?.righe || [])
+      .map(r => ({
+        sedeId: mappaNegozioSede[normNomeSede(r.sedeNome)] || null,
+        gusto: r.gusto,
+        qtaG: Math.round(Number(r.qta) * 1000),
+        motivo: r.motivo,
+      }))
+      .filter(r => r.sedeId && r.gusto && r.qtaG > 0)
+
+    onConferma({ sedi: sediBlocchi, b2b: b2bRighe, sprechi: sprechiRighe })
   }
 
   return (
@@ -924,10 +1065,40 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
       )}
 
       {/* INFO SU SHEET IGNORATI */}
-      {(classif?.b2b?.length > 0 || classif?.altri?.length > 0) && (
+      {/* Box informativi per b2b e sprechi (rilevati ma processati a parte) */}
+      {parsatoB2b?.righe?.length > 0 && (
+        <div style={{
+          padding: '10px 12px', background: '#F0F9FF', border: '1px solid #BAE6FD',
+          borderRadius: 10, marginBottom: 10, fontSize: 12.5, color: '#075985',
+        }}>
+          🧾 <strong>Vendite B2B rilevate ({parsatoB2b.righe.length})</strong> dal foglio "{classif.b2b.sheetName}".
+          Saranno salvate in <em>Clienti B2B → Vendite</em>.
+          {parsatoB2b.righe.filter(r => !mappaNegozioSede[normNomeSede(r.sedeNome)]).length > 0 && (
+            <div style={{ marginTop: 4, fontSize: 11.5 }}>
+              ⚠️ Alcuni negozi non corrispondono a nessuna sede esistente: queste righe saranno saltate.
+            </div>
+          )}
+        </div>
+      )}
+      {parsatoSprechi?.righe?.length > 0 && (
+        <div style={{
+          padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FECACA',
+          borderRadius: 10, marginBottom: 10, fontSize: 12.5, color: '#7F1D1D',
+        }}>
+          🗑️ <strong>Prodotti eliminati rilevati ({parsatoSprechi.righe.length})</strong> dal foglio "{classif.sprechi.sheetName}".
+          Saranno salvati come <em>Perdite</em> per ogni sede.
+          {parsatoSprechi.righe.filter(r => !mappaNegozioSede[normNomeSede(r.sedeNome)]).length > 0 && (
+            <div style={{ marginTop: 4, fontSize: 11.5 }}>
+              ⚠️ Alcuni negozi non corrispondono a nessuna sede esistente: queste righe saranno saltate.
+            </div>
+          )}
+        </div>
+      )}
+
+      {(classif?.altri?.length > 0) && (
         <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
-          <strong>Fogli ignorati</strong> (non importati in questa fase):{' '}
-          {[...(classif.b2b || []), ...(classif.altri || [])].map(x => x.sheetName).join(' · ')}
+          <strong>Fogli non riconosciuti</strong> (saltati):{' '}
+          {classif.altri.map(x => x.sheetName).join(' · ')}
         </div>
       )}
 
@@ -996,12 +1167,20 @@ function SortChip({ label, color, active, dir, onClick }) {
 }
 
 // ── Icona "gusto non a ricettario" con tooltip ────────────────────────────
+// Tooltip custom: il `title` HTML nativo ha 1-2s di delay e su alcune
+// configurazioni (Safari, table cell con stacking context, mouseover veloce)
+// non compare proprio. Lo sostituiamo con un overlay che mostriamo
+// immediatamente all'hover via React state.
 function IconaOrfano() {
+  const [hover, setHover] = useState(false)
   return (
     <span
-      title="Gusto non presente nel ricettario. Aggiungilo da Ricettario → Nuova ricetta per gestire food cost, allergeni e categorie."
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onTouchStart={() => setHover(h => !h)}
       aria-label="Gusto non nel ricettario"
       style={{
+        position: 'relative',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         width: 18, height: 18, borderRadius: '50%',
         background: '#FEF3C7', color: '#92400E',
@@ -1009,6 +1188,22 @@ function IconaOrfano() {
         flexShrink: 0,
       }}>
       ⚠
+      {hover && (
+        <span role="tooltip" style={{
+          position: 'absolute', bottom: 'calc(100% + 8px)', right: 0,
+          width: 260, padding: '8px 12px',
+          background: '#0F172A', color: '#F8FAFC',
+          borderRadius: 8, fontSize: 11.5, fontWeight: 500, lineHeight: 1.45,
+          letterSpacing: '0.005em', textAlign: 'left', textTransform: 'none',
+          boxShadow: '0 6px 20px rgba(15,23,42,0.25)',
+          zIndex: 100, pointerEvents: 'none',
+          whiteSpace: 'normal',
+        }}>
+          <strong style={{ color: '#FCD34D' }}>Gusto non nel ricettario</strong>
+          <br />
+          Aggiungilo da <em>Ricettario → Nuova ricetta</em> per gestire food cost, allergeni e categorie.
+        </span>
+      )}
     </span>
   )
 }
