@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import Icon from './Icon'
 import { SkeletonGrid, SkeletonTable, SkeletonList } from './Skeleton'
+import ExportPdfButton from './ExportPdfButton'
+import PeriodCompareSelector from './PeriodCompareSelector'
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
@@ -82,6 +85,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
   const [periodo, setPeriodo] = useState('settimana')
   const [costiMap, setCostiMap] = useState({})  // sedeId -> totale mensile costi azienda
   const [trend8w, setTrend8w] = useState([])    // [{lunIso, ricavi}] x 8 settimane gruppo
+  // ── Grafici interattivi (R96) ─────────────────────────────────────────────
+  const [chartType, setChartType] = useState('bar')   // bar | line | pie
+  const [chartMetric, setChartMetric] = useState('ricaviCur')  // KPI selezionata
+  const [compareMode, setCompareMode] = useState('prev')  // none | prev | year_prev
 
   const sediAttive = (sedi || []).filter(s => s.attiva !== false)
 
@@ -457,18 +464,63 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             <span style={{ color: RED, fontWeight: 700 }}>Rosso</span> = peggiore &nbsp;·&nbsp;
             confronto con <strong>{periodo === 'mese' ? 'mese' : 'settimana'} precedente</strong>
           </p>
-          <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 999, padding: 3 }}>
-            {PERIODI.map(p => (
-              <button key={p.id} onClick={() => setPeriodo(p.id)}
-                style={{
-                  padding: '6px 14px', borderRadius: 999, border: 'none',
-                  background: periodo === p.id ? TXT : 'transparent',
-                  color: periodo === p.id ? '#fff' : MID,
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                }}>
-                {p.lbl}
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 999, padding: 3 }}>
+              {PERIODI.map(p => (
+                <button key={p.id} onClick={() => setPeriodo(p.id)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 999, border: 'none',
+                    background: periodo === p.id ? TXT : 'transparent',
+                    color: periodo === p.id ? '#fff' : MID,
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}>
+                  {p.lbl}
+                </button>
+              ))}
+            </div>
+            <ExportPdfButton
+              fileName={`confronto-sedi-${periodo}.pdf`}
+              compact
+              getReport={() => ({
+                title: 'Confronto sedi',
+                subtitle: `${sediAttive.length} sedi attive`,
+                periodo: `Periodo: ${periodo === 'mese' ? 'mese corrente' : 'settimana corrente'} vs ${periodo} precedente`,
+                kpi: consolidato ? [
+                  { label: 'Ricavi gruppo', value: `€ ${fmt0(consolidato.ricCur)}`, sub: consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '' },
+                  { label: 'Margine netto', value: `€ ${fmt0(consolidato.margNetto)}`, sub: consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '' },
+                  { label: 'Food cost medio', value: consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '—', sub: 'target < 33%' },
+                  { label: 'Costi azienda', value: `€ ${fmt0(consolidato.costiPeriodo || 0)}` },
+                ] : [],
+                sections: [
+                  {
+                    title: 'KPI per sede',
+                    table: {
+                      columns: ['Sede', 'Ricavi €', 'Food cost %', 'Margine netto €', 'Trasf. attesi', 'Fatture scadute'],
+                      alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
+                      rows: sediAttive.map(s => {
+                        const k = kpiMap[s.id] || {}
+                        return [
+                          s.nome,
+                          fmt0(k.ricaviCur),
+                          k.foodCostPct != null ? k.foodCostPct.toFixed(1) + '%' : '—',
+                          fmt0(k.margineNettoCur),
+                          String(k.trasfInArrivo || 0),
+                          String(k.fattureScadute || 0),
+                        ]
+                      }),
+                    },
+                  },
+                  ...(alerts.length > 0 ? [{
+                    title: 'Alerts da gestire',
+                    table: {
+                      columns: ['Sede', 'Livello', 'Messaggio'],
+                      alignments: ['left', 'left', 'left'],
+                      rows: alerts.map(a => [a.sede.nome, a.lvl.toUpperCase(), a.msg]),
+                    },
+                  }] : []),
+                ],
+              })}
+            />
           </div>
         </div>
       </div>
@@ -645,6 +697,103 @@ export default function ConfrontoSedi({ orgId, sedi }) {
               )}
             </div>
           )}
+
+          {/* GRAFICO INTERATTIVO — chart switcher + metric + compare */}
+          {sediAttive.length >= 2 && (() => {
+            const METRICS = [
+              { id: 'ricaviCur',       lbl: 'Ricavi',       fmt: v => '€' + fmt0(v) },
+              { id: 'foodCostPct',     lbl: 'Food cost %',  fmt: v => v != null ? v.toFixed(1) + '%' : '—' },
+              { id: 'margineNettoCur', lbl: 'Margine netto',fmt: v => '€' + fmt0(v) },
+              { id: 'fattureScadute',  lbl: 'Fatture scadute', fmt: v => String(v) },
+              { id: 'stockPF',         lbl: 'Stock vetrina (pz)', fmt: v => String(v) },
+            ]
+            const metricDef = METRICS.find(m => m.id === chartMetric) || METRICS[0]
+            const prevKey = chartMetric === 'ricaviCur' ? 'ricaviPrev' : null
+            const data = sediAttive.map(s => {
+              const k = kpiMap[s.id] || {}
+              return {
+                sede: s.nome.length > 12 ? s.nome.slice(0, 12) + '…' : s.nome,
+                fullName: s.nome,
+                current: Number(k[chartMetric]) || 0,
+                compare: compareMode !== 'none' && prevKey ? (Number(k[prevKey]) || 0) : null,
+              }
+            })
+            const COLORS = ['#6E0E1A', '#D97706', '#16A34A', '#0369A1', '#7E22CE', '#BE185D']
+            const COMPARE_COLOR = '#94A3B8'
+            return (
+              <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: SOFT }}>
+                    📊 Visualizzazione interattiva
+                  </div>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {METRICS.map(m => (
+                      <button key={m.id} onClick={() => setChartMetric(m.id)}
+                        style={{ padding: '5px 10px', borderRadius: 999, border: `1px solid ${chartMetric === m.id ? RED : BORDER}`, background: chartMetric === m.id ? RED : 'transparent', color: chartMetric === m.id ? '#FFF' : MID, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        {m.lbl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+                  {/* Switcher tipo grafico */}
+                  <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 999, padding: 3 }}>
+                    {[
+                      { id: 'bar',  lbl: 'Barre' },
+                      { id: 'line', lbl: 'Linea' },
+                      { id: 'pie',  lbl: 'Torta' },
+                    ].map(t => (
+                      <button key={t.id} onClick={() => setChartType(t.id)}
+                        style={{ padding: '5px 12px', borderRadius: 999, border: 'none', background: chartType === t.id ? TXT : 'transparent', color: chartType === t.id ? '#FFF' : MID, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        {t.lbl}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Compare temporale */}
+                  {prevKey && (
+                    <PeriodCompareSelector mode={compareMode} onChange={setCompareMode} compact />
+                  )}
+                </div>
+
+                <div style={{ width: '100%', height: 300 }}>
+                  <ResponsiveContainer>
+                    {chartType === 'bar' && (
+                      <BarChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9"/>
+                        <XAxis dataKey="sede" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={v => metricDef.fmt(v)} />
+                        <Legend />
+                        <Bar dataKey="current" name={`${metricDef.lbl} (attuale)`} fill={RED} radius={[6, 6, 0, 0]} />
+                        {compareMode !== 'none' && prevKey && <Bar dataKey="compare" name={metricDef.lbl + ' (confronto)'} fill={COMPARE_COLOR} radius={[6, 6, 0, 0]} />}
+                      </BarChart>
+                    )}
+                    {chartType === 'line' && (
+                      <LineChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9"/>
+                        <XAxis dataKey="sede" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={v => metricDef.fmt(v)} />
+                        <Legend />
+                        <Line type="monotone" dataKey="current" name={`${metricDef.lbl} (attuale)`} stroke={RED} strokeWidth={2.5} dot={{ r: 4 }} />
+                        {compareMode !== 'none' && prevKey && <Line type="monotone" dataKey="compare" name={metricDef.lbl + ' (confronto)'} stroke={COMPARE_COLOR} strokeWidth={2} strokeDasharray="6 4" dot={{ r: 3 }} />}
+                      </LineChart>
+                    )}
+                    {chartType === 'pie' && (
+                      <PieChart>
+                        <Tooltip formatter={v => metricDef.fmt(v)} />
+                        <Legend />
+                        <Pie data={data} dataKey="current" nameKey="sede" outerRadius={isMobile ? 80 : 110} label={d => d.sede}>
+                          {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Pie>
+                      </PieChart>
+                    )}
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* RANKING ricavi */}
           {ranking.length >= 2 && (

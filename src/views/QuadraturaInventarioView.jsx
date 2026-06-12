@@ -18,6 +18,7 @@ import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { SK_FORMATI, SK_CHIUS } from '../lib/storageKeys'
 import Icon from '../components/Icon'
+import ExportPdfButton from '../components/ExportPdfButton'
 import { C, KPI, PageHeader, TNUM, fmt0 } from './_shared'
 import {
   caricaSettimana, calcolaVendutoSettimana, lunediDellaSettimana,
@@ -278,6 +279,54 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           title="Esporta la settimana in CSV per commercialista/contabilita">
           ⬇ CSV
         </button>
+        <ExportPdfButton
+          fileName={`quadratura-${lunediIso}.pdf`}
+          compact
+          label="Esporta PDF settimana"
+          getReport={() => ({
+            title: 'Quadratura inventario vs cassa',
+            subtitle: isAllSedi ? 'Tutte le sedi' : (sedeAttiva?.nome || ''),
+            periodo: fmtRange(lunediIso),
+            kpi: [
+              { label: 'Venduto (kg)', value: nKg((kpi.totVendutoG ?? 0)), sub: 'inventario' },
+              { label: 'Cassa effettiva', value: '€ ' + (kpi.cassaEffettiva ?? 0).toFixed(0) },
+              { label: 'Atteso (€)', value: '€ ' + (kpi.ricavoAtteso ?? 0).toFixed(0), sub: `€/kg medio ${n0(euroKg)}` },
+              { label: 'Drift', value: (kpi.driftEur != null ? `${kpi.driftEur > 0 ? '+' : ''}€ ${kpi.driftEur.toFixed(0)} (${pct(kpi.driftPct)})` : '—') },
+            ],
+            sections: [
+              ...(Array.isArray(righe) && righe.length > 0 ? [{
+                title: 'Dettaglio gusti',
+                table: {
+                  columns: ['Gusto', 'Iniziale (g)', 'Prodotto (g)', 'Finale (g)', 'Scarto (g)', 'Venduto (g)'],
+                  alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
+                  rows: righe.map(r => [
+                    r.gusto || r.nome || '',
+                    String(r.inizialeG ?? r.iniziale_g ?? 0),
+                    String(r.prodottoG ?? r.prodotto_g ?? 0),
+                    String(r.finaleG ?? r.finale_g ?? 0),
+                    String(r.scartoG ?? r.scarto_g ?? 0),
+                    String(r.vendutoG ?? r.venduto_g ?? 0),
+                  ]),
+                },
+              }] : []),
+              ...(isAllSedi && Array.isArray(perSede) && perSede.length > 0 ? [{
+                title: 'Drill-down per sede',
+                table: {
+                  columns: ['Sede', 'Venduto retail (kg)', 'Cassa (€)', 'Atteso (€)', 'Drift (€)', 'Drift (%)'],
+                  alignments: ['left', 'right', 'right', 'right', 'right', 'right'],
+                  rows: perSede.map(p => [
+                    p.sede?.nome || '',
+                    nKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
+                    (p.kpi.cassaEffettiva ?? 0).toFixed(0),
+                    (p.kpi.ricavoAtteso ?? 0).toFixed(0),
+                    (p.kpi.driftEur ?? 0).toFixed(0),
+                    pct(p.kpi.driftPct),
+                  ]),
+                },
+              }] : []),
+            ],
+          })}
+        />
       </div>
 
       {loading ? (

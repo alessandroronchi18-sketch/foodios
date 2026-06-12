@@ -2325,7 +2325,7 @@ export default function Dashboard({
             </div>
             )}
 
-            <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />
+            {!['confronto-sedi','trasferimenti'].includes(view) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />}
 
             {/* Search nel menu — filtra le voci della sidebar in tempo reale */}
             <div style={{padding:"12px 16px 10px",position:"relative"}}>
@@ -2643,7 +2643,7 @@ export default function Dashboard({
                 </div>
                 <h1 style={{margin:0,fontSize:22,fontWeight:700,color:T.text,letterSpacing:"-0.022em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</h1>
               </div>
-              {(sedi||[]).length>0 && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} variant="topbar" />}
+              {(sedi||[]).length>0 && !['confronto-sedi','trasferimenti'].includes(view) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} variant="topbar" />}
             </div>
           );
         })()}

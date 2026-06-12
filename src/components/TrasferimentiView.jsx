@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import Icon from './Icon'
 import { SkeletonList, SkeletonGrid } from './Skeleton'
+import ProductAutocomplete from './ProductAutocomplete'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
 import { color as T, radius as R, motion as M } from '../lib/theme'
@@ -631,8 +632,14 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <div style={lbl}>{form.tipo === 'materia_prima' ? 'Ingrediente *' : 'Prodotto *'}</div>
-              <input value={form.prodotto} onChange={e => setForm(f => ({ ...f, prodotto: e.target.value }))} style={inp}
-                placeholder={form.tipo === 'materia_prima' ? 'es. zucchero' : 'es. BRIOCHES VUOTE'}/>
+              <ProductAutocomplete
+                value={form.prodotto}
+                onChange={v => setForm(f => ({ ...f, prodotto: v }))}
+                tipo={form.tipo}
+                orgId={orgId}
+                sedeId={form.sede_da}
+                placeholder={form.tipo === 'materia_prima' ? 'es. zucchero (digita per filtrare)' : 'es. BRIOCHES (digita per filtrare)'}
+              />
             </div>
             <div>
               <div style={lbl}>Quantità *</div>

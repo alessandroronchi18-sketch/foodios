@@ -24,6 +24,7 @@ import {
 } from './_shared'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
+import ExportPdfButton from '../components/ExportPdfButton'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -744,8 +745,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
             <KPI icon={<Icon name="users" size={18} />} label="Costo lavoro" value={pct(plMese.lavPct)} color={plMese.lavPct <= targetLavoro ? T.green : plMese.lavPct <= targetLavoro + 10 ? T.amber : T.brand} sub={`target ${targetLavoro}% · ${fmt0(plMese.personale)}`} />
           </div>
 
-          {/* AI explain bar — un click → l'AI spiega il P&L in linguaggio naturale */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+          {/* AI explain + Export PDF */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
             <AiExplainButton
               label={`P&L ${meseLabel(mese)}`}
               value={`Utile ${fmt0(plMese.utile)} · FC ${pct(plMese.fcPct)}`}
@@ -762,6 +763,36 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
                 margine_operativo_pct: plMese.margOpPct,
                 utile: plMese.utile,
               }}
+            />
+            <ExportPdfButton
+              fileName={`pl-${meseLabel(mese).replace(/\s+/g, '-').toLowerCase()}.pdf`}
+              getReport={() => ({
+                title: 'Conto economico mensile',
+                subtitle: `Periodo: ${meseLabel(mese)}`,
+                periodo: plMese.prev?.ricavi > 0 ? `vs ${meseLabel(mese)} (variazione ${pct(((plMese.cur.ricavi - plMese.prev.ricavi) / plMese.prev.ricavi) * 100)})` : undefined,
+                kpi: [
+                  { label: 'Ricavi', value: `€ ${fmt0(plMese.cur.ricavi)}`, sub: `${plMese.cur.giorni} giorni` },
+                  { label: 'Food cost', value: pct(plMese.fcPct), sub: `€ ${fmt0(plMese.cur.foodcost)}` },
+                  { label: 'Costo lavoro', value: pct(plMese.lavPct), sub: `€ ${fmt0(plMese.personale)}` },
+                  { label: 'Utile', value: `€ ${fmt0(plMese.utile)}`, sub: `margine op. ${pct(plMese.margOpPct)}` },
+                ],
+                sections: [
+                  {
+                    title: 'Conto economico a cascata',
+                    table: {
+                      columns: ['Voce', 'Importo €', '% sui ricavi'],
+                      alignments: ['left', 'right', 'right'],
+                      rows: [
+                        ['Ricavi totali', fmt0(plMese.cur.ricavi), '100%'],
+                        ['- Food cost', `(${fmt0(plMese.cur.foodcost)})`, pct(plMese.fcPct)],
+                        ['= Margine lordo', fmt0(plMese.cur.ricavi - plMese.cur.foodcost), pct(100 - plMese.fcPct)],
+                        ['- Costo lavoro', `(${fmt0(plMese.personale)})`, pct(plMese.lavPct)],
+                        ['= Margine operativo', fmt0(plMese.utile), pct(plMese.margOpPct)],
+                      ],
+                    },
+                  },
+                ],
+              })}
             />
           </div>
 

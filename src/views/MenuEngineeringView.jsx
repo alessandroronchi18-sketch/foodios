@@ -19,6 +19,7 @@ import useIsMobile from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
+import ExportPdfButton from '../components/ExportPdfButton'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -194,6 +195,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
               <div style={{ fontSize: 13, color: MID, lineHeight: 1.5 }}>
                 <strong>{classified.length}</strong> prodotti analizzati · media popolarità {mediaPop.toFixed(1)} pz · media margine €{mediaMarg.toFixed(2)}
               </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <AiExplainButton
                 label="Menu engineering"
                 value={`${stats.STAR.length} Star, ${stats.PLOWHORSE.length} Plowhorse, ${stats.PUZZLE.length} Puzzle, ${stats.DOG.length} Dog`}
@@ -206,6 +208,28 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                   dog: stats.DOG.slice(0, 5).map(x => ({ nome: x.nome, qta: x.qtaVenduta })),
                 }}
               />
+              <ExportPdfButton
+                fileName={`menu-engineering-${periodo}gg.pdf`}
+                compact
+                getReport={() => ({
+                  title: 'Menu engineering',
+                  subtitle: sedeAttiva?.nome || '',
+                  periodo: `Ultimi ${periodo} giorni`,
+                  kpi: [
+                    { label: '⭐ Stars', value: String(stats.STAR.length), sub: 'da proteggere' },
+                    { label: '🐎 Plowhorses', value: String(stats.PLOWHORSE.length), sub: 'rialza prezzo' },
+                    { label: '🧩 Puzzles', value: String(stats.PUZZLE.length), sub: 'promo/marketing' },
+                    { label: '🐕 Dogs', value: String(stats.DOG.length), sub: 'sostituire' },
+                  ],
+                  sections: [
+                    { title: '⭐ Stars (proteggi)',     table: { columns: ['Prodotto', 'Qta vendute', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.STAR.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + x.margine.toFixed(2)]) } },
+                    { title: '🐎 Plowhorses (rialza)',  table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PLOWHORSE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + x.margine.toFixed(2)]) } },
+                    { title: '🧩 Puzzles (promo)',      table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PUZZLE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + x.margine.toFixed(2)]) } },
+                    { title: '🐕 Dogs (sostituire)',    table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.DOG.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + x.margine.toFixed(2)]) } },
+                  ],
+                })}
+              />
+              </div>
             </div>
 
             {chart && (
