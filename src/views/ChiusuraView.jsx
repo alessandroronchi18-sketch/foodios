@@ -158,8 +158,16 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
   // Costruisce `venduto` dalle righe digitate (stessa shape dell'OCR).
   // Prezzo non indicato → eredita il prezzo di listino della ricetta corrispondente.
+  //
+  // Bug fix 2026-06-13: l'inserimento manuale ora ACCUMULA invece di sostituire.
+  // - Se un prodotto e' gia' presente in `venduto` con stesso nome, ne somma la
+  //   quantita' (e ricalcola totale).
+  // - Se e' nuovo, lo aggiunge.
+  // Dopo l'aggiunta resetta `manualRows` per permettere altri inserimenti
+  // consecutivi (l'utente preme "Aggiungi" piu' volte, poi convalida al
+  // momento del salvataggio finale).
   const usaProdottiManuali = () => {
-    const righe = manualRows.map(r => {
+    const nuoveRighe = manualRows.map(r => {
       const nome = (r.nome || '').toUpperCase().trim()
       const qta = Number(String(r.qta).replace(',', '.')) || 0
       if (!nome || qta <= 0) return null
@@ -170,8 +178,34 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       }
       return { nome, qta, prezzoUnitario: prezzo, totale: Math.round(qta * prezzo * 100) / 100 }
     }).filter(Boolean)
-    if (!righe.length) { notify?.('Inserisci almeno un prodotto con quantità', false); return }
-    setVenduto(righe); setSalvato(false); setError(null)
+    if (!nuoveRighe.length) { notify?.('Inserisci almeno un prodotto con quantità', false); return }
+
+    // Merge: somma qta per nome, aggiunge i nuovi.
+    const map = new Map()
+    for (const v of (venduto || [])) {
+      map.set(v.nome, { ...v })
+    }
+    for (const r of nuoveRighe) {
+      if (map.has(r.nome)) {
+        const ex = map.get(r.nome)
+        const newQta = (Number(ex.qta) || 0) + r.qta
+        // Mantiene il prezzo unitario esistente; ricalcola totale.
+        const prezzo = Number(ex.prezzoUnitario) || r.prezzoUnitario
+        map.set(r.nome, {
+          ...ex,
+          qta: newQta,
+          prezzoUnitario: prezzo,
+          totale: Math.round(newQta * prezzo * 100) / 100,
+        })
+      } else {
+        map.set(r.nome, r)
+      }
+    }
+
+    setVenduto(Array.from(map.values()))
+    setManualRows([{ nome: '', qta: '', prezzo: '' }])  // resetta per nuovo batch
+    setSalvato(false); setError(null)
+    notify?.(`✓ ${nuoveRighe.length} prodott${nuoveRighe.length === 1 ? 'o aggiunto' : 'i aggiunti'} alla cassa`)
   }
 
   const readFile64 = f => new Promise(res => {
