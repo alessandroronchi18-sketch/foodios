@@ -86,6 +86,10 @@ const DashboardHomeView = lazyWithReload(() => import('./views/DashboardHomeView
 const RecensioniView = lazyWithReload(() => import('./views/RecensioniView'))
 const MenuEngineeringView = lazyWithReload(() => import('./views/MenuEngineeringView'))
 const CashflowView = lazyWithReload(() => import('./views/CashflowView'))
+const ForecastView = lazyWithReload(() => import('./views/ForecastView'))
+const ReformulationView = lazyWithReload(() => import('./views/ReformulationView'))
+const OrdiniAiView = lazyWithReload(() => import('./views/OrdiniAiView'))
+const CompetitorPricingView = lazyWithReload(() => import('./views/CompetitorPricingView'))
 const FotoOCR = lazyWithReload(() => import('./components/FotoOCR'))
 import { compressImage } from './lib/imageUtils'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
@@ -1276,7 +1280,7 @@ export default function Dashboard({
     giornaliero:'oggi', chiusura:'oggi', eventi:'oggi', calendario:'oggi',
     ricettario:'ricette', semilavorati:'ricette', 'nuova-ricetta':'ricette',
     'scheda-allergeni':'ricette', menu:'ricette',
-    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', 'menu-engineering':'numeri', cashflow:'numeri',
+    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', 'menu-engineering':'numeri', cashflow:'numeri', forecast:'numeri', reformulation:'numeri', 'competitor-pricing':'numeri', 'ordini-ai':'magazzino',
     magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'vendite-b2b':'acquisti', 'importa-dati':'acquisti',
     personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda', recensioni:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
@@ -1928,6 +1932,7 @@ export default function Dashboard({
           { id:"acquisti", label:"Magazzino & Acquisti", badge:criticeMag, items:[
             {id:"magazzino",label:"Magazzino",icon:"pkg",badge:criticeMag,alert:criticeMag>0},
             {id:"scadenzario",label:"Scadenzario",icon:"fileText"},
+            {id:"ordini-ai",label:"Ordini AI fornitori",icon:"truck"},
             {id:"fornitori",label:"Fornitori",icon:"truck"},
             {id:"vendite-b2b",label:"Vendite B2B",icon:"building"},
             {id:"sprechi-omaggi",label:"Perdite & cessioni",icon:"sparkles"},
@@ -1939,8 +1944,11 @@ export default function Dashboard({
             {id:"costi-aziendali",label:"Costi aziendali",icon:"package"},
             {id:"storico",label:"Storico",icon:"activity"},
             {id:"previsione",label:"Previsioni",icon:"forecast"},
+            {id:"forecast",label:"Forecast AI 7gg",icon:"sun"},
             {id:"menu-engineering",label:"Menu engineering",icon:"barChart"},
             {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
+            {id:"reformulation",label:"Ottimizza ricette AI",icon:"sparkles"},
+            {id:"competitor-pricing",label:"Pricing vs competitor",icon:"money"},
             // Quadratura inventario vs cassa: visibile solo se la sede attiva
             // e' produttiva e usa il metodo inventario differenziale.
             ...(isMetodoInventario ? [{id:"quadratura-inventario",label:"Quadratura inventario",icon:"check"}] : []),
@@ -2405,6 +2413,7 @@ export default function Dashboard({
                 children:[
                   navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0),
                   navItem("scadenzario","fileText","Scadenzario"),
+                  navItem("ordini-ai","truck","Ordini AI"),
                   navItem("fornitori","truck","Fornitori"),
                   navItem("vendite-b2b","building","Vendite B2B"),
                   navItem("sprechi-omaggi","sparkles","Perdite & cessioni"),
@@ -2812,6 +2821,10 @@ export default function Dashboard({
         {view==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
         {view==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
         {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId}/>}
+        {view==="forecast"&&<ForecastView orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} setView={setView}/>}
+        {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId}/>}
+        {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId}/>}
+        {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario}/>}
         <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId}/>
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip}/>}
         {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(

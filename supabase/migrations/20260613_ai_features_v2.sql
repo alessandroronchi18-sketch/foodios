@@ -81,11 +81,11 @@ alter table public.forecast_giornaliero
   foreign key (organization_id)
   references public.organizations(id) on delete cascade;
 
+-- UNIQUE diretta su 4 campi (Postgres considera NULL distinti, ok per noi
+-- perche sede_id e sempre valorizzato dal cron forecast).
 create unique index if not exists uq_forecast_per_prod_data
   on public.forecast_giornaliero (
-    organization_id,
-    coalesce(sede_id, '00000000-0000-0000-0000-000000000000'::uuid),
-    prodotto, data
+    organization_id, sede_id, prodotto, data
   );
 
 create index if not exists idx_forecast_org_data

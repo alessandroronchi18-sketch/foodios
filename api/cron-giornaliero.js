@@ -17,6 +17,7 @@ import anomalyHandler from './anomaly-detect.js'
 import reportMensileHandler from './cron-report-mensile.js'
 import dailyBriefHandler from './cron-daily-brief.js'
 import aiSuggestionsHandler from './cron-ai-suggestions.js'
+import forecastHandler from './cron-forecast.js'
 
 function makeInternalReq(realUrl, path) {
   const origin = new URL(realUrl).origin
@@ -83,6 +84,11 @@ export default async function handler(req) {
   // 3c) AI Suggestions proattive: regole + dedup window 7gg.
   results.push(await runStep('cron-ai-suggestions', () =>
     aiSuggestionsHandler(makeInternalReq(req.url, '/api/cron-ai-suggestions'))
+  ))
+
+  // 3d) Forecast giornaliero 7gg per prodotto + meteo + stagionalita.
+  results.push(await runStep('cron-forecast', () =>
+    forecastHandler(makeInternalReq(req.url, '/api/cron-forecast'))
   ))
 
   // 4) Cleanup audit_log (retention 365 giorni — protegge crescita tabella).
