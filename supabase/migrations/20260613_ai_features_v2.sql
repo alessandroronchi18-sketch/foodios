@@ -196,7 +196,22 @@ create policy comp_prices_select_org
     )
   );
 
-grant select on public.competitor_prices to authenticated;
+drop policy if exists comp_prices_write_org on public.competitor_prices;
+create policy comp_prices_write_org
+  on public.competitor_prices
+  for all
+  using (
+    organization_id in (
+      select organization_id from public.profiles where id = auth.uid()
+    )
+  )
+  with check (
+    organization_id in (
+      select organization_id from public.profiles where id = auth.uid()
+    )
+  );
+
+grant select, insert, update, delete on public.competitor_prices to authenticated;
 
 -- ---------- C1: FoodOS Brain conversations --------------------------------
 create table if not exists public.brain_conversations (
