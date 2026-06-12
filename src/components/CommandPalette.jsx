@@ -113,6 +113,10 @@ Massimo 60 parole.`
           messages: [{ role: 'user', content: q }],
         }),
       })
+      if (!res.ok) {
+        const msg = res.status === 429 ? 'Troppe richieste AI' : `Errore AI (${res.status})`
+        throw new Error(msg)
+      }
       const json = await res.json()
       const text = (json.content || []).find(c => c.type === 'text')?.text || ''
       const txt = text.trim()

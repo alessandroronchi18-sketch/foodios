@@ -72,8 +72,8 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '240px 1fr', gap: 16 }}>
-          {/* Lista snapshots */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Lista snapshots (su mobile: scroll orizzontale chip-style) */}
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: 8, overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0 }}>
             {snapshots.map(s => (
               <button key={s.id} onClick={() => setSelected(s)}
                 style={{ textAlign: 'left', padding: 14, background: selected?.id === s.id ? '#FFF7ED' : CARD, border: `1px solid ${selected?.id === s.id ? BRAND : BORDER}`, borderRadius: 10, cursor: 'pointer' }}>

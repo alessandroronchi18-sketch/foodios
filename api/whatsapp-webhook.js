@@ -29,18 +29,57 @@ function twimlResponse(text) {
   })
 }
 
+// Verifica firma Twilio HMAC-SHA1 (X-Twilio-Signature).
+// Doc: https://www.twilio.com/docs/usage/webhooks/webhooks-security
+async function verifyTwilioSignature(req, rawBody) {
+  const sig = req.headers.get('x-twilio-signature')
+  const token = process.env.TWILIO_AUTH_TOKEN
+  // Se TWILIO_AUTH_TOKEN non e' settato, il bot non e' ancora live.
+  // In quel caso accettiamo le richieste solo se header x-foodios-allow-test
+  // matchea CRON_SECRET (testing manuale ammin).
+  if (!token) {
+    const test = req.headers.get('x-foodios-allow-test')
+    return !!(test && test === process.env.CRON_SECRET)
+  }
+  if (!sig) return false
+  // Twilio firma: HMAC-SHA1 di (url + sorted form-params concatenati)
+  const url = req.url
+  let params = {}
+  try {
+    new URLSearchParams(rawBody).forEach((v, k) => { params[k] = v })
+  } catch { return false }
+  const sorted = Object.keys(params).sort()
+  const data = url + sorted.map(k => k + params[k]).join('')
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(token), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+  )
+  const buf = await crypto.subtle.sign('HMAC', key, enc.encode(data))
+  const computed = btoa(String.fromCharCode(...new Uint8Array(buf)))
+  return computed === sig
+}
+
 export default async function handler(req) {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
 
   try {
-    let body = {}
     const ct = (req.headers.get('content-type') || '').toLowerCase()
+    let body = {}
+    let rawBody = ''
     if (ct.includes('application/x-www-form-urlencoded')) {
-      const raw = await req.text()
-      const params = new URLSearchParams(raw)
+      rawBody = await req.text()
+      const params = new URLSearchParams(rawBody)
       params.forEach((v, k) => { body[k] = v })
     } else {
-      body = await req.json().catch(() => ({}))
+      const raw = await req.text()
+      rawBody = raw
+      try { body = JSON.parse(raw) } catch { body = {} }
+    }
+
+    // Verifica firma Twilio prima di processare.
+    const sigOk = await verifyTwilioSignature(req, rawBody)
+    if (!sigOk) {
+      return new Response('Forbidden (signature)', { status: 403 })
     }
 
     // Twilio invia: From="whatsapp:+39xxx", Body="testo", AccountSid=...

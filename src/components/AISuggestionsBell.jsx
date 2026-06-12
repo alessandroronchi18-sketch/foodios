@@ -58,8 +58,13 @@ export default function AISuggestionsBell({ orgId, onNavigate }) {
   const nuoviCount = items.filter(i => i.stato === 'nuovo').length
 
   async function markRead(id) {
-    setItems(prev => prev.map(x => x.id === id ? { ...x, stato: 'letto' } : x))
-    try { await supabase.rpc('suggestion_set_state', { sugg_id: id, new_state: 'letto', reason: null }) } catch {}
+    // Save-first: aspetta DB prima di toccare lo state.
+    try {
+      await supabase.rpc('suggestion_set_state', { sugg_id: id, new_state: 'letto', reason: null })
+      setItems(prev => prev.map(x => x.id === id ? { ...x, stato: 'letto' } : x))
+    } catch (e) {
+      console.error('markRead failed:', e)
+    }
   }
   async function act(s) {
     setBusy(s.id)

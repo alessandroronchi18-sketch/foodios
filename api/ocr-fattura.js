@@ -88,10 +88,14 @@ export default async function handler(req) {
     return json({ error: 'ANTHROPIC_API_KEY non configurata' }, 503, req)
   }
 
+  // Timeout 25s (sotto il limite Edge Function di 30s).
+  const ctrl = new AbortController()
+  const timeoutId = setTimeout(() => ctrl.abort(), 25000)
   let resp
   try {
     resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
+      signal: ctrl.signal,
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -111,8 +115,11 @@ export default async function handler(req) {
       }),
     })
   } catch (e) {
+    clearTimeout(timeoutId)
+    if (e.name === 'AbortError') return json({ error: 'OCR timeout (>25s). Riprova con una foto piu nitida.' }, 504, req)
     return json({ error: 'Errore Claude: ' + e.message }, 502, req)
   }
+  clearTimeout(timeoutId)
 
   if (!resp.ok) {
     const txt = await resp.text().catch(() => '')

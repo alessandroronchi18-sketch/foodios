@@ -261,8 +261,20 @@ export default async function handler(req) {
               subject: `Brief del mattino — ${orgName}`,
               html: emailHtml({ brief: briefText, orgName, briefDate: today, appUrl }),
             })
-            emailSent = r?.data?.id || true
-            await supabase.from('daily_briefs').update({ sent_email_at: new Date().toISOString() }).eq('id', inserted.id)
+            // Resend ritorna {data, error}: marca sent_email_at SOLO se nessun errore.
+            if (r?.error) {
+              emailSent = `resend-error: ${String(r.error?.message || r.error).slice(0, 80)}`
+            } else if (r?.data?.id) {
+              emailSent = r.data.id
+              await supabase.from('daily_briefs')
+                .update({ sent_email_at: new Date().toISOString() })
+                .eq('id', inserted.id)
+            } else {
+              emailSent = 'sent-no-id'
+              await supabase.from('daily_briefs')
+                .update({ sent_email_at: new Date().toISOString() })
+                .eq('id', inserted.id)
+            }
           } catch (e) {
             emailSent = `error: ${e.message?.slice(0, 80)}`
           }

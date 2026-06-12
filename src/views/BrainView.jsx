@@ -137,6 +137,11 @@ REGOLE:
           messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
         }),
       })
+      if (!res.ok) {
+        if (res.status === 429) throw new Error('Troppe richieste AI. Riprova fra 1 minuto.')
+        if (res.status === 401) throw new Error('Sessione scaduta. Esci e rientra.')
+        throw new Error(`Servizio AI indisponibile (HTTP ${res.status}). Riprova fra poco.`)
+      }
       const json = await res.json()
       const txt = (json.content || []).find(c => c.type === 'text')?.text || ''
       const finalMsgs = [...newMsgs, { role: 'assistant', content: txt }]

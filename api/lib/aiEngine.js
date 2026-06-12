@@ -138,15 +138,17 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
 
   // Food cost medio settimana corrente (giornaliero)
   let fcSum = 0, fcCount = 0, fcSumYesterday = 0, fcCountYesterday = 0
+  const lunIso = lun.toISOString().slice(0, 10)
   for (const { items } of giornalieroPerSede) {
     for (const sess of items) {
       const d = (sess.data || '').slice(0, 10)
-      if (d >= lun.toISOString().slice(0, 10) && d < todayIso && sess.ricavoTot > 0) {
-        fcSum += (sess.fcTot / sess.ricavoTot) * 100; fcCount++
-      }
-      if (d === yesterdayIso && sess.ricavoTot > 0) {
-        fcSumYesterday += (sess.fcTot / sess.ricavoTot) * 100; fcCountYesterday++
-      }
+      const rt = Number(sess.ricavoTot)
+      const fc = Number(sess.fcTot)
+      // NaN guard: salta sessioni con ricavoTot/fcTot non-finiti.
+      if (!Number.isFinite(rt) || !Number.isFinite(fc) || rt <= 0) continue
+      const pct = (fc / rt) * 100
+      if (d >= lunIso && d < todayIso) { fcSum += pct; fcCount++ }
+      if (d === yesterdayIso) { fcSumYesterday += pct; fcCountYesterday++ }
     }
   }
   snap.foodCostMedio = fcCount > 0 ? fcSum / fcCount : null
@@ -203,6 +205,8 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
   }
 
   // Fatture fornitori scadute / in scadenza 7gg.
+  // PII safety: tronchiamo nome fornitore a 24 char e omettiamo P.IVA prima
+  // di passare a Claude (vedi cron-daily-brief.js buildUserPayload).
   {
     const { data: fatture } = await supabase
       .from('fatture')
@@ -210,10 +214,14 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
       .eq('organization_id', orgId)
       .neq('stato', 'pagata')
       .lte('data_scadenza', new Date(today.getTime() + 7 * 86400000).toISOString().slice(0, 10))
+    const truncName = (s) => {
+      const v = String(s || '').trim()
+      return v.length > 24 ? v.slice(0, 24) + '…' : v
+    }
     for (const f of (fatture || [])) {
       if (!f.data_scadenza) continue
       const row = {
-        id: f.id, fornitore: f.fornitore_nome,
+        id: f.id, fornitore: truncName(f.fornitore_nome),
         importo: Number(f.importo_lordo || 0), scadenza: f.data_scadenza,
       }
       if (f.data_scadenza < todayIso) snap.fattureScadute.push(row)

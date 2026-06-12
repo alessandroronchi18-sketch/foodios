@@ -44,8 +44,13 @@ export default function DailyBriefCard({ orgId }) {
   if (loading || !brief) return null
 
   async function dismiss() {
-    try { await supabase.rpc('brief_mark_opened', { brief_id: brief.id }) } catch {}
-    setBrief(null)
+    try {
+      await supabase.rpc('brief_mark_opened', { brief_id: brief.id })
+      setBrief(null)
+    } catch (e) {
+      console.error('brief_mark_opened failed:', e)
+      // Lo state resta com'e' (l'utente puo' riprovare)
+    }
   }
 
   // Hide automaticamente se gia' letto da piu' di 6h (per non occupare home)
