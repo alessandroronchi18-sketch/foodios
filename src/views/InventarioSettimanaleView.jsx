@@ -87,6 +87,15 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // Stato dati per le viste estese (mese, storico)
   const [meseData, setMeseData] = useState(null)
   const [storicoData, setStoricoData] = useState(null)
+  // Onboarding al primo accesso: localStorage flag per non rimostrarlo dopo.
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try { return !localStorage.getItem('foodios_inventario_onboarding_v1') } catch { return false }
+  })
+  const chiudiOnboarding = () => {
+    try { localStorage.setItem('foodios_inventario_onboarding_v1', '1') } catch {}
+    setShowOnboarding(false)
+  }
   // Ordinamento gusti: di default alfabetico ascendente. Click sui label di
   // header colonna (PROD/RIMAN giorno N o VENDUTO SETT) toggla la metrica
   // di sort e direzione.
@@ -333,6 +342,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       <PageHeader subtitle={`Foglio settimanale per la registrazione di produzione e rimanenze. Il sistema calcola automaticamente il venduto: rimanenza(ieri) + produzione(oggi) − rimanenza(oggi) − scarto.`} />
+
+      {showOnboarding && !isAllSedi && <OnboardingInventario onClose={chiudiOnboarding} />}
 
       {isAllSedi && (
         <div style={{
@@ -1163,6 +1174,93 @@ function SortChip({ label, color, active, dir, onClick }) {
       {label}
       {active && <span style={{ fontSize: 8 }}>{dir === 'asc' ? '▲' : '▼'}</span>}
     </span>
+  )
+}
+
+// ── Onboarding al primo accesso a "Inventario gusti" ──────────────────────
+// Modal full-screen che spiega il flusso in 3 step. localStorage flag per
+// non rimostrarlo (chiudibile anche con ESC o click backdrop).
+function OnboardingInventario({ onClose }) {
+  const [step, setStep] = useState(0)
+  const steps = [
+    {
+      icon: '📋',
+      titolo: 'Benvenuto nell\'Inventario',
+      testo: 'Questo metodo è pensato per business in cui produci gusti (gelato, yogurt) ma vendi formati (cono, coppetta, vaschetta). Il sistema calcola quanto hai venduto a partire da quanto produci e quanto resta.',
+    },
+    {
+      icon: '✍️',
+      titolo: 'Compila ogni giorno 2 valori',
+      testo: 'Per ogni gusto inserisci PROD (grammi prodotti) e RIMAN (grammi rimasti a fine giornata). Il VENDUTO si calcola da solo: RIMAN(ieri) + PROD(oggi) − RIMAN(oggi). Niente scontrini da abbinare.',
+    },
+    {
+      icon: '⬇️',
+      titolo: 'Hai già un foglio Excel?',
+      testo: 'Click sul bottone "Importa file" in alto per caricare il foglio settimanale che usi oggi. Il sistema legge automaticamente il mese, mappa le sedi e ti chiede conferma prima di salvare.',
+    },
+  ]
+  const last = step === steps.length - 1
+  const s = steps[step]
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div role="dialog" aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999, padding: 16,
+      }}>
+      <div style={{
+        background: '#FFFFFF', borderRadius: 16, maxWidth: 460, width: '100%',
+        boxShadow: '0 20px 60px rgba(15,23,42,0.30)',
+        padding: '28px 28px 22px',
+      }}>
+        {/* Progress dots */}
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 18 }}>
+          {steps.map((_, i) => (
+            <span key={i} style={{
+              width: i === step ? 22 : 8, height: 8, borderRadius: 4,
+              background: i === step ? T.brand : (i < step ? '#FCA5A5' : C.border),
+              transition: 'width 0.2s ease, background 0.2s ease',
+            }} />
+          ))}
+        </div>
+
+        <div style={{ textAlign: 'center', marginBottom: 18 }}>
+          <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 12 }}>{s.icon}</div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: '-0.01em', marginBottom: 10 }}>
+            {s.titolo}
+          </h2>
+          <p style={{ margin: 0, fontSize: 13.5, color: C.textMid, lineHeight: 1.6 }}>
+            {s.testo}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', marginTop: 22 }}>
+          <button onClick={onClose}
+            style={{ padding: '10px 14px', minHeight: 40, background: 'transparent', border: 'none', color: C.textSoft, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
+            Salta
+          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {step > 0 && (
+              <button onClick={() => setStep(step - 1)}
+                style={{ padding: '10px 18px', minHeight: 44, background: '#FFFFFF', border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: C.textMid, cursor: 'pointer' }}>
+                Indietro
+              </button>
+            )}
+            <button onClick={() => last ? onClose() : setStep(step + 1)}
+              style={{ padding: '10px 22px', minHeight: 44, background: T.brand, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#FFFFFF', cursor: 'pointer' }}>
+              {last ? 'Iniziamo' : 'Avanti →'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
