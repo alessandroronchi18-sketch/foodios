@@ -29,7 +29,12 @@ export const config = { runtime: 'nodejs' }
 import { verificaAdmin } from './lib/auth.js'
 import { verifyRawSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
-import { upsertCliente, emettiFatturaElettronica } from './lib/fattureInCloud.js'
+import {
+  loadSdiProvider,
+  isSdiProviderConfigured,
+  activeSdiProviderId,
+  activeSdiProviderRequiredEnv,
+} from './lib/sdiProvider.js'
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -65,9 +70,14 @@ function readBody(req) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-  if (!process.env.FATTUREINCLOUD_API_TOKEN || !process.env.FATTUREINCLOUD_COMPANY_ID) {
-    return res.status(503).json({ error: 'Fatture in Cloud non configurato (FATTUREINCLOUD_API_TOKEN / FATTUREINCLOUD_COMPANY_ID mancanti)' })
+  if (!isSdiProviderConfigured()) {
+    return res.status(503).json({
+      error: `Provider SDI '${activeSdiProviderId()}' non configurato`,
+      missing: activeSdiProviderRequiredEnv().filter(k => !process.env[k]),
+    })
   }
+  const sdi = await loadSdiProvider()
+  const { upsertCliente, emettiFatturaElettronica } = sdi
 
   // Auth: o internal-secret (chiamata da webhook), o admin Bearer.
   const internalCheck = verifyRawSecret(req.headers['x-internal-secret'] || '', process.env.INTERNAL_API_SECRET)

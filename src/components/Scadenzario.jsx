@@ -1050,7 +1050,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   <div style={{ padding: '8px 12px', fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid ${T.border}`, background: '#FAFBFC' }}>
                     {tutteFatture.length} fatture totali · {tutteFatture.filter(f => f.stato === 'pagata').length} pagate · {tutteFatture.filter(f => f.stato !== 'pagata').length} aperte
                   </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? 520 : 'auto' }}>
                     <thead>
                       <tr style={{ background: '#FFFFFF' }}>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Numero</th>
@@ -1104,6 +1105,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
               {isEdit && (

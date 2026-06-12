@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import Icon from './Icon'
+import { SkeletonGrid, SkeletonTable, SkeletonList } from './Skeleton'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
@@ -361,7 +362,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: SOFT }}>Caricamento dati sedi…</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
+          <SkeletonList count={Math.min(sediAttive.length || 3, 5)} height={56} />
+          <SkeletonTable rows={5} cols={Math.min((sediAttive.length || 2) + 1, 5)} />
+        </div>
       ) : (
         <>
           {/* RANKING ricavi */}

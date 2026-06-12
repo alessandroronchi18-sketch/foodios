@@ -13,7 +13,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { SK_FORMATI, SK_CHIUS } from '../lib/storageKeys'
@@ -103,6 +103,7 @@ function esportaCsvSettimana({ lunediIso, kpi, righe, formati, sedeAttiva, isAll
 
 export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const isAllSedi = sedeAttiva?._all === true
   const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
   const [righe, setRighe] = useState([])
@@ -300,7 +301,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           }}>
             <div style={{
               display: 'grid', gap: 14,
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+              gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'),
             }}>
               <Tile
                 icon="layers"

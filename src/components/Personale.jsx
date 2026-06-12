@@ -4,7 +4,8 @@ import '@xyflow/react/dist/style.css'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import { SkeletonList } from './Skeleton'
 import { calcolaStipendio } from '../lib/stipendiCalc'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
 
@@ -147,42 +148,59 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       return { ...r, membri, capoId }
     })
     const next = { ...orgData, reparti }
-    try { await ssave(SK_ORG, next, orgId, null); setOrgData(next) } catch {}
+    // Loud error: catch silenzioso nascondeva data corruption (audit M).
+    try {
+      await ssave(SK_ORG, next, orgId, null)
+      setOrgData(next)
+    } catch (e) {
+      console.error('Errore salvataggio dati org:', e)
+      notify('Salvataggio org fallito: ' + (e.message || 'errore sconosciuto'), false)
+    }
+  }
+
+  // Numero strict: ritorna NaN se non finite o negativo, default 0.
+  function numStrict(v) {
+    const n = parseFloat(v)
+    return Number.isFinite(n) && n >= 0 ? n : 0
   }
 
   async function salva() {
+    if (saving) return  // double-submit guard
     if (!form.nome.trim()) { notify("Inserisci il nome del dipendente", false); return }
     if (!orgId) { notify("Profilo non pronto, riprova", false); return }
     setSaving(true)
-    const payload = {
-      nome: form.nome.trim(),
-      ruolo: form.ruolo.trim(),
-      tipo_contratto: form.tipo_contratto,
-      costo_orario: parseFloat(form.costo_orario)||0,
-      ore_settimana: parseFloat(form.ore_settimana)||0,
-      stipendio_lordo_mensile: parseFloat(form.stipendio_lordo_mensile) || 0,
-      stipendio_netto_mensile: parseFloat(form.stipendio_netto_mensile) || 0,
-      contratto_tipo: form.contratto_tipo || null,
-      livello: form.livello || null,
-      data_assunzione: form.data_assunzione || null,
-      note: form.note,
-      sede_id: form.sede_id || null,
-      organization_id: orgId,
-      attivo: true,
+    try {
+      const payload = {
+        nome: form.nome.trim(),
+        ruolo: form.ruolo.trim(),
+        tipo_contratto: form.tipo_contratto,
+        costo_orario: numStrict(form.costo_orario),
+        ore_settimana: numStrict(form.ore_settimana),
+        stipendio_lordo_mensile: numStrict(form.stipendio_lordo_mensile),
+        stipendio_netto_mensile: numStrict(form.stipendio_netto_mensile),
+        contratto_tipo: form.contratto_tipo || null,
+        livello: form.livello || null,
+        data_assunzione: form.data_assunzione || null,
+        note: form.note,
+        sede_id: form.sede_id || null,
+        organization_id: orgId,
+        attivo: true,
+      }
+      let err, dipId = editId
+      if (editId) {
+        ({ error: err } = await supabase.from("dipendenti").update(payload).eq("id", editId))
+      } else {
+        const { data: ins, error: e2 } = await supabase.from("dipendenti").insert(payload).select("id").single()
+        err = e2; dipId = ins?.id
+      }
+      if (err) { notify("Errore: " + err.message, false); return }
+      if (dipId) await assegnaReparti(dipId, [form.reparto1, form.reparto2])
+      notify(editId ? "Dipendente aggiornato" : "Dipendente aggiunto")
+      reset()
+      await carica()  // attendi prima di liberare saving (rende sicuro re-edit)
+    } finally {
+      setSaving(false)
     }
-    let err, dipId = editId
-    if (editId) {
-      ({ error: err } = await supabase.from("dipendenti").update(payload).eq("id", editId))
-    } else {
-      const { data: ins, error: e2 } = await supabase.from("dipendenti").insert(payload).select("id").single()
-      err = e2; dipId = ins?.id
-    }
-    if (err) { notify("Errore: " + err.message, false); setSaving(false); return }
-    // Assegna i reparti scelti (incl. ibrido) all'organigramma.
-    if (dipId) await assegnaReparti(dipId, [form.reparto1, form.reparto2])
-    notify(editId ? "Dipendente aggiornato" : "Dipendente aggiunto"); reset()
-    setSaving(false)
-    carica()
   }
 
   async function disattiva(id) {
@@ -409,7 +427,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
           </div>
         )}
         {/* KPI strip rimossa: ora i totali stanno nell'header globale di Personale. */}
-        {loading ? <div style={{ color:C.textSoft, fontSize:13 }}>Caricamento…</div> : lista.length === 0 ? (
+        {loading ? <SkeletonList count={4} /> : lista.length === 0 ? (
           <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>{inArchivio ? "Nessun dipendente archiviato." : "Nessun dipendente ancora."}</div>
         ) : listaView.length === 0 ? (
           <div style={{ color:C.textSoft, fontSize:13, textAlign:"center", padding:40 }}>Nessun dipendente trovato per "{search}".</div>
@@ -594,7 +612,13 @@ function TurniTab({ orgId, notify, isMobile }) {
       const next = { ...consuntivo }
       if (Number.isFinite(eff) && eff >= 0 && Math.abs(eff - ore) > 0.001) next[editId] = parseFloat(eff.toFixed(2))
       else delete next[editId]
-      try { await ssave(SK_CONSUNTIVO, next, orgId, null); setConsuntivo(next) } catch {}
+      try {
+        await ssave(SK_CONSUNTIVO, next, orgId, null)
+        setConsuntivo(next)
+      } catch (e) {
+        console.error('Errore salvataggio consuntivo:', e)
+        notify('Salvataggio ore effettive fallito: ' + (e.message || 'riprova'), false)
+      }
     }
     notify(editId ? "Turno aggiornato" : "Turno aggiunto"); resetForm()
     setSaving(false)
@@ -903,7 +927,7 @@ function TurniTab({ orgId, notify, isMobile }) {
   )
 }
 
-function AnalisiCostoTab({ orgId, isMobile }) {
+function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   const [mese, setMese] = useState(() => new Date().toISOString().slice(0,7))
   const [target, setTarget] = useState(30) // incidenza costo-lavoro obiettivo (%)
   const [dati, setDati] = useState({ turni:[], dipendenti:[], ricavi:0, organigramma:{reparti:[]}, consuntivo:{} })
@@ -1152,7 +1176,7 @@ function HeaderPersonale({ orgId, isMobile }) {
       <p style={{ margin: '0 0 14px', fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 620 }}>
         Costo del lavoro, turni e organigramma — diagnosi del mese in corso (<span style={{ textTransform: 'capitalize' }}>{meseLbl}</span>).
       </p>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: (d.nonAssegnati > 0 || d.repartiScoperti.length > 0) ? 12 : 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : (isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)'), gap: 10, marginBottom: (d.nonAssegnati > 0 || d.repartiScoperti.length > 0) ? 12 : 0 }}>
         {kpis.map((k, i) => (
           <div key={i} className="fos-tile" style={{
             background: k.hi ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
@@ -1297,7 +1321,7 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
       layout: { pos: cleanedPos, edges: cleanedEdges },
     }
     orgRef.current = next; setOrg(next)
-    ssave(SK_ORG, next, orgId, null).catch(() => {})
+    ssave(SK_ORG, next, orgId, null).catch((e) => console.error('Errore salvataggio reparti:', e))
   }, [orgId])
 
   function addReparto() {
@@ -1550,6 +1574,7 @@ function AccessiTab({ orgId, notify, isMobile }) {
 
 export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [tab, setTab] = useState("dipendenti")
   const TABS = [
     ["dipendenti", "Dipendenti", "users"],
@@ -1590,11 +1615,11 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome 
         })}
       </div>
 
-      {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
+      {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
       {tab === "accessi"    && <AccessiTab    orgId={orgId} notify={notify} isMobile={isMobile}/>}
-      {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
+      {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
       {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile} adminNome={adminNome}/>}
-      {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile}/>}
+      {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile} isTablet={isTablet}/>}
     </div>
   )
 }

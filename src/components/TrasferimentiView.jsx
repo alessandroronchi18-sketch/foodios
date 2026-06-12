@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import Icon from './Icon'
+import { SkeletonList, SkeletonGrid } from './Skeleton'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, motion as M } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
@@ -590,7 +591,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
       {/* Lista */}
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
+        <SkeletonList count={5} />
       ) : listaFiltrata.length === 0 ? (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13 }}>
           {lista.length === 0
