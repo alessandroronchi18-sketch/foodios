@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { validaSessionFingerprint, resetSessionFingerprint } from '../lib/sessionGuard'
 import { startIdleTimeout, clearIdleTimestamp } from '../lib/idleTimeout'
@@ -14,6 +14,10 @@ export function useAuth() {
   const [sedeAttiva, setSedeAttivaState] = useState(null)
   const [loading, setLoading] = useState(true)
   const [profileError, setProfileError] = useState(null)
+  // Ref per tracciare l'ultimo userId profilato: usato per evitare che un
+  // SIGNED_IN ripetuto (browser tab visibility change) ri-chiami loadProfile
+  // resettando sedeAttiva al default.
+  const lastProfiledUserId = useRef(null)
 
   useEffect(() => {
     const safetyTimeout = setTimeout(() => setLoading(false), 8000)
@@ -40,10 +44,21 @@ export function useAuth() {
         if (session?.user) setUser(session.user)
         return
       }
+      // SIGNED_IN puo' essere triggerato anche dal recupero della sessione
+      // quando la tab torna in foreground dopo essere stata sospesa (browser
+      // background). In quel caso il profilo e' GIA' caricato e ri-chiamare
+      // loadProfile resetterebbe sedeAttiva al default (e l'utente vedrebbe
+      // saltare la sede su quella di default es. "de gasperi" ogni volta che
+      // cambia desktop). Saltiamo se lo userId e' lo stesso gia' profilato.
+      if (event === 'SIGNED_IN' && session?.user?.id && session.user.id === lastProfiledUserId.current) {
+        setUser(session.user)
+        return
+      }
       setUser(session?.user ?? null)
       if (session?.user) {
         loadProfile(session.user.id, session.user)
       } else {
+        lastProfiledUserId.current = null
         setProfile(null)
         setOrg(null)
         setSedi([])
@@ -75,6 +90,7 @@ export function useAuth() {
   async function loadProfile(userId, userObj) {
     setLoading(true)
     setProfileError(null)
+    lastProfiledUserId.current = userId  // marker per evitare reload su SIGNED_IN ripetuti
     try {
       const { data: prof, error: profErr } = await supabase
         .from('profiles')

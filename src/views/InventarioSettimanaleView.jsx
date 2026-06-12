@@ -110,6 +110,18 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // ricettario non viene "nascosto" nel foglio settimanale.
   const gusti = useMemo(() => elencoGusti(ricettario, righe), [ricettario, righe])
 
+  // ID delle sedi su cui leggere: una se sede attiva, oppure il sub-set
+  // selezionato dall'utente in modalita' isAllSedi.
+  // NB: dichiarato PRIMA dei useEffect cosi' possono usarlo come dep.
+  const sediProdIds = useMemo(() => {
+    if (!isAllSedi) return sedeId ? [sedeId] : []
+    if (sediFiltro instanceof Set && sediFiltro.size > 0) return [...sediFiltro]
+    return sediProduttive.map(s => s.id)
+  }, [isAllSedi, sedeId, sediProduttive, sediFiltro])
+  // Chiave stabile delle sedi attive (per evitare re-render infiniti dato
+  // che sediProdIds e' un array nuovo a ogni render anche se memoizzato).
+  const sediKey = sediProdIds.join(',')
+
   useEffect(() => {
     let alive = true
     if (!orgId) { setLoading(false); return }
@@ -144,15 +156,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         .catch(e => { if (alive) { console.error(e); setLoading(false) } })
     }
     return () => { alive = false }
-  }, [orgId, sedeId, lunediIso, isAllSedi, sedi])
-
-  // ID delle sedi su cui leggere: una se sede attiva, oppure il sub-set
-  // selezionato dall'utente in modalita' isAllSedi.
-  const sediProdIds = useMemo(() => {
-    if (!isAllSedi) return sedeId ? [sedeId] : []
-    if (sediFiltro instanceof Set && sediFiltro.size > 0) return [...sediFiltro]
-    return sediProduttive.map(s => s.id)
-  }, [isAllSedi, sedeId, sediProduttive, sediFiltro])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, sedeId, lunediIso, isAllSedi, sediKey])
 
   // Caricamento dati MESE quando si seleziona la vista mese.
   useEffect(() => {
@@ -180,7 +185,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           setMeseData({ righe: data || [], inizio, fine })
         }
       })
-  }, [vista, orgId, sediProdIds, lunediIso, isAllSedi])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vista, orgId, sediKey, lunediIso, isAllSedi])
 
   // Caricamento dati STORICO (ultimi 6 mesi) quando si apre vista storico.
   useEffect(() => {
@@ -211,7 +217,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           setStoricoData({ righe: data || [], inizio })
         }
       })
-  }, [vista, orgId, sediProdIds, isAllSedi])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vista, orgId, sediKey, isAllSedi])
 
   const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
   const totali = useMemo(() => totaliVenduti(matrice), [matrice])
@@ -569,19 +576,50 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             let ok = 0, ko = 0, okB2b = 0, okSpr = 0
             const sediCoinvolte = new Set()
 
-            // 1) INVENTARIO SEDI: upsert per gusto×data
+            // 1) INVENTARIO SEDI: upsert per gusto×data + scalo magazzino MP.
+            // Per ogni cella, leggiamo il vecchio prod_g (se gia' presente in
+            // righeDb) e applichiamo scaloMagazzinoPerGusto col delta. Cosi'
+            // l'import e' coerente con la compilazione manuale: il magazzino
+            // viene scalato in proporzione al peso impasto della ricetta.
+            // NB: scaliamo SOLO per la sede attiva (per le altre il dato di
+            // magazzino non e' caricato in memoria; il salvataggio passa per
+            // l'utente alla prossima selezione sede).
+            const righeDbBySede = new Map()
+            righeDbBySede.set(sedeId, righe || [])
             for (const blocco of (batch?.sedi || [])) {
+              let mag = blocco.sedeId === sedeId ? (magazzino || {}) : null
+              const dbRighe = righeDbBySede.get(blocco.sedeId) || []
+              const idxDb = new Map(dbRighe.map(r => [`${r.gusto_nome}|${r.data}`, r]))
               for (const r of (blocco.righe || [])) {
                 try {
+                  // delta prod = nuovo - vecchio (per scalo MP)
+                  const old = idxDb.get(`${r.gusto_nome}|${r.data}`)
+                  const oldProd = Number(old?.produzione_g) || 0
                   await salvaCella(orgId, blocco.sedeId, r.gusto_nome, r.data, {
                     produzione_g: r.produzione_g,
                     rimanenza_g: r.rimanenza_g,
                     scarto_g: 0,
                   })
+                  // Scalo MP solo se siamo sulla sede attiva e abbiamo ricettario
+                  if (mag !== null && ricettario && blocco.sedeId === sedeId) {
+                    const ric = ricettaDelGusto(ricettario, r.gusto_nome)
+                    const delta = (Number(r.produzione_g) || 0) - oldProd
+                    if (ric && delta !== 0) {
+                      const { nuovoMagazzino } = scaloMagazzinoPerGusto(mag, ric, delta)
+                      mag = nuovoMagazzino
+                    }
+                  }
                   ok++
                 } catch (e) { console.error('salvaCella import:', e); ko++ }
               }
               sediCoinvolte.add(blocco.sedeId)
+              // Persisti magazzino aggiornato per la sede attiva.
+              if (mag && blocco.sedeId === sedeId && setMagazzino) {
+                try {
+                  await ssave(SK_MAG, mag, orgId, sedeId)
+                  setMagazzino(mag)
+                } catch (e) { console.warn('ssave magazzino import:', e) }
+              }
             }
 
             // 2) VENDITE B2B: una riga per record in vendite_b2b (raggruppata
@@ -611,20 +649,26 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               }
             }
 
-            // 3) SPRECHI: un movimento per riga su SK_MOV della sede
+            // 3) SPRECHI: scriviamo sul campo `scarto_g` della cella
+            //    inventario del giorno (oggi per default, se non specificato).
+            //    Questo EVITA il doppio conteggio: il venduto e' calcolato
+            //    come (riman_prev + prod - riman - scarto), quindi lo scarto
+            //    e' gia' escluso. Scrivere anche un SK_MOV separato
+            //    sovrastimerebbe le perdite.
+            const oggiIso2 = new Date().toISOString().slice(0, 10)
             if (Array.isArray(batch?.sprechi)) {
               for (const r of batch.sprechi) {
                 try {
-                  await aggiungiMovimentoImport(orgId, r.sedeId, {
-                    tipo: 'spreco',
-                    prodotto: r.gusto,
-                    qta: r.qtaG, unita: 'g',
-                    causale: r.motivo || 'Altro',
-                    note: 'Importato da file',
-                    fcUnit: 0, fcTot: 0, valoreOmaggio: 0, categoria: '',
+                  // Leggi la cella di oggi (se esiste) e somma allo scarto.
+                  const dbRighe = righeDbBySede.get(r.sedeId) || []
+                  const cella = dbRighe.find(x => x.gusto_nome === r.gusto && x.data === oggiIso2)
+                  await salvaCella(orgId, r.sedeId, r.gusto, oggiIso2, {
+                    produzione_g: cella?.produzione_g || 0,
+                    rimanenza_g: cella?.rimanenza_g || 0,
+                    scarto_g: (cella?.scarto_g || 0) + r.qtaG,
                   })
                   okSpr++
-                } catch (e) { console.error('movimento spreco:', e); ko++ }
+                } catch (e) { console.error('scarto import:', e); ko++ }
               }
             }
 

@@ -15,6 +15,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
+import { supabase } from '../lib/supabase'
 import { SK_FORMATI, SK_CHIUS } from '../lib/storageKeys'
 import Icon from '../components/Icon'
 import { C, KPI, PageHeader, TNUM, fmt0 } from './_shared'
@@ -43,6 +44,8 @@ export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
   const [righe, setRighe] = useState([])
   const [righePrev, setRighePrev] = useState([])
   const [formati, setFormati] = useState([])
+  const [venditeB2bSett, setVenditeB2bSett] = useState([])
+  const [venditeB2bPrec, setVenditeB2bPrec] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -50,15 +53,29 @@ export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
     if (!orgId || !sedeId) { setLoading(false); return }
     setLoading(true)
     const lunPrec = addDays(lunediIso, -7)
+    const finePrec = lunediIso
+    const fineSett = addDays(lunediIso, 7)
     Promise.all([
       caricaSettimana(orgId, sedeId, lunediIso),
       caricaSettimana(orgId, sedeId, lunPrec),
       sload(SK_FORMATI, orgId, null),
-    ]).then(([sett, prec, fmt]) => {
+      // Vendite B2B della sett. corrente e della precedente (per togliere
+      // i kg B2B dal confronto cassa retail, evita drift falso).
+      supabase.from('vendite_b2b').select('data, righe, totale')
+        .eq('organization_id', orgId).eq('sede_id', sedeId)
+        .gte('data', lunediIso).lt('data', fineSett)
+        .then(({ data }) => data || []),
+      supabase.from('vendite_b2b').select('data, righe, totale')
+        .eq('organization_id', orgId).eq('sede_id', sedeId)
+        .gte('data', lunPrec).lt('data', finePrec)
+        .then(({ data }) => data || []),
+    ]).then(([sett, prec, fmt, b2bS, b2bP]) => {
       if (!alive) return
       setRighe(sett || [])
       setRighePrev(prec || [])
       setFormati(Array.isArray(fmt) ? fmt : [])
+      setVenditeB2bSett(b2bS || [])
+      setVenditeB2bPrec(b2bP || [])
       setLoading(false)
     }).catch(e => { if (alive) { console.error(e); setLoading(false) } })
     return () => { alive = false }
@@ -84,12 +101,12 @@ export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
   }, [chiusure, lunediIso])
 
   const kpi = useMemo(
-    () => kpiQuadraturaSettimana(matrice, chiusureSett, euroKg),
-    [matrice, chiusureSett, euroKg]
+    () => kpiQuadraturaSettimana(matrice, chiusureSett, euroKg, venditeB2bSett),
+    [matrice, chiusureSett, euroKg, venditeB2bSett]
   )
   const kpiPrev = useMemo(
-    () => kpiQuadraturaSettimana(matricePrev, chiusurePrev, euroKg),
-    [matricePrev, chiusurePrev, euroKg]
+    () => kpiQuadraturaSettimana(matricePrev, chiusurePrev, euroKg, venditeB2bPrec),
+    [matricePrev, chiusurePrev, euroKg, venditeB2bPrec]
   )
   const classifica = useMemo(() => classificaGusti(matrice), [matrice])
 
@@ -157,9 +174,9 @@ export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
             }}>
               <Tile
                 icon="layers"
-                label="Venduto inventario"
-                value={`${nKg(kpi.totVendutoG)} kg`}
-                tendVal={variazione(kpi.totVendutoG, kpiPrev.totVendutoG)}
+                label={kpi.b2bKg > 0 ? `Venduto retail (${nKg(kpi.totVendutoG)} kg tot)` : 'Venduto inventario'}
+                value={`${nKg((kpi.retailKg ?? kpi.totVendutoKg) * 1000)} kg`}
+                tendVal={variazione(kpi.retailKg ?? kpi.totVendutoKg, kpiPrev.retailKg ?? kpiPrev.totVendutoKg)}
               />
               <Tile
                 icon="creditCard"
@@ -182,6 +199,21 @@ export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
                 badge={tone.label}
               />
             </div>
+            {kpi.b2bKg > 0 && (
+              <div style={{
+                marginTop: 12, padding: '10px 14px', background: '#F0F9FF',
+                border: '1px solid #BAE6FD', borderRadius: 10,
+                fontSize: 12.5, color: '#075985', display: 'flex',
+                alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+              }}>
+                <span>🧾 <strong>Vendite B2B</strong> separate dalla cassa retail:
+                  {' '}{nKg(kpi.b2bKg * 1000)} kg → {fmt0(kpi.ricaviB2b)} fatturato
+                </span>
+                <span style={{ fontSize: 11, color: '#0C4A6E' }}>
+                  (sottratti dal "venduto retail" per non gonfiare il drift)
+                </span>
+              </div>
+            )}
             {kpi.driftPct != null && Math.abs(kpi.driftPct) >= 15 && (
               <DiagnosiDrift driftEur={kpi.driftEur} driftPct={kpi.driftPct} />
             )}

@@ -275,25 +275,43 @@ export function euroKgMedioFormati(formati) {
 
 // KPI settimana: somma kg venduti, € attesi, drift vs cassa effettiva.
 // matrice = output di calcolaVendutoSettimana
-// chiusureSettimana = chiusure (SK_CHIUS entries) filtrate ai giorni della
-//                     settimana target
+// chiusureSettimana = chiusure SK_CHIUS filtrate alla settimana target
 // euroKg = euro/kg medio (output di euroKgMedioFormati)
-export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg) {
+// venditeB2BSett = (opzionale) array di righe vendite_b2b della settimana,
+//                  per sottrarre i kg B2B dal venduto retail nel confronto
+//                  con la cassa (la cassa retail NON include i ricavi B2B
+//                  perche' sono fatturati a parte: senza sottrarre i kg
+//                  B2B il drift mostra un negativo cronico falso).
+export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, venditeB2BSett) {
   const totVendutoG = Object.values(matrice || {}).reduce((s, byData) =>
     s + Object.values(byData).reduce((a, c) => a + Number(c.venduto || 0), 0)
   , 0)
   const totVendutoKg = totVendutoG / 1000
 
+  // kg venduti via B2B nella settimana (somma qta dalle righe[].qta in kg)
+  const b2bKg = (Array.isArray(venditeB2BSett) ? venditeB2BSett : [])
+    .reduce((s, v) => s + (Array.isArray(v.righe) ? v.righe : [])
+      .reduce((a, r) => a + (Number(r.qta) || 0), 0), 0)
+  const retailKg = Math.max(0, totVendutoKg - b2bKg)
+  // Ricavi B2B (totale fatturato vendite_b2b): informativo, separato.
+  const ricaviB2b = (Array.isArray(venditeB2BSett) ? venditeB2BSett : [])
+    .reduce((s, v) => s + (Number(v.totale) || 0), 0)
+
   const cassaEffettiva = (Array.isArray(chiusureSettimana) ? chiusureSettimana : [])
     .reduce((s, c) => s + Number(c?.kpi?.totV || c?.totale || 0), 0)
 
-  const ricavoAtteso = (euroKg != null) ? totVendutoKg * euroKg : null
+  // Confronto SOLO retail (la cassa retail non incassa i B2B):
+  //   kg retail × €/kg medio formati = ricavo atteso da cassa.
+  const ricavoAtteso = (euroKg != null) ? retailKg * euroKg : null
   const driftEur = (ricavoAtteso != null) ? cassaEffettiva - ricavoAtteso : null
   const driftPct = (ricavoAtteso != null && ricavoAtteso > 0)
     ? (driftEur / ricavoAtteso) * 100
     : null
 
-  return { totVendutoG, totVendutoKg, cassaEffettiva, euroKg, ricavoAtteso, driftEur, driftPct }
+  return {
+    totVendutoG, totVendutoKg, retailKg, b2bKg, ricaviB2b,
+    cassaEffettiva, euroKg, ricavoAtteso, driftEur, driftPct,
+  }
 }
 
 // Classifica gusti per kg venduti nella settimana: top N + sofferenza.
@@ -339,6 +357,79 @@ export function variazione(curr, prev) {
   const p = Number(prev) || 0
   if (p <= 0) return null
   return ((c - p) / p) * 100
+}
+
+// ── ADAPTER: inventario_produzione → sessioni "giornaliero" (SK_GIOR) ──────
+//
+// Le viste legacy (PLView, StoricoProduzioneView, DashboardHomeView,
+// ConfrontoSedi, SimulatorePrezzi) leggono le produzioni da SK_GIOR: array
+// di sessioni `{data, prodotti: [{nome, stampi, vendibile}]}`. Per le sedi
+// in "metodo inventario" SK_GIOR e' vuoto: i dati sono in inventario_produzione.
+//
+// Questa funzione proietta le righe inventario in forma di sessioni-stampi:
+// per ogni (gusto, giorno) crea una sessione con prodotto = nome gusto e
+// stampi = kg prodotti (1 stampo virtuale = 1 kg). Le view esistenti vedono
+// "quanto prodotto in kg" come "stampi", e tutti i KPI sono significativi.
+export function inventarioASessioni(righeInventario) {
+  if (!Array.isArray(righeInventario) || righeInventario.length === 0) return []
+  const perGusto = {}
+  for (const r of righeInventario) {
+    const k = r.gusto_nome
+    if (!perGusto[k]) perGusto[k] = []
+    perGusto[k].push(r)
+  }
+  const byData = {}
+  for (const [gusto, righe] of Object.entries(perGusto)) {
+    righe.sort((a, b) => a.data.localeCompare(b.data))
+    let rimanPrev = 0
+    let prevDayMs = null
+    for (const r of righe) {
+      const prod = Number(r.produzione_g) || 0
+      const riman = Number(r.rimanenza_g) || 0
+      const scarto = Number(r.scarto_g) || 0
+      const dMs = new Date(r.data).getTime()
+      if (prevDayMs !== null && Math.round((dMs - prevDayMs) / 86400000) !== 1) rimanPrev = 0
+      const venduto = Math.max(0, rimanPrev + prod - riman - scarto)
+      const vendutoKg = venduto / 1000
+      const prodKg = prod / 1000
+      if (prodKg > 0 || vendutoKg > 0) {
+        if (!byData[r.data]) byData[r.data] = []
+        byData[r.data].push({
+          nome: gusto,
+          stampi: Math.round(prodKg * 1000) / 1000,
+          vendibile: Math.round(vendutoKg * 1000) / 1000,
+          _da_inventario: true,
+        })
+      }
+      rimanPrev = riman
+      prevDayMs = dMs
+    }
+  }
+  return Object.entries(byData)
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([data, prodotti]) => ({
+      data, id: `inv-${data}`, ts: data + 'T12:00:00.000Z',
+      prodotti, _da_inventario: true,
+    }))
+}
+
+export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
+  if (!orgId || !sedeId) return []
+  const { supabase } = await import('./supabase')
+  const monthsBack = opts.monthsBack || 12
+  const inizio = new Date()
+  inizio.setMonth(inizio.getMonth() - monthsBack)
+  inizio.setDate(1)
+  const inizioIso = inizio.toISOString().slice(0, 10)
+  const { data, error } = await supabase
+    .from('inventario_produzione')
+    .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g')
+    .eq('organization_id', orgId)
+    .eq('sede_id', sedeId)
+    .gte('data', inizioIso)
+    .order('data')
+  if (error) { console.error('caricaSessioniDaInventario:', error); return [] }
+  return inventarioASessioni(data || [])
 }
 
 // ── Helper date: lunedi della settimana che contiene `dateIso` ────────────

@@ -5,6 +5,7 @@ import { lazyWithReload } from './lib/lazyWithReload'
 import UpgradeGate from './components/UpgradeGate'
 import { canAccessView } from './lib/planAccess'
 import { lessico } from './lib/lessico'
+import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 // recharts NON e' importato qui: 0 simboli sono usati in Dashboard.jsx (era dead
 // import che trascinava il chunk recharts 120KB gzip sul critical path). I veri
@@ -1470,6 +1471,25 @@ export default function Dashboard({
       setReady(true);
     });
   },[orgId, sedeId, sedeAttiva?._all]);
+
+  // BRIDGE inventario→giornaliero: per le sedi in metodo='inventario',
+  // SK_GIOR e' vuoto (i dati vivono in inventario_produzione). Carichiamo
+  // l'ultimo anno dalla nuova tabella e proiettiamo come sessioni cosi'
+  // PLView/StoricoProduzioneView/DashboardHomeView/ConfrontoSedi/Simulatore
+  // vedono i dati senza modifiche al loro codice. 1 stampo virtuale = 1 kg.
+  useEffect(() => {
+    if (!orgId || !sedeId) return
+    const isInv = sedeAttiva?.metodo_produzione === 'inventario' && sedeAttiva?.is_sede_produzione
+    if (!isInv) return
+    caricaSessioniDaInventario(orgId, sedeId, { monthsBack: 12 })
+      .then(sessioni => {
+        // Sostituiamo del tutto giornaliero per questa sede (SK_GIOR e' vuoto
+        // in modalita' inventario e ricaricaremo al refocus alla prossima
+        // selezione sede).
+        setGiornaliero(sessioni)
+      })
+      .catch(e => console.error('bridge inventario→giornaliero:', e))
+  }, [orgId, sedeId, sedeAttiva?.metodo_produzione, sedeAttiva?.is_sede_produzione])
 
   useEffect(()=>{
     if(!ready) return;
