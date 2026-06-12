@@ -319,16 +319,33 @@ Vs scenario "solo Pro €99 per tutti": €99 × 100 = €118.800/anno
 
 ---
 
-## Domande aperte (da discutere)
+## Decisioni operative (frozen 2026-06-12)
 
-1. **Cassa OCR continua**: la tengo al Pro+ oppure la sblocco al Base (con limite mensile)?
-2. **HACCP foto-assistita**: Pro o Chain only? È un asset enorme da gridare.
-3. **Trial 14gg Base vs 30gg Pro**: misurare conversion. Forse 14gg per tutti riduce decision fatigue.
-4. **Setup fee Chain**: opzionale o mandatory? Pro: filtra clienti seri. Contro: friction iniziale.
-5. **Plan "Famiglia" custom** (chiamiamolo "Family")? Per chain >10 sedi con pricing custom (es. €249 + €20/sede aggiuntiva).
-6. **Sconto annuale**: -17% (Pro/Chain) e -20% (Base). Tenere o uniformare?
-7. **Free trial card-on-file** (Stripe) o no? Conversione +30% ma più friction iniziale.
-8. **Discount founder**: applichi -50% lifetime ai primi 10 paganti come "design partner"? Buon trade off PR vs revenue.
+1. **Cassa OCR continua → Base SI con limite 50/mese** (Opzione B). Il magic moment OCR
+   deve essere assaggiato anche dal Base. Sopra 50 scontrini/mese → upgrade naturale a Pro
+   (illimitato). Costo token a noi: ~€1.50/cliente Base attivo = trascurabile.
+2. **HACCP foto-assistita** → NON priorità in roadmap. Spostata in coda (task #94).
+3. **Trial differenziato 14/30/30** (Opzione A). Base 14gg (decisione rapida, basso committment),
+   Pro/Chain 30gg (servono per importare ricettario + valutare ROI). Stretch: estensione +14gg
+   gratis se Base attiva 3 azioni chiave (carica ricetta, registra chiusura, riceve primo Brief).
+4. **Setup fee Chain €990 OBBLIGATORIO + clausola rimborso 60gg** (Opzione A). Filtra clienti
+   seri; cash subito (5 × €990 = €4.950); se cliente non soddisfatto entro 60gg, rimborso 100%.
+5. **Listino Chain fino a 10 sedi visibile. Sopra → "Contattaci"** (Opzione C). Per ora il
+   mercato target sono 1-5 sedi. Niente plan Family/Enterprise in listino.
+6. **Sconto annuale -20% UNIFORME** su tutti i tier (Opzione B). Messaggio semplice "paghi
+   annuale risparmi 20%", massima conversione annuale = minimo churn.
+7. **Trial SENZA card-on-file** (Opzione A). Trust del cliente prima della conversione bruta.
+   Per i primi 12 mesi prioritizziamo reputazione. Passeremo a card-on-file dopo 100 clienti.
+8. **Niente founder discount** (Opzione NO). Listino pieno per tutti dal day-one. Il prodotto
+   vale i €49/€119/€299, non scontiamo per chiudere — chiudiamo grazie al valore.
+
+### Prezzi finali consolidati
+
+| Piano | Mensile | Annuale (-20%) | Setup fee | Trial | Cassa OCR |
+|---|---:|---:|---:|---:|---|
+| Base    | €49  | **€39/mese** (€470/anno) | — | 14gg + 14 stretch | 50/mese |
+| Pro     | €119 | **€95/mese** (€1.140/anno) | — | 30gg | ∞ |
+| Chain   | €299 | **€239/mese** (€2.870/anno) | €990 obbligatorio (rimborso 60gg) | 30gg + onboarding | ∞ |
 
 ---
 
