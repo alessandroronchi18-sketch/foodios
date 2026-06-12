@@ -196,3 +196,7 @@ In caso di disservizio Stripe/Supabase, pubblicare un banner manualmente dall'ad
 16. Soft launch con i 3 design partner
 
 **Quando tutto sopra e' ✅**: stappa una bottiglia, manda il link a Mara, fatturale il primo mese.
+
+# Test auto-deploy webhook
+# Timestamp test: 2026-06-12 09:22:53
+
