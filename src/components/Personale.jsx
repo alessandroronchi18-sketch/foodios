@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
+import { calcolaStipendio } from '../lib/stipendiCalc'
 import { color as T, radius as R, shadow as S, motion as M, tnum, typo } from '../lib/theme'
 
 const C = {
@@ -85,7 +86,12 @@ const TIPI_CONTRATTO = ["Full-time","Part-time","Stagionale","Collaboratore","Ap
 function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"", sede_id: "" })
+  const [form, setForm] = useState({
+    nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40,
+    stipendio_lordo_mensile:"", stipendio_netto_mensile:"",
+    contratto_tipo:"", livello:"", data_assunzione:"",
+    note:"", sede_id: "",
+  })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -154,6 +160,11 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       tipo_contratto: form.tipo_contratto,
       costo_orario: parseFloat(form.costo_orario)||0,
       ore_settimana: parseFloat(form.ore_settimana)||0,
+      stipendio_lordo_mensile: parseFloat(form.stipendio_lordo_mensile) || 0,
+      stipendio_netto_mensile: parseFloat(form.stipendio_netto_mensile) || 0,
+      contratto_tipo: form.contratto_tipo || null,
+      livello: form.livello || null,
+      data_assunzione: form.data_assunzione || null,
       note: form.note,
       sede_id: form.sede_id || null,
       organization_id: orgId,
@@ -191,8 +202,30 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     carica()
   }
 
-  function reset() { setForm({ nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40, note:"", sede_id: sedeId || "", reparto1:"", reparto2:"" }); setEditId(null); setShowForm(false) }
-  function initEdit(d) { const reps = repartiDi(d.id); setForm({ nome:d.nome, ruolo:d.ruolo||"", tipo_contratto:d.tipo_contratto||"Full-time", costo_orario:d.costo_orario||"", ore_settimana:d.ore_settimana||40, note:d.note||"", sede_id: d.sede_id || "", reparto1: reps[0] || "", reparto2: reps[1] || "" }); setEditId(d.id); if (isMobile) setShowForm(true) }
+  function reset() {
+    setForm({
+      nome:"", ruolo:"", tipo_contratto:"Full-time", costo_orario:"", ore_settimana:40,
+      stipendio_lordo_mensile:"", stipendio_netto_mensile:"",
+      contratto_tipo:"", livello:"", data_assunzione:"",
+      note:"", sede_id: sedeId || "", reparto1:"", reparto2:"",
+    })
+    setEditId(null); setShowForm(false)
+  }
+  function initEdit(d) {
+    const reps = repartiDi(d.id)
+    setForm({
+      nome: d.nome, ruolo: d.ruolo || "", tipo_contratto: d.tipo_contratto || "Full-time",
+      costo_orario: d.costo_orario || "", ore_settimana: d.ore_settimana || 40,
+      stipendio_lordo_mensile: d.stipendio_lordo_mensile || "",
+      stipendio_netto_mensile: d.stipendio_netto_mensile || "",
+      contratto_tipo: d.contratto_tipo || "",
+      livello: d.livello || "",
+      data_assunzione: d.data_assunzione || "",
+      note: d.note || "", sede_id: d.sede_id || "",
+      reparto1: reps[0] || "", reparto2: reps[1] || "",
+    })
+    setEditId(d.id); if (isMobile) setShowForm(true)
+  }
 
   const costoMeseTot = lista.reduce((s,d)=>s+(d.costo_orario||0)*(d.ore_settimana||0)*4.33, 0)
   const inputSt = { width:"100%", height: 40, padding: "0 12px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color:C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
@@ -269,9 +302,63 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         </div>
         {form.costo_orario && form.ore_settimana && (
           <div style={{ marginBottom:12, padding:"8px 12px", background:C.amberLight, borderRadius:8, fontSize:11, color:C.amber, fontWeight:700 }}>
-            Costo mese stimato: {fmt((parseFloat(form.costo_orario)||0)*(parseFloat(form.ore_settimana)||0)*4.33)}
+            Costo mese stimato (dal costo orario): {fmt((parseFloat(form.costo_orario)||0)*(parseFloat(form.ore_settimana)||0)*4.33)}
           </div>
         )}
+
+        {/* STIPENDIO MENSILE + CONTRATTO */}
+        <div style={{ marginBottom: 12, padding: 12, background: '#F8FAFC', border: `1px solid ${C.border}`, borderRadius: 10 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+            Stipendio mensile (in alternativa al costo orario)
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Lordo (€)</div>
+              <input type="number" min="0" step="10" value={form.stipendio_lordo_mensile}
+                onChange={e => setForm(f => ({ ...f, stipendio_lordo_mensile: e.target.value, stipendio_netto_mensile: '' }))}
+                style={inputSt} placeholder="es. 1500" />
+            </div>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Netto stimato (€)</div>
+              <input type="number" min="0" step="10" value={form.stipendio_netto_mensile}
+                onChange={e => setForm(f => ({ ...f, stipendio_netto_mensile: e.target.value, stipendio_lordo_mensile: '' }))}
+                style={inputSt} placeholder="auto" />
+            </div>
+          </div>
+          {(form.stipendio_lordo_mensile || form.stipendio_netto_mensile) && (
+            <CalcoloLordoNetto
+              lordo={form.stipendio_lordo_mensile}
+              netto={form.stipendio_netto_mensile}
+              setForm={setForm}
+            />
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Tipo contratto</div>
+              <select value={form.contratto_tipo} onChange={e => setForm(f => ({ ...f, contratto_tipo: e.target.value }))} style={inputSt}>
+                <option value="">— Non specificato —</option>
+                <option value="indeterminato">Indeterminato</option>
+                <option value="determinato">Determinato</option>
+                <option value="apprendista">Apprendista</option>
+                <option value="stagionale">Stagionale</option>
+                <option value="collaborazione">Collaborazione</option>
+                <option value="altro">Altro</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Livello CCNL</div>
+              <input type="text" value={form.livello} onChange={e => setForm(f => ({ ...f, livello: e.target.value }))}
+                style={inputSt} placeholder="es. 4S, 5, 6" />
+            </div>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Data assunzione (opzionale)</div>
+            <input type="date" value={form.data_assunzione} onChange={e => setForm(f => ({ ...f, data_assunzione: e.target.value }))} style={inputSt} />
+          </div>
+          <div style={{ marginTop: 10, fontSize: 10.5, color: C.textSoft, lineHeight: 1.45 }}>
+            ⚠️ I calcoli lordo↔netto sono stime semplificate (IRPEF + INPS commercio ~9,19% + addizionali 2%). Non sostituiscono il commercialista.
+          </div>
+        </div>
         {haPiuSedi && (
           <div style={{ marginBottom:12 }}>
             <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>Sede primaria</div>
@@ -1508,6 +1595,49 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome 
       {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile}/>}
       {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile} adminNome={adminNome}/>}
       {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile}/>}
+    </div>
+  )
+}
+
+// ── Calcolo lordo↔netto stipendio (banda informativa nel form) ────────────
+function CalcoloLordoNetto({ lordo, netto, setForm }) {
+  const result = useMemo(() => {
+    if (lordo && !netto) return calcolaStipendio({ lordo, mensilita: 13 })
+    if (netto && !lordo) return calcolaStipendio({ netto, mensilita: 13 })
+    return calcolaStipendio({ lordo, netto, mensilita: 13 })
+  }, [lordo, netto])
+  const fmt = (n) => `€ ${Math.round(Number(n) || 0).toLocaleString('it-IT')}`
+  return (
+    <div style={{ marginTop: 6, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+        Stima (13 mensilità + INPS + IRPEF a scaglioni)
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
+        <div>
+          <div style={{ color: '#475264', marginBottom: 2 }}>Lordo</div>
+          <div style={{ fontWeight: 800, color: '#0E1726', fontSize: 13 }}>{fmt(result.lordo)}</div>
+        </div>
+        <div>
+          <div style={{ color: '#475264', marginBottom: 2 }}>Netto stimato</div>
+          <div style={{ fontWeight: 800, color: '#15803D', fontSize: 13 }}>{fmt(result.netto)}</div>
+        </div>
+        <div>
+          <div style={{ color: '#475264', marginBottom: 2 }}>Costo azienda</div>
+          <div style={{ fontWeight: 800, color: '#991B1B', fontSize: 13 }}>{fmt(result.costoAzienda)}</div>
+        </div>
+      </div>
+      {netto && !lordo && result.lordo > 0 && (
+        <button type="button" onClick={() => setForm(f => ({ ...f, stipendio_lordo_mensile: result.lordo.toFixed(2), stipendio_netto_mensile: '' }))}
+          style={{ marginTop: 8, padding: '4px 10px', minHeight: 28, fontSize: 11, fontWeight: 700, color: '#1E3A8A', background: '#FFFFFF', border: '1px solid #BFDBFE', borderRadius: 6, cursor: 'pointer' }}>
+          ↑ Usa lordo {fmt(result.lordo)}
+        </button>
+      )}
+      {lordo && !netto && result.netto > 0 && (
+        <button type="button" onClick={() => setForm(f => ({ ...f, stipendio_netto_mensile: result.netto.toFixed(2), stipendio_lordo_mensile: '' }))}
+          style={{ marginTop: 8, padding: '4px 10px', minHeight: 28, fontSize: 11, fontWeight: 700, color: '#1E3A8A', background: '#FFFFFF', border: '1px solid #BFDBFE', borderRadius: 6, cursor: 'pointer' }}>
+          ↓ Usa netto {fmt(result.netto)}
+        </button>
+      )}
     </div>
   )
 }

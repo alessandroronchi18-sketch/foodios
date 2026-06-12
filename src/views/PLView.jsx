@@ -497,6 +497,19 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const ricette = Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
 
+  // Costi aziendali extra-food (consumabili, manutenzione, utenze, ammortamenti)
+  // - vengono sottratti per ottenere il margine NETTO mensile/annuale.
+  // Caricati on-mount. Default 0 se l'utente non li ha ancora configurati.
+  const [costiAziendali, setCostiAziendali] = useState([])
+  useEffect(() => {
+    if (!orgId) return
+    import('../lib/costiAziendali').then(({ caricaCostiAziendali, totaleMensile }) => {
+      caricaCostiAziendali(orgId, sedeId).then(arr => {
+        setCostiAziendali(arr)
+      })
+    }).catch(() => { /* tabella non ancora migrata: ignora */ })
+  }, [orgId, sedeId])
+
   const euro = v => `€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
   const pct = v => `${Number(v).toFixed(1)}%`
   const cardP = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
@@ -906,6 +919,18 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
         ))}
       </div>
 
+      {/* Banda costi azienda + margine netto.
+          Mostra il costo mensile dei costi extra-food (consumabili, manutenzione,
+          ammortamenti, utenze) configurati dall'utente, e il margine NETTO
+          stimato = (totMargine ipotetico mensile * 30) − costi extra.
+          NB: stima a margine teorico, non sostituisce un commercialista. */}
+      <CostiNettoBanda
+        costiAziendali={costiAziendali}
+        totMargine={totMargine}
+        euro={euro}
+        isMobile={isMobile}
+      />
+
       <BarreRicavo rows={rows} euro={euro} pct={pct}/>
       <PLTable rows={rows} euro={euro} pct={pct} totRicavo={totRicavo} totFC={totFC} totMargine={totMargine} fcAvg={fcAvg} avgMarg={avgMarg}/>
       <TopIngredientiTable ricettario={ricettario} ingCosti={ingCosti} euro={euro} pct={pct}/>
@@ -974,6 +999,71 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
         </div>
       </div>
       </>)}
+    </div>
+  )
+}
+
+// ── Banda: costi extra-food + margine netto stimato ───────────────────────
+// totMargine arriva dalla sezione P&L (ricavo - foodcost per ricetta).
+// Il margine NETTO sottrae i costi aziendali extra: consumabili, manutenzione,
+// ammortamenti, utenze, ecc. Stima informativa, non sostituisce un commercialista.
+function CostiNettoBanda({ costiAziendali, totMargine, euro, isMobile }) {
+  const totCostiMensili = (costiAziendali || []).reduce((s, v) => {
+    const x = Number(v.importo) || 0
+    if (v.periodicita === 'annuale' || v.periodicita === 'una_tantum') return s + x / 12
+    return s + x
+  }, 0)
+  const totCostiAnnui = totCostiMensili * 12
+  const margineNetto = totMargine - totCostiMensili
+  const margPct = totMargine > 0 ? (margineNetto / totMargine * 100) : 0
+  const noConfig = (costiAziendali || []).length === 0
+  return (
+    <div style={{
+      background: T.bgCard, border: `1px solid ${T.border}`,
+      borderRadius: 16, padding: isMobile ? 16 : 20, marginBottom: 28,
+      boxShadow: SHADOW_PREMIUM,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: T.text }}>Costi extra-food &amp; margine netto stimato</div>
+          <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 2, lineHeight: 1.5 }}>
+            {noConfig
+              ? 'Aggiungi consumabili, utenze, manutenzione in "Costi aziendali" per vedere il margine netto.'
+              : 'Margine lordo meno costi extra (consumabili, manutenzione, ammortamenti, utenze).'
+            }
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 10 }}>
+        <BoxKpi label="Costi mensili" value={euro(totCostiMensili)} color={T.brand} small />
+        <BoxKpi label="Costi annui" value={euro(totCostiAnnui)} color={T.textMid} small />
+        <BoxKpi label="Margine lordo (rif.)" value={euro(totMargine)} color={T.textSoft} small />
+        <BoxKpi
+          label="Margine netto mensile (stima)"
+          value={euro(margineNetto)}
+          color={margineNetto >= 0 ? T.green : T.brand}
+          highlight
+        />
+      </div>
+      {noConfig && (
+        <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF9EB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 12, color: '#78350F' }}>
+          💡 Vai in <strong>Andamento &amp; costi → Costi aziendali</strong> per aggiungere i tuoi costi extra-food (fazzoletti, coppette, utenze, manutenzioni).
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BoxKpi({ label, value, color, highlight, small }) {
+  return (
+    <div style={{
+      padding: small ? '10px 12px' : '14px 16px',
+      background: highlight ? '#FEF9EB' : T.bgSubtle,
+      border: highlight ? '1px solid #FDE68A' : `1px solid ${T.border}`,
+      borderRadius: 10,
+    }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: small ? 17 : 20, fontWeight: 800, color, ...TNUM, letterSpacing: '-0.02em' }}>{value}</div>
     </div>
   )
 }

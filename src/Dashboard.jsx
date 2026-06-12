@@ -88,6 +88,7 @@ const ChiusuraView = lazyWithReload(() => import('./views/ChiusuraView'))
 const ProduzioneGiornalieraView = lazyWithReload(() => import('./views/ProduzioneGiornalieraView'))
 const InventarioSettimanaleView = lazyWithReload(() => import('./views/InventarioSettimanaleView'))
 const QuadraturaInventarioView = lazyWithReload(() => import('./views/QuadraturaInventarioView'))
+const CostiAziendaliView = lazyWithReload(() => import('./views/CostiAziendaliView'))
 const AzioniView = lazyWithReload(() => import('./views/AzioniView'))
 const NuovaRicettaView = lazyWithReload(() => import('./views/NuovaRicettaView'))
 const StoricoProduzioneView = lazyWithReload(() => import('./views/StoricoProduzioneView'))
@@ -1924,6 +1925,7 @@ export default function Dashboard({
           { id:"numeri", label:"Andamento & costi", items:[
             {id:"simulatore",label:"Food Cost",icon:"barChart"},
             {id:"pl",label:"Profitti (P&L)",icon:"trendUp"},
+            {id:"costi-aziendali",label:"Costi aziendali",icon:"package"},
             {id:"storico",label:"Storico",icon:"activity"},
             {id:"previsione",label:"Previsioni",icon:"forecast"},
             // Quadratura inventario vs cassa: visibile solo se la sede attiva
@@ -2390,6 +2392,7 @@ export default function Dashboard({
                 children:[
                   navItem("simulatore","barChart","Food Cost"),
                   navItem("pl","trendUp","Profitti (P&L)"),
+                  navItem("costi-aziendali","package","Costi aziendali"),
                   navItem("storico","activity","Storico"),
                   navItem("previsione","forecast","Previsioni"),
                   ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && (sedi||[]).find(s=>s.id===sedeAttiva?.id)?.metodo_produzione === 'inventario') || view === 'quadratura-inventario'
@@ -2559,7 +2562,7 @@ export default function Dashboard({
             "quadratura-inventario":"Quadratura inventario",
             chiusura:"Cassa", eventi:"Eventi",
             ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
-            simulatore:"Food Cost", pl:"P&L",
+            simulatore:"Food Cost", pl:"P&L", "costi-aziendali":"Costi aziendali",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori", "vendite-b2b":"Vendite B2B",
             personale:"Personale", haccp:"HACCP", menu:"Menù",
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
@@ -2573,7 +2576,7 @@ export default function Dashboard({
             home:"", giornaliero:"Oggi", chiusura:"Oggi", eventi:"Oggi", calendario:"Oggi",
             ricettario:"Ricette & Menù", semilavorati:"Ricette & Menù", "nuova-ricetta":"Ricette & Menù",
             "scheda-allergeni":"Ricette & Menù", menu:"Ricette & Menù",
-            simulatore:"Andamento & costi", pl:"Andamento & costi", storico:"Andamento & costi", previsione:"Andamento & costi",
+            simulatore:"Andamento & costi", pl:"Andamento & costi", "costi-aziendali":"Andamento & costi", storico:"Andamento & costi", previsione:"Andamento & costi",
             magazzino:"Magazzino & Acquisti", scadenzario:"Magazzino & Acquisti", "sprechi-omaggi":"Magazzino & Acquisti",
             fornitori:"Magazzino & Acquisti", "vendite-b2b":"Magazzino & Acquisti", "importa-dati":"Magazzino & Acquisti",
             personale:"Azienda", haccp:"Azienda", "registro-attivita":"Azienda", "confronto-sedi":"Azienda", trasferimenti:"Azienda",
@@ -2606,7 +2609,7 @@ export default function Dashboard({
             "quadratura-inventario":"Quadratura",
             chiusura:"Cassa", eventi:"Eventi",
             ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
-            simulatore:"Food Cost", pl:"P&L",
+            simulatore:"Food Cost", pl:"P&L", "costi-aziendali":"Costi aziendali",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori", "vendite-b2b":"Vendite B2B",
             personale:"Personale", haccp:"HACCP", menu:"Menù",
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
@@ -2764,6 +2767,7 @@ export default function Dashboard({
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="inventario-gusti"&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} notify={notify}/>}
         {view==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure}/>}
+        {view==="costi-aziendali"&&<CostiAziendaliView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
         {view==="importa-dati"&&<ImportaDatiView
