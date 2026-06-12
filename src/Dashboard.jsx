@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react'
 import { lazyWithReload } from './lib/lazyWithReload'
 import UpgradeGate from './components/UpgradeGate'
 import AISuggestionsBell from './components/AISuggestionsBell'
+import ChainBadge from './components/ChainBadge'
 import CommandPalette from './components/CommandPalette'
 import { canAccessView, effectivePlan, PLAN_LABEL } from './lib/planAccess'
 import { lessico } from './lib/lessico'
@@ -1917,14 +1918,17 @@ export default function Dashboard({
           // Anche se sedeAttiva e' incompleta, se l'utente e' GIA' dentro
           // 'inventario-gusti' manteniamo la voce visibile per non disorientare.
           || view === 'inventario-gusti' || view === 'quadratura-inventario'
+        // Riorganizzazione menu 2026-06-13: 6 sezioni task-based,
+        // ✨ prefix solo su 5 Chain-exclusive, multi-sede condizionale.
+        const showMultiSede = (auth?.user?.email === 'demo@maradeiboschi.com') || multiSede
         const NAV = [
           { id:"oggi", label:"Oggi", items:[
             ...(isMetodoInventario
               ? [{id:"inventario-gusti",label:"Inventario gusti",icon:"layers"}]
               : [{id:"giornaliero",label:"Produzione",icon:"cal",alert:!hasProdOggi&&new Date().getHours()>=6}]),
             {id:"chiusura",label:"Cassa",icon:"creditCard",alert:cassaMancante},
-            {id:"eventi",label:"Eventi",icon:"cal"},
             {id:"calendario",label:"Calendario",icon:"cal"},
+            {id:"eventi",label:"Eventi",icon:"cal"},
           ]},
           { id:"ricette", label:"Ricette & Menù", items:[
             {id:"ricettario",label:LEX.Ricettario,icon:"book"},
@@ -1933,54 +1937,53 @@ export default function Dashboard({
             {id:"formati-vendita",label:"Formati di vendita",icon:"coins"},
             {id:"scheda-allergeni",label:"Allergeni",icon:"shield"},
             {id:"menu",label:"Menù del giorno",icon:"menu"},
+            {id:"reformulation",label:"Ottimizza ricetta AI",icon:"sparkles"},
+            {id:"ricette-ai",label:"Inventa ricetta AI",icon:"lightbulb",chainBadge:true},
           ]},
-          { id:"acquisti", label:"Magazzino & Acquisti", badge:criticeMag, items:[
+          { id:"acquisti", label:"Magazzino & Fornitori", badge:criticeMag, items:[
             {id:"magazzino",label:"Magazzino",icon:"pkg",badge:criticeMag,alert:criticeMag>0},
-            {id:"scadenzario",label:"Scadenzario",icon:"fileText"},
-            {id:"ordini-ai",label:"Ordini AI fornitori",icon:"truck"},
-            {id:"fornitori",label:"Fornitori",icon:"truck"},
-            {id:"vendite-b2b",label:"Vendite B2B",icon:"building"},
             {id:"sprechi-omaggi",label:"Perdite & cessioni",icon:"sparkles"},
+            {id:"scadenzario",label:"Scadenzario fatture",icon:"fileText"},
+            {id:"fornitori",label:"Fornitori",icon:"truck"},
             {id:"importa-dati",label:"Importa dati",icon:"download"},
+            {id:"ordini-ai",label:"Ordini AI consigliati",icon:"truck"},
+            {id:"marketplace",label:"Marketplace fornitori",icon:"truck",chainBadge:true},
           ]},
-          { id:"numeri", label:"Andamento & costi", items:[
-            {id:"simulatore",label:"Food Cost",icon:"barChart"},
+          { id:"numeri", label:"Analisi & Previsione", items:[
+            // — Conto economico —
             {id:"pl",label:"Profitti (P&L)",icon:"trendUp"},
             {id:"costi-aziendali",label:"Costi aziendali",icon:"package"},
-            {id:"storico",label:"Storico",icon:"activity"},
-            {id:"previsione",label:"Previsioni",icon:"forecast"},
-            {id:"forecast",label:"Forecast AI 7gg",icon:"sun"},
-            {id:"menu-engineering",label:"Menu engineering",icon:"barChart"},
-            {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
-            {id:"reformulation",label:"Ottimizza ricette AI",icon:"sparkles"},
-            {id:"competitor-pricing",label:"Pricing vs competitor",icon:"money"},
-            {id:"ai-brain",label:"FoodOS Brain (chat)",icon:"sparkles"},
-            {id:"ricette-ai",label:"Inventa ricette AI",icon:"lightbulb"},
-            {id:"marketplace",label:"Marketplace fornitori",icon:"truck"},
-            {id:"whatsapp",label:"WhatsApp Bot",icon:"bell"},
-            {id:"documentary",label:"Documentary AI",icon:"barChart"},
-            // Quadratura inventario vs cassa: visibile solo se la sede attiva
-            // e' produttiva e usa il metodo inventario differenziale.
+            {id:"storico",label:"Storico produzione",icon:"activity"},
             ...(isMetodoInventario ? [{id:"quadratura-inventario",label:"Quadratura inventario",icon:"check"}] : []),
+            // — Strategia & pricing —
+            {id:"simulatore",label:"Food Cost simulatore",icon:"barChart"},
+            {id:"menu-engineering",label:"Menu engineering",icon:"barChart"},
+            {id:"competitor-pricing",label:"Pricing vs competitor",icon:"money"},
+            {id:"vendite-b2b",label:"Vendite B2B",icon:"building"},
+            // — Previsione & cassa —
+            {id:"forecast",label:"Forecast vendite 7gg",icon:"sun"},
+            {id:"previsione",label:"Previsione domanda",icon:"forecast"},
+            {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
           ]},
-          { id:"azienda", label:"Azienda", items:[
-            {id:"personale",label:"Personale",icon:"users"},
-            {id:"haccp",label:"HACCP",icon:"shield"},
-            {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
-            {id:"recensioni",label:"Recensioni AI",icon:"sparkles"},
-            // Sblocco DEMO-ONLY: Confronto + Trasferimenti sempre visibili
-            // per l'account demo (rimodellamento UX in corso). Per gli
-            // utenti normali resta il gating multiSede.
-            ...((auth?.user?.email === 'demo@maradeiboschi.com')
+          { id:"azienda", label:"Azienda & Team", items:[
+            // — Multi-sede (solo se rilevante) —
+            ...(showMultiSede
               ? [{id:"confronto-sedi",label:"Confronto sedi",icon:"building"},
                  {id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"}]
-              : (multiSede
-                ? [{id:"confronto-sedi",label:"Confronto sedi",icon:"building"},
-                   {id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"}]
-                : [])),
+              : []),
+            // — Team —
+            {id:"personale",label:"Personale & stipendi",icon:"users"},
+            {id:"haccp",label:"HACCP",icon:"shield"},
+            {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
+            // — Comunicazione & marketing —
+            {id:"recensioni",label:"Recensioni AI",icon:"sparkles"},
+            {id:"whatsapp",label:"WhatsApp Bot",icon:"bell",chainBadge:true},
+            {id:"documentary",label:"Documentary AI",icon:"barChart",chainBadge:true},
           ]},
-          { id:"strumenti", label:"Assistente AI", badge:azioniAperte, items:[
-            {id:"azioni",label:"AI Assistant",icon:"sparkles",badge:azioniAperte},
+          { id:"strumenti", label:"AI Brain & Strumenti", badge:azioniAperte, items:[
+            {id:"ai-brain",label:"FoodOS Brain (chat)",icon:"sparkles",chainBadge:true},
+            {id:"azioni",label:"Azioni consigliate",icon:"sparkles",badge:azioniAperte},
+            {id:"integrazioni",label:"Integrazioni",icon:"plug"},
           ]},
         ].map(sec=>({ ...sec, items: sec.items.filter(it=>!isDip||DIPENDENTE_VIEWS.has(it.id)) })).filter(sec=>sec.items.length>0);
 
@@ -1999,6 +2002,8 @@ export default function Dashboard({
               onMouseEnter={e=>{if(!act)e.currentTarget.style.background="#F4EEEA";}} onMouseLeave={e=>{if(!act)e.currentTarget.style.background="transparent";}}>
               <span style={{color:act?C.red:C.textSoft,display:"flex"}}>{ic(ICONS[it.icon],15)}</span>
               <span style={{flex:1,whiteSpace:"nowrap"}}>{it.label}</span>
+              {/* Chain badge: feature esclusiva piano Chain (gemma sparkle) */}
+              {it.chainBadge&&<ChainBadge active={act}/>}
               {it.badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"1px 7px"}}>{it.badge}</span>}
               {it.alert&&!it.badge&&<span style={{width:7,height:7,borderRadius:"50%",background:"#E84B3A"}}/>}
               {!canAccessView(it.id,piano,auth?.user?.email)&&<span title="Funzione del piano Chain" style={{color:C.textSoft,display:"flex"}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>}
@@ -2177,7 +2182,7 @@ export default function Dashboard({
         const ICONS = SHARED_ICONS;
         const ic = sharedIc;
 
-        const navItem = (id, iconKey, label, badge=0, alert=false) => {
+        const navItem = (id, iconKey, label, badge=0, alert=false, chainBadge=false) => {
           // Ruolo dipendente: mostra solo le voci operative consentite.
           if (isDip && !DIPENDENTE_VIEWS.has(id)) return null;
           // Filtro ricerca: se la query non matcha id né label, nascondiamo
@@ -2203,6 +2208,7 @@ export default function Dashboard({
             >
               <span style={{color:active?"#FFFFFF":"rgba(255,255,255,0.55)",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey],15)}</span>
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
+              {chainBadge&&<ChainBadge active={active} size={13}/>}
               {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#6E0E1A",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
               {alert&&badge===0&&<span style={{width:8,height:8,borderRadius:"50%",background:"#E84B3A",flexShrink:0,boxShadow:"0 0 0 0 rgba(232,75,58,0.6)",animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
               {!canAccessView(id, piano, auth?.user?.email)&&<span title="Funzione del piano Chain" style={{flexShrink:0,display:"flex",color:"rgba(255,255,255,0.45)"}}>
@@ -2397,6 +2403,8 @@ export default function Dashboard({
                   definiti nello scope del render, come elementi JSX cambierebbero
                   identità a ogni render → React rimonterebbe tutte le sezioni,
                   azzerando lo scroll del menu (bug "torna in cima") e ri-animando. */}
+              {/* Sidebar allineata 1:1 con NAV topbar (2026-06-13) */}
+
               {Group({ id:"oggi", iconKey:"today", label:"Oggi",
                 alert:(!hasProdOggi && new Date().getHours()>=6) || cassaMancante,
                 children:[
@@ -2404,8 +2412,8 @@ export default function Dashboard({
                     ? [navItem("inventario-gusti","layers","Inventario gusti")]
                     : [navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)]),
                   navItem("chiusura","creditCard","Cassa",0,cassaMancante),
-                  navItem("eventi","cal","Eventi"),
                   navItem("calendario","cal","Calendario"),
+                  navItem("eventi","cal","Eventi"),
                 ] })}
 
               {Group({ id:"ricette", iconKey:"chefHat", label:"Ricette & Menù",
@@ -2416,47 +2424,56 @@ export default function Dashboard({
                   navItem("formati-vendita","coins","Formati di vendita"),
                   navItem("scheda-allergeni","shield","Allergeni"),
                   navItem("menu","menu","Menù del giorno"),
+                  navItem("reformulation","sparkles","Ottimizza ricetta AI"),
+                  navItem("ricette-ai","lightbulb","Inventa ricetta AI", 0, false, true),
                 ] })}
 
-              {Group({ id:"acquisti", iconKey:"shopping", label:"Magazzino & Acquisti",
+              {Group({ id:"acquisti", iconKey:"shopping", label:"Magazzino & Fornitori",
                 badge:criticeMag, alert:criticeMag>0,
                 children:[
                   navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0),
-                  navItem("scadenzario","fileText","Scadenzario"),
-                  navItem("ordini-ai","truck","Ordini AI"),
-                  navItem("fornitori","truck","Fornitori"),
-                  navItem("vendite-b2b","building","Vendite B2B"),
                   navItem("sprechi-omaggi","sparkles","Perdite & cessioni"),
+                  navItem("scadenzario","fileText","Scadenzario fatture"),
+                  navItem("fornitori","truck","Fornitori"),
                   navItem("importa-dati","download","Importa dati"),
+                  navItem("ordini-ai","truck","Ordini AI consigliati"),
+                  navItem("marketplace","truck","Marketplace fornitori", 0, false, true),
                 ] })}
 
-              {Group({ id:"numeri", iconKey:"coins", label:"Andamento & costi",
+              {Group({ id:"numeri", iconKey:"coins", label:"Analisi & Previsione",
                 children:[
-                  navItem("simulatore","barChart","Food Cost"),
                   navItem("pl","trendUp","Profitti (P&L)"),
                   navItem("costi-aziendali","package","Costi aziendali"),
-                  navItem("storico","activity","Storico"),
-                  navItem("previsione","forecast","Previsioni"),
-                  navItem("menu-engineering","barChart","Menu engineering"),
-                  navItem("cashflow","trendUp","Cashflow"),
+                  navItem("storico","activity","Storico produzione"),
                   ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && (sedi||[]).find(s=>s.id===sedeAttiva?.id)?.metodo_produzione === 'inventario') || view === 'quadratura-inventario'
                     ? [navItem("quadratura-inventario","check","Quadratura inventario")] : []),
+                  navItem("simulatore","barChart","Food Cost simulatore"),
+                  navItem("menu-engineering","barChart","Menu engineering"),
+                  navItem("competitor-pricing","money","Pricing vs competitor"),
+                  navItem("vendite-b2b","building","Vendite B2B"),
+                  navItem("forecast","sun","Forecast vendite 7gg"),
+                  navItem("previsione","forecast","Previsione domanda"),
+                  navItem("cashflow","trendUp","Cashflow predittivo"),
                 ] })}
 
-              {Group({ id:"azienda", iconKey:"briefcase", label:"Azienda",
+              {Group({ id:"azienda", iconKey:"briefcase", label:"Azienda & Team",
                 children:[
-                  navItem("personale","users","Personale"),
-                  navItem("recensioni","sparkles","Recensioni AI"),
-                  navItem("haccp","shield","HACCP"),
-                  navItem("registro-attivita","fileText","Registro attività"),
                   ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("confronto-sedi","building","Confronto sedi"),
                   ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("trasferimenti","truck","Trasferimenti tra sedi"),
+                  navItem("personale","users","Personale & stipendi"),
+                  navItem("haccp","shield","HACCP"),
+                  navItem("registro-attivita","fileText","Registro attività"),
+                  navItem("recensioni","sparkles","Recensioni AI"),
+                  navItem("whatsapp","bell","WhatsApp Bot", 0, false, true),
+                  navItem("documentary","barChart","Documentary AI", 0, false, true),
                 ] })}
 
-              {Group({ id:"strumenti", iconKey:"tool", label:"Strumenti",
+              {Group({ id:"strumenti", iconKey:"tool", label:"AI Brain & Strumenti",
                 badge:azioniAperte,
                 children:[
-                  navItem("azioni","sparkles","AI Assistant",azioniAperte),
+                  navItem("ai-brain","sparkles","FoodOS Brain (chat)", 0, false, true),
+                  navItem("azioni","sparkles","Azioni consigliate",azioniAperte),
+                  navItem("integrazioni","plug","Integrazioni"),
                 ] })}
 
               {/* In fondo, senza gruppo: impostazioni e novità */}
