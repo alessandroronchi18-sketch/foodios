@@ -61,6 +61,9 @@ export async function salvaVoceCosto(voce) {
         data_inizio: voce.data_inizio || null,
         sede_id: voce.sede_id || null,
         attivo: voce.attivo !== false,
+        // updated_at gestito dall'app (no trigger DB per evitare problemi
+        // col dollar-quote nell'editor SQL Supabase)
+        updated_at: new Date().toISOString(),
       })
       .eq('id', voce.id)
       .select()

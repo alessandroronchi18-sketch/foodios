@@ -2,17 +2,16 @@
 -- COSTI AZIENDALI (P&L extra-food)
 --
 -- Costi che il proprietario inserisce manualmente, non legati direttamente
--- al food cost delle ricette:
---   - Consumabili di vendita (fazzoletti, coppette, palette, sacchetti)
---   - Manutenzione (vetrina, condizionatori, banco frigo)
---   - Ammortamenti (impianti, mobili, attrezzature)
---   - Utenze (energia, gas, acqua) se non gestite altrove
---   - Affitti, assicurazioni, commercialista, software
+-- al food cost delle ricette: consumabili (fazzoletti, coppette, palette,
+-- sacchetti), manutenzione, ammortamenti, utenze, affitti, assicurazioni,
+-- servizi professionali, marketing.
 --
 -- Periodicita': mensile (default) | annuale | una_tantum.
--- I valori annuali vengono divisi per 12 nel calcolo P&L mensile.
--- I una_tantum sono spalmati su 12 mesi a partire dalla data inserita
--- (semplificazione: l'utente puo' anche scegliere di non spalmarli).
+-- I valori annuali/una_tantum vengono divisi per 12 nel calcolo P&L mensile.
+--
+-- Versione semplificata: senza trigger touch updated_at (l'editor SQL
+-- Supabase aveva problemi col dollar-quote $fn$ in alcune sessioni).
+-- L'updated_at e' aggiornato dall'app quando fa UPDATE.
 -- ===========================================================================
 
 create table if not exists public.costi_aziendali (
@@ -38,20 +37,6 @@ create index if not exists idx_costi_aziendali_org
 create index if not exists idx_costi_aziendali_sede
   on public.costi_aziendali (sede_id, attivo)
   where sede_id is not null;
-
-create or replace function public.touch_costi_aziendali_updated_at()
-returns trigger as $fn$
-begin
-  new.updated_at := now();
-  return new;
-end
-$fn$ language plpgsql;
-
-drop trigger if exists trg_costi_aziendali_touch on public.costi_aziendali;
-
-create trigger trg_costi_aziendali_touch
-  before update on public.costi_aziendali
-  for each row execute function public.touch_costi_aziendali_updated_at();
 
 alter table public.costi_aziendali enable row level security;
 
@@ -81,6 +66,3 @@ create policy "costi_az_write_org"
   );
 
 grant select, insert, update, delete on public.costi_aziendali to authenticated;
-
-comment on table public.costi_aziendali is
-  'Costi extra-food (consumabili, manutenzione, ammortamenti, utenze) per P&L';
