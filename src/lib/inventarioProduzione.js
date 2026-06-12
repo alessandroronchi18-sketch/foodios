@@ -208,11 +208,16 @@ export function calcolaVendutoSettimana(righe, lunediIso) {
       const prod = corrente.produzione_g || 0
       const riman = corrente.rimanenza_g || 0
       const scarto = corrente.scarto_g || 0
-      // Il venduto puo' essere "null" il primo giorno in cui c'e' produzione
-      // ma manca la rimanenza precedente (caso bootstrap): mostriamo "—" lato UI.
+      // M2: il venduto deve essere clampato a 0 lato UI per i KPI, ma
+      // l'eventuale valore NEGATIVO (es. dipendente ha scritto RIMAN > stock
+      // disponibile) indica un errore di input. Esponiamo entrambi: venduto
+      // (clampato per consumo aggregato) + vendutoRaw (signed per UI che
+      // vuole segnalare l'anomalia con icona warning).
+      const vRaw = rimanPrev + prod - riman - scarto
       out[g][dIso] = {
         prod, riman, scarto,
-        venduto: Math.max(0, rimanPrev + prod - riman - scarto),
+        venduto: Math.max(0, vRaw),
+        vendutoRaw: vRaw,
       }
     }
   }
@@ -265,11 +270,15 @@ export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG) {
     const deltaIng = qty * fattore
     const k = normIng(ing.nome)
     const corrente = nm[k] || { nome: ing.nome.trim(), giacenza_g: 0, soglia_g: 0, ultimoRifornimento: null }
+    // M1 fix: ammettiamo giacenza negativa internamente. Era clampata a 0
+    // ma cosi' un PROD eccessivo seguito da correzione al ribasso non
+    // ricostruiva il deficit logico (es. zucchero -200g nascosti diventavano
+    // poi +800 invece di +1000 al rollback). Ora il vero stato del magazzino
+    // resta tracciabile; eventuale clamp UI si fa lato visualizzazione, non
+    // qui (dove i numeri devono restare coerenti).
     nm[k] = {
       ...corrente,
-      // Sottraiamo deltaIng: se PROD aumenta, fattore>0 -> giacenza scende.
-      // Se PROD scende (correzione), fattore<0 -> giacenza risale.
-      giacenza_g: Math.max(0, Math.round((corrente.giacenza_g || 0) - deltaIng)),
+      giacenza_g: Math.round((corrente.giacenza_g || 0) - deltaIng),
     }
     log.push({ nome: ing.nome, deltaG: Math.round(deltaIng) })
   }

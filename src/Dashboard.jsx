@@ -1885,8 +1885,17 @@ export default function Dashboard({
         // Metodo produzione della sede attiva: determina se mostrare la voce
         // "Inventario gusti" (metodo=inventario, gelaterie/yogurt) al posto
         // di "Produzione" (metodo=stampi, pasticcerie/panifici).
-        const isMetodoInventario = sedeAttiva?.is_sede_produzione === true
-          && sedeAttiva?.metodo_produzione === 'inventario'
+        //
+        // Anche la lettura via .find su `sedi` come fallback: in alcuni casi
+        // sedeAttiva e' temporaneamente uno stub privo dei campi inventario
+        // (es. dopo reload del profilo); cosi' evitiamo che la voce sparisca
+        // per un attimo nel menu mentre l'utente sta lavorando dentro la view.
+        const sedeFull = (sedi || []).find(s => s.id === sedeAttiva?.id) || sedeAttiva
+        const isMetodoInventario = (sedeFull?.is_sede_produzione === true
+            && sedeFull?.metodo_produzione === 'inventario')
+          // Anche se sedeAttiva e' incompleta, se l'utente e' GIA' dentro
+          // 'inventario-gusti' manteniamo la voce visibile per non disorientare.
+          || view === 'inventario-gusti' || view === 'quadratura-inventario'
         const NAV = [
           { id:"oggi", label:"Oggi", items:[
             ...(isMetodoInventario
@@ -1925,7 +1934,11 @@ export default function Dashboard({
             {id:"personale",label:"Personale",icon:"users"},
             {id:"haccp",label:"HACCP",icon:"shield"},
             {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
-            ...(multiSede?[{id:"confronto-sedi",label:"Confronto sedi",icon:"building"},{id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"}]:[]),
+            // Sblocco per demo: Confronto + Trasferimenti sempre visibili
+            // (anche con 1 sede). Servono per rimodellamento UX. In prod si
+            // potranno rinascondere se multiSede=false.
+            {id:"confronto-sedi",label:"Confronto sedi",icon:"building"},
+            {id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"},
           ]},
           { id:"strumenti", label:"Assistente AI", badge:azioniAperte, items:[
             {id:"azioni",label:"AI Assistant",icon:"sparkles",badge:azioniAperte},
@@ -2339,7 +2352,7 @@ export default function Dashboard({
               {Group({ id:"oggi", iconKey:"today", label:"Oggi",
                 alert:(!hasProdOggi && new Date().getHours()>=6) || cassaMancante,
                 children:[
-                  ...((sedeAttiva?.is_sede_produzione && sedeAttiva?.metodo_produzione === 'inventario')
+                  ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && (sedi||[]).find(s=>s.id===sedeAttiva?.id)?.metodo_produzione === 'inventario') || view === 'inventario-gusti'
                     ? [navItem("inventario-gusti","layers","Inventario gusti")]
                     : [navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)]),
                   navItem("chiusura","creditCard","Cassa",0,cassaMancante),
@@ -2374,7 +2387,7 @@ export default function Dashboard({
                   navItem("pl","trendUp","Profitti (P&L)"),
                   navItem("storico","activity","Storico"),
                   navItem("previsione","forecast","Previsioni"),
-                  ...((sedeAttiva?.is_sede_produzione && sedeAttiva?.metodo_produzione === 'inventario')
+                  ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && (sedi||[]).find(s=>s.id===sedeAttiva?.id)?.metodo_produzione === 'inventario') || view === 'quadratura-inventario'
                     ? [navItem("quadratura-inventario","check","Quadratura inventario")] : []),
                 ] })}
 
@@ -2383,8 +2396,8 @@ export default function Dashboard({
                   navItem("personale","users","Personale"),
                   navItem("haccp","shield","HACCP"),
                   navItem("registro-attivita","fileText","Registro attività"),
-                  (sedi||[]).length>1 && navItem("confronto-sedi","building","Confronto sedi"),
-                  (sedi||[]).length>1 && navItem("trasferimenti","truck","Trasferimenti tra sedi"),
+                  navItem("confronto-sedi","building","Confronto sedi"),
+                  navItem("trasferimenti","truck","Trasferimenti tra sedi"),
                 ] })}
 
               {Group({ id:"strumenti", iconKey:"tool", label:"Strumenti",
@@ -2458,7 +2471,9 @@ export default function Dashboard({
 
           {/* Mobile bottom navigation */}
           {isMobile&&(()=>{
-            const isInv = sedeAttiva?.is_sede_produzione === true && sedeAttiva?.metodo_produzione === 'inventario'
+            const sFull = (sedi||[]).find(s=>s.id===sedeAttiva?.id) || sedeAttiva
+            const isInv = (sFull?.is_sede_produzione && sFull?.metodo_produzione === 'inventario')
+              || view === 'inventario-gusti'
             const BOTTOM_NAV = [
               {id:"home",        icon:"home",       label:"Oggi"},
               isInv
@@ -2535,7 +2550,9 @@ export default function Dashboard({
             grigia" che resta in alto. Nascosta sulla home (l'hero fa da intestazione). */}
         {!isMobile&&view!=="home"&&(()=>{
           const VIEW_LABELS = {
-            home:"Dashboard", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
+            home:"Dashboard", giornaliero:"Produzione", "inventario-gusti":"Inventario gusti",
+            "quadratura-inventario":"Quadratura inventario",
+            chiusura:"Cassa", eventi:"Eventi",
             ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
             simulatore:"Food Cost", pl:"P&L",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori", "vendite-b2b":"Vendite B2B",
@@ -2580,7 +2597,9 @@ export default function Dashboard({
         {/* Mobile topbar — sticky, flat */}
         {isMobile&&(()=>{
           const MOBILE_LABELS = {
-            home:"Oggi", giornaliero:"Produzione", chiusura:"Cassa", eventi:"Eventi",
+            home:"Oggi", giornaliero:"Produzione", "inventario-gusti":"Inventario gusti",
+            "quadratura-inventario":"Quadratura",
+            chiusura:"Cassa", eventi:"Eventi",
             ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
             simulatore:"Food Cost", pl:"P&L",
             magazzino:"Magazzino", scadenzario:"Scadenzario", fornitori:"Fornitori", "vendite-b2b":"Vendite B2B",

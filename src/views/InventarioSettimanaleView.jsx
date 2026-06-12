@@ -107,6 +107,32 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   const [importDlg, setImportDlg] = useState(null)
   // Stato dialog spedizione kg → sede destinazione. null = chiuso.
   const [shipDlg, setShipDlg] = useState(null)
+  // Unita' di visualizzazione: 'g' (default) o 'kg'. Persistita in localStorage.
+  const [unitaDisplay, setUnitaDisplay] = useState(() => {
+    if (typeof window === 'undefined') return 'g'
+    try { return localStorage.getItem('foodios_inventario_unita_v1') || 'g' } catch { return 'g' }
+  })
+  const toggleUnita = () => {
+    setUnitaDisplay(u => {
+      const next = u === 'g' ? 'kg' : 'g'
+      try { localStorage.setItem('foodios_inventario_unita_v1', next) } catch {}
+      return next
+    })
+  }
+  // Helper formatter: converte grammi al valore visualizzato + suffisso.
+  const fmtUnita = (g) => {
+    if (g == null || g === '') return ''
+    const n = Number(g) || 0
+    if (unitaDisplay === 'kg') {
+      return (n / 1000).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    }
+    return n.toLocaleString('it-IT')
+  }
+  // Parse input utente -> grammi (per CellInput/BigField).
+  const parseToG = (val) => {
+    const n = Number((val || '').toString().replace(',', '.')) || 0
+    return unitaDisplay === 'kg' ? Math.round(n * 1000) : Math.round(n)
+  }
 
   // Lista gusti = unione di ricettario + gusti orfani (presenti in DB ma
   // non nel ricettario). Cosi' un file importato con nomi non ancora a
@@ -266,8 +292,21 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     const k = `${gustoNome}|${dataIso}|${campo}`
     setSaving(s => ({ ...s, [k]: true }))
     try {
-      // Riga corrente (se gia' esiste in DB) per non perdere gli altri campi.
-      const esistente = righe.find(r => r.gusto_nome === gustoNome && r.data === dataIso) || {}
+      // L2: per evitare race su 2 tab aperte sulla stessa cella, RILEGGIAMO
+      // lo stato attuale dal DB prima di calcolare il delta MP. Se l'altra
+      // tab ha gia' salvato un PROD diverso da quello in memoria, ci adattiamo
+      // al valore reale.
+      const { data: serverRow } = await supabase
+        .from('inventario_produzione')
+        .select('produzione_g, rimanenza_g, scarto_g')
+        .eq('organization_id', orgId).eq('sede_id', sedeId)
+        .eq('gusto_nome', gustoNome).eq('data', dataIso)
+        .maybeSingle()
+      const esistenteMem = righe.find(r => r.gusto_nome === gustoNome && r.data === dataIso) || {}
+      // Usa il server come fonte di verita' se ha dati piu' recenti.
+      const esistente = serverRow
+        ? { ...esistenteMem, ...serverRow }
+        : esistenteMem
       const patch = {
         produzione_g: esistente.produzione_g || 0,
         rimanenza_g: esistente.rimanenza_g || 0,
@@ -453,6 +492,21 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             Spedisci a sede
           </button>
         )}
+
+        {/* Toggle unita' visualizzazione: g <-> kg. Persistito in localStorage. */}
+        <button onClick={toggleUnita}
+          title={`Visualizza in ${unitaDisplay === 'g' ? 'kg' : 'g'}`}
+          style={{
+            padding: '8px 12px', minHeight: 40, marginLeft: 'auto',
+            background: '#F8FAFC', color: C.textMid,
+            border: `1px solid ${C.border}`, borderRadius: 8,
+            fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+          }}>
+          <span style={{ color: unitaDisplay === 'g' ? T.brand : C.textSoft }}>g</span>
+          <span style={{ color: C.borderStr }}>·</span>
+          <span style={{ color: unitaDisplay === 'kg' ? T.brand : C.textSoft }}>kg</span>
+        </button>
       </div>
 
       {/* Toolbar navigazione settimana (solo modalita' settimana) */}
@@ -487,11 +541,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         <VistaOggi
           gusti={gustiOrdinati} matrice={matrice} saving={saving}
           onSave={handleSave} readOnly={isAllSedi}
+          unita={unitaDisplay}
         />
       ) : vista === 'mese' ? (
-        <VistaMese gusti={gustiOrdinati} righeMese={meseData?.righe || []} lunediIso={lunediIso} />
+        <VistaMese gusti={gustiOrdinati} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} />
       ) : vista === 'storico' ? (
-        <VistaStorico gusti={gustiOrdinati} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} />
+        <VistaStorico gusti={gustiOrdinati} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} unita={unitaDisplay} />
       ) : (
         <div style={{
           background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
@@ -551,6 +606,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                               value={cell.prod || ''}
                               saving={!!saving[kProd]}
                               accent="#0EA5E9" readOnly={isAllSedi}
+                              unita={unitaDisplay}
                               onCommit={v => handleSave(gustoKey, dIso, 'produzione_g', v)}
                             />
                           </td>
@@ -559,6 +615,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                               value={cell.riman || ''}
                               saving={!!saving[kRim]}
                               accent="#F59E0B" readOnly={isAllSedi}
+                              unita={unitaDisplay}
                               onCommit={v => handleSave(gustoKey, dIso, 'rimanenza_g', v)}
                             />
                           </td>
@@ -566,7 +623,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                       )
                     })}
                     <td style={{ ...tdTot, borderLeft: `2px solid ${C.borderStr}` }}>
-                      {fmtG(totali[gustoKey] || 0)}
+                      {fmtUnita(totali[gustoKey] || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
                     </td>
                   </tr>
                 )
@@ -1568,7 +1625,14 @@ function NomeGustoConFlag({ nome, orfano }) {
 // ── VistaMese: settimane in colonna, kg venduti per gusto/settimana + totale
 // Calcoliamo il venduto da righeMese (riman_prev + prod - riman - scarto)
 // raggruppato per settimana ISO del mese.
-function VistaMese({ gusti, righeMese, lunediIso }) {
+function VistaMese({ gusti, righeMese, lunediIso, unita = 'g' }) {
+  const fmtVal = (g) => {
+    if (g <= 0) return '—'
+    if (unita === 'kg') {
+      return (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + ' kg'
+    }
+    return g.toLocaleString('it-IT') + ' g'
+  }
   const m = useMemo(() => {
     // Indicizza per gusto+data
     const idx = {}
@@ -1649,14 +1713,14 @@ function VistaMese({ gusti, righeMese, lunediIso }) {
                   </td>
                   {r.per_sett.map((v, i) => (
                     <td key={i} style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: v > 0 ? C.text : C.textSoft, fontSize: 12.5 }}>
-                      {v > 0 ? (v / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + ' kg' : '—'}
+                      {fmtVal(v)}
                     </td>
                   ))}
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 800, fontSize: 13, background: '#FEF9EB' }}>
-                    {(r.totVend / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg
+                    {fmtVal(r.totVend)}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: C.textMid, fontSize: 12.5 }}>
-                    {(r.totProd / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg
+                    {fmtVal(r.totProd)}
                   </td>
                 </tr>
               )
@@ -1672,7 +1736,13 @@ function VistaMese({ gusti, righeMese, lunediIso }) {
 }
 
 // ── VistaStorico: timeline scorrevole multi-mese (ultimi 6 mesi) ──────────
-function VistaStorico({ gusti, righeStorico, inizio }) {
+function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
+  const fmtTot = (g) => {
+    if (g <= 0) return '—'
+    return unita === 'kg'
+      ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
+      : g.toLocaleString('it-IT')
+  }
   const data = useMemo(() => {
     const mesi = []
     const oggi = new Date()
@@ -1768,12 +1838,12 @@ function VistaStorico({ gusti, righeStorico, inizio }) {
                         </div>
                       )}
                       <span style={{ position: 'relative', zIndex: 1 }}>
-                        {v > 0 ? (v / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) : '—'}
+                        {fmtTot(v)}
                       </span>
                     </td>
                   ))}
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 800, fontSize: 13, background: '#FEF9EB' }}>
-                    {(tot / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg
+                    {fmtTot(tot)} {unita}
                   </td>
                 </tr>
               )
@@ -1791,7 +1861,7 @@ function VistaStorico({ gusti, righeStorico, inizio }) {
 // ── VistaOggi: lista verticale mobile-first per il dipendente ─────────────
 // Mostra SOLO il giorno corrente (today). Per ogni gusto, 2 input grandi
 // (PROD, RIMAN). Pensata per essere usata in laboratorio dal cellulare.
-function VistaOggi({ gusti, matrice, saving, onSave, readOnly }) {
+function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g' }) {
   const oggiIso = new Date().toISOString().slice(0, 10)
   return (
     <div>
@@ -1823,7 +1893,9 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly }) {
                 {cell.venduto != null && (
                   <div style={{ fontSize: 11, color: C.textSoft }}>
                     venduto stimato: <strong style={{ color: T.brand, ...TNUM }}>
-                      {Number(cell.venduto).toLocaleString('it-IT')} g
+                      {unita === 'kg'
+                        ? (Number(cell.venduto) / 1000).toLocaleString('it-IT', { maximumFractionDigits: 2 }) + ' kg'
+                        : Number(cell.venduto).toLocaleString('it-IT') + ' g'}
                     </strong>
                   </div>
                 )}
@@ -1834,6 +1906,7 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly }) {
                   accent="#0EA5E9"
                   value={cell.prod || 0}
                   saving={!!saving[kProd]} readOnly={readOnly}
+                  unita={unita}
                   onCommit={v => onSave(gKey, oggiIso, 'produzione_g', v)}
                 />
                 <BigField
@@ -1841,6 +1914,7 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly }) {
                   accent="#F59E0B"
                   value={cell.riman || 0}
                   saving={!!saving[kRim]} readOnly={readOnly}
+                  unita={unita}
                   onCommit={v => onSave(gKey, oggiIso, 'rimanenza_g', v)}
                 />
               </div>
@@ -1853,12 +1927,18 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly }) {
 }
 
 // Campo grande per la VistaOggi: input touch-friendly con label sopra.
-function BigField({ label, accent, value, saving, onCommit, readOnly }) {
-  const [local, setLocal] = useState(value === 0 ? '' : String(value))
-  useEffect(() => { setLocal(value === 0 ? '' : String(value)) }, [value])
+function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g' }) {
+  // value sempre in grammi internamente.
+  const toDisplay = (g) => {
+    if (g === 0 || g == null) return ''
+    return unita === 'kg' ? (g / 1000).toString().replace('.', ',') : String(g)
+  }
+  const [local, setLocal] = useState(toDisplay(value))
+  useEffect(() => { setLocal(toDisplay(value)) }, [value, unita])
   const commit = () => {
-    const n = Number((local || '').replace(',', '.')) || 0
-    if (n !== Number(value || 0)) onCommit(n)
+    const raw = Number((local || '').replace(',', '.')) || 0
+    const g = unita === 'kg' ? Math.round(raw * 1000) : Math.round(raw)
+    if (g !== Number(value || 0)) onCommit(g)
   }
   return (
     <label style={{ display: 'block' }}>
@@ -1889,7 +1969,7 @@ function BigField({ label, accent, value, saving, onCommit, readOnly }) {
             ...TNUM,
           }}
         />
-        <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>g</span>
+        <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>{unita}</span>
       </div>
     </label>
   )
@@ -1898,15 +1978,19 @@ function BigField({ label, accent, value, saving, onCommit, readOnly }) {
 // ── Cella input controllata con salvataggio on-blur ───────────────────────
 // Lo state locale serve solo a non commitare ad ogni keypress. Su blur (o
 // Enter) chiama onCommit con il valore numerico finale.
-function CellInput({ value, saving, accent, onCommit, readOnly }) {
-  const [local, setLocal] = useState(value === '' || value === 0 ? '' : String(value))
-  // Quando il valore di props cambia (refresh dati), riallineiamo lo state.
-  useEffect(() => {
-    setLocal(value === '' || value === 0 ? '' : String(value))
-  }, [value])
+function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
+  // value e' sempre in grammi internamente. Lo state locale puo' essere
+  // formattato in kg per la visualizzazione e riconvertito a g al commit.
+  const toDisplay = (g) => {
+    if (g === '' || g === 0 || g == null) return ''
+    return unita === 'kg' ? (g / 1000).toString().replace('.', ',') : String(g)
+  }
+  const [local, setLocal] = useState(toDisplay(value))
+  useEffect(() => { setLocal(toDisplay(value)) }, [value, unita])
   const commit = () => {
-    const n = Number((local || '').replace(',', '.')) || 0
-    if (n !== Number(value || 0)) onCommit(n)
+    const raw = Number((local || '').replace(',', '.')) || 0
+    const g = unita === 'kg' ? Math.round(raw * 1000) : Math.round(raw)
+    if (g !== Number(value || 0)) onCommit(g)
   }
   return (
     <input
