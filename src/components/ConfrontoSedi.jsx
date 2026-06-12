@@ -81,6 +81,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState('settimana')
   const [costiMap, setCostiMap] = useState({})  // sedeId -> totale mensile costi azienda
+  const [trend8w, setTrend8w] = useState([])    // [{lunIso, ricavi}] x 8 settimane gruppo
 
   const sediAttive = (sedi || []).filter(s => s.attiva !== false)
 
@@ -157,6 +158,14 @@ export default function ConfrontoSedi({ orgId, sedi }) {
         }
       }
 
+      // Calcola le 8 settimane piu' recenti (per trend sparkline gruppo).
+      const trend8 = []
+      for (let i = 7; i >= 0; i--) {
+        const lun = getStartOfWeek(i)
+        const dom = getEndOfWeek(lun)
+        trend8.push({ lun, dom, lunIso: lun.toISOString().slice(0, 10), ricavi: 0 })
+      }
+
       // Per ogni sede, carico chiusure + giornaliero (per-sede, non c'è un modo aggregato).
       await Promise.all(sediAttive.map(async (sede) => {
         try {
@@ -177,6 +186,14 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           const ricaviPrev = chiusureArr
             .filter(c => inRange(c.data || 0, prevStart, prevEnd))
             .reduce((s, c) => s + (c.kpi?.totV || 0), 0)
+
+          // Trend 8 settimane: somma cumulativa nel trend8 condiviso.
+          for (const wk of trend8) {
+            const sumW = chiusureArr
+              .filter(c => inRange(c.data || 0, wk.lun, wk.dom))
+              .reduce((s, c) => s + (c.kpi?.totV || 0), 0)
+            wk.ricavi += sumW
+          }
 
           const giorArr = Array.isArray(giornaliero) ? giornaliero : []
           // Food cost % nel periodo
@@ -238,6 +255,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       if (!cancelled) {
         setKpiMap(results)
         setCostiMap(costiResults)
+        setTrend8w(trend8)
         setLoading(false)
       }
     }
@@ -273,6 +291,100 @@ export default function ConfrontoSedi({ orgId, sedi }) {
     }
     return out
   }, [kpiMap, sediAttive, periodo])
+
+  // ── Consolidato gruppo (CFO view) ─────────────────────────────────────────
+  const consolidato = useMemo(() => {
+    let ricCur = 0, ricPrev = 0, margNetto = 0, margLordo = 0, costiPeriodo = 0
+    let fcSum = 0, fcCount = 0
+    let sediConData = 0
+    for (const s of sediAttive) {
+      const k = kpiMap[s.id]
+      if (!k) continue
+      sediConData++
+      if (k.ricaviCur != null) ricCur += k.ricaviCur
+      if (k.ricaviPrev != null) ricPrev += k.ricaviPrev
+      if (k.margineLordoCur != null) margLordo += k.margineLordoCur
+      if (k.margineNettoCur != null) margNetto += k.margineNettoCur
+      if (k.costiPeriodo != null) costiPeriodo += k.costiPeriodo
+      if (k.foodCostPct != null) { fcSum += k.foodCostPct; fcCount++ }
+    }
+    return {
+      ricCur, ricPrev,
+      deltaRicPct: ricPrev > 0 ? ((ricCur - ricPrev) / ricPrev) * 100 : null,
+      margNetto, margLordo, costiPeriodo,
+      foodCostMedio: fcCount > 0 ? fcSum / fcCount : null,
+      sediConData,
+      margineNettoPct: ricCur > 0 ? (margNetto / ricCur) * 100 : null,
+    }
+  }, [sediAttive, kpiMap])
+
+  // ── Sede critica + Sede champion (con punteggio composito) ─────────────────
+  // Punteggio composito per ogni sede (alto = bene):
+  //   margine netto vs ricavi  → +1 a +50
+  //   food cost (bassa = bene) → +20 se <30, +10 se <35, 0 se <40, -10 se >=40
+  //   trend ricavi             → +15 se >+10%, -15 se <-10%
+  //   alert critici            → -20 per ognuno
+  const scoreSedi = useMemo(() => {
+    return sediAttive.map(s => {
+      const k = kpiMap[s.id]
+      if (!k) return { sede: s, score: null }
+      let score = 50
+      if (k.ricaviCur > 0 && k.margineNettoCur != null) {
+        score += (k.margineNettoCur / k.ricaviCur) * 50
+      }
+      if (k.foodCostPct != null) {
+        if (k.foodCostPct < 30) score += 20
+        else if (k.foodCostPct < 35) score += 10
+        else if (k.foodCostPct >= 40) score -= 10
+      }
+      if (k.ricaviCur != null && k.ricaviPrev > 0) {
+        const dPct = ((k.ricaviCur - k.ricaviPrev) / k.ricaviPrev) * 100
+        if (dPct >= 10) score += 15
+        else if (dPct <= -10) score -= 15
+      }
+      if (k.fattureScadute > 0) score -= 10
+      if (k.margineNettoCur != null && k.margineNettoCur < 0) score -= 20
+      return { sede: s, score, k }
+    }).filter(x => x.score != null)
+  }, [sediAttive, kpiMap])
+
+  const sedeCritica = useMemo(() => {
+    if (scoreSedi.length < 2) return null
+    const sorted = [...scoreSedi].sort((a, b) => a.score - b.score)
+    return sorted[0].score < 40 ? sorted[0] : null
+  }, [scoreSedi])
+
+  const sedeChampion = useMemo(() => {
+    if (scoreSedi.length < 2) return null
+    const sorted = [...scoreSedi].sort((a, b) => b.score - a.score)
+    return sorted[0].score > 60 ? sorted[0] : null
+  }, [scoreSedi])
+
+  // ── Verdict narrativo gruppo (regola-based, niente AI per zero-cost) ──────
+  const verdict = useMemo(() => {
+    if (!consolidato || consolidato.sediConData < 2) return null
+    const pieces = []
+    if (consolidato.deltaRicPct != null && Math.abs(consolidato.deltaRicPct) >= 5) {
+      pieces.push(consolidato.deltaRicPct >= 0
+        ? `Gruppo in crescita: +${consolidato.deltaRicPct.toFixed(0)}% vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente`
+        : `Gruppo in calo: ${consolidato.deltaRicPct.toFixed(0)}% vs ${periodo === 'mese' ? 'mese' : 'settimana'} precedente`)
+    }
+    if (sedeChampion && sedeCritica) {
+      pieces.push(`${sedeChampion.sede.nome} traina, ${sedeCritica.sede.nome} richiede attenzione`)
+    } else if (sedeChampion) {
+      pieces.push(`${sedeChampion.sede.nome} sta performando sopra la media`)
+    } else if (sedeCritica) {
+      pieces.push(`${sedeCritica.sede.nome} richiede attenzione immediata`)
+    }
+    if (consolidato.margineNettoPct != null) {
+      pieces.push(consolidato.margineNettoPct >= 15
+        ? `margine netto sano (${consolidato.margineNettoPct.toFixed(0)}%)`
+        : consolidato.margineNettoPct >= 5
+          ? `margine sotto target (${consolidato.margineNettoPct.toFixed(0)}%)`
+          : `margine critico (${consolidato.margineNettoPct.toFixed(0)}%)`)
+    }
+    return pieces.length > 0 ? pieces.join('. ') + '.' : null
+  }, [consolidato, sedeChampion, sedeCritica, periodo])
 
   // ── Ranking per ricavi periodo ─────────────────────────────────────────────
   const ranking = useMemo(() => {
@@ -368,6 +480,172 @@ export default function ConfrontoSedi({ orgId, sedi }) {
         </div>
       ) : (
         <>
+          {/* HERO CONSOLIDATO GRUPPO + verdict narrativo */}
+          {consolidato && consolidato.sediConData >= 2 && (
+            <div style={{
+              background: 'linear-gradient(135deg, #1C0A0A 0%, #4A0612 60%, #6E0E1A 100%)',
+              borderRadius: 18, padding: isMobile ? 18 : 26, marginBottom: 16,
+              boxShadow: '0 14px 40px rgba(110,14,26,0.32)',
+              color: '#FFF', position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: -60, right: -30, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(232,75,58,0.30) 0%, transparent 70%)', pointerEvents: 'none' }}/>
+              <div style={{ position: 'relative' }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
+                  Vista gruppo · {consolidato.sediConData} {consolidato.sediConData === 1 ? 'sede' : 'sedi'} attive
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+                  gap: isMobile ? 12 : 18,
+                }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Ricavi {periodoLabel}</div>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, ...tnum }}>{fmt0(consolidato.ricCur)}</div>
+                    {consolidato.deltaRicPct != null && (
+                      <div style={{ fontSize: 11, marginTop: 4, color: consolidato.deltaRicPct >= 0 ? '#86EFAC' : '#FCA5A5', fontWeight: 700, ...tnum }}>
+                        {consolidato.deltaRicPct >= 0 ? '+' : ''}{consolidato.deltaRicPct.toFixed(0)}% vs prec.
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Margine netto</div>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.margNetto >= 0 ? '#FFF' : '#FCA5A5', ...tnum }}>
+                      {fmt0(consolidato.margNetto)}
+                    </div>
+                    {consolidato.margineNettoPct != null && (
+                      <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, ...tnum }}>
+                        {consolidato.margineNettoPct.toFixed(1)}% dei ricavi
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Food cost medio</div>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? '#86EFAC' : consolidato.foodCostMedio < 38 ? '#FCD34D' : '#FCA5A5', ...tnum }}>
+                      {consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '—'}
+                    </div>
+                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.55)' }}>
+                      target &lt; 33%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Costi azienda</div>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, ...tnum }}>{fmt0(consolidato.costiPeriodo || 0)}</div>
+                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.55)' }}>
+                      personalizzati
+                    </div>
+                  </div>
+                </div>
+
+                {/* Trend sparkline 8 settimane gruppo */}
+                {trend8w.length >= 4 && (() => {
+                  const max = Math.max(...trend8w.map(w => w.ricavi))
+                  const min = Math.min(...trend8w.map(w => w.ricavi))
+                  const range = max - min || 1
+                  const W = isMobile ? 280 : 520
+                  const H = 56
+                  const pad = 4
+                  const pts = trend8w.map((w, i) => {
+                    const x = pad + (i / (trend8w.length - 1)) * (W - 2 * pad)
+                    const y = pad + (1 - (w.ricavi - min) / range) * (H - 2 * pad)
+                    return [x, y]
+                  })
+                  const d = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')
+                  const dArea = d + ` L${pts[pts.length - 1][0].toFixed(1)},${H - pad} L${pts[0][0].toFixed(1)},${H - pad} Z`
+                  return (
+                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
+                        Trend ricavi · ultime 8 settimane
+                      </div>
+                      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ maxWidth: '100%', height: 'auto' }}>
+                        <path d={dArea} fill="rgba(232,75,58,0.18)" />
+                        <path d={d} stroke="#FBD7C9" strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
+                        {pts.map((p, i) => (
+                          <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 3.5 : 2} fill={i === pts.length - 1 ? '#FFF' : '#FBD7C9'} />
+                        ))}
+                      </svg>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* AI VERDICT (narrativo regola-based) */}
+          {verdict && (
+            <div style={{
+              background: '#FFFEF0', border: `1px solid #FDE68A`, borderRadius: 12,
+              padding: '14px 18px', marginBottom: 16,
+              display: 'flex', gap: 12, alignItems: 'flex-start',
+            }}>
+              <div style={{ flexShrink: 0, marginTop: 1 }}>
+                <Icon name="sparkles" size={18} color="#B45309" />
+              </div>
+              <div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#92400E', marginBottom: 4 }}>
+                  Lettura AI del gruppo
+                </div>
+                <div style={{ fontSize: 13.5, color: '#451A03', lineHeight: 1.6, fontWeight: 500 }}>
+                  {verdict}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SEDE CRITICA + SEDE CHAMPION (2 card side-by-side) */}
+          {(sedeCritica || sedeChampion) && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : (sedeCritica && sedeChampion ? '1fr 1fr' : '1fr'),
+              gap: 12, marginBottom: 16,
+            }}>
+              {sedeCritica && (
+                <div style={{
+                  background: '#FEF2F2', border: `1px solid ${RED}`, borderRadius: 12,
+                  padding: isMobile ? 14 : 18,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 22 }}>🚨</span>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: RED }}>
+                      Sede da gestire subito
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginBottom: 6 }}>
+                    <Icon name="pin" size={14} /> {sedeCritica.sede.nome}
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: MID, lineHeight: 1.6 }}>
+                    {sedeCritica.k?.foodCostPct > 38 && <li>Food cost <strong>{sedeCritica.k.foodCostPct.toFixed(1)}%</strong> sopra soglia</li>}
+                    {sedeCritica.k?.margineNettoCur < 0 && <li>Margine netto <strong>{fmt0(sedeCritica.k.margineNettoCur)}</strong></li>}
+                    {sedeCritica.k?.ricaviCur != null && sedeCritica.k?.ricaviPrev > 0 && ((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev * 100) <= -10 && <li>Ricavi in calo <strong>{(((sedeCritica.k.ricaviCur - sedeCritica.k.ricaviPrev) / sedeCritica.k.ricaviPrev) * 100).toFixed(0)}%</strong></li>}
+                    {sedeCritica.k?.fattureScadute > 0 && <li><strong>{sedeCritica.k.fattureScadute}</strong> fatture scadute</li>}
+                    {sedeCritica.k?.trasfInArrivo > 0 && <li><strong>{sedeCritica.k.trasfInArrivo}</strong> trasferimenti in attesa</li>}
+                  </ul>
+                </div>
+              )}
+              {sedeChampion && (
+                <div style={{
+                  background: '#F0FDF4', border: `1px solid ${GRN}`, borderRadius: 12,
+                  padding: isMobile ? 14 : 18,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 22 }}>🏆</span>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GRN }}>
+                      Sede champion (replica il modello)
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: TXT, marginBottom: 6 }}>
+                    <Icon name="pin" size={14} /> {sedeChampion.sede.nome}
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: MID, lineHeight: 1.6 }}>
+                    {sedeChampion.k?.foodCostPct != null && sedeChampion.k.foodCostPct < 33 && <li>Food cost <strong>{sedeChampion.k.foodCostPct.toFixed(1)}%</strong> sotto target</li>}
+                    {sedeChampion.k?.margineNettoCur > 0 && sedeChampion.k?.ricaviCur > 0 && <li>Margine netto <strong>{((sedeChampion.k.margineNettoCur / sedeChampion.k.ricaviCur) * 100).toFixed(0)}%</strong> dei ricavi</li>}
+                    {sedeChampion.k?.ricaviCur != null && sedeChampion.k?.ricaviPrev > 0 && ((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev * 100) >= 10 && <li>Ricavi in crescita <strong>+{(((sedeChampion.k.ricaviCur - sedeChampion.k.ricaviPrev) / sedeChampion.k.ricaviPrev) * 100).toFixed(0)}%</strong></li>}
+                    {sedeChampion.k?.fattureDaPagare === 0 && <li>Nessuna fattura scaduta</li>}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* RANKING ricavi */}
           {ranking.length >= 2 && (
             <div style={{ background: 'linear-gradient(180deg, #FFFEF0 0%, #FFF 80%)', border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 20, marginBottom: 16 }}>

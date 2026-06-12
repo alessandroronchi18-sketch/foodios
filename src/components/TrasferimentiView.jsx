@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import Icon from './Icon'
 import { SkeletonList, SkeletonGrid } from './Skeleton'
 import { supabase } from '../lib/supabase'
+import { sload, ssave } from '../lib/storage'
 import { color as T, radius as R, motion as M } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import { todayLocal } from '../lib/dateLocal'
@@ -47,6 +48,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   const [riceviModal, setRiceviModal] = useState(null) // { t, qtyRic, note }
   const [filtroStato, setFiltroStato] = useState('all') // all|bozza|inviato|ricevuto|annullato
   const [filtroTipo, setFiltroTipo] = useState('all')   // all|prodotto|semilavorato|materia_prima
+  const [templates, setTemplates] = useState([])         // [{id, nome, tipo, sede_da, sede_a, prodotto, quantita, unita, valore_unit}]
 
   const [form, setForm] = useState(() => ({
     data: todayLocal(),
@@ -69,6 +71,68 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   }, [sedeAttiva?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { carica() }, [orgId, sedeAttiva?.id, scope])
+
+  // Carica template salvati in user_data (chiave org-wide, sede_id=null).
+  useEffect(() => {
+    if (!orgId) return
+    let alive = true
+    async function loadTemplates() {
+      const t = await sload('pasticceria-trasferimenti-templates-v1', orgId, null)
+      if (alive) setTemplates(Array.isArray(t) ? t : [])
+    }
+    loadTemplates()
+    return () => { alive = false }
+  }, [orgId])
+
+  async function salvaTemplate(nome) {
+    if (!nome?.trim() || !form.prodotto?.trim()) return
+    const next = [...templates, {
+      id: Math.random().toString(36).slice(2, 10),
+      nome: nome.trim(),
+      tipo: form.tipo, sede_da: form.sede_da, sede_a: form.sede_a,
+      prodotto: form.prodotto.trim(), quantita: form.quantita,
+      unita: form.unita, valore_unit: form.valore_unit,
+    }]
+    try {
+      await ssave('pasticceria-trasferimenti-templates-v1', next, orgId, null)
+      setTemplates(next)
+      notify?.(`Template "${nome}" salvato`)
+    } catch (e) {
+      notify?.('Errore salvataggio template: ' + (e.message || ''), false)
+    }
+  }
+
+  async function eliminaTemplate(id) {
+    const next = templates.filter(t => t.id !== id)
+    try {
+      await ssave('pasticceria-trasferimenti-templates-v1', next, orgId, null)
+      setTemplates(next)
+    } catch {}
+  }
+
+  function applicaTemplate(t) {
+    setForm(f => ({
+      ...f,
+      tipo: t.tipo, sede_da: t.sede_da, sede_a: t.sede_a,
+      prodotto: t.prodotto, quantita: String(t.quantita || ''),
+      unita: t.unita, valore_unit: String(t.valore_unit || ''),
+      data: todayLocal(),
+    }))
+    setShowForm(true)
+    notify?.(`Template "${t.nome}" applicato — premi Invia`)
+  }
+
+  function ripetiTrasferimento(t) {
+    setForm({
+      data: todayLocal(),
+      tipo: t.tipo, sede_da: t.sede_da, sede_a: t.sede_a,
+      prodotto: t.prodotto, quantita: String(t.quantita || ''),
+      unita: t.unita, valore_unit: String(t.valore_unit || ''),
+      note: '',
+    })
+    setShowForm(true)
+    notify?.('Trasferimento pre-compilato — premi Invia')
+  }
 
   async function carica() {
     if (!orgId) { setLoading(false); return }
@@ -293,6 +357,48 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     return Object.values(map).sort((a, b) => b.n - a.n).slice(0, 6)
   }, [lista])
 
+  // ── KPI accuratezza mese (per il proprietario CFO) ──────────────────────
+  const accuratezzaMese = useMemo(() => {
+    const oggi = new Date()
+    const inizioMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1)
+    let tot = 0, ricevutiOk = 0, scartoQty = 0, scartoValore = 0
+    let valTrasferito = 0
+    for (const t of lista) {
+      const d = new Date(t.data || 0)
+      if (d < inizioMese || d > oggi) continue
+      if (t.stato === 'annullato') continue
+      tot++
+      const qta = Number(t.quantita || 0)
+      const val = qta * Number(t.valore_unit || 0)
+      valTrasferito += val
+      if (t.stato === 'ricevuto' || t.stato === 'completato') {
+        const scarto = Number(t.scarto_qty || 0)
+        if (scarto <= 0) ricevutiOk++
+        scartoQty += scarto
+        // valore scarto: scarto * valore_unit (se disponibile)
+        scartoValore += scarto * Number(t.valore_unit || 0)
+      }
+    }
+    return {
+      tot,
+      ricevutiOk,
+      ricevuti: lista.filter(t => {
+        const d = new Date(t.data || 0)
+        return d >= inizioMese && d <= oggi && (t.stato === 'ricevuto' || t.stato === 'completato')
+      }).length,
+      scartoQty,
+      scartoValore,
+      valTrasferito,
+      accuracyPct: (() => {
+        const ric = lista.filter(t => {
+          const d = new Date(t.data || 0)
+          return d >= inizioMese && d <= oggi && (t.stato === 'ricevuto' || t.stato === 'completato')
+        }).length
+        return ric > 0 ? (ricevutiOk / ric) * 100 : null
+      })(),
+    }
+  }, [lista])
+
   // ── Lista filtrata ──────────────────────────────────────────────────────
   const listaFiltrata = useMemo(() => {
     return lista.filter(t => {
@@ -327,6 +433,87 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           Sposta prodotti finiti, semilavorati o materie prime da una sede all'altra. Lo stock si aggiorna automaticamente.
         </p>
       </div>
+
+      {/* KPI ACCURATEZZA MESE (cappello proprietario) */}
+      {!loading && accuratezzaMese.tot > 0 && (
+        <div style={{
+          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+          padding: isMobile ? 14 : 18, marginTop: 18, marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
+            📊 Accuratezza mese
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Trasferimenti</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginTop: 4, ...tnum }}>{accuratezzaMese.tot}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Ricevuti puntuali</div>
+              <div style={{
+                fontSize: 22, fontWeight: 900, marginTop: 4, ...tnum,
+                color: accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '#D97706' : C.red,
+              }}>
+                {accuratezzaMese.accuracyPct != null ? `${accuratezzaMese.accuracyPct.toFixed(0)}%` : '—'}
+              </div>
+              <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2, ...tnum }}>
+                {accuratezzaMese.ricevutiOk}/{accuratezzaMese.ricevuti} senza scarto
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Scarto totale</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: accuratezzaMese.scartoQty > 0 ? C.red : C.text, marginTop: 4, ...tnum }}>
+                {accuratezzaMese.scartoQty > 0 ? accuratezzaMese.scartoQty.toLocaleString('it-IT', { maximumFractionDigits: 1 }) : '0'}
+              </div>
+              <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>unità varie</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Valore sprecato</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: accuratezzaMese.scartoValore > 0 ? C.red : C.text, marginTop: 4, ...tnum }}>
+                {accuratezzaMese.scartoValore > 0 ? fmtEuro(accuratezzaMese.scartoValore) : '€ 0'}
+              </div>
+              <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>perso in scarti</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TEMPLATE TRASFERIMENTI RICORRENTI */}
+      {templates.length > 0 && (
+        <div style={{
+          background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12,
+          padding: isMobile ? 12 : 14, marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0369A1' }}>
+              ⚡ Trasferimenti rapidi salvati
+            </div>
+            <div style={{ fontSize: 11, color: '#075985' }}>1 click → form pre-compilato</div>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {templates.map(t => {
+              const sda = sediMap[t.sede_da]
+              const sa = sediMap[t.sede_a]
+              return (
+                <div key={t.id} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  background: '#FFF', border: '1px solid #BAE6FD', borderRadius: 999,
+                  padding: '6px 6px 6px 14px',
+                }}>
+                  <button onClick={() => applicaTemplate(t)}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12.5, color: '#0E1726', fontWeight: 700 }}>
+                    {t.nome} <span style={{ fontWeight: 500, color: C.textSoft, fontSize: 11 }}>· {sda?.nome || '?'} → {sa?.nome || '?'}</span>
+                  </button>
+                  <button onClick={() => eliminaTemplate(t.id)} title="Elimina template"
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: C.textSoft, display: 'inline-flex' }}>
+                    <Icon name="x" size={11} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* DA FARE ORA: solo se c'è qualcosa da gestire per la sede attiva */}
       {(azioniUrgenti.daRicevere.length > 0 || azioniUrgenti.bozzeInUscita.length > 0) && (
@@ -474,7 +661,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             {form.tipo === 'semilavorato' && <><Icon name="gift" size={13} /> Trasferimento di semilavorato. Solo log, lo stock semilavorati non è ancora gestito automaticamente.</>}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={() => salvaBozza(true)} disabled={saving}
               style={{ padding: '10px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {saving ? '…' : <><Icon name="truck" size={14} /> Invia subito</>}
@@ -482,6 +669,17 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             <button onClick={() => salvaBozza(false)} disabled={saving}
               style={{ padding: '10px 20px', background: C.bgCard, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Icon name="save" size={14} /> Salva bozza
+            </button>
+            <button onClick={() => {
+              if (!form.prodotto?.trim() || !form.sede_da || !form.sede_a) {
+                notify?.('Compila prodotto + sedi prima di salvare template', false); return
+              }
+              const nome = prompt('Nome template (es. "Lab → Via Roma mattutino"):', `${form.prodotto.slice(0, 20)}`)
+              if (nome) salvaTemplate(nome)
+            }} disabled={saving}
+              style={{ padding: '10px 16px', background: 'transparent', color: '#0369A1', border: '1px solid #BAE6FD', borderRadius: 8, fontWeight: 700, fontSize: 12.5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
+              title="Salva queste impostazioni come template ricorrente">
+              <Icon name="save" size={13} /> Salva come template
             </button>
           </div>
         </div>
@@ -651,7 +849,14 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                       </>
                     )}
                     {(t.stato === 'ricevuto' || t.stato === 'completato') && (
-                      <span style={{ fontSize: 11, color: C.textSoft }}>{t.data_ricezione ? fmtData(t.data_ricezione) : ''}</span>
+                      <>
+                        <span style={{ fontSize: 11, color: C.textSoft }}>{t.data_ricezione ? fmtData(t.data_ricezione) : ''}</span>
+                        <button onClick={() => ripetiTrasferimento(t)}
+                          title="Pre-compila lo stesso trasferimento con la data di oggi"
+                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Icon name="copy" size={12} /> Ripeti
+                        </button>
+                      </>
                     )}
                     {t.stato === 'annullato' && (
                       <button onClick={() => azElimina(t)} title="Elimina"
