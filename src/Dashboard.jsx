@@ -1969,7 +1969,7 @@ export default function Dashboard({
               <span style={{flex:1,whiteSpace:"nowrap"}}>{it.label}</span>
               {it.badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"1px 7px"}}>{it.badge}</span>}
               {it.alert&&!it.badge&&<span style={{width:7,height:7,borderRadius:"50%",background:"#E84B3A"}}/>}
-              {!canAccessView(it.id,piano)&&<span title="Funzione del piano Chain" style={{color:C.textSoft,display:"flex"}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>}
+              {!canAccessView(it.id,piano,auth?.user?.email)&&<span title="Funzione del piano Chain" style={{color:C.textSoft,display:"flex"}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>}
             </button>
           );
         };
@@ -2164,7 +2164,7 @@ export default function Dashboard({
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
               {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#6E0E1A",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
               {alert&&badge===0&&<span style={{width:8,height:8,borderRadius:"50%",background:"#E84B3A",flexShrink:0,boxShadow:"0 0 0 0 rgba(232,75,58,0.6)",animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
-              {!canAccessView(id, piano)&&<span title="Funzione del piano Chain" style={{flexShrink:0,display:"flex",color:"rgba(255,255,255,0.45)"}}>
+              {!canAccessView(id, piano, auth?.user?.email)&&<span title="Funzione del piano Chain" style={{flexShrink:0,display:"flex",color:"rgba(255,255,255,0.45)"}}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </span>}
             </button>
@@ -2777,10 +2777,10 @@ export default function Dashboard({
           onImportCasse={handleImportCasseGlobal}
           onImportFatture={handleImportFattureGlobal}
           notify={notify}/>}
-        {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
-        {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={()=>setView("impostazioni")}/>)}
-        {view==="integrazioni"&&(canAccessView("integrazioni",piano)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip}/>}

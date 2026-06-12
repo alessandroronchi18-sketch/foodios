@@ -39,8 +39,21 @@ export function planRank(piano) {
   return PLAN_RANK[String(piano || '').toLowerCase().trim()] ?? 2
 }
 
+// Email che bypassano i gate di piano (demo / showcase / partner).
+// Le aggiungiamo qui invece che spargere check ovunque.
+const EMAIL_BYPASS = new Set([
+  'demo@maradeiboschi.com',
+])
+
+export function isPlanBypassEmail(email) {
+  if (!email) return false
+  return EMAIL_BYPASS.has(String(email).toLowerCase().trim())
+}
+
 // true se il piano dato può accedere alla view.
-export function canAccessView(view, piano) {
+// `userEmail` opzionale: alcune email (demo) bypassano il gate.
+export function canAccessView(view, piano, userEmail) {
+  if (isPlanBypassEmail(userEmail)) return true
   const need = VIEW_MIN_PLAN[view]
   if (!need) return true
   return planRank(piano) >= planRank(need)
