@@ -84,6 +84,8 @@ const RicettarioView = lazyWithReload(() => import('./views/RicettarioView'))
 const SchedaAllergeniView = lazyWithReload(() => import('./views/SchedaAllergeniView'))
 const DashboardHomeView = lazyWithReload(() => import('./views/DashboardHomeView'))
 const RecensioniView = lazyWithReload(() => import('./views/RecensioniView'))
+const MenuEngineeringView = lazyWithReload(() => import('./views/MenuEngineeringView'))
+const CashflowView = lazyWithReload(() => import('./views/CashflowView'))
 const FotoOCR = lazyWithReload(() => import('./components/FotoOCR'))
 import { compressImage } from './lib/imageUtils'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
@@ -1274,7 +1276,7 @@ export default function Dashboard({
     giornaliero:'oggi', chiusura:'oggi', eventi:'oggi', calendario:'oggi',
     ricettario:'ricette', semilavorati:'ricette', 'nuova-ricetta':'ricette',
     'scheda-allergeni':'ricette', menu:'ricette',
-    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri',
+    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', 'menu-engineering':'numeri', cashflow:'numeri',
     magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'vendite-b2b':'acquisti', 'importa-dati':'acquisti',
     personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda', recensioni:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
@@ -1937,6 +1939,8 @@ export default function Dashboard({
             {id:"costi-aziendali",label:"Costi aziendali",icon:"package"},
             {id:"storico",label:"Storico",icon:"activity"},
             {id:"previsione",label:"Previsioni",icon:"forecast"},
+            {id:"menu-engineering",label:"Menu engineering",icon:"barChart"},
+            {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
             // Quadratura inventario vs cassa: visibile solo se la sede attiva
             // e' produttiva e usa il metodo inventario differenziale.
             ...(isMetodoInventario ? [{id:"quadratura-inventario",label:"Quadratura inventario",icon:"check"}] : []),
@@ -2414,6 +2418,8 @@ export default function Dashboard({
                   navItem("costi-aziendali","package","Costi aziendali"),
                   navItem("storico","activity","Storico"),
                   navItem("previsione","forecast","Previsioni"),
+                  navItem("menu-engineering","barChart","Menu engineering"),
+                  navItem("cashflow","trendUp","Cashflow"),
                   ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && (sedi||[]).find(s=>s.id===sedeAttiva?.id)?.metodo_produzione === 'inventario') || view === 'quadratura-inventario'
                     ? [navItem("quadratura-inventario","check","Quadratura inventario")] : []),
                 ] })}
@@ -2596,7 +2602,7 @@ export default function Dashboard({
             home:"", giornaliero:"Oggi", chiusura:"Oggi", eventi:"Oggi", calendario:"Oggi",
             ricettario:"Ricette & Menù", semilavorati:"Ricette & Menù", "nuova-ricetta":"Ricette & Menù",
             "scheda-allergeni":"Ricette & Menù", menu:"Ricette & Menù",
-            simulatore:"Andamento & costi", pl:"Andamento & costi", "costi-aziendali":"Andamento & costi", storico:"Andamento & costi", previsione:"Andamento & costi",
+            simulatore:"Andamento & costi", pl:"Andamento & costi", "costi-aziendali":"Andamento & costi", storico:"Andamento & costi", previsione:"Andamento & costi", "menu-engineering":"Andamento & costi", cashflow:"Andamento & costi",
             magazzino:"Magazzino & Acquisti", scadenzario:"Magazzino & Acquisti", "sprechi-omaggi":"Magazzino & Acquisti",
             fornitori:"Magazzino & Acquisti", "vendite-b2b":"Magazzino & Acquisti", "importa-dati":"Magazzino & Acquisti",
             personale:"Azienda", haccp:"Azienda", "registro-attivita":"Azienda", "confronto-sedi":"Azienda", trasferimenti:"Azienda",
@@ -2804,9 +2810,11 @@ export default function Dashboard({
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
+        {view==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
+        {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId}/>}
         <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId}/>
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati"].includes(view)&&(
+        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
         </React.Suspense>
