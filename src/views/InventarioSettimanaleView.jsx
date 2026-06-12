@@ -33,11 +33,12 @@ import {
 import {
   parseNomeFile, lunediSettimana1DelMese, parseFoglioInventario, diffConDb,
   classificaSheet, trovaSedePerSheet, checkTotaliCrossSheet,
-  parseFoglioRistoranti, parseFoglioSprechi, normNomeSede,
+  parseFoglioRistoranti, parseFoglioSprechi, parseFoglioAltriProdotti, normNomeSede,
 } from '../lib/inventarioImport'
 import { loadXLSX } from '../lib/xlsx'
 import { supabase } from '../lib/supabase'
 import { aggiungiMovimento as aggiungiMovimentoImport } from '../lib/movimentiSpeciali'
+import { caricoProduzionePF } from '../lib/stockPF'
 
 const GIORNI = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom']
 const GIORNI_LUNGHI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
@@ -104,6 +105,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   const [sort, setSort] = useState({ by: 'nome', dir: 'asc' })
   // Stato dialog import file (multi-step). null = chiuso.
   const [importDlg, setImportDlg] = useState(null)
+  // Stato dialog spedizione kg → sede destinazione. null = chiuso.
+  const [shipDlg, setShipDlg] = useState(null)
 
   // Lista gusti = unione di ricettario + gusti orfani (presenti in DB ma
   // non nel ricettario). Cosi' un file importato con nomi non ancora a
@@ -436,6 +439,20 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           <Icon name="download" size={14} color="#FFFFFF" />
           Importa file
         </button>
+
+        {!isAllSedi && (sedi || []).filter(s => s.id !== sedeId && s.attiva !== false).length > 0 && (
+          <button onClick={() => setShipDlg({ gusto: '', kg: '', destSedeId: '' })}
+            style={{
+              padding: '8px 16px', minHeight: 40,
+              background: '#FFFFFF', color: T.brand,
+              border: `1px solid ${T.brand}`, borderRadius: 8,
+              fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>
+            <Icon name="truck" size={14} color={T.brand} />
+            Spedisci a sede
+          </button>
+        )}
       </div>
 
       {/* Toolbar navigazione settimana (solo modalita' settimana) */}
@@ -653,13 +670,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             //    inventario del giorno (oggi per default, se non specificato).
             //    Questo EVITA il doppio conteggio: il venduto e' calcolato
             //    come (riman_prev + prod - riman - scarto), quindi lo scarto
-            //    e' gia' escluso. Scrivere anche un SK_MOV separato
-            //    sovrastimerebbe le perdite.
+            //    e' gia' escluso.
             const oggiIso2 = new Date().toISOString().slice(0, 10)
             if (Array.isArray(batch?.sprechi)) {
               for (const r of batch.sprechi) {
                 try {
-                  // Leggi la cella di oggi (se esiste) e somma allo scarto.
                   const dbRighe = righeDbBySede.get(r.sedeId) || []
                   const cella = dbRighe.find(x => x.gusto_nome === r.gusto && x.data === oggiIso2)
                   await salvaCella(orgId, r.sedeId, r.gusto, oggiIso2, {
@@ -669,6 +684,26 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                   })
                   okSpr++
                 } catch (e) { console.error('scarto import:', e); ko++ }
+              }
+            }
+
+            // 4) ALTRI PRODOTTI: importiamo come gusti "categoria" su
+            //    inventario_produzione per la sede/giorno specifici.
+            //    Rimanenza non disponibile dal foglio (1 sola colonna kg) →
+            //    impostata a 0, ma e' OK perche' la formula del venduto resta
+            //    consistente: l'utente vede la produzione e potra' compilare
+            //    RIMAN manualmente nel foglio settimanale dopo l'import.
+            let okAltri = 0
+            if (Array.isArray(batch?.altriProd)) {
+              for (const r of batch.altriProd) {
+                try {
+                  await salvaCella(orgId, r.sedeId, r.gusto_nome, r.data, {
+                    produzione_g: r.produzione_g,
+                    rimanenza_g: 0,
+                    scarto_g: 0,
+                  })
+                  okAltri++
+                } catch (e) { console.error('altri prod import:', e); ko++ }
               }
             }
 
@@ -682,6 +717,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             if (ok) parts.push(`${ok} righe inventario`)
             if (okB2b) parts.push(`${okB2b} vendite B2B`)
             if (okSpr) parts.push(`${okSpr} sprechi`)
+            if (okAltri) parts.push(`${okAltri} altri prodotti`)
             const sum = parts.join(' + ') || '0 righe'
             notify?.(ko > 0
               ? `Import completato: ${sum}, ${ko} errori`
@@ -690,6 +726,128 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           }}
         />
       )}
+
+      {shipDlg && (
+        <DialogSpedizione
+          state={shipDlg}
+          setState={setShipDlg}
+          gusti={gustiOrdinati}
+          sedi={sedi}
+          sedeOrigineId={sedeId}
+          righeOggi={(righe || []).filter(r => r.data === new Date().toISOString().slice(0, 10))}
+          onConferma={async ({ gusto, kg, destSedeId }) => {
+            try {
+              const qtaG = Math.round(Number(kg) * 1000)
+              const oggiIso = new Date().toISOString().slice(0, 10)
+              // 1) scarico sede origine: somma a scarto_g della cella di oggi
+              const cella = (righe || []).find(r => r.gusto_nome === gusto && r.data === oggiIso)
+              await salvaCella(orgId, sedeId, gusto, oggiIso, {
+                produzione_g: cella?.produzione_g || 0,
+                rimanenza_g: cella?.rimanenza_g || 0,
+                scarto_g: (cella?.scarto_g || 0) + qtaG,
+              })
+              const destSede = (sedi || []).find(s => s.id === destSedeId)
+              const destInventario = destSede?.is_sede_produzione && destSede?.metodo_produzione === 'inventario'
+              // 2) carico destinazione
+              if (destInventario) {
+                // Sede dest in modalita' inventario: la quantita' diventa PROD
+                // di oggi su quella sede (sommata a se esistente).
+                const { data: cellDest } = await supabase.from('inventario_produzione')
+                  .select('produzione_g, rimanenza_g, scarto_g')
+                  .eq('organization_id', orgId).eq('sede_id', destSedeId)
+                  .eq('gusto_nome', gusto).eq('data', oggiIso)
+                  .maybeSingle()
+                await salvaCella(orgId, destSedeId, gusto, oggiIso, {
+                  produzione_g: (cellDest?.produzione_g || 0) + qtaG,
+                  rimanenza_g: cellDest?.rimanenza_g || 0,
+                  scarto_g: cellDest?.scarto_g || 0,
+                })
+              } else {
+                // Sede dest in modalita' stampi: carichiamo stock_prodotti_finiti
+                // tramite RPC. Convertiamo i grammi in "unita" usando l'unita'
+                // 'g' (la RPC accetta unita opzionale, default 'pz').
+                await caricoProduzionePF({
+                  sedeId: destSedeId, prodotto: gusto,
+                  quantita: qtaG, unita: 'g',
+                  note: `Trasferimento da ${destSede?.nome || 'altra sede'}`,
+                })
+              }
+              // Refresh righe della sede attiva.
+              const fresh = await caricaSettimana(orgId, sedeId, lunediIso)
+              setRighe(fresh)
+              setShipDlg(null)
+              notify?.(`✓ Spediti ${kg} kg di ${gusto} a ${destSede?.nome || 'destinazione'}`, true)
+            } catch (e) {
+              console.error('spedizione:', e)
+              notify?.('Errore spedizione: ' + (e.message || 'rete'), false)
+            }
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Dialog spedizione kg → sede destinazione ─────────────────────────────
+function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOggi, onConferma }) {
+  const update = (k, v) => setState(s => ({ ...s, [k]: v }))
+  const close = () => setState(null)
+  const sediDest = (sedi || []).filter(s => s.id !== sedeOrigineId && s.attiva !== false)
+  const gustiOggi = (gusti || []).filter(g =>
+    righeOggi.some(r => r.gusto_nome === (g.nome || '').toUpperCase().trim())
+  )
+  const gustiBase = gustiOggi.length > 0 ? gustiOggi : (gusti || [])
+  const canConferma = state.gusto && Number(state.kg) > 0 && state.destSedeId
+  return (
+    <div role="dialog" aria-modal="true"
+      onClick={(e) => { if (e.target === e.currentTarget) close() }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
+      <div style={{ background: '#FFFFFF', borderRadius: 16, maxWidth: 460, width: '100%', padding: '24px 26px', boxShadow: '0 20px 60px rgba(15,23,42,0.30)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <Icon name="truck" size={20} color={T.brand} />
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.text }}>Spedisci kg a un'altra sede</h2>
+        </div>
+        <p style={{ margin: '0 0 16px', fontSize: 12.5, color: C.textSoft, lineHeight: 1.5 }}>
+          La quantità verrà sottratta dalla sede attuale (somma a "scarto" di oggi) e caricata
+          sulla destinazione (inventario o stock vetrina in base al metodo della sede).
+        </p>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={lblForm}>Gusto</label>
+          <select value={state.gusto} onChange={e => update('gusto', e.target.value)} style={inpForm}>
+            <option value="">— Seleziona —</option>
+            {gustiBase.map(g => (
+              <option key={g.nome} value={normGusto(g.nome)}>{g.nome}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={lblForm}>Quantità (kg)</label>
+          <input type="number" min="0" step="0.1" value={state.kg}
+            onChange={e => update('kg', e.target.value)}
+            placeholder="es. 2.5" style={inpForm} />
+        </div>
+        <div style={{ marginBottom: 18 }}>
+          <label style={lblForm}>Sede destinazione</label>
+          <select value={state.destSedeId} onChange={e => update('destSedeId', e.target.value)} style={inpForm}>
+            <option value="">— Seleziona —</option>
+            {sediDest.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.nome} ({s.is_sede_produzione && s.metodo_produzione === 'inventario' ? 'inventario' : 'stampi'})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button onClick={close} style={btnSecondary}>Annulla</button>
+          <button disabled={!canConferma}
+            onClick={() => onConferma(state)}
+            style={{ ...btnPrimary, opacity: canConferma ? 1 : 0.5, cursor: canConferma ? 'pointer' : 'not-allowed' }}>
+            Spedisci
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -902,7 +1060,7 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
 
   const numSediIncluse = Object.values(mappaSede).filter(Boolean).length
 
-  // Parsing aggiuntivo per b2b / sprechi se presenti negli sheet.
+  // Parsing aggiuntivo per b2b / sprechi / altri prodotti se presenti.
   const parsatoB2b = useMemo(() => {
     if (!classif?.b2b?.matrice) return null
     return parseFoglioRistoranti(classif.b2b.matrice)
@@ -911,15 +1069,18 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
     if (!classif?.sprechi?.matrice) return null
     return parseFoglioSprechi(classif.sprechi.matrice)
   }, [classif])
+  const parsatoAltriProd = useMemo(() => {
+    if (!classif?.altri_prod?.matrice) return null
+    return parseFoglioAltriProdotti(classif.altri_prod.matrice)
+  }, [classif])
 
-  // Mapping NOME negozio (lowercase) -> sede_id, usato per b2b e sprechi.
-  // Cerca match esatto normalizzato; se non trova, lascia null e l'utente
-  // vedra' il warning.
+  // Mapping NOME negozio -> sede_id, per b2b, sprechi e altri-prodotti.
   const mappaNegozioSede = useMemo(() => {
     const m = {}
     const tutti = new Set([
       ...(parsatoB2b?.righe || []).map(r => normNomeSede(r.sedeNome)),
       ...(parsatoSprechi?.righe || []).map(r => normNomeSede(r.sedeNome)),
+      ...(parsatoAltriProd?.righe || []).map(r => normNomeSede(r.sedeNome)),
     ].filter(Boolean))
     for (const nego of tutti) {
       const sede = sedi.find(s => normNomeSede(s.nome) === nego ||
@@ -927,7 +1088,7 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
       m[nego] = sede?.id || null
     }
     return m
-  }, [parsatoB2b, parsatoSprechi, sedi])
+  }, [parsatoB2b, parsatoSprechi, parsatoAltriProd, sedi])
 
   function confermaImport() {
     // Costruisce il batch completo: sedi (inventario) + b2b + sprechi.
@@ -954,7 +1115,32 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
       }))
       .filter(r => r.sedeId && r.gusto && r.qtaG > 0)
 
-    onConferma({ sedi: sediBlocchi, b2b: b2bRighe, sprechi: sprechiRighe })
+    // ALTRI PRODOTTI: per ogni riga, costruiamo la data ISO da mese/anno
+    // scelti + giornoMese. Importiamo come PROD su gusto-categoria nella
+    // tabella inventario_produzione (le categorie diventano "gusti speciali":
+    // PASTORIZZATA, CIOCCOLATA, ZABAIONE).
+    const altriProdRighe = (parsatoAltriProd?.righe || [])
+      .map(r => {
+        const sedeId = mappaNegozioSede[normNomeSede(r.sedeNome)] || null
+        const giorno = Math.max(1, Math.min(31, Number(r.giornoMese) || 1))
+        const d = new Date(anno, mese - 1, giorno)
+        // Se mese reale non ha quel giorno (es. 31 feb), JS rolla al mese
+        // successivo: scartiamo.
+        if (d.getMonth() + 1 !== mese) return null
+        return {
+          sedeId,
+          gusto_nome: r.gusto.toUpperCase(),
+          data: d.toISOString().slice(0, 10),
+          produzione_g: r.qtaG,
+          rimanenza_g: 0,
+        }
+      })
+      .filter(r => r && r.sedeId && r.gusto_nome && r.produzione_g > 0)
+
+    onConferma({
+      sedi: sediBlocchi, b2b: b2bRighe,
+      sprechi: sprechiRighe, altriProd: altriProdRighe,
+    })
   }
 
   return (
@@ -1141,10 +1327,26 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
           borderRadius: 10, marginBottom: 10, fontSize: 12.5, color: '#7F1D1D',
         }}>
           🗑️ <strong>Prodotti eliminati rilevati ({parsatoSprechi.righe.length})</strong> dal foglio "{classif.sprechi.sheetName}".
-          Saranno salvati come <em>Perdite</em> per ogni sede.
+          Saranno salvati come <em>scarto del giorno</em> nelle celle inventario (evita doppi conteggi).
           {parsatoSprechi.righe.filter(r => !mappaNegozioSede[normNomeSede(r.sedeNome)]).length > 0 && (
             <div style={{ marginTop: 4, fontSize: 11.5 }}>
               ⚠️ Alcuni negozi non corrispondono a nessuna sede esistente: queste righe saranno saltate.
+            </div>
+          )}
+        </div>
+      )}
+
+      {parsatoAltriProd?.righe?.length > 0 && (
+        <div style={{
+          padding: '10px 12px', background: '#F5F3FF', border: '1px solid #DDD6FE',
+          borderRadius: 10, marginBottom: 10, fontSize: 12.5, color: '#4C1D95',
+        }}>
+          🧪 <strong>Altri prodotti rilevati ({parsatoAltriProd.righe.length})</strong> dal foglio "{classif.altri_prod.sheetName}".
+          Saranno importati come gusti speciali (es. PASTORIZZATA, CIOCCOLATA, ZABAIONE)
+          nell'inventario settimanale di ogni sede.
+          {parsatoAltriProd.righe.filter(r => !mappaNegozioSede[normNomeSede(r.sedeNome)]).length > 0 && (
+            <div style={{ marginTop: 4, fontSize: 11.5 }}>
+              ⚠️ Alcuni negozi non corrispondono a nessuna sede: queste righe saranno saltate.
             </div>
           )}
         </div>

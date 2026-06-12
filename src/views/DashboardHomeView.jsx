@@ -191,6 +191,27 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
     return a + (p.stampi || 0) * (Number.isFinite(u) && u > 0 ? u : 1)
   }, 0), 0)
 
+  // Carico vendite B2B (oggi + mese corrente) per il KPI affiancato a "Ricavi"
+  // retail. Le B2B non finiscono nella cassa retail e quindi non sono
+  // visibili dal solo `chiusure`.
+  const [b2bOggi, setB2bOggi] = useState(0)
+  const [b2bMese, setB2bMese] = useState(0)
+  useEffect(() => {
+    if (!orgId) return
+    const oggi = new Date()
+    const inizioMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1).toISOString().slice(0, 10)
+    const fineMese = new Date(oggi.getFullYear(), oggi.getMonth() + 1, 1).toISOString().slice(0, 10)
+    let q = supabase.from('vendite_b2b').select('data, totale, sede_id')
+      .eq('organization_id', orgId).gte('data', inizioMese).lt('data', fineMese)
+    if (!viewAggregato && sedeId) q = q.eq('sede_id', sedeId)
+    q.then(({ data }) => {
+      const arr = data || []
+      const todayIso = today
+      setB2bOggi(arr.filter(v => v.data === todayIso).reduce((s, v) => s + (Number(v.totale) || 0), 0))
+      setB2bMese(arr.reduce((s, v) => s + (Number(v.totale) || 0), 0))
+    })
+  }, [orgId, sedeId, viewAggregato, today])
+
   const cassaOggiList = (chiusEff || []).filter(c => c.data === today)
   // Le chiusure ChiusuraView salvano i ricavi su c.kpi.totV (cfr. ChiusuraView
   // rec building). c.totale e' un campo legacy/non garantito. Senza il
@@ -287,7 +308,17 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
 
       {/* KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: isMobile ? 18 : 24 }}>
-        <KpiCard label="Ricavi" icon={ICO.euro} tint={TINT.green} value={fmt0(ricaviOggi)} valueColor={T.green} empty={!cassaOggi} sub={cassaOggi ? 'incassati oggi' : 'non ancora registrati'} onClick={() => setView('chiusura')} />
+        <KpiCard
+          label="Ricavi"
+          icon={ICO.euro}
+          tint={TINT.green}
+          value={fmt0(ricaviOggi + b2bOggi)}
+          valueColor={T.green}
+          empty={!cassaOggi && b2bOggi === 0}
+          sub={b2bMese > 0
+            ? `oggi · B2B mese ${fmt0(b2bMese)}`
+            : (cassaOggi ? 'incassati oggi' : 'non ancora registrati')}
+          onClick={() => setView('chiusura')} />
         <KpiCard label="Food Cost" icon={ICO.pie} tint={TINT.fc} value={`${(fcMedio * 100).toFixed(1)}%`} valueColor={fcColor} empty={ricette.length === 0} sub={ricette.length > 0 ? 'medio ricettario' : 'non disponibile'} onClick={() => setView('simulatore')} />
         <KpiCard label="Produzione" icon={ICO.box} tint={TINT.blue} value={<>{n0(prodCount)}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>pz</span></>} valueColor="#2563EB" empty={!hasProdOggi} sub={hasProdOggi ? 'prodotti oggi' : 'non registrata'} onClick={() => setView('giornaliero')} />
         <KpiCard label="Magazzino" icon={ICO.alert} tint={critici.length > 0 ? TINT.red : TINT.green} value={critici.length > 0 ? <>{critici.length}<span style={{ fontSize: isMobile ? 12 : 15, fontWeight: 600, color: T.textSoft, marginLeft: 6 }}>critici</span></> : 'OK'} valueColor={critici.length > 0 ? T.brand : T.green} alert={critici.length > 0} sub={critici.length > 0 ? 'sotto soglia' : 'livelli in ordine'} onClick={() => setView('magazzino')} />

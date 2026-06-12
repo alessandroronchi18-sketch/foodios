@@ -129,9 +129,26 @@ export async function salvaCella(orgId, sedeId, gustoNome, dataIso, patch) {
   return data
 }
 
-// Cancella una cella (utile per "ho sbagliato giorno"). Soft? No: cancella
-// fisica, e l'audit_log + updated_by tracciano l'azione.
-export async function rimuoviCella(orgId, sedeId, gustoNome, dataIso) {
+// Cancella una cella (utile per "ho sbagliato giorno").
+//
+// Se la cella ha produzione_g > 0, il magazzino MP era stato scalato in
+// proporzione: PRIMA della delete recuperiamo i grammi prodotti e li
+// riconsegniamo al magazzino tramite scaloMagazzinoPerGusto con delta
+// negativo (= ripristino). Senza questo passaggio gli ingredienti
+// resterebbero scalati senza una PROD a giustificarli.
+//
+// Se `opts.ricettario` non e' passato, salta lo scalo (il caller decide
+// quando e' davvero necessario). Ritorna { rimossa, magazzinoAggiornato? }
+export async function rimuoviCella(orgId, sedeId, gustoNome, dataIso, opts = {}) {
+  // Leggi la cella prima della delete: serve produzione_g per l'inversione.
+  const { data: cella } = await supabase
+    .from('inventario_produzione')
+    .select('produzione_g, gusto_nome')
+    .eq('organization_id', orgId)
+    .eq('sede_id', sedeId)
+    .eq('gusto_nome', normGusto(gustoNome))
+    .eq('data', dataIso)
+    .maybeSingle()
   const { error } = await supabase
     .from('inventario_produzione')
     .delete()
@@ -140,6 +157,20 @@ export async function rimuoviCella(orgId, sedeId, gustoNome, dataIso) {
     .eq('gusto_nome', normGusto(gustoNome))
     .eq('data', dataIso)
   if (error) throw error
+  // Inversione magazzino se richiesta.
+  if (opts.ricettario && opts.magazzino && opts.setMagazzino && cella?.produzione_g > 0) {
+    const ric = ricettaDelGusto(opts.ricettario, gustoNome)
+    if (ric) {
+      const { nuovoMagazzino } = scaloMagazzinoPerGusto(opts.magazzino, ric, -cella.produzione_g)
+      try {
+        const { ssave } = await import('./storage')
+        const { SK_MAG } = await import('./storageKeys')
+        await ssave(SK_MAG, nuovoMagazzino, orgId, sedeId)
+        opts.setMagazzino(nuovoMagazzino)
+      } catch (e) { console.warn('rimuoviCella: scalo MP inverso fallito', e) }
+    }
+  }
+  return { rimossa: true }
 }
 
 // ── Calcolo venduto per ogni (gusto × giorno) di una settimana ────────────

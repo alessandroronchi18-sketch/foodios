@@ -213,7 +213,7 @@ function addGiorni(dataIso, n) {
 // per nome (TOTALI / GELATO ELIMINATO / RISTORANTI / ALTRI ...).
 
 export function classificaSheet(XLSX, workbook) {
-  const out = { sedi: [], totali: null, sprechi: null, b2b: null, altri: [] }
+  const out = { sedi: [], totali: null, sprechi: null, b2b: null, altri_prod: null, altri: [] }
   for (const sheetName of (workbook.SheetNames || [])) {
     const ws = workbook.Sheets[sheetName]
     if (!ws) continue
@@ -227,6 +227,7 @@ export function classificaSheet(XLSX, workbook) {
     let trovatoRistorante = false, trovatoData = false
     let trovatoNegozio = false, trovatoKg = false, trovatoMotivo = false
     let trovatoTotale = false, trovatoVendutoSett = false
+    let trovatoAltriProd = false  // PASTORIZZATA/CIOCCOLATA/ZABAIONE nei header
     for (let i = 0; i < Math.min(matrice.length, 10); i++) {
       const row = matrice[i] || []
       for (const c of row.slice(0, 30)) {
@@ -240,6 +241,12 @@ export function classificaSheet(XLSX, workbook) {
         if (v === 'MOTIVO' || v === 'CAUSA' || v === 'CAUSALE') trovatoMotivo = true
         if (v.includes('TOTALE')) trovatoTotale = true
         if (v.includes('VENDUTO SETTIMANA') || v.includes('VENDUTO_SETT')) trovatoVendutoSett = true
+        // ALTRI PRODOTTI: cerca categorie note nei header (compound nomi
+        // tipo "BERTHOLLET PASTORIZZATA").
+        if (v.includes('PASTORIZZATA') || v.includes('CIOCCOLATA')
+            || v.includes('ZABAIONE') || v.includes('PISTACCHIATA')) {
+          trovatoAltriProd = true
+        }
       }
     }
 
@@ -252,18 +259,21 @@ export function classificaSheet(XLSX, workbook) {
     if (trovatoGusti && trovatoProd) {
       out.sedi.push({ sheetName, matrice })
     } else if (trovatoVendutoSett && trovatoTotale) {
-      // Solo uno sheet TOTALI per workbook (l'ultimo trovato vince).
       out.totali = { sheetName, matrice }
     } else if (trovatoRistorante && trovatoData) {
       out.b2b = { sheetName, matrice }
     } else if (trovatoNegozio && trovatoKg && trovatoMotivo) {
       out.sprechi = { sheetName, matrice }
+    } else if (trovatoAltriProd) {
+      out.altri_prod = { sheetName, matrice }
     } else if (nameUp === 'TOTALI' || nameUp.includes('TOTAL') || nameUp.includes('RIEPILOG')) {
       out.totali = { sheetName, matrice }
     } else if (nameUp.includes('RISTORANT') || nameUp.includes('B2B') || nameUp.includes('VENDIT')) {
       out.b2b = { sheetName, matrice }
     } else if (nameUp.includes('ELIMINAT') || nameUp.includes('SCART') || nameUp.includes('SPREC') || nameUp.includes('PERDIT')) {
       out.sprechi = { sheetName, matrice }
+    } else if (nameUp.includes('ALTRI')) {
+      out.altri_prod = { sheetName, matrice }
     } else {
       out.altri.push({ sheetName, matrice })
     }
@@ -440,6 +450,89 @@ export function excelDateToIso(v) {
     return new Date(ms).toISOString().slice(0, 10)
   }
   return null
+}
+
+// ── Parser sheet ALTRI PRODOTTI (varianti speciali per sede) ──────────────
+// Layout cliente (esempio gelateria DICEMBRE):
+//   R0: [null,
+//        "BERTHOLLET PASTORIZZATA", "CARLINA PASTORIZZATA", "DE GASPERI PASTORIZZATA",
+//        null,
+//        "BERTHOLLET CIOCCOLATA",  "CARLINA CIOCCOLATA",   "DE GASPERI CIOCCOLATA",
+//        null,
+//        "BERTHOLLET ZABAIONE",    "CARLINA ZABAIONE",     "DE GASPERI ZABAIONE"]
+//   R1+: col A = giorno del mese (1, 2, ...), col B..L = quantita' kg per
+//        ogni (categoria × sede)
+//
+// Strategia parsing:
+//   1) leggi R0: per ogni cella non-null, parsa "{SEDE} {CATEGORIA}"
+//      separando le ultime parole come categoria (PASTORIZZATA / CIOCCOLATA /
+//      ZABAIONE), il resto come nome sede.
+//   2) per ogni riga successiva, col A = numero giorno; per ogni colonna
+//      mappata, se valore numerico > 0, emetti riga.
+//
+// Output: { righe: [{ sedeNome, gusto, giornoMese, qtaG }], warnings, mese? }
+// La data finale si calcola al commit usando mese+anno scelti nel dialog
+// (giorno < 32). gusto = nome categoria (es. "PASTORIZZATA").
+//
+// Le quantita' nel foglio sono tipicamente in KG (es. 0.5, 1, 2.5). Le
+// convertiamo in grammi (*1000) per coerenza col resto del modulo.
+
+const ALTRI_CATEGORIE_NOTE = ['PASTORIZZATA', 'CIOCCOLATA', 'ZABAIONE', 'PANNA', 'PISTACCHIATA']
+
+export function parseFoglioAltriProdotti(matrice) {
+  const out = { righe: [], warnings: [] }
+  if (!Array.isArray(matrice) || matrice.length === 0) return out
+
+  // R0 = header con le coppie SEDE CATEGORIA. Cerchiamo la riga che ha
+  // almeno una cella con una categoria nota (PASTORIZZATA/CIOCCOLATA/...).
+  let idxHeader = -1
+  for (let i = 0; i < Math.min(matrice.length, 5); i++) {
+    const row = matrice[i] || []
+    if (row.some(c => {
+      const v = (c || '').toString().toUpperCase()
+      return ALTRI_CATEGORIE_NOTE.some(cat => v.includes(cat))
+    })) { idxHeader = i; break }
+  }
+  if (idxHeader < 0) {
+    out.warnings.push('Header con categorie ALTRI PRODOTTI non trovato.')
+    return out
+  }
+
+  // mapColonna[j] = { sedeNome, categoria } | null
+  const header = matrice[idxHeader] || []
+  const mapColonna = []
+  for (let j = 0; j < header.length; j++) {
+    const v = (header[j] || '').toString().trim()
+    if (!v) { mapColonna[j] = null; continue }
+    const vUp = v.toUpperCase()
+    const cat = ALTRI_CATEGORIE_NOTE.find(c => vUp.includes(c))
+    if (!cat) { mapColonna[j] = null; continue }
+    // Sede = tutto cio' che NON e' la categoria, pulito.
+    const sedeNome = v.replace(new RegExp(cat, 'i'), '').trim()
+    mapColonna[j] = { sedeNome, categoria: cat }
+  }
+
+  // Righe dati: col A = giorno del mese, col j>=1 = quantita'.
+  for (let i = idxHeader + 1; i < matrice.length; i++) {
+    const row = matrice[i] || []
+    const giornoRaw = row[0]
+    const giorno = Number(giornoRaw)
+    if (!Number.isFinite(giorno) || giorno < 1 || giorno > 31) continue
+    for (let j = 1; j < row.length; j++) {
+      const meta = mapColonna[j]
+      if (!meta) continue
+      const qta = Number(row[j])
+      if (!Number.isFinite(qta) || qta <= 0) continue
+      out.righe.push({
+        sedeNome: meta.sedeNome,
+        gusto: meta.categoria,
+        giornoMese: giorno,
+        qtaG: Math.round(qta * 1000),
+      })
+    }
+  }
+
+  return out
 }
 
 // ── Parser sheet GELATO ELIMINATO (sprechi) ───────────────────────────────

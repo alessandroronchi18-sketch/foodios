@@ -38,14 +38,17 @@ function n0(v) { return Number(v || 0).toLocaleString('it-IT', { maximumFraction
 function nKg(g) { return (Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }
 function pct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
 
-export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
+export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure }) {
   const isMobile = useIsMobile()
+  const isAllSedi = sedeAttiva?._all === true
   const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
   const [righe, setRighe] = useState([])
   const [righePrev, setRighePrev] = useState([])
   const [formati, setFormati] = useState([])
   const [venditeB2bSett, setVenditeB2bSett] = useState([])
   const [venditeB2bPrec, setVenditeB2bPrec] = useState([])
+  const [trendData, setTrendData] = useState([])  // [{ lunIso, kg, cassa }] x 4 settimane
+  const [perSede, setPerSede] = useState([])      // drill-down per sede quando isAllSedi
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -100,6 +103,60 @@ export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
     return (chiusure || []).filter(c => c.data >= inizio && c.data < fine)
   }, [chiusure, lunediIso])
 
+  // Sparkline: ultime 4 settimane (incluse la corrente). Per ogni settimana
+  // calcoliamo kg venduti totali dall'inventario + cassa retail. La cassa
+  // arriva da `chiusure` (gia' filtrata dal Dashboard), l'inventario serve
+  // un fetch separato.
+  useEffect(() => {
+    if (!orgId || !sedeId) return
+    const settimane = []
+    for (let i = 3; i >= 0; i--) settimane.push(addDays(lunediIso, -7 * i))
+    Promise.all(settimane.map(lun => caricaSettimana(orgId, sedeId, lun)))
+      .then(perSettimana => {
+        const out = settimane.map((lun, idx) => {
+          const matr = calcolaVendutoSettimana(perSettimana[idx], lun)
+          const kg = Object.values(matr).reduce((s, byData) =>
+            s + Object.values(byData).reduce((a, c) => a + Number(c.venduto || 0), 0)
+          , 0) / 1000
+          const fineW = addDays(lun, 7)
+          const cassa = (chiusure || [])
+            .filter(c => c.data >= lun && c.data < fineW)
+            .reduce((s, c) => s + Number(c?.kpi?.totV || c?.totale || 0), 0)
+          return { lunIso: lun, kg, cassa }
+        })
+        setTrendData(out)
+      })
+      .catch(e => console.error('trend:', e))
+  }, [orgId, sedeId, lunediIso, chiusure])
+
+  // Drill-down per sede (solo isAllSedi): per ogni sede produttiva
+  // carichiamo settimana + b2b e calcoliamo KPI individuali.
+  useEffect(() => {
+    if (!isAllSedi || !orgId) { setPerSede([]); return }
+    const sediProduttive = (sedi || []).filter(s =>
+      s.attiva !== false && s.is_sede_produzione && s.metodo_produzione === 'inventario'
+    )
+    if (sediProduttive.length === 0) { setPerSede([]); return }
+    Promise.all(sediProduttive.map(async s => {
+      const [righeSet, b2bSet] = await Promise.all([
+        caricaSettimana(orgId, s.id, lunediIso),
+        supabase.from('vendite_b2b').select('data, righe, totale')
+          .eq('organization_id', orgId).eq('sede_id', s.id)
+          .gte('data', lunediIso).lt('data', addDays(lunediIso, 7))
+          .then(({ data }) => data || []),
+      ])
+      const matr = calcolaVendutoSettimana(righeSet, lunediIso)
+      const chiusS = (chiusure || []).filter(c => c.data >= lunediIso && c.data < addDays(lunediIso, 7))
+        // Nota: chiusure arrivano filtrate per sede attiva, qui non
+        // possiamo distinguere -> il drill-down cassa per sede e' un'apparizione
+        // approssimativa (sommiamo tutta la cassa attiva, etichettata "tot org").
+      const kp = kpiQuadraturaSettimana(matr, chiusS, euroKg, b2bSet)
+      return { sede: s, kpi: kp }
+    }))
+    .then(setPerSede)
+    .catch(e => console.error('drill-down per sede:', e))
+  }, [isAllSedi, orgId, sedi, lunediIso, euroKg, chiusure])
+
   const kpi = useMemo(
     () => kpiQuadraturaSettimana(matrice, chiusureSett, euroKg, venditeB2bSett),
     [matrice, chiusureSett, euroKg, venditeB2bSett]
@@ -116,7 +173,12 @@ export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
 
   // ── Render ─────────────────────────────────────────────────────────────
 
-  if (!orgId || !sedeId) {
+  if (!orgId) {
+    return <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
+  }
+  // Quando isAllSedi e' attivo non serve sedeId: il drill-down per sede e'
+  // gia' gestito dal blocco perSede.
+  if (!sedeId && !isAllSedi) {
     return <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Seleziona una sede</div>
   }
 
@@ -219,11 +281,51 @@ export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
             )}
           </div>
 
+          {/* Sparkline trend 4 settimane */}
+          {trendData.length > 0 && (
+            <div style={panelStyle}>
+              <div style={panelTitle}>Trend ultime 4 settimane</div>
+              <SparklineTrend data={trendData} />
+            </div>
+          )}
+
+          {/* Drill-down per sede (solo se isAllSedi) */}
+          {isAllSedi && perSede.length > 0 && (
+            <div style={{ ...panelStyle, marginTop: 16 }}>
+              <div style={panelTitle}>Dettaglio per sede</div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 540 }}>
+                  <thead>
+                    <tr style={{ background: '#F8FAFC' }}>
+                      <th style={tdHeadSede}>Sede</th>
+                      <th style={{ ...tdHeadSede, textAlign: 'right' }}>Retail kg</th>
+                      <th style={{ ...tdHeadSede, textAlign: 'right' }}>B2B kg</th>
+                      <th style={{ ...tdHeadSede, textAlign: 'right' }}>Atteso (€)</th>
+                      <th style={{ ...tdHeadSede, textAlign: 'right' }}>Ricavi B2B (€)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perSede.map(({ sede, kpi: k }) => (
+                      <tr key={sede.id} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
+                        <td style={tdCellSede}>{sede.nome}{sede.is_default ? ' ★' : ''}</td>
+                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM }}>{nKg((k.retailKg ?? k.totVendutoKg) * 1000)} kg</td>
+                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, color: C.textSoft }}>{nKg((k.b2bKg || 0) * 1000)} kg</td>
+                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 700 }}>{fmt0(k.ricavoAtteso || 0)}</td>
+                        <td style={{ ...tdCellSede, textAlign: 'right', ...TNUM, color: '#075985' }}>{fmt0(k.ricaviB2b || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Top + Sofferenza */}
           <div style={{
             display: 'grid', gap: 16,
             gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr',
             marginBottom: 20,
+            marginTop: 16,
           }}>
             <PanelTop title="Top gusti per kg venduti" items={classifica.top}
               total={kpi.totVendutoG} />
@@ -237,6 +339,55 @@ export default function QuadraturaInventarioView({ orgId, sedeId, chiusure }) {
     </div>
   )
 }
+
+// ── Sparkline trend 4 settimane (SVG inline) ───────────────────────────────
+// Mini grafico con 2 serie: kg venduti (linea verde) e cassa retail (linea
+// rossa). Asse Y normalizzato per leggibilita'.
+function SparklineTrend({ data }) {
+  const W = 600, H = 100, PAD = 26
+  if (!data || data.length === 0) return null
+  const maxKg = Math.max(1, ...data.map(d => d.kg))
+  const maxEur = Math.max(1, ...data.map(d => d.cassa))
+  const xStep = (W - PAD * 2) / Math.max(1, data.length - 1)
+  const pathKg = data.map((d, i) => {
+    const x = PAD + i * xStep
+    const y = H - PAD - (d.kg / maxKg) * (H - PAD * 2)
+    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  const pathEur = data.map((d, i) => {
+    const x = PAD + i * xStep
+    const y = H - PAD - (d.cassa / maxEur) * (H - PAD * 2)
+    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  const fmtLabel = (iso) => {
+    const d = new Date(iso)
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+  }
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', maxHeight: 140 }}>
+        <path d={pathKg} fill="none" stroke="#16A34A" strokeWidth="2" />
+        <path d={pathEur} fill="none" stroke="#6E0E1A" strokeWidth="2" strokeDasharray="4 3" />
+        {data.map((d, i) => (
+          <g key={i}>
+            <circle cx={PAD + i * xStep} cy={H - PAD - (d.kg / maxKg) * (H - PAD * 2)} r="3" fill="#16A34A" />
+            <circle cx={PAD + i * xStep} cy={H - PAD - (d.cassa / maxEur) * (H - PAD * 2)} r="3" fill="#6E0E1A" />
+            <text x={PAD + i * xStep} y={H - 6} fontSize="9" textAnchor="middle" fill="#6B7280">
+              {fmtLabel(d.lunIso)}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <div style={{ display: 'flex', gap: 16, fontSize: 11, color: C.textSoft, marginTop: 4 }}>
+        <span><span style={{ display: 'inline-block', width: 12, height: 2, background: '#16A34A', verticalAlign: 'middle' }} /> kg venduti</span>
+        <span><span style={{ display: 'inline-block', width: 12, height: 2, background: '#6E0E1A', borderTop: '1px dashed #6E0E1A', verticalAlign: 'middle' }} /> cassa €</span>
+      </div>
+    </div>
+  )
+}
+
+const tdHeadSede = { padding: '8px 12px', textAlign: 'left', fontSize: 10.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }
+const tdCellSede = { padding: '8px 12px', fontSize: 12.5, color: C.text }
 
 // ── Tile KPI ──────────────────────────────────────────────────────────────
 function Tile({ icon, label, value, tendVal, muted, color, bg, badge }) {
