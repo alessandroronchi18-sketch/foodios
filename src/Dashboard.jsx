@@ -5,7 +5,7 @@ import { lazyWithReload } from './lib/lazyWithReload'
 import UpgradeGate from './components/UpgradeGate'
 import AISuggestionsBell from './components/AISuggestionsBell'
 import CommandPalette from './components/CommandPalette'
-import { canAccessView } from './lib/planAccess'
+import { canAccessView, effectivePlan, PLAN_LABEL } from './lib/planAccess'
 import { lessico } from './lib/lessico'
 import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
@@ -2835,11 +2835,11 @@ export default function Dashboard({
         {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId}/>}
         {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId}/>}
         {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario}/>}
-        {view==="ai-brain"&&<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>}
-        {view==="ricette-ai"&&<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>}
-        {view==="marketplace"&&<MarketplaceView/>}
-        {view==="whatsapp"&&<WhatsAppView orgId={orgId} user={auth?.user}/>}
-        {view==="documentary"&&<DocumentaryView orgId={orgId} nomeAttivita={nomeAttivita}/>}
+        {view==="ai-brain"&&(canAccessView("ai-brain",piano,auth?.user?.email)?<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ai-brain" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="ricette-ai"&&(canAccessView("ricette-ai",piano,auth?.user?.email)?<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ricette-ai" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="marketplace"&&(canAccessView("marketplace",piano,auth?.user?.email)?<MarketplaceView/>:<UpgradeGate view="marketplace" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="whatsapp"&&(canAccessView("whatsapp",piano,auth?.user?.email)?<WhatsAppView orgId={orgId} user={auth?.user}/>:<UpgradeGate view="whatsapp" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="documentary"&&(canAccessView("documentary",piano,auth?.user?.email)?<DocumentaryView orgId={orgId} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="documentary" onUpgrade={()=>setView("impostazioni")}/>)}
         <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId}/>
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip}/>}
         {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(

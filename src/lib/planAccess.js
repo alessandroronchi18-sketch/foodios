@@ -24,10 +24,30 @@ export const PLAN_RANK = {
 }
 
 // view-id → piano minimo richiesto per accedervi.
+// Tier mapping (post implementazione 23 AI features, 2026-06-12):
+//  - Pro+ minimo: forecast, menu-engineering, cashflow, reformulation,
+//    competitor-pricing, ordini-ai, recensioni  (per ora 'pro' rank == 'trial'
+//    rank, quindi tutti li vedono in prova; quando alziamo trial→1 i Base
+//    li vedranno gated)
+//  - Chain (enterprise) only: ai-brain, whatsapp, ricette-ai, marketplace,
+//    documentary, confronto-sedi, trasferimenti, integrazioni
 export const VIEW_MIN_PLAN = {
+  // Pro+ tier
+  'forecast':           'pro',
+  'menu-engineering':   'pro',
+  'cashflow':           'pro',
+  'reformulation':      'pro',
+  'competitor-pricing': 'pro',
+  'ordini-ai':          'pro',
+  // Chain (enterprise) tier
   'confronto-sedi': 'enterprise',
   'trasferimenti':  'enterprise',
   'integrazioni':   'enterprise',
+  'ai-brain':       'enterprise',
+  'whatsapp':       'enterprise',
+  'ricette-ai':     'enterprise',
+  'marketplace':    'enterprise',
+  'documentary':    'enterprise',
 }
 
 // Etichetta leggibile del piano (per i messaggi di upgrade).
@@ -48,6 +68,13 @@ const EMAIL_BYPASS = new Set([
 export function isPlanBypassEmail(email) {
   if (!email) return false
   return EMAIL_BYPASS.has(String(email).toLowerCase().trim())
+}
+
+// Piano "effettivo" per l'utente. Email bypass → mostra Chain (massimo livello).
+// Usato per il DISPLAY del piano nel topbar/upgrade gate.
+export function effectivePlan(piano, email) {
+  if (isPlanBypassEmail(email)) return 'enterprise'
+  return piano || 'trial'
 }
 
 // true se il piano dato può accedere alla view.

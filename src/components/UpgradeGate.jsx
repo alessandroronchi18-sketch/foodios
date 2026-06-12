@@ -5,9 +5,20 @@ import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { requiredPlanLabel } from '../lib/planAccess'
 
 const VIEW_LABELS = {
-  'confronto-sedi': 'Confronto sedi',
-  'trasferimenti':  'Trasferimenti tra sedi',
-  'integrazioni':   'Integrazioni',
+  'confronto-sedi':     'Confronto sedi',
+  'trasferimenti':      'Trasferimenti tra sedi',
+  'integrazioni':       'Integrazioni',
+  'ai-brain':           'FoodOS Brain (chat AI)',
+  'whatsapp':           'WhatsApp Bot',
+  'ricette-ai':         'Inventa ricette AI',
+  'marketplace':        'Marketplace fornitori',
+  'documentary':        'Documentary AI',
+  'forecast':           'Forecast AI 7 giorni',
+  'menu-engineering':   'Menu engineering',
+  'cashflow':           'Cashflow predittivo',
+  'reformulation':      'Ottimizza ricette AI',
+  'competitor-pricing': 'Pricing vs competitor',
+  'ordini-ai':          'Ordini AI fornitori',
 }
 
 export default function UpgradeGate({ view, onUpgrade }) {
