@@ -56,7 +56,31 @@
       "Bash(perl -0pi -e 's{<h1[^>]*>Scadenzario</h1>\\\\s*}{}' src/components/Scadenzario.jsx)",
       "Bash(perl -0pi -e 's{<h1[^>]*>Calendario</h1>\\\\s*}{}' src/components/CalendarioOperativo.jsx)",
       "Bash(perl -0pi -e 's{<h1[^>]*>Trasferimenti tra sedi</h1>\\\\s*}{}' src/components/TrasferimentiView.jsx)",
-      "Bash(perl -0pi -e 's{<h1[^>]*>Previsione domanda</h1>\\\\s*}{}' src/components/PrevisioneDomanda.jsx)"
+      "Bash(perl -0pi -e 's{<h1[^>]*>Previsione domanda</h1>\\\\s*}{}' src/components/PrevisioneDomanda.jsx)",
+      "Bash(python3 -c \"import sys,re; rx=re.compile\\('[\\\\U0001F300-\\\\U0001FAFF\\\\U00002600-\\\\U000027BF\\\\U00002B00-\\\\U00002BFF]'\\); [print\\(l.rstrip\\(\\)\\) for l in sys.stdin if rx.search\\(l\\)]\")",
+      "Bash(python3 -c \"import sys,re; rx=re.compile\\('[\\\\U0001F300-\\\\U0001FAFF\\\\U00002600-\\\\U000027BF\\\\U00002B00-\\\\U00002BFF]'\\); print\\(sum\\(len\\(rx.findall\\(l\\)\\) for l in sys.stdin\\)\\)\")",
+      "Bash(perl -0pi -e 's/Sprechi e omaggi/Perdite \\\\& cessioni/g' src/Dashboard.jsx)",
+      "Bash(perl -0pi -e 's/\\\\n\\\\s*\\\\{id:\"discrepanze\",label:\"Discrepanze prod\\\\.\\\\/vendite\",icon:\"fileText\"\\\\},//' src/Dashboard.jsx)",
+      "Bash(perl -0pi -e 's/\\\\n\\\\s*navItem\\\\\\(\"discrepanze\",\"fileText\",\"Discrepanze prod\\\\.\\\\/vendite\"\\\\\\),//' src/Dashboard.jsx)",
+      "Bash(perl -0pi -e \"s/ discrepanze:'numeri',//\" src/Dashboard.jsx)",
+      "Bash(perl -0pi -e 's/ discrepanze:\"Andamento & costi\",//' src/Dashboard.jsx)",
+      "Bash(python3 -c \"import re; rx=re.compile\\('[\\\\U0001F300-\\\\U0001FAFF\\\\U00002600-\\\\U000027BF\\\\U00002B00-\\\\U00002BFF]'\\); KEEP=set\\('★→←↑↓✓✔✕✗×●○▲▼≈–…·—↩↗⌄›‹'\\); s=open\\('src/components/SpreciOmaggi.jsx',encoding='utf-8'\\).read\\(\\); m=[c for c in rx.findall\\(s\\) if c not in KEEP]; print\\('SpreciOmaggi EMOJI:', len\\(m\\), m[:6]\\)\")",
+      "Bash(sed -n '124,132p' src/views/ProduzioneGiornalieraView.jsx)",
+      "Bash(sed -n '184,192p' src/views/ProduzioneGiornalieraView.jsx)",
+      "Bash(sed -n '404,410p' src/views/ProduzioneGiornalieraView.jsx)",
+      "Bash(python3 -c \"import re; rx=re.compile\\('[\\\\U0001F300-\\\\U0001FAFF\\\\U00002600-\\\\U000027BF\\\\U00002B00-\\\\U00002BFF]'\\); KEEP=set\\('★→←↑↓✓✔✕✗×●○▲▼≈–…·—↩↗⌄›‹'\\); s=open\\('src/components/Personale.jsx',encoding='utf-8'\\).read\\(\\); m=[c for c in rx.findall\\(s\\) if c not in KEEP]; print\\('Personale EMOJI:', len\\(m\\), m[:6]\\)\")",
+      "Bash(python3 -c \"import re; rx=re.compile\\('[\\\\U0001F300-\\\\U0001FAFF\\\\U00002600-\\\\U000027BF\\\\U00002B00-\\\\U00002BFF]'\\); KEEP=set\\('★→←↑↓✓✔✕✗×●○▲▼≈–…·—↩↗⌄›‹'\\); s=open\\('src/components/Personale.jsx',encoding='utf-8'\\).read\\(\\); m=[c for c in rx.findall\\(s\\) if c not in KEEP]; print\\('Personale EMOJI:', len\\(m\\)\\)\")",
+      "Bash(sed -i '' '430,486d' src/onboarding/OnboardingWizard.jsx)",
+      "Bash(perl -0pi -e 's/STEP 4: Multi-sede/STEP 3: Multi-sede/; s/\\\\{step === 4 && \\\\\\(/{step === 3 \\\\&\\\\& \\(/' src/onboarding/OnboardingWizard.jsx)",
+      "Bash(python3 -c \"import re; rx=re.compile\\('[\\\\U0001F300-\\\\U0001FAFF\\\\U00002600-\\\\U000027BF\\\\U00002B00-\\\\U00002BFF]'\\); KEEP=set\\('★→←↑↓✓✔✕✗×●○▲▼≈–…·—↩↗⌄›‹'\\); s=open\\('src/onboarding/OnboardingWizard.jsx',encoding='utf-8'\\).read\\(\\); m=[c for c in rx.findall\\(s\\) if c not in KEEP]; print\\('Onboarding EMOJI:', len\\(m\\)\\)\")",
+      "Bash(awk 'NR>=1100 && /^function |^export default function Personale/{print NR\": \"$0}' src/components/Personale.jsx)",
+      "Bash(awk '/^function OrganigrammaTab/{s=NR} /^\\\\/\\\\/ ── Accessi: il titolare/{print \"close-area before line \"NR; exit}' src/components/Personale.jsx)",
+      "Bash(sed -i '' '1102,1366d' src/components/Personale.jsx)",
+      "Bash(sed -n '1098,1104p' src/components/Personale.jsx)",
+      "Bash(grep -nA10 \"function lazyWithReload|const lazyWithReload\" src/Dashboard.jsx)",
+      "Bash(grep -nA20 \"manualChunks\" vite.config.js)",
+      "Bash(grep -iE \"^react|xyflow|\\\\.css$\")",
+      "Bash(curl -s __TRACKED_VAR__/assets/react-C5mSEAAT.js)"
     ]
   }
 }

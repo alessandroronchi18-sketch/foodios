@@ -26,14 +26,16 @@ export default function DailyBriefCard({ orgId }) {
     async function load() {
       setLoading(true)
       const today = new Date().toISOString().slice(0, 10)
-      const { data } = await supabase
+      // Preferenza: brief settimanale (al lunedi) > giornaliero.
+      const { data: briefs } = await supabase
         .from('daily_briefs')
-        .select('id, data, contenuto, kpi_snapshot, opened_at')
+        .select('id, data, tipo, contenuto, kpi_snapshot, opened_at')
         .eq('organization_id', orgId)
         .is('sede_id', null)
         .eq('data', today)
-        .maybeSingle()
-      if (alive) { setBrief(data || null); setLoading(false) }
+        .order('tipo', { ascending: false })  // 'settimanale' viene prima di 'giornaliero'
+      const pick = (briefs || [])[0] || null
+      if (alive) { setBrief(pick); setLoading(false) }
     }
     load()
     return () => { alive = false }
@@ -77,7 +79,9 @@ export default function DailyBriefCard({ orgId }) {
             <Icon name="sun" size={14} />
           </span>
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.14em', textTransform: 'uppercase' }}>Brief del mattino</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+              {brief.tipo === 'settimanale' ? 'Brief della settimana' : 'Brief del mattino'}
+            </div>
             <div style={{ fontSize: 11, color: SOFT, marginTop: 2 }}>{new Date(brief.data + 'T00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
           </div>
         </div>

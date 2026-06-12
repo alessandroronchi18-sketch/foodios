@@ -23,6 +23,7 @@ import {
   useSortable, SortTH, fmt0, KPI,
 } from './_shared'
 import Icon from '../components/Icon'
+import AiExplainButton from '../components/AiExplainButton'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -741,6 +742,27 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
               sub={`margine operativo ${pct(plMese.margOpPct)}`} />
             <KPI icon={<Icon name="receipt" size={18} />} label="Food cost" value={pct(plMese.fcPct)} color={plMese.fcPct <= 30 ? T.green : plMese.fcPct <= 40 ? T.amber : T.brand} sub={fmt0(plMese.cur.foodcost)} />
             <KPI icon={<Icon name="users" size={18} />} label="Costo lavoro" value={pct(plMese.lavPct)} color={plMese.lavPct <= targetLavoro ? T.green : plMese.lavPct <= targetLavoro + 10 ? T.amber : T.brand} sub={`target ${targetLavoro}% · ${fmt0(plMese.personale)}`} />
+          </div>
+
+          {/* AI explain bar — un click → l'AI spiega il P&L in linguaggio naturale */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+            <AiExplainButton
+              label={`P&L ${meseLabel(mese)}`}
+              value={`Utile ${fmt0(plMese.utile)} · FC ${pct(plMese.fcPct)}`}
+              context={{
+                periodo: meseLabel(mese),
+                giorni: plMese.cur.giorni,
+                ricavi: plMese.cur.ricavi,
+                ricavi_mese_prec: plMese.prev?.ricavi,
+                foodcost_eur: plMese.cur.foodcost,
+                foodcost_pct: plMese.fcPct,
+                costo_lavoro_eur: plMese.personale,
+                costo_lavoro_pct: plMese.lavPct,
+                target_lavoro_pct: targetLavoro,
+                margine_operativo_pct: plMese.margOpPct,
+                utile: plMese.utile,
+              }}
+            />
           </div>
 
           {/* Conto economico a cascata */}

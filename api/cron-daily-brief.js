@@ -26,6 +26,23 @@ function fmtIt0(n) {
   return Number(n || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })
 }
 
+// Prompt SETTIMANALE: 5-6 frasi, narrativa con insight + 1 azione strategica.
+function buildSystemPromptSettimanale() {
+  return `Sei l'assistente AI di un titolare di pasticceria/gelateria italiana.
+Ogni lunedi' mattina scrivi un BRIEF SETTIMANALE che riassume la settimana
+appena conclusa (max 6 frasi, max 130 parole TOTALI):
+- 1-2 highlight numerici (ricavi vs settimana prec., food cost medio)
+- top e dog della settimana (prodotti che vanno e che non vanno)
+- 1 insight strategico (perche' i numeri sono cosi, opportunita/rischi)
+- 1 azione CONCRETA per la settimana che inizia (es. "aumenta produzione X mercoledi")
+
+REGOLE:
+- Tono diretto, italiano corrente. NIENTE saluti, NIENTE emoji.
+- USA solo i numeri del payload. NIENTE percentuali inventate.
+- Frasi brevi (<18 parole). Numeri formato italiano (€1.247, 12%).
+- Comincia con il fatto piu' importante. Concludi con l'azione.`
+}
+
 // Prompt: il sistema produce 3-4 frasi totali, niente saluti, italiano nudo.
 function buildSystemPrompt() {
   return `Sei l'assistente AI di un titolare di pasticceria/gelateria italiana.
@@ -131,17 +148,31 @@ export default async function handler(req) {
     return new Response(JSON.stringify(safe.body), { status: safe.status })
   }
 
-  // Filtra org gia' processate oggi.
+  // Filtra org gia' processate oggi (brief giornaliero).
   const orgIds = (orgs || []).map(o => o.id)
   let processedToday = new Set()
   if (orgIds.length > 0) {
     const { data: existing } = await supabase
       .from('daily_briefs')
+      .select('organization_id, tipo')
+      .in('organization_id', orgIds)
+      .eq('data', today)
+      .is('sede_id', null)
+      .eq('tipo', 'giornaliero')
+    processedToday = new Set((existing || []).map(r => r.organization_id))
+  }
+  // Lunedi: anche brief settimanale (controllato a parte).
+  const isLunedi = new Date().getUTCDay() === 1
+  let processedWeekToday = new Set()
+  if (isLunedi && orgIds.length > 0) {
+    const { data: existingWk } = await supabase
+      .from('daily_briefs')
       .select('organization_id')
       .in('organization_id', orgIds)
       .eq('data', today)
       .is('sede_id', null)
-    processedToday = new Set((existing || []).map(r => r.organization_id))
+      .eq('tipo', 'settimanale')
+    processedWeekToday = new Set((existingWk || []).map(r => r.organization_id))
   }
 
   const todo = (orgs || []).filter(o => !processedToday.has(o.id)).slice(0, MAX_ORG_PER_RUN)
@@ -239,6 +270,60 @@ export default async function handler(req) {
       }
 
       results.push({ orgId: org.id, briefId: inserted.id, emailSent, hasSignal })
+
+      // ─── Brief SETTIMANALE (solo lunedi, idempotente) ────────────────────
+      if (isLunedi && !processedWeekToday.has(org.id) && hasSignal) {
+        try {
+          const wkText = await (async () => {
+            const sys = buildSystemPromptSettimanale()
+            const um = buildUserPayload(snap, orgName)
+            const cl = await callClaude({
+              system: sys,
+              messages: [{ role: 'user', content: um + '\n\nQuesto e un brief SETTIMANALE (riassunto della settimana appena chiusa).' }],
+              model: BRIEF_MODEL,
+              max_tokens: 420,
+              temperature: 0.4,
+            })
+            return (cl.text || '').trim()
+          })()
+          if (wkText) {
+            const { data: wkInserted } = await supabase
+              .from('daily_briefs')
+              .insert({
+                organization_id: org.id, sede_id: null, data: today,
+                tipo: 'settimanale',
+                contenuto: wkText,
+                kpi_snapshot: snap,
+                model: BRIEF_MODEL,
+              })
+              .select('id').single()
+            // Email opzionale (riusa stesso template, subject diverso)
+            if (settings.email !== false && wkInserted) {
+              const { data: titolare } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('organization_id', org.id)
+                .eq('ruolo', 'titolare')
+                .limit(1).maybeSingle()
+              if (titolare?.email) {
+                try {
+                  await sendBriefEmail({
+                    to: titolare.email,
+                    subject: `Brief settimanale — ${orgName}`,
+                    html: emailHtml({ brief: wkText, orgName, briefDate: today, appUrl }),
+                  })
+                  await supabase.from('daily_briefs')
+                    .update({ sent_email_at: new Date().toISOString() })
+                    .eq('id', wkInserted.id)
+                } catch {}
+              }
+            }
+            results.push({ orgId: org.id, weeklyBriefId: wkInserted?.id })
+          }
+        } catch (e) {
+          results.push({ orgId: org.id, weeklyError: e.message?.slice(0, 100) })
+        }
+      }
     } catch (e) {
       results.push({ orgId: org.id, error: e.message || String(e) })
     }

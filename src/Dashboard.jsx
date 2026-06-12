@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react'
 import { lazyWithReload } from './lib/lazyWithReload'
 import UpgradeGate from './components/UpgradeGate'
 import AISuggestionsBell from './components/AISuggestionsBell'
+import CommandPalette from './components/CommandPalette'
 import { canAccessView } from './lib/planAccess'
 import { lessico } from './lib/lessico'
 import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
@@ -82,6 +83,7 @@ const PLView = lazyWithReload(() => import('./views/PLView'))
 const RicettarioView = lazyWithReload(() => import('./views/RicettarioView'))
 const SchedaAllergeniView = lazyWithReload(() => import('./views/SchedaAllergeniView'))
 const DashboardHomeView = lazyWithReload(() => import('./views/DashboardHomeView'))
+const RecensioniView = lazyWithReload(() => import('./views/RecensioniView'))
 const FotoOCR = lazyWithReload(() => import('./components/FotoOCR'))
 import { compressImage } from './lib/imageUtils'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
@@ -1219,6 +1221,12 @@ export default function Dashboard({
   // Navigazione orizzontale in topbar (desktop): sezione con mega-menu aperto + dropdown profilo.
   const [hoverSec, setHoverSec] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [cmdkOpen, setCmdkOpen] = useState(false);
+  useEffect(() => {
+    function onOpen() { setCmdkOpen(true) }
+    window.addEventListener('foodios:cmdk', onOpen)
+    return () => window.removeEventListener('foodios:cmdk', onOpen)
+  }, []);
 
   // Ruolo utente. Il dipendente vede solo le viste operative (DIPENDENTE_VIEWS).
   const ruolo = auth?.ruolo || 'titolare';
@@ -1268,7 +1276,7 @@ export default function Dashboard({
     'scheda-allergeni':'ricette', menu:'ricette',
     simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri',
     magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'vendite-b2b':'acquisti', 'importa-dati':'acquisti',
-    personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda',
+    personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda', recensioni:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
   }), []);
   useEffect(() => {
@@ -1937,6 +1945,7 @@ export default function Dashboard({
             {id:"personale",label:"Personale",icon:"users"},
             {id:"haccp",label:"HACCP",icon:"shield"},
             {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
+            {id:"recensioni",label:"Recensioni AI",icon:"sparkles"},
             // Sblocco DEMO-ONLY: Confronto + Trasferimenti sempre visibili
             // per l'account demo (rimodellamento UX in corso). Per gli
             // utenti normali resta il gating multiSede.
@@ -2042,6 +2051,12 @@ export default function Dashboard({
             onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.12)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E84B3A",color:"#fff",borderRadius:999,minWidth:17,height:17,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #1E0B11",lineHeight:1}}>{nonLette>9?"9+":nonLette}</span>}
+          </button>
+
+          {/* Search globale Cmd+K */}
+          <button onClick={()=>setCmdkOpen(true)} aria-label="Cerca o chiedi all AI (Cmd+K)" title="Cerca o chiedi all'AI (Cmd+K)"
+            style={{background:"transparent",border:"none",cursor:"pointer",padding:6,borderRadius:8,color:"#FFF",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
 
           {/* AI Suggestions bell — campanella suggerimenti proattivi */}
@@ -2406,6 +2421,7 @@ export default function Dashboard({
               {Group({ id:"azienda", iconKey:"briefcase", label:"Azienda",
                 children:[
                   navItem("personale","users","Personale"),
+                  navItem("recensioni","sparkles","Recensioni AI"),
                   navItem("haccp","shield","HACCP"),
                   navItem("registro-attivita","fileText","Registro attività"),
                   ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("confronto-sedi","building","Confronto sedi"),
@@ -2787,6 +2803,8 @@ export default function Dashboard({
         {view==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
+        {view==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
+        <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId}/>
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip}/>}
         {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
