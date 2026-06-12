@@ -90,6 +90,11 @@ const ForecastView = lazyWithReload(() => import('./views/ForecastView'))
 const ReformulationView = lazyWithReload(() => import('./views/ReformulationView'))
 const OrdiniAiView = lazyWithReload(() => import('./views/OrdiniAiView'))
 const CompetitorPricingView = lazyWithReload(() => import('./views/CompetitorPricingView'))
+const BrainView = lazyWithReload(() => import('./views/BrainView'))
+const RecipeInventorView = lazyWithReload(() => import('./views/RecipeInventorView'))
+const MarketplaceView = lazyWithReload(() => import('./views/MarketplaceView'))
+const WhatsAppView = lazyWithReload(() => import('./views/WhatsAppView'))
+const DocumentaryView = lazyWithReload(() => import('./views/DocumentaryView'))
 const FotoOCR = lazyWithReload(() => import('./components/FotoOCR'))
 import { compressImage } from './lib/imageUtils'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
@@ -1280,7 +1285,7 @@ export default function Dashboard({
     giornaliero:'oggi', chiusura:'oggi', eventi:'oggi', calendario:'oggi',
     ricettario:'ricette', semilavorati:'ricette', 'nuova-ricetta':'ricette',
     'scheda-allergeni':'ricette', menu:'ricette',
-    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', 'menu-engineering':'numeri', cashflow:'numeri', forecast:'numeri', reformulation:'numeri', 'competitor-pricing':'numeri', 'ordini-ai':'magazzino',
+    simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', 'menu-engineering':'numeri', cashflow:'numeri', forecast:'numeri', reformulation:'numeri', 'competitor-pricing':'numeri', 'ordini-ai':'magazzino', 'ai-brain':'numeri', 'ricette-ai':'ricette', marketplace:'magazzino', whatsapp:'azienda', documentary:'azienda',
     magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'vendite-b2b':'acquisti', 'importa-dati':'acquisti',
     personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda', recensioni:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
@@ -1949,6 +1954,11 @@ export default function Dashboard({
             {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
             {id:"reformulation",label:"Ottimizza ricette AI",icon:"sparkles"},
             {id:"competitor-pricing",label:"Pricing vs competitor",icon:"money"},
+            {id:"ai-brain",label:"FoodOS Brain (chat)",icon:"sparkles"},
+            {id:"ricette-ai",label:"Inventa ricette AI",icon:"lightbulb"},
+            {id:"marketplace",label:"Marketplace fornitori",icon:"truck"},
+            {id:"whatsapp",label:"WhatsApp Bot",icon:"bell"},
+            {id:"documentary",label:"Documentary AI",icon:"barChart"},
             // Quadratura inventario vs cassa: visibile solo se la sede attiva
             // e' produttiva e usa il metodo inventario differenziale.
             ...(isMetodoInventario ? [{id:"quadratura-inventario",label:"Quadratura inventario",icon:"check"}] : []),
@@ -2825,6 +2835,11 @@ export default function Dashboard({
         {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId}/>}
         {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId}/>}
         {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario}/>}
+        {view==="ai-brain"&&<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>}
+        {view==="ricette-ai"&&<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>}
+        {view==="marketplace"&&<MarketplaceView/>}
+        {view==="whatsapp"&&<WhatsAppView orgId={orgId} user={auth?.user}/>}
+        {view==="documentary"&&<DocumentaryView orgId={orgId} nomeAttivita={nomeAttivita}/>}
         <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId}/>
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip}/>}
         {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(

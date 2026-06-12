@@ -18,6 +18,7 @@ import reportMensileHandler from './cron-report-mensile.js'
 import dailyBriefHandler from './cron-daily-brief.js'
 import aiSuggestionsHandler from './cron-ai-suggestions.js'
 import forecastHandler from './cron-forecast.js'
+import documentaryHandler from './cron-documentary.js'
 
 function makeInternalReq(realUrl, path) {
   const origin = new URL(realUrl).origin
@@ -89,6 +90,11 @@ export default async function handler(req) {
   // 3d) Forecast giornaliero 7gg per prodotto + meteo + stagionalita.
   results.push(await runStep('cron-forecast', () =>
     forecastHandler(makeInternalReq(req.url, '/api/cron-forecast'))
+  ))
+
+  // 3e) Documentary trimestrale (skip se non e' il 1 di Q1/Q2/Q3/Q4).
+  results.push(await runStep('cron-documentary', () =>
+    documentaryHandler(makeInternalReq(req.url, '/api/cron-documentary'))
   ))
 
   // 4) Cleanup audit_log (retention 365 giorni — protegge crescita tabella).
