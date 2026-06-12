@@ -1,383 +1,376 @@
-# FoodOS — Proposta 3 tier abbonamento
-> Aggiornato: 2026-06-11 · Da discutere prima di toccare planAccess.js / Stripe / landing.
+# FoodOS — 3 tier abbonamento (v2 post implementazione 18 feature AI)
+> Aggiornato: 2026-06-12 · Decisioni operative frozen + tutte le feature implementate finora.
 
 ## Filosofia di base
 
-Tre tier che corrispondono a **tre archetipi di proprietario**, non a tre livelli di "potenza tecnologica". L'errore classico SaaS è impilare feature random in Pro/Enterprise senza pensare al psyche del compratore.
+Tre tier che corrispondono a **tre archetipi di proprietario**, non a tre livelli di "potenza tecnologica":
 
 | Tier | Archetipo proprietario | Slogan |
 |---|---|---|
-| **Base** | "Marco 65 anni, pasticceria di famiglia" / "Sara 28 anni, ha appena aperto" | *Smetto di scrivere su carta. Vedo il food cost.* |
+| **Base** | "Marco 65 anni, pasticceria di famiglia" / "Sara 28 anni, ha appena aperta" | *Smetto di scrivere su carta. Vedo il food cost.* |
 | **Pro** | "Andrea 42 anni, gestisce 1-2 sedi e vuole crescere" | *Il mio braccio destro. Lavora mentre dormo.* |
 | **Chain** | "Famiglia che gestisce 3+ sedi" / "Holding multi-brand" | *Quello che mio commercialista, mio team e mio CFO non sanno.* |
 
-**Principio cardine**: il Base **deve essere buonissimo**. Non un tier monco. Deve risolvere il 70% dei problemi di un proprietario single-sede. Altrimenti **non upgrada mai a Pro**.
-
-Il Pro **deve essere figo**. È quello che vede 70% dei clienti. Deve essere **lo standard di mercato** ma con 2-3 chicche AI uniche.
-
-Il Chain **deve essere irresistibile**. Quando lo vedi in demo dici "lo voglio". Trasforma il proprietario in CFO.
+**Principio cardine**:
+- Il **Base** **deve essere buonissimo**. Risolve il 70% dei problemi di un proprietario single-sede. Altrimenti non upgrada mai.
+- Il **Pro** **deve essere figo**. 70% dei clienti lo prendono. Standard di mercato + 3-4 chicche AI uniche.
+- Il **Chain** **deve essere irresistibile**. Quando lo vedi in demo dici "lo voglio". Trasforma il proprietario in CFO.
 
 ---
 
-## TIER 1 — **BASE** · €49/mese (o €39 annuale)
+## TIER 1 — **BASE** · €49/mese (€39 annuale, -20%)
 
 > Per chi inizia o gestisce 1 sola sede. Tutto quello che serve per smettere di scrivere su carta.
 
-### Chi è il cliente Base
-- **Marco**, 65 anni: pasticceria di famiglia ereditata. Usa un quaderno. Vuole capire se la cassata che fa da 30 anni rende o no. **Paura**: tecnologia complicata. **Bisogno**: 1 numero chiaro al giorno.
-- **Sara**, 28 anni: ha aperto da 6 mesi. Smartphone-native. **Paura**: bruciarsi i risparmi. **Bisogno**: capire dove sta perdendo soldi.
+### Cliente Base
+- **Marco**, 65 anni: pasticceria di famiglia. Quaderno cartaceo. Vuole capire se la cassata rende.
+- **Sara**, 28 anni: ha aperto da 6 mesi. **Paura**: bruciarsi i risparmi. **Bisogno**: capire dove perde soldi.
 
-### Feature incluse (Base = 100% delle necessità single-sede)
+### Feature incluse
 
-#### 🟢 Core operativo
+#### 🟢 Core operativo (tutte)
 - ✅ **1 sede attiva**
-- ✅ **Ricettario** completo (import Excel + manuale + scheda allergeni)
-- ✅ **Food cost** ricorsivo con semilavorati (il crown jewel, non lo togli mai)
+- ✅ **Ricettario** completo (import Excel + manuale + scheda allergeni + PDF watermark)
+- ✅ **Food cost ricorsivo** (crown jewel: semilavorati, depth, cycle-detect, 39 test)
 - ✅ **Database HORECA 427 prezzi** (proprietario in tutti i tier)
-- ✅ **Produzione giornaliera** (registrazione carico vetrina)
-- ✅ **Magazzino MP** con soglie minime + alert visivi
-- ✅ **Chiusura cassa** (manuale + foto scontrini con OCR — *anche al Base*)
-- ✅ **Scadenzario fornitori** (1 sede)
-- ✅ **Storico produzione** 12 mesi
-
-#### 🤖 AI essenziale (la magia che fa dire "wow" al primo giorno)
-- ✅ **Daily Brief AI via email** ("Ieri €420 ricavi, food cost cannolo 32% — sopra il tuo target")
-- ✅ **AI Suggestions** (campanella con 3 avvisi al giorno: scorte, fatture, food cost alto)
-- ✅ **AI "Spiegami P&L"** (A6 — ogni KPI ha bottone 🤖 che spiega in italiano)
-- ✅ **Search globale AI** (A5 — Cmd+K, trova ricetta/voce/risposta)
-
-#### 📊 Visualizzazione semplice
-- ✅ **Dashboard Home** con 4 KPI principali (oggi/settimana)
-- ✅ **P&L semplice** (ricavi, FC%, margine lordo)
-- ✅ **Sprechi + omaggi** tracking
+- ✅ **Produzione giornaliera** (carico vetrina, stock PF atomico)
+- ✅ **Magazzino MP** (soglie min, alert)
+- ✅ **Chiusura cassa** (manuale + foto OCR scontrini)
+- ✅ **Cassa OCR continua** (Claude Vision) — **max 50 scontrini/mese**, sopra → upgrade Pro
+- ✅ **Scadenzario fornitori**
+- ✅ **Storico produzione** (6 mesi)
+- ✅ **Sprechi + omaggi tracking**
 - ✅ **HACCP base** (temperature manuali)
 
+#### 🤖 AI essenziale (la magia, anche al €49)
+- ✅ **Daily Brief AI via email** — ricevi ogni mattina 3 frasi narrative con KPI + 1 azione (3 giorni/sett: lun-mer-ven)
+- ✅ **AI Suggestions proattive** — campanella in topbar con 3-5 avvisi/giorno (food cost alto, scorte, fatture, prodotti in calo)
+- ✅ **AI Spiega P&L** — bottone 🤖 su ogni KPI, l'AI scrive 2-3 paragrafi che spiegano il numero
+- ✅ **Search globale Cmd+K** — barra di ricerca con AI intent parser (naviga / trova / chiedi)
+- ✅ **AI Reply recensioni** — copia-incolla recensione → 3 risposte (caldo/formale/fattuale) editabili
+
+#### 📊 Visualizzazione semplice
+- ✅ Dashboard Home con 4 KPI principali (oggi/settimana)
+- ✅ P&L semplice (ricavi, FC%, margine lordo)
+- ✅ Storico prodotti
+
 #### 📤 Output essenziali
-- ✅ **Export Excel** (ricettario, magazzino, chiusure)
-- ✅ **PDF ricettario** (con allergeni, formattato)
-- ✅ **Email scadenze settimanali**
+- ✅ Export Excel (ricettario, magazzino, chiusure)
+- ✅ PDF ricettario (allergeni, watermark)
+- ✅ Email scadenze settimanali
 
 ### NON incluse nel Base
-- ❌ Multi-sede + confronto sedi + trasferimenti
-- ❌ Costi aziendali avanzati P&L (consumabili, ammortamenti, utenze custom)
-- ❌ Personale & stipendi calcolo lordo↔netto CCNL
-- ❌ Inventario differenziale gusti/formati (gelaterie)
-- ❌ Cassa OCR automatica continua (solo manuale o foto)
-- ❌ Integrazioni esterne (TeamSystem, Fatture in Cloud, cassa POS)
+- ❌ Multi-sede + confronto + trasferimenti
+- ❌ Costi aziendali avanzati P&L
+- ❌ Personale stipendi CCNL (solo anagrafica base)
+- ❌ Inventario differenziale gelaterie
+- ❌ Cassa OCR illimitata (limite 50/mese)
+- ❌ Integrazioni esterne
 - ❌ Voice-input
 - ❌ Forecast meteo+eventi
-- ❌ Benchmark settoriale
-- ❌ AI Reformulation
-- ❌ HACCP foto automatico
+- ❌ Brief settimanale del lunedì
+- ❌ OCR fatture entrata
+- ❌ Cashflow predittivo
+- ❌ Menu engineering
+- ❌ Reformulation AI
+- ❌ Pricing competitor
+- ❌ FoodOS Brain / WhatsApp / Recipe Inventor / Marketplace / Documentary
 
 ### Limitazioni soft
-- Max **3 dipendenti** (anagrafica + turni base, no stipendi)
-- Max **50 ricette** (sopra → suggerisce upgrade)
-- Storico **6 mesi** (oltre archiviato ma non interrogabile dalla UI)
-- Email brief: **3 giorni/settimana** (lun-mer-ven)
+- Max **3 dipendenti** (anagrafica + turni base, no stipendi calcolati)
+- Max **50 ricette**
+- Storico **6 mesi** (oltre archiviato non interrogabile UI)
+- Daily Brief email: **3 giorni/sett**
 
-### Pricing
+### Pricing & trial
 - **€49/mese** o **€39/mese annuale** (-20%)
-- Trial **14 giorni** (NON 90 come oggi — riduce decision fatigue)
-- Upgrade in 1 click a Pro
+- Trial **14 giorni** + **+14gg stretch** se Base attiva 3 azioni chiave (carica ricetta, registra chiusura, riceve primo Brief)
+- Upgrade 1 click a Pro
 
-### Marketing tagline
-> *"Smetti di scrivere su carta. Vedi quanto guadagni davvero. €49/mese, prova 14 giorni gratis."*
+**Tagline**: *"Smetti di scrivere su carta. Vedi quanto guadagni davvero. €49/mese, prova 14 giorni gratis."*
 
 ---
 
-## TIER 2 — **PRO** · €119/mese (o €99 annuale)
+## TIER 2 — **PRO** · €119/mese (€95 annuale, -20%) — MAINSTREAM
 
 > Per chi vuole crescere. Il braccio destro digitale che lavora mentre dormi.
 
-### Chi è il cliente Pro
-- **Andrea**, 42 anni: 1-2 sedi, 5-15 dipendenti. Già ha cassa+commercialista. **Frustrazione**: deve aprire 5 strumenti per capire cosa fare lunedì. **Bisogno**: un assistente che gli dica cosa è importante.
-- **Giulia**, 35 anni: 1 sede grande con laboratorio + delivery. **Frustrazione**: passa 3 ore a settimana su fogli Excel. **Bisogno**: automazione.
+### Cliente Pro
+- **Andrea**, 42 anni: 1-2 sedi, 5-15 dipendenti. Già ha cassa+commercialista. **Bisogno**: assistente che dica cosa è importante.
+- **Giulia**, 35 anni: 1 sede grande con laboratorio + delivery. Passa 3 ore/sett su Excel. **Bisogno**: automazione.
 
 ### Feature aggiuntive sopra Base
 
-#### 🏢 Multi-sede leggero
+#### 🏢 Multi-sede
 - ✅ **Fino a 2 sedi** attive
-- ✅ **Confronto sedi** (ranking, alerts, KPI side-by-side)
-- ✅ **Trasferimenti** tra le 2 sedi
+- ✅ **Confronto sedi** (ranking medaglie, alerts, KPI side-by-side, sede critica/champion, trend sparkline 8 sett)
+- ✅ **Trasferimenti** tra le 2 sedi (template ricorrenti, KPI accuratezza, ripeti rapido)
 
 #### 💰 Gestione economica avanzata
-- ✅ **Costi aziendali personalizzati** (consumabili, ammortamenti, utenze, affitti, ecc. — P&L netto reale)
-- ✅ **Personale stipendi** (lordo↔netto CCNL, IRPEF a scaglioni, costo azienda)
+- ✅ **Costi aziendali personalizzati** (consumabili, manutenzione, ammortamenti, utenze, affitti, marketing → P&L netto reale)
+- ✅ **Personale stipendi CCNL** (lordo↔netto IRPEF scaglioni, INPS 9.19%, costo azienda con TFR)
 - ✅ **P&L avanzato** con margine netto stimato
-- ✅ **Cashflow predittivo 30/60/90gg** (B7)
 - ✅ **Storico illimitato**
+- ✅ **Cassa OCR illimitata** (no limite 50/mese del Base)
 
-#### 🍦 Verticale gelaterie (su richiesta)
-- ✅ **Inventario differenziale gusti↔formati** (per chi produce gusti ma vende coni/coppette)
+#### 🍦 Verticale gelaterie/laboratori
+- ✅ **Inventario differenziale gusti↔formati** (produce gusti, vende coni/coppette)
 - ✅ **Quadratura inventario↔cassa** con drift detector
 
-#### 🤖 AI avanzata (le chicche del Pro)
-- ✅ **Daily Brief AI** **ogni giorno** + opzione WhatsApp
-- ✅ **AI Reply recensioni** (Google Maps copy-paste mode)
-- ✅ **AI Categorization fatture entrata** (carica foto/PDF → estrae tutto)
-- ✅ **AI HACCP foto-assistita** (foto frigo + termometro → entry automatica)
-- ✅ **AI Menu engineering** (Kasavana-Smith automatico)
-- ✅ **AI Onboarding conversazionale** (per il setup iniziale e i dipendenti)
-
-#### 🎙️ Voice
-- ✅ **Voice-input produzione** ("Claude, oggi 12 cassate")
-- ✅ **Voice HACCP** ("temperatura frigo A: 4 gradi")
+#### 🤖 AI Game changers
+- ✅ **Daily Brief AI giornaliero** (7gg/sett) + opzione brief WhatsApp
+- ✅ **Brief settimanale del lunedì** — riassunto narrativo della settimana chiusa + 1 azione strategica
+- ✅ **AI OCR fatture in entrata** — foto/PDF fattura → estrae fornitore/P.IVA/scadenza/importi/righe (Claude Vision)
+- ✅ **Menu engineering** (Kasavana-Smith automatico, matrice 2×2 stars/dogs/puzzles/plowhorses con consigli AI)
+- ✅ **Cashflow predittivo 30/60/90gg** — saldo + 3 scenari (atteso/ottimistico/pessimistico) + alert giorni rossi
+- ✅ **Forecast vendite 7gg** — storico + meteo Open-Meteo + correzione stagionale per produzione ottimale
+- ✅ **AI Reformulation engine** — *"porta il cannolo a FC 26%"* → 3 varianti con impact stimato
+- ✅ **AI Auto-ordine fornitori** — calcolo consumo medio + EOQ + testo ordine pronto da copia-incollare
+- ✅ **AI Pricing vs competitor** — confronto prezzi zonali + verdetto AI con suggerimenti
 
 #### 🔌 Integrazioni
-- ✅ **Fatture in Cloud / TeamSystem** (sync 2-vie)
-- ✅ **Stripe / cassa POS** import vendite
-- ✅ **Resend / Mailchimp** (per recensioni clienti)
+- ✅ TeamSystem / Fatture in Cloud (sync 2-vie)
+- ✅ Stripe / cassa POS (import vendite)
+- ✅ Resend per email transactional
 
 #### 📤 Output Pro
-- ✅ **Briefing settimanale** (lunedì) + **mensile** (1° del mese)
-- ✅ **Export contabilità** per commercialista (CSV + XML)
-- ✅ **Report HACCP** PDF ASL-ready (in beta)
+- ✅ Briefing settimanale + mensile
+- ✅ Export contabilità (CSV + XML)
+- ✅ Report HACCP base PDF
 
-### NON incluse nel Pro (per spingere a Chain)
+### NON incluse nel Pro (riserva Chain)
 - ❌ Più di 2 sedi
-- ❌ Forecast meteo+eventi avanzato
-- ❌ Benchmark anonimo settoriale
-- ❌ AI Reformulation engine
-- ❌ FoodOS Brain (chat conversazionale)
+- ❌ FoodOS Brain (chat conversazionale dedicata)
 - ❌ WhatsApp Bot completo
-- ❌ AI Auto-ordine fornitore
-- ❌ AI Pricing dinamico competitor
-- ❌ AI Audit ASL pre-compilato
-- ❌ Smart fridge IoT
-- ❌ AI Camera vetrina
+- ❌ AI Recipe Inventor
+- ❌ Marketplace fornitori
+- ❌ Documentary AI trimestrale
+- ❌ Multi-brand + governance
+- ❌ SSO / API esterne
 - ❌ Account manager dedicato
 
 ### Limitazioni soft
 - Max **15 dipendenti**
 - Max **2 sedi**
 - Max **500 ricette**
-- WhatsApp brief solo **1 numero**
-- Voice input: **50 minuti/mese** (sopra → pay-per-use o upgrade)
+- Voice-input: *coming in v2* (lo aggiungeremo qui)
 
-### Pricing
-- **€119/mese** o **€99/mese annuale** (-17%)
+### Pricing & trial
+- **€119/mese** o **€95/mese annuale** (-20%)
 - Trial **30 giorni**
-- Upgrade in 1 click a Chain
+- Upgrade 1 click a Chain
 
-### Marketing tagline
-> *"Il tuo braccio destro digitale. Lavora mentre dormi. Da €99/mese."*
+**Tagline**: *"Il tuo braccio destro digitale. Lavora mentre dormi. Da €95/mese."*
 
 ---
 
-## TIER 3 — **CHAIN** · €299/mese (o €249 annuale)
+## TIER 3 — **CHAIN** · €299/mese (€239 annuale, -20%) — GAME CHANGER
 
-> Per famiglie con 3+ sedi o multi-brand. Tutto quello che il tuo commercialista, il tuo team e il tuo CFO non sanno.
+> Per famiglie 3+ sedi o multi-brand. Tutto quello che il tuo commercialista, il tuo team e il tuo CFO non sanno.
 
-### Chi è il cliente Chain
-- **Famiglia Rossi**: 4 pasticcerie a Torino, da padre a figli. 25 dipendenti. **Sogno**: capire quale sede rende davvero e replicare il modello vincente.
-- **Holding multi-brand**: 1 brand pasticceria + 1 brand gelateria + 1 ristorante. **Bisogno**: dashboard unificato CFO-level + governance.
+### Cliente Chain
+- **Famiglia Rossi**: 4 pasticcerie a Torino, padre a figli. 25 dipendenti. **Bisogno**: capire quale sede rende, replicare il modello vincente.
+- **Holding multi-brand**: pasticceria + gelateria + ristorante. **Bisogno**: dashboard CFO-level unificato.
 
 ### Feature aggiuntive sopra Pro
 
 #### 🌐 Multi-sede illimitato + governance
-- ✅ **Sedi illimitate**
-- ✅ **Multi-brand** (gruppi di sedi con brand diversi sotto la stessa org)
-- ✅ **Role-based access** avanzato: manager di sede, regional manager, CFO, owner
-- ✅ **Audit log avanzato** (chi ha cambiato cosa, quando)
-- ✅ **Approval workflow** (es. ordini > €500 richiedono firma owner)
+- ✅ **Sedi illimitate** (fino a 10 in listino, sopra → "Contattaci")
+- ✅ **Multi-brand** (gruppi di sedi con brand diversi sotto stessa org)
+- ✅ **Role-based access avanzato**: manager sede, regional, CFO, owner
+- ✅ **Audit log avanzato**
 
-#### 🚀 AI Game changer (il vero motivo per pagare €299)
-- ✅ **🌦️ AI Forecast vendite meteo+eventi locali** (B1 — il moat)
-- ✅ **📊 Benchmark anonimo settoriale** (B8 — "sei nel top 25%?")
-- ✅ **🧠 FoodOS Brain** — chat conversazionale dedicata (C1)
-- ✅ **📱 WhatsApp Bot completo** (operativo + notifiche + comandi)
-- ✅ **🛒 AI Auto-ordine fornitori** (B4)
-- ✅ **💲 AI Pricing dinamico competitor** (B9)
-- ✅ **🧪 AI Reformulation engine** (B3 — *"voglio cannolo a FC 26%"*)
-- ✅ **📄 AI Audit ASL pre-compilato** (C5)
-- ✅ **📸 AI Camera vetrina** (B10 — inventario visivo, hardware opzionale)
-- ✅ **🥶 Smart Fridge IoT** (C6 — SensorPush integration)
-- ✅ **🎬 Documentary AI generator** (C7 — trimestrale Spotify-Wrapped-like)
-
-#### 🛒 Marketplace
-- ✅ **Marketplace fornitori** con AI matching (C4)
-- ✅ **Sconti gruppo** (la holding negozia per tutte le sedi)
+#### 🚀 AI esclusivi Chain (il vero motivo per pagare €299)
+- ✅ **🧠 FoodOS Brain** — chat conversazionale dedicata stile ChatGPT con memoria persistente. Conosce la tua attività, risponde a domande aperte, genera report, scava nei dati.
+- ✅ **📱 WhatsApp Bot operativo** — gestisci FoodOS da WhatsApp (KPI giornata, registra sprechi, alert push). Twilio Business incluso.
+- ✅ **👨‍🍳 AI Recipe Inventor** — *"inventami una torta estiva low-cost"* → 3 ricette nuove con food cost stimato + procedimento + prezzo consigliato
+- ✅ **🛒 Marketplace fornitori HORECA** — listings verificati con rating community + AI matching prodotto
+- ✅ **🎬 Documentary AI trimestrale** — ogni 3 mesi l'AI scrive un riassunto narrativo (headline + 3 paragrafi + 4 highlights) pronto da condividere col team/social/commercialista
 
 #### 🤝 Service tier
 - ✅ **Account manager dedicato** (1 call/mese + Slack/WhatsApp diretto)
-- ✅ **Setup assistito** (1 giornata onsite per sede)
-- ✅ **Training dipendenti** (2 ore live ogni quarter)
+- ✅ **Setup assistito onsite** (1 giornata per sede)
+- ✅ **Training dipendenti** (2h live ogni quarter)
 - ✅ **Priority support** (SLA 2h business hours)
 
 #### 📤 Output enterprise
-- ✅ **Report board CFO mensile** (PDF formattato per CDA)
-- ✅ **API read** per integrare con BI esterni (PowerBI, Tableau, Looker)
-- ✅ **SSO** (Google Workspace, Microsoft Entra)
-- ✅ **White-label opzionale** (per consulenti food che rivendono)
+- ✅ Report board CFO mensile (PDF per CDA)
+- ✅ API read per BI esterni (PowerBI, Tableau)
+- ✅ SSO (Google Workspace, Microsoft Entra)
+- ✅ White-label opzionale (per consulenti food)
 
-### Limitazioni soft (nessuna, è la versione "tutto incluso")
-- Voice input: **illimitato**
-- WhatsApp: **3 numeri linkabili**
+### Limitazioni (nessuna, è "tutto incluso")
+- Sedi: **illimitate** (>10 → contatti commerciali)
 - Dipendenti: **illimitati**
 - Ricette: **illimitate**
-- Sedi: **illimitate**
 - Storico: **illimitato**
 
-### Pricing
-- **€299/mese** o **€249/mese annuale** (-17%)
-- Setup fee **€990** one-time (include 1 giornata onsite + dataset HORECA personalizzato)
-- Trial **30 giorni** con onboarding assistito
-- Volume discount per chain >10 sedi (negotiated)
+### Pricing & trial
+- **€299/mese** o **€239/mese annuale** (-20%)
+- **Setup fee €990 obbligatorio** + clausola rimborso 100% entro 60gg se non soddisfatto
+- Trial **30 giorni con onboarding assistito**
 
-### Marketing tagline
-> *"Quello che il tuo commercialista, il tuo team e il tuo CFO non sanno. Da €249/mese, scopri perché un proprietario su quattro ci paga il triplo."*
+**Tagline**: *"Quello che il tuo commercialista, il tuo team e il tuo CFO non sanno. Da €239/mese."*
 
 ---
 
-## Matrice riassuntiva (tabella di confronto)
+## Matrice completa Base / Pro / Chain
 
 | Feature | Base €49 | Pro €119 | Chain €299 |
 |---|:---:|:---:|:---:|
-| **Ricettario + food cost ricorsivo** | ✅ | ✅ | ✅ |
-| **Database HORECA 427+ prezzi** | ✅ | ✅ | ✅ |
+| **Core operativo** | | | |
+| Ricettario + food cost ricorsivo | ✅ | ✅ | ✅ |
+| Database HORECA 427+ prezzi | ✅ | ✅ | ✅ |
 | Produzione + magazzino | ✅ | ✅ | ✅ |
-| Cassa manuale + foto OCR | ✅ | ✅ | ✅ |
+| Cassa OCR Claude Vision | ✅ (50/mese) | ✅ ∞ | ✅ ∞ |
 | Scadenzario fornitori | ✅ | ✅ | ✅ |
-| **Daily Brief AI + AI Suggestions** | ✅ (3gg/sett) | ✅ (giornaliero) | ✅ (giornaliero + WA) |
-| AI "Spiegami P&L" | ✅ | ✅ | ✅ |
+| Sprechi + omaggi | ✅ | ✅ | ✅ |
+| HACCP base | ✅ | ✅ | ✅ |
+| **AI essenziale (tutti i tier)** | | | |
+| Daily Brief AI | ✅ (3gg/sett) | ✅ (giornaliero) | ✅ (giornaliero + WA) |
+| AI Suggestions proattive | ✅ | ✅ | ✅ |
+| AI Spiega P&L (bottone 🤖 su KPI) | ✅ | ✅ | ✅ |
 | Search globale AI (Cmd+K) | ✅ | ✅ | ✅ |
-| **Sedi** | 1 | 2 | ∞ |
-| Confronto sedi + Trasferimenti | — | ✅ | ✅ |
-| Costi aziendali P&L (custom) | — | ✅ | ✅ |
+| AI Reply recensioni | ✅ | ✅ | ✅ |
+| **Multi-sede & gestione (Pro+)** | | | |
+| Sedi | 1 | 2 | ∞ |
+| Confronto sedi (ranking, alerts, sparkline) | — | ✅ | ✅ |
+| Trasferimenti tra sedi (template, KPI accuratezza) | — | ✅ | ✅ |
+| Costi aziendali P&L | — | ✅ | ✅ |
 | Personale stipendi CCNL | — | ✅ | ✅ |
-| Cashflow predittivo 30/60/90gg | — | ✅ | ✅ |
+| Storico illimitato | — | ✅ | ✅ |
 | Inventario differenziale gelaterie | — | ✅ | ✅ |
-| AI Reply recensioni | — | ✅ | ✅ |
-| AI OCR fatture entrata | — | ✅ | ✅ |
-| AI HACCP foto-assistita | — | ✅ | ✅ |
-| AI Menu engineering | — | ✅ | ✅ |
-| Voice-input produzione | — | ✅ (50min/mese) | ✅ ∞ |
+| Brief settimanale del lunedì | — | ✅ | ✅ |
+| **AI Game changers (Pro+)** | | | |
+| AI OCR fatture in entrata | — | ✅ | ✅ |
+| Menu engineering (Kasavana-Smith) | — | ✅ | ✅ |
+| Cashflow predittivo 30/60/90gg | — | ✅ | ✅ |
+| Forecast vendite 7gg + meteo | — | ✅ | ✅ |
+| AI Reformulation engine | — | ✅ | ✅ |
+| AI Auto-ordine fornitori | — | ✅ | ✅ |
+| AI Pricing vs competitor | — | ✅ | ✅ |
 | Integrazioni TeamSystem/FattureInCloud | — | ✅ | ✅ |
-| **🌦️ Forecast meteo+eventi** | — | — | ✅ |
-| **📊 Benchmark settoriale anonimo** | — | — | ✅ |
-| **🧠 FoodOS Brain (chat)** | — | — | ✅ |
-| **📱 WhatsApp Bot completo** | — | — | ✅ |
-| AI Auto-ordine fornitori | — | — | ✅ |
-| AI Pricing competitor | — | — | ✅ |
-| AI Reformulation engine | — | — | ✅ |
-| AI Audit ASL pre-compilato | — | — | ✅ |
-| AI Camera vetrina | — | — | ✅ |
-| Smart Fridge IoT | — | — | ✅ |
-| Marketplace fornitori | — | — | ✅ |
-| Multi-brand + governance | — | — | ✅ |
+| **AI esclusivi Chain** | | | |
+| 🧠 FoodOS Brain (chat conversazionale) | — | — | ✅ |
+| 📱 WhatsApp Bot operativo | — | — | ✅ |
+| 👨‍🍳 AI Recipe Inventor (chef virtuale) | — | — | ✅ |
+| 🛒 Marketplace fornitori HORECA | — | — | ✅ |
+| 🎬 Documentary AI trimestrale | — | — | ✅ |
+| Multi-brand + governance + RBAC | — | — | ✅ |
 | Account manager dedicato | — | — | ✅ |
-| SSO + API esterne | — | — | ✅ |
+| Setup onsite + training | — | — | ✅ |
+| SSO + API esterne BI | — | — | ✅ |
+| **Limiti** | | | |
 | Dipendenti | 3 | 15 | ∞ |
 | Ricette | 50 | 500 | ∞ |
 | Storico | 6 mesi | ∞ | ∞ |
-| Trial | 14 gg | 30 gg | 30 gg + onboarding |
+| Trial | 14gg (+14 stretch) | 30gg | 30gg + onboarding |
+| Setup fee | — | — | €990 (rimborso 60gg) |
 
 ---
 
-## Razionale strategico per ogni tier
+## Razionale strategico
 
-### Perché Base €49 (e non €19 o €89)
-- **€19** lo positiona come "freemium" = non lo prendono sul serio
-- **€89** taglia fuori i 65% di pasticcerie italiane con fatturato <€150k/anno
-- **€49** è la "media coffee shop" che il proprietario paga senza pensarci
-- Pricing power: a €49 sei più caro della concorrenza fragile (Spreafico, Foodcheck @ €25-35) ma giustifichi con AI (loro non ce l'hanno)
+### Perché €49 / €119 / €299 (e non altri prezzi)
 
-### Perché Pro €119 (e non €99 o €149)
-- **€99** è troppo basso per la quantità di feature → segnale "bassa qualità"
-- **€149** è la soglia psicologica del "lo devo proprio motivare al socio"
-- **€119** è "10 euro meno di €130" — il prezzo che senti più basso
+- **€49** = "una cena fuori". Il proprietario non ci pensa. Più caro di Spreafico/Foodcheck (€25-35) ma giustifichi con AI (loro non ce l'hanno).
+- **€119** = "10€ meno di €130" — soglia psicologica accessibile per uno strumento serio. 2.4× il Base, giustificato da multi-sede + 10 AI game changers.
+- **€299** = prezzo di un CFO outsourced (€200-400/mese). 2.5× il Pro, giustificato dai 5 AI esclusivi + service tier.
 
-### Perché Chain €299 (e non €249 o €399)
-- **€249** è troppo vicino al Pro → non differenzia abbastanza
-- **€399** spaventa il small-chain (3-5 sedi)
-- **€299** è il prezzo del CFO outsourced (€200-400/mese): paghi quello in più, ottieni un CFO automatico
+### Salto non-lineare voluto
+Il salto Pro→Chain è volutamente "premio premium giustificato":
+- Pro è il *commodity premium* (tutti i SaaS gestionali decenti)
+- Chain è *categoria a parte* (Brain + WhatsApp + Marketplace nessuno IT ce li ha)
 
-### La regola del 3-to-1
-La differenza di prezzo deve essere **chiara**:
-- Pro è **2.4×** Base → giustificato da multi-sede + 10 feature AI
-- Chain è **2.5×** Pro → giustificato da AI Forecast + Brain + WhatsApp + account manager
+### Modello ricavi (100 clienti distribuiti)
 
-Volutamente **non-lineare**: il salto perceived dal Pro al Chain deve sentirsi "premium ma giustificato".
+| Distribuzione | Calcolo | MRR |
+|---|---|---|
+| 60 Base × €49 | | €2.940 |
+| 35 Pro × €119 | | €4.165 |
+| 5 Chain × €299 | + €4.950 setup | €1.495 + €4.950 una-tantum |
+| **Totale annuo** | **€103.200 + €4.950 setup** | **€108k ARR primo anno** |
 
----
+A confronto con piano flat €99 × 100 clienti = €118.800: i 3 tier rendono **leggermente meno in ARR** ma:
+1. **Accessibilità maggiore** (Base attira piccole PMI)
+2. **Upsell path chiaro** (cliente cresce dentro il prodotto)
+3. **Anchor pricing** (€299 fa sembrare €119 ragionevolissimo)
 
-## Effetto sui ricavi (modello)
-
-Assumendo 100 clienti totali distribuiti:
-- **60 Base** × €49 = €2.940/mese
-- **35 Pro** × €119 = €4.165/mese
-- **5 Chain** × €299 = €1.495/mese (+ €4.950 una-tantum setup)
-- **Totale ARR**: €103.200/anno
-
-Vs scenario "solo Pro €99 per tutti": €99 × 100 = €118.800/anno
-
-**Conclusione**: con i 3 tier guadagni **circa lo stesso**, ma:
-1. **Accessibilità maggiore** (Base attira PMI piccole che non comprerebbero Pro)
-2. **Upsell path chiaro** (il cliente cresce dentro il prodotto)
-3. **Anchor pricing** (€299 fa sembrare €119 ragionevolissimo — comportamento di prezzo classico)
+### Distribuzione attesa nei primi 12 mesi
+- Primi 30 clienti: 70% Base, 25% Pro, 5% Chain
+- Maturità 100 clienti: 60% Base, 35% Pro, 5% Chain
+- Maturità 500 clienti: 50% Base, 40% Pro, 10% Chain (più chain con tempo)
 
 ---
 
-## Decisioni operative (frozen 2026-06-12)
+## Decisioni operative congelate (8 domande risposte)
 
-1. **Cassa OCR continua → Base SI con limite 50/mese** (Opzione B). Il magic moment OCR
-   deve essere assaggiato anche dal Base. Sopra 50 scontrini/mese → upgrade naturale a Pro
-   (illimitato). Costo token a noi: ~€1.50/cliente Base attivo = trascurabile.
-2. **HACCP foto-assistita** → NON priorità in roadmap. Spostata in coda (task #94).
-3. **Trial differenziato 14/30/30** (Opzione A). Base 14gg (decisione rapida, basso committment),
-   Pro/Chain 30gg (servono per importare ricettario + valutare ROI). Stretch: estensione +14gg
-   gratis se Base attiva 3 azioni chiave (carica ricetta, registra chiusura, riceve primo Brief).
-4. **Setup fee Chain €990 OBBLIGATORIO + clausola rimborso 60gg** (Opzione A). Filtra clienti
-   seri; cash subito (5 × €990 = €4.950); se cliente non soddisfatto entro 60gg, rimborso 100%.
-5. **Listino Chain fino a 10 sedi visibile. Sopra → "Contattaci"** (Opzione C). Per ora il
-   mercato target sono 1-5 sedi. Niente plan Family/Enterprise in listino.
-6. **Sconto annuale -20% UNIFORME** su tutti i tier (Opzione B). Messaggio semplice "paghi
-   annuale risparmi 20%", massima conversione annuale = minimo churn.
-7. **Trial SENZA card-on-file** (Opzione A). Trust del cliente prima della conversione bruta.
-   Per i primi 12 mesi prioritizziamo reputazione. Passeremo a card-on-file dopo 100 clienti.
-8. **Niente founder discount** (Opzione NO). Listino pieno per tutti dal day-one. Il prodotto
-   vale i €49/€119/€299, non scontiamo per chiudere — chiudiamo grazie al valore.
-
-### Prezzi finali consolidati
-
-| Piano | Mensile | Annuale (-20%) | Setup fee | Trial | Cassa OCR |
-|---|---:|---:|---:|---:|---|
-| Base    | €49  | **€39/mese** (€470/anno) | — | 14gg + 14 stretch | 50/mese |
-| Pro     | €119 | **€95/mese** (€1.140/anno) | — | 30gg | ∞ |
-| Chain   | €299 | **€239/mese** (€2.870/anno) | €990 obbligatorio (rimborso 60gg) | 30gg + onboarding | ∞ |
+1. **Cassa OCR Base** → SI con limite 50/mese (sopra → upgrade Pro)
+2. **HACCP foto-assistita** → fuori roadmap immediata (task #94 in coda)
+3. **Trial differenziato** → 14gg Base + stretch 14gg / 30gg Pro / 30gg+onboarding Chain
+4. **Setup fee Chain** → €990 OBBLIGATORIO + rimborso 100% entro 60gg
+5. **Plan Family** → no, listino fino a 10 sedi, sopra "Contattaci"
+6. **Sconto annuale** → -20% uniforme su tutti i tier
+7. **Card-on-file** → no per primi 12 mesi (priorità trust)
+8. **Founder discount** → no, listino pieno day-one
 
 ---
 
-## Implementazione tecnica (cosa serve)
+## Cosa è stato implementato (giugno 2026)
 
-### 1. Aggiornare `src/lib/planAccess.js`
-- Espandere `VIEW_MIN_PLAN` con tutte le view nuove
-- Aggiungere `FEATURE_MIN_PLAN` per micro-feature (es. WhatsApp, voice, AI forecast)
-- Funzione `canUseFeature(featureId, piano, userEmail)` per check fine-grained
+### 23 AI features funzionanti
+- Daily Brief AI + AI Suggestions proattive (cron giornaliero, RLS, dedup)
+- AI Spiega su KPI (componente AiExplainButton riusabile)
+- Search globale Cmd+K (CommandPalette)
+- AI Reply recensioni (3 toni)
+- AI OCR fatture (Claude Vision + extracted_invoices)
+- AI OCR scontrini (già esistente, ampliato)
+- Brief settimanale del lunedì
+- Menu engineering Kasavana-Smith
+- Cashflow predittivo 30/60/90gg (cashflow_eventi)
+- Forecast vendite 7gg + meteo Open-Meteo (forecast_giornaliero)
+- AI Reformulation engine
+- AI Auto-ordine fornitori
+- AI Pricing competitor (competitor_prices)
+- Onboarding conversazionale (OnboardingChat alternativo)
+- FoodOS Brain chat conversazionale (brain_conversations)
+- WhatsApp Bot scaffolding (webhook + setup view)
+- AI Recipe Inventor (recipe_inventions)
+- Marketplace fornitori (marketplace_listings)
+- Documentary AI trimestrale (documentary_snapshots)
+- Inventario gusti differenziale (gelaterie)
+- Confronto sedi rimodellato (ranking, alerts, trend, sede champion/critica)
+- Trasferimenti rimodellati (template ricorrenti, KPI accuratezza)
+- AI engine condiviso (api/lib/aiEngine.js)
 
-### 2. Aggiornare `api/pricing.js`
-- Endpoint pubblico che restituisce i 3 tier con feature/prezzi
-- Usato da landing + portal cliente
-
-### 3. Stripe products
-- 3 prodotti × 2 prezzi (mensile + annuale) = 6 price IDs
-- Setup fee Chain come one-time invoice item
-
-### 4. Landing page
-- Tabella tier
-- Calcolatore "quanto risparmi/anno" (Base vs cartaceo)
-- Testimonianza Mara dei Boschi per ogni tier
-
-### 5. UI app
-- Banner upgrade contestuale ("Questa feature è nel Pro — passa ora")
-- Sidebar shows tier corrente + "scopri di più"
+### Cron orchestrato (cron-giornaliero.js)
+1. cron-notifiche (alert magazzino + fatture scadenza)
+2. anomaly-detect
+3. cron-report-mensile (1° del mese)
+3b. **cron-daily-brief** (giornaliero + settimanale lunedì)
+3c. **cron-ai-suggestions** (dedup 7gg)
+3d. **cron-forecast** (Open-Meteo + 60gg storico)
+3e. **cron-documentary** (1° apr/lug/ott/gen)
+4. cleanup-audit-log
 
 ---
 
-## Riferimenti
+## Roadmap residua (in coda)
 
-- Tier attuale (da sostituire): `src/lib/planAccess.js` (PLAN_RANK, VIEW_MIN_PLAN)
-- Stripe checkout: `api/stripe-checkout.js`
-- Strategia feature: `STRATEGIA_AI_FEATURES.md`, `STRATEGIA_AI_DETTAGLIO.md`
-- Audit prodotto: `ANALISI_PRODOTTO.md`
+| # | Task | Priorità |
+|---|---|---|
+| #94 | B5 HACCP foto-assistita | Bassa |
+| #95 | Trasferimenti autocomplete prodotti reali | Media |
+| #96 | ConfrontoSedi: nascondi SedeSelector + grafici interattivi + filtri + tipo chart | Alta |
+| #97 | Export PDF universale su tutte le view con dati | Alta |
+| #98 | Comparatore temporale universale (vs mese prec / stesso mese anno scorso) | Alta |
+
+---
+
+## Implementazione tecnica residua per go-live pricing
+
+1. **Aggiornare `src/lib/planAccess.js`** con tutte le nuove view-id e FEATURE_MIN_PLAN granulare
+2. **Endpoint `api/pricing.js`** che espone listino aggiornato per landing
+3. **Stripe products** — 3 prodotti × 2 prezzi mensile/annuale = 6 price_ids + setup fee Chain una-tantum
+4. **Landing page** con tabella tier + calcolatore "quanto risparmi"
+5. **UI app**: banner upgrade contestuale su feature lockate + sidebar mostra tier corrente
