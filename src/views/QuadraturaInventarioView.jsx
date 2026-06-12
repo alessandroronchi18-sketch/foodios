@@ -38,6 +38,69 @@ function n0(v) { return Number(v || 0).toLocaleString('it-IT', { maximumFraction
 function nKg(g) { return (Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }
 function pct(v) { return v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%` }
 
+function csvEscape(s) {
+  const v = String(s ?? '')
+  if (v.includes(';') || v.includes('"') || v.includes('\n')) {
+    return '"' + v.replace(/"/g, '""') + '"'
+  }
+  return v
+}
+
+function esportaCsvSettimana({ lunediIso, kpi, righe, formati, sedeAttiva, isAllSedi, perSede }) {
+  const lines = []
+  const sep = ';'
+  const sedeName = isAllSedi ? 'TUTTE LE SEDI' : (sedeAttiva?.nome || '')
+  lines.push(['# Quadratura inventario vs cassa', sedeName, fmtRange(lunediIso)].join(sep))
+  lines.push('')
+  lines.push(['# Riepilogo settimana'].join(sep))
+  lines.push(['Voce', 'Valore'].join(sep))
+  lines.push(['Venduto inventario (kg)', nKg((kpi.totVendutoG ?? 0))].join(sep))
+  lines.push(['Vendite B2B (kg)', kpi.b2bKg ? nKg(kpi.b2bKg * 1000) : '0,0'].join(sep))
+  lines.push(['Retail effettivo (kg)', nKg(((kpi.retailKg ?? kpi.totVendutoKg) || 0) * 1000)].join(sep))
+  lines.push(['Cassa effettiva (€)', String(kpi.cassaEffettiva ?? 0).replace('.', ',')].join(sep))
+  lines.push(['Ricavo atteso (€)', String(kpi.ricavoAtteso ?? 0).replace('.', ',')].join(sep))
+  lines.push(['Drift (€)', String(kpi.driftEur ?? 0).replace('.', ',')].join(sep))
+  lines.push(['Drift (%)', pct(kpi.driftPct)].join(sep))
+  lines.push('')
+  if (Array.isArray(righe) && righe.length > 0) {
+    lines.push(['# Dettaglio gusti'].join(sep))
+    lines.push(['Gusto', 'Iniziale (g)', 'Prodotto (g)', 'Finale (g)', 'Scarto (g)', 'Venduto (g)'].map(csvEscape).join(sep))
+    for (const r of righe) {
+      lines.push([
+        csvEscape(r.gusto || r.nome || ''),
+        String(r.inizialeG ?? r.iniziale_g ?? 0),
+        String(r.prodottoG ?? r.prodotto_g ?? 0),
+        String(r.finaleG ?? r.finale_g ?? 0),
+        String(r.scartoG ?? r.scarto_g ?? 0),
+        String(r.vendutoG ?? r.venduto_g ?? 0),
+      ].join(sep))
+    }
+    lines.push('')
+  }
+  if (isAllSedi && Array.isArray(perSede) && perSede.length > 0) {
+    lines.push(['# Drill-down per sede'].join(sep))
+    lines.push(['Sede', 'Venduto retail (kg)', 'Cassa (€)', 'Atteso (€)', 'Drift (€)', 'Drift (%)'].map(csvEscape).join(sep))
+    for (const p of perSede) {
+      lines.push([
+        csvEscape(p.sede?.nome || ''),
+        nKg(((p.kpi.retailKg ?? p.kpi.totVendutoKg) || 0) * 1000),
+        String(p.kpi.cassaEffettiva ?? 0).replace('.', ','),
+        String(p.kpi.ricavoAtteso ?? 0).replace('.', ','),
+        String(p.kpi.driftEur ?? 0).replace('.', ','),
+        pct(p.kpi.driftPct),
+      ].join(sep))
+    }
+  }
+  const csv = '﻿' + lines.join('\n')  // BOM per Excel
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `quadratura_${lunediIso}_${(sedeAttiva?.nome || 'sede').replace(/\s+/g, '_')}.csv`
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure }) {
   const isMobile = useIsMobile()
   const isAllSedi = sedeAttiva?._all === true
@@ -209,6 +272,11 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
         </div>
         <button onClick={oggi} style={btnNav}>Questa sett.</button>
         <button onClick={settimanaSucc} style={btnNav}>Sett. succ. →</button>
+        <button onClick={() => esportaCsvSettimana({ lunediIso, kpi, righe, formati, sedeAttiva, isAllSedi, perSede })}
+          style={{ ...btnNav, background: C.text, color: C.white, borderColor: C.text }}
+          title="Esporta la settimana in CSV per commercialista/contabilita">
+          ⬇ CSV
+        </button>
       </div>
 
       {loading ? (

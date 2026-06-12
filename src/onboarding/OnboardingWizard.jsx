@@ -334,6 +334,22 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                 />
               </div>
 
+              {/* Hint metodo Inventario gusti per gelaterie / laboratori */}
+              <div style={{
+                padding: '12px 14px', background: '#F0F9FF',
+                border: '1px solid #BAE6FD', borderRadius: 10,
+                fontSize: 12, color: '#075985', lineHeight: 1.5,
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <Icon name="info" size={15} style={{ flexShrink: 0, marginTop: 1 }} color="#0284C7"/>
+                <div>
+                  <strong>Sei una gelateria o un laboratorio?</strong> Se produci gusti
+                  (pistacchio, nocciola...) ma vendi formati (cono, coppetta, vaschetta),
+                  puoi attivare il metodo <strong>Inventario gusti</strong> dopo l'onboarding
+                  in <strong>Impostazioni → Sedi</strong>.
+                </div>
+              </div>
+
               {/* Path C: inizia vuoto */}
               <button onClick={onComplete} disabled={parsing}
                 style={{

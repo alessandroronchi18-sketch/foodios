@@ -44,6 +44,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   const [scope, setScope] = useState('attiva')
   const [busyId, setBusyId] = useState(null)
   const [riceviModal, setRiceviModal] = useState(null) // { t, qtyRic, note }
+  const [filtroStato, setFiltroStato] = useState('all') // all|bozza|inviato|ricevuto|annullato
+  const [filtroTipo, setFiltroTipo] = useState('all')   // all|prodotto|semilavorato|materia_prima
 
   const [form, setForm] = useState(() => ({
     data: todayLocal(),
@@ -257,6 +259,48 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     }
   }, [lista, sedeAttiva?.id])
 
+  // ── "Da fare ora": azioni urgenti per la sede attiva ────────────────────
+  const azioniUrgenti = useMemo(() => {
+    const sedeId = sedeAttiva?.id
+    if (!sedeId) return { daRicevere: [], bozzeInUscita: [] }
+    return {
+      daRicevere: lista.filter(t => t.sede_a === sedeId && t.stato === 'inviato'),
+      bozzeInUscita: lista.filter(t => t.sede_da === sedeId && t.stato === 'bozza'),
+    }
+  }, [lista, sedeAttiva?.id])
+
+  // ── Flussi del mese corrente: sede_da -> sede_a aggregato ───────────────
+  const flussiMese = useMemo(() => {
+    const oggi = new Date()
+    const inizioMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1)
+    const inMese = (d) => {
+      if (!d) return false
+      const x = new Date(d)
+      return x >= inizioMese && x <= oggi
+    }
+    const map = {}
+    for (const t of lista) {
+      if (!inMese(t.data)) continue
+      if (t.stato === 'annullato') continue
+      const key = `${t.sede_da}|${t.sede_a}`
+      if (!map[key]) map[key] = { sede_da: t.sede_da, sede_a: t.sede_a, n: 0, valore: 0, prodotti: {} }
+      map[key].n += 1
+      map[key].valore += Number(t.quantita || 0) * Number(t.valore_unit || 0)
+      const p = t.prodotto || '—'
+      map[key].prodotti[p] = (map[key].prodotti[p] || 0) + Number(t.quantita || 0)
+    }
+    return Object.values(map).sort((a, b) => b.n - a.n).slice(0, 6)
+  }, [lista])
+
+  // ── Lista filtrata ──────────────────────────────────────────────────────
+  const listaFiltrata = useMemo(() => {
+    return lista.filter(t => {
+      if (filtroStato !== 'all' && t.stato !== filtroStato) return false
+      if (filtroTipo !== 'all' && t.tipo !== filtroTipo) return false
+      return true
+    })
+  }, [lista, filtroStato, filtroTipo])
+
   if (sediAttive.length < 2) {
     return (
       <div style={{ maxWidth: 720, margin: '60px auto', textAlign: 'center', padding: 20 }}>
@@ -282,6 +326,43 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           Sposta prodotti finiti, semilavorati o materie prime da una sede all'altra. Lo stock si aggiorna automaticamente.
         </p>
       </div>
+
+      {/* DA FARE ORA: solo se c'è qualcosa da gestire per la sede attiva */}
+      {(azioniUrgenti.daRicevere.length > 0 || azioniUrgenti.bozzeInUscita.length > 0) && (
+        <div style={{ background: '#FFFBEB', border: `1px solid ${C.amber}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginTop: 18, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="warning" size={14} /> Da fare ora ({azioniUrgenti.daRicevere.length + azioniUrgenti.bozzeInUscita.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {azioniUrgenti.daRicevere.map(t => (
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', borderRadius: 8, border: `1px solid ${C.amber}`, flexWrap: 'wrap' }}>
+                <Icon name="package" size={16} color={C.amber} />
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
+                  <div style={{ fontSize: 11, color: C.textSoft }}>In arrivo da <strong>{sediMap[t.sede_da]?.nome || '—'}</strong> · {fmtData(t.data)}</div>
+                </div>
+                <button onClick={() => apriRicevi(t)} disabled={busyId === t.id}
+                  style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                  ✓ Conferma ricezione
+                </button>
+              </div>
+            ))}
+            {azioniUrgenti.bozzeInUscita.map(t => (
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#fff', borderRadius: 8, border: `1px solid ${C.border}`, flexWrap: 'wrap' }}>
+                <Icon name="save" size={15} color={C.textSoft} />
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
+                  <div style={{ fontSize: 11, color: C.textSoft }}>Bozza verso <strong>{sediMap[t.sede_a]?.nome || '—'}</strong> · pronta da inviare</div>
+                </div>
+                <button onClick={() => azInvia(t)} disabled={busyId === t.id}
+                  style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="truck" size={13} /> Invia ora
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginTop: 20, marginBottom: 20 }}>
@@ -446,16 +527,80 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         </div>
       )}
 
+      {/* Flussi del mese (solo se scope tutte e ci sono dati) */}
+      {scope === 'tutte' && flussiMese.length > 0 && !loading && (
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
+            📊 Flussi questo mese
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
+            {flussiMese.map((f, i) => {
+              const da = sediMap[f.sede_da]?.nome || '—'
+              const a = sediMap[f.sede_a]?.nome || '—'
+              const topProd = Object.entries(f.prodotti).sort((x, y) => y[1] - x[1]).slice(0, 2)
+              return (
+                <div key={i} style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+                    {da} <span style={{ color: C.textSoft }}>→</span> {a}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textMid, ...tnum }}>
+                    <strong>{f.n}</strong> trasferiment{f.n === 1 ? 'o' : 'i'}
+                    {f.valore > 0 && <> · valore stimato <strong>{fmtEuro(f.valore)}</strong></>}
+                  </div>
+                  {topProd.length > 0 && (
+                    <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 4 }}>
+                      Top: {topProd.map(([p, q]) => `${p} (${q})`).join(' · ')}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Filtri lista */}
+      {!loading && lista.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Filtri:</span>
+          <select value={filtroStato} onChange={e => setFiltroStato(e.target.value)}
+            style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12 }}>
+            <option value="all">Tutti gli stati</option>
+            <option value="bozza">Bozza</option>
+            <option value="inviato">Inviato</option>
+            <option value="ricevuto">Ricevuto</option>
+            <option value="annullato">Annullato</option>
+          </select>
+          <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
+            style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12 }}>
+            <option value="all">Tutti i tipi</option>
+            {TIPI.map(t => <option key={t.id} value={t.id}>{t.lbl}</option>)}
+          </select>
+          {(filtroStato !== 'all' || filtroTipo !== 'all') && (
+            <button onClick={() => { setFiltroStato('all'); setFiltroTipo('all') }}
+              style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+              ✕ Rimuovi filtri
+            </button>
+          )}
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: C.textSoft }}>
+            {listaFiltrata.length} di {lista.length}
+          </span>
+        </div>
+      )}
+
       {/* Lista */}
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
-      ) : lista.length === 0 ? (
+      ) : listaFiltrata.length === 0 ? (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13 }}>
-          Nessun trasferimento{scope === 'attiva' ? ' per la sede attiva' : ''}.
+          {lista.length === 0
+            ? <>Nessun trasferimento{scope === 'attiva' ? ' per la sede attiva' : ''}.</>
+            : <>Nessun trasferimento corrisponde ai filtri.</>
+          }
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {lista.map(t => {
+          {listaFiltrata.map(t => {
             const sda = sediMap[t.sede_da]
             const sa = sediMap[t.sede_a]
             const statoCfg = STATO_LABEL[t.stato] || STATO_LABEL.bozza
