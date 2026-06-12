@@ -1934,11 +1934,16 @@ export default function Dashboard({
             {id:"personale",label:"Personale",icon:"users"},
             {id:"haccp",label:"HACCP",icon:"shield"},
             {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
-            // Sblocco per demo: Confronto + Trasferimenti sempre visibili
-            // (anche con 1 sede). Servono per rimodellamento UX. In prod si
-            // potranno rinascondere se multiSede=false.
-            {id:"confronto-sedi",label:"Confronto sedi",icon:"building"},
-            {id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"},
+            // Sblocco DEMO-ONLY: Confronto + Trasferimenti sempre visibili
+            // per l'account demo (rimodellamento UX in corso). Per gli
+            // utenti normali resta il gating multiSede.
+            ...((auth?.user?.email === 'demo@maradeiboschi.com')
+              ? [{id:"confronto-sedi",label:"Confronto sedi",icon:"building"},
+                 {id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"}]
+              : (multiSede
+                ? [{id:"confronto-sedi",label:"Confronto sedi",icon:"building"},
+                   {id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"}]
+                : [])),
           ]},
           { id:"strumenti", label:"Assistente AI", badge:azioniAperte, items:[
             {id:"azioni",label:"AI Assistant",icon:"sparkles",badge:azioniAperte},
@@ -2396,8 +2401,8 @@ export default function Dashboard({
                   navItem("personale","users","Personale"),
                   navItem("haccp","shield","HACCP"),
                   navItem("registro-attivita","fileText","Registro attività"),
-                  navItem("confronto-sedi","building","Confronto sedi"),
-                  navItem("trasferimenti","truck","Trasferimenti tra sedi"),
+                  ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("confronto-sedi","building","Confronto sedi"),
+                  ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("trasferimenti","truck","Trasferimenti tra sedi"),
                 ] })}
 
               {Group({ id:"strumenti", iconKey:"tool", label:"Strumenti",

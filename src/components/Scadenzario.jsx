@@ -192,6 +192,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   // Editing anagrafica fornitore (IBAN/termini) dal rollup
   const [editForn, setEditForn]           = useState(null) // nome_norm in edit
   const [editFornData, setEditFornData]   = useState({ iban: '', termini: 30, categoria: '' })
+  // Set di fornitori (nome_norm) con dropdown fatture espanso.
+  const [expandedForn, setExpandedForn]   = useState(() => new Set())
+  const toggleExpandForn = (nomeNorm) => setExpandedForn(prev => {
+    const next = new Set(prev)
+    if (next.has(nomeNorm)) next.delete(nomeNorm); else next.add(nomeNorm)
+    return next
+  })
   // Eliminazione bulk con doppia conferma (modale + frase da digitare)
   const [bulkOpen, setBulkOpen]           = useState(false)
   const [bulkConfirm, setBulkConfirm]     = useState('')
@@ -618,6 +625,23 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fattureExt, fornitoriMap, search])
 
+  // Mappa di TUTTE le fatture per fornitore (incluse le pagate). Usato per
+  // il dropdown espandibile: il rollup principale mostra solo gli aperti,
+  // qui consentiamo anche di vedere lo storico pagamenti.
+  const tutteFatturePerFornitore = useMemo(() => {
+    const map = {}
+    for (const f of fattureExt) {
+      const key = normNome(f.fornitore)
+      if (!map[key]) map[key] = []
+      map[key].push(f)
+    }
+    // Ordina dal piu' recente (data_fattura desc) al piu' vecchio.
+    for (const arr of Object.values(map)) {
+      arr.sort((a, b) => (b.data_fattura || '').localeCompare(a.data_fattura || ''))
+    }
+    return map
+  }, [fattureExt])
+
   // ── Cassa in uscita: bucket per settimana (forward) ──────────────────────────
   const cashflow = useMemo(() => {
     const scaduto = { label: 'Scaduto', tot: 0, n: 0, scaduto: true }
@@ -992,24 +1016,96 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           const selectable = g.items.some(f => f.ibanValido && f.residuo > 0)
           const sel = selez.has(g.nome_norm)
           const ibanN = normalizeIban(g.iban)
+          const isExpanded = expandedForn.has(g.nome_norm)
+          const tutteFatture = tutteFatturePerFornitore[g.nome_norm] || []
           return (
             <div key={g.nome_norm} style={{ borderBottom: `1px solid ${T.border}`, padding: isMobile ? '11px 14px' : '12px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <input type="checkbox" checked={sel} disabled={!selectable} onChange={() => toggleSelez(g.nome_norm)}
                   title={selectable ? 'Includi nel bonifico SEPA' : 'IBAN mancante: impostalo col tasto impostazioni per poter pagare'}
-                  style={{ width: 17, height: 17, cursor: selectable ? 'pointer' : 'not-allowed', accentColor: T.brand, flexShrink: 0 }} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.nome}</div>
-                  <div style={{ fontSize: 11, color: T.textSoft, ...tnum }}>
+                  style={{ width: 17, height: 17, cursor: selectable ? 'pointer' : 'not-allowed', accentColor: T.brand, flexShrink: 0 }}
+                  onClick={e => e.stopPropagation()} />
+                <div style={{ minWidth: 0, flex: 1, cursor: 'pointer' }}
+                  onClick={() => toggleExpandForn(g.nome_norm)}
+                  title="Mostra tutte le fatture di questo fornitore">
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 10, color: T.textSoft, transition: 'transform .15s ease', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                    {g.nome}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textSoft, ...tnum, marginLeft: 16 }}>
                     {g.nFatt} fatt.{g.nNC > 0 ? ` · ${g.nNC} NC` : ''}{g.termini != null ? ` · ${g.termini}gg` : ''}
                     {' · '}{ibanN ? `${ibanN.slice(0, 2)}…${ibanN.slice(-4)}` : <span style={{ color: T.brand }}>no IBAN</span>}
+                    {tutteFatture.length > g.n && <span style={{ marginLeft: 6, color: T.textSoft }}>· +{tutteFatture.length - g.n} pagate</span>}
                   </div>
                 </div>
                 {g.scaduto > 0 && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '3px 8px', borderRadius: 8, whiteSpace: 'nowrap' }}>scaduto {fmtEuro0(g.scaduto)}</span>}
                 <div style={{ fontSize: 15, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 92, textAlign: 'right' }}>{fmtEuro(g.totale)}</div>
-                <button onClick={() => { if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, categoria: g.categoria || '' }) } }}
+                <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, categoria: g.categoria || '' }) } }}
                   title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: '5px 9px' }}><Icon name="gear" size={14} /></button>
               </div>
+
+              {/* Dropdown fatture (pagate + non pagate) */}
+              {isExpanded && tutteFatture.length > 0 && (
+                <div style={{ marginTop: 10, marginLeft: isMobile ? 0 : 30, padding: 0, background: T.bgSubtle, borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{ padding: '8px 12px', fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid ${T.border}`, background: '#FAFBFC' }}>
+                    {tutteFatture.length} fatture totali · {tutteFatture.filter(f => f.stato === 'pagata').length} pagate · {tutteFatture.filter(f => f.stato !== 'pagata').length} aperte
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#FFFFFF' }}>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Numero</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Data</th>
+                        {!isMobile && <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scadenza</th>}
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Importo</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stato</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tutteFatture.map(f => {
+                        const isPagata = f.stato === 'pagata'
+                        const isNC = f.isNC
+                        return (
+                          <tr key={f.id} style={{
+                            borderTop: `1px solid ${T.borderSoft}`,
+                            background: isPagata ? '#F0FDF4' : '#FFFFFF',
+                          }}>
+                            <td style={{ padding: '7px 10px', fontSize: 12, color: T.text, fontWeight: 600, ...tnum, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {f.numero_rif || '—'}
+                              {isNC && <span style={{ marginLeft: 4, fontSize: 9, padding: '1px 4px', background: '#DBEAFE', color: '#1E40AF', borderRadius: 3, fontWeight: 700 }}>NC</span>}
+                            </td>
+                            <td style={{ padding: '7px 10px', fontSize: 11.5, color: T.textMid, ...tnum }}>
+                              {f.data_fattura ? new Date(f.data_fattura).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                            </td>
+                            {!isMobile && (
+                              <td style={{ padding: '7px 10px', fontSize: 11.5, color: f.urgenza === 'scaduta' && !isPagata ? T.brand : T.textSoft, ...tnum, fontWeight: f.urgenza === 'scaduta' && !isPagata ? 700 : 400 }}>
+                                {f.dueIso ? new Date(f.dueIso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                              </td>
+                            )}
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: isNC ? T.green : T.text, ...tnum }}>
+                              {fmtEuro(f.importoNetto)}
+                            </td>
+                            <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                              {isPagata ? (
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#DCFCE7', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  ✓ Pagata
+                                </span>
+                              ) : f.urgenza === 'scaduta' ? (
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#FEE2E2', color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Scaduta
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#FEF9C3', color: '#854D0E', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Aperta
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               {isEdit && (
                 <div style={{ marginTop: 10, padding: 12, background: T.bgSubtle, borderRadius: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <input placeholder="IBAN fornitore" value={editFornData.iban} onChange={e => setEditFornData(d => ({ ...d, iban: e.target.value }))}
