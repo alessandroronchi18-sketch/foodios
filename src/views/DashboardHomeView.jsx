@@ -11,6 +11,7 @@ import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { lessico } from '../lib/lessico'
 import SedeSelector from '../components/SedeSelector'
+import DailyBriefCard from '../components/DailyBriefCard'
 import { C, TNUM } from './_shared'
 import Icon from '../components/Icon'
 
@@ -281,6 +282,9 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   return (
     <div style={{ maxWidth: 1220, margin: '0 auto' }}>
       <style>{HOVER_CSS}</style>
+
+      {/* Daily Brief AI (se generato dal cron mattutino) */}
+      <DailyBriefCard orgId={orgId} />
 
       {/* HERO brand */}
       <div className="fos-rise" style={{ position: 'relative', zIndex: 30, borderRadius: 22, padding: isMobile ? '22px 22px' : '30px 34px', marginBottom: isMobile ? 18 : 24,

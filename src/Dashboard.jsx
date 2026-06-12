@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import * as Sentry from '@sentry/react'
 import { lazyWithReload } from './lib/lazyWithReload'
 import UpgradeGate from './components/UpgradeGate'
+import AISuggestionsBell from './components/AISuggestionsBell'
 import { canAccessView } from './lib/planAccess'
 import { lessico } from './lib/lessico'
 import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
@@ -2042,6 +2043,9 @@ export default function Dashboard({
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             {nonLette>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#E84B3A",color:"#fff",borderRadius:999,minWidth:17,height:17,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 4px",border:"2px solid #1E0B11",lineHeight:1}}>{nonLette>9?"9+":nonLette}</span>}
           </button>
+
+          {/* AI Suggestions bell — campanella suggerimenti proattivi */}
+          <AISuggestionsBell orgId={orgId} onNavigate={(v)=>setView(v)} />
 
           {/* Profilo (dx) con dropdown */}
           <div style={{position:"relative",flexShrink:0}}>

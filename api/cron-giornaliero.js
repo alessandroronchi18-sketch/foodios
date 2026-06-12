@@ -15,6 +15,8 @@ import { verifyBearerSecret } from './lib/cryptoCompare.js'
 import notificheHandler from './cron-notifiche.js'
 import anomalyHandler from './anomaly-detect.js'
 import reportMensileHandler from './cron-report-mensile.js'
+import dailyBriefHandler from './cron-daily-brief.js'
+import aiSuggestionsHandler from './cron-ai-suggestions.js'
 
 function makeInternalReq(realUrl, path) {
   const origin = new URL(realUrl).origin
@@ -72,6 +74,16 @@ export default async function handler(req) {
       reportMensileHandler(makeInternalReq(req.url, '/api/cron-report-mensile'))
     ))
   }
+
+  // 3b) Daily Brief AI per ogni organization (idempotente per giornata).
+  results.push(await runStep('cron-daily-brief', () =>
+    dailyBriefHandler(makeInternalReq(req.url, '/api/cron-daily-brief'))
+  ))
+
+  // 3c) AI Suggestions proattive: regole + dedup window 7gg.
+  results.push(await runStep('cron-ai-suggestions', () =>
+    aiSuggestionsHandler(makeInternalReq(req.url, '/api/cron-ai-suggestions'))
+  ))
 
   // 4) Cleanup audit_log (retention 365 giorni — protegge crescita tabella).
   results.push(await runStep('cleanup-audit-log', async () => {
