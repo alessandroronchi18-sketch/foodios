@@ -38,6 +38,25 @@ describe('lunediSettimana1DelMese', () => {
 })
 
 describe('parseFoglioInventario', () => {
+  it('esclude righe TOTALE/TOTALI/SUBTOTALE dai gusti', () => {
+    const m = [
+      ['GUSTI', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.'],
+      ['',      'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.'],
+      ['PISTACCHIO', 1000, 0, 1000, 0, 1000, 0, 1000, 0, 1000, 0, 1000, 0, 1000, 0],
+      ['TOTALE',     5000, 0, 0,    0, 0,    0, 0,    0, 0,    0, 0,    0, 0,    0],  // riga di totale
+      ['TOTALI',     0,    0, 0,    0, 0,    0, 0,    0, 0,    0, 0,    0, 0,    0],
+      ['SUBTOTALE',  0,    0, 0,    0, 0,    0, 0,    0, 0,    0, 0,    0, 0,    0],
+      ['TOT',        0,    0, 0,    0, 0,    0, 0,    0, 0,    0, 0,    0, 0,    0],
+      ['Totale gusti tutti negozi', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      ['NOCCIOLA',   500, 0, 500, 0, 500, 0, 500, 0, 500, 0, 500, 0, 500, 0],
+    ]
+    const out = parseFoglioInventario(m, '2026-06-01')
+    expect(out.gusti).toEqual(['PISTACCHIO', 'NOCCIOLA'])
+    expect(out.righe.find(r => r.gusto_nome === 'TOTALE')).toBeUndefined()
+    expect(out.righe.find(r => r.gusto_nome === 'TOTALI')).toBeUndefined()
+    expect(out.righe.find(r => r.gusto_nome === 'SUBTOTALE')).toBeUndefined()
+  })
+
   it('parsa una settimana base con 2 gusti', () => {
     const m = [
       ['GUSTI', 'Rimanenza', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', 'VENDUTO'],

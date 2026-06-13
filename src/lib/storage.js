@@ -205,17 +205,23 @@ export async function sloadAllSedi(key, orgId) {
     const v = await sload(key, orgId, null)
     return { shared: v }
   }
+  // Chiavi PER-SEDE: filtra righe con sede_id=NULL (legacy/seed). Se incluse,
+  // in modalità "Tutte le sedi" finivano nel merge come dati "ghost" che non
+  // appartengono a nessuna sede reale, gonfiando KPI (es. ricavi storico
+  // sede_id=NULL non visibili per-sede ma sommati in aggregato → bug coerenza
+  // dati visto su DEMO: 700k all-sedi vs ~80k somma per-sede).
   const { data, error } = await supabase
     .from('user_data')
     .select('sede_id, data_value, updated_at')
     .eq('organization_id', orgId)
     .eq('data_key', key)
+    .not('sede_id', 'is', null)
     .order('updated_at', { ascending: false })
   if (error) { console.error('sloadAllSedi error:', key, error); return {} }
   const out = {}
   for (const row of (data || [])) {
-    const id = row.sede_id || 'shared'
-    if (!(id in out)) out[id] = row.data_value
+    if (!row.sede_id) continue  // safety net (oltre al filtro server-side)
+    if (!(row.sede_id in out)) out[row.sede_id] = row.data_value
   }
   return out
 }

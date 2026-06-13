@@ -160,6 +160,15 @@ export function parseFoglioInventario(matrice, lunediBase) {
     const nome = (row[0] || '').toString().trim()
     if (!nome) continue  // riga vuota: salto
     const gustoUp = nome.toUpperCase()
+    // Filtro righe di "totale" del foglio (TOTALE, TOTALI, TOTALE GUSTI, ecc.)
+    // Altrimenti finiscono come "gusto" e dominano i top nelle analisi.
+    if (
+      gustoUp === 'TOTALE' || gustoUp === 'TOTALI' ||
+      gustoUp.startsWith('TOTALE ') || gustoUp.startsWith('TOTALI ') ||
+      gustoUp.startsWith('TOT.') || gustoUp === 'TOT' ||
+      gustoUp === 'SOMMA' || gustoUp.startsWith('SUBTOTALE') ||
+      gustoUp.includes('TOTALE GUSTI') || gustoUp.includes('TOTALE MESE')
+    ) continue
     if (!out.gusti.includes(gustoUp)) out.gusti.push(gustoUp)
 
     for (let j = 0; j < row.length; j++) {
@@ -419,6 +428,9 @@ export function parseFoglioRistoranti(matrice) {
     const pagamento = (mapCol.pagamento >= 0 ? row[mapCol.pagamento] : '').toString().trim()
     const sedeNome = (mapCol.sedeNome >= 0 ? row[mapCol.sedeNome] : '').toString().trim()
     if (!gusto || qta <= 0) continue
+    // Filtra righe di totale (TOTALE, TOTALI, SUBTOTALE, SOMMA)
+    if (gusto === 'TOTALE' || gusto === 'TOTALI' || gusto.startsWith('TOTALE ') ||
+        gusto.startsWith('SUBTOTALE') || gusto === 'SOMMA' || gusto === 'TOT') continue
     out.righe.push({
       cliente, dataIso, gusto, qta, pagamento, sedeNome,
     })
@@ -573,6 +585,9 @@ export function parseFoglioSprechi(matrice) {
     const gusto = (row[mapCol.gusto] || '').toString().trim().toUpperCase()
     const motivo = mapCol.motivo >= 0 ? (row[mapCol.motivo] || '').toString().trim() : ''
     if (!gusto || qta <= 0) continue
+    // Filtra righe di totale
+    if (gusto === 'TOTALE' || gusto === 'TOTALI' || gusto.startsWith('TOTALE ') ||
+        gusto.startsWith('SUBTOTALE') || gusto === 'SOMMA' || gusto === 'TOT') continue
     out.righe.push({ sedeNome, qta, gusto, motivo })
   }
   return out

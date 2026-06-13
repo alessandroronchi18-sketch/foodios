@@ -102,7 +102,7 @@ function esportaCsvSettimana({ lunediIso, kpi, righe, formati, sedeAttiva, isAll
   URL.revokeObjectURL(url)
 }
 
-export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure }) {
+export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure, onNavigate }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const isAllSedi = sedeAttiva?._all === true
@@ -335,10 +335,26 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
         <div style={{
           padding: '20px 24px', background: '#FFFBEB', border: '1px solid #FDE68A',
           borderRadius: 12, marginBottom: 20, fontSize: 13, color: '#92400E', lineHeight: 1.5,
+          display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
         }}>
-          <Icon name="warning" size={16} /> &nbsp;
-          <strong>Imposta i formati di vendita</strong> in <em>Formati di vendita</em> per
-          calcolare il €/kg medio e abilitare la quadratura con la cassa.
+          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+            <Icon name="warning" size={16} /> &nbsp;
+            <strong>Imposta i formati di vendita</strong> per calcolare il €/kg medio e abilitare la quadratura con la cassa.
+          </div>
+          {onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate('formati-vendita')}
+              style={{
+                background: '#92400E', color: '#FFF', border: 'none',
+                borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 700,
+                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <Icon name="coins" size={14} /> Vai a Formati di vendita
+            </button>
+          )}
         </div>
       ) : (
         <>
