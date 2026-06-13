@@ -204,11 +204,19 @@ export default function App() {
     )
   }
 
-  // Admin — fallback hardcoded se VITE_ADMIN_EMAIL non è configurato in Vercel.
-  // Match canonico (lower+trim): l'email admin entra SEMPRE in AdminPage,
-  // anche se ha un'organizzazione propria.
+  // Admin — gate per URL (/admin) + email match. L'admin può anche avere
+  // un'organizzazione propria (design partner, alessandro.ronchi18@gmail.com):
+  //   - su /admin → AdminPage
+  //   - altrove   → dashboard attività normale come qualsiasi titolare
+  // Fallback hardcoded mantenuto per il caso VITE_ADMIN_EMAIL non in env.
   const adminEmailLc = (auth.user?.email || '').toLowerCase().trim()
-  if (auth.isAdmin || adminEmailLc === 'alessandro.ronchi18@gmail.com') return sus(<AdminPage />)
+  const isAdminUser = auth.isAdmin || adminEmailLc === 'alessandro.ronchi18@gmail.com'
+  if (path === '/admin') {
+    if (isAdminUser) return sus(<AdminPage />)
+    // Non admin che tenta /admin: silenzioso, fall-through verso Dashboard
+    // dopo aver normalizzato l'URL (così il refresh non riporta su /admin).
+    window.history.replaceState(null, '', '/')
+  }
 
   // Profilo non caricabile (es. RLS recursion) — mostra errore invece di Dashboard rotto
   if (auth.profileError) {
