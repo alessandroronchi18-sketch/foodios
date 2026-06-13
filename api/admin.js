@@ -1382,10 +1382,10 @@ export default async function handler(req) {
 
   const auth = await verificaAdmin(req, supabase)
   if (!auth.user) {
-    // Log dettagliato lato server, ma NON esponiamo l'email/reason completo al chiamante
-    // (evita user enumeration: con un Bearer valido di un utente non-admin si vedrebbe la sua email).
+    // TEMP DEBUG (revert dopo aver risolto il setup admin): espongo reason in chiaro.
+    // Normalmente nascosto per evitare user enumeration.
     await logAdmin(supabase, 'UNKNOWN', `accesso_negato:${auth.reason}`, null, ip, ua)
-    return json({ error: 'Accesso negato' }, 403, req)
+    return json({ error: 'Accesso negato', debug_reason: auth.reason }, 403, req)
   }
   const user = auth.user
 
