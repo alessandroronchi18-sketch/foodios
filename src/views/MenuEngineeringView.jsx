@@ -52,6 +52,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
   const [chiusure, setChiusure] = useState([])
   const [periodo, setPeriodo] = useState(30)  // ultimi 30 giorni
   const [loading, setLoading] = useState(true)
+  const [tabQuad, setTabQuad] = useState('STAR')  // quadrante attivo per la lista azionabile
 
   useEffect(() => {
     if (!orgId || !sedeId) { setLoading(false); return }
@@ -277,32 +278,67 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
             )}
           </div>
 
-          {/* 4 quadranti elencati */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 14 }}>
-            {['STAR', 'PLOWHORSE', 'PUZZLE', 'DOG'].map(q => {
-              const meta = QUAD_LABEL[q]
-              const list = stats[q]
-              return (
-                <div key={q} style={{ background: CARD, border: `1px solid ${meta.fg}`, borderRadius: 12, overflow: 'hidden' }}>
-                  <div style={{ background: meta.bg, padding: '10px 14px', borderBottom: `1px solid ${meta.fg}` }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: meta.fg }}>{meta.lbl} <span style={{ fontWeight: 500, color: MID }}>· {list.length}</span></div>
-                    <div style={{ fontSize: 11, color: MID, marginTop: 2 }}>{meta.desc}</div>
-                  </div>
-                  <div style={{ padding: 10, maxHeight: 240, overflowY: 'auto' }}>
-                    {list.length === 0 ? (
-                      <div style={{ fontSize: 12, color: SOFT, textAlign: 'center', padding: 18 }}>Nessun prodotto.</div>
-                    ) : list.slice(0, 10).map(x => (
-                      <div key={x.nome} style={{ padding: '8px 6px', borderTop: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5 }}>
-                        <span style={{ color: TXT, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{x.nome}</span>
-                        <span style={{ color: SOFT, fontSize: 11, ...{ fontVariantNumeric: 'tabular-nums' } }}>
-                          {x.qtaVenduta}pz · €{x.margine.toFixed(2)}/pz
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
+          {/* Azioni per quadrante: tab pillole + lista dinamica (no piu' griglia 2x2 ridondante con la matrice bubble sopra) */}
+          <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${BORDER}`, flexWrap: 'wrap' }}>
+              {['STAR', 'PLOWHORSE', 'PUZZLE', 'DOG'].map(q => {
+                const meta = QUAD_LABEL[q]
+                const list = stats[q]
+                const active = tabQuad === q
+                return (
+                  <button
+                    key={q}
+                    onClick={() => setTabQuad(q)}
+                    style={{
+                      flex: '1 1 140px',
+                      minWidth: 140,
+                      padding: '12px 16px',
+                      background: active ? meta.bg : 'transparent',
+                      border: 'none',
+                      borderBottom: active ? `3px solid ${meta.fg}` : '3px solid transparent',
+                      borderRight: `1px solid ${BORDER}`,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 800, color: active ? meta.fg : MID, marginBottom: 2 }}>
+                      {meta.lbl} <span style={{ fontWeight: 500, color: SOFT, fontVariantNumeric: 'tabular-nums' }}>· {list.length}</span>
+                    </div>
+                    <div style={{ fontSize: 10.5, color: active ? MID : SOFT, lineHeight: 1.35 }}>{meta.desc}</div>
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ padding: '14px 18px' }}>
+              {(() => {
+                const list = stats[tabQuad] || []
+                const meta = QUAD_LABEL[tabQuad]
+                if (list.length === 0) {
+                  return <div style={{ fontSize: 13, color: SOFT, textAlign: 'center', padding: 30 }}>Nessun prodotto in questo quadrante.</div>
+                }
+                return (
+                  <>
+                    <div style={{ fontSize: 11, color: SOFT, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, fontWeight: 700 }}>
+                      Top {Math.min(list.length, 15)} {meta.lbl.toLowerCase()}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
+                      {list.slice(0, 15).map(x => (
+                        <div key={x.nome} style={{
+                          padding: '10px 12px', borderLeft: `3px solid ${meta.fg}`, background: '#FAFAFA',
+                          borderRadius: 6, display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center',
+                        }}>
+                          <span style={{ color: TXT, fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.nome}</span>
+                          <span style={{ color: SOFT, fontSize: 11, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                            {x.qtaVenduta}pz · €{x.margine.toFixed(2)}/pz
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
           </div>
         </>
       )}
