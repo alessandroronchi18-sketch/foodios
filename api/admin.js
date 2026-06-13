@@ -1382,14 +1382,10 @@ export default async function handler(req) {
 
   const auth = await verificaAdmin(req, supabase)
   if (!auth.user) {
-    // TEMP DEBUG (revert dopo aver risolto setup admin): espongo reason + whitelist state.
+    // Log dettagliato lato server, ma NON esponiamo l'email/reason completo al chiamante
+    // (evita user enumeration: con un Bearer valido di un utente non-admin si vedrebbe la sua email).
     await logAdmin(supabase, 'UNKNOWN', `accesso_negato:${auth.reason}`, null, ip, ua)
-    return json({
-      error: 'Accesso negato',
-      debug_reason: auth.reason,
-      debug_whitelist_set: !!process.env.ADMIN_MFA_WHITELIST,
-      debug_whitelist_len: (process.env.ADMIN_MFA_WHITELIST || '').length,
-    }, 403, req)
+    return json({ error: 'Accesso negato' }, 403, req)
   }
   const user = auth.user
 
