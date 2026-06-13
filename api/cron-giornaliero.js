@@ -32,16 +32,26 @@ function makeInternalReq(realUrl, path) {
   })
 }
 
+// Audit reliability 2026-06-14 PM: ogni step ha un timeout dedicato. Senza
+// timeout, 1 stallo Anthropic/Twilio = 30s Vercel timeout = TUTTI gli step
+// successivi non girano (cascading failure). Con timeout per-step,
+// l'orchestratore continua col prossimo anche se uno hangs.
+const STEP_TIMEOUT_MS = 25_000  // 25s per step (Vercel cron limit 60s totale)
+
 async function runStep(name, fn) {
   const start = Date.now()
   try {
-    const res = await fn()
+    const stepPromise = fn()
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`step timeout ${STEP_TIMEOUT_MS}ms`)), STEP_TIMEOUT_MS)
+    )
+    const res = await Promise.race([stepPromise, timeoutPromise])
     const ms = Date.now() - start
     let body = null
     try { body = await res.clone().json() } catch {}
     return { step: name, ok: res.ok, status: res.status, ms, body }
   } catch (e) {
-    return { step: name, ok: false, error: e.message || String(e), ms: Date.now() - start }
+    return { step: name, ok: false, error: (e.message || String(e)).slice(0, 200), ms: Date.now() - start }
   }
 }
 
@@ -58,44 +68,27 @@ export default async function handler(req) {
   const now = new Date()
   const isPrimoDelMese = now.getUTCDate() === 1
 
-  const results = []
-
-  // 1) Notifiche giornaliere (alert magazzino + fatture in scadenza)
-  results.push(await runStep('cron-notifiche', () =>
-    notificheHandler(makeInternalReq(req.url, '/api/cron-notifiche'))
-  ))
-
-  // 2) Anomaly detection (login paese cambiato + burst export + fail burst)
-  results.push(await runStep('anomaly-detect', () =>
-    anomalyHandler(makeInternalReq(req.url, '/api/anomaly-detect'))
-  ))
-
-  // 3) Report mensile solo il 1° del mese
+  // Audit 2026-06-14 PM: step INDIPENDENTI eseguiti in PARALLELO con
+  // Promise.allSettled (no piu' seriale a fail-domino). 1 stallo non
+  // blocca gli altri. Solo cleanup-audit-log resta seriale alla fine.
+  const independentSteps = [
+    ['cron-notifiche',      () => notificheHandler(makeInternalReq(req.url, '/api/cron-notifiche'))],
+    ['anomaly-detect',      () => anomalyHandler(makeInternalReq(req.url, '/api/anomaly-detect'))],
+    ['cron-daily-brief',    () => dailyBriefHandler(makeInternalReq(req.url, '/api/cron-daily-brief'))],
+    ['cron-ai-suggestions', () => aiSuggestionsHandler(makeInternalReq(req.url, '/api/cron-ai-suggestions'))],
+    ['cron-forecast',       () => forecastHandler(makeInternalReq(req.url, '/api/cron-forecast'))],
+    ['cron-documentary',    () => documentaryHandler(makeInternalReq(req.url, '/api/cron-documentary'))],
+  ]
   if (isPrimoDelMese) {
-    results.push(await runStep('cron-report-mensile', () =>
-      reportMensileHandler(makeInternalReq(req.url, '/api/cron-report-mensile'))
-    ))
+    independentSteps.push(['cron-report-mensile', () => reportMensileHandler(makeInternalReq(req.url, '/api/cron-report-mensile'))])
   }
 
-  // 3b) Daily Brief AI per ogni organization (idempotente per giornata).
-  results.push(await runStep('cron-daily-brief', () =>
-    dailyBriefHandler(makeInternalReq(req.url, '/api/cron-daily-brief'))
-  ))
-
-  // 3c) AI Suggestions proattive: regole + dedup window 7gg.
-  results.push(await runStep('cron-ai-suggestions', () =>
-    aiSuggestionsHandler(makeInternalReq(req.url, '/api/cron-ai-suggestions'))
-  ))
-
-  // 3d) Forecast giornaliero 7gg per prodotto + meteo + stagionalita.
-  results.push(await runStep('cron-forecast', () =>
-    forecastHandler(makeInternalReq(req.url, '/api/cron-forecast'))
-  ))
-
-  // 3e) Documentary trimestrale (skip se non e' il 1 di Q1/Q2/Q3/Q4).
-  results.push(await runStep('cron-documentary', () =>
-    documentaryHandler(makeInternalReq(req.url, '/api/cron-documentary'))
-  ))
+  const settled = await Promise.allSettled(
+    independentSteps.map(([name, fn]) => runStep(name, fn))
+  )
+  const results = settled.map((s, i) =>
+    s.status === 'fulfilled' ? s.value : { step: independentSteps[i][0], ok: false, error: s.reason?.message || 'rejected', ms: 0 }
+  )
 
   // 4) Cleanup audit_log (retention 365 giorni — protegge crescita tabella).
   results.push(await runStep('cleanup-audit-log', async () => {

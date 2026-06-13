@@ -32,14 +32,16 @@ async function getSupabase() {
 async function meteoFor(citta, days = 7) {
   if (!citta) return null
   try {
-    // 1) Geocoding
-    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(citta)}&count=1&country=IT&language=it`)
+    const { safeFetch } = await import('./lib/safeFetch.js')
+    // 1) Geocoding (Open-Meteo gratis, no api key)
+    const geoRes = await safeFetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(citta)}&count=1&country=IT&language=it`, {}, 8_000)
     const geo = await geoRes.json()
     const loc = (geo.results || [])[0]
     if (!loc) return null
+    if (loc.country_code && loc.country_code !== 'IT') return null  // safety: solo Italia
     // 2) Forecast giornaliero
     const fcUrl = `https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&forecast_days=${days}&timezone=Europe%2FRome`
-    const fcRes = await fetch(fcUrl)
+    const fcRes = await safeFetch(fcUrl, {}, 8_000)
     const fc = await fcRes.json()
     const out = []
     const daily = fc.daily || {}

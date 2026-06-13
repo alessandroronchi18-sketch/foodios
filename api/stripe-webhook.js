@@ -183,9 +183,31 @@ export default async function handler(req, res) {
         if (piano) patch.piano = piano
 
         if (orgId) {
-          await supabase.from('organizations').update(patch).eq('id', orgId)
+          // Audit 2026-06-14 PM: cross-check metadata vs stripe_customer_id per
+          // evitare account takeover via metadata tampering (chi controlla Stripe
+          // API key puo' rifare la sub puntando a un'altra org). Se mismatch,
+          // privilegia il customer_id reale (legato al pagamento avvenuto) e
+          // logga l'incident.
+          const { data: orgByCustomer } = await supabase
+            .from('organizations')
+            .select('id')
+            .eq('stripe_customer_id', sub.customer)
+            .maybeSingle()
+          if (orgByCustomer && orgByCustomer.id !== orgId) {
+            console.warn(`[stripe-webhook] metadata mismatch: sub.metadata.organization_id=${orgId} vs customer.org=${orgByCustomer.id}; trusting customer_id`)
+            await supabase.from('error_log').insert({
+              endpoint: 'stripe-webhook',
+              operation: 'metadata_mismatch',
+              code: 'STRIPE_METADATA_TAMPER',
+              message: `sub ${sub.id}: metadata.org=${orgId} != customer.org=${orgByCustomer.id}`,
+              org_id: orgByCustomer.id,
+            }).catch(() => {})
+            await supabase.from('organizations').update(patch).eq('id', orgByCustomer.id)
+          } else {
+            await supabase.from('organizations').update(patch).eq('id', orgId)
+          }
         } else {
-          // Fallback: trova org via customer_id
+          // Fallback: trova org via customer_id (no metadata setto da checkout)
           await supabase.from('organizations')
             .update(patch).eq('stripe_customer_id', sub.customer)
         }

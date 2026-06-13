@@ -204,15 +204,15 @@ export default function App() {
     )
   }
 
-  // Admin — gate per URL (/admin) + email match. L'admin può anche avere
-  // un'organizzazione propria (design partner, alessandro.ronchi18@gmail.com):
-  //   - su /admin → AdminPage
+  // Admin — gate per URL (/admin) + email match (auth.isAdmin = match con
+  // VITE_ADMIN_EMAIL env, normalizzato lower+trim in useAuth.js).
+  //   - su /admin → AdminPage se admin
   //   - altrove   → dashboard attività normale come qualsiasi titolare
-  // Fallback hardcoded mantenuto per il caso VITE_ADMIN_EMAIL non in env.
-  const adminEmailLc = (auth.user?.email || '').toLowerCase().trim()
-  const isAdminUser = auth.isAdmin || adminEmailLc === 'alessandro.ronchi18@gmail.com'
+  // NB: rimosso il fallback hardcoded email (audit 2026-06-14 PM: era info
+  // disclosure nel bundle pubblico, e duplicava il check env). Se VITE_ADMIN_EMAIL
+  // non è settato in Vercel, niente admin accessibile — fail-closed.
   if (path === '/admin') {
-    if (isAdminUser) return sus(<AdminPage />)
+    if (auth.isAdmin) return sus(<AdminPage />)
     // Non admin che tenta /admin: silenzioso, fall-through verso Dashboard
     // dopo aver normalizzato l'URL (così il refresh non riporta su /admin).
     window.history.replaceState(null, '', '/')

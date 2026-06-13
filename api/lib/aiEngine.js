@@ -9,6 +9,8 @@
 //   ruleBasedSuggestions(snapshot, { orgId, sedeId })
 //   dedupKey({ orgId, sedeId, tipo, entity })
 
+import { safeFetchLLM } from './safeFetch.js'
+
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'  // economico per cron volumi
 const DEFAULT_MAX_TOKENS = 700
@@ -28,7 +30,7 @@ export async function callClaude({
   if (system) body.system = system
   if (Number.isFinite(temperature)) body.temperature = temperature
 
-  const res = await fetch(ANTHROPIC_URL, {
+  const res = await safeFetchLLM(ANTHROPIC_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

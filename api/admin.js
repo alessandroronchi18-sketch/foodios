@@ -1430,14 +1430,18 @@ export async function getUsageStats(supabase, days = 30) {
 }
 
 // ─── Cleanup E2E: rimuove account creati dai test Playwright ──────────────
-// Pattern email che identificano test (non email reali):
-//   - *@foodios-e2e.test
-//   - e2e+*@*
-//   - e2e-acc-titolare-*@*
-const E2E_EMAIL_PATTERNS = ['%@foodios-e2e.test', 'e2e+%', 'e2e-acc-titolare-%']
+// Pattern email RESTRITTIVI per matchare SOLO i test, mai utenti reali.
+// Audit 2026-06-14 PM: il pattern `e2e+%` matchava alias Gmail di utenti
+// reali (es. e2e+team@gmail.com). Restretto al dominio dedicato test.
+//
+// IMPORTANTE: il dominio @foodios-e2e.test è un dominio NON registrabile
+// (TLD .test riservato per testing, RFC 2606). Nessun utente reale può
+// averla. Sicuro al 100%.
+const E2E_EMAIL_PATTERNS = ['%@foodios-e2e.test']
 
 async function findE2EOrgs(supabase) {
   // Pesca tutti i profili con email matchante pattern E2E, poi resolve org_id.
+  // Ritorna anche le email per permettere UI preview lista completa.
   const allProfiles = []
   for (const pattern of E2E_EMAIL_PATTERNS) {
     try {
@@ -1448,20 +1452,22 @@ async function findE2EOrgs(supabase) {
       if (data) allProfiles.push(...data)
     } catch { /* skip */ }
   }
-  // Dedup per org_id
-  const orgIds = new Set()
+  // Dedup per org_id (un'org può avere più profili)
+  const byOrg = new Map()
   for (const p of allProfiles) {
-    if (p.organization_id) orgIds.add(p.organization_id)
+    if (!p.organization_id) continue
+    if (!byOrg.has(p.organization_id)) byOrg.set(p.organization_id, [])
+    byOrg.get(p.organization_id).push(p.email)
   }
-  return Array.from(orgIds)
+  return Array.from(byOrg.entries()).map(([orgId, emails]) => ({ orgId, emails }))
 }
 
 async function azCleanupE2EPreview(supabase) {
-  const orgIds = await findE2EOrgs(supabase)
+  const orgs = await findE2EOrgs(supabase)
   return {
-    orgs_count: orgIds.length,
-    org_ids: orgIds.slice(0, 20),  // primi 20 per non sforare payload
-    truncated: orgIds.length > 20,
+    orgs_count: orgs.length,
+    orgs: orgs.slice(0, 50),  // primi 50 con email per UI preview
+    truncated: orgs.length > 50,
     patterns: E2E_EMAIL_PATTERNS,
   }
 }
@@ -1470,9 +1476,9 @@ async function azCleanupE2E(supabase, conferma) {
   if (conferma !== 'CLEANUP_E2E') {
     throw new Error('Conferma mancante (stringa CLEANUP_E2E)')
   }
-  const orgIds = await findE2EOrgs(supabase)
+  const orgs = await findE2EOrgs(supabase)
   const results = { eliminate: 0, falliti: 0, errori: [] }
-  for (const orgId of orgIds) {
+  for (const { orgId } of orgs) {
     try {
       // Riusa la stessa logica di azElimina (senza expectedCount check)
       for (const t of TABELLE_ELIMINA_ORG) {

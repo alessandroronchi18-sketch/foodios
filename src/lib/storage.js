@@ -194,6 +194,53 @@ export async function ssaveBatch(items, orgId, sedeId) {
 }
 
 /**
+ * Carica una chiave + version attuale (per optimistic concurrency).
+ * Audit 2026-06-14 PM: usato dai callsite che fanno read-modify-write su
+ * jsonb blobs grandi (magazzino, chiusure, giornaliero) per evitare lost
+ * update tra titolare e dipendente concorrenti.
+ *
+ * Ritorna { value, version }. Se non esiste: { value: null, version: 0 }.
+ */
+export async function sloadWithVersion(key, orgId, sedeId) {
+  if (!orgId) return { value: null, version: 0 }
+  const isShared = SHARED_KEYS.includes(key)
+  const effectiveSedeId = isShared ? null : (sedeId || null)
+  let q = supabase.from('user_data')
+    .select('data_value, version')
+    .eq('organization_id', orgId)
+    .eq('data_key', key)
+  q = applySedeFilter(q, effectiveSedeId)
+  const { data, error } = await q.maybeSingle()
+  if (error || !data) return { value: null, version: 0 }
+  return { value: data.data_value, version: data.version || 0 }
+}
+
+/**
+ * Save versionato (optimistic concurrency). Ritorna nuova version (>0) se ok,
+ * NULL se mismatch (caller deve refetch+merge+retry). Audit 2026-06-14.
+ *
+ * Uso tipico:
+ *   const { value, version } = await sloadWithVersion(KEY, orgId, sedeId)
+ *   const next = { ...value, modifica }
+ *   const newV = await ssaveVersioned(KEY, next, orgId, sedeId, version)
+ *   if (newV == null) { ... refetch + retry ... }
+ */
+export async function ssaveVersioned(key, value, orgId, sedeId, expectedVersion) {
+  if (!orgId) throw new Error('ssaveVersioned: orgId mancante')
+  const isShared = SHARED_KEYS.includes(key)
+  const effectiveSedeId = isShared ? null : (sedeId || null)
+  const { data, error } = await supabase.rpc('user_data_set_versioned', {
+    p_org_id: orgId,
+    p_data_key: key,
+    p_data_value: value,
+    p_sede_id: effectiveSedeId,
+    p_expected_version: expectedVersion || 0,
+  })
+  if (error) throw new Error(error.message || 'ssaveVersioned failed')
+  return data  // integer (new version) o null (mismatch)
+}
+
+/**
  * Carica una chiave PER-SEDE per tutte le sedi di un'org.
  * Restituisce { [sedeId]: data_value }.
  * Utile per la "Vista azienda" che aggrega KPI di tutte le sedi.

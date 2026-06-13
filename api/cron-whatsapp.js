@@ -102,14 +102,15 @@ async function sendWhatsApp({ to, body }) {
   form.set('To',   to.startsWith('whatsapp:') ? to : `whatsapp:${to}`)
   form.set('Body', body)
 
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+  const { safeFetch } = await import('./lib/safeFetch.js')
+  const res = await safeFetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${auth}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: form.toString(),
-  })
+  }, 10_000)
   const j = await res.json()
   if (!res.ok) throw new Error(j.message || `Twilio HTTP ${res.status}`)
   return j

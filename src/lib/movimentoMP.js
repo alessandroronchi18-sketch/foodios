@@ -80,7 +80,19 @@ export async function spostaMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, 
     await ssave(SK_MAG, newMagA, orgId, sedeA)
   } catch (e) {
     // Rollback best-effort sul decremento.
-    try { await ssave(SK_MAG, magDa, orgId, sedeDa) } catch {}
+    try {
+      await ssave(SK_MAG, magDa, orgId, sedeDa)
+    } catch (rollbackErr) {
+      // Audit 2026-06-14 PM: rollback fallito = stato inconsistente. Lascia
+      // traccia esplicita console (Sentry client lo cattura) per investigare.
+      console.error('[movimentoMP] CRITICAL: rollback ssave fallito, stato magazzino sede sorgente non ripristinato', {
+        orgId, sedeDa, sedeA,
+        ingrediente: k,
+        decrement_originale: magDa[k]?.giacenza_g,
+        decrement_applicato: newMagDa[k]?.giacenza_g,
+        rollback_error: rollbackErr?.message,
+      })
+    }
     throw new Error('Trasferimento fallito sull\'incremento destinazione (rollback applicato): ' + e.message)
   }
 

@@ -108,7 +108,10 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     try {
       await ssave('pasticceria-trasferimenti-templates-v1', next, orgId, null)
       setTemplates(next)
-    } catch {}
+    } catch (e) {
+      console.error('[Trasferimenti] eliminaTemplate fallito:', e?.message)
+      notify?.('Errore eliminando template, riprova', 'error')
+    }
   }
 
   function applicaTemplate(t) {
@@ -211,7 +214,16 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     } catch (e) {
       // Se abbiamo già scalato l'MP ma poi qualcosa è fallito, ripristiniamo.
       if (mpScalato) {
-        try { await caricoMP({ orgId, sedeId: form.sede_da, ingrediente: form.prodotto.trim(), quantita: qtyMpGrammi }) } catch {}
+        try {
+          await caricoMP({ orgId, sedeId: form.sede_da, ingrediente: form.prodotto.trim(), quantita: qtyMpGrammi })
+        } catch (rbErr) {
+          // Audit 2026-06-14 PM: rollback fallito = drift permanente MP sede sorgente.
+          console.error('[Trasferimenti] CRITICAL: rollback MP fallito, drift permanente sede sorgente', {
+            orgId, sedeDa: form.sede_da, prodotto: form.prodotto, qtyGrammi: qtyMpGrammi,
+            errore_rollback: rbErr?.message,
+          })
+          notify?.('⚠ ATTENZIONE: rollback magazzino fallito. Verifica manualmente la giacenza di "' + form.prodotto + '"', false)
+        }
       }
       notify?.('Errore: ' + e.message, false)
     } finally { setSaving(false) }

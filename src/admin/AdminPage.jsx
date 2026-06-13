@@ -1407,15 +1407,22 @@ export default function AdminPage() {
 
   async function handleCleanupE2E() {
     try {
-      // 1) Preview: conta quanti account E2E ci sono
+      // 1) Preview: conta quanti account E2E ci sono + lista email
       const previewRes = await apiCall('/api/admin?action=cleanup_e2e_preview')
       const preview = await previewRes.json()
       const n = preview.orgs_count || 0
-      if (n === 0) { toast.info('Nessun account E2E test trovato'); return }
-      // 2) Conferma esplicita
+      if (n === 0) { toast.info('Nessun account E2E test trovato (pattern @foodios-e2e.test)'); return }
+      // 2) Conferma esplicita con lista email (audit 2026-06-14 PM: prima
+      // c'era solo count, ora mostriamo le prime 20 email così l'admin verifica
+      // visivamente che non ci sia mai un'email reale).
+      const orgs = preview.orgs || []
+      const sampleEmails = orgs.slice(0, 20).flatMap(o => o.emails || []).slice(0, 20)
       const ok = confirm(
-        `Stai per cancellare ${n} account test E2E (email @foodios-e2e.test, e2e+*, e2e-acc-titolare-*).\n\n` +
-        `Verranno eliminati:\n` +
+        `Stai per cancellare ${n} account test E2E (email @foodios-e2e.test).\n\n` +
+        `Esempi delle email che verranno eliminate:\n` +
+        sampleEmails.map(e => `  • ${e}`).join('\n') +
+        (orgs.length > 20 ? `\n  ... e altre ${orgs.length - 20} org` : '') +
+        `\n\nVerranno eliminati:\n` +
         `- ${n} organizations\n` +
         `- tutti i profili associati\n` +
         `- tutti i dati su 22 tabelle (sedi, fatture, ricette, ecc.)\n` +

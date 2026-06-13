@@ -113,12 +113,18 @@ async function detectFailBursts(supabase) {
 
 async function logFindings(supabase, findings) {
   if (!findings.length) return
-  await supabase.from('audit_log').insert(findings.map(f => ({
-    operation: 'anomaly_detected',
-    user_email: f.email || null,
-    organization_id: f.organization_id || null,
-    new_data: f,
-  }))).catch(() => {})
+  try {
+    await supabase.from('audit_log').insert(findings.map(f => ({
+      operation: 'anomaly_detected',
+      user_email: f.email || null,
+      organization_id: f.organization_id || null,
+      new_data: f,
+    })))
+  } catch (e) {
+    // Audit 2026-06-14 PM: i finding di anomalia NON DEVONO essere persi
+    // silenziosamente — se la persistenza fallisce siamo "ciechi" lato security.
+    console.error('[anomaly-detect] CRITICAL: persist findings su audit_log fallito, anomalie perse:', e?.message?.slice(0, 200), 'findings_count:', findings.length)
+  }
 }
 
 async function notifyAdminIfNeeded(req, findings) {

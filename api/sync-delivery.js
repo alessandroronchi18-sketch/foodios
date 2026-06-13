@@ -82,9 +82,10 @@ export default async function handler(req) {
 async function syncCassaInCloud(apiKey, data) {
   if (!apiKey) throw new Error('API key mancante');
   const url = `https://api.cassaincloud.it/v1/sales?date=${data}`;
-  const res = await fetch(url, {
+  const { safeFetch } = await import('./lib/safeFetch.js');
+  const res = await safeFetch(url, {
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' },
-  });
+  }, 12_000);
   if (!res.ok) throw new Error(`Cassa in Cloud API error: ${res.status}`);
   const json = await res.json();
 
@@ -113,9 +114,10 @@ async function syncSumUp(accessToken, data) {
   const from = `${data}T00:00:00.000Z`;
   const to   = `${data}T23:59:59.999Z`;
   const url  = `https://api.sumup.com/v0.1/me/transactions/history?newest_time=${to}&oldest_time=${from}&limit=100&statuses=SUCCESSFUL`;
-  const res = await fetch(url, {
+  const { safeFetch } = await import('./lib/safeFetch.js');
+  const res = await safeFetch(url, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
-  });
+  }, 12_000);
   if (!res.ok) throw new Error(`SumUp API error: ${res.status}`);
   const json = await res.json();
 

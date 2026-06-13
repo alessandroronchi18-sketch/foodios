@@ -12,6 +12,8 @@
 // Senza queste env vars il modulo lancia errore appena si chiama qualunque
 // funzione (fail-closed, non blocca la build).
 
+import { safeFetch } from './safeFetch.js'
+
 const API_BASE = 'https://api-v2.fattureincloud.it'
 
 function getConfig() {
@@ -24,7 +26,7 @@ function getConfig() {
 
 async function ficRequest(method, path, body) {
   const { token } = getConfig()
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await safeFetch(`${API_BASE}${path}`, {
     method,
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -32,7 +34,7 @@ async function ficRequest(method, path, body) {
       'Accept': 'application/json',
     },
     body: body ? JSON.stringify(body) : undefined,
-  })
+  }, 15_000)
   const text = await res.text()
   let json = null
   try { json = text ? JSON.parse(text) : null } catch { /* non json */ }
