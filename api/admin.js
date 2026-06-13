@@ -1764,6 +1764,7 @@ export default async function handler(req) {
       'banner_crea',
       'banner_disattiva',
       'banner_elimina',
+      'cleanup_e2e',   // batch: opera su tutte le org E2E in una shot
     ]
     if (!tipo) return json({ error: 'Parametro tipo mancante' }, 400, req)
     if (!azioniSenzaOrgId.includes(tipo)) {
@@ -1794,6 +1795,7 @@ export default async function handler(req) {
       banner_crea:                   { max: 10,  windowSec: 60 },
       banner_disattiva:              { max: 10,  windowSec: 60 },
       banner_elimina:                { max: 10,  windowSec: 60 },
+      cleanup_e2e:                   { max: 1,   windowSec: 300 },  // batch massive: 1 ogni 5 min
     }
     const perAction = PER_ACTION_LIMITS[tipo]
     if (perAction) {
