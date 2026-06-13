@@ -1795,7 +1795,7 @@ export default async function handler(req) {
       banner_crea:                   { max: 10,  windowSec: 60 },
       banner_disattiva:              { max: 10,  windowSec: 60 },
       banner_elimina:                { max: 10,  windowSec: 60 },
-      cleanup_e2e:                   { max: 1,   windowSec: 300 },  // batch massive: 1 ogni 5 min
+      cleanup_e2e:                   { max: 2,   windowSec: 60 },   // batch massive: 2/min (con preview+conferma UI)
     }
     const perAction = PER_ACTION_LIMITS[tipo]
     if (perAction) {
