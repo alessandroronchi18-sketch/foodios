@@ -1378,6 +1378,40 @@ export default function AdminPage() {
     }
   }
 
+  async function handleCleanupE2E() {
+    try {
+      // 1) Preview: conta quanti account E2E ci sono
+      const previewRes = await apiCall('/api/admin?action=cleanup_e2e_preview')
+      const preview = await previewRes.json()
+      const n = preview.orgs_count || 0
+      if (n === 0) { toast.info('Nessun account E2E test trovato'); return }
+      // 2) Conferma esplicita
+      const ok = confirm(
+        `Stai per cancellare ${n} account test E2E (email @foodios-e2e.test, e2e+*, e2e-acc-titolare-*).\n\n` +
+        `Verranno eliminati:\n` +
+        `- ${n} organizations\n` +
+        `- tutti i profili associati\n` +
+        `- tutti i dati su 22 tabelle (sedi, fatture, ricette, ecc.)\n` +
+        `- gli utenti auth.users corrispondenti\n\n` +
+        `Operazione irreversibile. Procedere?`
+      )
+      if (!ok) return
+      // 3) Esegui con conferma stringa
+      const res = await apiCall('/api/admin', {
+        method: 'POST',
+        body: JSON.stringify({ tipo: 'cleanup_e2e', conferma: 'CLEANUP_E2E' }),
+      })
+      const data = await res.json()
+      const elim = data.eliminate ?? 0
+      const fail = data.falliti ?? 0
+      toast.success(`Cleanup completato: ${elim} eliminati${fail > 0 ? `, ${fail} falliti` : ''}`)
+      fetchData()
+      fetchAudit()
+    } catch (err) {
+      toast.error(`Errore cleanup E2E: ${err.message}`)
+    }
+  }
+
   async function handleEmailTrialScadenza() {
     const target = clienti.filter(c => {
       if (c.org_approvata || c.attivo === false) return false
@@ -1713,6 +1747,10 @@ export default function AdminPage() {
             <Btn kind="ghost" onClick={() => window.open('https://vercel.com/dashboard', '_blank')}>
               ▲ Vercel →
             </Btn>
+            <Btn kind="danger" onClick={handleCleanupE2E}
+              title="Cancella in batch tutti gli account creati dai test Playwright (email @foodios-e2e.test, e2e+*, e2e-acc-titolare-*). Mostra preview prima della conferma.">
+              <Icon name="broom" size={14} /> Pulisci account E2E test
+            </Btn>
           </div>
         </Card>
 
@@ -1877,41 +1915,51 @@ export default function AdminPage() {
                         <td style={td()}>
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                             {!c.org_approvata && (
-                              <Btn kind="success" size="sm" onClick={() => azione(c.org_id, 'approva')} disabled={inAzione('approva')} title="Approva e attiva">
+                              <Btn kind="success" size="sm" onClick={() => azione(c.org_id, 'approva')} disabled={inAzione('approva')}
+                                title="Approva attività: imposta org_approvata=true. Il cliente diventa 'pagante' e perde il limite del trial." aria-label="Approva">
                                 ✓
                               </Btn>
                             )}
                             {c.attivo === false ? (
-                              <Btn kind="success" size="sm" onClick={() => azione(c.org_id, 'riattiva')} disabled={inAzione('riattiva')} title="Riattiva">
+                              <Btn kind="success" size="sm" onClick={() => azione(c.org_id, 'riattiva')} disabled={inAzione('riattiva')}
+                                title="Riattiva: imposta attivo=true. Il cliente può rifare login e usare l'app." aria-label="Riattiva">
                                 ▶
                               </Btn>
                             ) : (
-                              <Btn kind="danger" size="sm" onClick={() => { if (confirm(`Bloccare ${c.nome_attivita}?`)) azione(c.org_id, 'blocca') }} disabled={inAzione('blocca')} title="Blocca">
+                              <Btn kind="danger" size="sm" onClick={() => { if (confirm(`Bloccare ${c.nome_attivita}?`)) azione(c.org_id, 'blocca') }} disabled={inAzione('blocca')}
+                                title="Blocca: imposta attivo=false. Il cliente non può più fare login né chiamate API." aria-label="Blocca">
                                 <Icon name="pause" size={14} />
                               </Btn>
                             )}
                             <Btn kind="neutral" size="sm" onClick={() => {
                               const g = prompt(`Estendi trial di ${c.nome_attivita} di quanti giorni?`, '30')
                               if (g) azione(c.org_id, 'estendi_trial', { valore: g })
-                            }} disabled={inAzione('estendi_trial')} title="Estendi trial">
+                            }} disabled={inAzione('estendi_trial')}
+                              title="Estendi trial: somma X giorni a trial_ends_at (modale chiede quanti)." aria-label="Estendi trial">
                               <Icon name="clock" size={14} />
                             </Btn>
-                            <Btn kind="neutral" size="sm" onClick={() => setEmailFor(c)} title="Invia email">
+                            <Btn kind="neutral" size="sm" onClick={() => setEmailFor(c)}
+                              title="Invia email al titolare con template personalizzabile (Resend)." aria-label="Invia email">
                               <Icon name="mail" size={14} />
                             </Btn>
-                            <Btn kind="warn" size="sm" onClick={() => handleImpersona(c)} disabled={inAzione('impersona')} title="Genera magic link">
+                            <Btn kind="warn" size="sm" onClick={() => handleImpersona(c)} disabled={inAzione('impersona')}
+                              title="Impersona: spedisce magic link via email al titolare per accedere come lui (no link in response, solo email)." aria-label="Impersona">
                               <Icon name="key" size={14} />
                             </Btn>
-                            <Btn kind="neutral" size="sm" onClick={() => handleResetPassword(c)} disabled={inAzione('reset_password')} title="Reset password">
+                            <Btn kind="neutral" size="sm" onClick={() => handleResetPassword(c)} disabled={inAzione('reset_password')}
+                              title="Reset password: spedisce email recovery al titolare per scegliere nuova password." aria-label="Reset password">
                               <Icon name="refresh" size={14} />
                             </Btn>
-                            <Btn kind="success" size="sm" onClick={() => setRegalaFor(c)} title="Regala mesi gratis">
+                            <Btn kind="success" size="sm" onClick={() => setRegalaFor(c)}
+                              title="Regala mesi: applica codice sconto per X mesi gratuiti (modale chiede quanti e quale codice)." aria-label="Regala mesi">
                               <Icon name="gift" size={14} />
                             </Btn>
-                            <Btn kind="neutral" size="sm" onClick={() => handlePulisciDemo(c)} disabled={inAzione('pulisci_demo_fatture')} title="Pulisci fatture demo">
+                            <Btn kind="neutral" size="sm" onClick={() => handlePulisciDemo(c)} disabled={inAzione('pulisci_demo_fatture')}
+                              title="Pulisci fatture demo: cancella le 20 fatture fingerprint demo dallo scadenzario (no fatture vere)." aria-label="Pulisci fatture demo">
                               <Icon name="broom" size={14} />
                             </Btn>
-                            <Btn kind="danger" size="sm" onClick={() => setDeleteFor(c)} title="Elimina">
+                            <Btn kind="danger" size="sm" onClick={() => setDeleteFor(c)}
+                              title="Elimina: cancella org + tutti i dati su 22 tabelle (mostra preview con conteggio prima della conferma definitiva)." aria-label="Elimina">
                               <Icon name="trash" size={14} />
                             </Btn>
                           </div>

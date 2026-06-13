@@ -1361,6 +1361,71 @@ async function azElimina(supabase, orgId, conferma, expectedCount) {
   }
 }
 
+// ─── Cleanup E2E: rimuove account creati dai test Playwright ──────────────
+// Pattern email che identificano test (non email reali):
+//   - *@foodios-e2e.test
+//   - e2e+*@*
+//   - e2e-acc-titolare-*@*
+const E2E_EMAIL_PATTERNS = ['%@foodios-e2e.test', 'e2e+%', 'e2e-acc-titolare-%']
+
+async function findE2EOrgs(supabase) {
+  // Pesca tutti i profili con email matchante pattern E2E, poi resolve org_id.
+  const allProfiles = []
+  for (const pattern of E2E_EMAIL_PATTERNS) {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, email, organization_id')
+        .ilike('email', pattern)
+      if (data) allProfiles.push(...data)
+    } catch { /* skip */ }
+  }
+  // Dedup per org_id
+  const orgIds = new Set()
+  for (const p of allProfiles) {
+    if (p.organization_id) orgIds.add(p.organization_id)
+  }
+  return Array.from(orgIds)
+}
+
+async function azCleanupE2EPreview(supabase) {
+  const orgIds = await findE2EOrgs(supabase)
+  return {
+    orgs_count: orgIds.length,
+    org_ids: orgIds.slice(0, 20),  // primi 20 per non sforare payload
+    truncated: orgIds.length > 20,
+    patterns: E2E_EMAIL_PATTERNS,
+  }
+}
+
+async function azCleanupE2E(supabase, conferma) {
+  if (conferma !== 'CLEANUP_E2E') {
+    throw new Error('Conferma mancante (stringa CLEANUP_E2E)')
+  }
+  const orgIds = await findE2EOrgs(supabase)
+  const results = { eliminate: 0, falliti: 0, errori: [] }
+  for (const orgId of orgIds) {
+    try {
+      // Riusa la stessa logica di azElimina (senza expectedCount check)
+      for (const t of TABELLE_ELIMINA_ORG) {
+        try { await supabase.from(t).delete().eq('organization_id', orgId) } catch {}
+      }
+      const { data: profiles } = await supabase
+        .from('profiles').select('id').eq('organization_id', orgId)
+      await supabase.from('profiles').delete().eq('organization_id', orgId)
+      await supabase.from('organizations').delete().eq('id', orgId)
+      for (const p of profiles || []) {
+        try { await supabase.auth.admin.deleteUser(p.id) } catch {}
+      }
+      results.eliminate++
+    } catch (e) {
+      results.falliti++
+      results.errori.push({ org_id: orgId, error: e.message?.slice(0, 100) })
+    }
+  }
+  return results
+}
+
 // ─── handler principale ────────────────────────────────────────────────────
 
 export default async function handler(req) {
@@ -1495,6 +1560,12 @@ export default async function handler(req) {
         const security = await getSecuritySnapshot(supabase, hours)
         await logAdmin(supabase, user.email, `security_check:${hours}h`, null, ip, ua)
         return json({ security }, 200, req)
+      }
+
+      if (action === 'cleanup_e2e_preview') {
+        const preview = await azCleanupE2EPreview(supabase)
+        await logAdmin(supabase, user.email, 'cleanup_e2e_preview', null, ip, ua)
+        return json(preview, 200, req)
       }
 
       if (action === 'migrate_integrazioni') {
@@ -1693,6 +1764,11 @@ export default async function handler(req) {
             sanitizeStrict(body.conferma || '', 20),
             body.expected_count != null ? Number(body.expected_count) : null
           )
+          break
+        case 'cleanup_e2e':
+          // Batch cleanup di tutti gli account test E2E (email @foodios-e2e.test, e2e+*, e2e-acc-titolare-*).
+          // Doppia conferma stringa CLEANUP_E2E richiesta.
+          result = { ok: true, ...(await azCleanupE2E(supabase, sanitizeStrict(body.conferma || '', 20))) }
           break
         case 'pulisci_demo_fatture':
           result = { ok: true, ...(await azPulisciDemoFatture(supabase, orgId, sanitizeStrict(body.valore || 'preview', 20))) }; break
