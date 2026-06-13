@@ -127,13 +127,12 @@ export async function verificaAdmin(req, supabase) {
     if ((user.email || '').toLowerCase() !== ADMIN_EMAIL) {
       return { user: null, reason: `not_admin:${user.email}` }
     }
-    // DISABLE_ADMIN_MFA e' una scappatoia operativa per il deploy iniziale o
-    // recovery in caso di MFA bloccato. In production rifiutiamo il flag a
-    // prescindere: se domani la env var venisse impostata per errore (o un
-    // attaccante con accesso al pannello Vercel la flippasse), l'admin
-    // tornerebbe a single-factor. Fail-closed in prod.
-    const isProd = (process.env.VERCEL_ENV || process.env.NODE_ENV) === 'production'
-    if (!isProd && (process.env.DISABLE_ADMIN_MFA || '').toLowerCase() === 'true') {
+    // DISABLE_ADMIN_MFA e' un flag operativo MOLTO restretto. Audit 2026-06:
+    // valido SOLO in development locale puro (no VERCEL_URL = non e' un deploy).
+    // In QUALSIASI deploy Vercel (production / preview / development URL)
+    // VERCEL_URL e' impostato → il flag non si attiva. Fail-closed.
+    const isLocalDev = !process.env.VERCEL_URL && process.env.NODE_ENV !== 'production'
+    if (isLocalDev && (process.env.DISABLE_ADMIN_MFA || '').toLowerCase() === 'true') {
       return { user, reason: 'ok_mfa_disabled_dev_only' }
     }
     const aalLevel = decodeJwtClaim(token, 'aal')

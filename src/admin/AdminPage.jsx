@@ -1048,6 +1048,15 @@ export default function AdminPage() {
   const [erroriLoading, setErroriLoading] = useState(false)
   const [selezionati, setSelezionati] = useState(() => new Set())
   const [bulkEmailFor, setBulkEmailFor] = useState(null) // array di clienti
+  // Audit 2026-06-14: AI Telemetry + Health + Security
+  const [aiTelemetry, setAiTelemetry] = useState(null)
+  const [aiTelemetryLoading, setAiTelemetryLoading] = useState(false)
+  const [aiTelemetryDays, setAiTelemetryDays] = useState(7)
+  const [healthSnap, setHealthSnap] = useState(null)
+  const [healthLoading, setHealthLoading] = useState(false)
+  const [securitySnap, setSecuritySnap] = useState(null)
+  const [securityLoading, setSecurityLoading] = useState(false)
+  const [securityHours, setSecurityHours] = useState(24)
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
   // Wrapper apiFetch gestisce gia' auth + retry 401 + redirect a /login se la
@@ -1104,6 +1113,48 @@ export default function AdminPage() {
       setPricingLoading(false)
     }
   }, [apiCall])
+
+  // Audit 2026-06-14: AI Telemetry
+  const fetchAiTelemetry = useCallback(async (days = aiTelemetryDays) => {
+    setAiTelemetryLoading(true)
+    try {
+      const res = await apiCall(`/api/admin?action=ai_telemetry&days=${days}`)
+      const data = await res.json()
+      setAiTelemetry(data.telemetry || null)
+    } catch (err) {
+      console.error('ai telemetry:', err.message)
+    } finally {
+      setAiTelemetryLoading(false)
+    }
+  }, [apiCall, aiTelemetryDays])
+
+  // Audit 2026-06-14: Health snapshot (cron + deploy + errori)
+  const fetchHealth = useCallback(async () => {
+    setHealthLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=health')
+      const data = await res.json()
+      setHealthSnap(data.health || null)
+    } catch (err) {
+      console.error('health:', err.message)
+    } finally {
+      setHealthLoading(false)
+    }
+  }, [apiCall])
+
+  // Audit 2026-06-14: Security snapshot
+  const fetchSecurity = useCallback(async (hours = securityHours) => {
+    setSecurityLoading(true)
+    try {
+      const res = await apiCall(`/api/admin?action=security&hours=${hours}`)
+      const data = await res.json()
+      setSecuritySnap(data.security || null)
+    } catch (err) {
+      console.error('security:', err.message)
+    } finally {
+      setSecurityLoading(false)
+    }
+  }, [apiCall, securityHours])
 
   // Salvataggio prezzo piano con conferma esplicita (guard anti-errore: 2 step).
   const salvaPrezzo = useCallback(async () => {
@@ -1207,6 +1258,9 @@ export default function AdminPage() {
   // ripetute hanno costo, meglio non spammare.
   useEffect(() => { fetchStripeMrr(); fetchStripeEvents(); fetchErrori() },
     [fetchStripeMrr, fetchStripeEvents, fetchErrori])
+  // Audit 2026-06-14: AI telemetry + health + security caricati on-demand
+  useEffect(() => { fetchAiTelemetry(); fetchHealth(); fetchSecurity() },
+    [fetchAiTelemetry, fetchHealth, fetchSecurity])
 
   // Salva nota CRM (chiamata dalla modale dettaglio).
   const salvaNoteAdmin = useCallback(async (orgId, nota) => {
@@ -2451,6 +2505,283 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+          )}
+        </Card>
+
+        {/* ── AI Telemetry & Costs (audit 2026-06-14) ──────────── */}
+        <Card style={{ marginTop: 16, padding: 0 }}>
+          <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <strong style={{ fontSize: 14 }}><Icon name="sparkles" size={16} /> AI Telemetry & Costs</strong>
+              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+                Volumi e costo stimato per le 12+ feature AI (Claude API) negli ultimi {aiTelemetry?.periodo_giorni || aiTelemetryDays} giorni
+              </div>
+            </div>
+            <span style={{ flex: 1 }} />
+            <select value={aiTelemetryDays} onChange={e => { const d = parseInt(e.target.value, 10); setAiTelemetryDays(d); fetchAiTelemetry(d) }} style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+              <option value={1}>24h</option>
+              <option value={7}>7 giorni</option>
+              <option value={30}>30 giorni</option>
+            </select>
+            <button onClick={() => fetchAiTelemetry()} style={{ fontSize: 11, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
+          </div>
+          {aiTelemetryLoading ? (
+            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento telemetria…</div>
+          ) : !aiTelemetry ? (
+            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Nessun dato.</div>
+          ) : (
+            <>
+              <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Costo stimato (USD)</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    ${(aiTelemetry.costi?.usd_estimated || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    ≈ € {(aiTelemetry.costi?.eur_estimated || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Daily Brief</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {(aiTelemetry.daily_brief?.tot ?? 0).toLocaleString('it-IT')}
+                  </div>
+                  <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    {aiTelemetry.daily_brief?.sent ?? 0} inviati · OR {aiTelemetry.daily_brief?.open_rate ?? '—'}%
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Brain msgs</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {(aiTelemetry.brain?.messaggi_tot ?? 0).toLocaleString('it-IT')}
+                  </div>
+                  <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    {aiTelemetry.brain?.conversazioni ?? 0} conv
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>OCR fatture</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {(aiTelemetry.ocr_fatture?.estratte ?? 0).toLocaleString('it-IT')}
+                  </div>
+                  <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    avg conf {aiTelemetry.ocr_fatture?.avg_confidence ?? '—'}
+                  </div>
+                </div>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                  <thead style={{ background: COLORS.rowAlt }}>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '8px 14px', fontWeight: 600 }}>Feature AI</th>
+                      <th style={{ textAlign: 'right', padding: '8px 14px', fontWeight: 600 }}>Metrica principale</th>
+                      <th style={{ textAlign: 'right', padding: '8px 14px', fontWeight: 600 }}>Valore</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                      <td style={{ padding: '6px 14px' }}>AI Suggestions</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>azione</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{aiTelemetry.ai_suggestions?.agito ?? 0}/{aiTelemetry.ai_suggestions?.tot ?? 0} ({aiTelemetry.ai_suggestions?.action_rate ?? '—'}%)</td>
+                    </tr>
+                    <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                      <td style={{ padding: '6px 14px' }}>Recipe Inventor</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>salvate</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{aiTelemetry.recipe_inventor?.ricette_salvate ?? 0}/{aiTelemetry.recipe_inventor?.ricette_generate ?? 0} ({aiTelemetry.recipe_inventor?.save_rate ?? '—'}%)</td>
+                    </tr>
+                    <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                      <td style={{ padding: '6px 14px' }}>Forecast vendite</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>righe</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(aiTelemetry.forecast?.righe_generate ?? 0).toLocaleString('it-IT')}</td>
+                    </tr>
+                    <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                      <td style={{ padding: '6px 14px' }}>Documentary AI</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>snapshot</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{aiTelemetry.documentary?.snapshot_creati ?? 0}</td>
+                    </tr>
+                    <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                      <td style={{ padding: '6px 14px' }}>Competitor pricing</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>prezzi</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(aiTelemetry.competitor_pricing?.prezzi_tracciati ?? 0).toLocaleString('it-IT')}</td>
+                    </tr>
+                    <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                      <td style={{ padding: '6px 14px' }}>POS scontrini</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>ricevuti</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{(aiTelemetry.pos_scontrini?.ricevuti ?? 0).toLocaleString('it-IT')}</td>
+                    </tr>
+                    <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                      <td style={{ padding: '6px 14px' }}>WhatsApp Bot</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>numeri attivi</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{aiTelemetry.whatsapp?.numeri_attivi ?? 0}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              {aiTelemetry.costi?.detail && (
+                <div style={{ padding: '8px 18px', fontSize: 10, color: COLORS.textMute, borderTop: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
+                  {aiTelemetry.costi.detail}
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+
+        {/* ── Health: cron + deploy + esterni (audit 2026-06-14) ── */}
+        <Card style={{ marginTop: 16, padding: 0 }}>
+          <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <strong style={{ fontSize: 14 }}><Icon name="bolt" size={16} /> Health & Cron</strong>
+              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+                Stato job notturni, ultime build Vercel e dimensioni tabelle critiche
+              </div>
+            </div>
+            <span style={{ flex: 1 }} />
+            <button onClick={() => fetchHealth()} style={{ fontSize: 11, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻ Aggiorna</button>
+          </div>
+          {healthLoading ? (
+            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento snapshot…</div>
+          ) : !healthSnap ? (
+            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Nessun dato.</div>
+          ) : (
+            <>
+              <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
+                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Cron status</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
+                  {(healthSnap.cron || []).map(c => {
+                    const ok = c.status === 'ok'
+                    const bg = ok ? '#ecfdf5' : c.status === 'late' || c.status === 'error' ? '#fef2f2' : '#fffbeb'
+                    const sym = ok ? '✓' : c.status === 'pending' ? '⏳' : '✗'
+                    return (
+                      <div key={c.id} style={{ padding: '8px 10px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: bg }}>
+                        <div style={{ fontSize: 12, fontWeight: 600 }}>{sym} {c.id}</div>
+                        <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                          Tabella: <code>{c.table || '—'}</code> · atteso ~{c.expected_hour_utc ?? '?'}:00 UTC
+                        </div>
+                        <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                          Ultimo run: {c.last_run ? fmtDataOra(c.last_run) : '—'}{c.hours_ago != null ? ` (${c.hours_ago}h fa)` : ''}
+                        </div>
+                        {c.error && <div style={{ fontSize: 10, color: '#dc2626', marginTop: 2 }}>{c.error}</div>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
+                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Errori produzione 24h</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: (healthSnap.errori_ultime_24h || 0) > 0 ? '#dc2626' : '#059669' }}>
+                  {healthSnap.errori_ultime_24h ?? '—'}
+                </div>
+              </div>
+              <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
+                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Build Vercel</div>
+                <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                  commit: <strong>{healthSnap.build?.git_commit || '—'}</strong> · branch: {healthSnap.build?.git_branch || '—'} · env: {healthSnap.build?.vercel_env || '—'}
+                </div>
+              </div>
+              <div style={{ padding: '12px 18px' }}>
+                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Dimensioni tabelle</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 6 }}>
+                  {Object.entries(healthSnap.table_counts || {}).map(([t, n]) => (
+                    <div key={t} style={{ padding: '4px 8px', background: COLORS.rowAlt, borderRadius: 4, fontSize: 11, display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: COLORS.textMute }}>{t}</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{typeof n === 'number' ? n.toLocaleString('it-IT') : (n ?? '—')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </Card>
+
+        {/* ── Security & Anomalie (audit 2026-06-14) ──────────── */}
+        <Card style={{ marginTop: 16, marginBottom: 24, padding: 0 }}>
+          <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <strong style={{ fontSize: 14 }}><Icon name="shield" size={16} /> Sicurezza & Anomalie</strong>
+              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+                Login attempts, brute-force suspect, anomalie comportamentali e log azioni admin
+              </div>
+            </div>
+            <span style={{ flex: 1 }} />
+            <select value={securityHours} onChange={e => { const h = parseInt(e.target.value, 10); setSecurityHours(h); fetchSecurity(h) }} style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+              <option value={24}>24h</option>
+              <option value={72}>3 giorni</option>
+              <option value={168}>7 giorni</option>
+            </select>
+            <button onClick={() => fetchSecurity()} style={{ fontSize: 11, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
+          </div>
+          {securityLoading ? (
+            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento…</div>
+          ) : !securitySnap ? (
+            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Nessun dato.</div>
+          ) : (
+            <>
+              <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login OK</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.ok, fontVariantNumeric: 'tabular-nums' }}>
+                    {(securitySnap.login?.ok ?? 0).toLocaleString('it-IT')}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Login falliti</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: (securitySnap.login?.failed ?? 0) > 0 ? COLORS.err : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {(securitySnap.login?.failed ?? 0).toLocaleString('it-IT')}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Anomalie</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: (securitySnap.anomalie?.length ?? 0) > 0 ? COLORS.warn : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {(securitySnap.anomalie?.length ?? 0).toLocaleString('it-IT')}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Azioni admin</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {(securitySnap.admin_log?.length ?? 0).toLocaleString('it-IT')}
+                  </div>
+                </div>
+              </div>
+              {(securitySnap.login?.top_fail_emails?.length || 0) > 0 && (
+                <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Brute-force suspect (≥3 fallimenti/email)</div>
+                  {securitySnap.login.top_fail_emails.map(r => (
+                    <div key={r.email} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12, borderTop: `1px dashed ${COLORS.border}` }}>
+                      <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{r.email}</span>
+                      <span style={{ color: COLORS.err, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{r.fail_count} fail</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(securitySnap.anomalie?.length || 0) > 0 && (
+                <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Anomalie rilevate</div>
+                  {securitySnap.anomalie.slice(0, 20).map(a => (
+                    <div key={a.id} style={{ padding: '6px 0', fontSize: 12, borderTop: `1px dashed ${COLORS.border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{a.user_id ? a.user_id.slice(0, 8) + '…' : '—'}</span>
+                        <span style={{ color: COLORS.textMute, fontSize: 11 }}>{fmtDataOra(a.created_at)}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>{JSON.stringify(a.details || {}).slice(0, 200)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(securitySnap.admin_log?.length || 0) > 0 && (
+                <div style={{ padding: '12px 18px' }}>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Azioni admin recenti</div>
+                  <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                    {securitySnap.admin_log.slice(0, 50).map((l, i) => (
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 8, padding: '4px 0', fontSize: 11, borderTop: `1px dashed ${COLORS.border}` }}>
+                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{l.admin_email || '—'}</span>
+                        <span style={{ color: COLORS.text }}>{l.azione || '—'}</span>
+                        <span style={{ color: COLORS.textMute }}>{fmtDataOra(l.created_at)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </Card>
 

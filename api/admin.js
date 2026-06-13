@@ -279,6 +279,374 @@ async function azSalvaNoteAdmin(supabase, orgId, nota) {
   if (error) throw new Error(error.message)
 }
 
+// ─── Security: login attempts + anomalie + audit log filtrato ───────────
+export async function getSecuritySnapshot(supabase, hours = 24) {
+  const since = new Date(Date.now() - hours * 3600000).toISOString()
+
+  // Login attempts: success vs failed
+  let loginStats = null
+  try {
+    const { data } = await supabase.from('login_attempts')
+      .select('success, email, ip, created_at')
+      .gte('created_at', since)
+    const total = data?.length || 0
+    const ok = (data || []).filter(r => r.success === true).length
+    const failed = total - ok
+    // Top email failure (potenziali brute-force)
+    const failByEmail = {}
+    for (const r of (data || [])) {
+      if (r.success === false && r.email) failByEmail[r.email] = (failByEmail[r.email] || 0) + 1
+    }
+    const topFailEmails = Object.entries(failByEmail)
+      .filter(([, n]) => n >= 3)  // soglia brute-force suspect
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([email, count]) => ({ email, fail_count: count }))
+    loginStats = { total, ok, failed, top_fail_emails: topFailEmails }
+  } catch (e) {
+    loginStats = { error: e.message?.slice(0, 80) }
+  }
+
+  // Anomalie rilevate (da audit_log con operation='anomaly_detected')
+  let anomalie = []
+  try {
+    const { data } = await supabase.from('audit_log')
+      .select('id, user_id, operation, details, created_at, ip')
+      .eq('operation', 'anomaly_detected')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    anomalie = data || []
+  } catch {}
+
+  // Azioni admin recenti (chi ha fatto cosa)
+  let adminLog = []
+  try {
+    const { data } = await supabase.from('admin_log')
+      .select('admin_email, azione, org_id, ip, created_at')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(100)
+    adminLog = data || []
+  } catch {}
+
+  return {
+    periodo_ore: hours,
+    since,
+    login: loginStats,
+    anomalie,
+    admin_log: adminLog,
+    generated_at: new Date().toISOString(),
+  }
+}
+
+// ─── Health: cron + deploy + esterni (audit 2026-06-14) ──────────────────
+//
+// Stima dello stato del sistema basandosi su:
+//  - error_log per individuare cron falliti
+//  - daily_briefs/forecast/etc. created_at per "ultimo run" dei cron
+//  - audit_log per identificare audit cleanup recente
+//  - env build-time per deploy info Vercel
+const CRON_SIGNATURES = [
+  { id: 'cron-daily-brief',    table: 'daily_briefs',           dateCol: 'created_at',  expectedHour: 7 },
+  { id: 'cron-ai-suggestions', table: 'ai_suggestions',         dateCol: 'created_at',  expectedHour: 7 },
+  { id: 'cron-forecast',       table: 'forecast_giornaliero',   dateCol: 'created_at',  expectedHour: 7 },
+  { id: 'cron-documentary',    table: 'documentary_snapshots',  dateCol: 'created_at',  expectedHour: 7 },
+]
+
+async function getCronStatus(supabase) {
+  const results = []
+  for (const cron of CRON_SIGNATURES) {
+    try {
+      const { data: latest } = await supabase
+        .from(cron.table)
+        .select(cron.dateCol)
+        .order(cron.dateCol, { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const lastRun = latest?.[cron.dateCol] || null
+      const hoursAgo = lastRun ? (Date.now() - new Date(lastRun).getTime()) / 3600000 : null
+      // Status: ok se ha girato negli ultimi 26h (cron giornaliero + margine)
+      const status = hoursAgo == null ? 'never' : hoursAgo > 26 ? 'late' : hoursAgo > 24 ? 'pending' : 'ok'
+      results.push({
+        id: cron.id,
+        table: cron.table,
+        last_run: lastRun,
+        hours_ago: hoursAgo ? Math.round(hoursAgo * 10) / 10 : null,
+        status,
+        expected_hour_utc: cron.expectedHour,
+      })
+    } catch (e) {
+      results.push({ id: cron.id, status: 'error', error: e.message?.slice(0, 100) })
+    }
+  }
+  return results
+}
+
+export async function getHealthSnapshot(supabase) {
+  // Stima salute generale del sistema
+  const cron = await getCronStatus(supabase)
+  // Conta errori critici negli ultimi 24h dal error_log
+  let erroriUltime24h = null
+  try {
+    const ieri = new Date(Date.now() - 86400000).toISOString()
+    const { count } = await supabase.from('error_log')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', ieri)
+    erroriUltime24h = count
+  } catch {}
+  // Conteggio righe nelle 12 tabelle AI (table size estimate)
+  const tables = [
+    'daily_briefs', 'ai_suggestions', 'brain_conversations',
+    'recipe_inventions', 'forecast_giornaliero', 'cashflow_eventi',
+    'competitor_prices', 'documentary_snapshots', 'whatsapp_links',
+    'extracted_invoices', 'marketplace_listings', 'pos_scontrini',
+    'organizations', 'profiles', 'sedi', 'fatture',
+  ]
+  const tableCounts = {}
+  for (const t of tables) {
+    try {
+      const { count } = await supabase.from(t).select('id', { count: 'exact', head: true })
+      tableCounts[t] = count != null ? count : 'n/a'
+    } catch { tableCounts[t] = 'n/a' }
+  }
+  // Build info from Vercel env vars
+  const buildInfo = {
+    vercel_env: process.env.VERCEL_ENV || 'unknown',
+    git_commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'unknown',
+    git_branch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
+    deploy_url: process.env.VERCEL_URL || 'unknown',
+  }
+  return {
+    cron,
+    errori_ultime_24h: erroriUltime24h,
+    table_counts: tableCounts,
+    build: buildInfo,
+    generated_at: new Date().toISOString(),
+  }
+}
+
+// ─── AI Telemetry: stato di tutte le 23 feature AI (audit 2026-06-14) ────
+// Aggrega counts da 12 tabelle nuove + stima costi Claude.
+//
+// Costi Claude (Haiku $0.80/1M token input, Sonnet $3/1M, Opus $15/1M) sono
+// STIME basate su mediane d'uso. Per esattezza reale serve l'usage API
+// Anthropic — qui ci affidiamo a token_estimate per row del cron.
+const COST_PER_FEATURE_USD = {
+  daily_brief:   0.0008,   // Haiku ~280 token in + 200 out
+  ai_suggestion: 0.0001,   // regola-based, niente AI
+  brain_msg:     0.012,    // Sonnet ~3000 token avg
+  recipe:        0.080,    // Opus ~4000 token
+  ocr_invoice:   0.030,    // Sonnet Vision ~2000 token
+  forecast_day:  0.0,      // statistico, niente AI
+  documentary:   0.040,    // Opus ~1000 token
+  reformulation: 0.060,    // Opus ~2500 token
+  recensione:    0.020,    // Sonnet ~1000 token
+  competitor:    0.015,    // Sonnet ~700 token
+  explain_kpi:   0.018,    // Sonnet ~900 token
+}
+
+export async function getAiTelemetry(supabase, days = 7) {
+  const since = new Date(Date.now() - days * 86400000).toISOString()
+  const today = new Date().toISOString().slice(0, 10)
+
+  // Helper count-only query
+  const countSince = async (table, dateCol = 'created_at') => {
+    try {
+      const { count } = await supabase.from(table)
+        .select('id', { count: 'exact', head: true })
+        .gte(dateCol, since)
+      return count || 0
+    } catch { return null }
+  }
+
+  // Counts per feature (ultimi N giorni)
+  const [
+    briefsTot, briefsSent, briefsOpened, briefsSettimanali,
+    sugTot, sugAgito, sugRifiut,
+    brainConv, brainTodayConv,
+    recipeTot, recipeSaved,
+    ocrTot, ocrConfidence,
+    forecastTot,
+    docTot,
+    reformTot,
+    recensTot,
+    competitorTot,
+    posScontrini,
+    whatsappLinks,
+  ] = await Promise.all([
+    countSince('daily_briefs'),
+    (async () => {
+      try {
+        const { count } = await supabase.from('daily_briefs')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', since).not('sent_email_at', 'is', null)
+        return count || 0
+      } catch { return null }
+    })(),
+    (async () => {
+      try {
+        const { count } = await supabase.from('daily_briefs')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', since).not('opened_at', 'is', null)
+        return count || 0
+      } catch { return null }
+    })(),
+    (async () => {
+      try {
+        const { count } = await supabase.from('daily_briefs')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', since).eq('tipo', 'settimanale')
+        return count || 0
+      } catch { return null }
+    })(),
+    countSince('ai_suggestions'),
+    (async () => {
+      try {
+        const { count } = await supabase.from('ai_suggestions')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', since).eq('stato', 'agito')
+        return count || 0
+      } catch { return null }
+    })(),
+    (async () => {
+      try {
+        const { count } = await supabase.from('ai_suggestions')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', since).eq('stato', 'rifiutato')
+        return count || 0
+      } catch { return null }
+    })(),
+    countSince('brain_conversations', 'ultimo_messaggio_at'),
+    (async () => {
+      try {
+        const { data } = await supabase.from('brain_conversations')
+          .select('messages, ultimo_messaggio_at').gte('ultimo_messaggio_at', since)
+        let totalMsg = 0
+        for (const row of (data || [])) totalMsg += (row.messages || []).length
+        return totalMsg
+      } catch { return 0 }
+    })(),
+    countSince('recipe_inventions'),
+    (async () => {
+      try {
+        const { data } = await supabase.from('recipe_inventions')
+          .select('salvate_ricettario_ids').gte('created_at', since)
+        let s = 0
+        for (const r of (data || [])) s += (r.salvate_ricettario_ids || []).length
+        return s
+      } catch { return 0 }
+    })(),
+    countSince('extracted_invoices'),
+    (async () => {
+      try {
+        const { data } = await supabase.from('extracted_invoices')
+          .select('confidence').gte('created_at', since).not('confidence', 'is', null)
+        if (!data || data.length === 0) return null
+        const sum = data.reduce((s, r) => s + Number(r.confidence || 0), 0)
+        return Math.round((sum / data.length) * 100) / 100
+      } catch { return null }
+    })(),
+    countSince('forecast_giornaliero'),
+    countSince('documentary_snapshots'),
+    (async () => {
+      // reformulation non ha tabella dedicata: salvo niente, count = 0
+      return 0
+    })(),
+    (async () => {
+      // recensioni risposte: stateless, count = 0 dal DB
+      return 0
+    })(),
+    countSince('competitor_prices', 'scraped_at'),
+    countSince('pos_scontrini', 'received_at'),
+    (async () => {
+      try {
+        const { count } = await supabase.from('whatsapp_links')
+          .select('id', { count: 'exact', head: true }).eq('attivo', true)
+        return count || 0
+      } catch { return null }
+    })(),
+  ])
+
+  // Stima costo Claude USD ultimi N giorni
+  const costUsd =
+    (briefsTot || 0)        * COST_PER_FEATURE_USD.daily_brief +
+    (brainTodayConv || 0)   * COST_PER_FEATURE_USD.brain_msg +
+    (recipeTot || 0)        * COST_PER_FEATURE_USD.recipe +
+    (ocrTot || 0)           * COST_PER_FEATURE_USD.ocr_invoice +
+    (docTot || 0)           * COST_PER_FEATURE_USD.documentary +
+    (forecastTot || 0)      * COST_PER_FEATURE_USD.forecast_day +
+    (competitorTot || 0)    * COST_PER_FEATURE_USD.competitor
+  const costEur = costUsd * 0.92  // approssimazione cambio USD→EUR
+
+  return {
+    periodo_giorni: days,
+    since,
+    // Daily Brief AI
+    daily_brief: {
+      tot: briefsTot, sent: briefsSent, opened: briefsOpened,
+      open_rate: briefsSent && briefsSent > 0 ? Math.round((briefsOpened / briefsSent) * 100) : null,
+      settimanali: briefsSettimanali,
+    },
+    // AI Suggestions proattive
+    ai_suggestions: {
+      tot: sugTot, agito: sugAgito, rifiutato: sugRifiut,
+      action_rate: sugTot && sugTot > 0 ? Math.round((sugAgito / sugTot) * 100) : null,
+    },
+    // FoodOS Brain (chat)
+    brain: {
+      conversazioni: brainConv,
+      messaggi_tot: brainTodayConv,
+    },
+    // Recipe Inventor AI
+    recipe_inventor: {
+      ricette_generate: recipeTot,
+      ricette_salvate: recipeSaved,
+      save_rate: recipeTot && recipeTot > 0 ? Math.round((recipeSaved / recipeTot) * 100) : null,
+    },
+    // OCR fatture
+    ocr_fatture: {
+      estratte: ocrTot,
+      avg_confidence: ocrConfidence,
+    },
+    // Forecast vendite
+    forecast: {
+      righe_generate: forecastTot,
+    },
+    // Documentary AI
+    documentary: {
+      snapshot_creati: docTot,
+    },
+    // Competitor pricing
+    competitor_pricing: {
+      prezzi_tracciati: competitorTot,
+    },
+    // POS scontrini real-time
+    pos_scontrini: {
+      ricevuti: posScontrini,
+    },
+    // WhatsApp Bot
+    whatsapp: {
+      numeri_attivi: whatsappLinks,
+    },
+    // Reformulation (stateless, no DB tracking)
+    reformulation: {
+      richieste: reformTot,
+    },
+    // Recensioni AI (stateless)
+    recensioni: {
+      risposte_generate: recensTot,
+    },
+    // Costi stimati (Claude API)
+    costi: {
+      usd_estimated: Math.round(costUsd * 100) / 100,
+      eur_estimated: Math.round(costEur * 100) / 100,
+      detail: 'Stima basata su token medi per feature; non sostituisce Anthropic usage API.',
+    },
+    generated_at: new Date().toISOString(),
+  }
+}
+
 // ─── Feedback inbox ──────────────────────────────────────────────────────
 async function getFeedback(supabase, soloDaGestire) {
   let q = supabase
@@ -542,7 +910,25 @@ async function azEstendiTrial(supabase, orgId, giorni) {
   if (r.error) throw new Error(r.error.message)
 }
 
-async function azImpersona(supabase, orgId) {
+// Helper: invia magic/recovery link all'admin via Resend invece di restituirlo
+// al client (audit 2026-06: il link in response finiva nei log Vercel = rischio
+// account takeover se i log leakavano).
+// Inoltre notifica il titolare via email: "l'admin ha richiesto accesso".
+async function _sendLinkEmail({ to, subject, link, body }) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY non configurato (necessario per invio link sicuro)')
+  }
+  const { Resend } = await import('resend')
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7">
+    <h2 style="color:#1C0A0A;margin:0 0 8px;font-size:20px">${subject}</h2>
+    <p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 18px">${body}</p>
+    ${link ? `<p style="margin:0 0 24px"><a href="${link}" style="display:inline-block;padding:12px 22px;background:#C0392B;color:#FFF;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">Apri link</a></p><p style="font-size:11px;color:#9C7B76">Il link e' valido una sola volta e scade tra 1 ora.</p>` : ''}
+  </div>`
+  await resend.emails.send({ from: 'FoodOS <noreply@foodios.it>', to, subject, html })
+}
+
+async function azImpersona(supabase, orgId, adminEmail) {
   const { data: prof, error } = await supabase
     .from('profiles').select('email').eq('organization_id', orgId).eq('ruolo', 'titolare').maybeSingle()
   if (error) throw new Error(error.message)
@@ -553,10 +939,29 @@ async function azImpersona(supabase, orgId) {
     email: prof.email,
   })
   if (err2) throw new Error(err2.message)
-  return { link: data?.properties?.action_link || null, email: prof.email }
+  const link = data?.properties?.action_link || null
+  if (!link) throw new Error('Magic link non generato')
+
+  // 1) invia il link all'admin che ha richiesto
+  await _sendLinkEmail({
+    to: adminEmail,
+    subject: 'Magic link impersona ' + prof.email,
+    body: `Hai richiesto un accesso impersonando ${prof.email}. Clicca il pulsante sotto entro 1 ora per accedere come il titolare.`,
+    link,
+  })
+  // 2) avverte il titolare (non blocca, log se fallisce)
+  try {
+    await _sendLinkEmail({
+      to: prof.email,
+      subject: 'Accesso admin al tuo account FoodOS',
+      body: `Per esigenze di supporto, il team FoodOS (${adminEmail}) ha richiesto un accesso temporaneo al tuo account il ${new Date().toLocaleString('it-IT')}. Se questa richiesta non e' attesa, scrivici subito a support@foodios.it.`,
+    })
+  } catch (e) { console.warn('owner alert email failed:', e.message) }
+
+  return { ok: true, link_sent_to: adminEmail, target_email: prof.email }
 }
 
-async function azResetPassword(supabase, orgId) {
+async function azResetPassword(supabase, orgId, adminEmail) {
   const { data: prof } = await supabase
     .from('profiles').select('email').eq('organization_id', orgId).eq('ruolo', 'titolare').maybeSingle()
   if (!prof?.email) throw new Error('Profilo titolare non trovato')
@@ -566,15 +971,39 @@ async function azResetPassword(supabase, orgId) {
     email: prof.email,
   })
   if (error) throw new Error(error.message)
-  return { link: data?.properties?.action_link || null, email: prof.email }
+  const link = data?.properties?.action_link || null
+  if (!link) throw new Error('Recovery link non generato')
+
+  // Invia il recovery link direttamente al titolare (cosi non passa dall'admin).
+  await _sendLinkEmail({
+    to: prof.email,
+    subject: 'Reset password FoodOS',
+    body: `Per richiesta del team FoodOS (${adminEmail}), e' stato generato un link per resettare la password del tuo account. Cliccalo entro 1 ora.`,
+    link,
+  })
+
+  return { ok: true, sent_to: prof.email }
 }
 
-async function azInviaEmail(req, body) {
+async function azInviaEmail(req, body, supabase) {
   const destinatario = sanitizeStrict(body.destinatario || '', 255)
   const oggetto = sanitize(body.oggetto || '', 200)
   const messaggio = sanitize(body.messaggio || '', 5000)
   if (!validateEmail(destinatario)) throw new Error('Email destinatario non valida')
   if (!oggetto || !messaggio) throw new Error('Oggetto e messaggio obbligatori')
+
+  // Whitelist: solo a profili registrati in foodios (audit 2026-06: prima
+  // l'admin poteva inviare a qualsiasi indirizzo → vettore phishing se
+  // account admin compromesso).
+  const { data: profileMatch } = await supabase
+    .from('profiles').select('id')
+    .ilike('email', destinatario.toLowerCase()).limit(1).maybeSingle()
+  if (!profileMatch) {
+    throw new Error(
+      `Destinatario "${destinatario}" non e' registrato come utente FoodOS. ` +
+      `Anti-abuso: l'admin puo' scrivere solo a clienti.`
+    )
+  }
 
   // Inoltra a send-email con tipo=custom, includendo l'auth header originale
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
@@ -861,24 +1290,58 @@ async function azPulisciDemoFatture(supabase, orgId, valore) {
   return { deleted: matches.length, matches, mode: 'esegui' }
 }
 
-async function azElimina(supabase, orgId, conferma) {
-  if (conferma !== 'ELIMINA') throw new Error('Conferma mancante')
+// Tabelle che vengono cancellate insieme all'organization (best-effort).
+// Estratto come costante per riusarlo nel preview-count.
+const TABELLE_ELIMINA_ORG = [
+  'user_data', 'turni', 'dipendenti', 'fornitori', 'ordini_fornitori',
+  'notifiche', 'integrazioni', 'sync_log', 'sedi',
+  'fatture', 'note_giornaliere', 'referral',
+  // Tabelle AI nuove (post Daily Brief 2026-06)
+  'daily_briefs', 'ai_suggestions', 'brain_conversations',
+  'recipe_inventions', 'forecast_giornaliero', 'cashflow_eventi',
+  'competitor_prices', 'documentary_snapshots', 'whatsapp_links',
+  'extracted_invoices', 'pos_scontrini',
+]
 
-  // Tabelle dipendenti dall'organization_id (cascade non sempre garantito)
-  const tabelleCascade = [
-    'user_data', 'turni', 'dipendenti', 'fornitori', 'ordini_fornitori',
-    'notifiche', 'integrazioni', 'sync_log', 'sedi',
-  ]
-  for (const t of tabelleCascade) {
+// Conta i record che verrebbero eliminati (dry-run). Usato dall'UI admin per
+// mostrare "stai per eliminare 234 righe in 18 tabelle" prima della conferma.
+async function azEliminaPreview(supabase, orgId) {
+  const counts = {}
+  for (const t of TABELLE_ELIMINA_ORG) {
+    try {
+      const { count } = await supabase.from(t)
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+      if (count != null) counts[t] = count
+    } catch { /* skip non esistenti */ }
+  }
+  const { count: nProfiles } = await supabase
+    .from('profiles').select('id', { count: 'exact', head: true }).eq('organization_id', orgId)
+  counts['profiles'] = nProfiles || 0
+  counts['organizations'] = 1
+  const totale = Object.values(counts).reduce((s, n) => s + n, 0)
+  return { totale, counts }
+}
+
+async function azElimina(supabase, orgId, conferma, expectedCount) {
+  // Doppia conferma: testo "ELIMINA" + count atteso confermato dal client.
+  if (conferma !== 'ELIMINA') throw new Error('Conferma mancante (stringa ELIMINA)')
+
+  // Verifica che il count corrisponda a quello mostrato all'admin al preview.
+  // Se nel frattempo i dati sono cambiati (es. nuova fattura), interrompe.
+  if (expectedCount != null) {
+    const { totale } = await azEliminaPreview(supabase, orgId)
+    if (totale !== Number(expectedCount)) {
+      throw new Error(
+        `Stato cambiato dal preview: ${totale} record vs ${expectedCount} attesi. Riapri il preview.`
+      )
+    }
+  }
+
+  for (const t of TABELLE_ELIMINA_ORG) {
     try {
       await supabase.from(t).delete().eq('organization_id', orgId)
     } catch { /* tabella opzionale */ }
-  }
-  // Tabelle condizionali
-  for (const t of ['fatture', 'note_giornaliere', 'referral']) {
-    try {
-      await supabase.from(t).delete().eq('organization_id', orgId)
-    } catch { /* può non esistere */ }
   }
 
   // Recupera utenti dell'org per eliminarli da auth
@@ -1012,6 +1475,26 @@ export default async function handler(req) {
         const limit = Math.min(parseInt(url.searchParams.get('limit') || '100', 10) || 100, 500)
         const errori = await getErroriRecenti(supabase, limit)
         return json({ errori }, 200, req)
+      }
+
+      if (action === 'ai_telemetry') {
+        const days = Math.min(parseInt(url.searchParams.get('days') || '7', 10) || 7, 90)
+        const telemetry = await getAiTelemetry(supabase, days)
+        await logAdmin(supabase, user.email, `ai_telemetry:${days}gg`, null, ip, ua)
+        return json({ telemetry }, 200, req)
+      }
+
+      if (action === 'health') {
+        const snapshot = await getHealthSnapshot(supabase)
+        await logAdmin(supabase, user.email, 'health_check', null, ip, ua)
+        return json({ health: snapshot }, 200, req)
+      }
+
+      if (action === 'security') {
+        const hours = Math.min(parseInt(url.searchParams.get('hours') || '24', 10) || 24, 168)
+        const security = await getSecuritySnapshot(supabase, hours)
+        await logAdmin(supabase, user.email, `security_check:${hours}h`, null, ip, ua)
+        return json({ security }, 200, req)
       }
 
       if (action === 'migrate_integrazioni') {
@@ -1190,18 +1673,27 @@ export default async function handler(req) {
         case 'estendi_trial':
           await azEstendiTrial(supabase, orgId, body.valore); break
         case 'impersona':
-          result = { ok: true, ...(await azImpersona(supabase, orgId)) }
-          // Audit speciale: tracciamo email impersonata (anti-frode). Il log
-          // generico a fondo loop registra solo l'azione 'impersona', qui
-          // arricchiamo con la mail del titolare il cui account è stato aperto.
-          await logAdmin(supabase, user.email, `impersona_target:${result.email}`, orgId || null, ip, ua)
+          // Magic link inviato via email (NON in response — audit 2026-06 fix).
+          result = { ok: true, ...(await azImpersona(supabase, orgId, user.email)) }
+          await logAdmin(supabase, user.email, `impersona_target:${result.target_email}`, orgId || null, ip, ua)
           break
         case 'reset_password':
-          result = { ok: true, ...(await azResetPassword(supabase, orgId)) }; break
+          // Recovery link inviato direttamente al titolare via email.
+          result = { ok: true, ...(await azResetPassword(supabase, orgId, user.email)) }; break
         case 'invia_email':
-          await azInviaEmail(req, body); break
+          await azInviaEmail(req, body, supabase); break
+        case 'elimina_preview':
+          // Conta i record che verrebbero cancellati per ogni tabella.
+          // L'admin deve vedere il count + confermarlo prima di procedere.
+          result = { ok: true, ...(await azEliminaPreview(supabase, orgId)) }
+          break
         case 'elimina':
-          await azElimina(supabase, orgId, sanitizeStrict(body.conferma || '', 20)); break
+          await azElimina(
+            supabase, orgId,
+            sanitizeStrict(body.conferma || '', 20),
+            body.expected_count != null ? Number(body.expected_count) : null
+          )
+          break
         case 'pulisci_demo_fatture':
           result = { ok: true, ...(await azPulisciDemoFatture(supabase, orgId, sanitizeStrict(body.valore || 'preview', 20))) }; break
         case 'crea_codice_sconto':
