@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -145,17 +146,18 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Recipe Inventor AI
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Inventa ricette nuove con l'AI
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          Lo chef AI ti propone 3 ricette originali in base a stagione, mood e ingredienti che hai.
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Recipe Inventor"
+        title="Il tuo pastry chef"
+        accentText="virtuale"
+        subtitle="Lo chef AI ti propone 3 ricette originali in base a stagione, mood e ingredienti che hai. Con nome, plating, procedura, ingredienti precisi e food cost calcolato."
+        chainOnly
+        statusBadge="LIVE"
+        stats={[
+          { n: '3', l: 'Ricette per generazione' },
+          { n: 'Opus', l: 'Modello creativo' },
+        ]}
+      />
 
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : 22, marginBottom: 18 }}>
         <div style={{ marginBottom: 14 }}>

@@ -16,6 +16,7 @@ import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -204,17 +205,18 @@ export default function CashflowView({ orgId, sedeId }) {
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Andamento & costi
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Cashflow predittivo
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          La domanda più importante: <strong>"Avrò i soldi per pagare?"</strong>. Saldo attuale + ricavi attesi - uscite pianificate.
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Cashflow predittivo"
+        title="Avrò i soldi"
+        accentText="per pagare?"
+        subtitle="Saldo attuale + ricavi attesi - uscite pianificate. 3 scenari (atteso, ottimistico, pessimistico) + alert sui giorni in rosso prima che arrivino."
+        statusBadge="LIVE"
+        stats={[
+          { n: '30/60/90', l: 'Orizzonti (giorni)' },
+          { n: '3', l: 'Scenari' },
+          { n: 'Monte Carlo', l: 'Algoritmo' },
+        ]}
+      />
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: SOFT }}>Caricamento…</div>

@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -46,17 +47,18 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Documentary AI
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          La tua storia, generata dall'AI
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          Ogni trimestre l'AI prepara un riassunto narrativo di cosa hai fatto: KPI, prodotti top, momenti chiave.
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Documentary"
+        title="La tua storia,"
+        accentText="generata dall'AI"
+        subtitle="Ogni trimestre l'AI prepara un riassunto narrativo di cosa hai fatto: KPI, prodotti top, momenti chiave. Pronto da condividere col team, soci, commercialista."
+        chainOnly
+        statusBadge="LIVE"
+        stats={[
+          { n: 'Trimestrale', l: 'Generazione automatica' },
+          { n: 'Opus', l: 'Narratore AI' },
+        ]}
+      />
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: SOFT }}>Caricamento…</div>

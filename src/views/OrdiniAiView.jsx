@@ -15,6 +15,7 @@ import { sload } from '../lib/storage'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -137,17 +138,17 @@ export default function OrdiniAiView({ orgId, sedeId }) {
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          AI Procurement
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Ordini consigliati AI
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          L'AI guarda magazzino + consumo medio e ti suggerisce cosa ordinare. Copia il testo e invialo al fornitore.
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Procurement"
+        title="Ordini AI"
+        accentText="già pronti"
+        subtitle="L'AI guarda magazzino + consumo medio + soglie minime e ti dice cosa ordinare. Copia il testo e invialo al fornitore via mail o WhatsApp."
+        statusBadge="LIVE"
+        stats={[
+          { n: '30gg', l: 'Storico analizzato' },
+          { n: 'EOQ', l: 'Algoritmo + safety stock' },
+        ]}
+      />
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: SOFT }}>Caricamento…</div>

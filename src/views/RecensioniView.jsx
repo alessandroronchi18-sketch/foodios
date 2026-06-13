@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -113,17 +114,17 @@ Genera le 3 risposte come da istruzioni.`
 
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Marketing
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Rispondi alle recensioni con l'AI
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          Incolla qui la recensione che hai ricevuto. L'AI genera 3 risposte (calda, formale, fattuale). Copia quella che preferisci.
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Reputazione & Marketing"
+        title="Rispondi"
+        accentText="alle recensioni"
+        subtitle="Incolla qui la recensione che hai ricevuto. L'AI genera 3 risposte (calda, formale, fattuale) in italiano impeccabile. Copia quella che preferisci."
+        statusBadge="LIVE"
+        stats={[
+          { n: '3', l: 'Toni per risposta' },
+          { n: 'Sonnet', l: 'Modello linguistico' },
+        ]}
+      />
 
       {/* INPUT */}
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : 22, marginBottom: 18 }}>

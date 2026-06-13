@@ -13,6 +13,7 @@ import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -175,7 +176,20 @@ REGOLE:
   }
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '260px 1fr', gap: 16, height: isMobile ? 'auto' : 'calc(100vh - 120px)' }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+      <AiPageHero
+        eyebrow="AI · Chat conversazionale"
+        title="FoodOS Brain"
+        accentText="il tuo consulente"
+        subtitle="Chiedi qualsiasi cosa sui tuoi dati: ricavi, margini, scadenze. L'AI risponde in italiano usando il contesto della tua attività."
+        chainOnly
+        statusBadge="LIVE"
+        stats={[
+          { n: '3', l: 'Modelli Claude attivi' },
+          { n: 'Memoria', l: 'Conversazioni persistenti' },
+        ]}
+      />
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '260px 1fr', gap: 16, height: isMobile ? 'auto' : 'calc(100vh - 280px)' }}>
       {/* Sidebar conversazioni */}
       {!isMobile && (
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -257,6 +271,7 @@ REGOLE:
           </button>
         </div>
       </div>
+    </div>
     </div>
   )
 }

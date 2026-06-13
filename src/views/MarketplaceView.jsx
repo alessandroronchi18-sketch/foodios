@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -69,17 +70,18 @@ export default function MarketplaceView() {
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Marketplace fornitori
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Trova nuovi fornitori HORECA
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          Fornitori verificati raccomandati dalla community FoodOS. Prezzi indicativi: contatta direttamente per offerta.
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Marketplace fornitori"
+        title="Trova nuovi"
+        accentText="fornitori HORECA"
+        subtitle="Fornitori verificati raccomandati dalla community FoodOS. Prezzi indicativi: contatta direttamente per offerta personalizzata."
+        chainOnly
+        statusBadge="BETA"
+        stats={[
+          { n: 'Verificati', l: 'Tutti i fornitori' },
+          { n: 'AI match', l: 'Consigli su misura' },
+        ]}
+      />
 
       {/* Filtri */}
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 14, marginBottom: 16 }}>

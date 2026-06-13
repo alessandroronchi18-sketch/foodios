@@ -20,6 +20,7 @@ import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
 import ExportPdfButton from '../components/ExportPdfButton'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -155,17 +156,17 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Analisi prodotti
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Menu engineering
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          Capisci quali prodotti tirano (Star), quali rubano margine (Plowhorse), quali ignori (Puzzle) o devi togliere (Dog).
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Menu engineering"
+        title="Stars, Dogs,"
+        accentText="Puzzles, Plowhorses"
+        subtitle="Matrice Kasavana-Smith automatica: capisci quali prodotti tirano (Star), quali rubano margine (Plowhorse), quali ignori (Puzzle) o devi togliere (Dog)."
+        statusBadge="LIVE"
+        stats={[
+          { n: '4', l: 'Quadranti analizzati' },
+          { n: 'Auto', l: 'Calcolo settimanale' },
+        ]}
+      />
 
       {/* Periodo selector */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>

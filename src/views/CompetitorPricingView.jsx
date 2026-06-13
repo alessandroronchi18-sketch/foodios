@@ -13,6 +13,7 @@ import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -160,17 +161,17 @@ Competitor (${compStats.n} rilevati):
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Pricing strategy
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Confronto prezzi vs competitor
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          Inserisci i prezzi dei competitor in zona. L'AI valuta se sei sotto/sopra prezzo e suggerisce range.
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Pricing strategy"
+        title="Tuoi prezzi"
+        accentText="vs competitor"
+        subtitle="Inserisci i prezzi dei competitor in zona. L'AI valuta se sei sottoprezzato, in linea o sovrapprezzato e suggerisce il range corretto."
+        statusBadge="LIVE"
+        stats={[
+          { n: '1km', l: 'Raggio competitor' },
+          { n: 'AI', l: 'Verdetto narrativo' },
+        ]}
+      />
 
       {/* Selettore ricetta */}
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>

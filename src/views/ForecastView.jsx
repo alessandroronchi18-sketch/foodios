@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -71,18 +72,18 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Forecast AI
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Previsione vendite 7 giorni
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          Storico vendite + meteo cittadino + stagionalità. Aggiornato ogni notte.
-          {sedeAttiva?.nome && <> · <strong>{sedeAttiva.nome}</strong></>}
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Forecast vendite"
+        title="Previsione vendite"
+        accentText="7 giorni"
+        subtitle={`Storico vendite + meteo cittadino + stagionalità. Aggiornato ogni notte alle 7:00.${sedeAttiva?.nome ? ` · ${sedeAttiva.nome}` : ''}`}
+        statusBadge="LIVE"
+        stats={[
+          { n: '7gg', l: 'Orizzonte' },
+          { n: 'Open-Meteo', l: 'Dati meteo' },
+          { n: '60gg', l: 'Storico analizzato' },
+        ]}
+      />
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: SOFT }}>Caricamento…</div>

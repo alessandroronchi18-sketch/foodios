@@ -18,6 +18,7 @@ import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -125,17 +126,17 @@ Proponi le 3 varianti come da istruzioni.`
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          AI Reformulation
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Ottimizza ricetta a food cost target
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          Scegli una ricetta + food cost target. L'AI propone 3 varianti (sostituzioni, rese, pricing) con impatto stimato.
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · Reformulation engine"
+        title="Ottimizza ricetta"
+        accentText="a food cost target"
+        subtitle="Scegli una ricetta e il food cost che vorresti raggiungere. L'AI propone 3 varianti (sostituzioni ingredienti, riduzione rese, pricing) con impatto sensoriale e di vendita stimato."
+        statusBadge="LIVE"
+        stats={[
+          { n: '3', l: 'Varianti per ogni richiesta' },
+          { n: 'Opus', l: 'Modello AI' },
+        ]}
+      />
 
       <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : 22, marginBottom: 18 }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 140px', gap: 12, alignItems: 'end' }}>

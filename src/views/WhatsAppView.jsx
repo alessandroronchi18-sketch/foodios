@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
+import AiPageHero from '../components/AiPageHero'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -75,18 +76,18 @@ export default function WhatsAppView({ orgId, user }) {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          WhatsApp Bot
-        </div>
-        <h1 style={{ margin: '6px 0 4px', fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-          Gestisci FoodOS via WhatsApp
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: SOFT, lineHeight: 1.5 }}>
-          Chiedi KPI, registra sprechi, ricevi alert direttamente in chat.<br/>
-          <strong>Piano Chain only.</strong> Bot in attivazione.
-        </p>
-      </div>
+      <AiPageHero
+        eyebrow="AI · WhatsApp Bot"
+        title="FoodOS"
+        accentText="via WhatsApp"
+        subtitle="Chiedi KPI, registra sprechi, ricevi alert direttamente in chat. Il bot risponde in linguaggio naturale italiano."
+        chainOnly
+        statusBadge="BETA"
+        stats={[
+          { n: 'Twilio', l: 'Provider WhatsApp Business' },
+          { n: 'AI', l: 'Intent parser naturale' },
+        ]}
+      />
 
       {/* Setup */}
       <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 12, padding: 18, marginBottom: 16 }}>
