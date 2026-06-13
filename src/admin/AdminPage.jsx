@@ -1061,6 +1061,15 @@ export default function AdminPage() {
   const [usageStats, setUsageStats] = useState(null)
   const [usageLoading, setUsageLoading] = useState(false)
   const [usageDays, setUsageDays] = useState(30)
+  // Tab navigation (audit 2026-06-14 PM): pagina divisa in 6 sezioni navigabili
+  // invece di scroll infinito. Persistenza in sessionStorage per non perdere
+  // il tab quando si fa F5.
+  const [adminTab, setAdminTab] = useState(() => {
+    try { return sessionStorage.getItem('admin_tab') || 'overview' } catch { return 'overview' }
+  })
+  useEffect(() => {
+    try { sessionStorage.setItem('admin_tab', adminTab) } catch {}
+  }, [adminTab])
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
   // Wrapper apiFetch gestisce gia' auth + retry 401 + redirect a /login se la
@@ -1616,6 +1625,50 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* Tab navigation: 6 sezioni accessibili senza scroll */}
+      <div style={{
+        background: '#FFF', borderBottom: `1px solid ${COLORS.border}`,
+        position: 'sticky', top: 0, zIndex: 10,
+      }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 2, overflowX: 'auto' }}>
+          {[
+            { id: 'overview',  label: 'Overview',  icon: 'home',     desc: 'KPI, MRR, crescita, azioni rapide' },
+            { id: 'clienti',   label: 'Clienti',   icon: 'users',    desc: 'Tabella clienti, filtri, bulk action' },
+            { id: 'ai',        label: 'AI & Analytics', icon: 'sparkles', desc: 'Telemetria AI, costi Claude, utilizzo view' },
+            { id: 'health',    label: 'Health',    icon: 'bolt',     desc: 'Cron status, errori produzione, deploy' },
+            { id: 'security',  label: 'Security',  icon: 'shield',   desc: 'Login attempts, anomalie, audit log' },
+            { id: 'ops',       label: 'Ops',       icon: 'cog',      desc: 'Pricing, codici sconto, feedback, banner, migration' },
+          ].map(t => {
+            const active = adminTab === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setAdminTab(t.id)}
+                title={t.desc}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: active ? `3px solid ${COLORS.accent || '#6E0E1A'}` : '3px solid transparent',
+                  padding: '14px 18px',
+                  fontSize: 13,
+                  fontWeight: active ? 700 : 500,
+                  color: active ? (COLORS.accent || '#6E0E1A') : COLORS.textMute,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <Icon name={t.icon} size={14} />
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       <div style={{ padding: '24px', maxWidth: 1400, margin: '0 auto' }}>
         {errore && (
           <div style={{
@@ -1624,6 +1677,7 @@ export default function AdminPage() {
           }}><Icon name="warning" size={14} /> {errore}</div>
         )}
 
+        {adminTab === 'overview' && (<>
         {/* ── KPI ─────────────────────────────────────────────────── */}
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 20,
@@ -1772,6 +1826,9 @@ export default function AdminPage() {
           </div>
         </Card>
 
+        </>)}
+
+        {adminTab === 'clienti' && (<>
         {/* ── Tabella clienti ────────────────────────────────────── */}
         <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
           {/* Filtri */}
@@ -1991,6 +2048,9 @@ export default function AdminPage() {
           )}
         </Card>
 
+        </>)}
+
+        {adminTab === 'ops' && (<>
         {/* ── Metriche avanzate ──────────────────────────────────── */}
         {metricheAvanzate && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -2468,6 +2528,9 @@ export default function AdminPage() {
           )}
         </Card>
 
+        </>)}
+
+        {adminTab === 'security' && (<>
         {/* ── Log attività ───────────────────────────────────────── */}
         <Card style={{ padding: 0, marginBottom: 30 }}>
           <div style={{
@@ -2502,8 +2565,10 @@ export default function AdminPage() {
             </div>
           )}
         </Card>
-      </div>
 
+        </>)}
+
+        {adminTab === 'ops' && (<>
         {/* ── Manutenzione: migra integrazioni legacy → encrypted ─────────── */}
         <Card style={{ marginBottom: 20, padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -2530,6 +2595,9 @@ export default function AdminPage() {
           </div>
         </Card>
 
+        </>)}
+
+        {adminTab === 'health' && (<>
         {/* ── Errori produzione (alternativa Sentry, da public.error_log) ── */}
         <Card style={{ marginBottom: 30, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -2574,6 +2642,9 @@ export default function AdminPage() {
           )}
         </Card>
 
+        </>)}
+
+        {adminTab === 'ai' && (<>
         {/* ── AI Telemetry & Costs (audit 2026-06-14) ──────────── */}
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -2692,6 +2763,9 @@ export default function AdminPage() {
           )}
         </Card>
 
+        </>)}
+
+        {adminTab === 'health' && (<>
         {/* ── Health: cron + deploy + esterni (audit 2026-06-14) ── */}
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -2759,6 +2833,9 @@ export default function AdminPage() {
           )}
         </Card>
 
+        </>)}
+
+        {adminTab === 'ai' && (<>
         {/* ── Usage analytics: quali view i clienti usano (audit 2026-06-14) ── */}
         <Card style={{ marginTop: 16, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -2864,6 +2941,9 @@ export default function AdminPage() {
           )}
         </Card>
 
+        </>)}
+
+        {adminTab === 'security' && (<>
         {/* ── Security & Anomalie (audit 2026-06-14) ──────────── */}
         <Card style={{ marginTop: 16, marginBottom: 24, padding: 0 }}>
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -2955,6 +3035,10 @@ export default function AdminPage() {
             </>
           )}
         </Card>
+
+        </>)}
+
+      </div>
 
       {/* ── Modali ──────────────────────────────────────────────── */}
       {emailFor && (
