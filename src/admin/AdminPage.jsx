@@ -1057,6 +1057,10 @@ export default function AdminPage() {
   const [securitySnap, setSecuritySnap] = useState(null)
   const [securityLoading, setSecurityLoading] = useState(false)
   const [securityHours, setSecurityHours] = useState(24)
+  // Audit 2026-06-14: Usage analytics
+  const [usageStats, setUsageStats] = useState(null)
+  const [usageLoading, setUsageLoading] = useState(false)
+  const [usageDays, setUsageDays] = useState(30)
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
   // Wrapper apiFetch gestisce gia' auth + retry 401 + redirect a /login se la
@@ -1141,6 +1145,20 @@ export default function AdminPage() {
       setHealthLoading(false)
     }
   }, [apiCall])
+
+  // Audit 2026-06-14: Usage analytics (quali view i clienti usano di più)
+  const fetchUsageStats = useCallback(async (days = usageDays) => {
+    setUsageLoading(true)
+    try {
+      const res = await apiCall(`/api/admin?action=usage_stats&days=${days}`)
+      const data = await res.json()
+      setUsageStats(data.usage || null)
+    } catch (err) {
+      console.error('usage stats:', err.message)
+    } finally {
+      setUsageLoading(false)
+    }
+  }, [apiCall, usageDays])
 
   // Audit 2026-06-14: Security snapshot
   const fetchSecurity = useCallback(async (hours = securityHours) => {
@@ -1258,9 +1276,9 @@ export default function AdminPage() {
   // ripetute hanno costo, meglio non spammare.
   useEffect(() => { fetchStripeMrr(); fetchStripeEvents(); fetchErrori() },
     [fetchStripeMrr, fetchStripeEvents, fetchErrori])
-  // Audit 2026-06-14: AI telemetry + health + security caricati on-demand
-  useEffect(() => { fetchAiTelemetry(); fetchHealth(); fetchSecurity() },
-    [fetchAiTelemetry, fetchHealth, fetchSecurity])
+  // Audit 2026-06-14: AI telemetry + health + security + usage caricati on-demand
+  useEffect(() => { fetchAiTelemetry(); fetchHealth(); fetchSecurity(); fetchUsageStats() },
+    [fetchAiTelemetry, fetchHealth, fetchSecurity, fetchUsageStats])
 
   // Salva nota CRM (chiamata dalla modale dettaglio).
   const salvaNoteAdmin = useCallback(async (orgId, nota) => {
@@ -2737,6 +2755,111 @@ export default function AdminPage() {
                   ))}
                 </div>
               </div>
+            </>
+          )}
+        </Card>
+
+        {/* ── Usage analytics: quali view i clienti usano (audit 2026-06-14) ── */}
+        <Card style={{ marginTop: 16, padding: 0 }}>
+          <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <strong style={{ fontSize: 14 }}><Icon name="barChart" size={16} /> Utilizzo feature</strong>
+              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+                Quali view/tool i clienti aprono di più o di meno (ultimi {usageStats?.periodo_giorni || usageDays} giorni)
+              </div>
+            </div>
+            <span style={{ flex: 1 }} />
+            <select value={usageDays} onChange={e => { const d = parseInt(e.target.value, 10); setUsageDays(d); fetchUsageStats(d) }} style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+              <option value={7}>7 giorni</option>
+              <option value={30}>30 giorni</option>
+              <option value={90}>90 giorni</option>
+            </select>
+            <button onClick={() => fetchUsageStats()} style={{ fontSize: 11, padding: '4px 10px', background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, cursor: 'pointer' }}>↻</button>
+          </div>
+          {usageLoading ? (
+            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>Caricamento…</div>
+          ) : !usageStats || (usageStats.top_view?.length || 0) === 0 ? (
+            <div style={{ padding: 18, fontSize: 12, color: COLORS.textMute }}>
+              Nessun dato di utilizzo ancora. Il tracking (RPC <code>track_view_open</code>) inizia a popolare la tabella view_usage_daily dal prossimo deploy: ogni cliente che apre una view genera un record giornaliero.
+            </div>
+          ) : (
+            <>
+              <div style={{ padding: '12px 18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>View tracciate</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {(usageStats.totale_view_tracciate || 0).toLocaleString('it-IT')}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Picco DAU</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {Math.max(0, ...(usageStats.dau_daily || []).map(d => d.dau || 0))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5 }}>Giorni con attività</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                    {(usageStats.dau_daily?.length || 0)}
+                  </div>
+                </div>
+              </div>
+              <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
+                <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Top 15 view più aperte</div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                    <thead style={{ background: COLORS.rowAlt }}>
+                      <tr>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontWeight: 600 }}>#</th>
+                        <th style={{ textAlign: 'left', padding: '6px 10px', fontWeight: 600 }}>View</th>
+                        <th style={{ textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>Aperture</th>
+                        <th style={{ textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>Utenti unici</th>
+                        <th style={{ textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>Org uniche</th>
+                        <th style={{ textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>Giorni attivi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(usageStats.top_view || []).map((v, i) => (
+                        <tr key={v.view} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                          <td style={{ padding: '6px 10px', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</td>
+                          <td style={{ padding: '6px 10px', fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{v.view}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{v.opens.toLocaleString('it-IT')}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{v.utenti_unici}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{v.org_uniche}</td>
+                          <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: COLORS.textMute }}>{v.giorni_attivi}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {(usageStats.bottom_view?.length || 0) > 0 && (
+                <div style={{ padding: '12px 18px' }}>
+                  <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>10 view meno usate (candidate alla deprecazione o onboarding)</div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                      <thead style={{ background: COLORS.rowAlt }}>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '6px 10px', fontWeight: 600 }}>View</th>
+                          <th style={{ textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>Aperture</th>
+                          <th style={{ textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>Utenti unici</th>
+                          <th style={{ textAlign: 'right', padding: '6px 10px', fontWeight: 600 }}>Org uniche</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(usageStats.bottom_view || []).map(v => (
+                          <tr key={v.view} style={{ borderTop: `1px solid ${COLORS.border}` }}>
+                            <td style={{ padding: '6px 10px', fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{v.view}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{v.opens}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{v.utenti_unici}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{v.org_uniche}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </Card>

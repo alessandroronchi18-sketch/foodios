@@ -100,6 +100,7 @@ const DocumentaryView = lazyWithReload(() => import('./views/DocumentaryView'))
 const AiHubView = lazyWithReload(() => import('./views/AiHubView'))
 const FotoOCR = lazyWithReload(() => import('./components/FotoOCR'))
 import { compressImage } from './lib/imageUtils'
+import { trackViewOpen } from './lib/usageTracking'
 const MagazzinoView = lazyWithReload(() => import('./views/MagazzinoView'))
 const ChiusuraView = lazyWithReload(() => import('./views/ChiusuraView'))
 const ProduzioneGiornalieraView = lazyWithReload(() => import('./views/ProduzioneGiornalieraView'))
@@ -1223,6 +1224,13 @@ export default function Dashboard({
   });
   useEffect(() => {
     try { sessionStorage.setItem(`foodios_view_${orgId||'_'}`, view); } catch {}
+  }, [view, orgId]);
+
+  // Analytics: traccia apertura view (RPC track_view_open, best-effort).
+  // Dedup interno a 5s (vedi src/lib/usageTracking.js) per evitare doppi log
+  // su re-render. Usato dall'admin per capire quali feature sono più usate.
+  useEffect(() => {
+    if (view && orgId) trackViewOpen(view)
   }, [view, orgId]);
 
   // Zoom globale del sito (persistente): l'utente può rimpicciolire/ingrandire tutto.
