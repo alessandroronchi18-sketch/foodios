@@ -210,6 +210,101 @@ export function parseSquare(csvText) {
   return result;
 }
 
+// ── 4e-bis. Tilby POS (cassa food artigianale italiana piu usata) ───────────
+// Tilby esporta CSV con colonne: Data, Ora, Tipo, Reparto, Articolo, Quantita,
+// Prezzo Unit, Totale, IVA %, Metodo Pagamento, Cassiere, Numero scontrino
+export function parseTilby(csvText) {
+  const { rows } = parseCSV(csvText)
+  const dateKey = ['Data', 'Date', 'Data Vendita'].find(k => rows[0]?.[k] !== undefined) || 'Data'
+  const impKey  = ['Totale', 'Total', 'Importo', 'Prezzo'].find(k => rows[0]?.[k] !== undefined) || 'Totale'
+  const ivaKey  = ['IVA', 'Iva', 'IVA %', 'VAT'].find(k => rows[0]?.[k] !== undefined)
+  const metKey  = ['Metodo Pagamento', 'Metodo', 'Payment Method'].find(k => rows[0]?.[k] !== undefined)
+  return aggrega(rows, dateKey, impKey, ivaKey || null, metKey || null, 'Tilby')
+}
+
+// ── 4e-ter. RCH (cassa fiscale telematica) ──────────────────────────────────
+// Export "Chiusura giornaliera" da casse RCH (Atos/Print&Pay):
+// Data, Ora, Numero, Reparto1...N, Totale, IVA, Pagamento
+export function parseRCH(csvText) {
+  const { rows } = parseCSV(csvText)
+  const dateKey = ['Data', 'DATA'].find(k => rows[0]?.[k] !== undefined) || 'Data'
+  const impKey  = ['Totale', 'TOTALE', 'Tot.'].find(k => rows[0]?.[k] !== undefined) || 'Totale'
+  const ivaKey  = ['IVA', 'Iva'].find(k => rows[0]?.[k] !== undefined)
+  const metKey  = ['Pagamento', 'PAGAMENTO', 'Tipo Pag.'].find(k => rows[0]?.[k] !== undefined)
+  return aggrega(rows, dateKey, impKey, ivaKey || null, metKey || null, 'RCH')
+}
+
+// ── 4e-quater. Olivetti (cassa fiscale Form/Nettuna) ────────────────────────
+// Export TXT/CSV: separatore variabile, header in maiuscolo, formati italiani.
+export function parseOlivetti(csvText) {
+  const { rows } = parseCSV(csvText)
+  // Olivetti spesso usa "DATA OPERAZIONE" + "TOTALE €" + "ALIQ. IVA"
+  const dateKey = ['DATA OPERAZIONE', 'Data Operazione', 'DATA', 'Data'].find(k => rows[0]?.[k] !== undefined) || 'DATA'
+  const impKey  = ['TOTALE €', 'TOTALE', 'Totale', 'IMPORTO'].find(k => rows[0]?.[k] !== undefined) || 'TOTALE'
+  const ivaKey  = ['ALIQ. IVA', 'IVA', 'Aliquota'].find(k => rows[0]?.[k] !== undefined)
+  return aggrega(rows, dateKey, impKey, ivaKey || null, null, 'Olivetti')
+}
+
+// ── 4e-cinque. Custom Q3X / FP-90 (telematici Epson/Custom) ─────────────────
+// Custom Q3X esporta CSV con colonne brevi:
+// dt, ora, num, tot, iva, pag (lowercase, ASCII)
+export function parseCustom(csvText) {
+  const { rows } = parseCSV(csvText)
+  const dateKey = ['dt', 'data', 'date', 'Data'].find(k => rows[0]?.[k] !== undefined) || 'dt'
+  const impKey  = ['tot', 'totale', 'total', 'amount'].find(k => rows[0]?.[k] !== undefined) || 'tot'
+  const ivaKey  = ['iva', 'vat'].find(k => rows[0]?.[k] !== undefined)
+  const metKey  = ['pag', 'pagamento', 'payment'].find(k => rows[0]?.[k] !== undefined)
+  return aggrega(rows, dateKey, impKey, ivaKey || null, metKey || null, 'Custom Q3X')
+}
+
+// ── 4e-sei. Salvi Cassa / Indaco / Polotouch (generico cassa food IT) ───────
+// Tre casse molto simili, stesso schema CSV:
+// Data;Scontrino;Reparto;Articolo;Qta;Prezzo;Totale;IVA;Pagamento
+export function parseSalviIndacoPolo(csvText, fonte = 'Salvi') {
+  const { rows } = parseCSV(csvText)
+  const dateKey = ['Data', 'DATA', 'Data Vendita'].find(k => rows[0]?.[k] !== undefined) || 'Data'
+  const impKey  = ['Totale', 'TOTALE', 'Importo'].find(k => rows[0]?.[k] !== undefined) || 'Totale'
+  const ivaKey  = ['IVA', 'Iva'].find(k => rows[0]?.[k] !== undefined)
+  const metKey  = ['Pagamento', 'Tipo Pag.', 'Modalita'].find(k => rows[0]?.[k] !== undefined)
+  return aggrega(rows, dateKey, impKey, ivaKey || null, metKey || null, fonte)
+}
+export const parseSalvi    = (t) => parseSalviIndacoPolo(t, 'Salvi Cassa')
+export const parseIndaco   = (t) => parseSalviIndacoPolo(t, 'Indaco')
+export const parsePolotouch = (t) => parseSalviIndacoPolo(t, 'Polotouch')
+export const parseEkoPos   = (t) => parseSalviIndacoPolo(t, 'Eko POS')
+export const parseWolf     = (t) => parseSalviIndacoPolo(t, 'Wolf')
+
+// ── 4e-sette. Auto-detect del formato cassa dal CSV ─────────────────────────
+// Riceve un CSV grezzo e ritorna { provider, parser, confidence }.
+// Strategia: cerca signature di colonne note. confidence 0-1.
+export function autoDetectCassaFormat(csvText) {
+  if (!csvText) return null
+  const firstLine = csvText.split('\n')[0] || ''
+  const lower = firstLine.toLowerCase()
+  // Patterns ordinati per specificita' decrescente
+  const PATTERNS = [
+    { re: /aliq.*iva/i,                              p: parseOlivetti,         n: 'Olivetti',      c: 0.95 },
+    { re: /numero scontrino|cassiere/i,              p: parseTilby,            n: 'Tilby',         c: 0.90 },
+    { re: /tipo pag\.|chiusura giornaliera/i,        p: parseRCH,              n: 'RCH',           c: 0.85 },
+    { re: /receipt number/i,                         p: parseLightspeed,       n: 'Lightspeed',    c: 0.90 },
+    { re: /id transazione|movimenti satispay/i,      p: parseSatispay,         n: 'Satispay',      c: 0.95 },
+    { re: /squareup|fees,?\s*net/i,                  p: parseSquare,           n: 'Square',        c: 0.85 },
+    { re: /transaction\s*type.*sale/i,               p: parseSumUp,            n: 'SumUp',         c: 0.85 },
+    { re: /metodo pagamento.*prodotto/i,             p: parseCassaInCloud,     n: 'Cassa in Cloud',c: 0.85 },
+    // Olivetti vs Custom: dt/tot lowercase ASCII brevi
+    { re: /^dt[;,\t]/i,                              p: parseCustom,           n: 'Custom Q3X',    c: 0.80 },
+    // Pattern semi-generici (cassa italiana base)
+    { re: /scontrino[;,\t].*reparto/i,               p: parseSalviIndacoPolo,  n: 'Salvi/Indaco/Polotouch', c: 0.65 },
+    // Fallback Zucchetti (più diffusa)
+    { re: /data.*importo|date.*amount/i,             p: parseZucchettiCSV,     n: 'Zucchetti',     c: 0.50 },
+  ]
+  for (const { re, p, n, c } of PATTERNS) {
+    if (re.test(firstLine) || re.test(lower)) return { provider: n, parser: p, confidence: c }
+  }
+  // Default fallback: Zucchetti
+  return { provider: 'Zucchetti (fallback)', parser: parseZucchettiCSV, confidence: 0.30 }
+}
+
 // ── 4f. Fattura XML (SDI) ─────────────────────────────────────────────────────
 // Estrae: cedente, data, importo, IVA
 export function parseFatturaXML(xmlText) {
