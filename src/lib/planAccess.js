@@ -11,16 +11,18 @@
 // Naming: il piano marketing "Chain" corrisponde internamente a 'enterprise'
 // (vincolo DB: piano ∈ trial|base|pro|enterprise).
 //
-// Scelta di prodotto: il TRIAL ha livello Pro (vede le funzioni Pro, ma le
-// funzioni Chain sono lucchettate → upsell visibile durante la prova). Per dare
-// al trial accesso pieno, basta portare trial a 3 in PLAN_RANK.
+// Scelta prodotto 2026-06-13:
+//  - Base/trial = livello 1: vedi solo le funzioni core (no Pro+, no Chain).
+//    Le altre appaiono col badge ⬩ e cliccandole esce il modal upgrade.
+//  - Pro        = livello 2: tutte le Pro accessibili, le Chain lucchettate.
+//  - Chain (enterprise) = livello 3: tutto disponibile, NIENTE badge.
 
 export const PLAN_RANK = {
-  trial:      2,
-  base:       2,
+  trial:      1,  // trial = Base (14gg per Base, prima era 2 = Pro)
+  base:       1,
   pro:        2,
   enterprise: 3,
-  chain:      3, // alias di sicurezza se in futuro si usasse 'chain' come valore
+  chain:      3,  // alias
 }
 
 // view-id → piano minimo richiesto per accedervi.
@@ -90,4 +92,26 @@ export function canAccessView(view, piano, userEmail) {
 export function requiredPlanLabel(view) {
   const need = VIEW_MIN_PLAN[view]
   return need ? (PLAN_LABEL[need] || need) : null
+}
+
+// Label leggibile della view per i prompt di upgrade. Solo le view-id
+// utilizzate effettivamente in NAV; fallback al view-id grezzo.
+const VIEW_DISPLAY_LABELS = {
+  'confronto-sedi':     'Confronto sedi',
+  'trasferimenti':      'Trasferimenti tra sedi',
+  'integrazioni':       'Integrazioni',
+  'ai-brain':           'FoodOS Brain (chat AI)',
+  'whatsapp':           'WhatsApp Bot',
+  'ricette-ai':         'Inventa ricetta AI',
+  'marketplace':        'Marketplace fornitori',
+  'documentary':        'Documentary AI',
+  'forecast':           'Forecast AI 7 giorni',
+  'menu-engineering':   'Menu engineering',
+  'cashflow':           'Cashflow predittivo',
+  'reformulation':      'Ottimizza ricetta AI',
+  'competitor-pricing': 'Pricing vs competitor',
+  'ordini-ai':          'Ordini AI fornitori',
+}
+export function viewDisplayLabel(view) {
+  return VIEW_DISPLAY_LABELS[view] || view
 }

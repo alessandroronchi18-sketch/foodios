@@ -5,8 +5,9 @@ import { lazyWithReload } from './lib/lazyWithReload'
 import UpgradeGate from './components/UpgradeGate'
 import AISuggestionsBell from './components/AISuggestionsBell'
 import ChainBadge from './components/ChainBadge'
+import UpgradeModal from './components/UpgradeModal'
 import CommandPalette from './components/CommandPalette'
-import { canAccessView, effectivePlan, PLAN_LABEL } from './lib/planAccess'
+import { canAccessView, effectivePlan, PLAN_LABEL, VIEW_MIN_PLAN, viewDisplayLabel } from './lib/planAccess'
 import { lessico } from './lib/lessico'
 import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
@@ -1235,6 +1236,7 @@ export default function Dashboard({
   const [hoverSec, setHoverSec] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [cmdkOpen, setCmdkOpen] = useState(false);
+  const [upgradeModal, setUpgradeModal] = useState(null);  // {featureName, requiredPlan}
   useEffect(() => {
     function onOpen() { setCmdkOpen(true) }
     window.addEventListener('foodios:cmdk', onOpen)
@@ -1969,25 +1971,38 @@ export default function Dashboard({
           ]},
           // ── SEZIONE AI: tutte le 23 funzioni AI raggruppate ───────────────
           // headerView: cliccando il titolo della sezione si va a 'ai-hub'.
-          { id:"ai", label:"AI", headerView:"ai-hub", badge:azioniAperte, chainBadge:true, items:[
+          // chainBadge dinamico nelle item: calcolato lato render da
+          // canAccessView, non flag statico.
+          { id:"ai", label:"AI", headerView:"ai-hub", badge:azioniAperte, items:[
             {id:"ai-hub",label:"Panoramica AI",icon:"sparkles"},
-            {id:"ai-brain",label:"FoodOS Brain (chat)",icon:"sparkles",chainBadge:true},
+            {id:"ai-brain",label:"FoodOS Brain (chat)",icon:"sparkles"},
             {id:"forecast",label:"Forecast vendite 7gg",icon:"sun"},
             {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
             {id:"menu-engineering",label:"Menu engineering",icon:"barChart"},
             {id:"competitor-pricing",label:"Pricing vs competitor",icon:"money"},
             {id:"ordini-ai",label:"Ordini AI consigliati",icon:"truck"},
             {id:"reformulation",label:"Ottimizza ricetta AI",icon:"sparkles"},
-            {id:"ricette-ai",label:"Inventa ricetta AI",icon:"lightbulb",chainBadge:true},
+            {id:"ricette-ai",label:"Inventa ricetta AI",icon:"lightbulb"},
             {id:"recensioni",label:"Recensioni AI",icon:"sparkles"},
-            {id:"whatsapp",label:"WhatsApp Bot",icon:"bell",chainBadge:true},
-            {id:"marketplace",label:"Marketplace fornitori",icon:"truck",chainBadge:true},
-            {id:"documentary",label:"Documentary AI",icon:"barChart",chainBadge:true},
+            {id:"whatsapp",label:"WhatsApp Bot",icon:"bell"},
+            {id:"marketplace",label:"Marketplace fornitori",icon:"truck"},
+            {id:"documentary",label:"Documentary AI",icon:"barChart"},
             {id:"azioni",label:"Azioni consigliate",icon:"sparkles",badge:azioniAperte},
           ]},
         ].map(sec=>({ ...sec, items: sec.items.filter(it=>!isDip||DIPENDENTE_VIEWS.has(it.id)) })).filter(sec=>sec.items.length>0);
 
-        const go = id => { setView(id); setHoverSec(null); setProfileOpen(false); setSidebarSearch(''); };
+        const go = id => {
+          // Se la view richiede un piano superiore al corrente, apri modal upgrade.
+          if (id && !canAccessView(id, piano, auth?.user?.email)) {
+            setUpgradeModal({
+              featureName: viewDisplayLabel(id),
+              requiredPlan: VIEW_MIN_PLAN[id] || 'enterprise',
+            })
+            setHoverSec(null)
+            return
+          }
+          setView(id); setHoverSec(null); setProfileOpen(false); setSidebarSearch('')
+        };
         const activeSec = NAV.find(s=>s.items.some(it=>it.id===view))?.id;
         const q = sidebarQuery;
         const searchHits = q ? NAV.flatMap(s=>s.items).filter(it=>it.label.toLowerCase().includes(q)||it.id.toLowerCase().includes(q)) : [];
@@ -2002,11 +2017,10 @@ export default function Dashboard({
               onMouseEnter={e=>{if(!act)e.currentTarget.style.background="#F4EEEA";}} onMouseLeave={e=>{if(!act)e.currentTarget.style.background="transparent";}}>
               <span style={{color:act?C.red:C.textSoft,display:"flex"}}>{ic(ICONS[it.icon],15)}</span>
               <span style={{flex:1,whiteSpace:"nowrap"}}>{it.label}</span>
-              {/* Chain badge: feature esclusiva piano Chain (gemma sparkle) */}
-              {it.chainBadge&&<ChainBadge active={act}/>}
+              {/* ChainBadge dinamico: appare solo se utente NON ha accesso al piano richiesto */}
+              {!canAccessView(it.id,piano,auth?.user?.email)&&<ChainBadge active={act} size={13}/>}
               {it.badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"1px 7px"}}>{it.badge}</span>}
               {it.alert&&!it.badge&&<span style={{width:7,height:7,borderRadius:"50%",background:"#E84B3A"}}/>}
-              {!canAccessView(it.id,piano,auth?.user?.email)&&<span title="Funzione del piano Chain" style={{color:C.textSoft,display:"flex"}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>}
             </button>
           );
         };
@@ -2029,6 +2043,10 @@ export default function Dashboard({
             {NAV.map(sec=>{
               const open = hoverSec===sec.id;
               const secActive = activeSec===sec.id;
+              // Section header badge: dinamico. Mostra ChainBadge solo se ALMENO
+              // una sotto-feature non e' accessibile per l'utente corrente.
+              // Per un utente Chain (vede tutto) → niente badge sulla sezione.
+              const secHasLocked = sec.items.some(it => !canAccessView(it.id, piano, auth?.user?.email))
               return (
                 <div key={sec.id} style={{position:"relative",height:"100%",display:"flex",alignItems:"center"}} onMouseEnter={()=>setHoverSec(sec.id)} onMouseLeave={()=>setHoverSec(null)}>
                   <button
@@ -2038,7 +2056,7 @@ export default function Dashboard({
                     color:secActive||open?"#fff":"rgba(255,255,255,0.80)",fontSize:12.5,fontWeight:secActive?700:(sec.id==="ai"?700:500),fontFamily:"inherit",
                     boxShadow:secActive?"inset 0 -2px 0 #E84B3A":"none",
                     transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}>
-                    {sec.chainBadge && <ChainBadge size={12}/>}
+                    {sec.id==="ai" && secHasLocked && <ChainBadge size={12}/>}
                     {sec.label}
                     {sec.badge>0&&<span style={{background:"#E84B3A",color:"#fff",borderRadius:9,fontSize:9,fontWeight:700,padding:"1px 6px"}}>{sec.badge}</span>}
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.6,transform:open?"rotate(180deg)":"none",transition:`transform ${M.durFast} ${M.ease}`}}><polyline points="6 9 12 15 18 9"/></svg>
@@ -2194,7 +2212,14 @@ export default function Dashboard({
           }
           const active = view === id;
           return (
-            <button key={id} onClick={()=>{setView(id);if(isMobile)setSidebarOpen(false);}}
+            <button key={id} onClick={()=>{
+                if (!canAccessView(id, piano, auth?.user?.email)) {
+                  setUpgradeModal({ featureName: viewDisplayLabel(id), requiredPlan: VIEW_MIN_PLAN[id] || 'enterprise' })
+                  if (isMobile) setSidebarOpen(false)
+                  return
+                }
+                setView(id); if (isMobile) setSidebarOpen(false)
+              }}
               style={{width:"calc(100% - 16px)",padding:"10px 14px 10px 26px",margin:"0 8px 2px",
                 borderRadius:10,
                 border:"none",cursor:"pointer",textAlign:"left",
@@ -2211,12 +2236,10 @@ export default function Dashboard({
             >
               <span style={{color:active?"#FFFFFF":"rgba(255,255,255,0.55)",display:"flex",alignItems:"center"}}>{ic(ICONS[iconKey],15)}</span>
               <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>
-              {chainBadge&&<ChainBadge active={active} size={13}/>}
+              {/* ChainBadge dinamico: solo se utente NON ha accesso al piano richiesto */}
+              {!canAccessView(id, piano, auth?.user?.email)&&<ChainBadge active={active} size={13}/>}
               {badge>0&&<span style={{background:active?"rgba(255,255,255,0.28)":"#6E0E1A",color:"#fff",borderRadius:10,fontSize:11,fontWeight:700,padding:"2px 8px",minWidth:20,textAlign:"center",letterSpacing:0}}>{badge}</span>}
               {alert&&badge===0&&<span style={{width:8,height:8,borderRadius:"50%",background:"#E84B3A",flexShrink:0,boxShadow:"0 0 0 0 rgba(232,75,58,0.6)",animation:"_sp_pulse 1.6s ease-in-out infinite"}}/>}
-              {!canAccessView(id, piano, auth?.user?.email)&&<span title="Funzione del piano Chain" style={{flexShrink:0,display:"flex",color:"rgba(255,255,255,0.45)"}}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              </span>}
             </button>
           );
         };
@@ -2881,6 +2904,14 @@ export default function Dashboard({
         {view==="documentary"&&(canAccessView("documentary",piano,auth?.user?.email)?<DocumentaryView orgId={orgId} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="documentary" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="ai-hub"&&<AiHubView orgId={orgId} setView={setView} piano={piano} userEmail={auth?.user?.email}/>}
         <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId}/>
+        {upgradeModal && (
+          <UpgradeModal
+            featureName={upgradeModal.featureName}
+            requiredPlan={upgradeModal.requiredPlan}
+            onClose={()=>setUpgradeModal(null)}
+            onCta={()=>setView("impostazioni")}
+          />
+        )}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip}/>}
         {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>

@@ -6,11 +6,13 @@
 //  - Feature cards con neon glow hover + status badge + numerazione
 //  - Chain-only features raggruppate in cluster finale dedicato
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import ChainBadge from '../components/ChainBadge'
+import UpgradeModal from '../components/UpgradeModal'
+import { canAccessView, VIEW_MIN_PLAN, viewDisplayLabel } from '../lib/planAccess'
 
 const BRAND      = T.brand     || '#6E0E1A'
 const BRAND_DARK = '#4A0612'
@@ -133,6 +135,20 @@ const STATUS_STYLE = {
 
 export default function AiHubView({ orgId, setView, piano, userEmail }) {
   const isMobile = useIsMobile()
+  const [upgrade, setUpgrade] = useState(null)
+
+  // Handler centralizzato: se feature lockata apre modal, altrimenti naviga.
+  function onFeatureClick(viewId) {
+    if (!viewId) return
+    if (!canAccessView(viewId, piano, userEmail)) {
+      setUpgrade({
+        featureName: viewDisplayLabel(viewId),
+        requiredPlan: VIEW_MIN_PLAN[viewId] || 'enterprise',
+      })
+      return
+    }
+    setView?.(viewId)
+  }
 
   // Counter totale: tutte le features (per stats hero)
   const totFeatures = CLUSTERS.reduce((s, c) => s + c.features.length, 0) + CHAIN_CLUSTER.features.length
@@ -246,7 +262,7 @@ export default function AiHubView({ orgId, setView, piano, userEmail }) {
 
           {/* CTA */}
           <div style={{ marginTop: 30, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <button onClick={() => setView?.('ai-brain')}
+            <button onClick={() => onFeatureClick('ai-brain')}
               style={{ background: '#FFF', color: BRAND, border: 'none', padding: '13px 24px', borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
                 boxShadow: '0 8px 22px rgba(0,0,0,0.30)' }}>
               <Icon name="sparkles" size={14}/> Parla con FoodOS Brain
@@ -261,7 +277,7 @@ export default function AiHubView({ orgId, setView, piano, userEmail }) {
 
       {/* ───── CLUSTER NON-CHAIN ───── */}
       {CLUSTERS.map((cluster, idx) => (
-        <ClusterSection key={cluster.id} cluster={cluster} idx={idx} setView={setView} isMobile={isMobile}/>
+        <ClusterSection key={cluster.id} cluster={cluster} idx={idx} onFeatureClick={onFeatureClick} isMobile={isMobile} piano={piano} userEmail={userEmail}/>
       ))}
 
       {/* ───── CHAIN CLUSTER (dedicato, in fondo) ───── */}
@@ -285,10 +301,15 @@ export default function AiHubView({ orgId, setView, piano, userEmail }) {
           <div style={{ position: 'relative', display: 'grid',
             gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: 14 }}>
-            {CHAIN_CLUSTER.features.map((f, i) => (
-              <FeatureCard key={f.id} f={f} accent={CHAIN_CLUSTER.accent} idx={i+1} total={CHAIN_CLUSTER.features.length}
-                onClick={() => setView?.(f.view)} dark/>
-            ))}
+            {CHAIN_CLUSTER.features.map((f, i) => {
+              const locked = !canAccessView(f.view, piano, userEmail)
+              return (
+                <FeatureCard key={f.id} f={f} accent={CHAIN_CLUSTER.accent}
+                  idx={i+1} total={CHAIN_CLUSTER.features.length}
+                  locked={locked}
+                  onClick={() => onFeatureClick(f.view)} dark/>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -297,6 +318,16 @@ export default function AiHubView({ orgId, setView, piano, userEmail }) {
       <div style={{ marginTop: 22, padding: '18px 14px', textAlign: 'center', borderTop: `1px solid ${BORDER}`, color: SOFT, fontSize: 12, lineHeight: 1.7 }}>
         {totFeatures} funzioni AI integrate · Modelli: Claude Opus + Sonnet + Haiku + Whisper + Vision · Aggiornato 2026-06-13
       </div>
+
+      {/* Upgrade modal: si apre quando si clicca una feature non accessibile */}
+      {upgrade && (
+        <UpgradeModal
+          featureName={upgrade.featureName}
+          requiredPlan={upgrade.requiredPlan}
+          onClose={() => setUpgrade(null)}
+          onCta={() => setView?.('impostazioni')}
+        />
+      )}
     </div>
   )
 }
@@ -338,7 +369,7 @@ function ClusterIntro({ idx, cluster, isChain }) {
   )
 }
 
-function ClusterSection({ cluster, idx, setView, isMobile }) {
+function ClusterSection({ cluster, idx, onFeatureClick, isMobile, piano, userEmail }) {
   return (
     <section style={{ marginBottom: isMobile ? 28 : 40 }}>
       <ClusterIntro idx={idx} cluster={cluster}/>
@@ -348,26 +379,34 @@ function ClusterSection({ cluster, idx, setView, isMobile }) {
         gap: 14,
         marginTop: 16,
       }}>
-        {cluster.features.map((f, i) => (
-          <FeatureCard
-            key={f.id}
-            f={f}
-            accent={cluster.accent}
-            idx={i + 1}
-            total={cluster.features.length}
-            onClick={() => setView?.(f.view)}
-          />
-        ))}
+        {cluster.features.map((f, i) => {
+          const locked = !canAccessView(f.view, piano, userEmail)
+          return (
+            <FeatureCard
+              key={f.id}
+              f={f}
+              accent={cluster.accent}
+              idx={i + 1}
+              total={cluster.features.length}
+              locked={locked}
+              onClick={() => onFeatureClick(f.view)}
+            />
+          )
+        })}
       </div>
     </section>
   )
 }
 
-function FeatureCard({ f, accent, idx, total, onClick, dark = false }) {
+function FeatureCard({ f, accent, idx, total, onClick, dark = false, locked = false }) {
   const status = STATUS_STYLE[f.status] || STATUS_STYLE.LIVE
+  // Badge "premium" visibile SOLO se la feature è lockata per l'utente corrente.
+  // Per un Chain user → niente badge. Per Pro user → badge solo sui Chain.
+  // Per Base user → badge sia sui Pro che sui Chain.
+  const showBadge = locked
   return (
     <div
-      className={`ai-card ${f.chain ? 'chain' : ''}`}
+      className={`ai-card ${locked ? 'chain' : ''}`}
       onClick={onClick}
       style={{
         '--accent': accent,
@@ -407,7 +446,7 @@ function FeatureCard({ f, accent, idx, total, onClick, dark = false }) {
             background: status.bg, color: status.fg,
             border: `1px solid ${status.fg}33`,
           }}>{status.label}</span>
-          {f.chain && <ChainBadge size={14}/>}
+          {showBadge && <ChainBadge size={14}/>}
         </div>
       </div>
 

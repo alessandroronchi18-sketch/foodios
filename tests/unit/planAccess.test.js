@@ -15,15 +15,16 @@ describe('planAccess', () => {
       expect(canAccessView(v, 'chain')).toBe(true)
       expect(canAccessView(v, 'pro')).toBe(false)
       expect(canAccessView(v, 'base')).toBe(false)
-      expect(canAccessView(v, 'trial')).toBe(false) // trial = livello Pro
+      expect(canAccessView(v, 'trial')).toBe(false) // trial = livello Base
     }
   })
 
-  it('planRank: enterprise/chain > pro = base = trial', () => {
+  it('planRank: enterprise/chain > pro > base = trial (3 tier veri)', () => {
     expect(planRank('enterprise')).toBeGreaterThan(planRank('pro'))
     expect(planRank('chain')).toBe(planRank('enterprise'))
-    expect(planRank('pro')).toBe(planRank('trial'))
-    expect(planRank('xyz')).toBe(planRank('pro')) // default prudente
+    expect(planRank('pro')).toBeGreaterThan(planRank('base'))
+    expect(planRank('base')).toBe(planRank('trial'))
+    expect(planRank('xyz')).toBe(planRank('pro')) // default prudente (rank 2)
   })
 
   it('requiredPlanLabel: etichetta solo per view gated', () => {
@@ -68,11 +69,29 @@ describe('planAccess', () => {
     }
   })
 
-  it('le 6 view Pro+ sono accessibili a trial/pro (in attuale PLAN_RANK)', () => {
+  it('le 6 view Pro+ sono accessibili a pro/enterprise, NON a trial/base', () => {
     for (const v of ['forecast', 'menu-engineering', 'cashflow', 'reformulation', 'competitor-pricing', 'ordini-ai']) {
-      // PLAN_RANK attuale: trial=pro=2, quindi le view Pro+ sono visibili gia' in trial.
-      expect(canAccessView(v, 'trial')).toBe(true)
+      // PLAN_RANK 3-tier: trial=base=1, pro=2, enterprise/chain=3
+      expect(canAccessView(v, 'trial')).toBe(false)
+      expect(canAccessView(v, 'base')).toBe(false)
       expect(canAccessView(v, 'pro')).toBe(true)
+      expect(canAccessView(v, 'enterprise')).toBe(true)
+    }
+  })
+
+  it('logica 3-tier sui badge: Base vede ⬩ su Pro+Chain, Pro solo su Chain, Chain nessuno', () => {
+    // Base/trial: tutte le view gated sono lockate (Pro + Chain)
+    for (const v of ['forecast', 'reformulation', 'ai-brain', 'whatsapp']) {
+      expect(canAccessView(v, 'base')).toBe(false)
+    }
+    // Pro: solo Chain lockate
+    expect(canAccessView('forecast', 'pro')).toBe(true)        // Pro feature → ok
+    expect(canAccessView('reformulation', 'pro')).toBe(true)
+    expect(canAccessView('ai-brain', 'pro')).toBe(false)       // Chain → lockata
+    expect(canAccessView('whatsapp', 'pro')).toBe(false)
+    // Chain: tutto accessibile
+    for (const v of ['forecast', 'reformulation', 'ai-brain', 'whatsapp', 'marketplace', 'documentary']) {
+      expect(canAccessView(v, 'enterprise')).toBe(true)
     }
   })
 })
