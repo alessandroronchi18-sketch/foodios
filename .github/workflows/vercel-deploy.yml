@@ -50,6 +50,7 @@ jobs:
             {
               echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}"
               echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}"
+              echo "VITE_ADMIN_EMAIL=alessandro.ronchi18@gmail.com"
             } >> "$ENV_FILE"
             cp "$ENV_FILE" .env.production
           fi
@@ -63,6 +64,7 @@ jobs:
           # Build-time fallback: Vite legge VITE_* dall'env del processo.
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_ADMIN_EMAIL: alessandro.ronchi18@gmail.com
         run: vercel build --prod --token=$VERCEL_TOKEN
 
       - name: Deploy prebuilt to production

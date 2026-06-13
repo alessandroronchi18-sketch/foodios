@@ -233,7 +233,10 @@ export function useAuth() {
   const isPagante      = org?.approvato === true
   const isTrialAttivo  = org && trialEnd && trialEnd > now   // indipendente da approvato
   const isTrialScaduto = org && !isPagante && (!trialEnd || trialEnd <= now)
-  const isAdmin        = user?.email === import.meta.env.VITE_ADMIN_EMAIL
+  // Match case-insensitive: Supabase normalizza email a lowercase ma la env
+  // var potrebbe avere casing diverso → trim+lower per essere robusti.
+  const isAdmin = (user?.email || '').toLowerCase().trim() ===
+                  (import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase().trim()
   // Ruolo dell'utente nell'organizzazione: 'titolare' (default) o 'dipendente'.
   // Il dipendente ha accesso solo alle viste operative (vedi Dashboard).
   const ruolo          = profile?.ruolo || 'titolare'

@@ -204,8 +204,11 @@ export default function App() {
     )
   }
 
-  // Admin — fallback se VITE_ADMIN_EMAIL non è configurato in Vercel
-  if (auth.isAdmin || (!auth.orgId && !auth.org && auth.user?.email === 'alessandroar@maradeiboschi.com')) return sus(<AdminPage />)
+  // Admin — fallback hardcoded se VITE_ADMIN_EMAIL non è configurato in Vercel.
+  // Match canonico (lower+trim): l'email admin entra SEMPRE in AdminPage,
+  // anche se ha un'organizzazione propria.
+  const adminEmailLc = (auth.user?.email || '').toLowerCase().trim()
+  if (auth.isAdmin || adminEmailLc === 'alessandro.ronchi18@gmail.com') return sus(<AdminPage />)
 
   // Profilo non caricabile (es. RLS recursion) — mostra errore invece di Dashboard rotto
   if (auth.profileError) {
