@@ -38,13 +38,31 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+        run: |
+          vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          # Verifica che le env critiche per il client siano presenti.
+          # Se mancano, le iniettiamo manualmente da secrets GitHub (fallback
+          # per token con scope ristretto).
+          ENV_FILE=".vercel/.env.production.local"
+          if [ ! -f "$ENV_FILE" ] || ! grep -q "VITE_SUPABASE_URL" "$ENV_FILE"; then
+            echo "⚠️ env file mancante o incompleto — inietto da secrets GitHub"
+            mkdir -p .vercel
+            {
+              echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}"
+              echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}"
+            } >> "$ENV_FILE"
+            cp "$ENV_FILE" .env.production
+          fi
+          echo "Env file size: $(wc -l < $ENV_FILE) righe"
 
       - name: Build project (Vercel-style)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # Build-time fallback: Vite legge VITE_* dall'env del processo.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: vercel build --prod --token=$VERCEL_TOKEN
 
       - name: Deploy prebuilt to production
