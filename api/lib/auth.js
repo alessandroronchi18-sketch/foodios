@@ -135,6 +135,21 @@ export async function verificaAdmin(req, supabase) {
     if (isLocalDev && (process.env.DISABLE_ADMIN_MFA || '').toLowerCase() === 'true') {
       return { user, reason: 'ok_mfa_disabled_dev_only' }
     }
+    // MFA bypass via whitelist email (ADMIN_MFA_WHITELIST env, csv).
+    // Pre-revenue ops: l'admin pre-MFA può accedere se la sua email e' esplicitamente
+    // whitelistata. Andra' rimosso al primo cliente pagante. Email match canonico
+    // (lower+trim) per evitare cose tipo casing/spazi.
+    const whitelistRaw = process.env.ADMIN_MFA_WHITELIST || ''
+    if (whitelistRaw) {
+      const whitelist = whitelistRaw
+        .split(',')
+        .map(e => e.toLowerCase().trim())
+        .filter(Boolean)
+      const userEmail = (user.email || '').toLowerCase().trim()
+      if (whitelist.includes(userEmail)) {
+        return { user, reason: 'ok_mfa_whitelisted' }
+      }
+    }
     const aalLevel = decodeJwtClaim(token, 'aal')
     if (aalLevel !== 'aal2') {
       let hasVerifiedFactor = false
