@@ -1,0 +1,499 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for src/lib/sepa.js</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../prettify.css" />
+    <link rel="stylesheet" href="../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/lib</a> sepa.js</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">96.66% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>58/60</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">74.07% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>40/54</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>12/12</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>45/45</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">282x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// Generazione bonifico SEPA — file pain.001.001.03 (SEPA Credit Transfer
+// Initiation), formato accettato dall'home banking italiano per i "bonifici
+// massivi" / disposizioni CBI. Il proprietario seleziona le fatture da pagare,
+// scarica l'XML e lo carica nella sua banca → paga tutto in un colpo, senza
+// riscrivere IBAN/importi. Nessuna licenza, nessun costo per transazione.
+//
+// NB: il debtor (azienda) deve avere un IBAN valido; il creditore (fornitore)
+// idem — le fatture senza IBAN valido vengono escluse e segnalate al chiamante.
+&nbsp;
+// ── Validazione IBAN (mod-97, ISO 13616) ─────────────────────────────────────
+export function normalizeIban(iban) {
+  return String(iban || '').replace(/\s+/g, '').toUpperCase()
+}
+&nbsp;
+export function ibanIsValid(iban) {
+  const s = normalizeIban(iban)
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(s)) return false
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (s.length &lt; 15 || s.length &gt; 34) <span class="cstat-no" title="statement not covered" >return false</span>
+  const rearr = s.slice(4) + s.slice(0, 4)
+  const expanded = rearr.replace(/[A-Z]/g, c =&gt; (c.charCodeAt(0) - 55).toString())
+  let rem = 0
+  for (let i = 0; i &lt; expanded.length; i++) {
+    rem = (rem * 10 + (expanded.charCodeAt(i) - 48)) % 97
+  }
+  return rem === 1
+}
+&nbsp;
+const round2 = n =&gt; Math.round((Number(n) || 0) * 100) / 100
+&nbsp;
+// SEPA ammette solo un set ristretto di caratteri nei campi testuali.
+function sepaText(s, max = 140) {
+  return String(s || <span class="branch-1 cbranch-no" title="branch not covered" >'')</span>
+    .normalize('NFKD').replace(/[̀-ͯ]/g, '') // accenti → base
+    .replace(/[^A-Za-z0-9/\-?:().,'+ ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max)
+}
+&nbsp;
+function xmlEscape(s) {
+  return String(s).replace(/&amp;/g, '&amp;amp;').replace(/&lt;/g, '&amp;lt;').replace(/&gt;/g, '&amp;gt;')
+    .replace(/"/g, '&amp;quot;').replace(/'/g, '&amp;apos;')
+}
+&nbsp;
+// Causale standard per il pagamento di una fattura fornitore.
+export function causaleFattura(f) {
+  const parts = []
+  if (f?.numero_rif) parts.push(`Fatt. ${f.numero_rif}`)
+  if (f?.data_fattura) parts.push(`del ${f.data_fattura}`)
+  if (!parts.length) parts.push('Pagamento fattura')
+  return sepaText(parts.join(' '))
+}
+&nbsp;
+// Testo "copia bonifico" per la singola fattura (quando non si usa l'XML massivo).
+export function bonificoText({ beneficiario, iban, importo, causale }) {
+  return [
+    `Beneficiario: ${beneficiario || <span class="branch-1 cbranch-no" title="branch not covered" >'—'}</span>`,
+    `IBAN: ${normalizeIban(iban) || <span class="branch-1 cbranch-no" title="branch not covered" >'—'}</span>`,
+    `Importo: € ${round2(importo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    `Causale: ${causale || <span class="branch-1 cbranch-no" title="branch not covered" >'—'}</span>`,
+  ].join('\n')
+}
+&nbsp;
+// ── Generazione XML pain.001.001.03 ──────────────────────────────────────────
+// debtor: { nome, iban, bic? }
+// payments: [{ id, beneficiario, iban, importo, causale }]
+// opts: { executionDate 'YYYY-MM-DD', msgId, creationDateTime ISO }
+// Ritorna { xml, included, skipped, totale }.
+export function generateSepaXml({ debtor, payments = [], executionDate, msgId, creationDateTime }) {
+  if (!debtor?.iban || !ibanIsValid(debtor.iban)) {
+    throw new Error('IBAN dell’azienda mancante o non valido — impostalo in alto nella pagina.')
+  }
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!debtor?.nome) <span class="cstat-no" title="statement not covered" >throw new Error('Nome azienda (intestatario conto) mancante.')</span>
+&nbsp;
+  const included = []
+  const skipped = []
+  for (const p of payments) {
+    const imp = round2(p.importo)
+    if (imp &lt;= 0) { skipped.push({ ...p, motivo: 'importo non positivo' }); continue }
+    if (!ibanIsValid(p.iban)) { skipped.push({ ...p, motivo: 'IBAN mancante o non valido' }); continue }
+    included.push({ ...p, importo: imp })
+  }
+  if (!included.length) {
+    const e = new Error('Nessuna fattura pagabile: IBAN beneficiario mancante/non valido o importo nullo.')
+    e.skipped = skipped
+    throw e
+  }
+&nbsp;
+  const totale = round2(included.reduce((s, p) =&gt; s + p.importo, 0))
+  const nb = included.length
+  const creDtTm = creationDateTime || <span class="branch-1 cbranch-no" title="branch not covered" >new Date().toISOString().replace(/\.\d{3}Z$/, 'Z').slice(0, 19) + 'Z'</span>
+  const reqDt = executionDate || <span class="branch-1 cbranch-no" title="branch not covered" >new Date().toISOString().slice(0, 10)</span>
+  const mId = sepaText(msgId || <span class="branch-1 cbranch-no" title="branch not covered" >`FOODOS-${reqDt.replace(/-/g, '')}-${nb}`,</span> 35).replace(/\s/g, '')
+  const dbtrIban = normalizeIban(debtor.iban)
+&nbsp;
+  const fmtAmt = n =&gt; n.toFixed(2)
+&nbsp;
+  const txs = included.map((p, i) =&gt; {
+    const e2e = sepaText(p.id ? `FOODOS-${p.id}` : <span class="branch-1 cbranch-no" title="branch not covered" >`${mId}-${i + 1}`,</span> 35).replace(/\s/g, '') || <span class="branch-1 cbranch-no" title="branch not covered" >'NOTPROVIDED'</span>
+    return `      &lt;CdtTrfTxInf&gt;
+        &lt;PmtId&gt;&lt;EndToEndId&gt;${xmlEscape(e2e)}&lt;/EndToEndId&gt;&lt;/PmtId&gt;
+        &lt;Amt&gt;&lt;InstdAmt Ccy="EUR"&gt;${fmtAmt(p.importo)}&lt;/InstdAmt&gt;&lt;/Amt&gt;
+        &lt;CdtrAgt&gt;&lt;FinInstnId&gt;&lt;Othr&gt;&lt;Id&gt;NOTPROVIDED&lt;/Id&gt;&lt;/Othr&gt;&lt;/FinInstnId&gt;&lt;/CdtrAgt&gt;
+        &lt;Cdtr&gt;&lt;Nm&gt;${xmlEscape(sepaText(p.beneficiario, 70) || <span class="branch-1 cbranch-no" title="branch not covered" >'Fornitore')</span>}&lt;/Nm&gt;&lt;/Cdtr&gt;
+        &lt;CdtrAcct&gt;&lt;Id&gt;&lt;IBAN&gt;${normalizeIban(p.iban)}&lt;/IBAN&gt;&lt;/Id&gt;&lt;/CdtrAcct&gt;
+        &lt;RmtInf&gt;&lt;Ustrd&gt;${xmlEscape(sepaText(p.causale, 140) || <span class="branch-1 cbranch-no" title="branch not covered" >'Pagamento fattura')</span>}&lt;/Ustrd&gt;&lt;/RmtInf&gt;
+      &lt;/CdtTrfTxInf&gt;`
+  }).join('\n')
+&nbsp;
+  const xml = `&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03"&gt;
+  &lt;CstmrCdtTrfInitn&gt;
+    &lt;GrpHdr&gt;
+      &lt;MsgId&gt;${xmlEscape(mId)}&lt;/MsgId&gt;
+      &lt;CreDtTm&gt;${creDtTm}&lt;/CreDtTm&gt;
+      &lt;NbOfTxs&gt;${nb}&lt;/NbOfTxs&gt;
+      &lt;CtrlSum&gt;${fmtAmt(totale)}&lt;/CtrlSum&gt;
+      &lt;InitgPty&gt;&lt;Nm&gt;${xmlEscape(sepaText(debtor.nome, 70))}&lt;/Nm&gt;&lt;/InitgPty&gt;
+    &lt;/GrpHdr&gt;
+    &lt;PmtInf&gt;
+      &lt;PmtInfId&gt;${xmlEscape(mId)}&lt;/PmtInfId&gt;
+      &lt;PmtMtd&gt;TRF&lt;/PmtMtd&gt;
+      &lt;BtchBookg&gt;false&lt;/BtchBookg&gt;
+      &lt;NbOfTxs&gt;${nb}&lt;/NbOfTxs&gt;
+      &lt;CtrlSum&gt;${fmtAmt(totale)}&lt;/CtrlSum&gt;
+      &lt;PmtTpInf&gt;&lt;SvcLvl&gt;&lt;Cd&gt;SEPA&lt;/Cd&gt;&lt;/SvcLvl&gt;&lt;/PmtTpInf&gt;
+      &lt;ReqdExctnDt&gt;${reqDt}&lt;/ReqdExctnDt&gt;
+      &lt;Dbtr&gt;&lt;Nm&gt;${xmlEscape(sepaText(debtor.nome, 70))}&lt;/Nm&gt;&lt;/Dbtr&gt;
+      &lt;DbtrAcct&gt;&lt;Id&gt;&lt;IBAN&gt;${dbtrIban}&lt;/IBAN&gt;&lt;/Id&gt;&lt;/DbtrAcct&gt;
+      &lt;DbtrAgt&gt;&lt;FinInstnId&gt;${debtor.bic ? <span class="branch-0 cbranch-no" title="branch not covered" >`&lt;BIC&gt;${xmlEscape(normalizeIban(debtor.bic))}&lt;/BIC&gt;` </span>: '&lt;Othr&gt;&lt;Id&gt;NOTPROVIDED&lt;/Id&gt;&lt;/Othr&gt;'}&lt;/FinInstnId&gt;&lt;/DbtrAgt&gt;
+      &lt;ChrgBr&gt;SLEV&lt;/ChrgBr&gt;
+${txs}
+    &lt;/PmtInf&gt;
+  &lt;/CstmrCdtTrfInitn&gt;
+&lt;/Document&gt;`
+&nbsp;
+  return { xml, included, skipped, totale }
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-06-18T20:17:51.110Z
+            </div>
+        <script src="../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../sorter.js"></script>
+        <script src="../../block-navigation.js"></script>
+    </body>
+</html>
+    
