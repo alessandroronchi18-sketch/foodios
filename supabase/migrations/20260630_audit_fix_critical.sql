@@ -398,7 +398,40 @@ set search_path = public, pg_temp;
 revoke all on function public.admin_org_cascade_delete(uuid) from public, anon, authenticated;
 -- Solo service_role (l'API admin via service key) può invocarla.
 
--- 16) get_user_org_id LIMIT 1 (defense-in-depth, audit 1 NOTE).
+-- 16) haccp_temperature.created_by: audit reale di chi ha registrato la
+--     temperatura (audit 4 LOW: prima solo testo libero `operatore`).
+do $audit_haccp$ begin
+  if to_regclass('public.haccp_temperature') is not null then
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='haccp_temperature'
+        and column_name='created_by'
+    ) then
+      alter table public.haccp_temperature
+        add column created_by uuid references auth.users(id) on delete set null;
+    end if;
+  end if;
+end $audit_haccp$;
+
+-- 17) inventario_produzione.produzione_g/rimanenza_g/scarto_g: bigint per
+--     grandi laboratori (audit 4 LOW: int 32-bit = ~2.1Mln g/giorno potrebbe
+--     non bastare per pasta fresca/panifici).
+do $audit_inv_big$ begin
+  if to_regclass('public.inventario_produzione') is not null then
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='inventario_produzione'
+        and column_name='produzione_g' and data_type='integer'
+    ) then
+      alter table public.inventario_produzione alter column produzione_g type bigint;
+      alter table public.inventario_produzione alter column rimanenza_g type bigint;
+      alter table public.inventario_produzione alter column scarto_g type bigint;
+      alter table public.inventario_produzione alter column spedito_g type bigint;
+    end if;
+  end if;
+end $audit_inv_big$;
+
+-- 18) get_user_org_id LIMIT 1 (defense-in-depth, audit 1 NOTE).
 create or replace function public.get_user_org_id() returns uuid as $get_org$
 declare
   org_id uuid;

@@ -43,6 +43,12 @@ export async function creaTrasferimento({
     throw new Error('Parametri trasferimento incompleti')
   }
   if (sedeDa === sedeA) throw new Error('Sede origine e destinazione devono essere diverse')
+  // Audit 2026-06-17 LOW: validazione valore_unit + bound length su prodotto/note.
+  if (!(Number(valoreUnit) >= 0)) throw new Error('valore_unit deve essere >= 0')
+  if (String(prodotto).length > 200) throw new Error('prodotto troppo lungo (max 200 char)')
+  if (note != null && String(note).length > 500) {
+    note = String(note).slice(0, 500)
+  }
 
   const payload = {
     organization_id: orgId,

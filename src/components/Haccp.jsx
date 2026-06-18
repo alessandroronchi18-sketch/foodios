@@ -307,6 +307,10 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
     const app = apparecchi.find(a => a.id === formLog.apparecchio_id)
     const fuoriRange = app ? (temp < app.temp_min || temp > app.temp_max) : false
     setSaving(true)
+    // Audit 2026-06-17 LOW: created_by ricavato da auth.uid() lato DB (default)
+    // o esplicito qui, per audit reale (operatore campo testo libero non basta).
+    let createdBy = null
+    try { createdBy = (await supabase.auth.getUser()).data?.user?.id || null } catch {}
     const { error } = await supabase.from('haccp_temperature').insert({
       organization_id: orgId, sede_id: sedeId || null,
       apparecchio_id: formLog.apparecchio_id,
@@ -314,6 +318,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
       operatore: formLog.operatore.trim() || null,
       note: formLog.note.trim() || null,
       fuori_range: fuoriRange,
+      created_by: createdBy,
     })
     setSaving(false)
     if (error) return notify?.(error.message, false)
