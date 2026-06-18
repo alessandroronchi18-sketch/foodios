@@ -205,7 +205,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Giacenza</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Soglia</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cons. medio/gg</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Gg rimasti</th>
+                    <th title="Giorni rimasti di scorta = giacenza attuale / consumo medio giornaliero" style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'help' }}>Gg rimasti</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Da ordinare</th>
                   </tr>
                 </thead>

@@ -23,9 +23,15 @@ let _idSeq = 0
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
+  // Audit 2026-07-01 LOW: timer per-toast tracciati per cancellare quando
+  // l'utente clicca X manualmente (prima il timer restava live e poi
+  // rifiltrava un toast già rimosso = no-op wasted).
+  const timersRef = React.useRef(new Map())
 
   const dismiss = useCallback((id) => {
     setToasts(t => t.filter(x => x.id !== id))
+    const t = timersRef.current.get(id)
+    if (t) { clearTimeout(t); timersRef.current.delete(id) }
   }, [])
 
   const push = useCallback((message, opts = {}) => {
@@ -34,9 +40,21 @@ export function ToastProvider({ children }) {
     const duration = opts.duration ?? (variant === 'error' ? 6000 : 4000)
     setToasts(t => [...t, { id, message, variant, duration }])
     if (duration > 0) {
-      setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), duration)
+      const t = setTimeout(() => {
+        setToasts(arr => arr.filter(x => x.id !== id))
+        timersRef.current.delete(id)
+      }, duration)
+      timersRef.current.set(id, t)
     }
     return id
+  }, [])
+
+  // Cleanup tutti i timer all'unmount del provider.
+  useEffect(() => () => {
+    for (const t of timersRef.current.values()) {
+      try { clearTimeout(t) } catch {}
+    }
+    timersRef.current.clear()
   }, [])
 
   // Shortcut: success, error, warn, info, e una "notify" compat retro

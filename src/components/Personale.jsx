@@ -803,7 +803,7 @@ function TurniTab({ orgId, notify, isMobile }) {
         return (
           <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", overflow:"hidden" }}>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
-              {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>{g}</div>)}
+              {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize: isMobile ? 11 : 10, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing: '0.06em' }}>{g}</div>)}
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)" }}>
               {cells.map((dIso, idx) => {

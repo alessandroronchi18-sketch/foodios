@@ -931,8 +931,9 @@ export default function MagazzinoView({
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textMid }}>{r.fabb > 0 ? fmtG(r.fabb) : '—'}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: statoColor(r.stato) }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textMid, ...TNUM }}>{r.fabb > 0 ? fmtG(r.fabb) : '—'}</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: statoColor(r.stato), ...TNUM }}
+                          title="Giorni di scorta: giacenza diviso consumo medio giornaliero">
                         {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)}gg` : '—'}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: r.valore > 0 ? C.text : C.textSoft, fontWeight: r.valore > 0 ? 700 : 400, ...TNUM }}>
