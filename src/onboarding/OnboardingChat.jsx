@@ -256,10 +256,14 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 8 }}>
-                <input value={input} onChange={e => setInput(e.target.value)}
+                <label htmlFor="obc-input" style={{ position: 'absolute', left: '-9999px' }}>
+                  {current.placeholder || 'Risposta'}
+                </label>
+                <input id="obc-input" value={input} onChange={e => setInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && input.trim()) answer(input) }}
                   placeholder={current.placeholder || ''}
-                  style={{ flex: 1, padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: 15, color: TXT, fontFamily: 'inherit', outline: 'none' }}
+                  aria-label={current.placeholder || 'Risposta'}
+                  style={{ flex: 1, padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: 16, color: TXT, fontFamily: 'inherit', outline: 'none' }}
                   autoFocus
                 />
                 <button onClick={() => answer(input)} disabled={!input.trim()}

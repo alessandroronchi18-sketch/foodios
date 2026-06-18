@@ -417,26 +417,30 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                   ['Nome sede *', 'nome', 'Es. Centro città'],
                   ['Indirizzo', 'indirizzo', 'Via Roma 1'],
                   ['Città', 'citta', 'Torino'],
-                ].map(([label, key, placeholder]) => (
-                  <div key={key} style={{ marginBottom: 12 }}>
-                    <label style={{
-                      fontSize: 10.5, fontWeight: 700, color: '#8B95A7',
-                      textTransform: 'uppercase', letterSpacing: '0.06em',
-                      marginBottom: 5, display: 'block',
-                    }}>{label}</label>
-                    <input
-                      value={secondaSede[key]}
-                      onChange={e => setSecondaSede(s => ({ ...s, [key]: e.target.value }))}
-                      style={{
-                        width: '100%', padding: '11px 14px',
-                        border: '1px solid #E5E9EF', borderRadius: 8,
-                        fontSize: 14, color: '#0E1726', background: '#FFF',
-                        outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
-                      }}
-                      placeholder={placeholder}
-                    />
-                  </div>
-                ))}
+                ].map(([label, key, placeholder]) => {
+                  const inputId = `sede2-${key}`
+                  return (
+                    <div key={key} style={{ marginBottom: 12 }}>
+                      <label htmlFor={inputId} style={{
+                        fontSize: 10.5, fontWeight: 700, color: '#8B95A7',
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                        marginBottom: 5, display: 'block',
+                      }}>{label}</label>
+                      <input
+                        id={inputId}
+                        value={secondaSede[key]}
+                        onChange={e => setSecondaSede(s => ({ ...s, [key]: e.target.value }))}
+                        style={{
+                          width: '100%', padding: '11px 14px',
+                          border: '1px solid #E5E9EF', borderRadius: 8,
+                          fontSize: 16, color: '#0E1726', background: '#FFF',
+                          outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+                        }}
+                        placeholder={placeholder}
+                      />
+                    </div>
+                  )
+                })}
                 {sedeError && (
                   <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13, lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                     <Icon name="warning" size={14} style={{ marginTop: 2, flexShrink: 0 }}/><span>{sedeError}</span>

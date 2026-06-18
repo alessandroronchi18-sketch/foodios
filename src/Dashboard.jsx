@@ -16,6 +16,8 @@ import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // consumatori — PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage —
 // sono tutti gia' lazy.
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
+import { mergeArr as _mergeArr, mergeMag as _mergeMag } from './lib/multiSediMerge'
+import { analizzaFotoAI } from './lib/analizzaFotoAI'
 import { supabase } from './lib/supabase'
 import { caricoProduzionePF, scaricoVenditaPF } from './lib/stockPF'
 import { creaTrasferimento } from './lib/trasferimenti'
@@ -163,73 +165,11 @@ function ssave(key, val) {
 }
 function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
 
-// ── Vista azienda ("Tutte le sedi"): merge dei dati per-sede ──────────────────
-// Array (giornaliero/chiusure/logrif) → concatenati; magazzino → giacenze sommate.
-function _mergeArr(map) { return Object.values(map || {}).filter(Array.isArray).flat(); }
-function _mergeMag(map) {
-  const out = {};
-  for (const m of Object.values(map || {})) {
-    if (!m || typeof m !== 'object' || Array.isArray(m)) continue;
-    for (const [k, v] of Object.entries(m)) {
-      if (!v || typeof v !== 'object') continue;
-      if (!out[k]) out[k] = { ...v };
-      else out[k] = { ...out[k], giacenza_g: (out[k].giacenza_g || 0) + (v.giacenza_g || 0), soglia_g: Math.max(out[k].soglia_g || 0, v.soglia_g || 0) };
-    }
-  }
-  return out;
-}
+// _mergeArr/_mergeMag importati in cima dal modulo ./lib/multiSediMerge
+// (audit 2026-07-01 batch 9: primo step di split file Dashboard >1500 righe).
 
-// ─── CENTRALIZZATA ANALISI FOTO AI ───────────────────────────────────────────
-async function analizzaFotoAI(file, tipo = 'ricetta') {
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-  const prompts = {
-    ricetta: `Analizza questa immagine di una ricetta (può essere scritta a mano, stampata, o una pagina di libro di ricette) e restituisci SOLO un oggetto JSON valido senza nessun testo aggiuntivo:
-{"nome":"NOME RICETTA IN MAIUSCOLO","categoria":"una di: Torte/Biscotti/Crostate/Muffin/Croissant/Pane/Pizze/Primi/Secondi/Dolci/Altro","porzioni":8,"ingredienti":[{"nome":"nome ingrediente in italiano minuscolo","quantita":250,"unita":"g/kg/ml/l/pz/cucchiai/tazze"}],"procedimento":"breve descrizione se visibile","temperatura":null,"tempo_cottura_minuti":null}
-Leggi con attenzione anche grafia difficile o scritte a mano. Se un valore non è leggibile metti null.`,
-  };
-  const session = await supabase.auth.getSession();
-  const token = session.data.session?.access_token;
-  if (!token) {
-    throw new Error('Sessione scaduta. Ricarica la pagina e riprova.');
-  }
-  const res = await fetch('/api/ai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6', max_tokens: 2000,
-      messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
-        { type: 'text', text: prompts[tipo] || prompts.ricetta }
-      ]}]
-    })
-  });
-  if (res.status === 401) {
-    // Sessione scaduta — non e' un problema di foto.
-    throw new Error('Sessione scaduta durante l\'analisi. Esci e rientra per riprovare.');
-  }
-  if (res.status === 429) {
-    throw new Error('Troppe richieste AI in poco tempo. Riprova fra un minuto.');
-  }
-  if (!res.ok) {
-    // 5xx, 4xx generici
-    throw new Error(`Errore servizio AI (${res.status}). Riprova fra qualche istante.`);
-  }
-  const data = await res.json();
-  const testo = data.content?.find(b => b.type === 'text')?.text || '';
-  try {
-    const clean = testo.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(clean);
-  } catch {
-    const match = testo.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('Impossibile leggere la risposta AI. Riprova con una foto più nitida.');
-  }
-}
+// `analizzaFotoAI` estratta in src/lib/analizzaFotoAI.js (audit 2026-07-01
+// batch 9: split file Dashboard >1500 righe — secondo step).
 
 // ─── SORTABLE TABLE HOOK ──────────────────────────────────────────────────────
 function useSortable(defaultKey, defaultDir="desc") {
