@@ -683,19 +683,19 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                             <td style={{ padding: '10px 14px', color: C.red }}>{fmt(fc)}</td>
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                <button onClick={() => setQ(ric.nome, Math.max(0, (qtaMap[ric.nome] || 0) - 1))} style={{ width: 26, height: 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>−</button>
+                                <button aria-label="Diminuisci" onClick={() => setQ(ric.nome, Math.max(0, (qtaMap[ric.nome] || 0) - 1))} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>−</button>
                                 <input type="number" min="0" value={q || ''} onChange={e => setQ(ric.nome, e.target.value)}
-                                  style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${q > 0 ? C.red : C.borderStr}`, background: C.white, fontSize: 13, textAlign: 'center', fontWeight: 800, color: q > 0 ? C.red : C.text }}/>
-                                <button onClick={() => setQ(ric.nome, (qtaMap[ric.nome] || 0) + 1)} style={{ width: 26, height: 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>+</button>
+                                  style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${q > 0 ? C.red : C.borderStr}`, background: C.white, fontSize: isMobile ? 16 : 13, textAlign: 'center', fontWeight: 800, color: q > 0 ? C.red : C.text }}/>
+                                <button aria-label="Aumenta" onClick={() => setQ(ric.nome, (qtaMap[ric.nome] || 0) + 1)} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>+</button>
                               </div>
                             </td>
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               {cong ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                  <button onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] || q) - 1))} style={{ width: 26, height: 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>−</button>
+                                  <button aria-label="Diminuisci vendibile" onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] || q) - 1))} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>−</button>
                                   <input type="number" min="0" value={vq || ''} onChange={e => setV(ric.nome, e.target.value)}
-                                    style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${vq > 0 ? '#2980B9' : C.borderStr}`, background: '#F0F8FF', fontSize: 13, textAlign: 'center', fontWeight: 800, color: vq > 0 ? '#2980B9' : C.text }}/>
-                                  <button onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: 26, height: 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>+</button>
+                                    style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${vq > 0 ? '#2980B9' : C.borderStr}`, background: '#F0F8FF', fontSize: isMobile ? 16 : 13, textAlign: 'center', fontWeight: 800, color: vq > 0 ? '#2980B9' : C.text }}/>
+                                  <button aria-label="Aumenta vendibile" onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>+</button>
                                 </div>
                               ) : (
                                 <span style={{ fontSize: 11, color: C.textSoft }}>= {LEX.prodotti}</span>
