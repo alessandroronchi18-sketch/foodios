@@ -136,7 +136,10 @@ function Btn({ children, kind = 'primary', size = 'md', onClick, disabled, title
   )
 }
 
-function KpiCard({ label, value, sub, color }) {
+// Audit 2026-07-01 batch 10 Performance: React.memo per KpiCard (rendererizzata
+// 12-20 volte nelle grid Overview/Health/Stats; non cambia mai se le props
+// stesse non cambiano).
+const KpiCard = React.memo(function KpiCard({ label, value, sub, color }) {
   return (
     <Card style={{ padding: '16px 18px' }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
@@ -150,7 +153,7 @@ function KpiCard({ label, value, sub, color }) {
       )}
     </Card>
   )
-}
+})
 
 function Modal({ title, onClose, children, width = 520 }) {
   useEffect(() => {

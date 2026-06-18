@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase'
 import { parseRicettario } from '../lib/parseRicettario'
 import { ssave } from '../lib/storage'
 import { lessico } from '../lib/lessico'
+import { seedDemoData } from '../lib/demoSeed'
 import Icon from '../components/Icon'
 
 const BRAND = '#6E0E1A'
@@ -101,6 +102,10 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
     if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
   }, [])
   const [parseStats, setParseStats] = useState(null)
+  // Demo data state — sede risolta dal DB al primo uso (org appena creata).
+  const [demoSeeding, setDemoSeeding] = useState(false)
+  const [demoStats, setDemoStats] = useState(null)
+  const [demoError, setDemoError] = useState(null)
   const [secondaSede, setSecondaSede] = useState({ nome: '', indirizzo: '', citta: '' })
   const [addingSecondaSede, setAddingSecondaSede] = useState(false)
   const [sedeSaving, setSedeSaving] = useState(false)
@@ -141,6 +146,33 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       setParseError(e.message || 'Errore durante l\'analisi del file')
     } finally {
       setParsing(false)
+    }
+  }
+
+  // ─── STEP 2 path B: demo data 1-click ──
+  async function handleDemoSeed() {
+    if (!orgId || demoSeeding) return
+    setDemoSeeding(true)
+    setDemoError(null)
+    try {
+      // Risolvi la sede principale (creata dal trigger di registrazione).
+      const { data: sediRow } = await supabase
+        .from('sedi')
+        .select('id')
+        .eq('organization_id', orgId)
+        .order('created_at')
+        .limit(1)
+        .maybeSingle()
+      const sedeId = sediRow?.id || null
+      const res = await seedDemoData({ orgId, sedeId })
+      setDemoStats(res.counts)
+      if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
+      // 1.5s per vedere la conferma, poi vai a step 3 (seconda sede).
+      stepTimerRef.current = setTimeout(() => setStep(3), 1500)
+    } catch (e) {
+      setDemoError(e.message || 'Errore durante il caricamento dei dati demo')
+    } finally {
+      setDemoSeeding(false)
     }
   }
 
@@ -339,6 +371,47 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                   onChange={e => handleFile(e.target.files[0])}
                 />
               </div>
+
+              {/* Path B: demo data 1-click (anti "schermata vuota") */}
+              <button onClick={handleDemoSeed} disabled={demoSeeding || parsing || !!parseStats}
+                style={{
+                  textAlign: 'left', padding: '16px 20px',
+                  background: demoStats ? '#F0FDF4' : '#FFFBEB',
+                  border: `1.5px solid ${demoStats ? '#16A34A' : '#FBBF24'}`,
+                  borderRadius: 12,
+                  cursor: (demoSeeding || parsing || parseStats) ? 'not-allowed' : 'pointer',
+                  opacity: (parsing || parseStats) ? 0.55 : 1,
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  transition: 'all 0.18s',
+                }}
+                onMouseEnter={e => { if (!demoSeeding && !parsing && !parseStats && !demoStats) e.currentTarget.style.borderColor = '#F59E0B' }}
+                onMouseLeave={e => { if (!demoSeeding && !demoStats) e.currentTarget.style.borderColor = '#FBBF24' }}
+              >
+                <div style={{
+                  width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                  background: demoStats ? '#16A34A' : '#FEF3C7',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: demoStats ? '#FFF' : '#92400E',
+                }}>
+                  {demoStats ? '✓' : <Icon name={demoSeeding ? 'hourglass' : 'sparkles'} size={20}/>}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0E1726', marginBottom: 2 }}>
+                    {demoStats
+                      ? 'Dati demo caricati!'
+                      : demoSeeding
+                        ? 'Carico i dati demo…'
+                        : 'Vedi com\'è con dati demo'}
+                  </div>
+                  <div style={{ fontSize: 12, color: demoError ? '#DC2626' : '#475264', lineHeight: 1.4 }}>
+                    {demoError
+                      ? demoError
+                      : demoStats
+                        ? `${demoStats.ricette} ricette · ${demoStats.ingredienti} ingredienti · ${demoStats.chiusure} chiusure storiche · 1 fattura aperta. Pronti da esplorare.`
+                        : '5 ricette tipo, magazzino, 7gg di chiusure + 1 fattura demo. Cancellabili in 1 click.'}
+                  </div>
+                </div>
+              </button>
 
               {/* Hint metodo Inventario gusti per gelaterie / laboratori */}
               <div style={{

@@ -919,6 +919,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const cfg = URGENZA_CFG[keyU]
     const totaleGruppo = items.reduce((s, f) => s + (f.totale || 0), 0)
     const isUrgent = keyU === 'scaduta'
+    // Local state per "Mostra tutte" entro il gruppo (audit Performance).
+    const [shownAll, setShownAll] = useState(false)
 
     return (
       <section style={{
@@ -959,37 +961,65 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </div>
         </div>
 
-        {/* Body */}
-        {isMobile ? (
-          <div style={{ padding: 8 }}>
-            {items.map(f => <CardMobile key={f.id} f={f} cfg={cfg} />)}
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, ...tnum }}>
-              <thead>
-                <tr style={{ background: '#FAFAF8' }}>
-                  {[
-                    'Fornitore', 'Numero', 'Data fatt.', 'Scadenza', 'Totale', 'Stato', 'Azioni',
-                  ].map((l, idx) => (
-                    <th key={l} style={{
-                      padding: '8px 12px',
-                      textAlign: idx === 4 ? 'right' : 'left',
-                      fontSize: 10, fontWeight: 600,
-                      color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em',
-                      borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
-                    }}>{l}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((f, i) => (
-                  <RigaTabella key={f.id} f={f} cfg={cfg} i={i} last={i === items.length - 1} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {/* Body — Audit 2026-07-01 batch 10 Performance: paginazione UI a 60
+            elementi per evitare lag su scadenzari grandi (1000+ fatture). */}
+        {(() => {
+          const PAGE_SIZE = 60
+          const isPaginated = items.length > PAGE_SIZE && !shownAll
+          const view = isPaginated ? items.slice(0, PAGE_SIZE) : items
+          return (
+            <>
+              {isMobile ? (
+                <div style={{ padding: 8 }}>
+                  {view.map(f => <CardMobile key={f.id} f={f} cfg={cfg} />)}
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, ...tnum }}>
+                    <thead>
+                      <tr style={{ background: '#FAFAF8' }}>
+                        {[
+                          'Fornitore', 'Numero', 'Data fatt.', 'Scadenza', 'Totale', 'Stato', 'Azioni',
+                        ].map((l, idx) => (
+                          <th key={l} style={{
+                            padding: '8px 12px',
+                            textAlign: idx === 4 ? 'right' : 'left',
+                            fontSize: 10, fontWeight: 600,
+                            color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em',
+                            borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
+                          }}>{l}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {view.map((f, i) => (
+                        <RigaTabella key={f.id} f={f} cfg={cfg} i={i} last={i === view.length - 1} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {isPaginated && (
+                <div style={{
+                  padding: '14px 16px', textAlign: 'center',
+                  borderTop: `1px solid ${T.border}`, background: '#FAFAF6',
+                }}>
+                  <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 8 }}>
+                    Mostrate <strong>{view.length}</strong> di <strong>{items.length}</strong> fatture.
+                  </div>
+                  <button onClick={() => setShownAll(true)}
+                    style={{
+                      padding: '8px 20px', borderRadius: 8,
+                      border: `1px solid ${T.border}`, background: T.bgCard,
+                      fontSize: 12, fontWeight: 700, color: T.text, cursor: 'pointer',
+                    }}>
+                    Mostra tutte ({items.length})
+                  </button>
+                </div>
+              )}
+            </>
+          )
+        })()}
       </section>
     )
   }

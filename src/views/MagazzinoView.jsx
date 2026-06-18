@@ -324,6 +324,15 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
   }, [ricettario])
 
   const filtered = search.trim() ? ingredienti.filter(i => (i.nome || '').toLowerCase().includes(search.toLowerCase().trim())) : ingredienti
+  // Audit 2026-07-01 batch 10 Performance: paginazione UI per liste grandi.
+  // Pasticcerie con ricettario completo possono avere 200-500 ingredienti;
+  // renderizzarli tutti = 500 row + form input = lag tangibile su mobile.
+  // Default 80 visibili, "Mostra altri" carica +80 per volta. La ricerca
+  // bypassa il limite (i risultati filtrati sono comunque pochi).
+  const [maxVisible, setMaxVisible] = useState(80)
+  useEffect(() => { setMaxVisible(80) }, [search])
+  const isPaginated = !search.trim() && filtered.length > maxVisible
+  const visibleRows = isPaginated ? filtered.slice(0, maxVisible) : filtered
 
   const startEdit = (row) => { setEditKey(row.key); setEditVal(row.prezzoKg ? row.prezzoKg.toFixed(2) : '') }
   const cancelEdit = () => { setEditKey(null); setEditVal('') }
@@ -417,7 +426,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                   {search.trim() ? `Nessun ingrediente che corrisponde a "${search}".` : 'Nessun ingrediente disponibile.'}
                 </td></tr>
               )}
-              {filtered.map((row, i) => {
+              {visibleRows.map((row, i) => {
                 const editing = editKey === row.key
                 return (
                   <tr key={row.key} style={{ borderBottom: `1px solid ${C.border}`, background: editing ? '#FFF8F7' : i % 2 === 0 ? C.white : '#FDFAF7' }}>
@@ -457,6 +466,24 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               })}
             </tbody>
           </table>
+          {isPaginated && (
+            <div style={{
+              padding: '14px 18px', textAlign: 'center',
+              borderTop: `1px solid ${C.border}`, background: '#FAFAF6',
+            }}>
+              <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 8 }}>
+                Mostrati <strong>{visibleRows.length}</strong> di <strong>{filtered.length}</strong> ingredienti.
+              </div>
+              <button onClick={() => setMaxVisible(m => m + 80)}
+                style={{
+                  padding: '8px 20px', borderRadius: 8,
+                  border: `1px solid ${C.borderStr}`, background: C.white,
+                  fontSize: 12, fontWeight: 700, color: C.text, cursor: 'pointer',
+                }}>
+                Mostra altri 80
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

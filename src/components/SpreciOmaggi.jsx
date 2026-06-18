@@ -56,16 +56,24 @@ const BLU_LIGHT = '#E0F2FE'
 
 // ── Tassonomia causali (owner-POV) ───────────────────────────────────────────
 // tipo resta 'spreco'|'omaggio' (vincolo cassa). Il dettaglio sta nella causale.
+// Audit 2026-07-01 batch 11 Sprechi/Omaggi: categorie ASL standard
+// (Reg. UE 1169 + best practice food safety). Servono per:
+//   - Report ASL annuale (categoria → totali kg + €)
+//   - Note di credito fornitore (danneggiato_trasporto, scaduto-da-fornitore)
+//   - R&D budget (test_ricetta separato da cortesia cliente)
 const CAUSALI = {
   spreco: [
-    { id: 'scarto',            label: 'Scarto / buttato',     desc: 'Prodotto gettato: scadenza, contaminazione, caduto, non conforme' },
+    { id: 'scaduto',           label: 'Scaduto',              desc: 'Prodotto oltre data di scadenza: smaltimento HACCP obbligatorio' },
+    { id: 'scarto',            label: 'Scarto / buttato',     desc: 'Prodotto gettato: contaminazione, caduto, non conforme' },
     { id: 'avanzo',            label: 'Avanzo fine giornata', desc: 'Prodotto invenduto a fine giornata, non recuperabile' },
     { id: 'errore_produzione', label: 'Errore in produzione', desc: 'Venuto male in lavorazione/cottura, non vendibile' },
+    { id: 'danneggiato_trasporto', label: 'Danneggiato trasporto', desc: 'Arrivato non conforme dal fornitore: rivendicare nota di credito' },
     { id: 'ammanco',           label: 'Ammanco',              desc: 'Sparizione non spiegata da inventario o cassa' },
   ],
   omaggio: [
-    { id: 'regalo',   label: 'Regalo al cliente', desc: 'Prodotto ceduto gratis: cortesia, recupero cliente, fidelizzazione' },
-    { id: 'cortesia', label: 'Assaggio / promo',  desc: 'Assaggio, test nuovo prodotto, marketing, evento' },
+    { id: 'regalo',     label: 'Regalo al cliente',  desc: 'Prodotto ceduto gratis: cortesia, recupero cliente, fidelizzazione' },
+    { id: 'cortesia',   label: 'Assaggio / promo',   desc: 'Assaggio cliente al banco, evento, fidelizzazione' },
+    { id: 'test_ricetta', label: 'Test ricetta / R&D', desc: 'Prova interna: NON è omaggio cliente. Budget separato per ricerca prodotto' },
   ],
 }
 const CAUSALE_LABEL = {}
@@ -142,6 +150,8 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
   const [movs, setMovs] = useState([])         // SK_MOV (sorgente scrittura)
   const [legacy, setLegacy] = useState([])     // SK_DISC normalizzati (sola lettura)
   const [legacyDrift, setLegacyDrift] = useState([]) // porzione_* storici (insight)
+  // Audit 2026-07-01 batch 11: ricavi mese per soglia % alert.
+  const [chiusureMese, setChiusureMese] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(null)
   const [filtroTipo, setFiltroTipo] = useState('tutti')
@@ -168,9 +178,12 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
     // SK_MOV sempre. SK_DISC solo per il titolare (read-only, fold storico).
     const pMov = caricaMovimenti(orgId, sedeId)
     const pDisc = isDip ? Promise.resolve([]) : sload(SK_DISCREPANZE, orgId, sedeId || null)
-    Promise.all([pMov, pDisc]).then(([arr, disc]) => {
+    // Carica chiusure (titolare only — il dipendente ha view sanitizzata).
+    const pChius = isDip ? Promise.resolve([]) : sload('pasticceria-chiusure-v1', orgId, sedeId)
+    Promise.all([pMov, pDisc, pChius]).then(([arr, disc, chius]) => {
       if (!alive) return
       setMovs(Array.isArray(arr) ? arr : [])
+      setChiusureMese(Array.isArray(chius) ? chius : [])
       const discArr = Array.isArray(disc) ? disc : []
       const norm = []
       const drift = []
@@ -237,6 +250,22 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       nTot: periodo.length, classifica, causaliOrd, maxEur, causaPrinc, causaPct,
     }
   }, [periodo])
+
+  // Audit 2026-07-01 batch 11: soglia % sprechi vs ricavi del mese filtrato.
+  // Best-practice food: sotto 2% ottimo, 2-5% normale, sopra 5% allerta.
+  // Calcolo solo per titolare (dipendente ha valori sanitizzati).
+  const sogliaInfo = useMemo(() => {
+    if (isDip) return null
+    const ricavi = chiusureMese
+      .filter(c => (c?.data || '').startsWith(mese))
+      .reduce((s, c) => s + Number(c?.kpi?.totV || c?.totale || 0), 0)
+    if (ricavi <= 0) return null
+    const pct = (aggregat.totPerso / ricavi) * 100
+    let livello = 'ok'
+    if (pct >= 5) livello = 'alto'
+    else if (pct >= 2) livello = 'medio'
+    return { ricavi, pct, livello }
+  }, [chiusureMese, mese, aggregat.totPerso, isDip])
 
   // Food cost del mese (dal ricettario reale) — per l'incidenza % della perdita.
   // Solo titolare: il dipendente ha ricettario sanitizzato (FC=0) → niente diagnosi.
@@ -553,6 +582,28 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
           </div>
         )}
       </div>
+
+      {/* Audit 2026-07-01 batch 11: banner soglia % sprechi vs ricavi mese.
+          Visibile solo se ricavi noti e %>2 (livello medio o alto). */}
+      {sogliaInfo && sogliaInfo.livello !== 'ok' && (
+        <div role="alert" style={{
+          padding: '12px 16px', borderRadius: 10, marginBottom: 14,
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          background: sogliaInfo.livello === 'alto' ? '#FEF2F2' : '#FEF9C3',
+          border: `1.5px solid ${sogliaInfo.livello === 'alto' ? '#FCA5A5' : '#FDE68A'}`,
+          color: sogliaInfo.livello === 'alto' ? '#991B1B' : '#854D0E',
+        }}>
+          <Icon name="warning" size={18} color={sogliaInfo.livello === 'alto' ? '#DC2626' : '#CA8A04'} />
+          <div style={{ flex: 1, minWidth: 200, fontSize: 13, lineHeight: 1.5 }}>
+            <strong>{sogliaInfo.livello === 'alto' ? 'Sprechi elevati' : 'Attenzione sprechi'}</strong>:
+            stai perdendo <strong>{fmtp(sogliaInfo.pct)}</strong> dei ricavi del mese
+            ({fmt0(diag.totPerso)} su {fmt0(sogliaInfo.ricavi)}).
+            {sogliaInfo.livello === 'alto'
+              ? ' Sopra 5% indica un problema strutturale: rivedi porzioni, scorte, scarti produzione.'
+              : ' Tra 2% e 5% e\' fisiologico ma migliorabile.'}
+          </div>
+        </div>
+      )}
 
       {/* (1) DIAGNOSI — banda KPI del mese */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>

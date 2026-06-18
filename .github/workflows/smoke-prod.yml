@@ -1,0 +1,84 @@
+# Smoke test post-deploy: pinga gli endpoint critici di foodios-rose.vercel.app
+# (alias prod) e verifica che siano vivi. Triggered:
+#   - dopo che vercel-deploy.yml completa con successo su main
+#   - manualmente (workflow_dispatch)
+#   - schedulato ogni 6 ore (uptime poor-man's)
+#
+# Logica:
+#   1. GET /api/health → 200 + ok:true
+#   2. GET /api/tv senza token → 401 (verifica auth attiva)
+#   3. POST /api/feedback senza token → 401 (verifica auth attiva)
+#   4. GET / → 200 (landing carica)
+#
+# Se uno fallisce, il job e' rosso e l'admin riceve email da GitHub
+# (anche senza configurare Slack/Resend).
+
+name: Smoke prod
+
+on:
+  workflow_run:
+    workflows: ['Vercel deploy']
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '17 */6 * * *'  # ogni 6 ore al minuto 17 (no collision col cron-giornaliero)
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: https://foodios-rose.vercel.app
+    steps:
+      - name: Health endpoint (200 + status:ok)
+        run: |
+          echo "→ GET $BASE_URL/api/health"
+          BODY=$(curl -fsS --max-time 15 "$BASE_URL/api/health")
+          echo "Response: $BODY"
+          echo "$BODY" | grep -q '"status":"ok"' || (echo "❌ /api/health non ritorna status:ok" && exit 1)
+          echo "$BODY" | grep -q '"db":true' || (echo "❌ /api/health db:false" && exit 1)
+          echo "✅ Health ok"
+
+      - name: TV endpoint requires auth (401 senza token)
+        run: |
+          echo "→ GET $BASE_URL/api/tv (no auth)"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$BASE_URL/api/tv")
+          echo "Status: $STATUS"
+          # Accettiamo 401 (atteso) o 405 (Method Not Allowed se GET non supportato).
+          # 200 sarebbe un BUG di sicurezza.
+          case "$STATUS" in
+            200) echo "❌ /api/tv risponde 200 senza auth — bug security!"; exit 1 ;;
+            401|405|400) echo "✅ /api/tv blocca correttamente (HTTP $STATUS)" ;;
+            *) echo "⚠️ /api/tv ha ritornato HTTP $STATUS (inatteso ma non bloccante)" ;;
+          esac
+
+      - name: Feedback endpoint requires auth (401 senza token)
+        run: |
+          echo "→ POST $BASE_URL/api/feedback (no auth)"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 \
+            -X POST -H "Content-Type: application/json" \
+            -d '{"messaggio":"smoke test"}' \
+            "$BASE_URL/api/feedback")
+          echo "Status: $STATUS"
+          case "$STATUS" in
+            200) echo "❌ /api/feedback risponde 200 senza auth — bug security!"; exit 1 ;;
+            401|400) echo "✅ /api/feedback blocca correttamente (HTTP $STATUS)" ;;
+            *) echo "⚠️ /api/feedback ha ritornato HTTP $STATUS (inatteso)" ;;
+          esac
+
+      - name: Landing carica (200 + contiene "FoodOS")
+        run: |
+          echo "→ GET $BASE_URL/"
+          BODY=$(curl -fsS --max-time 15 "$BASE_URL/")
+          echo "$BODY" | grep -qi 'foodos' || (echo "❌ landing non contiene FoodOS" && exit 1)
+          echo "✅ Landing carica"
+
+      - name: Migration files coherence (no orphan SQL)
+        run: |
+          echo "→ Verifico che ogni migration in repo sia stata applicata (best-effort)"
+          # Solo conta i file SQL per evitare deploy con migration nuove non applicate.
+          # NB: il vero check va in CI di PR; qui solo log informativo.
+          ls -1 supabase/migrations/*.sql | wc -l
+          echo "(reminder: applicare migration in Supabase SQL editor PRIMA del deploy)"

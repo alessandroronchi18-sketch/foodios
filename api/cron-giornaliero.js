@@ -161,8 +161,13 @@ export default async function handler(req) {
   // Se >= 1 step ha ok=false ed esiste ADMIN_EMAIL+RESEND_API_KEY, invia
   // email riepilogativa all'admin per intervenire. Idempotente per giorno
   // via dedup-key cron_runs (vedi migration 20260701).
+  // Audit 2026-07-01 batch 12 Osservabilita: Slack webhook in alternativa.
+  // Se SLACK_WEBHOOK_URL configurato, manda anche Slack (founder vivono su Slack,
+  // non email). Email resta gating su ADMIN_EMAIL+RESEND_API_KEY.
   const stepsFalliti = results.filter(s => !s.ok)
-  if (stepsFalliti.length > 0 && process.env.ADMIN_EMAIL && process.env.RESEND_API_KEY) {
+  const hasSlack = !!process.env.SLACK_WEBHOOK_URL
+  const hasEmail = !!(process.env.ADMIN_EMAIL && process.env.RESEND_API_KEY)
+  if (stepsFalliti.length > 0 && (hasEmail || hasSlack)) {
     try {
       const oggi = now.toISOString().slice(0, 10)
       // Dedup: una sola email per (job_name, day). Se gia inviata, skip.
@@ -184,19 +189,43 @@ export default async function handler(req) {
           </table>
           <p style="color:#94A3B8;font-size:11px;margin-top:20px">Verifica i log Vercel + error_log su DB. Se ricorrente, rivedi STEP_TIMEOUT_MS o paginazione cron-notifiche.</p>
         </div>`
-        await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: 'FoodOS <noreply@foodios.it>',
-            to: process.env.ADMIN_EMAIL,
-            subject: `⚠️ Cron FoodOS — ${stepsFalliti.length} step falliti`,
-            html,
-          }),
-        }).catch(() => { /* alerting best-effort */ })
+        // EMAIL via Resend (se configurato)
+        if (hasEmail) {
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'FoodOS <noreply@foodios.it>',
+              to: process.env.ADMIN_EMAIL,
+              subject: `⚠️ Cron FoodOS — ${stepsFalliti.length} step falliti`,
+              html,
+            }),
+          }).catch(() => { /* alerting best-effort */ })
+        }
+        // SLACK via incoming webhook (se configurato)
+        if (hasSlack) {
+          const slackText = `⚠️ *Cron FoodOS* — ${stepsFalliti.length}/${results.length} step falliti (${now.toISOString()})`
+          const slackFields = stepsFalliti.slice(0, 7).map(s => {
+            const err = (s.error || s.body?.error || `HTTP ${s.status || '?'}`).toString().slice(0, 150)
+            return { title: s.step, value: `${err} _(${s.ms || 0}ms)_`, short: false }
+          })
+          await fetch(process.env.SLACK_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: slackText,
+              attachments: [{
+                color: '#DC2626',
+                fields: slackFields,
+                footer: 'FoodOS · alerting cron',
+                ts: Math.floor(Date.now() / 1000),
+              }],
+            }),
+          }).catch(() => { /* alerting best-effort */ })
+        }
         try { await sup.rpc('cron_run_mark', { p_job_name: alertJob, p_status: 'ok' }) } catch {}
       }
     } catch (e) {

@@ -1,0 +1,61 @@
+# Migration check sulle PR: se la PR introduce nuovi file SQL in
+# supabase/migrations/, commenta sulla PR con la lista + reminder
+# "Applicare in Supabase SQL editor PRIMA del merge".
+#
+# Evita la classe di bug "feature deployata ma migration non applicata" che
+# rompe gli endpoint che chiamano RPC nuove.
+
+name: Migration check
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**.sql'
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # serve per il diff vs base
+      - name: Identifica nuove migration
+        id: diff
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          NEW=$(git diff --name-only --diff-filter=A "$BASE" "$HEAD" \
+            -- 'supabase/migrations/*.sql' | sort)
+          if [ -z "$NEW" ]; then
+            echo "No new migrations"
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "Found new migrations:"
+            echo "$NEW"
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "files<<EOF" >> $GITHUB_OUTPUT
+            echo "$NEW" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      - name: Comment on PR
+        if: steps.diff.outputs.found == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const files = `${{ steps.diff.outputs.files }}`.trim().split('\n')
+            const list = files.map(f => `- \`${f}\``).join('\n')
+            const body = `## ⚠️ Nuove migration in questa PR\n\n` +
+              `${list}\n\n` +
+              `**Prima di mergiare**, applica queste migration nel SQL editor di Supabase (prod).\n` +
+              `Altrimenti gli endpoint che chiamano le nuove RPC falliranno post-deploy.\n\n` +
+              `<sub>Auto-comment by \`.github/workflows/migration-check.yml\`</sub>`
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            })

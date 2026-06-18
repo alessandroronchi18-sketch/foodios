@@ -12,6 +12,7 @@ import { loadStockPF, loadStockPFAllSedi } from '../lib/stockPF'
 import { lessico } from '../lib/lessico'
 import SedeSelector from '../components/SedeSelector'
 import DailyBriefCard from '../components/DailyBriefCard'
+import PrimiPassi from '../components/PrimiPassi'
 import { C, TNUM } from './_shared'
 import Icon from '../components/Icon'
 
@@ -282,6 +283,14 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   return (
     <div style={{ maxWidth: 1220, margin: '0 auto' }}>
       <style>{HOVER_CSS}</style>
+
+      {/* Primi passi — sparisce quando completati o se dismessi */}
+      <PrimiPassi
+        orgId={orgId} sedeId={sedeId}
+        ricettario={ricettario} magazzino={magazzino}
+        giornaliero={giornaliero} chiusure={chiusure}
+        onNavigate={setView}
+      />
 
       {/* Daily Brief AI (se generato dal cron mattutino) */}
       <DailyBriefCard orgId={orgId} />
