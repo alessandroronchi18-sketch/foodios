@@ -16,6 +16,8 @@ import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // consumatori — PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage —
 // sono tutti gia' lazy.
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
+import { mergeArr as _mergeArr, mergeMag as _mergeMag } from './lib/multiSediMerge'
+import { analizzaFotoAI } from './lib/analizzaFotoAI'
 import { supabase } from './lib/supabase'
 import { caricoProduzionePF, scaricoVenditaPF } from './lib/stockPF'
 import { creaTrasferimento } from './lib/trasferimenti'
@@ -56,7 +58,7 @@ const NotifichePanel = lazyWithReload(() => import('./components/NotifichePanel'
 const BackgroundToast = lazyWithReload(() => import('./components/BackgroundToast'))
 import { backgroundManager } from './lib/backgroundManager'
 import { uploadManager } from './lib/backgroundManager'
-import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese } from './lib/rese'
+import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese, resetRese } from './lib/rese'
 const Fornitori = lazyWithReload(() => import('./components/Fornitori'))
 const VenditeB2BView = lazyWithReload(() => import('./views/VenditeB2BView'))
 const Personale = lazyWithReload(() => import('./components/Personale'))
@@ -119,6 +121,19 @@ const SemilavoratiView = lazyWithReload(() => import('./views/SemilavoratiView')
 // view components defined at module scope can call ssave/sload without prop-drilling.
 let _ctx_orgId = null;
 let _ctx_sedeId = null;
+// Audit 2026-07-01 CRITICAL: protezione race "context-switch tra due ssave
+// consecutive". Ogni ssave registra una Promise in `_pendingSaves`. Quando
+// cambia il contesto (Dashboard render con nuovo orgId/sedeId), aspettiamo
+// che il set sia vuoto prima di aggiornare _ctx — evita "data di org A
+// salvata su org B" se l'utente cambia sede mentre un handler ha già fatto
+// `await ssave(k1, v1)` e sta per fare `await ssave(k2, v2)`.
+const _pendingSaves = new Set();
+async function _flushPendingSaves() {
+  // Snapshot per evitare modifiche concorrenti durante l'iterazione.
+  const snap = Array.from(_pendingSaves);
+  if (snap.length === 0) return;
+  await Promise.allSettled(snap);
+}
 // Backup localStorage di TUTTI i ssave. Recovery se Supabase ritorna vuoto al login.
 // Le chiavi shared sono indicizzate solo per orgId; quelle per-sede includono
 // anche sedeId per evitare che switchare sede sovrascriva i backup dell'altra.
@@ -136,78 +151,25 @@ function bkReadLS(key, orgId, sedeId) {
   try { const raw = localStorage.getItem(_bkKey(orgId, sedeId, key)); if (!raw) return null; const o = JSON.parse(raw); return o?.v ?? null; } catch { return null; }
 }
 function ssave(key, val) {
-  bkWriteLS(key, val, _ctx_orgId, _ctx_sedeId);
-  return _ssave(key, val, _ctx_orgId, _ctx_sedeId);
+  // Cattura IL contesto AL CALL SITE (sincrono) per garantire che la riga
+  // venga scritta sulla coppia (orgId, sedeId) corretta — anche se _ctx
+  // cambia prima del completamento della Promise.
+  const capturedOrgId = _ctx_orgId;
+  const capturedSedeId = _ctx_sedeId;
+  bkWriteLS(key, val, capturedOrgId, capturedSedeId);
+  const p = _ssave(key, val, capturedOrgId, capturedSedeId);
+  _pendingSaves.add(p);
+  // Pulizia del set quando la Promise si chiude (qualunque esito).
+  p.finally?.(() => { _pendingSaves.delete(p) });
+  return p;
 }
 function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
 
-// ── Vista azienda ("Tutte le sedi"): merge dei dati per-sede ──────────────────
-// Array (giornaliero/chiusure/logrif) → concatenati; magazzino → giacenze sommate.
-function _mergeArr(map) { return Object.values(map || {}).filter(Array.isArray).flat(); }
-function _mergeMag(map) {
-  const out = {};
-  for (const m of Object.values(map || {})) {
-    if (!m || typeof m !== 'object' || Array.isArray(m)) continue;
-    for (const [k, v] of Object.entries(m)) {
-      if (!v || typeof v !== 'object') continue;
-      if (!out[k]) out[k] = { ...v };
-      else out[k] = { ...out[k], giacenza_g: (out[k].giacenza_g || 0) + (v.giacenza_g || 0), soglia_g: Math.max(out[k].soglia_g || 0, v.soglia_g || 0) };
-    }
-  }
-  return out;
-}
+// _mergeArr/_mergeMag importati in cima dal modulo ./lib/multiSediMerge
+// (audit 2026-07-01 batch 9: primo step di split file Dashboard >1500 righe).
 
-// ─── CENTRALIZZATA ANALISI FOTO AI ───────────────────────────────────────────
-async function analizzaFotoAI(file, tipo = 'ricetta') {
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-  const prompts = {
-    ricetta: `Analizza questa immagine di una ricetta (può essere scritta a mano, stampata, o una pagina di libro di ricette) e restituisci SOLO un oggetto JSON valido senza nessun testo aggiuntivo:
-{"nome":"NOME RICETTA IN MAIUSCOLO","categoria":"una di: Torte/Biscotti/Crostate/Muffin/Croissant/Pane/Pizze/Primi/Secondi/Dolci/Altro","porzioni":8,"ingredienti":[{"nome":"nome ingrediente in italiano minuscolo","quantita":250,"unita":"g/kg/ml/l/pz/cucchiai/tazze"}],"procedimento":"breve descrizione se visibile","temperatura":null,"tempo_cottura_minuti":null}
-Leggi con attenzione anche grafia difficile o scritte a mano. Se un valore non è leggibile metti null.`,
-  };
-  const session = await supabase.auth.getSession();
-  const token = session.data.session?.access_token;
-  if (!token) {
-    throw new Error('Sessione scaduta. Ricarica la pagina e riprova.');
-  }
-  const res = await fetch('/api/ai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6', max_tokens: 2000,
-      messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
-        { type: 'text', text: prompts[tipo] || prompts.ricetta }
-      ]}]
-    })
-  });
-  if (res.status === 401) {
-    // Sessione scaduta — non e' un problema di foto.
-    throw new Error('Sessione scaduta durante l\'analisi. Esci e rientra per riprovare.');
-  }
-  if (res.status === 429) {
-    throw new Error('Troppe richieste AI in poco tempo. Riprova fra un minuto.');
-  }
-  if (!res.ok) {
-    // 5xx, 4xx generici
-    throw new Error(`Errore servizio AI (${res.status}). Riprova fra qualche istante.`);
-  }
-  const data = await res.json();
-  const testo = data.content?.find(b => b.type === 'text')?.text || '';
-  try {
-    const clean = testo.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    return JSON.parse(clean);
-  } catch {
-    const match = testo.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error('Impossibile leggere la risposta AI. Riprova con una foto più nitida.');
-  }
-}
+// `analizzaFotoAI` estratta in src/lib/analizzaFotoAI.js (audit 2026-07-01
+// batch 9: split file Dashboard >1500 righe — secondo step).
 
 // ─── SORTABLE TABLE HOOK ──────────────────────────────────────────────────────
 function useSortable(defaultKey, defaultDir="desc") {
@@ -834,7 +796,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
   const card = { background:"#FFF", borderRadius:14, padding:"24px 28px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)", marginBottom:20 };
   const label = { fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8, display:"block" };
-  const input = { width:"100%", padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, fontWeight:500, color:C.text, background:"#FAFAFA", outline:"none" };
+  const input = { width:"100%", padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:16, fontWeight:500, color:C.text, background:"#FAFAFA", outline:"none" };
 
   const TABS = [
     ["generale", "gear", "Generale"],
@@ -1194,7 +1156,17 @@ export default function Dashboard({
   isTrialAttivo = false,
   onSignOut = null,
 }) {
-  // Sync module-level storage context with current org/sede
+  // Sync module-level storage context with current org/sede.
+  // Audit 2026-07-01 CRITICAL: prima di cambiare contesto, aspettiamo che
+  // le scritture pendenti completino. Senza, una ssave registrata con il
+  // contesto vecchio potrebbe non avere finito quando un'altra ssave
+  // immediatamente successiva viene chiamata col contesto nuovo. Le ssave
+  // gia' partite catturano sempre IL contesto al call-site (vedi ssave),
+  // quindi gia' robuste. Questo barrier protegge il caso "ho cliccato
+  // Salva e nel frattempo cambio sede dal menu".
+  if (_ctx_orgId !== orgId || _ctx_sedeId !== sedeId) {
+    _flushPendingSaves().catch(()=>{}); // best-effort, non blocca il render
+  }
   _ctx_orgId = orgId;
   _ctx_sedeId = sedeId;
   // "Tutte le sedi": vista aggregata azienda (sola lettura). Le viste operative
@@ -1343,19 +1315,32 @@ export default function Dashboard({
     return `linear-gradient(135deg, ${c} 0%, ${dark} 100%)`;
   })();
 
-  const notify=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
+  // Audit 2026-07-01 HIGH: timer accumulato sovrascriveva il successivo toast.
+  // Tracking di un singolo timer attivo + clear al prossimo notify/unmount.
+  const notifyTimerRef = useRef(null);
+  const notify=(msg,ok=true)=>{
+    if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+    setToast({msg,ok});
+    notifyTimerRef.current = setTimeout(()=>{ setToast(null); notifyTimerRef.current = null; },3000);
+  };
   // Espone notify globalmente per i call site che non l'hanno in scope (es. export PDF rate-limited)
-  useEffect(()=>{ window.__foodos_notify=notify; return ()=>{ delete window.__foodos_notify; }; },[]);
+  useEffect(()=>{
+    window.__foodos_notify=notify;
+    return ()=>{
+      delete window.__foodos_notify;
+      if (notifyTimerRef.current) { clearTimeout(notifyTimerRef.current); notifyTimerRef.current = null; }
+    };
+  },[]);
 
   const _RIC_CACHE_KEY = `ric_cache_${orgId}`;
   const SK_LOGRIF = "pasticceria-logrif-v1";
 
   useEffect(()=>{
     if (!orgId) {
-      console.log('caricaDati: orgId non ancora disponibile, attendo...');
+      console.debug('caricaDati: orgId non ancora disponibile, attendo...');
       return;
     }
-    console.log('caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
+    console.debug('caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
     // Reset stato per-sede prima di ricaricare (evita di mostrare brevemente
     // i dati della sede precedente mescolati ai nuovi). Le chiavi shared
     // (ricettario) le lasciamo: vengono comunque ricaricate sotto.
@@ -1371,15 +1356,15 @@ export default function Dashboard({
       const cached = localStorage.getItem(_RIC_CACHE_KEY);
       if (cached) {
         const { data, savedAt } = JSON.parse(cached);
-        if (data) { setRic(data); setOfflineCacheDate(savedAt); console.log('cache ricettario:', Object.keys(data.ricette||{}).length, 'ricette'); }
+        if (data) { setRic(data); setOfflineCacheDate(savedAt); console.debug('cache ricettario:', Object.keys(data.ricette||{}).length, 'ricette'); }
       }
     } catch {}
     try {
-      const bkMag    = bkReadLS(SK_MAG,    orgId, sedeId); if (bkMag)    { setMagazzino(bkMag);        console.log('cache magazzino:', Object.keys(bkMag).length); }
-      const bkGior   = bkReadLS(SK_GIOR,   orgId, sedeId); if (bkGior)   { setGiornaliero(bkGior);     console.log('cache giornaliero:', bkGior.length); }
-      const bkChius  = bkReadLS(SK_CHIUS,  orgId, sedeId); if (bkChius)  { setChiusure(bkChius);       console.log('cache chiusure:', bkChius.length); }
-      const bkProd   = bkReadLS(SK_PROD,   orgId, sedeId); if (bkProd)   { setProd(bkProd);            console.log('cache produzione:', Object.keys(bkProd).length); }
-      const bkAct    = bkReadLS(SK_ACT,    orgId, null);   if (bkAct)    { setAct(bkAct);              console.log('cache actions:', bkAct.length); }
+      const bkMag    = bkReadLS(SK_MAG,    orgId, sedeId); if (bkMag)    { setMagazzino(bkMag);        console.debug('cache magazzino:', Object.keys(bkMag).length); }
+      const bkGior   = bkReadLS(SK_GIOR,   orgId, sedeId); if (bkGior)   { setGiornaliero(bkGior);     console.debug('cache giornaliero:', bkGior.length); }
+      const bkChius  = bkReadLS(SK_CHIUS,  orgId, sedeId); if (bkChius)  { setChiusure(bkChius);       console.debug('cache chiusure:', bkChius.length); }
+      const bkProd   = bkReadLS(SK_PROD,   orgId, sedeId); if (bkProd)   { setProd(bkProd);            console.debug('cache produzione:', Object.keys(bkProd).length); }
+      const bkAct    = bkReadLS(SK_ACT,    orgId, null);   if (bkAct)    { setAct(bkAct);              console.debug('cache actions:', bkAct.length); }
       const bkExcl   = bkReadLS(SK_EXCL,   orgId, null);   if (bkExcl)   { setEsclusi(new Set(bkExcl)); }
       const bkLogRif = bkReadLS(SK_LOGRIF, orgId, sedeId); if (bkLogRif) { setLogRif(bkLogRif); }
     } catch (e) { console.warn('cache locale rec error:', e); }
@@ -1396,7 +1381,7 @@ export default function Dashboard({
                      : !!bk;
       if (!nonEmpty) return;
       console.warn(`${label}: Supabase vuoto, ripristino da backup locale…`);
-      ssave(sk, bk).then(() => console.log(`${label} ripristinato su Supabase`))
+      ssave(sk, bk).then(() => console.debug(`${label} ripristinato su Supabase`))
                    .catch(e => console.error(`Ripristino ${label} fallito:`, e));
     };
 
@@ -1419,7 +1404,7 @@ export default function Dashboard({
       timeout
     ]).then(([ric,prod,act,mag,logrif,gior,chius,excl,logprz])=>{
       setOfflineMode(false);
-      console.log('caricaDati SUPABASE:', {
+      console.debug('caricaDati SUPABASE:', {
         ricette: ric ? Object.keys(ric.ricette||{}).length : 'VUOTO',
         produzione: prod ? Object.keys(prod).length : 'VUOTO',
         actions: act ? act.length : 'VUOTO',
@@ -1434,6 +1419,9 @@ export default function Dashboard({
         // Ripulisci le regole runtime della precedente org prima di applicare
         // quelle di questa (evita leakage cross-org nel singleton REGOLE).
         resetRegoleRuntime();
+        // Idem per le rese: il loadRese precedente potrebbe aver popolato
+        // il singleton con rese di un'altra org. Audit 2026-06-17 HIGH.
+        try { resetRese(); } catch {}
         for(const r of Object.values(ric.ricette||{})){
           if(r.unita!=null && !REGOLE[r.nome]){
             REGOLE[r.nome]={ unita:r.unita, prezzo:r.prezzo, tipo:r.tipo||"fetta" };
@@ -1448,7 +1436,7 @@ export default function Dashboard({
             const { data } = JSON.parse(cached);
             if (data && Object.keys(data.ricette||{}).length > 0) {
               console.warn('ricettario: ripristino da cache locale…');
-              ssave(SK_RIC, data).then(() => console.log('ricettario ripristinato su Supabase'))
+              ssave(SK_RIC, data).then(() => console.debug('ricettario ripristinato su Supabase'))
                                  .catch(e => console.error('Ripristino ricettario fallito:', e));
             }
           }
@@ -1582,6 +1570,7 @@ export default function Dashboard({
   // ── Importazioni globali usate dalla pagina "Importa dati" ────────────────
   // Delivery: auto-detect piattaforma in base alle prime righe del file
   const handleImportDeliveryGlobal = useCallback(async (files) => {
+    let base = chiusure || [];
     for (const f of Array.from(files||[])) {
       try {
         const text = await f.text();
@@ -1594,8 +1583,13 @@ export default function Dashboard({
           notify(`Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
           continue;
         }
-        const nuove = mergeInChiusure(chiusure||[], righe, piattaforma);
-        await ssave(SK_CHIUS, nuove); setChiusure(nuove); // SAVE FIRST (il throw è gestito dal catch sotto)
+        // Audit 2026-06-17 CRITICAL: il loop closure capture di `chiusure` faceva
+        // partire ogni file dalla stessa baseline → ultimo ssave sovrascriveva
+        // i precedenti. Usiamo `base` accumulato per applicare i merge in sequenza.
+        const nuove = mergeInChiusure(base, righe, piattaforma);
+        await ssave(SK_CHIUS, nuove);
+        base = nuove;
+        setChiusure(nuove);
         notify(`✓ ${righe.length} giorni importati da ${piattaforma}`);
       } catch (e) {
         notify(`${f.name}: ${e.message}`, false);
@@ -1606,6 +1600,7 @@ export default function Dashboard({
   // Casse: prova i parser conosciuti (zucchetti/streamcassa/toast) — se nessuno funziona avvisa
   const handleImportCasseGlobal = useCallback(async (files) => {
     const sistemi = ['zucchetti', 'streamcassa', 'toast'];
+    let base = chiusure || [];
     for (const f of Array.from(files||[])) {
       let righe = null, sistema = null;
       for (const s of sistemi) {
@@ -1615,10 +1610,10 @@ export default function Dashboard({
         notify(`Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
         continue;
       }
-      const nuove = mergeInChiusureCassa(chiusure||[], righe, sistema);
-      // SAVE FIRST: questo loop non ha try/catch esterno, gestisco qui
+      const nuove = mergeInChiusureCassa(base, righe, sistema);
       try { await ssave(SK_CHIUS, nuove); }
       catch (e) { notify(`${f.name}: ${e.message||'rete'}`, false); continue; }
+      base = nuove;
       setChiusure(nuove);
       notify(`✓ ${righe.length} giorni importati da ${sistema}`);
     }
@@ -1794,7 +1789,7 @@ export default function Dashboard({
       effectiveOrgId = orgId || _ctx_orgId;
       tentativo++;
     }
-    console.log('handleSalvaRicetta', { orgId, _ctx_orgId, effectiveOrgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
+    console.debug('handleSalvaRicetta', { orgId, _ctx_orgId, effectiveOrgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
     if (!effectiveOrgId) {
       notify('Sessione non valida (orgId mancante). Ricarica la pagina.', false);
       return;
@@ -2865,7 +2860,7 @@ export default function Dashboard({
         )}
         {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} LEX={LEX}/>}
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
-        {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola}/>}
+        {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX}/>}
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
@@ -2900,11 +2895,11 @@ export default function Dashboard({
         {view==="changelog"&&<ChangelogView/>}
         {view==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
         {view==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
-        {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId}/>}
+        {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId} notify={notify}/>}
         {view==="forecast"&&<ForecastView orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} setView={setView}/>}
-        {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId}/>}
-        {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId}/>}
-        {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario}/>}
+        {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} notify={notify}/>}
+        {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId} notify={notify}/>}
+        {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {view==="ai-brain"&&(canAccessView("ai-brain",piano,auth?.user?.email)?<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ai-brain" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="ricette-ai"&&(canAccessView("ricette-ai",piano,auth?.user?.email)?<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ricette-ai" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="marketplace"&&(canAccessView("marketplace",piano,auth?.user?.email)?<MarketplaceView/>:<UpgradeGate view="marketplace" onUpgrade={()=>setView("impostazioni")}/>)}

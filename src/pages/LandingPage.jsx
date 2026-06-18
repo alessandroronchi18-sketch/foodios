@@ -146,6 +146,7 @@ function Button({ children, variant = 'primary', onClick, style, size = 'md' }) 
    DASHBOARD PREVIEW
 ─────────────────────────────────────────────────────────────────────────── */
 function DashboardPreview() {
+  const isMobile = useIsMobile()
   return (
     <div style={{
       background: T.paper, borderRadius: 18, overflow: 'hidden',
@@ -189,7 +190,7 @@ function DashboardPreview() {
             <div key={i} style={{
               padding: '8px 14px',
               fontSize: 11, fontWeight: active ? 600 : 400,
-              color: active ? '#FFF' : 'rgba(244,236,227,0.55)',
+              color: active ? '#FFF' : 'rgba(244,236,227,0.8)',
               background: active ? T.red : 'transparent',
               borderRadius: active ? '0 18px 18px 0' : 0,
               letterSpacing: '0.005em',
@@ -205,7 +206,7 @@ function DashboardPreview() {
             Buongiorno, Marco
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
             {[
               { l: 'Ricavi oggi', v: '€ 847',  sub: '+12%' },
               { l: 'Food cost',   v: '26,8%',  sub: 'target 30%' },
@@ -1293,9 +1294,9 @@ export default function LandingPage({ onLogin, onRegister }) {
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
                   <span style={{ fontFamily: SERIF, fontSize: 72, fontWeight: 600, color: '#FFF', letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.pro)}</span>
-                  <span style={{ fontSize: 16, color: 'rgba(244,236,227,0.55)' }}>/ mese</span>
+                  <span style={{ fontSize: 16, color: 'rgba(244,236,227,0.8)' }}>/ mese</span>
                 </div>
-                <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.5)', marginBottom: 28 }}>
+                <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.78)', marginBottom: 28 }}>
                   IVA esclusa · fatturato mensile
                 </div>
 
@@ -1483,7 +1484,7 @@ export default function LandingPage({ onLogin, onRegister }) {
 
             <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Prodotto</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Prodotto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <a onClick={onRegister} style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', cursor: 'pointer', textDecoration: 'none' }}>Prova gratis</a>
                   <a onClick={onLogin} style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', cursor: 'pointer', textDecoration: 'none' }}>Accedi</a>
@@ -1491,7 +1492,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               </div>
 
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Supporto</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Supporto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <a href="/contatti" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Contatti</a>
                   <a href="/chi-siamo" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Chi siamo</a>
@@ -1500,7 +1501,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               </div>
 
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Legale</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(244,236,227,0.78)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>Legale</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <a href="/privacy" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Privacy Policy</a>
                   <a href="/termini" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Termini di Servizio</a>

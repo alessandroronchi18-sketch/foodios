@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 import { KPI, SH, PageHeader, Tip, C, useSortable, SortTH } from '../views/_shared'
@@ -79,6 +80,7 @@ function BandaDiagnosi({ orgId, sedeId, isMobile, refreshKey }) {
 // TAB 1 — Anagrafica fornitori
 // ─────────────────────────────────────────────────────────────────────────────
 function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, onMutate }) {
+  const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: "", iban: "", termini_pagamento: "30", categoria: "" })
@@ -145,7 +147,12 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, onMutate }) 
   }
 
   async function archivia(id) {
-    if (!confirm("Archiviare questo fornitore? Potrai riattivarlo dall'archivio quando vuoi.")) return
+    const ok = await confirmDialog({
+      title: 'Archiviare fornitore?',
+      message: "Potrai riattivarlo dall'archivio quando vuoi. Storico ordini resta salvato.",
+      confirmLabel: 'Archivia', cancelLabel: 'Annulla',
+    })
+    if (!ok) return
     const { error } = await supabase.from("fornitori").update({ attivo: false }).eq("id", id).eq("organization_id", orgId)
     if (error) { notify("Errore archiviazione: " + error.message, false); return }
     notify("Fornitore archiviato"); onMutate?.(); carica()
@@ -158,7 +165,12 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, onMutate }) 
   }
 
   async function elimina(f) {
-    if (!confirm(`Eliminare DEFINITIVAMENTE "${f.nome}"? L'operazione è irreversibile.\n\nSe il fornitore ha ordini collegati, archivialo invece di eliminarlo.`)) return
+    const ok = await confirmDialog({
+      title: `Eliminare DEFINITIVAMENTE "${f.nome}"?`,
+      message: "L'operazione e' irreversibile. Se il fornitore ha ordini collegati, archivialo invece di eliminarlo.",
+      confirmLabel: 'Elimina definitivamente', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     const { error } = await supabase.from("fornitori").delete().eq("id", f.id).eq("organization_id", orgId)
     if (error) { notify("Impossibile eliminare (forse ha ordini collegati): " + error.message, false); return }
     notify("Fornitore eliminato definitivamente"); onMutate?.(); carica()

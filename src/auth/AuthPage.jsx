@@ -107,6 +107,7 @@ function checkPwd(p) {
 }
 
 function PasswordStrength({ password }) {
+  const isMobile = useIsMobile()
   if (!password) return null
   const c = checkPwd(password)
   const score = Object.values(c).filter(Boolean).length
@@ -135,7 +136,7 @@ function PasswordStrength({ password }) {
         </div>
         <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 50, textAlign: 'right' }}>{label}</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px 10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '4px 10px' }}>
         {req.map(([ok, txt]) => (
           <div key={txt} style={{ fontSize: 11, color: ok ? T.green : T.textSoft, display: 'flex', alignItems: 'center', gap: 4, fontWeight: ok ? 600 : 500 }}>
             <span style={{ fontSize: 9 }}>{ok ? '●' : '○'}</span>{txt}
@@ -146,7 +147,8 @@ function PasswordStrength({ password }) {
   )
 }
 
-function Input({ icon, type = 'text', value, onChange, placeholder, required, autoComplete, name, onFocus, onBlur, inputMode, maxLength }) {
+function Input({ id, icon, type = 'text', value, onChange, placeholder, required, autoComplete, name, onFocus, onBlur, inputMode, maxLength }) {
+  // Audit 2026-07-01 MEDIUM: id pass-through per a11y htmlFor su <label>.
   const [focused, setFocused] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
   const inputType = type === 'password' && showPwd ? 'text' : type
@@ -163,6 +165,7 @@ function Input({ icon, type = 'text', value, onChange, placeholder, required, au
     }}>
       {icon && <Icon name={icon} size={18} color={focused ? T.ink : T.textSoft}/>}
       <input
+        id={id}
         name={name}
         type={inputType}
         required={required}
@@ -192,12 +195,14 @@ function Input({ icon, type = 'text', value, onChange, placeholder, required, au
   )
 }
 
-function Field({ label, hint, children, error }) {
+function Field({ label, hint, children, error, htmlFor }) {
+  // Audit 2026-07-01 MEDIUM: htmlFor accoppia label all'input -> tap su label
+  // focusa l'input (a11y screen reader + UX click-area).
   return (
     <div style={{ marginBottom: 16, minWidth: 0 }}>
       {label && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: T.textMid, letterSpacing: '0.01em' }}>{label}</label>
+          <label htmlFor={htmlFor} style={{ fontSize: 12, fontWeight: 600, color: T.textMid, letterSpacing: '0.01em' }}>{label}</label>
           {hint && <span style={{ fontSize: 11, color: T.textSoft }}>{hint}</span>}
         </div>
       )}
@@ -424,6 +429,12 @@ export function ResetPasswordPage({ onDone }) {
   const [loading, setLoading] = useState(false)
   const [errore, setErrore]   = useState('')
   const [successo, setSuccesso] = useState(false)
+  // Audit 2026-07-01 HIGH: cleanup setTimeout. Se il componente unmounta nei
+  // 2s post-success, signOut/onDone partirebbero su componente smontato.
+  const signoutTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (signoutTimerRef.current) clearTimeout(signoutTimerRef.current)
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -437,7 +448,11 @@ export function ResetPasswordPage({ onDone }) {
       const { error } = await supabase.auth.updateUser({ password: pwd })
       if (error) throw error
       setSuccesso(true)
-      setTimeout(async () => { await supabase.auth.signOut(); onDone() }, 2000)
+      if (signoutTimerRef.current) clearTimeout(signoutTimerRef.current)
+      signoutTimerRef.current = setTimeout(async () => {
+        await supabase.auth.signOut()
+        onDone()
+      }, 2000)
     } catch (err) {
       setErrore(err.message || 'Errore nell\'aggiornamento della password')
     } finally { setLoading(false) }
@@ -490,14 +505,15 @@ export function ResetPasswordPage({ onDone }) {
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
-              <Field label="Nuova password">
-                <Input icon="lock" type="password" required value={pwd}
+              <Field label="Nuova password" htmlFor="reset-newpwd">
+                <Input id="reset-newpwd" icon="lock" type="password" required value={pwd}
                   onChange={e => setPwd(e.target.value)}
                   placeholder="••••••••" autoComplete="new-password"/>
                 <PasswordStrength password={pwd}/>
               </Field>
-              <Field label="Conferma password" error={conf && pwd !== conf ? 'Le password non coincidono' : null}>
-                <Input icon="lock" type="password" required value={conf}
+              <Field label="Conferma password" htmlFor="reset-confpwd"
+                error={conf && pwd !== conf ? 'Le password non coincidono' : null}>
+                <Input id="reset-confpwd" icon="lock" type="password" required value={conf}
                   onChange={e => setConf(e.target.value)}
                   placeholder="••••••••" autoComplete="new-password"/>
               </Field>
@@ -909,18 +925,18 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
           {mode === 'login' && (
             <form onSubmit={handleLogin}>
-              <Field label="Email">
-                <Input icon="mail" type="email" required value={loginEmail}
+              <Field label="Email" htmlFor="login-email">
+                <Input id="login-email" icon="mail" type="email" required value={loginEmail}
                   onChange={e => setLoginEmail(e.target.value)}
                   placeholder="tua@email.com" autoComplete="email"/>
               </Field>
-              <Field label="Password" hint={
+              <Field label="Password" htmlFor="login-pwd" hint={
                 <button type="button" onClick={() => { setMode('reset-request'); clear() }}
                   style={{ background: 'none', border: 'none', color: T.red, fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
                   Dimenticata?
                 </button>
               }>
-                <Input icon="lock" type="password" required value={loginPwd}
+                <Input id="login-pwd" icon="lock" type="password" required value={loginPwd}
                   onChange={e => setLoginPwd(e.target.value)}
                   placeholder="••••••••" autoComplete="current-password"/>
               </Field>
@@ -943,8 +959,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
           {mode === 'reset-request' && (
             <form onSubmit={handleResetRequest}>
-              <Field label="Email">
-                <Input icon="mail" type="email" required value={resetEmail}
+              <Field label="Email" htmlFor="reset-email">
+                <Input id="reset-email" icon="mail" type="email" required value={resetEmail}
                   onChange={e => setResetEmail(e.target.value)}
                   placeholder="tua@email.com" autoComplete="email"/>
               </Field>
@@ -963,14 +979,15 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
           {mode === 'reset-password' && (
             <form onSubmit={handleNewPassword}>
-              <Field label="Nuova password">
-                <Input icon="lock" type="password" required value={newPwd}
+              <Field label="Nuova password" htmlFor="rp-newpwd">
+                <Input id="rp-newpwd" icon="lock" type="password" required value={newPwd}
                   onChange={e => setNewPwd(e.target.value)}
                   placeholder="••••••••" autoComplete="new-password"/>
                 <PasswordStrength password={newPwd}/>
               </Field>
-              <Field label="Conferma password" error={newPwdConf && newPwd !== newPwdConf ? 'Le password non coincidono' : null}>
-                <Input icon="lock" type="password" required value={newPwdConf}
+              <Field label="Conferma password" htmlFor="rp-confpwd"
+                error={newPwdConf && newPwd !== newPwdConf ? 'Le password non coincidono' : null}>
+                <Input id="rp-confpwd" icon="lock" type="password" required value={newPwdConf}
                   onChange={e => setNewPwdConf(e.target.value)}
                   placeholder="••••••••" autoComplete="new-password"/>
               </Field>
@@ -1046,21 +1063,21 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                 {regStep === 1 && (
                   <form onSubmit={nextRegStep}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
-                      <Field label="Nome"
+                      <Field label="Nome" htmlFor="reg-nome"
                         error={reg.nome && !isNomeValido(reg.nome) ? 'Almeno 3 lettere, niente cifre.' : null}>
-                        <Input icon="user" required value={reg.nome} onChange={setR('nome')} placeholder="Mario" autoComplete="given-name"/>
+                        <Input id="reg-nome" icon="user" required value={reg.nome} onChange={setR('nome')} placeholder="Mario" autoComplete="given-name"/>
                       </Field>
-                      <Field label="Cognome"
+                      <Field label="Cognome" htmlFor="reg-cognome"
                         error={reg.cognome && !isCognomeValido(reg.cognome) ? 'Almeno 2 lettere, niente cifre.' : null}>
-                        <Input icon="user" required value={reg.cognome} onChange={setR('cognome')} placeholder="Rossi" autoComplete="family-name"/>
+                        <Input id="reg-cognome" icon="user" required value={reg.cognome} onChange={setR('cognome')} placeholder="Rossi" autoComplete="family-name"/>
                       </Field>
                     </div>
-                    <Field label="Email"
+                    <Field label="Email" htmlFor="reg-email"
                       error={reg.email && !isEmailValida(reg.email) ? 'Email non valida.' : null}>
-                      <Input icon="mail" type="email" required value={reg.email} onChange={setR('email')}
+                      <Input id="reg-email" icon="mail" type="email" required value={reg.email} onChange={setR('email')}
                         placeholder="tua@email.com" autoComplete="email"/>
                     </Field>
-                    <Field label="Telefono"
+                    <Field label="Telefono" htmlFor="reg-tel"
                       error={reg.telefono && !isNumeroValido(reg.telefono) ? 'Numero non valido (6-15 cifre).' : null}>
                       <PhoneInput
                         prefisso={reg.prefisso}
@@ -1072,8 +1089,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                         Ti invieremo un codice SMS di conferma. Useremo il numero per notifiche e 2FA.
                       </div>
                     </Field>
-                    <Field label="Password">
-                      <Input icon="lock" type="password" required value={reg.password} onChange={setR('password')}
+                    <Field label="Password" htmlFor="reg-pwd">
+                      <Input id="reg-pwd" icon="lock" type="password" required value={reg.password} onChange={setR('password')}
                         placeholder="••••••••" autoComplete="new-password"/>
                       <PasswordStrength password={reg.password}/>
                     </Field>
@@ -1096,12 +1113,12 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
                 {regStep === 1.5 && (
                   <form onSubmit={verificaOtp}>
-                    <Field label="Codice SMS"
+                    <Field label="Codice SMS" htmlFor="reg-otp"
                       hint={<button type="button" onClick={rinviaOtp} disabled={loading}
                         style={{ background: 'none', border: 'none', color: T.red, fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
                         Rinvia codice
                       </button>}>
-                      <Input icon="lock" type="text" inputMode="numeric" maxLength={6}
+                      <Input id="reg-otp" icon="lock" type="text" inputMode="numeric" maxLength={6}
                         required autoComplete="one-time-code"
                         value={otpCode}
                         onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
@@ -1133,13 +1150,13 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
                 {regStep === 2 && (
                   <form onSubmit={handleRegistrazione}>
-                    <Field label="Nome attività">
-                      <Input icon="bag" required value={reg.nome_attivita} onChange={setR('nome_attivita')}
+                    <Field label="Nome attività" htmlFor="reg-attivita">
+                      <Input id="reg-attivita" icon="bag" required value={reg.nome_attivita} onChange={setR('nome_attivita')}
                         placeholder="Pasticceria Rossi"/>
                     </Field>
 
                     <Field label="Tipo di attività">
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+                      <div role="radiogroup" aria-label="Tipo di attività" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
                         {TIPI_ATTIVITA.map(t => {
                           const selected = reg.tipo_attivita === t.slug
                           return (
@@ -1161,12 +1178,12 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                       </div>
                     </Field>
 
-                    <Field label="Città">
+                    <Field label="Città" htmlFor="reg-citta">
                       <CittaInput value={reg.citta} onChange={v => setReg(p => ({ ...p, citta: v }))}/>
                     </Field>
 
-                    <Field label="Codice invito" hint="opzionale">
-                      <Input value={reg.codice_invito} onChange={setR('codice_invito')}
+                    <Field label="Codice invito" htmlFor="reg-invito" hint="opzionale">
+                      <Input id="reg-invito" value={reg.codice_invito} onChange={setR('codice_invito')}
                         placeholder="Lascia vuoto se non ce l'hai"/>
                     </Field>
 

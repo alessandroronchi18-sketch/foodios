@@ -24,6 +24,27 @@ function getConfig() {
   return { token, companyId }
 }
 
+// Cache vat_types per company (per-process). FiC li espone su /info/vat_types
+// con id stabile *all'interno della company* ma NON cross-company.
+const _vatTypeCache = new Map()
+export async function getFicVatTypeId(companyId, percentage) {
+  if (!Number.isFinite(percentage)) return null
+  const cached = _vatTypeCache.get(companyId)
+  if (cached) {
+    const hit = cached.find(v => Math.abs(Number(v.value) - Number(percentage)) < 0.001)
+    return hit?.id ?? null
+  }
+  try {
+    const res = await ficRequest('GET', `/c/${companyId}/info/vat_types`)
+    const list = Array.isArray(res?.data) ? res.data : []
+    _vatTypeCache.set(companyId, list)
+    const hit = list.find(v => Math.abs(Number(v.value) - Number(percentage)) < 0.001)
+    return hit?.id ?? null
+  } catch {
+    return null
+  }
+}
+
 async function ficRequest(method, path, body) {
   const { token } = getConfig()
   const res = await safeFetch(`${API_BASE}${path}`, {
@@ -52,15 +73,29 @@ async function ficRequest(method, path, body) {
 // altrimenti lo crea. Usato per evitare duplicati clienti.
 export async function upsertCliente({ ragioneSociale, partitaIva, codiceFiscale, indirizzo, cap, citta, provincia, nazione = 'IT', codiceDestinatario, pec, email }) {
   const { companyId } = getConfig()
-  // 1. Cerca per P.IVA
+  // 1. Cerca per P.IVA. Validiamo strict (solo cifre/lettere alfanumeriche IT,
+  // max 16 char per codice fiscale persona fisica) PRIMA dell'interpolazione
+  // in query, altrimenti caratteri come `"` o spazi rompono il query language
+  // di FiC e potenzialmente espongono injection (audit 2026-06-17 CRITICAL).
   if (partitaIva) {
-    try {
-      const found = await ficRequest('GET', `/c/${companyId}/entities/clients?q=vat_number = "${partitaIva}"&per_page=1`)
-      const existing = found?.data?.[0]
-      if (existing) {
-        return { id: existing.id, name: existing.name, isNew: false }
-      }
-    } catch { /* non bloccare, prova insert */ }
+    const pivaClean = String(partitaIva).replace(/[^A-Za-z0-9]/g, '').slice(0, 16)
+    // Audit 2026-07-01 HIGH: il vecchio confronto
+    //   pivaClean === String(partitaIva).replace(/\s/g, '')
+    // era sbagliato — un input "12345.678901" passa il replace dx (non rimuove
+    // il punto) ma viene azzerato dal replace sx → mismatch → salto della
+    // ricerca → POST insert → duplicati cliente FiC.
+    // Inoltre la query language di FiC ricevuta interpolata: tagliare a
+    // alphanumerico e farlo passare via encodeURIComponent sul valore intero.
+    if (pivaClean.length >= 8) {
+      try {
+        const q = encodeURIComponent(`vat_number = "${pivaClean}"`)
+        const found = await ficRequest('GET', `/c/${companyId}/entities/clients?q=${q}&per_page=1`)
+        const existing = found?.data?.[0]
+        if (existing) {
+          return { id: existing.id, name: existing.name, isNew: false }
+        }
+      } catch { /* non bloccare, prova insert */ }
+    }
   }
   // 2. Crea nuovo cliente
   const payload = {
@@ -100,6 +135,10 @@ export async function emettiFatturaElettronica({
   stripeInvoiceId,         // riferimento Stripe (per audit)
 }) {
   const { companyId } = getConfig()
+  // Risoluzione dinamica del vat.id per l'aliquota richiesta: l'id NON è stabile
+  // tra company FiC, va recuperato da /info/vat_types (audit 2026-06-17 HIGH).
+  // Cachiamo per processo.
+  const vatId = await getFicVatTypeId(companyId, aliquotaIva)
   const payload = {
     data: {
       type: 'invoice',
@@ -122,7 +161,9 @@ export async function emettiFatturaElettronica({
         description: descrizione,
         qty: 1,
         net_price: importoNetto,
-        vat: { id: aliquotaIva === 22 ? 0 : null, percentage: aliquotaIva },
+        vat: vatId != null
+          ? { id: vatId, percentage: aliquotaIva }
+          : { percentage: aliquotaIva },
       }],
       payments_list: [{
         amount: Number((importoNetto * (1 + aliquotaIva / 100)).toFixed(2)),
@@ -136,7 +177,14 @@ export async function emettiFatturaElettronica({
   }
   const created = await ficRequest('POST', `/c/${companyId}/issued_documents`, payload)
   const invoiceId = created?.data?.id
-  if (!invoiceId) throw new Error('Fatture in Cloud non ha restituito invoice id')
+  if (!invoiceId) {
+    // Audit 2026-07-01 HIGH: throw con flag `partialCreated` per consentire al
+    // caller di NON cancellare il claim idempotency (evita doppia fattura su retry).
+    const err = new Error('Fatture in Cloud non ha restituito invoice id')
+    err.partialCreated = true
+    err.ficRawResponse = created
+    throw err
+  }
 
   // Trasmissione SDI
   if (transmit) {
@@ -145,7 +193,10 @@ export async function emettiFatturaElettronica({
     } catch (e) {
       // La fattura e' creata, ma trasmissione SDI fallita. Logga e continua —
       // l'admin puo' ritrasmettere dal pannello Fatture in Cloud.
+      // Audit 2026-07-01 LOW: marcare risposta con flag perche' il caller scriva
+      // status='emessa_non_trasmessa' invece di 'emessa'.
       console.error('SDI send failed for invoice', invoiceId, e.message)
+      return { ...created?.data, sdiTransmitFailed: true, sdiError: e.message }
     }
   }
 

@@ -3,6 +3,7 @@ import { ReactFlow, Background, Controls, applyNodeChanges, applyEdgeChanges, ad
 import '@xyflow/react/dist/style.css'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { SkeletonList } from './Skeleton'
@@ -85,6 +86,7 @@ function CoperturaBar({ cov, compact }) {
 const TIPI_CONTRATTO = ["Full-time","Part-time","Stagionale","Collaboratore","Apprendista"]
 
 function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
+  const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({
@@ -205,7 +207,12 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
 
   async function disattiva(id) {
     if (!orgId) return
-    if (!confirm("Archiviare questo dipendente? Potrai riattivarlo dall'archivio quando vuoi.")) return
+    const ok = await confirmDialog({
+      title: 'Archiviare dipendente?',
+      message: "Potrai riattivarlo dall'archivio quando vuoi. Storico turni e dati restano salvati.",
+      confirmLabel: 'Archivia', cancelLabel: 'Annulla',
+    })
+    if (!ok) return
     const { error } = await supabase.from("dipendenti").update({ attivo: false }).eq("id", id).eq("organization_id", orgId)
     if (error) { notify("Errore archiviazione: " + error.message, false); return }
     notify("Dipendente archiviato")
@@ -310,7 +317,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
           <div>
-            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>€/ora</div>
+            <div title="Costo orario lordo (stipendio mensile / ore mensili)" style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4, cursor: 'help' }}>€/ora</div>
             <input type="number" min="0" step="0.5" value={form.costo_orario} onChange={e=>setForm(f=>({...f,costo_orario:e.target.value}))} style={inputSt}/>
           </div>
           <div>
@@ -500,6 +507,7 @@ const REPARTO_COLORS = ['#6E0E1A', '#2563EB', '#16A34A', '#C2410C', '#7C3AED', '
 const SENZA_REPARTO = { nome: 'Senza reparto', color: '#94A3B8' }
 
 function TurniTab({ orgId, notify, isMobile }) {
+  const confirmDialog = useConfirm()
   const [turni, setTurni] = useState([])
   const [dipendenti, setDipendenti] = useState([])
   const [organigramma, setOrganigramma] = useState({ reparti: [] })
@@ -585,7 +593,11 @@ function TurniTab({ orgId, notify, isMobile }) {
     const conflitto = turni.find(t => t.id !== editId && t.dipendente_id === form.dipendente_id && t.data === form.data && ni < _toMin(t.ora_fine) && _toMin(t.ora_inizio) < nf)
     if (conflitto) {
       const nomeDip = dipendenti.find(d => d.id === form.dipendente_id)?.nome || 'Il dipendente'
-      const ok = typeof window !== "undefined" && window.confirm(`Turno sovrapposto\n\n${nomeDip} ha già un turno il ${form.data} dalle ${_hm(_toMin(conflitto.ora_inizio))} alle ${_hm(_toMin(conflitto.ora_fine))}, che si accavalla con ${form.ora_inizio}–${form.ora_fine}.\n\nVuoi salvarlo comunque?`)
+      const ok = await confirmDialog({
+        title: 'Turno sovrapposto',
+        message: `${nomeDip} ha già un turno il ${form.data} dalle ${_hm(_toMin(conflitto.ora_inizio))} alle ${_hm(_toMin(conflitto.ora_fine))}, che si accavalla con ${form.ora_inizio}–${form.ora_fine}. Vuoi salvarlo comunque?`,
+        confirmLabel: 'Salva comunque', cancelLabel: 'Annulla',
+      })
       if (!ok) return
     }
     const ore = calcOre(form.ora_inizio, form.ora_fine)
@@ -791,7 +803,7 @@ function TurniTab({ orgId, notify, isMobile }) {
         return (
           <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", overflow:"hidden" }}>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderBottom:`1px solid ${C.border}` }}>
-              {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase" }}>{g}</div>)}
+              {GIORNI.map(g => <div key={g} style={{ padding:"8px 4px", textAlign:"center", fontSize: isMobile ? 11 : 10, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing: '0.06em' }}>{g}</div>)}
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)" }}>
               {cells.map((dIso, idx) => {
@@ -1275,12 +1287,19 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
   }, [loading, repartiKey, dipKey, adminNome])
 
   // Salva posizioni + frecce senza ricostruire il canvas (preserva il riferimento reparti).
+  // Pattern: setState ottimistico (per evitare flicker durante drag), ma con
+  // rollback al valore precedente se ssave fallisce + notify utente. Audit
+  // 2026-06-17 HIGH: prima il catch era silenzioso → drift UI vs DB.
   const salvaLayout = useCallback((nextNodes, nextEdges) => {
     const pos = {}
     for (const n of nextNodes) pos[n.id] = { x: Math.round(n.position.x), y: Math.round(n.position.y) }
-    const next = { ...orgRef.current, layout: { pos, edges: nextEdges.map(e => ({ id: e.id, source: e.source, target: e.target })) } }
+    const prev = orgRef.current
+    const next = { ...prev, layout: { pos, edges: nextEdges.map(e => ({ id: e.id, source: e.source, target: e.target })) } }
     orgRef.current = next; setOrg(next)
-    ssave(SK_ORG, next, orgId, null).catch(() => notify?.('Errore salvataggio organigramma', false))
+    ssave(SK_ORG, next, orgId, null).catch((e) => {
+      orgRef.current = prev; setOrg(prev)
+      notify?.('Errore salvataggio organigramma: ' + (e?.message || 'rete'), false)
+    })
   }, [orgId, notify])
 
   // NB: il reducer di setNodes/setEdges DEVE essere puro. In StrictMode (dev)
@@ -1309,27 +1328,33 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
   const onNodesDelete = useCallback((deleted) => {
     const repIds = deleted.filter(n => n.id.startsWith('rep-')).map(n => n.id.slice(4))
     if (!repIds.length) return
-    // Rimuovi anche pos/edges orfani che puntavano ai reparti cancellati,
-    // così non resta garbage nel layout salvato.
     const orphanIds = new Set(repIds.map(id => 'rep-' + id))
-    const prevLayout = orgRef.current.layout || {}
+    const prev = orgRef.current
+    const prevLayout = prev.layout || {}
     const cleanedPos = Object.fromEntries(Object.entries(prevLayout.pos || {}).filter(([k]) => !orphanIds.has(k)))
     const cleanedEdges = (prevLayout.edges || []).filter(e => !orphanIds.has(e.source) && !orphanIds.has(e.target))
     const next = {
-      ...orgRef.current,
-      reparti: (orgRef.current.reparti || []).filter(r => !repIds.includes(r.id)),
+      ...prev,
+      reparti: (prev.reparti || []).filter(r => !repIds.includes(r.id)),
       layout: { pos: cleanedPos, edges: cleanedEdges },
     }
     orgRef.current = next; setOrg(next)
-    ssave(SK_ORG, next, orgId, null).catch((e) => console.error('Errore salvataggio reparti:', e))
-  }, [orgId])
+    ssave(SK_ORG, next, orgId, null).catch((e) => {
+      orgRef.current = prev; setOrg(prev)
+      notify?.('Errore salvataggio reparti: ' + (e?.message || 'rete'), false)
+    })
+  }, [orgId, notify])
 
   function addReparto() {
     const nome = newRepNome.trim(); if (!nome) { setAddingRep(false); return }
     const id = 'rep-' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3)
-    const next = { ...orgRef.current, reparti: [...(orgRef.current.reparti || []), { id, nome, capoId: null, membri: [] }] }
+    const prev = orgRef.current
+    const next = { ...prev, reparti: [...(prev.reparti || []), { id, nome, capoId: null, membri: [] }] }
     orgRef.current = next; setOrg(next)
-    ssave(SK_ORG, next, orgId, null).catch(() => notify?.('Errore salvataggio', false))
+    ssave(SK_ORG, next, orgId, null).catch((e) => {
+      orgRef.current = prev; setOrg(prev)
+      notify?.('Errore salvataggio: ' + (e?.message || 'rete'), false)
+    })
     setNewRepNome(''); setAddingRep(false)
   }
 
@@ -1343,7 +1368,7 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
         </div>
         {addingRep ? (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input autoFocus value={newRepNome} onChange={e => setNewRepNome(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addReparto(); if (e.key === 'Escape') { setAddingRep(false); setNewRepNome('') } }} placeholder="Nome reparto" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, width: 180 }} />
+            <input autoFocus value={newRepNome} onChange={e => setNewRepNome(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addReparto(); if (e.key === 'Escape') { setAddingRep(false); setNewRepNome('') } }} placeholder="Nome reparto" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, width: 180 }} />
             <button onClick={addReparto} style={{ padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Aggiungi</button>
             <button onClick={() => { setAddingRep(false); setNewRepNome('') }} aria-label="Annulla" style={{ padding: '8px 10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="x" size={13} /></button>
           </div>
@@ -1626,6 +1651,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome 
 
 // ── Calcolo lordo↔netto stipendio (banda informativa nel form) ────────────
 function CalcoloLordoNetto({ lordo, netto, setForm }) {
+  const isMobile = useIsMobile()
   const result = useMemo(() => {
     if (lordo && !netto) return calcolaStipendio({ lordo, mensilita: 13 })
     if (netto && !lordo) return calcolaStipendio({ netto, mensilita: 13 })
@@ -1637,7 +1663,7 @@ function CalcoloLordoNetto({ lordo, netto, setForm }) {
       <div style={{ fontSize: 10, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
         Stima (13 mensilità + INPS + IRPEF a scaglioni)
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
         <div>
           <div style={{ color: '#475264', marginBottom: 2 }}>Lordo</div>
           <div style={{ fontWeight: 800, color: '#0E1726', fontSize: 13 }}>{fmt(result.lordo)}</div>

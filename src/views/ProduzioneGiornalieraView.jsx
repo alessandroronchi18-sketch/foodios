@@ -22,6 +22,22 @@ import { C, TNUM, margColor, fmt, fmt0, fmtp, KPI, PageHeader } from './_shared'
 // Ombra premium coerente con la Dashboard home.
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 
+// Quando un movimento stock PF resta orfano (carico riuscito ma trasferimento
+// E scarto di rollback entrambi falliti), salviamo un record da reconcile a
+// mano. Best-effort: se anche questa fallisce, console.error e basta.
+async function registraStockOrfano({ sedeId, prodotto, pezzi, motivo }) {
+  try {
+    await supabase.from('error_log').insert({
+      endpoint: 'produzione-giornaliera',
+      operation: 'stock_pf_orphan',
+      code: 'STOCK_PF_ORPHAN',
+      message: `sede=${sedeId} prodotto=${prodotto} pezzi=${pezzi} motivo=${motivo || 'n/a'}`,
+    })
+  } catch (e) {
+    console.error('registraStockOrfano insert failed', e?.message)
+  }
+}
+
 // Titolo di pannello con chip icona (gerarchia premium come la Dashboard home).
 function PanelHead({ icon, title, color = C.red }) {
   return (
@@ -116,7 +132,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     const agg = computeSessione(nuoviProdotti)
     const oldIngs = sess.ingredientiUsati || {}
     // magazzino: parti dall'attuale, ri-aggiungi i vecchi ingredienti, sottrai i nuovi.
-    const nm = { ...magazzino }
+    const nm = { ...(magazzino || {}) }
     const keys = new Set([...Object.keys(oldIngs), ...Object.keys(agg.ings)])
     for (const k of keys) {
       const delta = (oldIngs[k] || 0) - (agg.ings[k] || 0) // >0 = restituito, <0 = consumato
@@ -193,11 +209,17 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       return
     }
 
-    // Stock prodotti finiti: scarta i pezzi.
+    // Stock prodotti finiti: scarta i pezzi. Per destinazione altra sede,
+    // tentiamo anche l'annullo del trasferimento ricevente (audit 2026-06-17
+    // HIGH: prima si lasciava lo stock destinato in vetrina dell'altra sede,
+    // creando doppio conteggio).
     const sedeProduttiva = sedeAttiva?.id
     const destDiversa = sess.destinazioneSedeId && sess.destinazioneSedeId !== sedeProduttiva
     const scartoErrors = []
-    if (orgId && sedeProduttiva && !destDiversa) {
+    // Sede target dello scarto: produttiva se no destinazione, altrimenti la
+    // sede di destinazione (è lei che ha lo stock dal trasferimento).
+    const sedeScarto = destDiversa ? sess.destinazioneSedeId : sedeProduttiva
+    if (orgId && sedeScarto) {
       for (const p of (sess.prodotti || [])) {
         const vendibile = Number(p.vendibile || 0) || Number(p.stampi || 0)
         if (vendibile <= 0) continue
@@ -208,7 +230,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         if (pezzi <= 0) continue
         const prodottoKey = (p.nome || '').toUpperCase().trim()
         try {
-          await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: `Annullo sessione del ${sess.data}` })
+          await scartoPF({ sedeId: sedeScarto, prodotto: prodottoKey, quantita: pezzi, note: `Annullo sessione del ${sess.data}${destDiversa ? ' (trasferimento annullato)' : ''}` })
         } catch (e) { scartoErrors.push(`${p.nome}: ${e.message}`) }
       }
     }
@@ -219,8 +241,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     setDeleteSessConf(null); setDeleteSessPin(''); setDeletingSess(false)
 
     const baseMsg = 'Sessione eliminata — ingredienti restituiti al magazzino'
-    if (destDiversa) {
-      notify(`${baseMsg}. Stock prodotti finiti NON ritoccato: la sessione aveva destinazione altra sede — gestisci il trasferimento dalla view Trasferimenti.`, false)
+    if (destDiversa && scartoErrors.length === 0) {
+      notify(`${baseMsg}, e stock annullato anche sulla sede destinazione del trasferimento.`)
     } else if (scartoErrors.length > 0) {
       // Ghost stock: il giornaliero è aggiornato (su Supabase + locale) ma alcuni
       // pezzi sono ancora in stock_prodotti_finiti. L'utente deve correggere
@@ -266,17 +288,20 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
   const CONGELABILI_DEFAULT = ['BANANA BREAD', 'TORTA DI CAROTE', 'COOKIES', 'CARROT CAKE']
   const isCongelabile = (nome) => {
-    const r = ricettario?.ricette?.[nome.toUpperCase().trim()] || ricettario?.ricette?.[nome]
+    const norm = (nome || '').toString().toUpperCase().trim()
+    const r = ricettario?.ricette?.[norm] || ricettario?.ricette?.[nome]
     if (r && typeof r.congelabile === 'boolean') return r.congelabile
-    return CONGELABILI_DEFAULT.some(c => nome.toUpperCase().includes(c))
+    return CONGELABILI_DEFAULT.some(c => norm.includes(c))
   }
 
+  // Audit 2026-07-01 MEDIUM: parseFloat('1,5') tronca a 1 (locale IT).
+  const parseIT = (val) => parseFloat(String(val).replace(',', '.')) || 0
   const setQ = (nome, val) => {
-    const n = parseFloat(val) || 0
+    const n = parseIT(val)
     setQtaMap(m => ({ ...m, [nome]: n }))
     if (!isCongelabile(nome)) setVendMap(m => ({ ...m, [nome]: n }))
   }
-  const setV = (nome, val) => setVendMap(m => ({ ...m, [nome]: parseFloat(val) || 0 }))
+  const setV = (nome, val) => setVendMap(m => ({ ...m, [nome]: parseIT(val) }))
 
   const riepilogo = useMemo(() => {
     const ings = {}
@@ -317,11 +342,39 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   //    qui sono notificati ma non bloccano: la sessione e' gia' salvata.
   // Stock PF (carico vetrina + eventuale trasferimento) — condiviso tra il flusso
   // titolare e quello dipendente. Usa solo nome/vendibile (niente ingredienti).
+  // Variante: SOLO trasferimento (no carico). Usata dal flusso dipendente,
+  // dove il server ha già fatto il carico stock PF in produzione-registra.
+  const eseguiTrasferimentoAuto = async () => {
+    const sedeProduttiva = sedeAttiva?.id
+    if (!orgId || !sedeProduttiva) return
+    const sedeDest = destinazioneSedeId && destinazioneSedeId !== sedeProduttiva ? destinazioneSedeId : null
+    if (!sedeDest) return
+    const errors = []
+    for (const r of ricette) {
+      const stampi = qtaMap[r.nome] || 0
+      const vendibile = vendibileMap[r.nome] || stampi
+      if (vendibile <= 0) continue
+      const reg = getR(r.nome, r)
+      const unitaFactor = Number(reg.unita)
+      const pezzi = vendibile * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
+      if (pezzi <= 0) continue
+      const prodottoKey = r.nome.toUpperCase().trim()
+      try {
+        await creaTrasferimento({ orgId, sedeDa: sedeProduttiva, sedeA: sedeDest, tipo: 'prodotto', prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Da produzione del ${data}`, autoInvia: true })
+      } catch (e) {
+        errors.push(`${r.nome}: ${e.message}`)
+      }
+    }
+    if (errors.length) notify('Alcuni trasferimenti falliti: ' + errors.slice(0, 2).join('; '), false)
+  }
+
   const eseguiStockPF = async () => {
     const sedeProduttiva = sedeAttiva?.id
     if (!orgId || !sedeProduttiva) return
     const sedeDest = destinazioneSedeId && destinazioneSedeId !== sedeProduttiva ? destinazioneSedeId : null
     const stockErrors = [], transferErrors = []
+    // Tracking carichi riusciti per registrare orfani in caso di rollback fallito.
+    const caricati = []
     for (const r of ricette) {
       const stampi = qtaMap[r.nome] || 0
       const vendibile = vendibileMap[r.nome] || stampi
@@ -333,13 +386,20 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       const prodottoKey = r.nome.toUpperCase().trim()
       try {
         await caricoProduzionePF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Sessione ${data}${sessNote ? ' · ' + sessNote : ''}` })
+        caricati.push({ prodotto: prodottoKey, pezzi })
       } catch (e) { stockErrors.push(`${r.nome}: ${e.message}`); continue }
       if (sedeDest) {
         try {
           await creaTrasferimento({ orgId, sedeDa: sedeProduttiva, sedeA: sedeDest, tipo: 'prodotto', prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Da produzione del ${data}`, autoInvia: true })
         } catch (e) {
           transferErrors.push(`${r.nome}: ${e.message}`)
-          try { await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: 'Rollback trasferimento fallito' }) } catch (rb) { console.error('Rollback carico fallito:', rb) }
+          try {
+            await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: 'Rollback trasferimento fallito' })
+          } catch (rb) {
+            // Audit 2026-06-17 CRITICAL: se anche scartoPF fallisce, ghost stock
+            // permanente. Salviamo l'orfano in tabella per recupero manuale.
+            await registraStockOrfano({ sedeId: sedeProduttiva, prodotto: prodottoKey, pezzi, motivo: `rollback trasferimento fallito + scarto fallito: ${rb?.message || rb}` })
+          }
         }
       }
     }
@@ -380,14 +440,24 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         return
       }
       setMagazzino(resp.magazzino); setGiornaliero(resp.giornaliero)
-      await eseguiStockPF()
+      // Stock PF: il server fa già il carico vetrina. Qui gestiamo SOLO l'eventuale
+      // trasferimento auto verso un'altra sede (è un'operazione cross-sede che il
+      // server attualmente non esegue lato dipendente).
+      if (destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id) {
+        await eseguiTrasferimentoAuto()
+      }
+      const orfani = Array.isArray(resp.stockOrfani) ? resp.stockOrfani : []
       setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false); setSalvando(false)
       const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id ? ` — trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}` : ''
-      notify(`Produzione registrata${msgDest} — magazzino e stock vetrina aggiornati`)
+      if (orfani.length > 0) {
+        notify(`Produzione registrata${msgDest}, ma ${orfani.length} prodotti non hanno aggiornato lo stock vetrina (riconciliare a mano)`, false)
+      } else {
+        notify(`Produzione registrata${msgDest} — magazzino e stock vetrina aggiornati`)
+      }
       return
     }
 
-    const nm = { ...magazzino }
+    const nm = { ...(magazzino || {}) }
     for (const [k, qty] of Object.entries(riepilogo.ings)) {
       if (nm[k]) nm[k] = { ...nm[k], giacenza_g: Math.max(0, (nm[k].giacenza_g || 0) - qty) }
     }
@@ -613,19 +683,19 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                             <td style={{ padding: '10px 14px', color: C.red }}>{fmt(fc)}</td>
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                <button onClick={() => setQ(ric.nome, Math.max(0, (qtaMap[ric.nome] || 0) - 1))} style={{ width: 26, height: 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>−</button>
+                                <button aria-label="Diminuisci" onClick={() => setQ(ric.nome, Math.max(0, (qtaMap[ric.nome] || 0) - 1))} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>−</button>
                                 <input type="number" min="0" value={q || ''} onChange={e => setQ(ric.nome, e.target.value)}
-                                  style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${q > 0 ? C.red : C.borderStr}`, background: C.white, fontSize: 13, textAlign: 'center', fontWeight: 800, color: q > 0 ? C.red : C.text }}/>
-                                <button onClick={() => setQ(ric.nome, (qtaMap[ric.nome] || 0) + 1)} style={{ width: 26, height: 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>+</button>
+                                  style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${q > 0 ? C.red : C.borderStr}`, background: C.white, fontSize: isMobile ? 16 : 13, textAlign: 'center', fontWeight: 800, color: q > 0 ? C.red : C.text }}/>
+                                <button aria-label="Aumenta" onClick={() => setQ(ric.nome, (qtaMap[ric.nome] || 0) + 1)} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 13, cursor: 'pointer', fontWeight: 700, color: C.textMid }}>+</button>
                               </div>
                             </td>
                             <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                               {cong ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                                  <button onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] || q) - 1))} style={{ width: 26, height: 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>−</button>
+                                  <button aria-label="Diminuisci vendibile" onClick={() => setV(ric.nome, Math.max(0, (vendibileMap[ric.nome] || q) - 1))} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>−</button>
                                   <input type="number" min="0" value={vq || ''} onChange={e => setV(ric.nome, e.target.value)}
-                                    style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${vq > 0 ? '#2980B9' : C.borderStr}`, background: '#F0F8FF', fontSize: 13, textAlign: 'center', fontWeight: 800, color: vq > 0 ? '#2980B9' : C.text }}/>
-                                  <button onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: 26, height: 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>+</button>
+                                    style={{ width: 48, padding: '4px', borderRadius: 5, border: `1px solid ${vq > 0 ? '#2980B9' : C.borderStr}`, background: '#F0F8FF', fontSize: isMobile ? 16 : 13, textAlign: 'center', fontWeight: 800, color: vq > 0 ? '#2980B9' : C.text }}/>
+                                  <button aria-label="Aumenta vendibile" onClick={() => setV(ric.nome, (vendibileMap[ric.nome] || q) + 1)} style={{ width: isMobile ? 40 : 26, height: isMobile ? 40 : 26, borderRadius: 5, border: '1px solid #BDE', background: '#F0F8FF', fontSize: 13, cursor: 'pointer', fontWeight: 700, color: '#2980B9' }}>+</button>
                                 </div>
                               ) : (
                                 <span style={{ fontSize: 11, color: C.textSoft }}>= {LEX.prodotti}</span>

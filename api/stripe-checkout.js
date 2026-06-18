@@ -31,11 +31,15 @@ function origin(req) {
   if (raw) {
     const o = raw.replace(/\/$/, '').split('/').slice(0, 3).join('/')
     if (ALLOWED_ORIGINS.has(o)) return o
-    // In preview Vercel l'origin e' *.vercel.app: lo accettiamo se finisce
-    // con .vercel.app e .foodios.it, fallback hardcoded altrimenti.
+    // Preview Vercel: hostname *.vercel.app accettato SOLO se prefisso 'foodios-'
+    // (audit 2026-06-17 LOW: prima accettava qualsiasi *.vercel.app, anche di repo
+    // altrui), e *.foodios.it ok per sottodomini interni.
     try {
       const u = new URL(o)
-      if (u.hostname.endsWith('.vercel.app') || u.hostname.endsWith('.foodios.it')) {
+      if (
+        u.hostname.endsWith('.foodios.it') ||
+        (u.hostname.endsWith('.vercel.app') && u.hostname.startsWith('foodios-'))
+      ) {
         return o
       }
     } catch {}

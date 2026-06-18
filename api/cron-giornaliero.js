@@ -36,7 +36,11 @@ function makeInternalReq(realUrl, path) {
 // timeout, 1 stallo Anthropic/Twilio = 30s Vercel timeout = TUTTI gli step
 // successivi non girano (cascading failure). Con timeout per-step,
 // l'orchestratore continua col prossimo anche se uno hangs.
-const STEP_TIMEOUT_MS = 25_000  // 25s per step (Vercel cron limit 60s totale)
+// Audit 2026-07-01 MEDIUM: Vercel Hobby ha 60s/funzione; con 7+ step in
+// allSettled e 25s ciascuno, il wall-clock totale puo' superare 60s prima
+// che il cleanup parta. Ridotto a 18s — i sub-handler reali finiscono in
+// <10s normalmente, 18s e' margine di sicurezza.
+const STEP_TIMEOUT_MS = 18_000
 
 async function runStep(name, fn) {
   const start = Date.now()
@@ -103,11 +107,109 @@ export default async function handler(req) {
     }
   }))
 
+  // 5) Audit 2026-07-01 MEDIUM/HIGH: cleanup retention paralleli (error_log,
+  //    stripe_webhook_events, login_attempts — vedi migration 20260701).
+  //    + past_due grace: org con stripe_status='past_due' da >7gg → approvato=false.
+  results.push(await runStep('cleanup-error-log', async () => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+      const { data, error } = await supabase.rpc('error_log_cleanup_old', { p_days: 90 })
+      if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 })
+      return new Response(JSON.stringify({ ok: true, removed: data }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, error: e.message || 'exception' }), { status: 500 })
+    }
+  }))
+
+  results.push(await runStep('cleanup-login-attempts', async () => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+      const { data, error } = await supabase.rpc('login_attempts_cleanup_old', { p_days: 90 })
+      if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 })
+      return new Response(JSON.stringify({ ok: true, removed: data }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, error: e.message || 'exception' }), { status: 500 })
+    }
+  }))
+
+  // 6) Past_due grace: invalida `approvato` per org Stripe non pagate da >7gg.
+  results.push(await runStep('stripe-past-due-grace', async () => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+      // Audit 2026-07-01 HIGH: senza, una sub past_due restava approvata fino
+      // a `subscription.deleted` (anche 30+ giorni). Concediamo 7gg di grace,
+      // poi fail-closed.
+      const cutoff = new Date(Date.now() - 7 * 86400000).toISOString()
+      const { data, error } = await supabase
+        .from('organizations')
+        .update({ approvato: false })
+        .eq('stripe_status', 'past_due')
+        .eq('approvato', true)
+        .lt('stripe_current_period_end', cutoff)
+        .select('id')
+      if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 })
+      return new Response(JSON.stringify({ ok: true, revoked: data?.length || 0 }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, error: e.message || 'exception' }), { status: 500 })
+    }
+  }))
+
+  // Audit 2026-07-01 MEDIUM: alerting su ERRORI cron (Slack/email).
+  // Se >= 1 step ha ok=false ed esiste ADMIN_EMAIL+RESEND_API_KEY, invia
+  // email riepilogativa all'admin per intervenire. Idempotente per giorno
+  // via dedup-key cron_runs (vedi migration 20260701).
+  const stepsFalliti = results.filter(s => !s.ok)
+  if (stepsFalliti.length > 0 && process.env.ADMIN_EMAIL && process.env.RESEND_API_KEY) {
+    try {
+      const oggi = now.toISOString().slice(0, 10)
+      // Dedup: una sola email per (job_name, day). Se gia inviata, skip.
+      const { createClient } = await import('@supabase/supabase-js')
+      const sup = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+      const alertJob = `cron-giornaliero-alert-${oggi}`
+      const { data: claim } = await sup.rpc('cron_run_claim', { p_job_name: alertJob })
+      if (claim === true) {
+        const rows = stepsFalliti.map(s => {
+          const err = s.error || s.body?.error || `HTTP ${s.status || '?'}`
+          return `<tr><td style="padding:6px 12px;border-bottom:1px solid #E5E7EB">${s.step}</td><td style="padding:6px 12px;border-bottom:1px solid #E5E7EB;color:#DC2626">${err.toString().slice(0, 200)}</td><td style="padding:6px 12px;border-bottom:1px solid #E5E7EB;color:#94A3B8">${s.ms || 0}ms</td></tr>`
+        }).join('')
+        const html = `<div style="font-family:Inter,system-ui,sans-serif;max-width:680px;margin:0 auto;padding:24px">
+          <h1 style="color:#DC2626;margin:0 0 16px;font-size:20px">⚠️ Cron giornaliero FoodOS — ${stepsFalliti.length}/${results.length} step falliti</h1>
+          <p style="color:#475569;font-size:14px;margin:0 0 16px">Eseguito alle ${now.toISOString()}. Step falliti:</p>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden">
+            <thead><tr style="background:#FAFAF6"><th style="padding:8px 12px;text-align:left;color:#475569;font-weight:700">Step</th><th style="padding:8px 12px;text-align:left;color:#475569;font-weight:700">Errore</th><th style="padding:8px 12px;text-align:left;color:#475569;font-weight:700">Durata</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <p style="color:#94A3B8;font-size:11px;margin-top:20px">Verifica i log Vercel + error_log su DB. Se ricorrente, rivedi STEP_TIMEOUT_MS o paginazione cron-notifiche.</p>
+        </div>`
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'FoodOS <noreply@foodios.it>',
+            to: process.env.ADMIN_EMAIL,
+            subject: `⚠️ Cron FoodOS — ${stepsFalliti.length} step falliti`,
+            html,
+          }),
+        }).catch(() => { /* alerting best-effort */ })
+        try { await sup.rpc('cron_run_mark', { p_job_name: alertJob, p_status: 'ok' }) } catch {}
+      }
+    } catch (e) {
+      console.error('[cron-giornaliero] alerting fallito (non-blocking):', e.message)
+    }
+  }
+
   return new Response(JSON.stringify({
     ok: true,
     triggered_at: now.toISOString(),
     is_primo_del_mese: isPrimoDelMese,
     steps: results,
+    steps_falliti: stepsFalliti.length,
   }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },

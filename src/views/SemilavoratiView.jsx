@@ -256,7 +256,10 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
   }
 
-  const doSaveSemi = () => {
+  const [saving, setSaving] = useState(false)
+  const doSaveSemi = async () => {
+    if (saving) return
+    setSaving(true)
     const nuovaRic = {
       nome: form.nome.trim().toUpperCase(),
       sheetName: 'manuale', numStampi: 1, totImpasto1: 0, foodCost1: 0,
@@ -265,9 +268,16 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
       tipo: 'semilavorato', unita: 0, prezzo: 0,
     }
     const nuovoRic = { ...(ricettario || {}), ricette: { ...(ricettario?.ricette || {}), [nuovaRic.nome]: nuovaRic } }
-    onSave(nuovoRic, {}, true)
-    notify(`Semilavorato "${nuovaRic.nome}" salvato`)
-    setForm(empty); setEditMode(null); setOverwriteConf(null); setShowForm(false)
+    // Audit 2026-07-01 HIGH: await + try/catch su onSave (potrebbe essere
+    // async lato Dashboard.handleSaveRicetta), altrimenti notifichiamo "salvato"
+    // mentre il DB ha rifiutato.
+    try {
+      await onSave(nuovoRic, {}, true)
+      notify(`Semilavorato "${nuovaRic.nome}" salvato`)
+      setForm(empty); setEditMode(null); setOverwriteConf(null); setShowForm(false)
+    } catch (e) {
+      notify('Errore salvataggio: ' + (e?.message || 'sconosciuto'), false)
+    } finally { setSaving(false) }
   }
   const handleSave = () => {
     if (!form.nome.trim() || form.ingredienti.length === 0) { notify('Inserisci nome e almeno un ingrediente', false); return }
@@ -279,21 +289,30 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
 
   const handleDelete = async nome => {
     if (deletePin !== 'ELIMINA') { notify('Scrivi ELIMINA per confermare', false); return }
+    if (saving) return
+    setSaving(true)
     const nuovoRic = { ...ricettario, ricette: Object.fromEntries(Object.entries(ricettario.ricette || {}).filter(([k]) => k !== nome)) }
-    onSave(nuovoRic, {}, true)
-    setDeleteConf(null); setDeletePin(''); setEditMode(null); setForm(empty)
-    notify(`"${nome}" eliminato`)
+    try {
+      await onSave(nuovoRic, {}, true)
+      setDeleteConf(null); setDeletePin(''); setEditMode(null); setForm(empty)
+      notify(`"${nome}" eliminato`)
+    } catch (e) {
+      notify('Errore eliminazione: ' + (e?.message || 'sconosciuto'), false)
+    } finally { setSaving(false) }
   }
 
-  // Live cost calc del form
+  // Live cost calc del form — Audit 2026-07-01 HIGH: usare calcolaFC con
+  // ricettario per ricorrere su semilavorati nidificati (es. crema → pasta
+  // frolla con sub-semilavorato). Prima sommava solo costi diretti.
   const fcLive = useMemo(() => {
-    let tot = 0
-    for (const ing of form.ingredienti) {
-      const c = ingCosti[normIng(ing.nome)]
-      if (c) tot += ing.qty1stampo * c.costoG
+    const ricFake = { nome: form.nome || 'preview', ingredienti: form.ingredienti }
+    try {
+      const { tot } = calcolaFC(ricFake, ingCosti, ricettario)
+      return tot || 0
+    } catch {
+      return 0
     }
-    return tot
-  }, [form.ingredienti, ingCosti])
+  }, [form.ingredienti, form.nome, ingCosti, ricettario])
   const pesoLive = form.ingredienti.reduce((s, i) => s + (i.qty1stampo || 0), 0)
   const costoKgLive = pesoLive > 0 ? fcLive / pesoLive * 1000 : 0
 
@@ -356,6 +375,11 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                 {deleteConf === sm.nome && (
                   <div style={{ padding: '12px 16px', background: C.redLight, borderRadius: 12, border: `1px solid rgba(110,14,26,0.25)` }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 8 }}>Scrivi <strong>ELIMINA</strong> per confermare l'eliminazione di "{sm.nome}"</div>
+                    {sm.nUsi > 0 && (
+                      <div style={{ fontSize: 11.5, color: C.red, marginBottom: 8, padding: '6px 10px', background: '#FEF3F2', border: '1px dashed rgba(110,14,26,0.4)', borderRadius: 6 }}>
+                        ⚠️ Questo semilavorato e' usato in <strong>{sm.nUsi} {sm.nUsi === 1 ? 'ricetta' : 'ricette'}</strong>. Eliminandolo, quelle ricette troveranno l'ingrediente "{sm.nome}" senza ricetta sorgente (food cost potrebbe risultare diverso).
+                      </div>
+                    )}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <input value={deletePin} onChange={e => setDeletePin(e.target.value)} placeholder="ELIMINA"
                         style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13 }} />

@@ -56,7 +56,12 @@ async function logAdmin(supabase, adminEmail, azione, orgId, ip, userAgent) {
       ip,
       user_agent: (userAgent || '').slice(0, 200),
     })
-  } catch { /* non bloccare per errore di log */ }
+  } catch (e) {
+    // Audit 2026-06-17 MEDIUM: prima il catch era muto, errori DiskFull etc
+    // sparivano. Console.error perché Sentry server lo cattura; le azioni
+    // restano permesse (non vogliamo che il log block l'op stessa).
+    console.error('[logAdmin] insert failed:', e?.message, { azione, adminEmail })
+  }
 }
 
 // ─── handlers GET ──────────────────────────────────────────────────────────
@@ -307,17 +312,33 @@ export async function getSecuritySnapshot(supabase, hours = 24) {
     loginStats = { error: e.message?.slice(0, 80) }
   }
 
-  // Anomalie rilevate (da audit_log con operation='anomaly_detected')
+  // Anomalie rilevate (da audit_log con operation='anomaly_detected').
+  // Audit 2026-06-17 HIGH: prima si selezionavano colonne inesistenti
+  // (details/ip) — la tab Security era un placebo che ritornava sempre [].
+  // Ora usiamo i nomi reali (new_data/client_ip) con fallback per schema legacy.
   let anomalie = []
   try {
-    const { data } = await supabase.from('audit_log')
-      .select('id, user_id, operation, details, created_at, ip')
+    const { data, error } = await supabase.from('audit_log')
+      .select('id, user_id, operation, new_data, created_at, client_ip')
       .eq('operation', 'anomaly_detected')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(50)
-    anomalie = data || []
-  } catch {}
+    if (error) {
+      // Fallback per schema dove le colonne hanno nomi diversi (old)
+      const { data: legacy } = await supabase.from('audit_log')
+        .select('id, user_id, operation, created_at')
+        .eq('operation', 'anomaly_detected')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      anomalie = (legacy || []).map(r => ({ ...r, new_data: null, client_ip: null }))
+    } else {
+      anomalie = data || []
+    }
+  } catch (e) {
+    anomalie = []
+  }
 
   // Azioni admin recenti (chi ha fatto cosa)
   let adminLog = []
@@ -995,9 +1016,14 @@ async function azInviaEmail(req, body, supabase) {
   // Whitelist: solo a profili registrati in foodios (audit 2026-06: prima
   // l'admin poteva inviare a qualsiasi indirizzo → vettore phishing se
   // account admin compromesso).
+  // SECURITY (audit 2026-07-01 HIGH): `.ilike` interpreta `%` e `_` come
+  // wildcard SQL. Un attaccante che registra `admin@foodios%` viene matchato
+  // dal destinatario `admin@foodios.it`. Escapare PRIMA del confronto.
+  const destLow = destinatario.toLowerCase()
+  const destEscaped = destLow.replace(/([%_\\])/g, '\\$1')
   const { data: profileMatch } = await supabase
     .from('profiles').select('id')
-    .ilike('email', destinatario.toLowerCase()).limit(1).maybeSingle()
+    .ilike('email', destEscaped).limit(1).maybeSingle()
   if (!profileMatch) {
     throw new Error(
       `Destinatario "${destinatario}" non e' registrato come utente FoodOS. ` +
@@ -1292,15 +1318,25 @@ async function azPulisciDemoFatture(supabase, orgId, valore) {
 
 // Tabelle che vengono cancellate insieme all'organization (best-effort).
 // Estratto come costante per riusarlo nel preview-count.
+// NB: in azElimina ora preferiamo la RPC `admin_org_cascade_delete` (atomica,
+// migration 20260630) e fallback solo se la RPC non esiste — questa lista
+// resta come fonte per il PREVIEW.
 const TABELLE_ELIMINA_ORG = [
-  'user_data', 'turni', 'dipendenti', 'fornitori', 'ordini_fornitori',
-  'notifiche', 'integrazioni', 'sync_log', 'sedi',
-  'fatture', 'note_giornaliere', 'referral',
+  'user_data', 'turni', 'dipendenti', 'dipendenti_stipendio',
+  'fornitori', 'ordini_fornitori', 'notifiche', 'integrazioni',
+  'sync_log', 'sedi', 'fatture', 'note_giornaliere', 'referral',
   // Tabelle AI nuove (post Daily Brief 2026-06)
   'daily_briefs', 'ai_suggestions', 'brain_conversations',
   'recipe_inventions', 'forecast_giornaliero', 'cashflow_eventi',
   'competitor_prices', 'documentary_snapshots', 'whatsapp_links',
   'extracted_invoices', 'pos_scontrini',
+  // Tabelle aggiunte audit 2026-07-01 (residui post-audit):
+  'haccp_temperature', 'costi_aziendali', 'scadenzario_pagamenti',
+  'inventario_produzione', 'stock_prodotti_finiti', 'vendite_b2b',
+  'sdi_invoice_log', 'trasferimenti', 'ai_usage_daily',
+  'view_usage_daily', 'feedback', 'audit_log', 'error_log',
+  'plan_pricing_log', 'discount_redemptions', 'sdi_emission_queue',
+  'cashflow_eventi', 'login_attempts', 'rate_limits',
 ]
 
 // Conta i record che verrebbero eliminati (dry-run). Usato dall'UI admin per
@@ -1338,26 +1374,50 @@ async function azElimina(supabase, orgId, conferma, expectedCount) {
     }
   }
 
-  for (const t of TABELLE_ELIMINA_ORG) {
-    try {
-      await supabase.from(t).delete().eq('organization_id', orgId)
-    } catch { /* tabella opzionale */ }
+  // Snapshot profili PRIMA del delete (servono per auth.users cleanup).
+  const { data: profiles } = await supabase
+    .from('profiles').select('id, email').eq('organization_id', orgId)
+
+  // Preferiamo la RPC `admin_org_cascade_delete` (migration 20260630): cancella
+  // tutte le tabelle figlie in UNA TRANSAZIONE — niente timeout-mezzo-eliminato,
+  // rollback automatico su errore. Fallback al loop sequenziale solo se la RPC
+  // non e' deployata (DB pre-20260630).
+  const { error: rpcErr } = await supabase.rpc('admin_org_cascade_delete', { p_org_id: orgId })
+  if (rpcErr) {
+    // Fallback: la RPC potrebbe non esistere (migration non applicata) o aver
+    // fallito per motivi specifici. Logghiamo e procediamo con DELETE manuali
+    // ma senza atomicita'.
+    console.warn('[azElimina] admin_org_cascade_delete RPC fallita, fallback al loop:', rpcErr.message)
+    for (const t of TABELLE_ELIMINA_ORG) {
+      try {
+        await supabase.from(t).delete().eq('organization_id', orgId)
+      } catch { /* tabella opzionale */ }
+    }
+    await supabase.from('profiles').delete().eq('organization_id', orgId)
+    const r = await supabase.from('organizations').delete().eq('id', orgId)
+    if (r.error) throw new Error(r.error.message)
   }
 
-  // Recupera utenti dell'org per eliminarli da auth
-  const { data: profiles } = await supabase
-    .from('profiles').select('id').eq('organization_id', orgId)
-
-  // Elimina i profili (figli di auth.users via FK)
-  await supabase.from('profiles').delete().eq('organization_id', orgId)
-
-  // Elimina l'organization
-  const r = await supabase.from('organizations').delete().eq('id', orgId)
-  if (r.error) throw new Error(r.error.message)
-
-  // Elimina utenti auth (best-effort, in coda)
+  // Elimina utenti auth (best-effort, in coda). Tracciare fallimenti per evitare
+  // utenti orfani che possono ancora fare login senza profilo.
+  const fallitiAuth = []
   for (const p of profiles || []) {
-    try { await supabase.auth.admin.deleteUser(p.id) } catch { /* ignore */ }
+    try {
+      await supabase.auth.admin.deleteUser(p.id)
+    } catch (e) {
+      fallitiAuth.push({ id: p.id, email: p.email, error: e?.message })
+    }
+  }
+  if (fallitiAuth.length > 0) {
+    // Log su error_log per recovery manuale; non interrompe la pipeline.
+    try {
+      await supabase.from('error_log').insert({
+        endpoint: 'admin.azElimina',
+        status_code: 500,
+        error_message: `auth.admin.deleteUser fallita per ${fallitiAuth.length} utenti dell'org ${orgId}`,
+        context: { orgId, fallitiAuth },
+      })
+    } catch { /* error_log opzionale */ }
   }
 }
 
@@ -1472,24 +1532,47 @@ async function azCleanupE2EPreview(supabase) {
   }
 }
 
-async function azCleanupE2E(supabase, conferma) {
+async function azCleanupE2E(supabase, conferma, expectedCount = null) {
   if (conferma !== 'CLEANUP_E2E') {
     throw new Error('Conferma mancante (stringa CLEANUP_E2E)')
   }
   const orgs = await findE2EOrgs(supabase)
+  // Audit 2026-07-01 HIGH: expectedCount check come in azElimina — protegge
+  // da cleanup massivo se nel frattempo un test ha creato 500 org per errore.
+  if (expectedCount != null && Number(expectedCount) !== orgs.length) {
+    throw new Error(
+      `Stato cambiato dal preview: ${orgs.length} org E2E vs ${expectedCount} attesi. Riapri il preview.`
+    )
+  }
+  // Cap di sicurezza: se piu' di 200 org E2E sono identificate in una run,
+  // probabilmente il pattern e' troppo largo (incident).
+  if (orgs.length > 200) {
+    throw new Error(`Trovati ${orgs.length} org E2E in una run — limite di sicurezza 200. Verifica i pattern.`)
+  }
   const results = { eliminate: 0, falliti: 0, errori: [] }
   for (const { orgId } of orgs) {
     try {
-      // Riusa la stessa logica di azElimina (senza expectedCount check)
-      for (const t of TABELLE_ELIMINA_ORG) {
-        try { await supabase.from(t).delete().eq('organization_id', orgId) } catch {}
-      }
-      const { data: profiles } = await supabase
-        .from('profiles').select('id').eq('organization_id', orgId)
-      await supabase.from('profiles').delete().eq('organization_id', orgId)
-      await supabase.from('organizations').delete().eq('id', orgId)
-      for (const p of profiles || []) {
-        try { await supabase.auth.admin.deleteUser(p.id) } catch {}
+      // Riusa la stessa logica di azElimina via RPC atomica.
+      const { error: rpcErr } = await supabase.rpc('admin_org_cascade_delete', { p_org_id: orgId })
+      if (rpcErr) {
+        // Fallback al loop sequenziale se RPC non c'e' (DB pre-20260630).
+        for (const t of TABELLE_ELIMINA_ORG) {
+          try { await supabase.from(t).delete().eq('organization_id', orgId) } catch {}
+        }
+        const { data: profiles } = await supabase
+          .from('profiles').select('id').eq('organization_id', orgId)
+        await supabase.from('profiles').delete().eq('organization_id', orgId)
+        await supabase.from('organizations').delete().eq('id', orgId)
+        for (const p of profiles || []) {
+          try { await supabase.auth.admin.deleteUser(p.id) } catch {}
+        }
+      } else {
+        // Cleanup utenti auth dopo la cascade (la RPC non tocca auth.users).
+        const { data: profiles } = await supabase
+          .from('profiles').select('id').eq('organization_id', orgId)
+        for (const p of profiles || []) {
+          try { await supabase.auth.admin.deleteUser(p.id) } catch {}
+        }
       }
       results.eliminate++
     } catch (e) {
@@ -1506,10 +1589,17 @@ export default async function handler(req) {
   if (req.method === 'OPTIONS') return handleOptions(req)
 
   const ip = getClientIP(req)
-  const ua = req.headers.get('user-agent') || ''
+  // Audit 2026-07-01 HIGH: cap user-agent IMMEDIATAMENTE per evitare downstream
+  // hot logging di stringhe grandi (10KB) — i call site di logAdmin slice gia'
+  // a 200 ma req.headers.get puo' essere chiamato altrove in flow.
+  const ua = (req.headers.get('user-agent') || '').slice(0, 256)
 
+  // Audit 2026-07-01 HIGH: ADMIN_IPS supporta `*` come bypass (admin in
+  // viaggio con IP residenziale variabile) — usa quando OPT_OUT non possibile.
+  // Senza wildcard, comportamento storico immutato.
   const ADMIN_IPS = (process.env.ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean)
-  if (ADMIN_IPS.length > 0 && !ADMIN_IPS.includes(ip)) {
+  const ipAllowAll = ADMIN_IPS.includes('*')
+  if (ADMIN_IPS.length > 0 && !ipAllowAll && !ADMIN_IPS.includes(ip)) {
     return json({ error: 'IP non autorizzato' }, 403, req)
   }
 
@@ -1722,11 +1812,18 @@ export default async function handler(req) {
         await logAdmin(supabase, user.email, 'esporta_csv', null, ip, ua)
         const clienti = await getClienti(supabase)
         const header = 'Nome attivita,Tipo,Email,Nome completo,Piano,Stato,Sedi,Record,Registrata il,Ultimo accesso,Trial scade'
+        // Anti-CSV-injection: se il valore inizia con =+-@\t\r, prefisso '
+        // (audit 2026-06-17 MEDIUM: un nome_attivita "=cmd|..." si trasforma
+        // in formula Excel quando l'admin apre il CSV).
+        const q = v => {
+          let s = String(v ?? '')
+          if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) s = "'" + s
+          return `"${s.replace(/"/g, '""')}"`
+        }
         const rows = clienti.map(c => {
           const stato = !c.attivo ? 'Bloccato'
             : c.org_approvata ? 'Pagante'
             : (c.trial_ends_at && new Date(c.trial_ends_at) > new Date()) ? 'Trial' : 'Scaduto'
-          const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`
           return [
             q(c.nome_attivita), q(c.tipo), q(c.email), q(c.nome_completo),
             q(c.piano), q(stato), c.num_sedi || 0, c.num_record || 0,
@@ -1805,7 +1902,15 @@ export default async function handler(req) {
     }
     const perAction = PER_ACTION_LIMITS[tipo]
     if (perAction) {
-      const rlAction = await checkRateLimit(supabase, `admin:${user.email}:${tipo}`, perAction.max, perAction.windowSec)
+      // Azioni distruttive: fail-closed. Se la tabella rate_limits non è
+      // disponibile preferiamo bloccare piuttosto che lasciar passare un admin
+      // potenzialmente compromesso (audit 2026-06-17 HIGH).
+      const DESTRUTTIVE = new Set(['elimina', 'cleanup_e2e', 'pulisci_demo_fatture'])
+      const failClosed = DESTRUTTIVE.has(tipo)
+      const rlAction = await checkRateLimit(
+        supabase, `admin:${user.email}:${tipo}`, perAction.max, perAction.windowSec, 900,
+        { failClosed }
+      )
       if (!rlAction.allowed) {
         await logAdmin(supabase, user.email, `rate_limit_per_action:${tipo}`, orgId || null, ip, ua)
         return rateLimitResponse(rlAction.retryAfter)
@@ -1849,9 +1954,10 @@ export default async function handler(req) {
           )
           break
         case 'cleanup_e2e':
+          // Audit 2026-07-01 HIGH: passa expectedCount dal preview (UI).
           // Batch cleanup di tutti gli account test E2E (email @foodios-e2e.test, e2e+*, e2e-acc-titolare-*).
           // Doppia conferma stringa CLEANUP_E2E richiesta.
-          result = { ok: true, ...(await azCleanupE2E(supabase, sanitizeStrict(body.conferma || '', 20))) }
+          result = { ok: true, ...(await azCleanupE2E(supabase, sanitizeStrict(body.conferma || '', 20), body.expectedCount)) }
           break
         case 'pulisci_demo_fatture':
           result = { ok: true, ...(await azPulisciDemoFatture(supabase, orgId, sanitizeStrict(body.valore || 'preview', 20))) }; break

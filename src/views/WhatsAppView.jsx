@@ -11,6 +11,7 @@ import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
+import { useConfirm } from '../components/ConfirmModal'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -25,6 +26,7 @@ const WA_NUMBER = '+39 351 234 5678'
 
 export default function WhatsAppView({ orgId, user }) {
   const isMobile = useIsMobile()
+  const confirmDialog = useConfirm()
   const [links, setLinks] = useState([])
   const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
@@ -69,7 +71,12 @@ export default function WhatsAppView({ orgId, user }) {
   }
 
   async function rimuovi(id) {
-    if (!confirm('Scollegare questo numero?')) return
+    const ok = await confirmDialog({
+      title: 'Scollegare numero?',
+      message: 'Il numero non riceverà più report o alert da FoodOS via WhatsApp.',
+      confirmLabel: 'Scollega', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     await supabase.from('whatsapp_links').delete().eq('id', id)
     setLinks(prev => prev.filter(l => l.id !== id))
   }

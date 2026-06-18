@@ -223,11 +223,15 @@ export default async function handler(req) {
       // Safety guard: l'admin puo' inviare custom solo a destinatari registrati
       // come profili nel DB. Impedisce uso come gateway phishing in caso di
       // account admin compromesso. Il match e' case-insensitive.
+      // Audit 2026-07-01 HIGH: escape `%`/`_` (wildcard SQL ilike) prima del
+      // match — altrimenti un profilo `admin@foodios%` matcherebbe ogni email
+      // che inizia per `admin@foodios`. Stesso bug di azInviaEmail.
       const emailLow = email.toLowerCase()
+      const emailEscaped = emailLow.replace(/([%_\\])/g, '\\$1')
       const { data: profileMatch } = await supabase
         .from('profiles')
         .select('id')
-        .ilike('email', emailLow)
+        .ilike('email', emailEscaped)
         .limit(1)
         .maybeSingle()
       if (!profileMatch) {

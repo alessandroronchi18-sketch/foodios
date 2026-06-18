@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
+import { useConfirm } from '../components/ConfirmModal'
 import { C, TNUM, PageHeader } from './_shared'
 import {
   CATEGORIE_DEFAULT, PERIODICITA,
@@ -19,6 +20,7 @@ const fmt2 = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractio
 
 export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   const isMobile = useIsMobile()
+  const confirmDialog = useConfirm()
   const [voci, setVoci] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(null) // null = nessun form, oggetto = edit/create
@@ -67,7 +69,12 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   }
 
   async function elimina(id) {
-    if (!confirm('Eliminare questa voce di costo?')) return
+    const ok = await confirmDialog({
+      title: 'Eliminare voce di costo?',
+      message: 'La voce sara rimossa dal P&L. Le voci storiche restano.',
+      confirmLabel: 'Elimina', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     try {
       await eliminaVoceCosto(id, false)
       await reload()

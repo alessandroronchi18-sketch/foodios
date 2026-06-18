@@ -156,10 +156,50 @@ export default async function handler(req) {
     return json({ error: 'Salvataggio fallito: ' + e.message }, 500, req)
   }
 
+  // Stock PF server-side: prima si faceva sul client del dipendente DOPO la
+  // response 200. Se il dipendente perdeva rete fra response e RPC stock, ghost
+  // stock. Eseguendo qui prima del return riduciamo la finestra al solo "rete
+  // morta tra carico PF e response", che è breve. Audit 2026-06-17 CRITICAL.
+  const stockOrfani = []
+  for (const p of prodottiSess) {
+    const ric = ricettario.ricette[p.nome] || ricettario.ricette[p.nome.toUpperCase().trim()]
+    const reg = getR(p.nome, ric)
+    const unitaFactor = Number(reg?.unita)
+    const pezzi = (p.vendibile || 0) * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
+    if (pezzi <= 0) continue
+    const prodottoKey = p.nome.toUpperCase().trim()
+    try {
+      const { error: rpcErr } = await supabase.rpc('stock_pf_carico_produzione', {
+        p_sede_id: sedeId,
+        p_prodotto: prodottoKey,
+        p_quantita: pezzi,
+        p_unita: 'pz',
+        p_note: `Sessione ${data}${sess.note ? ' · ' + sess.note : ''}`,
+      })
+      if (rpcErr) throw new Error(rpcErr.message)
+    } catch (e) {
+      stockOrfani.push({ prodotto: prodottoKey, pezzi, error: e?.message || 'rpc fallita' })
+    }
+  }
+  if (stockOrfani.length > 0) {
+    // Log per audit / reconcile: il magazzino+giornaliero sono salvati ma lo
+    // stock vetrina di alcuni prodotti non lo è. Notifichiamo client+admin.
+    try {
+      await supabase.from('error_log').insert({
+        endpoint: 'produzione-registra',
+        operation: 'stock_pf_partial',
+        code: 'STOCK_PF_PARTIAL',
+        message: JSON.stringify(stockOrfani).slice(0, 1500),
+        org_id: orgId,
+      })
+    } catch {}
+  }
+
   return json({
     ok: true,
-    magazzino: nm,                    // giacenze materie prime (nomi+stock: il dip le gestisce)
-    giornaliero: ng.map(stripSessione), // senza ingredientiUsati/fcTot
+    magazzino: nm,
+    giornaliero: ng.map(stripSessione),
     sessione: stripSessione(sess),
+    stockOrfani, // client può mostrare un warning
   }, 200, req)
 }

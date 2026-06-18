@@ -82,10 +82,12 @@ const ALIQUOTA_INPS_DATORE = 0.30
 const ALIQUOTA_INAIL = 0.02
 export function costoAziendaMensile(lordoMese, opts = {}) {
   const mensilita = opts.mensilita || 13
-  const tfrMese = lordoMese / 13.5  // accantonamento TFR ~1/13.5 della retribuzione
   const lordoAnnuo = lordoMese * mensilita
+  // Audit 2026-06-17 MEDIUM: TFR si accantona su tutte le mensilità reali.
+  // Prima si divideva per 13.5 fisso + * 12, ignorando opts.mensilita: con 14
+  // mensilità il TFR risultava sottostimato.
+  const tfrAnnuo = lordoAnnuo / 13.5
   const contributi = lordoAnnuo * (ALIQUOTA_INPS_DATORE + ALIQUOTA_INAIL)
-  const tfrAnnuo = tfrMese * 12
   return Math.round((lordoAnnuo + contributi + tfrAnnuo) / 12 * 100) / 100
 }
 

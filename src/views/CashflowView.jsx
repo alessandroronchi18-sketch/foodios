@@ -17,6 +17,7 @@ import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
 import AiPageHero from '../components/AiPageHero'
+import { useConfirm } from '../components/ConfirmModal'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -42,8 +43,10 @@ const TIPI_EVENTO = [
   { id: 'altro',     lbl: 'Altro' },
 ]
 
-export default function CashflowView({ orgId, sedeId }) {
+export default function CashflowView({ orgId, sedeId, notify }) {
+  const notifyFn = notify || ((m) => { try { console.debug('[cashflow]', m) } catch {} })
   const isMobile = useIsMobile()
+  const confirmDialog = useConfirm()
   const [chiusure, setChiusure] = useState([])
   const [fatture, setFatture] = useState([])
   const [eventi, setEventi] = useState([])
@@ -134,8 +137,14 @@ export default function CashflowView({ orgId, sedeId }) {
 
   async function salvaSaldo(nuovo) {
     const next = { ...settings, saldoOggi: Number(nuovo) || 0 }
-    setSettings(next)
-    try { await ssave(SK_CASH_SETTINGS, next, orgId, null) } catch {}
+    // Save-first: persist PRIMA di setState. Se save fallisce non aggiorniamo la UI
+    // e mostriamo l'errore — niente drift state↔DB (audit 2026-06-17 CRITICAL).
+    try {
+      await ssave(SK_CASH_SETTINGS, next, orgId, null)
+      setSettings(next)
+    } catch (e) {
+      notifyFn('Errore salvataggio saldo: ' + (e?.message || 'sconosciuto'), false)
+    }
   }
 
   async function aggiungiEvento() {
@@ -152,15 +161,21 @@ export default function CashflowView({ orgId, sedeId }) {
       setEventi(prev => [...prev, data].sort((a, b) => (a.data_attesa || '').localeCompare(b.data_attesa || '')))
       setNewEv({ tipo: 'uscita', descrizione: '', data_attesa: '', importo: '' })
       setShowAddEvento(false)
-    } catch (e) { alert('Errore: ' + e.message) }
+    } catch (e) { notifyFn('Errore: ' + (e?.message || 'salvataggio fallito'), false) }
   }
 
   async function eliminaEvento(id) {
-    if (!confirm('Eliminare questo evento dal cashflow?')) return
+    // Audit 2026-07-01 MEDIUM: confirm() nativo -> ConfirmModal in-app.
+    const ok = await confirmDialog({
+      title: 'Eliminare evento?',
+      message: 'L\'evento verra rimosso dal cashflow. Le proiezioni successive saranno ricalcolate.',
+      confirmLabel: 'Elimina', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     try {
       await supabase.from('cashflow_eventi').delete().eq('id', id)
       setEventi(prev => prev.filter(e => e.id !== id))
-    } catch (e) { alert('Errore: ' + e.message) }
+    } catch (e) { notifyFn('Errore: ' + (e?.message || 'eliminazione fallita'), false) }
   }
 
   // Mini chart SVG: linea atteso/ottim/pessim
@@ -196,9 +211,9 @@ export default function CashflowView({ orgId, sedeId }) {
           if (i < 0) return null
           return <circle cx={xOf(i)} cy={yOf(primoGiornoRosso.saldoAtteso)} r="4" fill={BRAND} stroke="#FFF" strokeWidth="2" />
         })()}
-        <text x={PAD} y={20} fontSize="10" fill={SOFT}>€{fmt0(max)}</text>
-        <text x={PAD} y={H - PAD + 14} fontSize="10" fill={SOFT}>€{fmt0(min)}</text>
-        <text x={W - PAD} y={H - PAD + 14} fontSize="10" fill={SOFT} textAnchor="end">+{orizzonte}gg</text>
+        <text x={PAD} y={20} fontSize="12" fontWeight="600" fill={MID}>€{fmt0(max)}</text>
+        <text x={PAD} y={H - PAD + 16} fontSize="12" fontWeight="600" fill={MID}>€{fmt0(min)}</text>
+        <text x={W - PAD} y={H - PAD + 16} fontSize="12" fontWeight="600" fill={MID} textAnchor="end">+{orizzonte}gg</text>
       </svg>
     )
   }, [timeline, isMobile, primoGiornoRosso, orizzonte])
@@ -241,6 +256,20 @@ export default function CashflowView({ orgId, sedeId }) {
                 Inserisci quanto hai oggi su conto corrente + cassa. L'AI proietta il futuro in base a media ricavi (60gg) + scadenze.
               </div>
             </div>
+            {(!settings.saldoOggi || Number(settings.saldoOggi) === 0) && (
+              <div style={{
+                marginTop: 12, padding: '10px 12px',
+                background: '#FEF9C3', border: '1px solid #FDE68A',
+                borderRadius: 8, fontSize: 12, color: '#854D0E', lineHeight: 1.5,
+                display: 'flex', gap: 8, alignItems: 'flex-start',
+              }}>
+                <Icon name="warning" size={14} color="#854D0E" />
+                <div>
+                  Imposta il <strong>saldo cassa+banca di oggi</strong> per vedere la previsione reale.
+                  Senza, il grafico mostra solo le variazioni (saldo iniziale = 0 €).
+                </div>
+              </div>
+            )}
           </div>
 
           {/* KPI scenari */}

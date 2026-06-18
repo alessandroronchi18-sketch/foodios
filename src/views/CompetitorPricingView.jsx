@@ -24,9 +24,13 @@ const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
 const AMBER = T.amber || '#D97706'
 
-export default function CompetitorPricingView({ orgId, sedeId, ricettario }) {
+export default function CompetitorPricingView({ orgId, sedeId, ricettario, notify }) {
+  const notifyFn = notify || ((m) => console.debug('[competitor]', m))
   const isMobile = useIsMobile()
-  const ricetteArr = Array.isArray(ricettario) ? ricettario : []
+  const ricetteArr = useMemo(
+    () => (ricettario?.ricette ? Object.values(ricettario.ricette) : []),
+    [ricettario]
+  )
   const [ricSel, setRicSel] = useState('')
   const [competitors, setCompetitors] = useState([])
   const [newComp, setNewComp] = useState({ nome: '', prezzo: '' })
@@ -54,13 +58,13 @@ export default function CompetitorPricingView({ orgId, sedeId, ricettario }) {
 
   const fcInfo = useMemo(() => {
     if (!ricCurrent) return null
-    const ic = buildIngCosti(ricetteArr)
-    const fc = calcolaFC(ricCurrent, ic, ricetteArr) || {}
+    const ic = buildIngCosti(ricettario?.ingredienti_costi || {})
+    const { tot: fcPezzo } = calcolaFC(ricCurrent, ic, ricettario)
     return {
-      fcPezzo: Number(fc.fcPerPezzo) || Number(fc.fc) || 0,
-      prezzo: Number(getR(ricCurrent, 'prezzo')) || 0,
+      fcPezzo,
+      prezzo: Number(getR(ricCurrent.nome, ricCurrent).prezzo) || 0,
     }
-  }, [ricCurrent, ricetteArr])
+  }, [ricCurrent, ricettario])
 
   const compFiltered = useMemo(() => {
     if (!ricSel) return []
@@ -92,7 +96,7 @@ export default function CompetitorPricingView({ orgId, sedeId, ricettario }) {
       if (error) throw error
       setCompetitors(prev => [data, ...prev])
       setNewComp({ nome: '', prezzo: '' })
-    } catch (e) { alert('Errore: ' + e.message) }
+    } catch (e) { notifyFn('Errore: ' + (e?.message || 'rete'), false) }
   }
 
   async function rimuoviCompetitor(id) {

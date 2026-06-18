@@ -245,8 +245,14 @@ export async function ssaveVersioned(key, value, orgId, sedeId, expectedVersion)
  * Restituisce { [sedeId]: data_value }.
  * Utile per la "Vista azienda" che aggrega KPI di tutte le sedi.
  * Per chiavi shared non ha senso e ritorna un singolo entry con key 'shared'.
+ *
+ * @param {object} opts
+ * @param {boolean} [opts.includeLegacyNull=false] Se true, include righe con
+ *   sede_id=NULL sotto la chiave speciale '_legacy'. Audit 2026-07-01 HIGH:
+ *   per chiavi PER-SEDE storicamente single-sede (es. magazzino legacy)
+ *   c'erano righe sede_id=NULL invisibili in "Tutte le sedi". Opt-in.
  */
-export async function sloadAllSedi(key, orgId) {
+export async function sloadAllSedi(key, orgId, opts = {}) {
   if (!orgId) return {}
   if (isSharedKey(key)) {
     const v = await sload(key, orgId, null)
@@ -257,17 +263,23 @@ export async function sloadAllSedi(key, orgId) {
   // appartengono a nessuna sede reale, gonfiando KPI (es. ricavi storico
   // sede_id=NULL non visibili per-sede ma sommati in aggregato → bug coerenza
   // dati visto su DEMO: 700k all-sedi vs ~80k somma per-sede).
-  const { data, error } = await supabase
+  let q = supabase
     .from('user_data')
     .select('sede_id, data_value, updated_at')
     .eq('organization_id', orgId)
     .eq('data_key', key)
-    .not('sede_id', 'is', null)
     .order('updated_at', { ascending: false })
+  if (!opts.includeLegacyNull) {
+    q = q.not('sede_id', 'is', null)
+  }
+  const { data, error } = await q
   if (error) { console.error('sloadAllSedi error:', key, error); return {} }
   const out = {}
   for (const row of (data || [])) {
-    if (!row.sede_id) continue  // safety net (oltre al filtro server-side)
+    if (!row.sede_id) {
+      if (opts.includeLegacyNull && !('_legacy' in out)) out._legacy = row.data_value
+      continue
+    }
     if (!(row.sede_id in out)) out[row.sede_id] = row.data_value
   }
   return out

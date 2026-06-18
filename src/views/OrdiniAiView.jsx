@@ -26,7 +26,8 @@ const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
 const AMBER = T.amber || '#D97706'
 
-export default function OrdiniAiView({ orgId, sedeId }) {
+export default function OrdiniAiView({ orgId, sedeId, notify }) {
+  const notifyFn = notify || ((m) => console.debug('[ordini-ai]', m))
   const isMobile = useIsMobile()
   const [magazzino, setMagazzino] = useState({})
   const [chiusure, setChiusure] = useState([])
@@ -128,11 +129,37 @@ export default function OrdiniAiView({ orgId, sedeId }) {
   }
 
   async function copia() {
+    const testo = genTestoOrdine()
+    // Path moderno: navigator.clipboard. Su iOS Safari pre-13.4 o contesti
+    // non-secure fallisce: fallback a textarea + execCommand('copy').
     try {
-      await navigator.clipboard.writeText(genTestoOrdine())
-      alert('Testo ordine copiato negli appunti! Incollalo in mail / WhatsApp al fornitore.')
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(testo)
+        notifyFn('Testo ordine copiato negli appunti — incollalo in mail/WhatsApp al fornitore', true)
+        return
+      }
     } catch {
-      alert('Errore copia. Seleziona manualmente il testo qui sotto.')
+      // cade nel fallback
+    }
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = testo
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.top = '0'
+      ta.style.left = '0'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      // iOS richiede selezione esplicita prima di execCommand.
+      ta.focus()
+      ta.select()
+      ta.setSelectionRange(0, testo.length)
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      if (ok) notifyFn('Testo ordine copiato — incollalo in mail/WhatsApp al fornitore', true)
+      else notifyFn('Copia non riuscita. Seleziona manualmente il testo qui sotto.', false)
+    } catch {
+      notifyFn('Copia non supportata su questo browser. Seleziona manualmente il testo.', false)
     }
   }
 
@@ -178,7 +205,7 @@ export default function OrdiniAiView({ orgId, sedeId }) {
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Giacenza</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Soglia</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cons. medio/gg</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Gg rimasti</th>
+                    <th title="Giorni rimasti di scorta = giacenza attuale / consumo medio giornaliero" style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'help' }}>Gg rimasti</th>
                     <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Da ordinare</th>
                   </tr>
                 </thead>

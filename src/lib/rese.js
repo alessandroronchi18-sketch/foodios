@@ -20,7 +20,15 @@ export function hasResaIngrediente(nomeNorm) {
 }
 
 export function setResaIngrediente(nomeNorm, resa) {
-  _store[nomeNorm] = Math.max(0.01, Math.min(1.0, parseFloat(resa)||1.0));
+  // Audit 2026-07-01 MEDIUM: il vecchio warning diceva "clamped a 0.01" ma il
+  // codice usa 1.0 di default per input <= 0 (semantica: "valore invalido,
+  // uso 100%"). Allineato il messaggio alla logica reale.
+  const parsed = parseFloat(resa);
+  if (Number.isFinite(parsed) && parsed <= 0) {
+    console.warn('[rese] resa <= 0 per', nomeNorm, '→ ignorata, default 1.0 (100%)');
+  }
+  const value = Number.isFinite(parsed) && parsed > 0 ? parsed : 1.0;
+  _store[nomeNorm] = Math.max(0.01, Math.min(1.0, value));
 }
 
 export function loadRese(obj) {
@@ -36,6 +44,14 @@ export function getAllRese() {
 
 export function getStoreRese() {
   return { ..._store };
+}
+
+// Reset rese runtime: necessario quando si cambia organizzazione/sede nella
+// stessa sessione (impersonation admin). Senza, le rese di org A inquinano i
+// calcoli FC di org B. Allineato a resetRegoleRuntime() in foodcost.js.
+// Audit 2026-06-17 HIGH.
+export function resetRese() {
+  for (const k of Object.keys(_store)) delete _store[k];
 }
 
 export function costoNettoPerG(costoLordoPerG, nomeNorm) {

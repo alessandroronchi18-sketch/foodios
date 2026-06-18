@@ -97,7 +97,7 @@ export async function caricaSettimana(orgId, sedeId, lunediIso) {
 
   const { data, error } = await supabase
     .from('inventario_produzione')
-    .select('id, gusto_nome, data, produzione_g, rimanenza_g, scarto_g, note, updated_at')
+    .select('id, gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, note, updated_at')
     .eq('organization_id', orgId)
     .eq('sede_id', sedeId)
     .gte('data', inizioIso)
@@ -107,19 +107,34 @@ export async function caricaSettimana(orgId, sedeId, lunediIso) {
   return data || []
 }
 
-// Upsert di una singola cella (gusto × giorno). idempotente sulla unique
-// (org, sede, gusto, data). Ritorna la riga finale o lancia.
+// Upsert di una singola cella (gusto × giorno). Patch-only: i campi NON
+// specificati nel patch preservano il valore esistente sulla cella. Questo
+// evita che un import di sprechi azzeri silenziosamente uno `spedito_g`
+// precedentemente registrato per la stessa cella.
 export async function salvaCella(orgId, sedeId, gustoNome, dataIso, patch) {
+  // Audit 2026-06-17 LOW: input negativo silenziato a 0. Logghiamo warning
+  // se l'utente passa un valore <0 esplicito (typo) invece di azzerare
+  // silenziosamente.
+  const num = (v) => {
+    const n = Number(v) || 0
+    if (n < 0) console.warn('[salvaCella] valore negativo clamped a 0:', v)
+    return Math.max(0, Math.round(n))
+  }
+  const has = (k) => Object.prototype.hasOwnProperty.call(patch, k)
   const row = {
     organization_id: orgId,
     sede_id: sedeId,
     gusto_nome: normGusto(gustoNome),
     data: dataIso,
-    produzione_g: Math.max(0, Math.round(Number(patch.produzione_g) || 0)),
-    rimanenza_g: Math.max(0, Math.round(Number(patch.rimanenza_g) || 0)),
-    scarto_g: Math.max(0, Math.round(Number(patch.scarto_g) || 0)),
+    produzione_g: num(patch.produzione_g),
+    rimanenza_g: num(patch.rimanenza_g),
+    scarto_g: num(patch.scarto_g),
+    spedito_g: has('spedito_g') ? num(patch.spedito_g) : undefined,
     note: patch.note || null,
   }
+  // Se spedito_g non è nel patch, lasciamo il DB scegliere (mantenere valore
+  // esistente in caso di update). Su INSERT viene popolato dal DEFAULT 0.
+  if (row.spedito_g === undefined) delete row.spedito_g
   const { data, error } = await supabase
     .from('inventario_produzione')
     .upsert(row, { onConflict: 'organization_id,sede_id,gusto_nome,data' })
@@ -208,14 +223,14 @@ export function calcolaVendutoSettimana(righe, lunediIso) {
       const prod = corrente.produzione_g || 0
       const riman = corrente.rimanenza_g || 0
       const scarto = corrente.scarto_g || 0
-      // M2: il venduto deve essere clampato a 0 lato UI per i KPI, ma
-      // l'eventuale valore NEGATIVO (es. dipendente ha scritto RIMAN > stock
-      // disponibile) indica un errore di input. Esponiamo entrambi: venduto
-      // (clampato per consumo aggregato) + vendutoRaw (signed per UI che
-      // vuole segnalare l'anomalia con icona warning).
-      const vRaw = rimanPrev + prod - riman - scarto
+      // Audit 2026-07-01 HIGH: la formula deve sottrarre anche `spedito_g`
+      // (kg trasferiti ad altra sede), altrimenti la quadratura inventario↔cassa
+      // conta gli spediti come venduti retail → drift cronico falso.
+      // Allineata a inventarioASessioni che gia' lo fa.
+      const spedito = corrente.spedito_g || 0
+      const vRaw = rimanPrev + prod - riman - scarto - spedito
       out[g][dIso] = {
-        prod, riman, scarto,
+        prod, riman, scarto, spedito,
         venduto: Math.max(0, vRaw),
         vendutoRaw: vRaw,
       }
@@ -268,6 +283,9 @@ export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG) {
     const qty = Number(ing.qty1stampo) || 0
     if (qty <= 0 || !ing.nome) continue
     const deltaIng = qty * fattore
+    // Audit 2026-07-01 LOW: skip se deltaIng non finito (fattore=Infinity con
+    // pesoImpasto ≈ 0 per ingredienti decorativi minimi).
+    if (!Number.isFinite(deltaIng)) continue
     const k = normIng(ing.nome)
     const corrente = nm[k] || { nome: ing.nome.trim(), giacenza_g: 0, soglia_g: 0, ultimoRifornimento: null }
     // M1 fix: ammettiamo giacenza negativa internamente. Era clampata a 0
@@ -427,9 +445,11 @@ export function inventarioASessioni(righeInventario) {
       const prod = Number(r.produzione_g) || 0
       const riman = Number(r.rimanenza_g) || 0
       const scarto = Number(r.scarto_g) || 0
+      const spedito = Number(r.spedito_g) || 0
       const dMs = new Date(r.data).getTime()
       if (prevDayMs !== null && Math.round((dMs - prevDayMs) / 86400000) !== 1) rimanPrev = 0
-      const venduto = Math.max(0, rimanPrev + prod - riman - scarto)
+      // venduto = riman_prev + prod − riman − scarto − spedito (sede origine)
+      const venduto = Math.max(0, rimanPrev + prod - riman - scarto - spedito)
       const vendutoKg = venduto / 1000
       const prodKg = prod / 1000
       if (prodKg > 0 || vendutoKg > 0) {
@@ -463,7 +483,7 @@ export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
   const inizioIso = inizio.toISOString().slice(0, 10)
   const { data, error } = await supabase
     .from('inventario_produzione')
-    .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g')
+    .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g')
     .eq('organization_id', orgId)
     .eq('sede_id', sedeId)
     .gte('data', inizioIso)

@@ -492,7 +492,7 @@ function SensTable({ rows, euro, pct }) {
 // ─── PLView ──────────────────────────────────────────────────────────────────
 const SK_PL_COSTI = 'pl-costi-fissi-v1' // per-sede: { affitto, utenze, altro, personale }
 
-export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpdateRegola }) {
+export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpdateRegola, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -535,7 +535,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const totRicavo = rows.reduce((s, r) => s + r.ricavo, 0)
   const totFC = rows.reduce((s, r) => s + r.fc, 0)
   const totMargine = rows.reduce((s, r) => s + r.margine, 0)
-  const avgMarg = rows.reduce((s, r) => s + r.margPct, 0) / rows.length
+  // Audit 2026-07-01 LOW: guard division by zero (rows vuoto -> NaN).
+  const avgMarg = rows.length > 0
+    ? rows.reduce((s, r) => s + r.margPct, 0) / rows.length
+    : 0
   const best = rows[0]
   const worst = rows[rows.length - 1]
   const fcAvg = totRicavo > 0 ? (totFC / totRicavo * 100) : 0
@@ -545,6 +548,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const [costi, setCosti] = useState({ affitto: 0, utenze: 0, altro: 0, personale: 0 })
   const [editCosti, setEditCosti] = useState(false)
   const [savingCosti, setSavingCosti] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
   const [targetLavoro, setTargetLavoro] = useState(30)
 
   useEffect(() => {
@@ -558,9 +562,15 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
 
   async function salvaCosti(next) {
     setSavingCosti(true)
-    try { await ssave(SK_PL_COSTI, next, orgId, sedeId); setCosti(next); setEditCosti(false) }
-    catch { /* toast gestito altrove */ }
-    finally { setSavingCosti(false) }
+    try {
+      await ssave(SK_PL_COSTI, next, orgId, sedeId)
+      setCosti(next)
+      setEditCosti(false)
+    } catch (e) {
+      // Audit 2026-07-01 HIGH: il vecchio catch swallow silenzioso lasciava
+      // l'utente convinto di aver salvato. Mostriamo errore esplicito.
+      try { notify?.('Errore salvataggio costi: ' + (e?.message || 'sconosciuto'), false) } catch {}
+    } finally { setSavingCosti(false) }
   }
 
   const mesiDisponibili = useMemo(() => {
@@ -677,19 +687,28 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
         subtitle={'Conto economico mensile reale + analisi di redditività del listino'}
         action={
           <button onClick={async () => {
-            if (!(await gateExport('pl', { n_items: rows.length }, window.__foodos_notify))) return
-            const c = getExportCtx()
-            exportPLCompleto({
-              rows,
-              topIngredienti: topIngredienti.slice(0, 12),
-              insights,
-              fcAvg, avgMarg, totRicavo, totFC, totMargine,
-            }, c.nomeAttivita, c.email)
+            // Audit 2026-07-01 MEDIUM: disabled durante export per evitare doppio
+            // PDF (gateExport e' async + jsPDF e' sincrono ma il rate-limit gate
+            // puo' ritornare con delay).
+            if (exportingPdf) return
+            setExportingPdf(true)
+            try {
+              if (!(await gateExport('pl', { n_items: rows.length }, window.__foodos_notify))) return
+              const c = getExportCtx()
+              exportPLCompleto({
+                rows,
+                topIngredienti: topIngredienti.slice(0, 12),
+                insights,
+                fcAvg, avgMarg, totRicavo, totFC, totMargine,
+              }, c.nomeAttivita, c.email)
+            } finally { setExportingPdf(false) }
           }}
+            disabled={exportingPdf}
             style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
-              fontSize: 13, fontWeight: 500, color: T.textMid, cursor: 'pointer', letterSpacing: '-0.005em',
+              fontSize: 13, fontWeight: 500, color: T.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', letterSpacing: '-0.005em',
+              opacity: exportingPdf ? 0.6 : 1,
               display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.sm }}>
-            <Icon name="fileText" size={14} />Esporta PDF
+            <Icon name="fileText" size={14} />{exportingPdf ? 'Generazione…' : 'Esporta PDF'}
           </button>
         }
       />

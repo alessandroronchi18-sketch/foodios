@@ -144,10 +144,25 @@ export default async function handler(req) {
     const startTs = trialBaseTs > nowTs ? trialBaseTs : nowTs
     const trialEnd = new Date(startTs + 60 * 86400_000)
 
-    await supabase.from('organizations').update({
-      referral_code_usato: codice,
-      trial_ends_at: trialEnd.toISOString(),
-    }).eq('id', orgId)
+    // Update atomico: applica SOLO se referral_code_usato è ancora NULL.
+    // Audit 2026-06-17 CRITICAL: senza questa guardia, due richieste concorrenti
+    // dello stesso utente passavano entrambe il check su org?.referral_code_usato
+    // e raddoppiavano il trial + bonus referrer.
+    const { data: claimed, error: claimErr } = await supabase
+      .from('organizations')
+      .update({
+        referral_code_usato: codice,
+        trial_ends_at: trialEnd.toISOString(),
+      })
+      .eq('id', orgId)
+      .is('referral_code_usato', null)
+      .select('id')
+
+    if (claimErr) return json({ error: 'Errore applicazione codice' }, 500, req)
+    if (!claimed || claimed.length === 0) {
+      // Race: un'altra richiesta concorrente ha già applicato un codice referral.
+      return json({ error: 'Hai già usato un codice referral' }, 409, req)
+    }
 
     await supabase.from('referral').update({
       utilizzi: referral.utilizzi + 1,

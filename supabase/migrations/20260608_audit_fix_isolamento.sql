@@ -22,7 +22,7 @@ set search_path = public
 as $guard$
 begin
   if auth.uid() is not null and new.organization_id is distinct from old.organization_id then
-    raise exception 'Non e'' consentito cambiare organizzazione';
+    raise exception 'Non e consentito cambiare organizzazione';
   end if;
   if public.is_dipendente() and (
        new.ruolo is distinct from old.ruolo

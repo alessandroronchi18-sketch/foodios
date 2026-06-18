@@ -35,9 +35,18 @@ export function validateUrl(url) {
   } catch { return false }
 }
 
-// Rimuove caratteri di controllo e normalizza spazi
+// Rimuove caratteri di controllo e normalizza spazi.
+// Audit 2026-07-01 MEDIUM: rimuove anche zero-width Unicode (U+200B..U+200F,
+// U+2028..U+202F, U+FEFF) usati per spoofing visivo (nomi attivita' "duplicati"
+// che sembrano identici). Costruiamo il regex via new RegExp con escape
+// \uXXXX su stringa per evitare problemi di encoding del file source.
+const ZERO_WIDTH_RE = new RegExp(
+  '[\\u200B-\\u200F\\u2028-\\u202F\\u2060-\\u206F\\uFEFF]',
+  'g'
+)
 export function sanitizeStrict(str, maxLen = 200) {
   return sanitize(str, maxLen)
     .replace(/[\x00-\x1F\x7F]/g, '')
+    .replace(ZERO_WIDTH_RE, '')
     .replace(/\s+/g, ' ')
 }

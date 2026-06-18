@@ -66,7 +66,13 @@ export async function caricoProduzionePF({ sedeId, prodotto, quantita, unita = '
 }
 
 // Scarico per vendita (chiusura giornaliera). Permette negativo → alert UI.
+// Audit 2026-06-17 LOW: guard su quantita<=0 lato client per evitare silenzioso
+// no-op (la RPC server raise exception ma se chiamata con 0 esplicito client
+// non vedeva errore).
 export async function scaricoVenditaPF({ sedeId, prodotto, quantita, unita = 'pz', note = null }) {
+  if (!(Number(quantita) > 0)) {
+    throw new Error('scaricoVenditaPF: quantita deve essere > 0')
+  }
   const { data, error } = await supabase.rpc('stock_pf_scarico_vendita', {
     p_sede: sedeId,
     p_prodotto: prodotto,
@@ -80,6 +86,11 @@ export async function scaricoVenditaPF({ sedeId, prodotto, quantita, unita = 'pz
 
 // Rettifica scarto manuale.
 export async function scartoPF({ sedeId, prodotto, quantita, note = null }) {
+  // Audit 2026-07-01 LOW: stesso guard di scaricoVenditaPF/caricoProduzionePF
+  // applicato in audit 17 giu — mancava qui.
+  if (!Number.isFinite(quantita) || quantita <= 0) {
+    throw new Error('Quantita scarto deve essere > 0')
+  }
   const { data, error } = await supabase.rpc('stock_pf_scarto', {
     p_sede: sedeId,
     p_prodotto: prodotto,

@@ -98,6 +98,14 @@ export default async function handler(req, res) {
   let orgId = (body.organization_id || '').toString().trim()
   let importoNetto = Number(body.importo_netto || 0)
   let pianoLabel = (body.piano || '').toString().trim()
+  // Aliquota IVA dinamica: derivata da inv.total_tax_amounts[].tax_rate se
+  // Stripe Tax attivo, altrimenti default 22 (audit 2026-06-17 HIGH).
+  // NB: `Number(body.aliquota_iva || 22)` rimpiazza 0 con 22 — sbagliato per
+  // regimi speciali (export, regime forfettario 0%). Distinguere "non passato"
+  // da "passato 0". (Audit 2026-07-01 HIGH)
+  let aliquotaIvaPct = Number.isFinite(Number(body.aliquota_iva))
+    ? Number(body.aliquota_iva)
+    : 22
 
   // Modalita' 1: chiamata da webhook con solo stripe_invoice_id
   // → carica dati invoice da Stripe + risali a organization
@@ -109,12 +117,50 @@ export default async function handler(req, res) {
       const cust = await stripe.customers.retrieve(inv.customer)
       orgId = cust?.metadata?.organization_id || null
       if (!orgId) {
-        // fallback: cerca per stripe_customer_id su organizations
         const { data: org } = await supabase
           .from('organizations').select('id').eq('stripe_customer_id', inv.customer).maybeSingle()
         orgId = org?.id || null
       }
-      importoNetto = (inv.amount_paid - (inv.tax || 0)) / 100  // sottrai IVA gia' inclusa
+      // Calcolo netto: preferire subtotal_excluding_tax (presente solo con Stripe Tax
+      // attivo). Se non c'è, dedurre dal totale: con Stripe Tax disattivato il prezzo
+      // Stripe è inclusivo IVA → netto = total / (1 + IVA).
+      const subtotalExcl = Number.isFinite(inv.subtotal_excluding_tax) ? inv.subtotal_excluding_tax : null
+      const taxAmount = Number.isFinite(inv.tax) ? inv.tax : null
+      // Aliquota IVA dall'invoice se presente; altrimenti 22 default.
+      try {
+        // Audit 2026-07-01 HIGH: prima leggevamo solo il primo tax rate; se
+        // Stripe Tax applica piu' aliquote (es. split-payment IT), prendere la
+        // prima e applicarla a tutto distorce il netto. Se ce ne sono multipli
+        // distinti, restiamo sul default 22 e segnaliamo nell'error_log.
+        const taxRates = Array.isArray(inv.total_tax_amounts) ? inv.total_tax_amounts : []
+        if (taxRates.length === 1) {
+          const rateFromInvoice = taxRates[0].tax_rate
+          const rate = typeof rateFromInvoice === 'string'
+            ? await stripe.taxRates.retrieve(rateFromInvoice)
+            : rateFromInvoice
+          if (Number.isFinite(rate?.percentage)) aliquotaIvaPct = Number(rate.percentage)
+        } else if (taxRates.length > 1) {
+          try {
+            await supabase.from('error_log').insert({
+              endpoint: 'sdi-emit-invoice',
+              status_code: 0,
+              error_message: `Stripe invoice ${stripeInvoiceId} ha ${taxRates.length} tax_rates distinti — uso 22% di default`,
+              context: { stripeInvoiceId, taxRates: taxRates.map(t => ({ tax_rate: typeof t.tax_rate === 'string' ? t.tax_rate : t.tax_rate?.id })) },
+            })
+          } catch { /* error_log opzionale */ }
+        }
+      } catch { /* keep default 22 */ }
+      if (subtotalExcl != null) {
+        importoNetto = subtotalExcl / 100
+      } else if (taxAmount != null && taxAmount > 0) {
+        importoNetto = (inv.amount_paid - taxAmount) / 100
+      } else {
+        // Nessun dato IVA da Stripe: assumi prezzo IVA-inclusiva (setup tipico non-Tax).
+        importoNetto = (inv.amount_paid / 100) / (1 + aliquotaIvaPct / 100)
+      }
+      // Audit 2026-07-01 LOW: arrotonda ai centesimi per evitare mismatch
+      // FiC ↔ Stripe ↔ SDI sull'ultimo decimale (89.34426 vs 89.34).
+      importoNetto = Math.round(importoNetto * 100) / 100
       pianoLabel = inv.lines?.data?.[0]?.description || 'Abbonamento FoodOS'
     } catch (e) {
       return res.status(400).json({ error: `Stripe lookup fallito: ${e.message}` })
@@ -148,10 +194,17 @@ export default async function handler(req, res) {
   // UNICA PRIMA di emettere. Chi vince l'insert emette; gli altri trovano la
   // riga e fanno no-op. Evita la doppia fattura SDI anche sotto retry concorrenti
   // del webhook (a differenza del vecchio check-then-emit) e copre il manual emit.
+  // Audit 2026-07-01 MEDIUM: per manual mode il default usava
+  // `new Date().toISOString().slice(0, 7)` (mese corrente). Emettere il 31/12
+  // 23:59 e ritrigger il 01/01 00:00 cambia il mese → key diversa → doppia
+  // fattura SDI. Usiamo la data della fattura (se body.data_fattura presente)
+  // o l'YYYY-MM-DD del momento, non YYYY-MM.
+  const dataFatturaFallback = (body.data_fattura || '').toString().slice(0, 10)
+    || new Date().toISOString().slice(0, 10)
   const idempotencyKey = (body.idempotency_key || '').toString().trim() ||
     (stripeInvoiceId
       ? `stripe:${stripeInvoiceId}`
-      : `manual:${orgId}:${Math.round(importoNetto * 100)}:${new Date().toISOString().slice(0, 7)}`)
+      : `manual:${orgId}:${Math.round(importoNetto * 100)}:${dataFatturaFallback}`)
 
   // Soglia "stale": un claim pending oltre questa eta' indica un crash della
   // function precedente (OOM, timeout, redeploy). 15 minuti e' il limite Vercel
@@ -275,22 +328,41 @@ export default async function handler(req, res) {
       scadenza: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       oggetto: pianoLabel || `Abbonamento FoodOS — ${ragione}`,
       importoNetto,
-      aliquotaIva: 22,
+      aliquotaIva: aliquotaIvaPct,
       transmit: true,
       stripeInvoiceId,
     })
   } catch (e) {
-    await rilasciaClaim()
+    // Audit 2026-07-01 HIGH: se la fattura e' stata creata su FiC ma poi
+    // emettiFatturaElettronica ha lanciato (es. trasmissione SDI fallita),
+    // NON rilasciamo il claim — altrimenti retry crea duplicato. Marciamo
+    // 'partial_fic_created' per recovery manuale dall'admin.
+    if (e?.partialCreated) {
+      try {
+        await supabase.from('sdi_invoice_log').update({
+          fic_cliente_id: cliente.id,
+          status: 'partial_fic_created',
+          sdi_messaggio_errore: (e?.message || '').slice(0, 500),
+          updated_at: new Date().toISOString(),
+        }).eq('id', claimId)
+      } catch { /* best-effort */ }
+    } else {
+      await rilasciaClaim()
+    }
     const safe = safeError(e, { endpoint: 'sdi-emit-invoice', op: 'emettiFattura', orgId, importoNetto }, 500, supabase)
     return res.status(safe.status).json(safe.body)
   }
 
   // 3. Completa il claim con i dati della fattura emessa (pending → emessa).
+  //    Se la trasmissione SDI e' fallita ma la fattura e' creata, marciamo
+  //    'emessa_non_trasmessa' (audit 2026-07-01 LOW).
+  const finalStatus = invoice?.sdiTransmitFailed ? 'emessa_non_trasmessa' : 'emessa'
   try {
     await supabase.from('sdi_invoice_log').update({
       fic_invoice_id: invoice.id,
       fic_cliente_id: cliente.id,
-      status: 'emessa',
+      status: finalStatus,
+      sdi_messaggio_errore: invoice?.sdiError ? `SDI transmit: ${invoice.sdiError}`.slice(0, 500) : null,
       updated_at: new Date().toISOString(),
     }).eq('id', claimId)
   } catch (e) {

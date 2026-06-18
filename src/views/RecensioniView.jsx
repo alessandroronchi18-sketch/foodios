@@ -6,7 +6,7 @@
 //
 // Niente DB: stateless, solo /api/ai proxy + clipboard copy.
 
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
@@ -98,17 +98,28 @@ Genera le 3 risposte come da istruzioni.`
     }
   }
 
+  // Audit 2026-07-01 HIGH: tracking timer, click rapidi accumulavano timer
+  // sovrapposti — l'ultimo finiva per resetare anche i success "verdi" futuri.
+  const copyTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+  }, [])
+  function scheduleCopiatoReset() {
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+    copyTimerRef.current = setTimeout(() => { setCopiato(null); copyTimerRef.current = null }, 2000)
+  }
+
   async function copia(tono, testo) {
     try {
       await navigator.clipboard.writeText(testo)
       setCopiato(tono)
-      setTimeout(() => setCopiato(null), 2000)
+      scheduleCopiatoReset()
     } catch {
       // Fallback su dispositivi senza clipboard API
       const ta = document.createElement('textarea')
       ta.value = testo; document.body.appendChild(ta); ta.select()
       document.execCommand('copy'); document.body.removeChild(ta)
-      setCopiato(tono); setTimeout(() => setCopiato(null), 2000)
+      setCopiato(tono); scheduleCopiatoReset()
     }
   }
 

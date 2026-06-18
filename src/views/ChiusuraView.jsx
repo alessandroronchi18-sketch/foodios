@@ -21,6 +21,7 @@ import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/import
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
+import { useConfirm } from '../components/ConfirmModal'
 import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
 
 // Persiste fra unmount/remount durante l'analisi AI di uno scontrino
@@ -46,6 +47,7 @@ function SectHead({ icon, title, sub, right }) {
 export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId, isDipendente = false, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  const confirmDialog = useConfirm()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
 
@@ -61,6 +63,11 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   // Formati di vendita (config shared): mappano le righe scontrino senza dettaglio
   // gusto/ripieno (cono, vaschetta, panino…) a una categoria di ricette.
   const [formati, setFormati] = useState([])
+  // Audit 2026-07-01 HIGH: ref per cleanup drift timer.
+  const driftTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (driftTimerRef.current) clearTimeout(driftTimerRef.current)
+  }, [])
   useEffect(() => {
     let alive = true
     if (!orgId) return
@@ -326,9 +333,22 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             const dataRaw = obj.data
             const dataStr = dataRaw && /^\d{4}-\d{2}-\d{2}$/.test(dataRaw) ? dataRaw : todaySnap
             if (!prodotti.length) { results.push({ data: dataStr, prodotti: [], salvato: false, error: 'Nessun prodotto estratto' }); skipped++; continue }
-            const rec = { id: `ch-${dataStr}-${Date.now()}`, data: dataStr, salvatoAt: new Date().toISOString(), venduto: prodotti, confronto: [], kpi: {}, dataEstrattaDaScontrino: !!dataRaw }
+            const recBase = { id: `ch-${dataStr}-${Date.now()}`, data: dataStr, salvatoAt: new Date().toISOString(), venduto: prodotti, confronto: [], kpi: {}, dataEstrattaDaScontrino: !!dataRaw }
             const idx = nuoveChiusure.findIndex(c => c.data === dataStr)
-            if (idx >= 0) nuoveChiusure[idx] = rec; else nuoveChiusure.push(rec)
+            if (idx >= 0) {
+              // Audit 2026-07-01 HIGH: merge, NON replace. Re-processare un OCR
+              // gia' confrontato con cassa cancellava cassaImport/formati.
+              const prev = nuoveChiusure[idx]
+              nuoveChiusure[idx] = {
+                ...prev,
+                ...recBase,
+                cassaImport: prev.cassaImport || [],
+                formati: prev.formati || prev.formati || null,
+                id: prev.id || recBase.id,
+              }
+            } else {
+              nuoveChiusure.push(recBase)
+            }
             results.push({ data: dataStr, prodotti, salvato: true, error: null })
             saved++
           } catch (e) { results.push({ data: '?', prodotti: [], salvato: false, error: e.message }); skipped++ }
@@ -438,6 +458,19 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const handleSalva = async () => {
     if (salvando) return // evita doppio scarico stock PF su doppio click sincrono
     if (!venduto || (confronto.length === 0 && formatiRiconc.righe.length === 0)) return
+    // Audit 2026-07-01 MEDIUM: se non c'e' nessuna sessione produzione + nessuna
+    // riga cassa, l'utente salva chiusura con KPI a 0 → corrompe lo storico.
+    // Confermiamo se sta davvero salvando "vuoto".
+    const hasProduzione = confronto.some(r => Number(r.unitaP) > 0 || Number(r.unitaV) > 0)
+    const hasCassa = formatiRiconc.righe.some(r => Number(r.unitaV) > 0)
+    if (!hasProduzione && !hasCassa) {
+      const ok = await confirmDialog({
+        title: 'Chiusura vuota?',
+        message: 'Nessuna produzione e nessuna cassa per questa data. Sei sicuro di voler salvare comunque?',
+        confirmLabel: 'Salva vuota', cancelLabel: 'Annulla',
+      })
+      if (!ok) return
+    }
     setSalvando(true)
 
     // DIPENDENTE: il ricettario è sanitizzato (calcolaFC=0) → NON deve salvare lui
@@ -461,11 +494,16 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       }
       setChiusure(resp.chiusure); setSalvato(true)
       if (!eraGiaChiusaDip && orgId && sedeId) {
+        const erroriScaricoDip = []
         for (const row of confronto) {
           const venduti = Number(row.unitaV || 0)
           if (venduti <= 0) continue
           try { await scaricoVenditaPF({ sedeId, prodotto: (row.nome || '').toUpperCase().trim(), quantita: venduti, unita: 'pz', note: `Chiusura ${dataFiltro}` }) }
-          catch (e) { console.error('Errore scarico vendita PF:', row.nome, e?.message) }
+          catch (e) { console.error('Errore scarico vendita PF:', row.nome, e?.message); erroriScaricoDip.push(row.nome) }
+        }
+        if (erroriScaricoDip.length > 0) {
+          // Audit 2026-07-01 MEDIUM: ghost-stock silente. Notifichiamo aggregato.
+          notify(`Attenzione: scarico stock vetrina fallito per ${erroriScaricoDip.length} prodotti (${erroriScaricoDip.slice(0,3).join(', ')}${erroriScaricoDip.length>3?'...':''}). Controlla magazzino.`, false)
         }
       }
       setSalvando(false)
@@ -480,7 +518,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       formati: formatiRiconc.righe.map(r => ({ nome: r.nome, categoria: r.categoria, unitaV: r.unitaV, rv: r.rv, fcV: r.fcV, marg: r.marg })),
       kpi: { totV, totFC, totM, totS, totMP, avgST },
     }
-    const eraGiaChiusa = !!chiusuraSalvata
+    // Calcola eraGiaChiusa da `chiusure` PRIMA della filter — evita race se
+    // setChiusure asincrono dopo navigazione+ritorno (audit 2026-06-17 MEDIUM).
+    const eraGiaChiusa = (chiusure || []).some(c => c.data === dataFiltro)
     const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), rec]
     // SAVE FIRST per evitare data-loss: se ssave fallisce, non aggiorniamo lo
     // state (l'UI deve restare allineata al DB).
@@ -494,8 +534,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     setChiusure(nuove)
     setSalvato(true)
 
-    // Scarico automatico stock PF (solo prima chiusura del giorno)
+    // Scarico automatico stock PF (solo prima chiusura del giorno).
+    // Audit 2026-07-01 MEDIUM: errors aggregati + notify utente (ghost-stock silente).
     if (!eraGiaChiusa && orgId && sedeId) {
+      const erroriScarico = []
       for (const row of confronto) {
         const venduti = Number(row.unitaV || 0)
         if (venduti <= 0) continue
@@ -503,7 +545,11 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           await scaricoVenditaPF({ sedeId, prodotto: (row.nome || '').toUpperCase().trim(), quantita: venduti, unita: 'pz', note: `Chiusura ${dataFiltro}` })
         } catch (e) {
           console.error('Errore scarico vendita PF:', row.nome, e?.message)
+          erroriScarico.push(row.nome)
         }
+      }
+      if (erroriScarico.length > 0) {
+        notify(`Attenzione: scarico stock vetrina fallito per ${erroriScarico.length} prodotti (${erroriScarico.slice(0,3).join(', ')}${erroriScarico.length>3?'...':''}). Controlla magazzino.`, false)
       }
     }
     setSalvando(false)
@@ -517,8 +563,12 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       const tipo = peggiore.driftPct > 0
         ? 'mano abbondante o residui non registrati'
         : 'vendite non registrate o errore inserimento'
-      setTimeout(() => {
+      // Audit 2026-07-01 HIGH: cleanup timer drift. Cambio sede/periodo durante
+      // i 1200ms → notify stale o doppio.
+      if (driftTimerRef.current) clearTimeout(driftTimerRef.current)
+      driftTimerRef.current = setTimeout(() => {
         notify(`Drift critico ${peggiore.categoria}: ${segno}${peggiore.driftPct.toFixed(0)}% — ${tipo}${anomalieDrift.length > 1 ? ` (e altre ${anomalieDrift.length - 1} categorie)` : ''}`, false)
+        driftTimerRef.current = null
       }, 1200)
     }
   }
@@ -672,7 +722,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                     <tbody>{importPreview.righe.map((r, i) => (
                       <tr key={i} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 ? '#FDFAF7' : C.white }}>
                         <td style={{ padding: '5px 10px', fontWeight: 700, color: C.text }}>{r.data}</td>
-                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green }}>€{(r.importo || 0).toFixed(2)}</td>
+                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.red }}>€{(r.commissione || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700 }}>€{(r.netto || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.textSoft }}>{r.ordini}</td>
@@ -743,7 +793,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                     <tbody>{importPreview.righe.map((r, i) => (
                       <tr key={i} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 ? '#FDFAF7' : C.white }}>
                         <td style={{ padding: '5px 10px', fontWeight: 700, color: C.text }}>{r.data}</td>
-                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green }}>€{(r.importo || 0).toFixed(2)}</td>
+                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.textSoft }}>€{(r.iva || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right' }}>{r.righe || 1}</td>
                         <td style={{ padding: '5px 10px', color: C.textMid, fontSize: 9 }}>{r.fonte}</td>
@@ -828,7 +878,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 <div style={{ position: 'relative', maxWidth: isMobile ? 200 : 'none' }}>
                   <img src={preview} alt="scontrino" style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.border}`, display: 'block' }}/>
                   <button aria-label="Rimuovi foto scontrino" onClick={() => { setPreview(null); setImg(null); setVenduto(null); setSalvato(false); if (inputRef.current) inputRef.current.value = '' }}
-                    style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                    aria-label="Rimuovi"
+                    style={{ position: 'absolute', top: 5, right: 5, width: isMobile ? 40 : 20, height: isMobile ? 40 : 20, borderRadius: isMobile ? 8 : 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: isMobile ? 16 : 10, cursor: 'pointer', fontWeight: 700 }}>✕</button>
                   <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -879,7 +930,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                     style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, textAlign: 'right' }}/>
                   <button onClick={() => setManualRows(rows => rows.length > 1 ? rows.filter((_, j) => j !== i) : rows)}
                     title="Rimuovi riga" disabled={manualRows.length <= 1}
-                    style={{ width: 28, height: 32, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, color: manualRows.length <= 1 ? C.border : C.red, fontSize: 13, cursor: manualRows.length <= 1 ? 'not-allowed' : 'pointer', fontWeight: 700 }}>✕</button>
+                    aria-label="Elimina riga"
+                    style={{ width: isMobile ? 40 : 28, height: isMobile ? 40 : 32, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, color: manualRows.length <= 1 ? C.border : C.red, fontSize: isMobile ? 16 : 13, cursor: manualRows.length <= 1 ? 'not-allowed' : 'pointer', fontWeight: 700 }}>✕</button>
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>

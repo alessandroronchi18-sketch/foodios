@@ -78,7 +78,13 @@ export function matchFormato(nomeScontrino, formati) {
   for (const f of formati) {
     const candidati = [f.nome, ...(f.alias || [])].map(nrm).filter(Boolean)
     for (const c of candidati) {
-      if (c === t || t.includes(c) || c.includes(t)) {
+      // Audit 2026-07-01 HIGH: minimum-length gate. Un formato "g" o "ml"
+      // (1-2 char) faceva match per substring su tutti gli scontrini → bias
+      // catastrofico. Esatto match sempre OK; substring richiede len >= 3.
+      const isExactMatch = c === t
+      const isLongEnoughSubstring = c.length >= 3 && t.length >= 3 &&
+        (t.includes(c) || c.includes(t))
+      if (isExactMatch || isLongEnoughSubstring) {
         // Preferisci il match più lungo (più specifico) in caso di più candidati.
         if (!best || c.length > best._len) best = { ...f, _len: c.length }
       }
@@ -182,9 +188,13 @@ export function riconciliaFormati(venduto, formati, sessione, ricettario, ingCos
     byCat[k] = byCat[k] || { categoria: r.categoria, gProdotti: 0, gVenduti: 0 }
   }
   // grammi venduti = Σ unitaV × baseQtaG dei formati (per categoria)
+  // Audit 2026-07-01 LOW: skip formati con baseQtaG <= 0 (es. "ricarica tessera"
+  // o servizio non pesato): non contribuiscono a gVenduti e non vanno contati.
   for (const r of righe) {
     const f = formati.find(x => x.id === r.formatoId)
-    byCat[catKey(r.categoria)].gVenduti += r.unitaV * (Number(f?.baseQtaG) || 0)
+    const base = Number(f?.baseQtaG) || 0
+    if (base <= 0) continue
+    byCat[catKey(r.categoria)].gVenduti += r.unitaV * base
   }
   // grammi prodotti = Σ stampi × peso stampo delle ricette di quella categoria
   for (const p of (sessione?.prodotti || [])) {

@@ -48,6 +48,23 @@ function planFromPriceId(priceId) {
   return null
 }
 
+// Validazione check digit P.IVA IT (Luhn-mod-11). Una P.IVA come 00000000000
+// passa la regex /^[0-9]{11}$/ ma è invalida (audit 2026-06-17 MEDIUM).
+function isValidPivaIT(piva) {
+  if (!/^[0-9]{11}$/.test(piva)) return false
+  let sum = 0
+  for (let i = 0; i < 10; i++) {
+    let d = parseInt(piva[i], 10)
+    if (i % 2 === 1) {
+      d *= 2
+      if (d > 9) d -= 9
+    }
+    sum += d
+  }
+  const check = (10 - (sum % 10)) % 10
+  return check === parseInt(piva[10], 10)
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
@@ -88,7 +105,7 @@ export default async function handler(req, res) {
   try {
     const { data: existing, error: selErr } = await supabase
       .from('stripe_webhook_events')
-      .select('event_id, processed_at')
+      .select('event_id, type, processed_at')
       .eq('event_id', event.id)
       .maybeSingle()
     if (selErr) {
@@ -96,8 +113,6 @@ export default async function handler(req, res) {
         idempotencyAvailable = false
         console.warn('[stripe-webhook] idempotency table missing — proceeding (FIX: applicare migration)')
       } else if (selErr.code === '42703') {
-        // colonna processed_at non esiste → migration 20260624 non applicata.
-        // Comportamento legacy: la row presence stessa è il marker "fatto".
         console.warn('[stripe-webhook] processed_at column missing — applicare 20260624 migration')
         idempotencyAvailable = false
       } else {
@@ -105,18 +120,41 @@ export default async function handler(req, res) {
         return res.status(503).json({ error: 'idempotency check failed', code: selErr.code })
       }
     } else if (existing?.processed_at) {
+      // Verifica che il type combaci: se la row registrata ha type diverso da quello
+      // dell'evento ricevuto, qualcosa è andato storto (event.id collision improbabile,
+      // o manipolazione DB). Logghiamo e accettiamo comunque come duplicate per non
+      // ri-eseguire side-effect.
+      if (existing.type && existing.type !== event.type) {
+        console.warn(`[stripe-webhook] event_id ${event.id} type mismatch: stored=${existing.type} received=${event.type}`)
+      }
       return res.status(200).json({ received: true, duplicate: true })
     }
 
     if (idempotencyAvailable) {
-      // Claim: upsert con processed_at=NULL. Se la row esiste già (retry dopo crash)
-      // l'upsert resta NULL, riprovando la finalizzazione.
+      // Claim: INSERT...ON CONFLICT DO NOTHING per evitare di sovrascrivere
+      // accidentalmente processed_at di una row finalizzata (race tra select e claim).
+      // Audit 2026-06-17: prima usava upsert senza ignoreDuplicates → in race
+      // ri-apriva eventi già finalizzati (double SDI emission, ecc.).
       const { error: upErr } = await supabase
         .from('stripe_webhook_events')
-        .upsert({ event_id: event.id, type: event.type, processed_at: null }, { onConflict: 'event_id' })
+        .upsert(
+          { event_id: event.id, type: event.type, processed_at: null },
+          { onConflict: 'event_id', ignoreDuplicates: true }
+        )
       if (upErr) {
         console.error('[stripe-webhook] idempotency claim failed', upErr.code, upErr.message)
         return res.status(503).json({ error: 'idempotency claim failed', code: upErr.code })
+      }
+      // Ri-verifica processed_at dopo il claim: in race fra il primo select
+      // (esisteva con processed_at=null) e il claim (DO NOTHING), un'altra
+      // istanza potrebbe averlo finalizzato.
+      const { data: post } = await supabase
+        .from('stripe_webhook_events')
+        .select('processed_at')
+        .eq('event_id', event.id)
+        .maybeSingle()
+      if (post?.processed_at) {
+        return res.status(200).json({ received: true, duplicate: true })
       }
     }
   } catch (e) {
@@ -171,8 +209,14 @@ export default async function handler(req, res) {
         const priceId = sub.items?.data?.[0]?.price?.id
         const piano = planFromPriceId(priceId)
         const stato = sub.status // active | trialing | past_due | canceled | unpaid
-        const isAttivo = ['active', 'trialing'].includes(stato)
-        const periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null
+        // Audit 2026-06-17 HIGH: include past_due nel "attivo" per dare grace
+        // period 3-7gg al cliente (Stripe lascia dunning prima del canceled).
+        // unpaid e canceled escludono.
+        const isAttivo = ['active', 'trialing', 'past_due'].includes(stato)
+        // current_period_end: Stripe API 2024-06-20+ a volte lo espone solo su
+        // items[0] anziché top-level. Cerchiamo in entrambi.
+        const periodEndTs = sub.current_period_end || sub.items?.data?.[0]?.current_period_end || null
+        const periodEnd = periodEndTs ? new Date(periodEndTs * 1000).toISOString() : null
 
         const patch = {
           stripe_subscription_id: sub.id,
@@ -202,7 +246,12 @@ export default async function handler(req, res) {
               message: `sub ${sub.id}: metadata.org=${orgId} != customer.org=${orgByCustomer.id}`,
               org_id: orgByCustomer.id,
             }).catch(() => {})
+            // Audit 2026-07-01 HIGH: oltre a sincronizzare verso l'org reale,
+            // forziamo Stripe a ritentare (alert su mismatch) ritornando 500.
+            // Cosi' processed_at NON viene marcato e gli admin vedono l'incident
+            // ripetersi finche' qualcuno non interviene manualmente.
             await supabase.from('organizations').update(patch).eq('id', orgByCustomer.id)
+            return res.status(500).json({ error: 'metadata_mismatch — admin alert' })
           } else {
             await supabase.from('organizations').update(patch).eq('id', orgId)
           }
@@ -223,14 +272,17 @@ export default async function handler(req, res) {
             .from('organizations').select('id').eq('stripe_customer_id', c.id).maybeSingle()
           if (!org) break
           const taxId = c.tax_ids?.data?.[0] || null
-          // Recupera l'eventuale tax_id (per i nuovi customer Stripe non lo
-          // mette in c.tax_ids ma richiede listTaxIds separato — best-effort).
+          // Recupera l'eventuale tax_id SOLO se non già in c.tax_ids (audit
+          // 2026-06-17 MEDIUM: prima chiamava listTaxIds anche quando taxId era
+          // disponibile, sprecando rate limit Stripe).
           let pivaFromList = null
-          try {
-            const tax = await stripe.customers.listTaxIds(c.id, { limit: 1 })
-            const it = (tax.data || []).find(t => t.type === 'eu_vat' || t.type === 'it_partita_iva')
-            if (it) pivaFromList = it.value
-          } catch { /* ignore */ }
+          if (!taxId) {
+            try {
+              const tax = await stripe.customers.listTaxIds(c.id, { limit: 1 })
+              const it = (tax.data || []).find(t => t.type === 'eu_vat' || t.type === 'it_partita_iva')
+              if (it) pivaFromList = it.value
+            } catch { /* ignore */ }
+          }
           const addr = c.address || {}
           const patch = {
             ragione_sociale: c.name || null,
@@ -242,13 +294,17 @@ export default async function handler(req, res) {
             nazione: addr.country || 'IT',
             business_info_updated_at: new Date().toISOString(),
           }
-          // Sanitizza P.IVA italiana: rimuovi prefisso IT, valida formato.
-          // Se la P.IVA non e' 11 cifre la scartiamo (null) invece di
-          // salvare un valore malformato che farebbe poi fallire l'emissione
-          // SDI con un errore poco diagnosticabile a valle.
+          // Sanitizza P.IVA italiana: rimuovi prefisso IT, valida formato +
+          // verifica check digit Luhn-mod-11 (audit 2026-06-17 MEDIUM).
+          // Una P.IVA tipo 00000000000 passa la regex ma è invalida; meglio
+          // scartarla qui piuttosto che far fallire SDI a valle con errore criptico.
           if (patch.partita_iva && patch.nazione === 'IT') {
             const cleaned = String(patch.partita_iva).replace(/^IT/i, '').replace(/[^0-9]/g, '')
-            patch.partita_iva = /^[0-9]{11}$/.test(cleaned) ? cleaned : null
+            if (/^[0-9]{11}$/.test(cleaned) && isValidPivaIT(cleaned)) {
+              patch.partita_iva = cleaned
+            } else {
+              patch.partita_iva = null
+            }
           }
           // Aggiorna solo i campi non null (non sovrascrivere con null)
           const filtered = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== null))
@@ -319,21 +375,37 @@ export default async function handler(req, res) {
           }
         } catch (e) { console.error('[stripe-webhook] discount tracking', e) }
 
-        // Emissione fattura elettronica SDI via Fatture in Cloud (fire-and-forget).
-        // Solo se configurato — senza FATTUREINCLOUD_API_TOKEN, skip silenzioso.
-        if (process.env.FATTUREINCLOUD_API_TOKEN && process.env.FATTUREINCLOUD_COMPANY_ID && process.env.INTERNAL_API_SECRET) {
+        // Emissione fattura elettronica SDI: accodata su sdi_emission_queue.
+        // Una funzione cron schedulata processa la coda. Pattern queue-first per
+        // evitare il fire-and-forget fetch che su serverless veniva troncato
+        // (audit 2026-06-17 HIGH).
+        if (process.env.FATTUREINCLOUD_API_TOKEN && process.env.FATTUREINCLOUD_COMPANY_ID) {
           try {
-            const base = new URL(req.url, `https://${req.headers.host}`).origin
-            // fire-and-forget, NON await: il webhook deve rispondere a Stripe entro 5s
-            fetch(`${base}/api/sdi-emit-invoice`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-internal-secret': process.env.INTERNAL_API_SECRET,
-              },
-              body: JSON.stringify({ stripe_invoice_id: inv.id }),
-            }).catch(e => console.error('[stripe-webhook] sdi-emit-invoice trigger failed', e?.message))
-          } catch (e) { console.error('[stripe-webhook] sdi trigger error', e?.message) }
+            await supabase.from('sdi_emission_queue').insert({
+              stripe_invoice_id: inv.id,
+              status: 'pending',
+            })
+          } catch (e) {
+            // Tabella forse non ancora migrata: log e fallback su trigger sincrono.
+            console.warn('[stripe-webhook] sdi_emission_queue insert failed, falling back to sync emit', e?.message)
+            if (process.env.INTERNAL_API_SECRET && process.env.PUBLIC_BASE_URL) {
+              try {
+                // Await: paghiamo latenza ma garantiamo che la richiesta parta.
+                // Se SDI fallisce, ritorniamo comunque 200 a Stripe e ripiombiamo
+                // sulla queue alla prossima fattura.
+                await fetch(`${process.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/sdi-emit-invoice`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-internal-secret': process.env.INTERNAL_API_SECRET,
+                  },
+                  body: JSON.stringify({ stripe_invoice_id: inv.id }),
+                })
+              } catch (fe) {
+                console.error('[stripe-webhook] sdi sync fallback failed', fe?.message)
+              }
+            }
+          }
         }
         break
       }

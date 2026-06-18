@@ -29,7 +29,12 @@ export default function AISuggestionsBell({ orgId, onNavigate }) {
   useEffect(() => {
     if (!orgId) return
     let alive = true
+    let inflight = null
     async function load() {
+      // Abort precedente eventuale (unmount rapido o re-poll prima del done).
+      if (inflight) { try { inflight.abort() } catch {} }
+      const ctrl = new AbortController()
+      inflight = ctrl
       const { data } = await supabase
         .from('ai_suggestions')
         .select('id, tipo, severita, titolo, descrizione, payload, cta_view, cta_label, stato, created_at')
@@ -37,12 +42,17 @@ export default function AISuggestionsBell({ orgId, onNavigate }) {
         .in('stato', ['nuovo', 'letto'])
         .order('created_at', { ascending: false })
         .limit(20)
-      if (alive) setItems(data || [])
+        .abortSignal(ctrl.signal)
+      if (alive && !ctrl.signal.aborted) setItems(data || [])
     }
     load()
     // Re-poll ogni 5 minuti (l'app rimane aperta a lungo nelle pasticcerie).
     const t = setInterval(load, 5 * 60 * 1000)
-    return () => { alive = false; clearInterval(t) }
+    return () => {
+      alive = false
+      clearInterval(t)
+      if (inflight) { try { inflight.abort() } catch {} }
+    }
   }, [orgId])
 
   // Click outside chiude

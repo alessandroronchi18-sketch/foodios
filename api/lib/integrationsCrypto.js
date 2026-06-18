@@ -127,7 +127,25 @@ export async function saveIntegrazione(supabase, { orgId, tipo, config, attiva =
     encryption_version: 1,
     // updated_at via trigger se presente, altrimenti server clock
   }
-  // upsert via unique (organization_id, tipo) se costraint c'e', altrimenti:
+  // Audit 2026-07-01 MEDIUM: il pattern SELECT+UPDATE/INSERT non e' atomico —
+  // due titolari concorrenti che salvano la stessa integrazione causano due
+  // INSERT (no UNIQUE constraint storica su (organization_id, tipo)). Soluzione:
+  // tentare upsert con onConflict; se UNIQUE non c'e' nella migration, ricade
+  // sul pattern legacy SELECT+INSERT (informativo: la migration 20260701 NON
+  // aggiunge questo UNIQUE perche' alcune integrazioni storiche hanno duplicati
+  // intenzionali — vanno bonificati prima).
+  try {
+    const { data, error } = await supabase
+      .from('integrazioni')
+      .upsert(row, { onConflict: 'organization_id,tipo' })
+      .select('id')
+      .single()
+    if (!error && data?.id) return data.id
+    // Se l'upsert fallisce per mancanza di UNIQUE, ricadiamo sul fallback.
+  } catch { /* fallback */ }
+
+  // Fallback legacy (no constraint): atomicita' non garantita ma riusciamo
+  // a non bloccare il flusso.
   const { data: existing } = await supabase
     .from('integrazioni')
     .select('id')

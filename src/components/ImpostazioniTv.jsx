@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { sload, ssave } from '../lib/storage'
 
 const TV_KEY = 'pasticceria-tv-token-v1'
@@ -25,6 +26,7 @@ async function sha256Hex(s) {
 }
 
 export default function ImpostazioniTv({ orgId, sedi, notify }) {
+  const confirmDialog = useConfirm()
   const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sedeSel, setSedeSel] = useState('')
@@ -38,7 +40,12 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
   }, [orgId])
 
   async function rigenera() {
-    if (!confirm('Generare un nuovo link TV?\nIl link precedente non funzionerà più.')) return
+    const ok = await confirmDialog({
+      title: 'Generare un nuovo link TV?',
+      message: 'Il link precedente non funzionera piu (rotazione token).',
+      confirmLabel: 'Genera nuovo', cancelLabel: 'Annulla',
+    })
+    if (!ok) return
     const nuovo = generaToken()
     const hash = await sha256Hex(nuovo)
     try {
@@ -51,7 +58,12 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
   }
 
   async function revoca() {
-    if (!confirm('Disattivare il link TV?\nLa dashboard pubblica non sarà più accessibile.')) return
+    const ok = await confirmDialog({
+      title: 'Disattivare link TV?',
+      message: 'La dashboard pubblica non sara piu accessibile finche non rigeneri.',
+      confirmLabel: 'Disattiva', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     try {
       await ssave(TV_KEY, { token: null, revocato_il: new Date().toISOString() }, orgId, null)
       setToken(null)

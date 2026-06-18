@@ -222,7 +222,6 @@ export const PREZZI_HORECA = {
   "semi di chia":           { costoKg:8.50 },
   "semi di lino":           { costoKg:2.80 },
   "semi di papavero":       { costoKg:10.50 },
-  "semi  di papavero":      { costoKg:10.50 },
   "semi di girasole":       { costoKg:2.80 },
   "semi di zucca":          { costoKg:6.50 },
   "semi di sesamo":         { costoKg:5.50 },
@@ -491,7 +490,6 @@ export const SING_PLUR = [
   ["semi di chia","seme di chia"],["semi di lino","seme di lino"],
   ["semi di girasole","seme di girasole"],["semi di zucca","seme di zucca"],
   ["semi di sesamo","seme di sesamo"],["semi di papavero","seme di papavero"],
-  ["semi  di papavero","seme di papavero"],
   ["papavero","seme di papavero"],
   ["scorze di limone","scorza di limone"],
   ["cioccolato domori 64%","cioccolato domori"],
@@ -506,7 +504,7 @@ export const SING_PLUR = [
   ["gocce di cioccolato","goccia di cioccolato"],
   ["scaglie di cioccolato","scaglia di cioccolato"],
   ["chips cioccolato","chips cioccolato"],
-  ["zucchine","zucchina"],["carote","carota"],
+  ["zucchine","zucchina"],
 ]
 
 const _NORM_MAP = new Map(SING_PLUR.map(([pl, sg]) => [pl, sg]))
@@ -706,8 +704,12 @@ export function buildIngCosti(fromFile) {
   // il loop su `fc`: garantisce che il lookup (normIng(input)) trovi sempre
   // l'entry, anche per chiavi del dizionario che includono sinonimi mappati
   // da SING_PLUR e non sarebbero raggiungibili altrimenti.
-  for (const [k, v] of Object.entries(PREZZI_HORECA))
-    out[normIng(k)] = { costoKg: v.costoKg, costoG: parseFloat((v.costoKg / 1000).toFixed(6)), isStima: true }
+  for (const [k, v] of Object.entries(PREZZI_HORECA)) {
+    // Difesa: HORECA hardcoded ma se in futuro venisse iniettato un costoKg
+    // non valido, isFinite guard come sul ramo fc (audit 2026-06-17 MEDIUM).
+    const costoG = Number.isFinite(v.costoKg) ? parseFloat((v.costoKg / 1000).toFixed(6)) : 0
+    out[normIng(k)] = { costoKg: v.costoKg, costoG, isStima: true }
+  }
   for (const [k, v] of Object.entries(fc)) {
     // Accettiamo 0 come valore valido (ingrediente gratis: omaggio fornitore,
     // materia prima da orto, scarto recuperato). Solo NaN/undefined fanno cadere
@@ -794,8 +796,8 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
     const qty = ing.qty1stampo || 0
     if (!qty) continue
 
-    if (ricettario) {
-      const semiKey = Object.keys(ricettario.ricette || {}).find(k => {
+    if (ricettario?.ricette) {
+      const semiKey = Object.keys(ricettario.ricette).find(k => {
         const r = ricettario.ricette[k]
         if (r.tipo !== 'semilavorato') return false
         return normIng(k.toLowerCase()) === nomeNorm ||
@@ -846,7 +848,7 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
     }
     tot += qty * (_lordo ? costoG : costoNettoPerG(costoG, nomeNorm))
   }
-  return { tot: parseFloat(tot.toFixed(3)), mancanti }
+  return { tot: depth === 0 ? parseFloat(tot.toFixed(3)) : tot, mancanti }
 }
 
 // Calcola food cost totale di una ricetta. Ricorsivo per gestire semilavorati
@@ -855,6 +857,10 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
 // invece di tornare silenziosamente costo 0.
 // Param _path: lista nomi nel cammino di ricorsione, per ciclo-detect e logging.
 export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) {
+  // Audit 2026-06-17 HIGH: la versione precedente arrotondava `tot` a 3 decimali
+  // SU OGNI livello di ricorsione, propagando errori sui semilavorati nidificati.
+  // Ora il rounding avviene SOLO al top-level (depth === 0) — i sotto-totali
+  // restano a piena precisione.
   const depth = _depth || 0
   const path = _path || []
   const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""]
@@ -866,8 +872,8 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
     if (!qty) continue
 
     // Semilavorato? Ricorsione max 3 livelli, ciclo-detect via path
-    if (ricettario) {
-      const semiKey = Object.keys(ricettario.ricette || {}).find(k => {
+    if (ricettario?.ricette) {
+      const semiKey = Object.keys(ricettario.ricette).find(k => {
         const r = ricettario.ricette[k]
         if (r.tipo !== 'semilavorato') return false
         return normIng(k.toLowerCase()) === nomeNorm ||
@@ -912,7 +918,8 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
     if (!c) { mancanti.push(ing.nome); continue }
     tot += qty * (_lordo ? c.costoG : costoNettoPerG(c.costoG, nomeNorm))
   }
-  return { tot: parseFloat(tot.toFixed(3)), mancanti }
+  // Rounding solo al top-level.
+  return { tot: depth === 0 ? parseFloat(tot.toFixed(3)) : tot, mancanti }
 }
 
 // Come calcolaFC ma ritorna anche il DETTAGLIO per ingrediente di primo livello
@@ -937,7 +944,11 @@ export function calcolaFCDettaglio(ricetta, ingCosti, ricettario) {
       if (semiKey) {
         const semiRic = ricettario.ricette[semiKey]
         const semiHasResa = hasResaIngrediente(nomeNorm)
-        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, 1, [semiKey], semiHasResa)
+        // depth=0 per la sub-chiamata: calcolaFCDettaglio è già il "primo livello",
+        // ma la sub-chiamata calcola il sub-tree del semilavorato — può comunque
+        // scendere fino a depth=3 (audit 2026-06-17 HIGH: prima passava 1, riducendo
+        // l'annidamento effettivo di un livello rispetto a calcolaFC standalone).
+        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, 0, [semiKey], semiHasResa)
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         if (semiPeso > 0) {
           const costo = qty * costoNettoPerG(semiTot / semiPeso, nomeNorm)

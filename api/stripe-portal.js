@@ -6,11 +6,7 @@
 export const config = { runtime: 'nodejs' }
 
 import { verificaToken } from './lib/auth.js'
-
-function origin(req) {
-  const h = req.headers
-  return (h.origin || h.referer || 'https://foodios-rose.vercel.app').replace(/\/$/, '').split('/').slice(0, 3).join('/')
-}
+import { safeOrigin } from './lib/originGuard.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -20,6 +16,12 @@ export default async function handler(req, res) {
   const auth = await verificaToken(tokenReq, { skipOrgCheck: true })
   if (!auth.user || !auth.profile?.organization_id) {
     return res.status(401).json({ error: auth.error || 'Non autenticato' })
+  }
+  // Solo il titolare puo' aprire il customer portal (disdetta sub, scaricare
+  // fatture, cambiare metodo pagamento). Il dipendente NON deve potere — audit
+  // HIGH 17 giu: prima mancava il gate (stripe-checkout.js ce l'ha gia').
+  if (auth.profile.ruolo === 'dipendente') {
+    return res.status(403).json({ error: 'Solo il titolare puo gestire la sottoscrizione' })
   }
 
   const { default: Stripe } = await import('stripe')
@@ -37,7 +39,7 @@ export default async function handler(req, res) {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: org.stripe_customer_id,
-      return_url: `${origin(req)}/`,
+      return_url: `${safeOrigin(req)}/`,
       locale: 'it',
     })
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { sload, ssave } from '../lib/storage'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { lessico } from '../lib/lessico'
 import Icon from './Icon'
 import { KPI, SH, PageHeader, Tip, C, fmt, fmtp } from '../views/_shared'
@@ -538,7 +538,7 @@ function BandaDiagnosi({ menuItems, popVenduto, isMobile }) {
   const nDog = menuItems.filter(m => bcgQuadrant(m.margPct, volOf(m)/maxVol).q === "Dog").length
 
   return (
-    <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap:14, marginBottom:24 }}>
+    <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap:14, marginBottom:24 }}>
       <KPI label="Prodotti nel menù" value={n.toLocaleString('it-IT')}
         icon={<Icon name="fileText" size={18}/>}/>
       <KPI label="Margine medio" value={fmtp(margMedio)} color={margMedio>=55?T.green:T.amber}
@@ -555,6 +555,7 @@ function BandaDiagnosi({ menuItems, popVenduto, isMobile }) {
 /* ─── MAIN WRAPPER ───────────────────────────────────────────────────── */
 export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, nomeAttivita, tipoAttivita, chiusure, orgId, sedeId }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const [tab, setTab] = useState("editor")
   const [menuItems, setMenuItems] = useState([])

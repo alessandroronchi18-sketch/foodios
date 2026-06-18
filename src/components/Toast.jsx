@@ -23,9 +23,15 @@ let _idSeq = 0
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
+  // Audit 2026-07-01 LOW: timer per-toast tracciati per cancellare quando
+  // l'utente clicca X manualmente (prima il timer restava live e poi
+  // rifiltrava un toast già rimosso = no-op wasted).
+  const timersRef = React.useRef(new Map())
 
   const dismiss = useCallback((id) => {
     setToasts(t => t.filter(x => x.id !== id))
+    const t = timersRef.current.get(id)
+    if (t) { clearTimeout(t); timersRef.current.delete(id) }
   }, [])
 
   const push = useCallback((message, opts = {}) => {
@@ -34,9 +40,21 @@ export function ToastProvider({ children }) {
     const duration = opts.duration ?? (variant === 'error' ? 6000 : 4000)
     setToasts(t => [...t, { id, message, variant, duration }])
     if (duration > 0) {
-      setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), duration)
+      const t = setTimeout(() => {
+        setToasts(arr => arr.filter(x => x.id !== id))
+        timersRef.current.delete(id)
+      }, duration)
+      timersRef.current.set(id, t)
     }
     return id
+  }, [])
+
+  // Cleanup tutti i timer all'unmount del provider.
+  useEffect(() => () => {
+    for (const t of timersRef.current.values()) {
+      try { clearTimeout(t) } catch {}
+    }
+    timersRef.current.clear()
   }, [])
 
   // Shortcut: success, error, warn, info, e una "notify" compat retro
@@ -85,16 +103,14 @@ function ToastStack({ toasts, dismiss }) {
 
 function ToastItem({ message, variant, duration, onDismiss }) {
   const v = VARIANTS[variant] || VARIANTS.info
-  const [progress, setProgress] = useState(0)
-  // Progress bar visiva (decade nel tempo). Non bloccante.
+  // Progress bar via CSS transition (audit 2026-06-17 MEDIUM: prima setInterval
+  // 50ms per ogni toast attivo, con N toast = N timer a 20Hz). Animazione
+  // partita al mount via requestAnimationFrame + transition CSS lineare.
+  const [animate, setAnimate] = useState(false)
   useEffect(() => {
     if (!duration || duration <= 0) return
-    const start = Date.now()
-    const id = setInterval(() => {
-      const pct = Math.min(100, ((Date.now() - start) / duration) * 100)
-      setProgress(pct)
-    }, 50)
-    return () => clearInterval(id)
+    const id = requestAnimationFrame(() => setAnimate(true))
+    return () => cancelAnimationFrame(id)
   }, [duration])
 
   return (
@@ -130,8 +146,9 @@ function ToastItem({ message, variant, duration, onDismiss }) {
       {duration > 0 && (
         <div style={{
           position: 'absolute', left: 0, bottom: 0, height: 2,
-          width: `${100 - progress}%`, background: 'rgba(255,255,255,0.35)',
-          transition: 'width 50ms linear',
+          width: animate ? '0%' : '100%',
+          background: 'rgba(255,255,255,0.35)',
+          transition: `width ${duration}ms linear`,
         }} />
       )}
       <style>{`@keyframes fos-toast-in { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }`}</style>

@@ -75,6 +75,18 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const [datiEstratti, setDatiEstratti] = useState(null);  // dati AI in attesa di conferma
   const [saving, setSaving] = useState(false);             // bottone salva in corso
   const formRef = useRef(null);
+  // Audit 2026-07-01 HIGH: tracking scroll timer per cleanup unmount.
+  const scrollTimerRef = useRef(null);
+  useEffect(() => () => {
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+  }, []);
+  function scrollToFormDeferred(delay = 100) {
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = setTimeout(() => {
+      try { formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }) } catch {}
+      scrollTimerRef.current = null;
+    }, delay);
+  }
 
   const ricetteEsistenti = Object.keys(ricettario?.ricette || {}).filter(isRicettaValida);
 
@@ -96,7 +108,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const manual = (r.allergeni || []).filter(a => !auto.includes(a));
     setForm({ nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual });
     setEditMode(nome);
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    scrollToFormDeferred(100);
   };
 
   // Pre-carica una ricetta in modifica quando arriva dal click su card
@@ -310,7 +322,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             })),
             procedimento: res.note || ''
           });
-          setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+          scrollToFormDeferred(150);
         }}
         onBatchSave={async (res, idx, ricAcc, setRicAcc) => {
           const UNIT_G = { g: 1, gr: 1, grammi: 1, grammo: 1, kg: 1000, chilo: 1000, chilogrammo: 1000, ml: 1, millilitri: 1, l: 1000, litro: 1000, litri: 1000, cl: 10, centilitri: 10, dl: 100, decilitri: 100, cucchiaio: 15, cucchiai: 15, tbsp: 15, cucchiaino: 5, cucchiaini: 5, tsp: 5, tazza: 240, cup: 240, tazze: 240, bicchiere: 200, bicchieri: 200, noce: 15, pizzico: 2, pizzichi: 2, qb: 0 };
@@ -393,7 +405,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div>
                 <div style={fieldLabel}>Tipo unità</div>
                 <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value, unita: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.unita, prezzo: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.prezzo }))}
-                  style={{ ...inputBase, fontSize: 14 }}>
+                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }}>
                   <option value="fetta">Fetta</option><option value="pezzo">Pezzo</option><option value="interno">Uso interno</option><option value="semilavorato">Semilavorato (base/impasto)</option>
                 </select>
                 {form.tipo === "semilavorato" && <div style={{ marginTop: 6, padding: "6px 10px", background: "#F9F2FD", border: "1px solid #D4B0E8", borderRadius: 6, fontSize: 10, color: "#8E44AD", display: "flex", alignItems: "center", gap: 5 }}>
@@ -425,7 +437,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div>
                 <div style={fieldLabel}>Note (cottura, temperatura…)</div>
                 <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="es. 180°C per 45 min"
-                  style={{ ...inputBase, fontSize: 14 }} />
+                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
               </div>
             </div>
 
@@ -499,14 +511,14 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   onChange={e => setNewIngNome(e.target.value)}
                   onKeyDown={onEnterAutoComplete(tuttiIng, newIngNome, setNewIngNome, () => { if (newIngQty) addIng() })}
                   placeholder="es. burro" list="ing-autocomplete"
-                  style={{ ...inputBase, fontSize: 14, padding: "9px 11px" }} />
+                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14, padding: "9px 11px" }} />
                 <datalist id="ing-autocomplete">{tuttiIng.map(k => <option key={k} value={k} />)}</datalist>
               </div>
               <div>
                 <div style={fieldLabel}>Grammi</div>
                 <input type="number" min="0" value={newIngQty} onChange={e => setNewIngQty(e.target.value)} onKeyDown={e => e.key === "Enter" && addIng()}
                   placeholder="es. 200"
-                  style={{ ...inputBase, fontSize: 14, padding: "9px 11px" }} />
+                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14, padding: "9px 11px" }} />
               </div>
               <button onClick={addIng} style={{ padding: "10px 16px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", height: 42, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Icon name="plus" size={14} /> Aggiungi

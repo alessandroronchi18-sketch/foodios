@@ -10,7 +10,7 @@
 //     verde/giallo/rosso. Niente placeholder vaghi.
 //   - PROGRESS CHIARO: 4 dot in alto, skip annotato come "torna dopo".
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseRicettario } from '../lib/parseRicettario'
 import { ssave } from '../lib/storage'
@@ -95,6 +95,11 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
   const [dragging, setDragging] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState(null)
+  // Audit 2026-07-01 HIGH: cleanup setTimeout per unmount.
+  const stepTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
+  }, [])
   const [parseStats, setParseStats] = useState(null)
   const [secondaSede, setSecondaSede] = useState({ nome: '', indirizzo: '', citta: '' })
   const [addingSecondaSede, setAddingSecondaSede] = useState(false)
@@ -130,7 +135,8 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       }
       await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
       setParseStats({ nRicette, nIngredienti })
-      setTimeout(() => setStep(3), 1200)   // → seconda sede
+      if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
+      stepTimerRef.current = setTimeout(() => setStep(3), 1200)   // → seconda sede
     } catch (e) {
       setParseError(e.message || 'Errore durante l\'analisi del file')
     } finally {
@@ -411,26 +417,30 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                   ['Nome sede *', 'nome', 'Es. Centro città'],
                   ['Indirizzo', 'indirizzo', 'Via Roma 1'],
                   ['Città', 'citta', 'Torino'],
-                ].map(([label, key, placeholder]) => (
-                  <div key={key} style={{ marginBottom: 12 }}>
-                    <label style={{
-                      fontSize: 10.5, fontWeight: 700, color: '#8B95A7',
-                      textTransform: 'uppercase', letterSpacing: '0.06em',
-                      marginBottom: 5, display: 'block',
-                    }}>{label}</label>
-                    <input
-                      value={secondaSede[key]}
-                      onChange={e => setSecondaSede(s => ({ ...s, [key]: e.target.value }))}
-                      style={{
-                        width: '100%', padding: '11px 14px',
-                        border: '1px solid #E5E9EF', borderRadius: 8,
-                        fontSize: 14, color: '#0E1726', background: '#FFF',
-                        outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
-                      }}
-                      placeholder={placeholder}
-                    />
-                  </div>
-                ))}
+                ].map(([label, key, placeholder]) => {
+                  const inputId = `sede2-${key}`
+                  return (
+                    <div key={key} style={{ marginBottom: 12 }}>
+                      <label htmlFor={inputId} style={{
+                        fontSize: 10.5, fontWeight: 700, color: '#8B95A7',
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                        marginBottom: 5, display: 'block',
+                      }}>{label}</label>
+                      <input
+                        id={inputId}
+                        value={secondaSede[key]}
+                        onChange={e => setSecondaSede(s => ({ ...s, [key]: e.target.value }))}
+                        style={{
+                          width: '100%', padding: '11px 14px',
+                          border: '1px solid #E5E9EF', borderRadius: 8,
+                          fontSize: 16, color: '#0E1726', background: '#FFF',
+                          outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+                        }}
+                        placeholder={placeholder}
+                      />
+                    </div>
+                  )
+                })}
                 {sedeError && (
                   <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', fontSize: 13, lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                     <Icon name="warning" size={14} style={{ marginTop: 2, flexShrink: 0 }}/><span>{sedeError}</span>

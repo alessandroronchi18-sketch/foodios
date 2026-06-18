@@ -87,8 +87,11 @@ export const ChartTip = ({ active, payload, label }) => {
       boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
     }}>
       <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{label}</div>
+      {/* Audit 2026-07-01 MEDIUM: key={dataKey} stabile (stacked charts hanno
+          ordine variabile in payload) — prima key={i} swappava i colori al
+          riordino interno di Recharts. */}
       {payload.map((p, i) => (
-        <div key={i} style={{ color: p.color || C.red }}>{p.name}: <b>{p.value}</b></div>
+        <div key={p.dataKey || p.name || i} style={{ color: p.color || C.red }}>{p.name}: <b>{p.value}</b></div>
       ))}
     </div>
   )
@@ -183,9 +186,11 @@ export const TD = ({ children, right, bold, color, mono, small }) => (
 )
 
 export const TH = ({ children, right }) => (
+  // Audit 2026-07-01 LOW: fontSize 8 era sotto-soglia AA su retina/mobile.
+  // 10 con letterSpacing un po' ridotto resta compatto ma leggibile.
   <th style={{
     padding: '10px 14px', textAlign: right ? 'right' : 'left',
-    fontSize: 8, fontWeight: 700, letterSpacing: '0.07em',
+    fontSize: 10, fontWeight: 700, letterSpacing: '0.05em',
     textTransform: 'uppercase', color: C.textSoft,
     borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap',
   }}>{children}</th>
@@ -210,10 +215,23 @@ export function useSortable(defaultKey, defaultDir = 'desc') {
   return { sortKey, sortDir, toggleSort, sort }
 }
 
-// Header tabella sortable
+// Header tabella sortable.
+// Audit 2026-07-01 LOW: a11y keyboard. role=button + tabIndex + Enter/Space.
+// aria-sort indica direzione corrente per screen reader.
 export function SortTH({ k, children, right, active, dir, onToggle, tip }) {
   return (
-    <th onClick={() => onToggle(k)} title={tip || undefined}
+    <th
+      role="button"
+      tabIndex={0}
+      aria-sort={active ? (dir === 'desc' ? 'descending' : 'ascending') : 'none'}
+      onClick={() => onToggle(k)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onToggle(k)
+        }
+      }}
+      title={tip || undefined}
       style={{
         padding: '10px 16px', textAlign: right ? 'right' : 'left',
         fontSize: 10, fontWeight: 600, letterSpacing: '0.05em',

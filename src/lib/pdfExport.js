@@ -25,8 +25,23 @@
 // Brand FoodOS in header e footer. Logo testuale "F" gradiente bordeaux.
 // A4 portrait, font Helvetica.
 
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
+// jsPDF + autoTable: lazy-loaded dentro buildAndDownloadPdf (audit 2026-06-17
+// MEDIUM: lo static import faceva entrare ~650KB nel bundle anche per chi non
+// esporta mai PDF). Tutti gli altri callsite (Eventi/Haccp/MenuDinamico) usano
+// già dynamic import.
+let _jsPDF = null
+let _autoTable = null
+async function loadPdfDeps() {
+  if (!_jsPDF) {
+    const mod = await import('jspdf')
+    _jsPDF = mod.jsPDF || mod.default
+  }
+  if (!_autoTable) {
+    const at = await import('jspdf-autotable')
+    _autoTable = at.default || at
+  }
+  return { jsPDF: _jsPDF, autoTable: _autoTable }
+}
 
 const BRAND = '#6E0E1A'
 const BRAND_DARK = '#4A0612'
@@ -111,7 +126,7 @@ function drawKpi(doc, kpiArr, y = 60) {
   return y + cardH + 8
 }
 
-function drawSection(doc, section, yStart) {
+function drawSection(doc, section, yStart, autoTableFn) {
   let y = yStart
   if (y > 250) { doc.addPage(); y = 30 }
 
@@ -144,9 +159,9 @@ function drawSection(doc, section, yStart) {
     } catch {}
   }
 
-  // Tabella via autotable
-  if (section.table && Array.isArray(section.table.rows) && section.table.rows.length > 0) {
-    autoTable(doc, {
+  // Tabella via autotable: passato come parametro per supportare lazy import.
+  if (section.table && Array.isArray(section.table.rows) && section.table.rows.length > 0 && typeof autoTableFn === 'function') {
+    autoTableFn(doc, {
       startY: y,
       head: [section.table.columns],
       body: section.table.rows,
@@ -166,7 +181,7 @@ function drawSection(doc, section, yStart) {
   return y
 }
 
-export function buildAndDownloadPdf({
+export async function buildAndDownloadPdf({
   fileName = 'foodios-report.pdf',
   title,
   subtitle,
@@ -174,13 +189,14 @@ export function buildAndDownloadPdf({
   kpi = [],
   sections = [],
 }) {
+  const { jsPDF, autoTable } = await loadPdfDeps()
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
 
   drawHeader(doc, { title, subtitle, periodo })
   let y = 60
   y = drawKpi(doc, kpi, y)
   for (const s of sections) {
-    y = drawSection(doc, s, y)
+    y = drawSection(doc, s, y, autoTable)
   }
   drawFooter(doc)
 

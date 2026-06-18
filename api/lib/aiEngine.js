@@ -74,12 +74,23 @@ export function dedupKey({ orgId, sedeId, tipo, entity }) {
 //   }
 //
 // Robusto a dati mancanti: ogni sezione e' indipendente, fallback array vuoto.
+// Audit 2026-07-01 LOW: timezone mismatch. `today.setHours(0,0,0,0)` mette
+// mezzanotte LOCALE; poi `toISOString().slice(0, 10)` converte in UTC date,
+// che durante CEST (+2) e ore [00:00, 02:00) restituisce ieri. Costruiamo
+// l'YYYY-MM-DD locale a mano per Europe/Rome.
+function localIsoDate(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const todayIso = today.toISOString().slice(0, 10)
+  const todayIso = localIsoDate(today)
   const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1)
-  const yesterdayIso = yesterday.toISOString().slice(0, 10)
+  const yesterdayIso = localIsoDate(yesterday)
   const lun = new Date(today); lun.setDate(today.getDate() - ((today.getDay() + 6) % 7))
   const lunPrec = new Date(lun); lunPrec.setDate(lunPrec.getDate() - 7)
 
@@ -133,14 +144,15 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
       const d = (c.data || '').slice(0, 10)
       const tot = Number(c.kpi?.totV || c.totale || 0)
       if (d === yesterdayIso) snap.ricaviIeri += tot
-      if (d >= lun.toISOString().slice(0, 10) && d < todayIso) snap.ricaviSettCorr += tot
-      if (d >= lunPrec.toISOString().slice(0, 10) && d < lun.toISOString().slice(0, 10)) snap.ricaviSettPrec += tot
+      if (d >= localIsoDate(lun) && d < todayIso) snap.ricaviSettCorr += tot
+      if (d >= localIsoDate(lunPrec) && d < localIsoDate(lun)) snap.ricaviSettPrec += tot
     }
   }
 
   // Food cost medio settimana corrente (giornaliero)
   let fcSum = 0, fcCount = 0, fcSumYesterday = 0, fcCountYesterday = 0
-  const lunIso = lun.toISOString().slice(0, 10)
+  const lunIso = localIsoDate(lun)
+  // (locale dates: yesterdayIso/todayIso/lunIso usano localIsoDate)
   for (const { items } of giornalieroPerSede) {
     for (const sess of items) {
       const d = (sess.data || '').slice(0, 10)
@@ -161,8 +173,8 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
   for (const { items } of chiusurePerSede) {
     for (const c of items) {
       const d = (c.data || '').slice(0, 10)
-      const inSett = d >= lun.toISOString().slice(0, 10) && d < todayIso
-      const inPrec = d >= lunPrec.toISOString().slice(0, 10) && d < lun.toISOString().slice(0, 10)
+      const inSett = d >= localIsoDate(lun) && d < todayIso
+      const inPrec = d >= localIsoDate(lunPrec) && d < localIsoDate(lun)
       if (!inSett && !inPrec) continue
       const items2 = Array.isArray(c.prodotti) ? c.prodotti : Array.isArray(c.righe) ? c.righe : []
       for (const r of items2) {
@@ -215,7 +227,7 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
       .select('id, fornitore_nome, importo_lordo, data_scadenza, stato')
       .eq('organization_id', orgId)
       .neq('stato', 'pagata')
-      .lte('data_scadenza', new Date(today.getTime() + 7 * 86400000).toISOString().slice(0, 10))
+      .lte('data_scadenza', localIsoDate(new Date(today.getTime() + 7 * 86400000)))
     const truncName = (s) => {
       const v = String(s || '').trim()
       return v.length > 24 ? v.slice(0, 24) + '…' : v
@@ -242,7 +254,7 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
 
   // Turni scoperti prossimi 3 giorni (basato su tabella turni).
   {
-    const dom = new Date(today.getTime() + 3 * 86400000).toISOString().slice(0, 10)
+    const dom = localIsoDate(new Date(today.getTime() + 3 * 86400000))
     const { data: turni } = await supabase
       .from('turni')
       .select('data, reparto, sede_id')
@@ -251,7 +263,7 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
     const presenti = new Set((turni || []).map(t => `${t.data}|${t.sede_id || '_'}`))
     for (const s of sediArr) {
       for (let i = 0; i < 3; i++) {
-        const dt = new Date(today.getTime() + i * 86400000).toISOString().slice(0, 10)
+        const dt = localIsoDate(new Date(today.getTime() + i * 86400000))
         if (!presenti.has(`${dt}|${s.id}`)) {
           snap.turniScoperti.push({ data: dt, sede: s.nome })
         }

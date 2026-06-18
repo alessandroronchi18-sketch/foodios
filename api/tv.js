@@ -21,8 +21,13 @@ export default async function handler(req) {
   if (req.method === 'OPTIONS') return handleOptions(req)
   if (req.method !== 'GET') return errResponse('Method not allowed', 405, req)
 
+  // Token accettato in priorità da Authorization: Bearer (header non finisce
+  // in log/referer come la querystring). Fallback query per retrocompatibilità.
+  // Audit 2026-06-17 MEDIUM.
+  const authHdr = req.headers.get?.('authorization') || req.headers.get?.('Authorization') || ''
+  const headerToken = authHdr.startsWith('Bearer ') ? authHdr.slice(7).trim() : ''
   const url = new URL(req.url)
-  const token = (url.searchParams.get('token') || '').trim()
+  const token = headerToken || (url.searchParams.get('token') || '').trim()
 
   if (!token || token.length < 16 || token.length > 64) {
     return errResponse('token mancante o non valido', 400, req)
@@ -31,9 +36,11 @@ export default async function handler(req) {
   let supabase
   try { supabase = await getSupabase() } catch (e) { return errResponse('supabase init failed', 500, req) }
 
-  // Rate limit: 60 req/min per IP+token (le TV legittime fanno 1 req/5min, gli abusi sono molto sopra)
+  // Rate limit: 60 req/min per IP (audit 2026-06-17 LOW: rate-limit per
+  // prefisso di token dava una quota fresca a chi vede 8 char del token in
+  // screenshot della TV. Solo IP è più conservativo).
   const ip = getClientIP(req)
-  const rlKey = `tv:${ip}:${token.slice(0, 8)}`
+  const rlKey = `tv:${ip}`
   const rl = await checkRateLimit(supabase, rlKey, 60, 60, 300)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 

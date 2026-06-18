@@ -699,7 +699,21 @@ function ImpersonaModal({ cliente, link, onClose }) {
   )
 }
 
+function useIsNarrowScreen(maxWidth = 720) {
+  const [isNarrow, setIsNarrow] = React.useState(false)
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia(`(max-width:${maxWidth}px)`)
+    const upd = () => setIsNarrow(mq.matches)
+    upd()
+    if (mq.addEventListener) mq.addEventListener('change', upd); else mq.addListener(upd)
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', upd); else mq.removeListener(upd) }
+  }, [maxWidth])
+  return isNarrow
+}
+
 function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione, onSalvaNote }) {
+  const isNarrow = useIsNarrowScreen(720)
   const stato = statoCliente(cliente)
   const giorni = giorniRimanenti(cliente)
 
@@ -754,9 +768,11 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
 
   return (
     <Modal title={`${cliente.nome_attivita}`} onClose={onClose} width={780}>
-      {/* Header: stato + KPI in linea */}
+      {/* Header: stato + KPI in linea. Audit 2026-06-17: collassa su narrow. */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10,
+        display: 'grid',
+        gridTemplateColumns: isNarrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: 10,
         padding: '12px 14px', background: COLORS.rowAlt, borderRadius: 10, marginBottom: 16,
       }}>
         <div>
@@ -998,6 +1014,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
 
 // ─── Componente principale ─────────────────────────────────────────────────
 export default function AdminPage() {
+  const isAdminNarrow = useIsNarrowScreen(900)
   const toast = useToast()
   const [clienti, setClienti] = useState([])
   const [stats, setStats] = useState(null)
@@ -1362,7 +1379,16 @@ export default function AdminPage() {
   async function handleImpersona(c) {
     try {
       const data = await azione(c.org_id, 'impersona')
-      if (data?.link) setImpersona({ cliente: c, link: data.link })
+      // Audit 2026-06-17 HIGH: il server non restituisce più `link` per privacy
+      // (manda magic-link via email + notifica titolare). Cliente legacy era
+      // muto. Mostra conferma esplicita.
+      if (data?.link) {
+        setImpersona({ cliente: c, link: data.link })
+      } else if (data?.link_sent_to) {
+        toast.success(`Magic link inviato a ${data.link_sent_to}`)
+      } else if (data?.ok) {
+        toast.success('Magic link inviato al titolare (controlla email).')
+      }
     } catch { /* già notificato */ }
   }
 
@@ -1386,6 +1412,10 @@ export default function AdminPage() {
         if (window.confirm(`Link di recovery generato per ${c.email}.\n\nClicca OK per copiarlo negli appunti.`)) {
           try { await navigator.clipboard.writeText(data.link) } catch { /* ignore */ }
         }
+      } else if (data?.sent_to) {
+        toast.success(`Email di recovery inviata a ${data.sent_to}`)
+      } else if (data?.ok) {
+        toast.success('Email di recovery inviata al titolare.')
       }
     } catch { /* già notificato */ }
   }
@@ -1486,19 +1516,28 @@ export default function AdminPage() {
 
   async function bulkEstendiTrial() {
     if (selezionati.size === 0) return
+    // Cap UI: il server limita 10/min, oltre questa soglia partono N richieste
+    // ma 90% finisce in 429 e l'admin vede "ko=N" criptico (audit 2026-06-17
+    // HIGH). Limitiamo qui a 50 clienti per batch.
+    const BULK_CAP = 50
+    if (selezionati.size > BULK_CAP) {
+      toast.error(`Bulk limitato a ${BULK_CAP} clienti per volta (selezionati ${selezionati.size}). Deseleziona o esegui in più tornate.`)
+      return
+    }
     const giorni = prompt(`Estendi trial di quanti giorni a ${selezionati.size} clienti selezionati?`, '30')
     if (!giorni) return
     const n = parseInt(giorni, 10)
     if (!Number.isFinite(n) || n < 1) { toast.error('Giorni non validi'); return }
     if (!confirm(`Confermi: estendere il trial di ${n}gg a ${selezionati.size} clienti?`)) return
     let ok = 0, ko = 0
+    const errori = []
     for (const orgId of selezionati) {
       try { await azione(orgId, 'estendi_trial', { valore: n }); ok++ }
-      catch { ko++ }
+      catch (e) { ko++; if (errori.length < 3) errori.push(e?.message || 'errore') }
     }
     setSelezionati(new Set())
     if (ko === 0) toast.success(`Trial esteso a ${ok} clienti`)
-    else toast.warn(`Trial esteso: ${ok} ok · ${ko} errori`)
+    else toast.warn(`Trial esteso: ${ok} ok · ${ko} errori (${errori.join('; ')})`)
   }
 
   function bulkExportCsv() {
@@ -1509,7 +1548,12 @@ export default function AdminPage() {
       const stato = !c.attivo ? 'Bloccato'
         : c.org_approvata ? 'Pagante'
         : (c.trial_ends_at && new Date(c.trial_ends_at) > new Date()) ? 'Trial' : 'Scaduto'
-      const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`
+      const q = v => {
+        let s = String(v ?? '')
+        // Anti-CSV-injection (audit 2026-06-17 MEDIUM)
+        if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) s = "'" + s
+        return `"${s.replace(/"/g, '""')}"`
+      }
       return [
         q(c.nome_attivita), q(c.tipo), q(c.email), q(c.nome_completo),
         q(c.piano), q(stato), c.num_sedi || 0, c.num_record || 0,
@@ -1686,8 +1730,12 @@ export default function AdminPage() {
 
         {adminTab === 'overview' && (<>
         {/* ── KPI ─────────────────────────────────────────────────── */}
+        {/* Audit 2026-07-01 MED: 6-col su mobile rendeva i numeri <60px.
+            Stesso pattern di responsive usato per la grid sottostante. */}
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 20,
+          display: 'grid',
+          gridTemplateColumns: isAdminNarrow ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)',
+          gap: 12, marginBottom: 20,
         }}>
           <KpiCard label="Totale clienti" value={stats?.totale ?? '—'} sub={stats?.nuoviMese != null ? `+${stats.nuoviMese} ultimo mese` : null} />
           <KpiCard
@@ -1775,7 +1823,11 @@ export default function AdminPage() {
               <Icon name="warning" size={13} /> Errore Stripe: {stripeMrr.error}
             </div>
           ) : stripeMrr ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isAdminNarrow ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
+              gap: 10
+            }}>
               <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR fatturato</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro((stripeMrr.mrr_cents || 0) / 100)}</div>
@@ -3147,7 +3199,7 @@ export default function AdminPage() {
           onConferma={async () => {
             const res = await apiCall('/api/admin', {
               method: 'POST',
-              body: JSON.stringify({ orgId: demoFor.cliente.org_id, tipo: 'pulisci_demo_fatture', valore: 'execute' }),
+              body: JSON.stringify({ orgId: demoFor.cliente.org_id, tipo: 'pulisci_demo_fatture', valore: 'esegui' }),
             })
             const data = await res.json().catch(() => ({}))
             await fetchData()
