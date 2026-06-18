@@ -3,6 +3,8 @@
 > Aggiornato: 2026-07-01 · Basata su evidenza diretta dal codice (LOC, test, migration, pattern).
 > I numeri di mercato/competitor sono stime ragionate (knowledge cutoff gen-2026).
 >
+> **Stato branch: MAIN.** Merge `audit/profondo-2026-06-17 → main` completato il 01/07/2026 alle 23:54 (commit `1c34383`). Push su `origin/main` fatto (19 commit pushati). **Pre-deploy operativo: applicare migration `20260630` + `20260701` in Supabase SQL editor PRIMA che Vercel deployi il nuovo codice** (altrimenti gli endpoint che usano le RPC nuove falliscono).
+>
 > **Rifare periodicamente** e confrontare i punteggi nel tempo.
 
 ### Storico compositi
