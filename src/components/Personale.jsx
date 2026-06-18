@@ -310,7 +310,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
           <div>
-            <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4 }}>€/ora</div>
+            <div title="Costo orario lordo (stipendio mensile / ore mensili)" style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:4, cursor: 'help' }}>€/ora</div>
             <input type="number" min="0" step="0.5" value={form.costo_orario} onChange={e=>setForm(f=>({...f,costo_orario:e.target.value}))} style={inputSt}/>
           </div>
           <div>

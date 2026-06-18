@@ -32,6 +32,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 
   const [editPrezzo, setEditPrezzo] = useState(reg.prezzo)
   const [editUnita, setEditUnita] = useState(reg.unita)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   // Audit 2026-07-01 LOW: se l'utente cambia org/sede (impersonation admin) e
   // il componente non si rimonta, le state local restano sui valori della
@@ -163,12 +164,18 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             </button>
           )}
           <button onClick={async () => {
-            if (!(await gateExport('ricettario', { nome: ric.nome }, window.__foodos_notify))) return
-            const c = getExportCtx()
-            exportRicettaPDF(ric, { tot: fc, perc: ricavo > 0 ? fc / ricavo * 100 : 0 }, ingCosti, c.nomeAttivita, c.email)
+            // Audit 2026-07-01 MEDIUM: prevenire doppio PDF su double-click.
+            if (exportingPdf) return
+            setExportingPdf(true)
+            try {
+              if (!(await gateExport('ricettario', { nome: ric.nome }, window.__foodos_notify))) return
+              const c = getExportCtx()
+              exportRicettaPDF(ric, { tot: fc, perc: ricavo > 0 ? fc / ricavo * 100 : 0 }, ingCosti, c.nomeAttivita, c.email)
+            } finally { setExportingPdf(false) }
           }}
-            style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <Icon name="fileText" size={13} /> PDF
+            disabled={exportingPdf}
+            style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="fileText" size={13} /> {exportingPdf ? '…' : 'PDF'}
           </button>
         </div>
       </div>
@@ -476,7 +483,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: R.md }}>
-                    <div style={{ fontSize: 10, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>FC</div>
+                    <div title="Food Cost: rapporto costo ingredienti / ricavo. Target tipico 25-35% in pasticceria, 22-30% in gelateria." style={{ fontSize: 10, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4, cursor: 'help' }}>FC</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: fC, ...TNUM }}>{fcPct.toFixed(0)}%</div>
                   </div>
                   <div style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: R.md }}>

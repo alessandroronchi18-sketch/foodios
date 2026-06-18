@@ -548,6 +548,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const [costi, setCosti] = useState({ affitto: 0, utenze: 0, altro: 0, personale: 0 })
   const [editCosti, setEditCosti] = useState(false)
   const [savingCosti, setSavingCosti] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
   const [targetLavoro, setTargetLavoro] = useState(30)
 
   useEffect(() => {
@@ -686,19 +687,28 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
         subtitle={'Conto economico mensile reale + analisi di redditività del listino'}
         action={
           <button onClick={async () => {
-            if (!(await gateExport('pl', { n_items: rows.length }, window.__foodos_notify))) return
-            const c = getExportCtx()
-            exportPLCompleto({
-              rows,
-              topIngredienti: topIngredienti.slice(0, 12),
-              insights,
-              fcAvg, avgMarg, totRicavo, totFC, totMargine,
-            }, c.nomeAttivita, c.email)
+            // Audit 2026-07-01 MEDIUM: disabled durante export per evitare doppio
+            // PDF (gateExport e' async + jsPDF e' sincrono ma il rate-limit gate
+            // puo' ritornare con delay).
+            if (exportingPdf) return
+            setExportingPdf(true)
+            try {
+              if (!(await gateExport('pl', { n_items: rows.length }, window.__foodos_notify))) return
+              const c = getExportCtx()
+              exportPLCompleto({
+                rows,
+                topIngredienti: topIngredienti.slice(0, 12),
+                insights,
+                fcAvg, avgMarg, totRicavo, totFC, totMargine,
+              }, c.nomeAttivita, c.email)
+            } finally { setExportingPdf(false) }
           }}
+            disabled={exportingPdf}
             style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
-              fontSize: 13, fontWeight: 500, color: T.textMid, cursor: 'pointer', letterSpacing: '-0.005em',
+              fontSize: 13, fontWeight: 500, color: T.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', letterSpacing: '-0.005em',
+              opacity: exportingPdf ? 0.6 : 1,
               display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.sm }}>
-            <Icon name="fileText" size={14} />Esporta PDF
+            <Icon name="fileText" size={14} />{exportingPdf ? 'Generazione…' : 'Esporta PDF'}
           </button>
         }
       />
