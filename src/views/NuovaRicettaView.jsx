@@ -405,7 +405,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div>
                 <div style={fieldLabel}>Tipo unità</div>
                 <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value, unita: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.unita, prezzo: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.prezzo }))}
-                  style={{ ...inputBase, fontSize: 14 }}>
+                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }}>
                   <option value="fetta">Fetta</option><option value="pezzo">Pezzo</option><option value="interno">Uso interno</option><option value="semilavorato">Semilavorato (base/impasto)</option>
                 </select>
                 {form.tipo === "semilavorato" && <div style={{ marginTop: 6, padding: "6px 10px", background: "#F9F2FD", border: "1px solid #D4B0E8", borderRadius: 6, fontSize: 10, color: "#8E44AD", display: "flex", alignItems: "center", gap: 5 }}>
@@ -437,7 +437,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div>
                 <div style={fieldLabel}>Note (cottura, temperatura…)</div>
                 <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="es. 180°C per 45 min"
-                  style={{ ...inputBase, fontSize: 14 }} />
+                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
               </div>
             </div>
 
@@ -511,14 +511,14 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   onChange={e => setNewIngNome(e.target.value)}
                   onKeyDown={onEnterAutoComplete(tuttiIng, newIngNome, setNewIngNome, () => { if (newIngQty) addIng() })}
                   placeholder="es. burro" list="ing-autocomplete"
-                  style={{ ...inputBase, fontSize: 14, padding: "9px 11px" }} />
+                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14, padding: "9px 11px" }} />
                 <datalist id="ing-autocomplete">{tuttiIng.map(k => <option key={k} value={k} />)}</datalist>
               </div>
               <div>
                 <div style={fieldLabel}>Grammi</div>
                 <input type="number" min="0" value={newIngQty} onChange={e => setNewIngQty(e.target.value)} onKeyDown={e => e.key === "Enter" && addIng()}
                   placeholder="es. 200"
-                  style={{ ...inputBase, fontSize: 14, padding: "9px 11px" }} />
+                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14, padding: "9px 11px" }} />
               </div>
               <button onClick={addIng} style={{ padding: "10px 16px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", height: 42, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Icon name="plus" size={14} /> Aggiungi

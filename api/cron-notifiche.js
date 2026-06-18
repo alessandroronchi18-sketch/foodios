@@ -72,13 +72,25 @@ export default async function handler(req) {
   const oggiIso  = oggi.toISOString().slice(0, 10)
   const isPrimoDelmese = oggi.getDate() === 1
 
-  // Carica tutte le organizzazioni attive (anche scadute: vogliamo email anche a chi sta scadendo).
+  // Audit 2026-07-01 MEDIUM: paginazione per evitare OOM su Vercel Edge su org
+  // grandi. Limit 500 + ordering per non risuonare le stesse org ad ogni run
+  // (rispetto a chi e' alla fine dell'array, se >500 si vede al prossimo giro).
+  // 500 org × 7-8 sub-handler interni = pesante ma fattibile in 18s timeout.
+  const PAGE_SIZE = 500
   const { data: orgs } = await supabase
     .from('organizations')
     .select('id, nome, attivo, trial_ends_at, approvato')
     .eq('attivo', true)
+    .order('id')
+    .limit(PAGE_SIZE)
 
   const results = []
+  // Audit 2026-07-01 MEDIUM: marker per future-pagination — quando supereremo
+  // 500 org attive il cron skippera' alcuni run. Quando arriviamo a 100+ org
+  // veri va riscritto con cursore "last_processed_at".
+  if ((orgs?.length || 0) >= PAGE_SIZE) {
+    results.push({ warning: `notifiche: ${PAGE_SIZE} org processate (cap raggiunto)` })
+  }
 
   for (const org of orgs || []) {
     const orgId = org.id

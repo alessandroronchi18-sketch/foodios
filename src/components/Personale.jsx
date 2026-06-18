@@ -1356,7 +1356,7 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
         </div>
         {addingRep ? (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input autoFocus value={newRepNome} onChange={e => setNewRepNome(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addReparto(); if (e.key === 'Escape') { setAddingRep(false); setNewRepNome('') } }} placeholder="Nome reparto" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, width: 180 }} />
+            <input autoFocus value={newRepNome} onChange={e => setNewRepNome(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addReparto(); if (e.key === 'Escape') { setAddingRep(false); setNewRepNome('') } }} placeholder="Nome reparto" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, width: 180 }} />
             <button onClick={addReparto} style={{ padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Aggiungi</button>
             <button onClick={() => { setAddingRep(false); setNewRepNome('') }} aria-label="Annulla" style={{ padding: '8px 10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="x" size={13} /></button>
           </div>

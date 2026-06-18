@@ -246,7 +246,12 @@ export default async function handler(req, res) {
               message: `sub ${sub.id}: metadata.org=${orgId} != customer.org=${orgByCustomer.id}`,
               org_id: orgByCustomer.id,
             }).catch(() => {})
+            // Audit 2026-07-01 HIGH: oltre a sincronizzare verso l'org reale,
+            // forziamo Stripe a ritentare (alert su mismatch) ritornando 500.
+            // Cosi' processed_at NON viene marcato e gli admin vedono l'incident
+            // ripetersi finche' qualcuno non interviene manualmente.
             await supabase.from('organizations').update(patch).eq('id', orgByCustomer.id)
+            return res.status(500).json({ error: 'metadata_mismatch — admin alert' })
           } else {
             await supabase.from('organizations').update(patch).eq('id', orgId)
           }

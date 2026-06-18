@@ -57,6 +57,9 @@ export default async function handler(req) {
       sentiment,
       url: urlCorrente || null,
       user_agent: (req.headers.get('user-agent') || '').slice(0, 300),
+      // Audit 2026-07-01 HIGH: client_ip per forensica anti-abuso (spam, contenuto
+      // offensivo). Stessa pipeline IP usata da login-guard / rate-limit.
+      client_ip: ip || null,
     })
     if (error) throw error
 

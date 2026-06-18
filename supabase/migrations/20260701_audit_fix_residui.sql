@@ -217,6 +217,22 @@ do $ai_usage_idx$ begin
 end $ai_usage_idx$;
 
 -- ---------------------------------------------------------------------------
+-- 8b) feedback + audit_log forensic fields (client_ip + user_agent)
+--     Audit 2026-07-01 HIGH: feedback inbox + admin actions hanno valore
+--     forensico solo se possiamo correlare IP. Aggiungiamo le colonne se
+--     mancanti.
+-- ---------------------------------------------------------------------------
+do $feedback_forensic$ begin
+  if to_regclass('public.feedback') is not null then
+    alter table public.feedback add column if not exists client_ip text;
+  end if;
+  if to_regclass('public.audit_log') is not null then
+    alter table public.audit_log add column if not exists client_ip text;
+    alter table public.audit_log add column if not exists user_agent text;
+  end if;
+end $feedback_forensic$;
+
+-- ---------------------------------------------------------------------------
 -- 9) Index su pos_scontrini per dedup hot path (org, provider, data, numero)
 --    NB: gia' c'e' unique partial. Aggiungiamo solo composite per query freq.
 -- ---------------------------------------------------------------------------

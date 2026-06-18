@@ -674,15 +674,20 @@ export default function MagazzinoView({
   }
 
   const handleSoglia = async (k, val) => {
+    // Audit 2026-07-01 MEDIUM: saving guard per race su doppio Enter rapido.
+    if (saving) return
     const nm = { ...magazzino, [k]: { ...(magazzino?.[k] || {}), nome: k, soglia_g: parseFloat(String(val).replace(',', '.')) || 0 } }
+    setSaving(true)
     try {
       await ssave(SK_MAG, nm)
     } catch (e) {
       notify(`Errore soglia: ${e.message || 'rete'}`, false)
+      setSaving(false)
       return
     }
     setMagazzino(nm)
     setEditSoglia(null)
+    setSaving(false)
   }
 
   const handleAddIngrediente = async () => {

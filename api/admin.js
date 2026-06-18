@@ -1532,24 +1532,47 @@ async function azCleanupE2EPreview(supabase) {
   }
 }
 
-async function azCleanupE2E(supabase, conferma) {
+async function azCleanupE2E(supabase, conferma, expectedCount = null) {
   if (conferma !== 'CLEANUP_E2E') {
     throw new Error('Conferma mancante (stringa CLEANUP_E2E)')
   }
   const orgs = await findE2EOrgs(supabase)
+  // Audit 2026-07-01 HIGH: expectedCount check come in azElimina — protegge
+  // da cleanup massivo se nel frattempo un test ha creato 500 org per errore.
+  if (expectedCount != null && Number(expectedCount) !== orgs.length) {
+    throw new Error(
+      `Stato cambiato dal preview: ${orgs.length} org E2E vs ${expectedCount} attesi. Riapri il preview.`
+    )
+  }
+  // Cap di sicurezza: se piu' di 200 org E2E sono identificate in una run,
+  // probabilmente il pattern e' troppo largo (incident).
+  if (orgs.length > 200) {
+    throw new Error(`Trovati ${orgs.length} org E2E in una run — limite di sicurezza 200. Verifica i pattern.`)
+  }
   const results = { eliminate: 0, falliti: 0, errori: [] }
   for (const { orgId } of orgs) {
     try {
-      // Riusa la stessa logica di azElimina (senza expectedCount check)
-      for (const t of TABELLE_ELIMINA_ORG) {
-        try { await supabase.from(t).delete().eq('organization_id', orgId) } catch {}
-      }
-      const { data: profiles } = await supabase
-        .from('profiles').select('id').eq('organization_id', orgId)
-      await supabase.from('profiles').delete().eq('organization_id', orgId)
-      await supabase.from('organizations').delete().eq('id', orgId)
-      for (const p of profiles || []) {
-        try { await supabase.auth.admin.deleteUser(p.id) } catch {}
+      // Riusa la stessa logica di azElimina via RPC atomica.
+      const { error: rpcErr } = await supabase.rpc('admin_org_cascade_delete', { p_org_id: orgId })
+      if (rpcErr) {
+        // Fallback al loop sequenziale se RPC non c'e' (DB pre-20260630).
+        for (const t of TABELLE_ELIMINA_ORG) {
+          try { await supabase.from(t).delete().eq('organization_id', orgId) } catch {}
+        }
+        const { data: profiles } = await supabase
+          .from('profiles').select('id').eq('organization_id', orgId)
+        await supabase.from('profiles').delete().eq('organization_id', orgId)
+        await supabase.from('organizations').delete().eq('id', orgId)
+        for (const p of profiles || []) {
+          try { await supabase.auth.admin.deleteUser(p.id) } catch {}
+        }
+      } else {
+        // Cleanup utenti auth dopo la cascade (la RPC non tocca auth.users).
+        const { data: profiles } = await supabase
+          .from('profiles').select('id').eq('organization_id', orgId)
+        for (const p of profiles || []) {
+          try { await supabase.auth.admin.deleteUser(p.id) } catch {}
+        }
       }
       results.eliminate++
     } catch (e) {
@@ -1566,10 +1589,17 @@ export default async function handler(req) {
   if (req.method === 'OPTIONS') return handleOptions(req)
 
   const ip = getClientIP(req)
-  const ua = req.headers.get('user-agent') || ''
+  // Audit 2026-07-01 HIGH: cap user-agent IMMEDIATAMENTE per evitare downstream
+  // hot logging di stringhe grandi (10KB) — i call site di logAdmin slice gia'
+  // a 200 ma req.headers.get puo' essere chiamato altrove in flow.
+  const ua = (req.headers.get('user-agent') || '').slice(0, 256)
 
+  // Audit 2026-07-01 HIGH: ADMIN_IPS supporta `*` come bypass (admin in
+  // viaggio con IP residenziale variabile) — usa quando OPT_OUT non possibile.
+  // Senza wildcard, comportamento storico immutato.
   const ADMIN_IPS = (process.env.ADMIN_IPS || '').split(',').map(s => s.trim()).filter(Boolean)
-  if (ADMIN_IPS.length > 0 && !ADMIN_IPS.includes(ip)) {
+  const ipAllowAll = ADMIN_IPS.includes('*')
+  if (ADMIN_IPS.length > 0 && !ipAllowAll && !ADMIN_IPS.includes(ip)) {
     return json({ error: 'IP non autorizzato' }, 403, req)
   }
 
@@ -1924,9 +1954,10 @@ export default async function handler(req) {
           )
           break
         case 'cleanup_e2e':
+          // Audit 2026-07-01 HIGH: passa expectedCount dal preview (UI).
           // Batch cleanup di tutti gli account test E2E (email @foodios-e2e.test, e2e+*, e2e-acc-titolare-*).
           // Doppia conferma stringa CLEANUP_E2E richiesta.
-          result = { ok: true, ...(await azCleanupE2E(supabase, sanitizeStrict(body.conferma || '', 20))) }
+          result = { ok: true, ...(await azCleanupE2E(supabase, sanitizeStrict(body.conferma || '', 20), body.expectedCount)) }
           break
         case 'pulisci_demo_fatture':
           result = { ok: true, ...(await azPulisciDemoFatture(supabase, orgId, sanitizeStrict(body.valore || 'preview', 20))) }; break

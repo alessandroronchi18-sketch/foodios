@@ -375,6 +375,11 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                 {deleteConf === sm.nome && (
                   <div style={{ padding: '12px 16px', background: C.redLight, borderRadius: 12, border: `1px solid rgba(110,14,26,0.25)` }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 8 }}>Scrivi <strong>ELIMINA</strong> per confermare l'eliminazione di "{sm.nome}"</div>
+                    {sm.nUsi > 0 && (
+                      <div style={{ fontSize: 11.5, color: C.red, marginBottom: 8, padding: '6px 10px', background: '#FEF3F2', border: '1px dashed rgba(110,14,26,0.4)', borderRadius: 6 }}>
+                        ⚠️ Questo semilavorato e' usato in <strong>{sm.nUsi} {sm.nUsi === 1 ? 'ricetta' : 'ricette'}</strong>. Eliminandolo, quelle ricette troveranno l'ingrediente "{sm.nome}" senza ricetta sorgente (food cost potrebbe risultare diverso).
+                      </div>
+                    )}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <input value={deletePin} onChange={e => setDeletePin(e.target.value)} placeholder="ELIMINA"
                         style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13 }} />

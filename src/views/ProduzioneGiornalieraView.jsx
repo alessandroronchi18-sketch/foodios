@@ -132,7 +132,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     const agg = computeSessione(nuoviProdotti)
     const oldIngs = sess.ingredientiUsati || {}
     // magazzino: parti dall'attuale, ri-aggiungi i vecchi ingredienti, sottrai i nuovi.
-    const nm = { ...magazzino }
+    const nm = { ...(magazzino || {}) }
     const keys = new Set([...Object.keys(oldIngs), ...Object.keys(agg.ings)])
     for (const k of keys) {
       const delta = (oldIngs[k] || 0) - (agg.ings[k] || 0) // >0 = restituito, <0 = consumato
@@ -457,7 +457,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       return
     }
 
-    const nm = { ...magazzino }
+    const nm = { ...(magazzino || {}) }
     for (const [k, qty] of Object.entries(riepilogo.ings)) {
       if (nm[k]) nm[k] = { ...nm[k], giacenza_g: Math.max(0, (nm[k].giacenza_g || 0) - qty) }
     }

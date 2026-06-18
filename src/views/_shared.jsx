@@ -87,8 +87,11 @@ export const ChartTip = ({ active, payload, label }) => {
       boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
     }}>
       <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{label}</div>
+      {/* Audit 2026-07-01 MEDIUM: key={dataKey} stabile (stacked charts hanno
+          ordine variabile in payload) — prima key={i} swappava i colori al
+          riordino interno di Recharts. */}
       {payload.map((p, i) => (
-        <div key={i} style={{ color: p.color || C.red }}>{p.name}: <b>{p.value}</b></div>
+        <div key={p.dataKey || p.name || i} style={{ color: p.color || C.red }}>{p.name}: <b>{p.value}</b></div>
       ))}
     </div>
   )

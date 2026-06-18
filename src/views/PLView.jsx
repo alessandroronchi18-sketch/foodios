@@ -535,7 +535,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const totRicavo = rows.reduce((s, r) => s + r.ricavo, 0)
   const totFC = rows.reduce((s, r) => s + r.fc, 0)
   const totMargine = rows.reduce((s, r) => s + r.margine, 0)
-  const avgMarg = rows.reduce((s, r) => s + r.margPct, 0) / rows.length
+  // Audit 2026-07-01 LOW: guard division by zero (rows vuoto -> NaN).
+  const avgMarg = rows.length > 0
+    ? rows.reduce((s, r) => s + r.margPct, 0) / rows.length
+    : 0
   const best = rows[0]
   const worst = rows[rows.length - 1]
   const fcAvg = totRicavo > 0 ? (totFC / totRicavo * 100) : 0

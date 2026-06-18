@@ -456,6 +456,14 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const handleSalva = async () => {
     if (salvando) return // evita doppio scarico stock PF su doppio click sincrono
     if (!venduto || (confronto.length === 0 && formatiRiconc.righe.length === 0)) return
+    // Audit 2026-07-01 MEDIUM: se non c'e' nessuna sessione produzione + nessuna
+    // riga cassa, l'utente salva chiusura con KPI a 0 → corrompe lo storico.
+    // Confermiamo se sta davvero salvando "vuoto".
+    const hasProduzione = confronto.some(r => Number(r.unitaP) > 0 || Number(r.unitaV) > 0)
+    const hasCassa = formatiRiconc.righe.some(r => Number(r.unitaV) > 0)
+    if (!hasProduzione && !hasCassa) {
+      if (!window.confirm('Nessuna produzione e nessuna cassa per questa data. Sei sicuro di voler salvare comunque?')) return
+    }
     setSalvando(true)
 
     // DIPENDENTE: il ricettario è sanitizzato (calcolaFC=0) → NON deve salvare lui
@@ -863,7 +871,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 <div style={{ position: 'relative', maxWidth: isMobile ? 200 : 'none' }}>
                   <img src={preview} alt="scontrino" style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.border}`, display: 'block' }}/>
                   <button aria-label="Rimuovi foto scontrino" onClick={() => { setPreview(null); setImg(null); setVenduto(null); setSalvato(false); if (inputRef.current) inputRef.current.value = '' }}
-                    style={{ position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                    aria-label="Rimuovi"
+                    style={{ position: 'absolute', top: 5, right: 5, width: isMobile ? 40 : 20, height: isMobile ? 40 : 20, borderRadius: isMobile ? 8 : 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: isMobile ? 16 : 10, cursor: 'pointer', fontWeight: 700 }}>✕</button>
                   <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -914,7 +923,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                     style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, textAlign: 'right' }}/>
                   <button onClick={() => setManualRows(rows => rows.length > 1 ? rows.filter((_, j) => j !== i) : rows)}
                     title="Rimuovi riga" disabled={manualRows.length <= 1}
-                    style={{ width: 28, height: 32, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, color: manualRows.length <= 1 ? C.border : C.red, fontSize: 13, cursor: manualRows.length <= 1 ? 'not-allowed' : 'pointer', fontWeight: 700 }}>✕</button>
+                    aria-label="Elimina riga"
+                    style={{ width: isMobile ? 40 : 28, height: isMobile ? 40 : 32, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, color: manualRows.length <= 1 ? C.border : C.red, fontSize: isMobile ? 16 : 13, cursor: manualRows.length <= 1 ? 'not-allowed' : 'pointer', fontWeight: 700 }}>✕</button>
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>

@@ -276,7 +276,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                     <input type="number" inputMode="decimal" value={r.qta} placeholder="0" onChange={e => set('qta', e.target.value)} style={{ ...inp, textAlign: 'right' }} />
                     <input type="number" inputMode="decimal" value={r.prezzo} placeholder="0,00" onChange={e => set('prezzo', e.target.value)} style={{ ...inp, textAlign: 'right' }} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: C.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{eur(tot)}</span>
-                    <button aria-label="Rimuovi riga" onClick={() => setVForm(f => ({ ...f, righe: f.righe.length > 1 ? f.righe.filter((_, j) => j !== i) : f.righe }))} style={{ width: 28, height: 34, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, color: C.red, cursor: 'pointer' }}>✕</button>
+                    <button aria-label="Rimuovi riga" onClick={() => setVForm(f => ({ ...f, righe: f.righe.length > 1 ? f.righe.filter((_, j) => j !== i) : f.righe }))} style={{ width: isMobile ? 40 : 28, height: isMobile ? 40 : 34, borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, color: C.red, fontSize: isMobile ? 16 : 13, cursor: 'pointer' }}>✕</button>
                   </div>
                 )
               })}

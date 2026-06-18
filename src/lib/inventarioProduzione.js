@@ -283,6 +283,9 @@ export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG) {
     const qty = Number(ing.qty1stampo) || 0
     if (qty <= 0 || !ing.nome) continue
     const deltaIng = qty * fattore
+    // Audit 2026-07-01 LOW: skip se deltaIng non finito (fattore=Infinity con
+    // pesoImpasto ≈ 0 per ingredienti decorativi minimi).
+    if (!Number.isFinite(deltaIng)) continue
     const k = normIng(ing.nome)
     const corrente = nm[k] || { nome: ing.nome.trim(), giacenza_g: 0, soglia_g: 0, ultimoRifornimento: null }
     // M1 fix: ammettiamo giacenza negativa internamente. Era clampata a 0
