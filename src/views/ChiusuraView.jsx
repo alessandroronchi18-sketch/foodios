@@ -21,6 +21,7 @@ import { parseFile as parseCassaFile, mergeInChiusureCassa } from '../lib/import
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
+import { useConfirm } from '../components/ConfirmModal'
 import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
 
 // Persiste fra unmount/remount durante l'analisi AI di uno scontrino
@@ -46,6 +47,7 @@ function SectHead({ icon, title, sub, right }) {
 export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId, isDipendente = false, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  const confirmDialog = useConfirm()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
 
@@ -462,7 +464,12 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     const hasProduzione = confronto.some(r => Number(r.unitaP) > 0 || Number(r.unitaV) > 0)
     const hasCassa = formatiRiconc.righe.some(r => Number(r.unitaV) > 0)
     if (!hasProduzione && !hasCassa) {
-      if (!window.confirm('Nessuna produzione e nessuna cassa per questa data. Sei sicuro di voler salvare comunque?')) return
+      const ok = await confirmDialog({
+        title: 'Chiusura vuota?',
+        message: 'Nessuna produzione e nessuna cassa per questa data. Sei sicuro di voler salvare comunque?',
+        confirmLabel: 'Salva vuota', cancelLabel: 'Annulla',
+      })
+      if (!ok) return
     }
     setSalvando(true)
 

@@ -27,6 +27,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { KPI, SH, PageHeader } from '../views/_shared'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { sload } from '../lib/storage'
@@ -134,6 +135,7 @@ function normalizzaLegacy(it) {
 
 export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, auth, notify }) {
   const isMobile = useIsMobile()
+  const confirmDialog = useConfirm()
   const isDip = auth?.isDipendente
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
 
@@ -357,7 +359,12 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
 
   const elimina = async (mov) => {
     if (mov._legacy) { notify?.('Record storico (Discrepanze): non eliminabile da qui', false); return }
-    if (!confirm(`Eliminare ${mov.tipo === 'spreco' ? 'la perdita' : "l'omaggio"} del ${fmtTs(mov.ts)}?`)) return
+    const ok = await confirmDialog({
+      title: `Eliminare ${mov.tipo === 'spreco' ? 'la perdita' : "l'omaggio"}?`,
+      message: `Registrato il ${fmtTs(mov.ts)}.`,
+      confirmLabel: 'Elimina', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     try {
       const arr = await eliminaMovimento(orgId, sedeId, mov.id)
       setMovs(arr)

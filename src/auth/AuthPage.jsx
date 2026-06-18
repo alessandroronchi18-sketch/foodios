@@ -193,12 +193,14 @@ function Input({ icon, type = 'text', value, onChange, placeholder, required, au
   )
 }
 
-function Field({ label, hint, children, error }) {
+function Field({ label, hint, children, error, htmlFor }) {
+  // Audit 2026-07-01 MEDIUM: htmlFor accoppia label all'input -> tap su label
+  // focusa l'input (a11y screen reader + UX click-area).
   return (
     <div style={{ marginBottom: 16, minWidth: 0 }}>
       {label && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: T.textMid, letterSpacing: '0.01em' }}>{label}</label>
+          <label htmlFor={htmlFor} style={{ fontSize: 12, fontWeight: 600, color: T.textMid, letterSpacing: '0.01em' }}>{label}</label>
           {hint && <span style={{ fontSize: 11, color: T.textSoft }}>{hint}</span>}
         </div>
       )}

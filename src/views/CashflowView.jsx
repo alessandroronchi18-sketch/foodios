@@ -17,6 +17,7 @@ import useIsMobile from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
 import AiPageHero from '../components/AiPageHero'
+import { useConfirm } from '../components/ConfirmModal'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -45,6 +46,7 @@ const TIPI_EVENTO = [
 export default function CashflowView({ orgId, sedeId, notify }) {
   const notifyFn = notify || ((m) => { try { console.log('[cashflow]', m) } catch {} })
   const isMobile = useIsMobile()
+  const confirmDialog = useConfirm()
   const [chiusure, setChiusure] = useState([])
   const [fatture, setFatture] = useState([])
   const [eventi, setEventi] = useState([])
@@ -163,7 +165,13 @@ export default function CashflowView({ orgId, sedeId, notify }) {
   }
 
   async function eliminaEvento(id) {
-    if (!confirm('Eliminare questo evento dal cashflow?')) return
+    // Audit 2026-07-01 MEDIUM: confirm() nativo -> ConfirmModal in-app.
+    const ok = await confirmDialog({
+      title: 'Eliminare evento?',
+      message: 'L\'evento verra rimosso dal cashflow. Le proiezioni successive saranno ricalcolate.',
+      confirmLabel: 'Elimina', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     try {
       await supabase.from('cashflow_eventi').delete().eq('id', id)
       setEventi(prev => prev.filter(e => e.id !== id))

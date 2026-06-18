@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile from '../lib/useIsMobile'
@@ -144,6 +145,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
 
 export default function ImpostazioniSedi({ orgId, onSediChange }) {
   const isMobile = useIsMobile()
+  const confirmDialog = useConfirm()
   // Su mobile font input >=16px per evitare lo zoom automatico iOS.
   const inpR = { ...inp, fontSize: isMobile ? 16 : 13 }
   const [sedi, setSedi] = useState([])
@@ -312,7 +314,12 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
       // Se il check fallisce (RLS / rete), meglio non procedere con la disattivazione.
       return notify('Errore verifica trasferimenti: ' + e.message, false)
     }
-    if (!window.confirm(`Disattivare la sede "${nome}"? I dati restano salvati ma la sede non sarà più visibile finché non la riattivi.`)) return
+    const ok = await confirmDialog({
+      title: `Disattivare la sede "${nome}"?`,
+      message: 'I dati restano salvati ma la sede non sara piu visibile finche non la riattivi.',
+      confirmLabel: 'Disattiva', cancelLabel: 'Annulla',
+    })
+    if (!ok) return
     setLoading(true)
     try {
       const { error } = await supabase.from('sedi').update({ attiva: false }).eq('id', id)

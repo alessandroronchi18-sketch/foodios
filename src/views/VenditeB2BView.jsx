@@ -10,6 +10,7 @@ import {
   setPagamentoVenditaB2B,
 } from '../lib/venditeB2B'
 import Icon from '../components/Icon'
+import { useConfirm } from '../components/ConfirmModal'
 import { C, PageHeader, KPI } from './_shared'
 
 const eur = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -22,6 +23,7 @@ const STATI = {
 
 export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   const isMobile = useIsMobile()
+  const confirmDialog = useConfirm()
   const [tab, setTab] = useState('vendite')
   const [clienti, setClienti] = useState([])
   const [vendite, setVendite] = useState([])
@@ -339,7 +341,15 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                             <button onClick={() => toggleFattura(v)} title={v.stato === 'fatturata' ? 'Segna da fatturare' : 'Segna fatturata'} style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               {v.stato === 'fatturata' ? '↩ Riapri' : '✓ Fattura'}
                             </button>
-                            <button aria-label="Elimina vendita" onClick={async () => { if (confirm('Eliminare questa vendita B2B? Lo stock dei prodotti verrà ripristinato.')) { try { await eliminaVenditaB2B(v.id); ricarica() } catch (e) { notify?.(e.message, false) } } }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
+                            <button aria-label="Elimina vendita" onClick={async () => {
+                              const ok = await confirmDialog({
+                                title: 'Eliminare vendita B2B?',
+                                message: 'Lo stock dei prodotti verra ripristinato.',
+                                confirmLabel: 'Elimina', cancelLabel: 'Annulla', destructive: true,
+                              })
+                              if (!ok) return
+                              try { await eliminaVenditaB2B(v.id); ricarica() } catch (e) { notify?.(e.message, false) }
+                            }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
                           </div>
                         </div>
                       )
@@ -389,7 +399,15 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                     <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{[c.partita_iva && `P.IVA ${c.partita_iva}`, c.citta, c.telefono].filter(Boolean).join(' · ') || '—'}</div>
                   </div>
                   <button onClick={() => apriCliente(c)} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Modifica</button>
-                  <button aria-label="Elimina cliente" onClick={async () => { if (confirm(`Eliminare ${c.nome}?`)) { try { await eliminaClienteB2B(c.id); ricarica() } catch (e) { notify?.(e.message, false) } } }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
+                  <button aria-label="Elimina cliente" onClick={async () => {
+                    const ok = await confirmDialog({
+                      title: `Eliminare cliente "${c.nome}"?`,
+                      message: 'Le vendite storiche di questo cliente non saranno cancellate, ma il riferimento sara perso.',
+                      confirmLabel: 'Elimina', cancelLabel: 'Annulla', destructive: true,
+                    })
+                    if (!ok) return
+                    try { await eliminaClienteB2B(c.id); ricarica() } catch (e) { notify?.(e.message, false) }
+                  }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
                 </div>
               ))}
             </div>

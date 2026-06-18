@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { SkeletonList, SkeletonGrid } from './Skeleton'
 import ProductAutocomplete from './ProductAutocomplete'
 import { supabase } from '../lib/supabase'
@@ -41,6 +42,7 @@ function fmtEuro(v) {
 
 export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null, notify }) {
   const isMobile = useIsMobile()
+  const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -293,7 +295,12 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   }
 
   async function azAnnulla(t) {
-    if (!confirm(`Annullare il trasferimento di ${t.prodotto}? ${t.stato === 'inviato' ? 'Lo stock sarà ripristinato sulla sede di partenza.' : ''}`)) return
+    const ok = await confirmDialog({
+      title: `Annullare trasferimento di "${t.prodotto}"?`,
+      message: t.stato === 'inviato' ? 'Lo stock sara ripristinato sulla sede di partenza.' : '',
+      confirmLabel: 'Annulla trasferimento', cancelLabel: 'Indietro', destructive: true,
+    })
+    if (!ok) return
     setBusyId(t.id)
     try {
       if (t.stato === 'inviato' && t.tipo === 'materia_prima' && t.stock_applicato) {
@@ -315,7 +322,12 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       notify?.('Solo bozze e trasferimenti annullati possono essere eliminati', false)
       return
     }
-    if (!confirm('Eliminare definitivamente questo trasferimento?')) return
+    const okDel = await confirmDialog({
+      title: 'Eliminare definitivamente?',
+      message: 'L\'operazione e\' irreversibile (il trasferimento e\' gia\' annullato/bozza).',
+      confirmLabel: 'Elimina', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!okDel) return
     try {
       const { error } = await supabase.from('trasferimenti').delete().eq('id', t.id).eq('organization_id', orgId)
       if (error) throw error

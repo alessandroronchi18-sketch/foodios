@@ -10,6 +10,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ALLERGENI } from '../lib/allergeni'
@@ -249,6 +250,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
 
 // ─── Tab Temperature ──────────────────────────────────────────────────────────
 function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
+  const confirmDialog = useConfirm()
   const [apparecchi, setApparecchi] = useState([])
   const [storico, setStorico] = useState([])
   const [loading, setLoading] = useState(true)
@@ -295,7 +297,12 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
   }
 
   async function disattivaApp(id) {
-    if (!confirm('Disattivare questo apparecchio?')) return
+    const ok = await confirmDialog({
+      title: 'Disattivare apparecchio?',
+      message: 'Le rilevazioni storiche restano, ma non riceverai più alert HACCP per questo apparecchio.',
+      confirmLabel: 'Disattiva', cancelLabel: 'Annulla',
+    })
+    if (!ok) return
     await supabase.from('haccp_apparecchi').update({ attivo:false }).eq('id', id)
     carica(); onChanged?.()
   }
@@ -454,6 +461,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
 
 // ─── Tab Pulizie ──────────────────────────────────────────────────────────────
 function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
+  const confirmDialog = useConfirm()
   const [tpl, setTpl] = useState([])
   const [log, setLog] = useState([])
   const [loading, setLoading] = useState(true)
@@ -487,7 +495,12 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
   }
 
   async function rimuoviTpl(id) {
-    if (!confirm('Rimuovere questo task?')) return
+    const ok = await confirmDialog({
+      title: 'Rimuovere task pulizia?',
+      message: 'Non comparira piu nel checklist HACCP. Le registrazioni storiche restano.',
+      confirmLabel: 'Rimuovi', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     await supabase.from('haccp_checklist_template').update({ attivo:false }).eq('id', id)
     carica(); onChanged?.()
   }

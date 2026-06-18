@@ -8,6 +8,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { supabase } from '../lib/supabase'
 import { apiFetch } from '../lib/apiFetch'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
@@ -32,6 +33,7 @@ function splitPhone(full) {
 }
 
 export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
+  const confirmDialog = useConfirm()
   const init = splitPhone(org?.telefono_whatsapp)
   const [prefisso, setPrefisso] = useState(init.prefisso)
   const [numero, setNumero]     = useState(init.numero)
@@ -59,7 +61,12 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
   }
 
   async function disattiva() {
-    if (!confirm('Disattivare il report WhatsApp serale?')) return
+    const ok = await confirmDialog({
+      title: 'Disattivare report WhatsApp serale?',
+      message: 'Il numero verra rimosso e non riceverai piu il riepilogo KPI alle 22:00.',
+      confirmLabel: 'Disattiva', cancelLabel: 'Annulla',
+    })
+    if (!ok) return
     setNumero('')
     setSaving(true)
     try {

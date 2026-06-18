@@ -3,6 +3,7 @@ import { ReactFlow, Background, Controls, applyNodeChanges, applyEdgeChanges, ad
 import '@xyflow/react/dist/style.css'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { SkeletonList } from './Skeleton'
@@ -85,6 +86,7 @@ function CoperturaBar({ cov, compact }) {
 const TIPI_CONTRATTO = ["Full-time","Part-time","Stagionale","Collaboratore","Apprendista"]
 
 function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
+  const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({
@@ -205,7 +207,12 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
 
   async function disattiva(id) {
     if (!orgId) return
-    if (!confirm("Archiviare questo dipendente? Potrai riattivarlo dall'archivio quando vuoi.")) return
+    const ok = await confirmDialog({
+      title: 'Archiviare dipendente?',
+      message: "Potrai riattivarlo dall'archivio quando vuoi. Storico turni e dati restano salvati.",
+      confirmLabel: 'Archivia', cancelLabel: 'Annulla',
+    })
+    if (!ok) return
     const { error } = await supabase.from("dipendenti").update({ attivo: false }).eq("id", id).eq("organization_id", orgId)
     if (error) { notify("Errore archiviazione: " + error.message, false); return }
     notify("Dipendente archiviato")
@@ -500,6 +507,7 @@ const REPARTO_COLORS = ['#6E0E1A', '#2563EB', '#16A34A', '#C2410C', '#7C3AED', '
 const SENZA_REPARTO = { nome: 'Senza reparto', color: '#94A3B8' }
 
 function TurniTab({ orgId, notify, isMobile }) {
+  const confirmDialog = useConfirm()
   const [turni, setTurni] = useState([])
   const [dipendenti, setDipendenti] = useState([])
   const [organigramma, setOrganigramma] = useState({ reparti: [] })
@@ -585,7 +593,11 @@ function TurniTab({ orgId, notify, isMobile }) {
     const conflitto = turni.find(t => t.id !== editId && t.dipendente_id === form.dipendente_id && t.data === form.data && ni < _toMin(t.ora_fine) && _toMin(t.ora_inizio) < nf)
     if (conflitto) {
       const nomeDip = dipendenti.find(d => d.id === form.dipendente_id)?.nome || 'Il dipendente'
-      const ok = typeof window !== "undefined" && window.confirm(`Turno sovrapposto\n\n${nomeDip} ha già un turno il ${form.data} dalle ${_hm(_toMin(conflitto.ora_inizio))} alle ${_hm(_toMin(conflitto.ora_fine))}, che si accavalla con ${form.ora_inizio}–${form.ora_fine}.\n\nVuoi salvarlo comunque?`)
+      const ok = await confirmDialog({
+        title: 'Turno sovrapposto',
+        message: `${nomeDip} ha già un turno il ${form.data} dalle ${_hm(_toMin(conflitto.ora_inizio))} alle ${_hm(_toMin(conflitto.ora_fine))}, che si accavalla con ${form.ora_inizio}–${form.ora_fine}. Vuoi salvarlo comunque?`,
+        confirmLabel: 'Salva comunque', cancelLabel: 'Annulla',
+      })
       if (!ok) return
     }
     const ore = calcOre(form.ora_inizio, form.ora_fine)

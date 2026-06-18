@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Icon from './Icon'
+import { useConfirm } from './ConfirmModal'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 
@@ -25,6 +26,7 @@ function fileToBase64(file) {
 function isHexColor(v) { return /^#[0-9A-Fa-f]{6}$/.test(v || '') }
 
 export default function WhiteLabel({ orgId, piano, notify }) {
+  const confirmDialog = useConfirm()
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -130,7 +132,12 @@ export default function WhiteLabel({ orgId, piano, notify }) {
   }
 
   async function reset() {
-    if (!confirm('Ripristinare il branding FoodOS predefinito?')) return
+    const ok = await confirmDialog({
+      title: 'Ripristinare branding FoodOS?',
+      message: 'Logo, nome app e colori personalizzati saranno cancellati. Tornera al brand default.',
+      confirmLabel: 'Ripristina', cancelLabel: 'Annulla', destructive: true,
+    })
+    if (!ok) return
     setSaving(true)
     try {
       await ssave(WL_KEY, { nomeApp: null, colorePrimario: null, logoDataUrl: null, reset_il: new Date().toISOString() }, orgId, null)

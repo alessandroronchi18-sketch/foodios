@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import App from './App.jsx'
 import { ToastProvider, GlobalToastBridge } from './components/Toast.jsx'
+import { ConfirmProvider } from './components/ConfirmModal.jsx'
 
 // ─── Sentry — SDK ufficiale con scrubber ───────────────────────────────────
 // DSN nel client è pubblico per design (rate-limited lato Sentry).
@@ -125,9 +126,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ToastProvider>
       <GlobalToastBridge />
-      <Sentry.ErrorBoundary fallback={(props) => <AppErrorFallback {...props} />}>
-        <App />
-      </Sentry.ErrorBoundary>
+      <ConfirmProvider>
+        <Sentry.ErrorBoundary fallback={(props) => <AppErrorFallback {...props} />}>
+          <App />
+        </Sentry.ErrorBoundary>
+      </ConfirmProvider>
     </ToastProvider>
   </React.StrictMode>
 )
