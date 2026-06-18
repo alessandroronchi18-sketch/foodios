@@ -1379,7 +1379,16 @@ export default function AdminPage() {
   async function handleImpersona(c) {
     try {
       const data = await azione(c.org_id, 'impersona')
-      if (data?.link) setImpersona({ cliente: c, link: data.link })
+      // Audit 2026-06-17 HIGH: il server non restituisce più `link` per privacy
+      // (manda magic-link via email + notifica titolare). Cliente legacy era
+      // muto. Mostra conferma esplicita.
+      if (data?.link) {
+        setImpersona({ cliente: c, link: data.link })
+      } else if (data?.link_sent_to) {
+        toast.success(`Magic link inviato a ${data.link_sent_to}`)
+      } else if (data?.ok) {
+        toast.success('Magic link inviato al titolare (controlla email).')
+      }
     } catch { /* già notificato */ }
   }
 
@@ -1403,6 +1412,10 @@ export default function AdminPage() {
         if (window.confirm(`Link di recovery generato per ${c.email}.\n\nClicca OK per copiarlo negli appunti.`)) {
           try { await navigator.clipboard.writeText(data.link) } catch { /* ignore */ }
         }
+      } else if (data?.sent_to) {
+        toast.success(`Email di recovery inviata a ${data.sent_to}`)
+      } else if (data?.ok) {
+        toast.success('Email di recovery inviata al titolare.')
       }
     } catch { /* già notificato */ }
   }
@@ -1503,19 +1516,28 @@ export default function AdminPage() {
 
   async function bulkEstendiTrial() {
     if (selezionati.size === 0) return
+    // Cap UI: il server limita 10/min, oltre questa soglia partono N richieste
+    // ma 90% finisce in 429 e l'admin vede "ko=N" criptico (audit 2026-06-17
+    // HIGH). Limitiamo qui a 50 clienti per batch.
+    const BULK_CAP = 50
+    if (selezionati.size > BULK_CAP) {
+      toast.error(`Bulk limitato a ${BULK_CAP} clienti per volta (selezionati ${selezionati.size}). Deseleziona o esegui in più tornate.`)
+      return
+    }
     const giorni = prompt(`Estendi trial di quanti giorni a ${selezionati.size} clienti selezionati?`, '30')
     if (!giorni) return
     const n = parseInt(giorni, 10)
     if (!Number.isFinite(n) || n < 1) { toast.error('Giorni non validi'); return }
     if (!confirm(`Confermi: estendere il trial di ${n}gg a ${selezionati.size} clienti?`)) return
     let ok = 0, ko = 0
+    const errori = []
     for (const orgId of selezionati) {
       try { await azione(orgId, 'estendi_trial', { valore: n }); ok++ }
-      catch { ko++ }
+      catch (e) { ko++; if (errori.length < 3) errori.push(e?.message || 'errore') }
     }
     setSelezionati(new Set())
     if (ko === 0) toast.success(`Trial esteso a ${ok} clienti`)
-    else toast.warn(`Trial esteso: ${ok} ok · ${ko} errori`)
+    else toast.warn(`Trial esteso: ${ok} ok · ${ko} errori (${errori.join('; ')})`)
   }
 
   function bulkExportCsv() {

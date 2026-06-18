@@ -4,21 +4,7 @@ import { checkRateLimit, rateLimitResponse } from './lib/rateLimit.js'
 import { handleOptions, json, getClientIP } from './lib/cors.js'
 import { sanitize, sanitizeStrict, validateUrl } from './lib/validate.js'
 import { safeError } from './lib/safeError.js'
-
-async function getSupabase() {
-  const { createClient } = await import('@supabase/supabase-js')
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
-}
-
-async function getUser(req, supabase) {
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) return null
-  const { data: { user }, error } = await supabase.auth.getUser(
-    authHeader.replace('Bearer ', '')
-  )
-  if (error || !user) return null
-  return user
-}
+import { verificaToken } from './lib/auth.js'
 
 const SENTIMENT_VALIDI = ['bug', 'feature', 'feedback', 'complimento']
 
@@ -27,15 +13,19 @@ export default async function handler(req) {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405, req)
 
   const ip = getClientIP(req)
-  const supabase = await getSupabase()
 
-  // Rate limit: 5 feedback/min per IP — abbastanza largo per uso reale,
-  // stretto per evitare spam.
+  // Auth canonico via verificaToken (gate org attiva + trial — audit 2026-06-17
+  // MEDIUM: prima si usava getUser locale che non verificava lo stato dell'org,
+  // permettendo a trial scaduti o org disattivate di continuare a spammare).
+  const { user, profile, supabase, error } = await verificaToken(req)
+  if (error || !user) return json({ error: error || 'Non autorizzato' }, 401, req)
+
+  // Rate limit doppio: per IP (5/min) E per user (10/min) — audit 2026-06-17
+  // MEDIUM: solo per IP era aggirabile cambiando rete (mobile/wifi).
   const rl = await checkRateLimit(supabase, `feedback:${ip}`, 5, 60)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
-
-  const user = await getUser(req, supabase)
-  if (!user) return json({ error: 'Non autorizzato' }, 401, req)
+  const rlUser = await checkRateLimit(supabase, `feedback-user:${user.id}`, 10, 60)
+  if (!rlUser.allowed) return rateLimitResponse(rlUser.retryAfter)
 
   let body
   try { body = await req.json() } catch { return json({ error: 'JSON non valido' }, 400, req) }
@@ -52,12 +42,6 @@ export default async function handler(req) {
   const urlRaw = sanitize(body.url || '', 500)
   const urlCorrente = validateUrl(urlRaw) ? urlRaw : ''
 
-  // Recupera org + ruolo del profilo per arricchire la riga.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('organization_id, ruolo, email')
-    .eq('id', user.id)
-    .maybeSingle()
   if (!profile?.organization_id) {
     return json({ error: 'Organizzazione non trovata' }, 404, req)
   }

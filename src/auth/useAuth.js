@@ -216,6 +216,25 @@ export function useAuth() {
     resetSessionFingerprint()
     clearIdleTimestamp()
     Sentry.setUser(null)
+    // Pulizia stato app-specifico: su dispositivo condiviso (cassa banco) il
+    // login successivo erediterebbe sede attiva, lockout brute-force, last
+    // activity, referral pending. Audit 2026-06-17 MEDIUM.
+    try {
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (!k) continue
+        if (
+          k.startsWith('foodios') ||
+          k.startsWith('sede_attiva') ||
+          k.startsWith('pasticceria') ||
+          k === 'referral_code_pendente'
+        ) {
+          keysToRemove.push(k)
+        }
+      }
+      keysToRemove.forEach(k => { try { localStorage.removeItem(k) } catch {} })
+    } catch {}
     await supabase.auth.signOut()
   }
 

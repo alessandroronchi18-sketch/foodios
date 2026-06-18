@@ -6,11 +6,7 @@
 export const config = { runtime: 'nodejs' }
 
 import { verificaToken } from './lib/auth.js'
-
-function origin(req) {
-  const h = req.headers
-  return (h.origin || h.referer || 'https://foodios-rose.vercel.app').replace(/\/$/, '').split('/').slice(0, 3).join('/')
-}
+import { safeOrigin } from './lib/originGuard.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -37,7 +33,7 @@ export default async function handler(req, res) {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: org.stripe_customer_id,
-      return_url: `${origin(req)}/`,
+      return_url: `${safeOrigin(req)}/`,
       locale: 'it',
     })
 

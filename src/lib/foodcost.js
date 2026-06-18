@@ -846,7 +846,7 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
     }
     tot += qty * (_lordo ? costoG : costoNettoPerG(costoG, nomeNorm))
   }
-  return { tot: parseFloat(tot.toFixed(3)), mancanti }
+  return { tot: depth === 0 ? parseFloat(tot.toFixed(3)) : tot, mancanti }
 }
 
 // Calcola food cost totale di una ricetta. Ricorsivo per gestire semilavorati
@@ -855,6 +855,10 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
 // invece di tornare silenziosamente costo 0.
 // Param _path: lista nomi nel cammino di ricorsione, per ciclo-detect e logging.
 export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) {
+  // Audit 2026-06-17 HIGH: la versione precedente arrotondava `tot` a 3 decimali
+  // SU OGNI livello di ricorsione, propagando errori sui semilavorati nidificati.
+  // Ora il rounding avviene SOLO al top-level (depth === 0) — i sotto-totali
+  // restano a piena precisione.
   const depth = _depth || 0
   const path = _path || []
   const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""]
@@ -912,7 +916,8 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
     if (!c) { mancanti.push(ing.nome); continue }
     tot += qty * (_lordo ? c.costoG : costoNettoPerG(c.costoG, nomeNorm))
   }
-  return { tot: parseFloat(tot.toFixed(3)), mancanti }
+  // Rounding solo al top-level.
+  return { tot: depth === 0 ? parseFloat(tot.toFixed(3)) : tot, mancanti }
 }
 
 // Come calcolaFC ma ritorna anche il DETTAGLIO per ingrediente di primo livello
@@ -937,7 +942,11 @@ export function calcolaFCDettaglio(ricetta, ingCosti, ricettario) {
       if (semiKey) {
         const semiRic = ricettario.ricette[semiKey]
         const semiHasResa = hasResaIngrediente(nomeNorm)
-        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, 1, [semiKey], semiHasResa)
+        // depth=0 per la sub-chiamata: calcolaFCDettaglio è già il "primo livello",
+        // ma la sub-chiamata calcola il sub-tree del semilavorato — può comunque
+        // scendere fino a depth=3 (audit 2026-06-17 HIGH: prima passava 1, riducendo
+        // l'annidamento effettivo di un livello rispetto a calcolaFC standalone).
+        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, 0, [semiKey], semiHasResa)
         const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
         if (semiPeso > 0) {
           const costo = qty * costoNettoPerG(semiTot / semiPeso, nomeNorm)

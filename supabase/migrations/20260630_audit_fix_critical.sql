@@ -303,7 +303,30 @@ do $audit_trg_safe$ begin
   end if;
 end $audit_trg_safe$;
 
--- 14) get_user_org_id LIMIT 1 (defense-in-depth, audit 1 NOTE).
+-- 14) rate_limit_increment: increment atomico per il rate limiter (audit 1
+--     HIGH: prima il pattern read+upsert era race-vulnerable).
+do $audit_rl$ begin
+  if to_regclass('public.rate_limits') is not null then
+    create or replace function public.rate_limit_increment(p_key text)
+    returns int as $rl_inc$
+    declare
+      v_count int;
+    begin
+      insert into public.rate_limits (key, count, window_start)
+      values (p_key, 1, now())
+      on conflict (key) do update
+        set count = public.rate_limits.count + 1
+      returning count into v_count;
+      return v_count;
+    end;
+    $rl_inc$ language plpgsql security definer
+    set search_path = public, pg_temp;
+
+    grant execute on function public.rate_limit_increment(text) to authenticated, anon;
+  end if;
+end $audit_rl$;
+
+-- 15) get_user_org_id LIMIT 1 (defense-in-depth, audit 1 NOTE).
 create or replace function public.get_user_org_id() returns uuid as $get_org$
 declare
   org_id uuid;

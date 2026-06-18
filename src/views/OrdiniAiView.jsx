@@ -26,7 +26,8 @@ const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
 const AMBER = T.amber || '#D97706'
 
-export default function OrdiniAiView({ orgId, sedeId }) {
+export default function OrdiniAiView({ orgId, sedeId, notify }) {
+  const notifyFn = notify || ((m, ok) => console.log('[ordini-ai]', m))
   const isMobile = useIsMobile()
   const [magazzino, setMagazzino] = useState({})
   const [chiusure, setChiusure] = useState([])
@@ -130,9 +131,9 @@ export default function OrdiniAiView({ orgId, sedeId }) {
   async function copia() {
     try {
       await navigator.clipboard.writeText(genTestoOrdine())
-      alert('Testo ordine copiato negli appunti! Incollalo in mail / WhatsApp al fornitore.')
+      notifyFn('Testo ordine copiato negli appunti — incollalo in mail/WhatsApp al fornitore', true)
     } catch {
-      alert('Errore copia. Seleziona manualmente il testo qui sotto.')
+      notifyFn('Errore copia. Seleziona manualmente il testo qui sotto.', false)
     }
   }
 

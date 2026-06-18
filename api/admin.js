@@ -307,17 +307,33 @@ export async function getSecuritySnapshot(supabase, hours = 24) {
     loginStats = { error: e.message?.slice(0, 80) }
   }
 
-  // Anomalie rilevate (da audit_log con operation='anomaly_detected')
+  // Anomalie rilevate (da audit_log con operation='anomaly_detected').
+  // Audit 2026-06-17 HIGH: prima si selezionavano colonne inesistenti
+  // (details/ip) — la tab Security era un placebo che ritornava sempre [].
+  // Ora usiamo i nomi reali (new_data/client_ip) con fallback per schema legacy.
   let anomalie = []
   try {
-    const { data } = await supabase.from('audit_log')
-      .select('id, user_id, operation, details, created_at, ip')
+    const { data, error } = await supabase.from('audit_log')
+      .select('id, user_id, operation, new_data, created_at, client_ip')
       .eq('operation', 'anomaly_detected')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(50)
-    anomalie = data || []
-  } catch {}
+    if (error) {
+      // Fallback per schema dove le colonne hanno nomi diversi (old)
+      const { data: legacy } = await supabase.from('audit_log')
+        .select('id, user_id, operation, created_at')
+        .eq('operation', 'anomaly_detected')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      anomalie = (legacy || []).map(r => ({ ...r, new_data: null, client_ip: null }))
+    } else {
+      anomalie = data || []
+    }
+  } catch (e) {
+    anomalie = []
+  }
 
   // Azioni admin recenti (chi ha fatto cosa)
   let adminLog = []
@@ -1805,7 +1821,15 @@ export default async function handler(req) {
     }
     const perAction = PER_ACTION_LIMITS[tipo]
     if (perAction) {
-      const rlAction = await checkRateLimit(supabase, `admin:${user.email}:${tipo}`, perAction.max, perAction.windowSec)
+      // Azioni distruttive: fail-closed. Se la tabella rate_limits non è
+      // disponibile preferiamo bloccare piuttosto che lasciar passare un admin
+      // potenzialmente compromesso (audit 2026-06-17 HIGH).
+      const DESTRUTTIVE = new Set(['elimina', 'cleanup_e2e', 'pulisci_demo_fatture'])
+      const failClosed = DESTRUTTIVE.has(tipo)
+      const rlAction = await checkRateLimit(
+        supabase, `admin:${user.email}:${tipo}`, perAction.max, perAction.windowSec, 900,
+        { failClosed }
+      )
       if (!rlAction.allowed) {
         await logAdmin(supabase, user.email, `rate_limit_per_action:${tipo}`, orgId || null, ip, ua)
         return rateLimitResponse(rlAction.retryAfter)

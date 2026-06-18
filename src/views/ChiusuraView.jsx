@@ -480,7 +480,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       formati: formatiRiconc.righe.map(r => ({ nome: r.nome, categoria: r.categoria, unitaV: r.unitaV, rv: r.rv, fcV: r.fcV, marg: r.marg })),
       kpi: { totV, totFC, totM, totS, totMP, avgST },
     }
-    const eraGiaChiusa = !!chiusuraSalvata
+    // Calcola eraGiaChiusa da `chiusure` PRIMA della filter — evita race se
+    // setChiusure asincrono dopo navigazione+ritorno (audit 2026-06-17 MEDIUM).
+    const eraGiaChiusa = (chiusure || []).some(c => c.data === dataFiltro)
     const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), rec]
     // SAVE FIRST per evitare data-loss: se ssave fallisce, non aggiorniamo lo
     // state (l'UI deve restare allineata al DB).

@@ -38,6 +38,14 @@ export function getStoreRese() {
   return { ..._store };
 }
 
+// Reset rese runtime: necessario quando si cambia organizzazione/sede nella
+// stessa sessione (impersonation admin). Senza, le rese di org A inquinano i
+// calcoli FC di org B. Allineato a resetRegoleRuntime() in foodcost.js.
+// Audit 2026-06-17 HIGH.
+export function resetRese() {
+  for (const k of Object.keys(_store)) delete _store[k];
+}
+
 export function costoNettoPerG(costoLordoPerG, nomeNorm) {
   const resa = getResaIngrediente(nomeNorm);
   return resa > 0 ? costoLordoPerG / resa : costoLordoPerG;

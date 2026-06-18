@@ -209,11 +209,17 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       return
     }
 
-    // Stock prodotti finiti: scarta i pezzi.
+    // Stock prodotti finiti: scarta i pezzi. Per destinazione altra sede,
+    // tentiamo anche l'annullo del trasferimento ricevente (audit 2026-06-17
+    // HIGH: prima si lasciava lo stock destinato in vetrina dell'altra sede,
+    // creando doppio conteggio).
     const sedeProduttiva = sedeAttiva?.id
     const destDiversa = sess.destinazioneSedeId && sess.destinazioneSedeId !== sedeProduttiva
     const scartoErrors = []
-    if (orgId && sedeProduttiva && !destDiversa) {
+    // Sede target dello scarto: produttiva se no destinazione, altrimenti la
+    // sede di destinazione (è lei che ha lo stock dal trasferimento).
+    const sedeScarto = destDiversa ? sess.destinazioneSedeId : sedeProduttiva
+    if (orgId && sedeScarto) {
       for (const p of (sess.prodotti || [])) {
         const vendibile = Number(p.vendibile || 0) || Number(p.stampi || 0)
         if (vendibile <= 0) continue
@@ -224,7 +230,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         if (pezzi <= 0) continue
         const prodottoKey = (p.nome || '').toUpperCase().trim()
         try {
-          await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: `Annullo sessione del ${sess.data}` })
+          await scartoPF({ sedeId: sedeScarto, prodotto: prodottoKey, quantita: pezzi, note: `Annullo sessione del ${sess.data}${destDiversa ? ' (trasferimento annullato)' : ''}` })
         } catch (e) { scartoErrors.push(`${p.nome}: ${e.message}`) }
       }
     }
@@ -235,8 +241,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     setDeleteSessConf(null); setDeleteSessPin(''); setDeletingSess(false)
 
     const baseMsg = 'Sessione eliminata — ingredienti restituiti al magazzino'
-    if (destDiversa) {
-      notify(`${baseMsg}. Stock prodotti finiti NON ritoccato: la sessione aveva destinazione altra sede — gestisci il trasferimento dalla view Trasferimenti.`, false)
+    if (destDiversa && scartoErrors.length === 0) {
+      notify(`${baseMsg}, e stock annullato anche sulla sede destinazione del trasferimento.`)
     } else if (scartoErrors.length > 0) {
       // Ghost stock: il giornaliero è aggiornato (su Supabase + locale) ma alcuni
       // pezzi sono ancora in stock_prodotti_finiti. L'utente deve correggere
@@ -282,9 +288,10 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
   const CONGELABILI_DEFAULT = ['BANANA BREAD', 'TORTA DI CAROTE', 'COOKIES', 'CARROT CAKE']
   const isCongelabile = (nome) => {
-    const r = ricettario?.ricette?.[nome.toUpperCase().trim()] || ricettario?.ricette?.[nome]
+    const norm = (nome || '').toString().toUpperCase().trim()
+    const r = ricettario?.ricette?.[norm] || ricettario?.ricette?.[nome]
     if (r && typeof r.congelabile === 'boolean') return r.congelabile
-    return CONGELABILI_DEFAULT.some(c => nome.toUpperCase().includes(c))
+    return CONGELABILI_DEFAULT.some(c => norm.includes(c))
   }
 
   const setQ = (nome, val) => {

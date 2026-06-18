@@ -134,5 +134,21 @@ export default async function handler(req) {
     return json({ error: 'Salvataggio fallito: ' + e.message }, 500, req)
   }
 
+  // Scarico stock PF: lo SpreciOmaggi del titolare già lo fa, ma il flusso
+  // dipendente saltava questo step (audit 2026-06-17 HIGH). Solo se prodotto
+  // matchato a ricetta e unita 'pz' (no scarto su materia prima).
+  if (auto && unita === 'pz' && prodotto) {
+    try {
+      await supabase.rpc('stock_pf_scarto', {
+        p_sede_id: sedeId,
+        p_prodotto: prodotto.toUpperCase().trim(),
+        p_quantita: qta,
+        p_note: `${tipo} dipendente: ${movimento.causale || 'n/a'}`,
+      })
+    } catch (e) {
+      console.warn('[spreco-registra] stock_pf_scarto failed', e?.message)
+    }
+  }
+
   return json({ ok: true, movimento: rec, movimenti: nuova }, 200, req)
 }

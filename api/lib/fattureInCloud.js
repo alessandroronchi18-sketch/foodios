@@ -24,6 +24,27 @@ function getConfig() {
   return { token, companyId }
 }
 
+// Cache vat_types per company (per-process). FiC li espone su /info/vat_types
+// con id stabile *all'interno della company* ma NON cross-company.
+const _vatTypeCache = new Map()
+export async function getFicVatTypeId(companyId, percentage) {
+  if (!Number.isFinite(percentage)) return null
+  const cached = _vatTypeCache.get(companyId)
+  if (cached) {
+    const hit = cached.find(v => Math.abs(Number(v.value) - Number(percentage)) < 0.001)
+    return hit?.id ?? null
+  }
+  try {
+    const res = await ficRequest('GET', `/c/${companyId}/info/vat_types`)
+    const list = Array.isArray(res?.data) ? res.data : []
+    _vatTypeCache.set(companyId, list)
+    const hit = list.find(v => Math.abs(Number(v.value) - Number(percentage)) < 0.001)
+    return hit?.id ?? null
+  } catch {
+    return null
+  }
+}
+
 async function ficRequest(method, path, body) {
   const { token } = getConfig()
   const res = await safeFetch(`${API_BASE}${path}`, {
@@ -106,6 +127,10 @@ export async function emettiFatturaElettronica({
   stripeInvoiceId,         // riferimento Stripe (per audit)
 }) {
   const { companyId } = getConfig()
+  // Risoluzione dinamica del vat.id per l'aliquota richiesta: l'id NON è stabile
+  // tra company FiC, va recuperato da /info/vat_types (audit 2026-06-17 HIGH).
+  // Cachiamo per processo.
+  const vatId = await getFicVatTypeId(companyId, aliquotaIva)
   const payload = {
     data: {
       type: 'invoice',
@@ -128,7 +153,9 @@ export async function emettiFatturaElettronica({
         description: descrizione,
         qty: 1,
         net_price: importoNetto,
-        vat: { id: aliquotaIva === 22 ? 0 : null, percentage: aliquotaIva },
+        vat: vatId != null
+          ? { id: vatId, percentage: aliquotaIva }
+          : { percentage: aliquotaIva },
       }],
       payments_list: [{
         amount: Number((importoNetto * (1 + aliquotaIva / 100)).toFixed(2)),

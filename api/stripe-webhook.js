@@ -192,8 +192,14 @@ export default async function handler(req, res) {
         const priceId = sub.items?.data?.[0]?.price?.id
         const piano = planFromPriceId(priceId)
         const stato = sub.status // active | trialing | past_due | canceled | unpaid
-        const isAttivo = ['active', 'trialing'].includes(stato)
-        const periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null
+        // Audit 2026-06-17 HIGH: include past_due nel "attivo" per dare grace
+        // period 3-7gg al cliente (Stripe lascia dunning prima del canceled).
+        // unpaid e canceled escludono.
+        const isAttivo = ['active', 'trialing', 'past_due'].includes(stato)
+        // current_period_end: Stripe API 2024-06-20+ a volte lo espone solo su
+        // items[0] anziché top-level. Cerchiamo in entrambi.
+        const periodEndTs = sub.current_period_end || sub.items?.data?.[0]?.current_period_end || null
+        const periodEnd = periodEndTs ? new Date(periodEndTs * 1000).toISOString() : null
 
         const patch = {
           stripe_subscription_id: sub.id,
@@ -244,14 +250,17 @@ export default async function handler(req, res) {
             .from('organizations').select('id').eq('stripe_customer_id', c.id).maybeSingle()
           if (!org) break
           const taxId = c.tax_ids?.data?.[0] || null
-          // Recupera l'eventuale tax_id (per i nuovi customer Stripe non lo
-          // mette in c.tax_ids ma richiede listTaxIds separato — best-effort).
+          // Recupera l'eventuale tax_id SOLO se non già in c.tax_ids (audit
+          // 2026-06-17 MEDIUM: prima chiamava listTaxIds anche quando taxId era
+          // disponibile, sprecando rate limit Stripe).
           let pivaFromList = null
-          try {
-            const tax = await stripe.customers.listTaxIds(c.id, { limit: 1 })
-            const it = (tax.data || []).find(t => t.type === 'eu_vat' || t.type === 'it_partita_iva')
-            if (it) pivaFromList = it.value
-          } catch { /* ignore */ }
+          if (!taxId) {
+            try {
+              const tax = await stripe.customers.listTaxIds(c.id, { limit: 1 })
+              const it = (tax.data || []).find(t => t.type === 'eu_vat' || t.type === 'it_partita_iva')
+              if (it) pivaFromList = it.value
+            } catch { /* ignore */ }
+          }
           const addr = c.address || {}
           const patch = {
             ragione_sociale: c.name || null,

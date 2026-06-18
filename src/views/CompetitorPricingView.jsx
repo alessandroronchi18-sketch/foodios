@@ -24,7 +24,8 @@ const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
 const AMBER = T.amber || '#D97706'
 
-export default function CompetitorPricingView({ orgId, sedeId, ricettario }) {
+export default function CompetitorPricingView({ orgId, sedeId, ricettario, notify }) {
+  const notifyFn = notify || ((m) => console.log('[competitor]', m))
   const isMobile = useIsMobile()
   const ricetteArr = useMemo(
     () => (ricettario?.ricette ? Object.values(ricettario.ricette) : []),
@@ -95,7 +96,7 @@ export default function CompetitorPricingView({ orgId, sedeId, ricettario }) {
       if (error) throw error
       setCompetitors(prev => [data, ...prev])
       setNewComp({ nome: '', prezzo: '' })
-    } catch (e) { alert('Errore: ' + e.message) }
+    } catch (e) { notifyFn('Errore: ' + (e?.message || 'rete'), false) }
   }
 
   async function rimuoviCompetitor(id) {

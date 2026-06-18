@@ -1191,7 +1191,7 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
         if (d.getMonth() + 1 !== mese) return null
         return {
           sedeId,
-          gusto_nome: r.gusto.toUpperCase(),
+          gusto_nome: r.gusto.toUpperCase().trim(),
           data: d.toISOString().slice(0, 10),
           produzione_g: r.qtaG,
           rimanenza_g: 0,

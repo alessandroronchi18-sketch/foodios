@@ -98,6 +98,9 @@ export default async function handler(req, res) {
   let orgId = (body.organization_id || '').toString().trim()
   let importoNetto = Number(body.importo_netto || 0)
   let pianoLabel = (body.piano || '').toString().trim()
+  // Aliquota IVA dinamica: derivata da inv.total_tax_amounts[].tax_rate se
+  // Stripe Tax attivo, altrimenti default 22 (audit 2026-06-17 HIGH).
+  let aliquotaIvaPct = Number(body.aliquota_iva || 22)
 
   // Modalita' 1: chiamata da webhook con solo stripe_invoice_id
   // → carica dati invoice da Stripe + risali a organization
@@ -115,12 +118,19 @@ export default async function handler(req, res) {
       }
       // Calcolo netto: preferire subtotal_excluding_tax (presente solo con Stripe Tax
       // attivo). Se non c'è, dedurre dal totale: con Stripe Tax disattivato il prezzo
-      // Stripe è inclusivo IVA → netto = total / (1 + IVA). Audit 2026-06-17 CRITICAL:
-      // prima si faceva (amount_paid - inv.tax) / 100, ma inv.tax è null senza Tax →
-      // si scriveva il lordo come netto, gonfiando la fattura del 22%.
+      // Stripe è inclusivo IVA → netto = total / (1 + IVA).
       const subtotalExcl = Number.isFinite(inv.subtotal_excluding_tax) ? inv.subtotal_excluding_tax : null
       const taxAmount = Number.isFinite(inv.tax) ? inv.tax : null
-      const aliquotaIvaPct = 22 // TODO derivare da inv.total_tax_amounts[].tax_rate quando Stripe Tax attivo
+      // Aliquota IVA dall'invoice se presente; altrimenti 22 default.
+      try {
+        const rateFromInvoice = inv.total_tax_amounts?.[0]?.tax_rate
+        if (rateFromInvoice) {
+          const rate = typeof rateFromInvoice === 'string'
+            ? await stripe.taxRates.retrieve(rateFromInvoice)
+            : rateFromInvoice
+          if (Number.isFinite(rate?.percentage)) aliquotaIvaPct = Number(rate.percentage)
+        }
+      } catch { /* keep default 22 */ }
       if (subtotalExcl != null) {
         importoNetto = subtotalExcl / 100
       } else if (taxAmount != null && taxAmount > 0) {
@@ -289,7 +299,7 @@ export default async function handler(req, res) {
       scadenza: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       oggetto: pianoLabel || `Abbonamento FoodOS — ${ragione}`,
       importoNetto,
-      aliquotaIva: 22,
+      aliquotaIva: aliquotaIvaPct,
       transmit: true,
       stripeInvoiceId,
     })

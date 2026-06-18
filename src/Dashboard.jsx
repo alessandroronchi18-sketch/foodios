@@ -56,7 +56,7 @@ const NotifichePanel = lazyWithReload(() => import('./components/NotifichePanel'
 const BackgroundToast = lazyWithReload(() => import('./components/BackgroundToast'))
 import { backgroundManager } from './lib/backgroundManager'
 import { uploadManager } from './lib/backgroundManager'
-import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese } from './lib/rese'
+import { costoNettoPerG, loadRese, getStoreRese, setResaIngrediente, getAllRese, resetRese } from './lib/rese'
 const Fornitori = lazyWithReload(() => import('./components/Fornitori'))
 const VenditeB2BView = lazyWithReload(() => import('./views/VenditeB2BView'))
 const Personale = lazyWithReload(() => import('./components/Personale'))
@@ -1434,6 +1434,9 @@ export default function Dashboard({
         // Ripulisci le regole runtime della precedente org prima di applicare
         // quelle di questa (evita leakage cross-org nel singleton REGOLE).
         resetRegoleRuntime();
+        // Idem per le rese: il loadRese precedente potrebbe aver popolato
+        // il singleton con rese di un'altra org. Audit 2026-06-17 HIGH.
+        try { resetRese(); } catch {}
         for(const r of Object.values(ric.ricette||{})){
           if(r.unita!=null && !REGOLE[r.nome]){
             REGOLE[r.nome]={ unita:r.unita, prezzo:r.prezzo, tipo:r.tipo||"fetta" };
