@@ -1397,10 +1397,10 @@ export default function Dashboard({
 
   useEffect(()=>{
     if (!orgId) {
-      console.log('caricaDati: orgId non ancora disponibile, attendo...');
+      console.debug('caricaDati: orgId non ancora disponibile, attendo...');
       return;
     }
-    console.log('caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
+    console.debug('caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
     // Reset stato per-sede prima di ricaricare (evita di mostrare brevemente
     // i dati della sede precedente mescolati ai nuovi). Le chiavi shared
     // (ricettario) le lasciamo: vengono comunque ricaricate sotto.
@@ -1416,15 +1416,15 @@ export default function Dashboard({
       const cached = localStorage.getItem(_RIC_CACHE_KEY);
       if (cached) {
         const { data, savedAt } = JSON.parse(cached);
-        if (data) { setRic(data); setOfflineCacheDate(savedAt); console.log('cache ricettario:', Object.keys(data.ricette||{}).length, 'ricette'); }
+        if (data) { setRic(data); setOfflineCacheDate(savedAt); console.debug('cache ricettario:', Object.keys(data.ricette||{}).length, 'ricette'); }
       }
     } catch {}
     try {
-      const bkMag    = bkReadLS(SK_MAG,    orgId, sedeId); if (bkMag)    { setMagazzino(bkMag);        console.log('cache magazzino:', Object.keys(bkMag).length); }
-      const bkGior   = bkReadLS(SK_GIOR,   orgId, sedeId); if (bkGior)   { setGiornaliero(bkGior);     console.log('cache giornaliero:', bkGior.length); }
-      const bkChius  = bkReadLS(SK_CHIUS,  orgId, sedeId); if (bkChius)  { setChiusure(bkChius);       console.log('cache chiusure:', bkChius.length); }
-      const bkProd   = bkReadLS(SK_PROD,   orgId, sedeId); if (bkProd)   { setProd(bkProd);            console.log('cache produzione:', Object.keys(bkProd).length); }
-      const bkAct    = bkReadLS(SK_ACT,    orgId, null);   if (bkAct)    { setAct(bkAct);              console.log('cache actions:', bkAct.length); }
+      const bkMag    = bkReadLS(SK_MAG,    orgId, sedeId); if (bkMag)    { setMagazzino(bkMag);        console.debug('cache magazzino:', Object.keys(bkMag).length); }
+      const bkGior   = bkReadLS(SK_GIOR,   orgId, sedeId); if (bkGior)   { setGiornaliero(bkGior);     console.debug('cache giornaliero:', bkGior.length); }
+      const bkChius  = bkReadLS(SK_CHIUS,  orgId, sedeId); if (bkChius)  { setChiusure(bkChius);       console.debug('cache chiusure:', bkChius.length); }
+      const bkProd   = bkReadLS(SK_PROD,   orgId, sedeId); if (bkProd)   { setProd(bkProd);            console.debug('cache produzione:', Object.keys(bkProd).length); }
+      const bkAct    = bkReadLS(SK_ACT,    orgId, null);   if (bkAct)    { setAct(bkAct);              console.debug('cache actions:', bkAct.length); }
       const bkExcl   = bkReadLS(SK_EXCL,   orgId, null);   if (bkExcl)   { setEsclusi(new Set(bkExcl)); }
       const bkLogRif = bkReadLS(SK_LOGRIF, orgId, sedeId); if (bkLogRif) { setLogRif(bkLogRif); }
     } catch (e) { console.warn('cache locale rec error:', e); }
@@ -1441,7 +1441,7 @@ export default function Dashboard({
                      : !!bk;
       if (!nonEmpty) return;
       console.warn(`${label}: Supabase vuoto, ripristino da backup locale…`);
-      ssave(sk, bk).then(() => console.log(`${label} ripristinato su Supabase`))
+      ssave(sk, bk).then(() => console.debug(`${label} ripristinato su Supabase`))
                    .catch(e => console.error(`Ripristino ${label} fallito:`, e));
     };
 
@@ -1464,7 +1464,7 @@ export default function Dashboard({
       timeout
     ]).then(([ric,prod,act,mag,logrif,gior,chius,excl,logprz])=>{
       setOfflineMode(false);
-      console.log('caricaDati SUPABASE:', {
+      console.debug('caricaDati SUPABASE:', {
         ricette: ric ? Object.keys(ric.ricette||{}).length : 'VUOTO',
         produzione: prod ? Object.keys(prod).length : 'VUOTO',
         actions: act ? act.length : 'VUOTO',
@@ -1496,7 +1496,7 @@ export default function Dashboard({
             const { data } = JSON.parse(cached);
             if (data && Object.keys(data.ricette||{}).length > 0) {
               console.warn('ricettario: ripristino da cache locale…');
-              ssave(SK_RIC, data).then(() => console.log('ricettario ripristinato su Supabase'))
+              ssave(SK_RIC, data).then(() => console.debug('ricettario ripristinato su Supabase'))
                                  .catch(e => console.error('Ripristino ricettario fallito:', e));
             }
           }
@@ -1849,7 +1849,7 @@ export default function Dashboard({
       effectiveOrgId = orgId || _ctx_orgId;
       tentativo++;
     }
-    console.log('handleSalvaRicetta', { orgId, _ctx_orgId, effectiveOrgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
+    console.debug('handleSalvaRicetta', { orgId, _ctx_orgId, effectiveOrgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
     if (!effectiveOrgId) {
       notify('Sessione non valida (orgId mancante). Ricarica la pagina.', false);
       return;

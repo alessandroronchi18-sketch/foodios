@@ -25,7 +25,7 @@ const GREEN = T.green || '#16A34A'
 const AMBER = T.amber || '#D97706'
 
 export default function CompetitorPricingView({ orgId, sedeId, ricettario, notify }) {
-  const notifyFn = notify || ((m) => console.log('[competitor]', m))
+  const notifyFn = notify || ((m) => console.debug('[competitor]', m))
   const isMobile = useIsMobile()
   const ricetteArr = useMemo(
     () => (ricettario?.ricette ? Object.values(ricettario.ricette) : []),

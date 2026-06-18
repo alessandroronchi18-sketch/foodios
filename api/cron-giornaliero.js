@@ -157,11 +157,59 @@ export default async function handler(req) {
     }
   }))
 
+  // Audit 2026-07-01 MEDIUM: alerting su ERRORI cron (Slack/email).
+  // Se >= 1 step ha ok=false ed esiste ADMIN_EMAIL+RESEND_API_KEY, invia
+  // email riepilogativa all'admin per intervenire. Idempotente per giorno
+  // via dedup-key cron_runs (vedi migration 20260701).
+  const stepsFalliti = results.filter(s => !s.ok)
+  if (stepsFalliti.length > 0 && process.env.ADMIN_EMAIL && process.env.RESEND_API_KEY) {
+    try {
+      const oggi = now.toISOString().slice(0, 10)
+      // Dedup: una sola email per (job_name, day). Se gia inviata, skip.
+      const { createClient } = await import('@supabase/supabase-js')
+      const sup = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+      const alertJob = `cron-giornaliero-alert-${oggi}`
+      const { data: claim } = await sup.rpc('cron_run_claim', { p_job_name: alertJob })
+      if (claim === true) {
+        const rows = stepsFalliti.map(s => {
+          const err = s.error || s.body?.error || `HTTP ${s.status || '?'}`
+          return `<tr><td style="padding:6px 12px;border-bottom:1px solid #E5E7EB">${s.step}</td><td style="padding:6px 12px;border-bottom:1px solid #E5E7EB;color:#DC2626">${err.toString().slice(0, 200)}</td><td style="padding:6px 12px;border-bottom:1px solid #E5E7EB;color:#94A3B8">${s.ms || 0}ms</td></tr>`
+        }).join('')
+        const html = `<div style="font-family:Inter,system-ui,sans-serif;max-width:680px;margin:0 auto;padding:24px">
+          <h1 style="color:#DC2626;margin:0 0 16px;font-size:20px">⚠️ Cron giornaliero FoodOS — ${stepsFalliti.length}/${results.length} step falliti</h1>
+          <p style="color:#475569;font-size:14px;margin:0 0 16px">Eseguito alle ${now.toISOString()}. Step falliti:</p>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden">
+            <thead><tr style="background:#FAFAF6"><th style="padding:8px 12px;text-align:left;color:#475569;font-weight:700">Step</th><th style="padding:8px 12px;text-align:left;color:#475569;font-weight:700">Errore</th><th style="padding:8px 12px;text-align:left;color:#475569;font-weight:700">Durata</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <p style="color:#94A3B8;font-size:11px;margin-top:20px">Verifica i log Vercel + error_log su DB. Se ricorrente, rivedi STEP_TIMEOUT_MS o paginazione cron-notifiche.</p>
+        </div>`
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'FoodOS <noreply@foodios.it>',
+            to: process.env.ADMIN_EMAIL,
+            subject: `⚠️ Cron FoodOS — ${stepsFalliti.length} step falliti`,
+            html,
+          }),
+        }).catch(() => { /* alerting best-effort */ })
+        try { await sup.rpc('cron_run_mark', { p_job_name: alertJob, p_status: 'ok' }) } catch {}
+      }
+    } catch (e) {
+      console.error('[cron-giornaliero] alerting fallito (non-blocking):', e.message)
+    }
+  }
+
   return new Response(JSON.stringify({
     ok: true,
     triggered_at: now.toISOString(),
     is_primo_del_mese: isPrimoDelMese,
     steps: results,
+    steps_falliti: stepsFalliti.length,
   }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },

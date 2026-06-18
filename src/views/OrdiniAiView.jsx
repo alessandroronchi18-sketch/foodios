@@ -27,7 +27,7 @@ const GREEN = T.green || '#16A34A'
 const AMBER = T.amber || '#D97706'
 
 export default function OrdiniAiView({ orgId, sedeId, notify }) {
-  const notifyFn = notify || ((m, ok) => console.log('[ordini-ai]', m))
+  const notifyFn = notify || ((m) => console.debug('[ordini-ai]', m))
   const isMobile = useIsMobile()
   const [magazzino, setMagazzino] = useState({})
   const [chiusure, setChiusure] = useState([])

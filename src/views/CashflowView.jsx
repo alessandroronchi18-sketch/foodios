@@ -44,7 +44,7 @@ const TIPI_EVENTO = [
 ]
 
 export default function CashflowView({ orgId, sedeId, notify }) {
-  const notifyFn = notify || ((m) => { try { console.log('[cashflow]', m) } catch {} })
+  const notifyFn = notify || ((m) => { try { console.debug('[cashflow]', m) } catch {} })
   const isMobile = useIsMobile()
   const confirmDialog = useConfirm()
   const [chiusure, setChiusure] = useState([])
