@@ -36,7 +36,11 @@ function makeInternalReq(realUrl, path) {
 // timeout, 1 stallo Anthropic/Twilio = 30s Vercel timeout = TUTTI gli step
 // successivi non girano (cascading failure). Con timeout per-step,
 // l'orchestratore continua col prossimo anche se uno hangs.
-const STEP_TIMEOUT_MS = 25_000  // 25s per step (Vercel cron limit 60s totale)
+// Audit 2026-07-01 MEDIUM: Vercel Hobby ha 60s/funzione; con 7+ step in
+// allSettled e 25s ciascuno, il wall-clock totale puo' superare 60s prima
+// che il cleanup parta. Ridotto a 18s — i sub-handler reali finiscono in
+// <10s normalmente, 18s e' margine di sicurezza.
+const STEP_TIMEOUT_MS = 18_000
 
 async function runStep(name, fn) {
   const start = Date.now()
@@ -100,6 +104,56 @@ export default async function handler(req) {
       return new Response(JSON.stringify({ ok: true, removed: data }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     } catch (e) {
       return new Response(JSON.stringify({ ok: false, error: e.message || 'exception' }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+    }
+  }))
+
+  // 5) Audit 2026-07-01 MEDIUM/HIGH: cleanup retention paralleli (error_log,
+  //    stripe_webhook_events, login_attempts — vedi migration 20260701).
+  //    + past_due grace: org con stripe_status='past_due' da >7gg → approvato=false.
+  results.push(await runStep('cleanup-error-log', async () => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+      const { data, error } = await supabase.rpc('error_log_cleanup_old', { p_days: 90 })
+      if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 })
+      return new Response(JSON.stringify({ ok: true, removed: data }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, error: e.message || 'exception' }), { status: 500 })
+    }
+  }))
+
+  results.push(await runStep('cleanup-login-attempts', async () => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+      const { data, error } = await supabase.rpc('login_attempts_cleanup_old', { p_days: 90 })
+      if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 })
+      return new Response(JSON.stringify({ ok: true, removed: data }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, error: e.message || 'exception' }), { status: 500 })
+    }
+  }))
+
+  // 6) Past_due grace: invalida `approvato` per org Stripe non pagate da >7gg.
+  results.push(await runStep('stripe-past-due-grace', async () => {
+    try {
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+      // Audit 2026-07-01 HIGH: senza, una sub past_due restava approvata fino
+      // a `subscription.deleted` (anche 30+ giorni). Concediamo 7gg di grace,
+      // poi fail-closed.
+      const cutoff = new Date(Date.now() - 7 * 86400000).toISOString()
+      const { data, error } = await supabase
+        .from('organizations')
+        .update({ approvato: false })
+        .eq('stripe_status', 'past_due')
+        .eq('approvato', true)
+        .lt('stripe_current_period_end', cutoff)
+        .select('id')
+      if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 })
+      return new Response(JSON.stringify({ ok: true, revoked: data?.length || 0 }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    } catch (e) {
+      return new Response(JSON.stringify({ ok: false, error: e.message || 'exception' }), { status: 500 })
     }
   }))
 

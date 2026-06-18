@@ -264,7 +264,7 @@ REGOLE:
           <input value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); manda() } }}
             placeholder="Scrivi qui la tua domanda…"
-            style={{ flex: 1, padding: '11px 14px', borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: 14, color: TXT, fontFamily: 'inherit', outline: 'none' }}/>
+            style={{ flex: 1, padding: '11px 14px', borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 14, color: TXT, fontFamily: 'inherit', outline: 'none' }}/>
           <button onClick={manda} disabled={!input.trim() || loading}
             style={{ background: input.trim() && !loading ? BRAND : '#CBD5E1', color: '#FFF', border: 'none', padding: '11px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: input.trim() && !loading ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Icon name="sparkles" size={13}/> Invia

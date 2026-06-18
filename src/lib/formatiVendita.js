@@ -188,9 +188,13 @@ export function riconciliaFormati(venduto, formati, sessione, ricettario, ingCos
     byCat[k] = byCat[k] || { categoria: r.categoria, gProdotti: 0, gVenduti: 0 }
   }
   // grammi venduti = Σ unitaV × baseQtaG dei formati (per categoria)
+  // Audit 2026-07-01 LOW: skip formati con baseQtaG <= 0 (es. "ricarica tessera"
+  // o servizio non pesato): non contribuiscono a gVenduti e non vanno contati.
   for (const r of righe) {
     const f = formati.find(x => x.id === r.formatoId)
-    byCat[catKey(r.categoria)].gVenduti += r.unitaV * (Number(f?.baseQtaG) || 0)
+    const base = Number(f?.baseQtaG) || 0
+    if (base <= 0) continue
+    byCat[catKey(r.categoria)].gVenduti += r.unitaV * base
   }
   // grammi prodotti = Σ stampi × peso stampo delle ricette di quella categoria
   for (const p of (sessione?.prodotti || [])) {

@@ -1730,8 +1730,12 @@ export default function AdminPage() {
 
         {adminTab === 'overview' && (<>
         {/* ── KPI ─────────────────────────────────────────────────── */}
+        {/* Audit 2026-07-01 MED: 6-col su mobile rendeva i numeri <60px.
+            Stesso pattern di responsive usato per la grid sottostante. */}
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 20,
+          display: 'grid',
+          gridTemplateColumns: isAdminNarrow ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)',
+          gap: 12, marginBottom: 20,
         }}>
           <KpiCard label="Totale clienti" value={stats?.totale ?? '—'} sub={stats?.nuoviMese != null ? `+${stats.nuoviMese} ultimo mese` : null} />
           <KpiCard

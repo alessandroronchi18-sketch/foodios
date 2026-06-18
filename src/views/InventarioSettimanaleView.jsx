@@ -310,22 +310,23 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       const esistente = serverRow
         ? { ...esistenteMem, ...serverRow }
         : esistenteMem
+      // Audit 2026-07-01 HIGH: spread `...serverRow` per preservare campi
+      // futuri (es. note) e spedito_g aggiunto in audit precedente.
       const patch = {
+        ...(serverRow || {}),
         produzione_g: esistente.produzione_g || 0,
         rimanenza_g: esistente.rimanenza_g || 0,
         scarto_g: esistente.scarto_g || 0,
+        spedito_g: esistente.spedito_g || 0,
         [campo]: Number(valore) || 0,
       }
-      // Salvataggio dati inventario: deve riuscire PRIMA di toccare il magazzino,
-      // cosi se l'utente perde la rete vediamo l'errore e non scaliamo nulla.
-      const saved = await salvaCella(orgId, sedeId, gustoNome, dataIso, patch)
 
-      // Scalo magazzino MP solo se il campo modificato e' produzione_g.
-      // Calcoliamo il delta rispetto al valore precedente: positivo = ho
-      // prodotto in piu' (ingredienti scendono), negativo = correzione al
-      // ribasso (ingredienti risalgono). save-first sul magazzino: se ssave
-      // fallisce, l'inventario resta salvato ma notify warning e
-      // l'utente capira' che il magazzino non e' stato aggiornato.
+      // Audit 2026-07-01 HIGH: pre-calcolo magazzino. Se devo scalare, SCALO
+      // PRIMA di salvare inventario — se ssave magazzino fallisce, NON salvo
+      // inventario (rollback implicito). Prima l'ordine era invertito: salvare
+      // inventario poi magazzino → drift permanente su rete persa.
+      let nuovoMagazzinoTarget = null
+      let ingredientiScalatiTarget = []
       if (campo === 'produzione_g' && setMagazzino && ricettario) {
         const ric = ricettaDelGusto(ricettario, gustoNome)
         const oldProd = Number(esistente.produzione_g) || 0
@@ -333,17 +334,28 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         const delta = newProd - oldProd
         if (ric && delta !== 0) {
           const { nuovoMagazzino, ingredientiScalati } = scaloMagazzinoPerGusto(magazzino || {}, ric, delta)
-          if (ingredientiScalati.length > 0) {
-            try {
-              await ssave(SK_MAG, nuovoMagazzino, orgId, sedeId)
-              setMagazzino(nuovoMagazzino)
-            } catch (e) {
-              console.error('ssave magazzino dopo inventario:', e)
-              notify?.('Inventario salvato ma magazzino non aggiornato (errore rete)', false)
-            }
-          }
+          nuovoMagazzinoTarget = nuovoMagazzino
+          ingredientiScalatiTarget = ingredientiScalati
         }
       }
+
+      // Save-first magazzino: se ssave SK_MAG fallisce, esce con errore PRIMA
+      // di toccare l'inventario.
+      if (nuovoMagazzinoTarget && ingredientiScalatiTarget.length > 0) {
+        try {
+          await ssave(SK_MAG, nuovoMagazzinoTarget, orgId, sedeId)
+          setMagazzino(nuovoMagazzinoTarget)
+        } catch (e) {
+          console.error('ssave magazzino prima di inventario:', e)
+          notify?.('Errore aggiornamento magazzino, inventario NON salvato (riprova)', false)
+          setSaving(s => { const n = { ...s }; delete n[k]; return n })
+          return
+        }
+      }
+
+      // Salvataggio inventario DOPO il magazzino (ordine inverso rispetto al
+      // vecchio codice — vedi audit HIGH sopra).
+      const saved = await salvaCella(orgId, sedeId, gustoNome, dataIso, patch)
 
       setRighe(prev => {
         const idx = prev.findIndex(r => r.gusto_nome === gustoNome && r.data === dataIso)
@@ -403,7 +415,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           border: '1px solid #BFDBFE', borderRadius: 10, marginBottom: 12,
         }}>
           <div style={{ fontSize: 12.5, color: '#1E3A8A', lineHeight: 1.5, marginBottom: 10 }}>
-            🌍 <strong>Vista aggregata</strong> — Somma delle sedi selezionate qui sotto.
+            <Icon name="globe" size={13} style={{ marginRight: 6, verticalAlign: 'middle' }}/><strong>Vista aggregata</strong> — Somma delle sedi selezionate qui sotto.
             Compilazione e import disabilitati: per modificare i dati, seleziona una sede
             specifica dal selettore in alto.
           </div>
@@ -848,7 +860,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               const fresh = await caricaSettimana(orgId, sedeId, lunediIso)
               setRighe(fresh)
               setShipDlg(null)
-              notify?.(`✓ Spediti ${kg} kg di ${gusto} a ${destSede?.nome || 'destinazione'}`, true)
+              notify?.(`Spediti ${kg} kg di ${gusto} a ${destSede?.nome || 'destinazione'}`, true)
             } catch (e) {
               console.error('spedizione:', e)
               notify?.('Errore spedizione: ' + (e.message || 'rete'), false)

@@ -479,11 +479,16 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       }
       setChiusure(resp.chiusure); setSalvato(true)
       if (!eraGiaChiusaDip && orgId && sedeId) {
+        const erroriScaricoDip = []
         for (const row of confronto) {
           const venduti = Number(row.unitaV || 0)
           if (venduti <= 0) continue
           try { await scaricoVenditaPF({ sedeId, prodotto: (row.nome || '').toUpperCase().trim(), quantita: venduti, unita: 'pz', note: `Chiusura ${dataFiltro}` }) }
-          catch (e) { console.error('Errore scarico vendita PF:', row.nome, e?.message) }
+          catch (e) { console.error('Errore scarico vendita PF:', row.nome, e?.message); erroriScaricoDip.push(row.nome) }
+        }
+        if (erroriScaricoDip.length > 0) {
+          // Audit 2026-07-01 MEDIUM: ghost-stock silente. Notifichiamo aggregato.
+          notify(`Attenzione: scarico stock vetrina fallito per ${erroriScaricoDip.length} prodotti (${erroriScaricoDip.slice(0,3).join(', ')}${erroriScaricoDip.length>3?'...':''}). Controlla magazzino.`, false)
         }
       }
       setSalvando(false)
@@ -514,8 +519,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     setChiusure(nuove)
     setSalvato(true)
 
-    // Scarico automatico stock PF (solo prima chiusura del giorno)
+    // Scarico automatico stock PF (solo prima chiusura del giorno).
+    // Audit 2026-07-01 MEDIUM: errors aggregati + notify utente (ghost-stock silente).
     if (!eraGiaChiusa && orgId && sedeId) {
+      const erroriScarico = []
       for (const row of confronto) {
         const venduti = Number(row.unitaV || 0)
         if (venduti <= 0) continue
@@ -523,7 +530,11 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           await scaricoVenditaPF({ sedeId, prodotto: (row.nome || '').toUpperCase().trim(), quantita: venduti, unita: 'pz', note: `Chiusura ${dataFiltro}` })
         } catch (e) {
           console.error('Errore scarico vendita PF:', row.nome, e?.message)
+          erroriScarico.push(row.nome)
         }
+      }
+      if (erroriScarico.length > 0) {
+        notify(`Attenzione: scarico stock vetrina fallito per ${erroriScarico.length} prodotti (${erroriScarico.slice(0,3).join(', ')}${erroriScarico.length>3?'...':''}). Controlla magazzino.`, false)
       }
     }
     setSalvando(false)
@@ -696,7 +707,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                     <tbody>{importPreview.righe.map((r, i) => (
                       <tr key={i} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 ? '#FDFAF7' : C.white }}>
                         <td style={{ padding: '5px 10px', fontWeight: 700, color: C.text }}>{r.data}</td>
-                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green }}>€{(r.importo || 0).toFixed(2)}</td>
+                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.red }}>€{(r.commissione || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700 }}>€{(r.netto || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.textSoft }}>{r.ordini}</td>
@@ -767,7 +778,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                     <tbody>{importPreview.righe.map((r, i) => (
                       <tr key={i} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 ? '#FDFAF7' : C.white }}>
                         <td style={{ padding: '5px 10px', fontWeight: 700, color: C.text }}>{r.data}</td>
-                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green }}>€{(r.importo || 0).toFixed(2)}</td>
+                        <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.textSoft }}>€{(r.iva || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right' }}>{r.righe || 1}</td>
                         <td style={{ padding: '5px 10px', color: C.textMid, fontSize: 9 }}>{r.fonte}</td>

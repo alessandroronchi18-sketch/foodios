@@ -674,7 +674,7 @@ export default function MagazzinoView({
   }
 
   const handleSoglia = async (k, val) => {
-    const nm = { ...magazzino, [k]: { ...(magazzino?.[k] || {}), nome: k, soglia_g: parseFloat(val) || 0 } }
+    const nm = { ...magazzino, [k]: { ...(magazzino?.[k] || {}), nome: k, soglia_g: parseFloat(String(val).replace(',', '.')) || 0 } }
     try {
       await ssave(SK_MAG, nm)
     } catch (e) {
