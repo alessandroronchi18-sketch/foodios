@@ -203,9 +203,9 @@ export default function CashflowView({ orgId, sedeId, notify }) {
           if (i < 0) return null
           return <circle cx={xOf(i)} cy={yOf(primoGiornoRosso.saldoAtteso)} r="4" fill={BRAND} stroke="#FFF" strokeWidth="2" />
         })()}
-        <text x={PAD} y={20} fontSize="10" fill={SOFT}>€{fmt0(max)}</text>
-        <text x={PAD} y={H - PAD + 14} fontSize="10" fill={SOFT}>€{fmt0(min)}</text>
-        <text x={W - PAD} y={H - PAD + 14} fontSize="10" fill={SOFT} textAnchor="end">+{orizzonte}gg</text>
+        <text x={PAD} y={20} fontSize="12" fontWeight="600" fill={MID}>€{fmt0(max)}</text>
+        <text x={PAD} y={H - PAD + 16} fontSize="12" fontWeight="600" fill={MID}>€{fmt0(min)}</text>
+        <text x={W - PAD} y={H - PAD + 16} fontSize="12" fontWeight="600" fill={MID} textAnchor="end">+{orizzonte}gg</text>
       </svg>
     )
   }, [timeline, isMobile, primoGiornoRosso, orizzonte])
@@ -248,6 +248,20 @@ export default function CashflowView({ orgId, sedeId, notify }) {
                 Inserisci quanto hai oggi su conto corrente + cassa. L'AI proietta il futuro in base a media ricavi (60gg) + scadenze.
               </div>
             </div>
+            {(!settings.saldoOggi || Number(settings.saldoOggi) === 0) && (
+              <div style={{
+                marginTop: 12, padding: '10px 12px',
+                background: '#FEF9C3', border: '1px solid #FDE68A',
+                borderRadius: 8, fontSize: 12, color: '#854D0E', lineHeight: 1.5,
+                display: 'flex', gap: 8, alignItems: 'flex-start',
+              }}>
+                <Icon name="warning" size={14} color="#854D0E" />
+                <div>
+                  Imposta il <strong>saldo cassa+banca di oggi</strong> per vedere la previsione reale.
+                  Senza, il grafico mostra solo le variazioni (saldo iniziale = 0 €).
+                </div>
+              </div>
+            )}
           </div>
 
           {/* KPI scenari */}

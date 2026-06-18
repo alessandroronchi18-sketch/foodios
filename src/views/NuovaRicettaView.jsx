@@ -75,6 +75,18 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const [datiEstratti, setDatiEstratti] = useState(null);  // dati AI in attesa di conferma
   const [saving, setSaving] = useState(false);             // bottone salva in corso
   const formRef = useRef(null);
+  // Audit 2026-07-01 HIGH: tracking scroll timer per cleanup unmount.
+  const scrollTimerRef = useRef(null);
+  useEffect(() => () => {
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+  }, []);
+  function scrollToFormDeferred(delay = 100) {
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = setTimeout(() => {
+      try { formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }) } catch {}
+      scrollTimerRef.current = null;
+    }, delay);
+  }
 
   const ricetteEsistenti = Object.keys(ricettario?.ricette || {}).filter(isRicettaValida);
 
@@ -96,7 +108,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const manual = (r.allergeni || []).filter(a => !auto.includes(a));
     setForm({ nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual });
     setEditMode(nome);
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    scrollToFormDeferred(100);
   };
 
   // Pre-carica una ricetta in modifica quando arriva dal click su card
@@ -310,7 +322,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             })),
             procedimento: res.note || ''
           });
-          setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+          scrollToFormDeferred(150);
         }}
         onBatchSave={async (res, idx, ricAcc, setRicAcc) => {
           const UNIT_G = { g: 1, gr: 1, grammi: 1, grammo: 1, kg: 1000, chilo: 1000, chilogrammo: 1000, ml: 1, millilitri: 1, l: 1000, litro: 1000, litri: 1000, cl: 10, centilitri: 10, dl: 100, decilitri: 100, cucchiaio: 15, cucchiai: 15, tbsp: 15, cucchiaino: 5, cucchiaini: 5, tsp: 5, tazza: 240, cup: 240, tazze: 240, bicchiere: 200, bicchieri: 200, noce: 15, pizzico: 2, pizzichi: 2, qb: 0 };

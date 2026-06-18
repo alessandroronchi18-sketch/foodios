@@ -58,8 +58,21 @@ function parseCSV(text) {
   const rows = lines.slice(1).filter(l => l.trim()).map(l => {
     const vals = [];
     let cur = '', inQ = false;
-    for (const ch of l + sep) {
-      if (ch === '"') { inQ = !inQ; continue; }
+    const padded = l + sep;
+    for (let i = 0; i < padded.length; i++) {
+      const ch = padded[i];
+      if (ch === '"') {
+        // Audit 2026-07-01 MEDIUM: gestire l'escape `""` -> `"` dentro un campo
+        // quotato. Export Excel con descrizioni come `"Caffe \"speciale\""`
+        // andavano in malora prima.
+        if (inQ && padded[i + 1] === '"') {
+          cur += '"';
+          i++;
+          continue;
+        }
+        inQ = !inQ;
+        continue;
+      }
       if (ch === sep && !inQ) { vals.push(cur.trim()); cur = ''; }
       else cur += ch;
     }

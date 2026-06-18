@@ -20,11 +20,12 @@ export function hasResaIngrediente(nomeNorm) {
 }
 
 export function setResaIngrediente(nomeNorm, resa) {
-  // Audit 2026-06-17 LOW: parseFloat(0) || 1.0 = 1.0 (resa zero impossibile
-  // fisicamente diventava silenziosamente 100%). Warning esplicito.
+  // Audit 2026-07-01 MEDIUM: il vecchio warning diceva "clamped a 0.01" ma il
+  // codice usa 1.0 di default per input <= 0 (semantica: "valore invalido,
+  // uso 100%"). Allineato il messaggio alla logica reale.
   const parsed = parseFloat(resa);
   if (Number.isFinite(parsed) && parsed <= 0) {
-    console.warn('[rese] resa <= 0 per', nomeNorm, '→ clamped a 0.01 (1%)');
+    console.warn('[rese] resa <= 0 per', nomeNorm, '→ ignorata, default 1.0 (100%)');
   }
   const value = Number.isFinite(parsed) && parsed > 0 ? parsed : 1.0;
   _store[nomeNorm] = Math.max(0.01, Math.min(1.0, value));

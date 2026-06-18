@@ -78,7 +78,13 @@ export function matchFormato(nomeScontrino, formati) {
   for (const f of formati) {
     const candidati = [f.nome, ...(f.alias || [])].map(nrm).filter(Boolean)
     for (const c of candidati) {
-      if (c === t || t.includes(c) || c.includes(t)) {
+      // Audit 2026-07-01 HIGH: minimum-length gate. Un formato "g" o "ml"
+      // (1-2 char) faceva match per substring su tutti gli scontrini → bias
+      // catastrofico. Esatto match sempre OK; substring richiede len >= 3.
+      const isExactMatch = c === t
+      const isLongEnoughSubstring = c.length >= 3 && t.length >= 3 &&
+        (t.includes(c) || c.includes(t))
+      if (isExactMatch || isLongEnoughSubstring) {
         // Preferisci il match più lungo (più specifico) in caso di più candidati.
         if (!best || c.length > best._len) best = { ...f, _len: c.length }
       }

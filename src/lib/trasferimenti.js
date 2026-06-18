@@ -39,7 +39,9 @@ export async function creaTrasferimento({
   orgId, sedeDa, sedeA, tipo = 'prodotto', prodotto, quantita,
   unita = 'pz', valoreUnit = 0, note = null, data = null, autoInvia = false,
 }) {
-  if (!orgId || !sedeDa || !sedeA || !prodotto || !(quantita > 0)) {
+  if (!orgId || !sedeDa || !sedeA || !prodotto || !(Number.isFinite(quantita) && quantita > 0)) {
+    // Audit 2026-07-01 MEDIUM: prima `!(quantita > 0)` passava NaN (NaN > 0 = false)
+    // e mostrava "incompleti" → confondente. Usare Number.isFinite per chiarire.
     throw new Error('Parametri trasferimento incompleti')
   }
   if (sedeDa === sedeA) throw new Error('Sede origine e destinazione devono essere diverse')

@@ -1,7 +1,7 @@
 // RicettarioView + TortaCard — estratti da Dashboard.jsx.
 // TortaCard è il card espandibile usato sia dal Ricettario che dai Semilavorati.
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
@@ -33,10 +33,20 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const [editPrezzo, setEditPrezzo] = useState(reg.prezzo)
   const [editUnita, setEditUnita] = useState(reg.unita)
 
+  // Audit 2026-07-01 LOW: se l'utente cambia org/sede (impersonation admin) e
+  // il componente non si rimonta, le state local restano sui valori della
+  // ricetta precedente. Reset su cambio nome.
+  useEffect(() => {
+    setEditPrezzo(reg.prezzo)
+    setEditUnita(reg.unita)
+  }, [ric.nome, reg.prezzo, reg.unita])
+
   const handleSaveRegola = () => {
     const p = parseFloat(editPrezzo) || reg.prezzo
     const u = parseInt(editUnita) || reg.unita
-    REGOLE[ric.nome] = { ...reg, prezzo: p, unita: u }
+    // Audit 2026-07-01 HIGH: non mutare il singleton REGOLE — onUpdateRegola
+    // persiste il dato nella ricetta, getR lo legge da li. Mutare REGOLE
+    // significa inquinare org B dopo impersonation di org A.
     onUpdateRegola(ric.nome, { prezzo: p, unita: u })
     setEditMode(false)
   }

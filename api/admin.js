@@ -1016,9 +1016,14 @@ async function azInviaEmail(req, body, supabase) {
   // Whitelist: solo a profili registrati in foodios (audit 2026-06: prima
   // l'admin poteva inviare a qualsiasi indirizzo → vettore phishing se
   // account admin compromesso).
+  // SECURITY (audit 2026-07-01 HIGH): `.ilike` interpreta `%` e `_` come
+  // wildcard SQL. Un attaccante che registra `admin@foodios%` viene matchato
+  // dal destinatario `admin@foodios.it`. Escapare PRIMA del confronto.
+  const destLow = destinatario.toLowerCase()
+  const destEscaped = destLow.replace(/([%_\\])/g, '\\$1')
   const { data: profileMatch } = await supabase
     .from('profiles').select('id')
-    .ilike('email', destinatario.toLowerCase()).limit(1).maybeSingle()
+    .ilike('email', destEscaped).limit(1).maybeSingle()
   if (!profileMatch) {
     throw new Error(
       `Destinatario "${destinatario}" non e' registrato come utente FoodOS. ` +
@@ -1313,15 +1318,25 @@ async function azPulisciDemoFatture(supabase, orgId, valore) {
 
 // Tabelle che vengono cancellate insieme all'organization (best-effort).
 // Estratto come costante per riusarlo nel preview-count.
+// NB: in azElimina ora preferiamo la RPC `admin_org_cascade_delete` (atomica,
+// migration 20260630) e fallback solo se la RPC non esiste — questa lista
+// resta come fonte per il PREVIEW.
 const TABELLE_ELIMINA_ORG = [
-  'user_data', 'turni', 'dipendenti', 'fornitori', 'ordini_fornitori',
-  'notifiche', 'integrazioni', 'sync_log', 'sedi',
-  'fatture', 'note_giornaliere', 'referral',
+  'user_data', 'turni', 'dipendenti', 'dipendenti_stipendio',
+  'fornitori', 'ordini_fornitori', 'notifiche', 'integrazioni',
+  'sync_log', 'sedi', 'fatture', 'note_giornaliere', 'referral',
   // Tabelle AI nuove (post Daily Brief 2026-06)
   'daily_briefs', 'ai_suggestions', 'brain_conversations',
   'recipe_inventions', 'forecast_giornaliero', 'cashflow_eventi',
   'competitor_prices', 'documentary_snapshots', 'whatsapp_links',
   'extracted_invoices', 'pos_scontrini',
+  // Tabelle aggiunte audit 2026-07-01 (residui post-audit):
+  'haccp_temperature', 'costi_aziendali', 'scadenzario_pagamenti',
+  'inventario_produzione', 'stock_prodotti_finiti', 'vendite_b2b',
+  'sdi_invoice_log', 'trasferimenti', 'ai_usage_daily',
+  'view_usage_daily', 'feedback', 'audit_log', 'error_log',
+  'plan_pricing_log', 'discount_redemptions', 'sdi_emission_queue',
+  'cashflow_eventi', 'login_attempts', 'rate_limits',
 ]
 
 // Conta i record che verrebbero eliminati (dry-run). Usato dall'UI admin per
@@ -1359,26 +1374,50 @@ async function azElimina(supabase, orgId, conferma, expectedCount) {
     }
   }
 
-  for (const t of TABELLE_ELIMINA_ORG) {
-    try {
-      await supabase.from(t).delete().eq('organization_id', orgId)
-    } catch { /* tabella opzionale */ }
+  // Snapshot profili PRIMA del delete (servono per auth.users cleanup).
+  const { data: profiles } = await supabase
+    .from('profiles').select('id, email').eq('organization_id', orgId)
+
+  // Preferiamo la RPC `admin_org_cascade_delete` (migration 20260630): cancella
+  // tutte le tabelle figlie in UNA TRANSAZIONE — niente timeout-mezzo-eliminato,
+  // rollback automatico su errore. Fallback al loop sequenziale solo se la RPC
+  // non e' deployata (DB pre-20260630).
+  const { error: rpcErr } = await supabase.rpc('admin_org_cascade_delete', { p_org_id: orgId })
+  if (rpcErr) {
+    // Fallback: la RPC potrebbe non esistere (migration non applicata) o aver
+    // fallito per motivi specifici. Logghiamo e procediamo con DELETE manuali
+    // ma senza atomicita'.
+    console.warn('[azElimina] admin_org_cascade_delete RPC fallita, fallback al loop:', rpcErr.message)
+    for (const t of TABELLE_ELIMINA_ORG) {
+      try {
+        await supabase.from(t).delete().eq('organization_id', orgId)
+      } catch { /* tabella opzionale */ }
+    }
+    await supabase.from('profiles').delete().eq('organization_id', orgId)
+    const r = await supabase.from('organizations').delete().eq('id', orgId)
+    if (r.error) throw new Error(r.error.message)
   }
 
-  // Recupera utenti dell'org per eliminarli da auth
-  const { data: profiles } = await supabase
-    .from('profiles').select('id').eq('organization_id', orgId)
-
-  // Elimina i profili (figli di auth.users via FK)
-  await supabase.from('profiles').delete().eq('organization_id', orgId)
-
-  // Elimina l'organization
-  const r = await supabase.from('organizations').delete().eq('id', orgId)
-  if (r.error) throw new Error(r.error.message)
-
-  // Elimina utenti auth (best-effort, in coda)
+  // Elimina utenti auth (best-effort, in coda). Tracciare fallimenti per evitare
+  // utenti orfani che possono ancora fare login senza profilo.
+  const fallitiAuth = []
   for (const p of profiles || []) {
-    try { await supabase.auth.admin.deleteUser(p.id) } catch { /* ignore */ }
+    try {
+      await supabase.auth.admin.deleteUser(p.id)
+    } catch (e) {
+      fallitiAuth.push({ id: p.id, email: p.email, error: e?.message })
+    }
+  }
+  if (fallitiAuth.length > 0) {
+    // Log su error_log per recovery manuale; non interrompe la pipeline.
+    try {
+      await supabase.from('error_log').insert({
+        endpoint: 'admin.azElimina',
+        status_code: 500,
+        error_message: `auth.admin.deleteUser fallita per ${fallitiAuth.length} utenti dell'org ${orgId}`,
+        context: { orgId, fallitiAuth },
+      })
+    } catch { /* error_log opzionale */ }
   }
 }
 

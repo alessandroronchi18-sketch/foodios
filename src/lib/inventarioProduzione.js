@@ -223,14 +223,14 @@ export function calcolaVendutoSettimana(righe, lunediIso) {
       const prod = corrente.produzione_g || 0
       const riman = corrente.rimanenza_g || 0
       const scarto = corrente.scarto_g || 0
-      // M2: il venduto deve essere clampato a 0 lato UI per i KPI, ma
-      // l'eventuale valore NEGATIVO (es. dipendente ha scritto RIMAN > stock
-      // disponibile) indica un errore di input. Esponiamo entrambi: venduto
-      // (clampato per consumo aggregato) + vendutoRaw (signed per UI che
-      // vuole segnalare l'anomalia con icona warning).
-      const vRaw = rimanPrev + prod - riman - scarto
+      // Audit 2026-07-01 HIGH: la formula deve sottrarre anche `spedito_g`
+      // (kg trasferiti ad altra sede), altrimenti la quadratura inventario↔cassa
+      // conta gli spediti come venduti retail → drift cronico falso.
+      // Allineata a inventarioASessioni che gia' lo fa.
+      const spedito = corrente.spedito_g || 0
+      const vRaw = rimanPrev + prod - riman - scarto - spedito
       out[g][dIso] = {
-        prod, riman, scarto,
+        prod, riman, scarto, spedito,
         venduto: Math.max(0, vRaw),
         vendutoRaw: vRaw,
       }
@@ -480,7 +480,7 @@ export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
   const inizioIso = inizio.toISOString().slice(0, 10)
   const { data, error } = await supabase
     .from('inventario_produzione')
-    .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g')
+    .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g')
     .eq('organization_id', orgId)
     .eq('sede_id', sedeId)
     .gte('data', inizioIso)

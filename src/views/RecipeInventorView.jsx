@@ -208,6 +208,19 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
         </div>
       )}
 
+      {!ricette && !loading && !error && (
+        <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '36px 24px', textAlign: 'center', color: SOFT, lineHeight: 1.6 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, #FCE7F3, #FBCFE8)', marginBottom: 12 }}>
+            <Icon name="sparkles" size={26} color={BRAND}/>
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: TXT, marginBottom: 6 }}>Pronto a inventare ricette nuove?</div>
+          <div style={{ fontSize: 12.5, maxWidth: 460, margin: '0 auto' }}>
+            Scegli tipo + mood qui sopra, poi clicca <strong>Genera 3 ricette</strong>.
+            Lo chef AI ti darà 3 proposte con ingredienti precisi, procedimento, food cost stimato.
+          </div>
+        </div>
+      )}
+
       {ricette && (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 14 }}>
           {ricette.map((r, i) => (

@@ -10,7 +10,7 @@
 //     verde/giallo/rosso. Niente placeholder vaghi.
 //   - PROGRESS CHIARO: 4 dot in alto, skip annotato come "torna dopo".
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseRicettario } from '../lib/parseRicettario'
 import { ssave } from '../lib/storage'
@@ -95,6 +95,11 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
   const [dragging, setDragging] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState(null)
+  // Audit 2026-07-01 HIGH: cleanup setTimeout per unmount.
+  const stepTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
+  }, [])
   const [parseStats, setParseStats] = useState(null)
   const [secondaSede, setSecondaSede] = useState({ nome: '', indirizzo: '', citta: '' })
   const [addingSecondaSede, setAddingSecondaSede] = useState(false)
@@ -130,7 +135,8 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       }
       await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
       setParseStats({ nRicette, nIngredienti })
-      setTimeout(() => setStep(3), 1200)   // → seconda sede
+      if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
+      stepTimerRef.current = setTimeout(() => setStep(3), 1200)   // → seconda sede
     } catch (e) {
       setParseError(e.message || 'Errore durante l\'analisi del file')
     } finally {

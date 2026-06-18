@@ -88,6 +88,12 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const scrollRef = useRef(null)
+  // Audit 2026-07-01 HIGH: tracking setTimeout per cleanup unmount-safe.
+  const timersRef = useRef([])
+  useEffect(() => () => {
+    for (const t of timersRef.current) { try { clearTimeout(t) } catch {} }
+    timersRef.current = []
+  }, [])
 
   // Inizializza la conversazione con il primo messaggio bot
   useEffect(() => {
@@ -119,12 +125,13 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
       finalize(newCtx)
       return
     }
-    setTimeout(() => {
+    const t = setTimeout(() => {
       const nextStep = STEPS[next]
       const botMsg = typeof nextStep.bot === 'function' ? nextStep.bot(newCtx) : nextStep.bot
       setHistory(h => [...h, { role: 'bot', text: botMsg }])
       setStep(next)
     }, 350)
+    timersRef.current.push(t)
   }
 
   async function finalize(finalCtx) {
@@ -174,7 +181,8 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
       } catch {}
 
       setHistory(h => [...h, { role: 'bot', text: 'Tutto pronto! Ti porto alla dashboard.' }])
-      setTimeout(() => onComplete?.(), 1200)
+      const tDone = setTimeout(() => onComplete?.(), 1200)
+      timersRef.current.push(tDone)
     } catch (e) {
       setError(e.message)
       setSaving(false)

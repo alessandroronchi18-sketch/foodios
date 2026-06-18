@@ -492,7 +492,7 @@ function SensTable({ rows, euro, pct }) {
 // ─── PLView ──────────────────────────────────────────────────────────────────
 const SK_PL_COSTI = 'pl-costi-fissi-v1' // per-sede: { affitto, utenze, altro, personale }
 
-export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpdateRegola }) {
+export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpdateRegola, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -558,9 +558,15 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
 
   async function salvaCosti(next) {
     setSavingCosti(true)
-    try { await ssave(SK_PL_COSTI, next, orgId, sedeId); setCosti(next); setEditCosti(false) }
-    catch { /* toast gestito altrove */ }
-    finally { setSavingCosti(false) }
+    try {
+      await ssave(SK_PL_COSTI, next, orgId, sedeId)
+      setCosti(next)
+      setEditCosti(false)
+    } catch (e) {
+      // Audit 2026-07-01 HIGH: il vecchio catch swallow silenzioso lasciava
+      // l'utente convinto di aver salvato. Mostriamo errore esplicito.
+      try { notify?.('Errore salvataggio costi: ' + (e?.message || 'sconosciuto'), false) } catch {}
+    } finally { setSavingCosti(false) }
   }
 
   const mesiDisponibili = useMemo(() => {

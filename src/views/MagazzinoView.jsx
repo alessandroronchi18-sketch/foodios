@@ -4,7 +4,7 @@
 // Persistenza: richiede orgId/sedeId come props per chiamare ssave da lib/storage
 // (prima usava la wrapper locale di Dashboard.jsx che leggeva _ctx_*).
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { ssave as _ssave } from '../lib/storage'
@@ -124,6 +124,19 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   }, [orgId, sedeId, notify])
 
   useEffect(() => { carica() }, [carica])
+
+  // Audit 2026-07-01 HIGH: tracking focus timer per cleanup unmount.
+  const focusTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current)
+  }, [])
+  function focusQtyDeferred() {
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current)
+    focusTimerRef.current = setTimeout(() => {
+      try { document.getElementById('mag-qty-input')?.focus() } catch {}
+      focusTimerRef.current = null
+    }, 100)
+  }
 
   const handleScarto = async () => {
     if (saving) return // evita doppio scarico stock su doppio click
@@ -626,12 +639,19 @@ export default function MagazzinoView({
     if (saving) return
     if (!formIng || !formQty) return
     const k = normIng(formIng.toLowerCase().trim())
-    const qty = parseFloat(formQty)
-    if (qty <= 0) { notify('Inserisci una quantità maggiore di 0', false); return }
+    // Audit 2026-07-01 MEDIUM: locale IT usa la virgola decimale.
+    const qty = parseFloat(String(formQty).replace(',', '.'))
+    if (!(qty > 0)) { notify('Inserisci una quantità maggiore di 0', false); return }
     const now = new Date().toISOString()
     const attuale = magazzino?.[k]?.giacenza_g || 0
     const delta = formMode === 'scarico' ? -qty : qty
-    const nuova = Math.max(0, attuale + delta)
+    // Audit 2026-07-01 HIGH: NON clampare a 0. Allineato a scaloMagazzinoPerGusto
+    // che ammette negativi proprio per tracciare deficit reali — il clamp
+    // silenzioso cancellava l'overshoot dal log (info forensicamente persa).
+    const nuova = attuale + delta
+    if (nuova < 0) {
+      notify(`Attenzione: scarico maggiore della giacenza (${formIng}: ${attuale}g → ${nuova}g). Registrato.`, false)
+    }
     const nm = { ...magazzino,
       [k]: { nome: formIng.trim(), giacenza_g: nuova, soglia_g: magazzino?.[k]?.soglia_g || 0, ultimoRifornimento: now },
     }
@@ -815,7 +835,7 @@ export default function MagazzinoView({
                         {r.costoG > 0 ? fmt0(r.riordinoG * r.costoG) : '—'}
                       </td>
                       <td style={{ padding: '8px 14px', textAlign: 'right' }}>
-                        <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); setTimeout(() => document.getElementById('mag-qty-input')?.focus(), 100) }}
+                        <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
                           style={{ padding: '5px 12px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Icon name="plus" size={12} />Carica
                         </button>
@@ -893,7 +913,7 @@ export default function MagazzinoView({
                     <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: quickLoad === r.k ? C.red : C.text, textTransform: 'capitalize', cursor: 'pointer' }}
                         title="Clic rapido → precompila form"
-                        onClick={() => { setQuickLoad(r.k); setFormIng(r.nome); setTab('carica'); setTimeout(() => document.getElementById('mag-qty-input')?.focus(), 100) }}>
+                        onClick={() => { setQuickLoad(r.k); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}>
                         {r.nome} <span style={{ fontSize: 9, opacity: 0.4 }}>↗</span>
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>

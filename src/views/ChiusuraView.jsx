@@ -61,6 +61,11 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   // Formati di vendita (config shared): mappano le righe scontrino senza dettaglio
   // gusto/ripieno (cono, vaschetta, panino…) a una categoria di ricette.
   const [formati, setFormati] = useState([])
+  // Audit 2026-07-01 HIGH: ref per cleanup drift timer.
+  const driftTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (driftTimerRef.current) clearTimeout(driftTimerRef.current)
+  }, [])
   useEffect(() => {
     let alive = true
     if (!orgId) return
@@ -326,9 +331,22 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             const dataRaw = obj.data
             const dataStr = dataRaw && /^\d{4}-\d{2}-\d{2}$/.test(dataRaw) ? dataRaw : todaySnap
             if (!prodotti.length) { results.push({ data: dataStr, prodotti: [], salvato: false, error: 'Nessun prodotto estratto' }); skipped++; continue }
-            const rec = { id: `ch-${dataStr}-${Date.now()}`, data: dataStr, salvatoAt: new Date().toISOString(), venduto: prodotti, confronto: [], kpi: {}, dataEstrattaDaScontrino: !!dataRaw }
+            const recBase = { id: `ch-${dataStr}-${Date.now()}`, data: dataStr, salvatoAt: new Date().toISOString(), venduto: prodotti, confronto: [], kpi: {}, dataEstrattaDaScontrino: !!dataRaw }
             const idx = nuoveChiusure.findIndex(c => c.data === dataStr)
-            if (idx >= 0) nuoveChiusure[idx] = rec; else nuoveChiusure.push(rec)
+            if (idx >= 0) {
+              // Audit 2026-07-01 HIGH: merge, NON replace. Re-processare un OCR
+              // gia' confrontato con cassa cancellava cassaImport/formati.
+              const prev = nuoveChiusure[idx]
+              nuoveChiusure[idx] = {
+                ...prev,
+                ...recBase,
+                cassaImport: prev.cassaImport || [],
+                formati: prev.formati || prev.formati || null,
+                id: prev.id || recBase.id,
+              }
+            } else {
+              nuoveChiusure.push(recBase)
+            }
             results.push({ data: dataStr, prodotti, salvato: true, error: null })
             saved++
           } catch (e) { results.push({ data: '?', prodotti: [], salvato: false, error: e.message }); skipped++ }
@@ -519,8 +537,12 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       const tipo = peggiore.driftPct > 0
         ? 'mano abbondante o residui non registrati'
         : 'vendite non registrate o errore inserimento'
-      setTimeout(() => {
+      // Audit 2026-07-01 HIGH: cleanup timer drift. Cambio sede/periodo durante
+      // i 1200ms → notify stale o doppio.
+      if (driftTimerRef.current) clearTimeout(driftTimerRef.current)
+      driftTimerRef.current = setTimeout(() => {
         notify(`Drift critico ${peggiore.categoria}: ${segno}${peggiore.driftPct.toFixed(0)}% — ${tipo}${anomalieDrift.length > 1 ? ` (e altre ${anomalieDrift.length - 1} categorie)` : ''}`, false)
+        driftTimerRef.current = null
       }, 1200)
     }
   }

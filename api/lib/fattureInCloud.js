@@ -79,9 +79,17 @@ export async function upsertCliente({ ragioneSociale, partitaIva, codiceFiscale,
   // di FiC e potenzialmente espongono injection (audit 2026-06-17 CRITICAL).
   if (partitaIva) {
     const pivaClean = String(partitaIva).replace(/[^A-Za-z0-9]/g, '').slice(0, 16)
-    if (pivaClean && pivaClean === String(partitaIva).replace(/\s/g, '')) {
+    // Audit 2026-07-01 HIGH: il vecchio confronto
+    //   pivaClean === String(partitaIva).replace(/\s/g, '')
+    // era sbagliato — un input "12345.678901" passa il replace dx (non rimuove
+    // il punto) ma viene azzerato dal replace sx → mismatch → salto della
+    // ricerca → POST insert → duplicati cliente FiC.
+    // Inoltre la query language di FiC ricevuta interpolata: tagliare a
+    // alphanumerico e farlo passare via encodeURIComponent sul valore intero.
+    if (pivaClean.length >= 8) {
       try {
-        const found = await ficRequest('GET', `/c/${companyId}/entities/clients?q=vat_number = "${pivaClean}"&per_page=1`)
+        const q = encodeURIComponent(`vat_number = "${pivaClean}"`)
+        const found = await ficRequest('GET', `/c/${companyId}/entities/clients?q=${q}&per_page=1`)
         const existing = found?.data?.[0]
         if (existing) {
           return { id: existing.id, name: existing.name, isNew: false }
@@ -169,7 +177,14 @@ export async function emettiFatturaElettronica({
   }
   const created = await ficRequest('POST', `/c/${companyId}/issued_documents`, payload)
   const invoiceId = created?.data?.id
-  if (!invoiceId) throw new Error('Fatture in Cloud non ha restituito invoice id')
+  if (!invoiceId) {
+    // Audit 2026-07-01 HIGH: throw con flag `partialCreated` per consentire al
+    // caller di NON cancellare il claim idempotency (evita doppia fattura su retry).
+    const err = new Error('Fatture in Cloud non ha restituito invoice id')
+    err.partialCreated = true
+    err.ficRawResponse = created
+    throw err
+  }
 
   // Trasmissione SDI
   if (transmit) {
@@ -178,7 +193,10 @@ export async function emettiFatturaElettronica({
     } catch (e) {
       // La fattura e' creata, ma trasmissione SDI fallita. Logga e continua —
       // l'admin puo' ritrasmettere dal pannello Fatture in Cloud.
+      // Audit 2026-07-01 LOW: marcare risposta con flag perche' il caller scriva
+      // status='emessa_non_trasmessa' invece di 'emessa'.
       console.error('SDI send failed for invoice', invoiceId, e.message)
+      return { ...created?.data, sdiTransmitFailed: true, sdiError: e.message }
     }
   }
 

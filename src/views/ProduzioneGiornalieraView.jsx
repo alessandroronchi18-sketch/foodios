@@ -294,12 +294,14 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     return CONGELABILI_DEFAULT.some(c => norm.includes(c))
   }
 
+  // Audit 2026-07-01 MEDIUM: parseFloat('1,5') tronca a 1 (locale IT).
+  const parseIT = (val) => parseFloat(String(val).replace(',', '.')) || 0
   const setQ = (nome, val) => {
-    const n = parseFloat(val) || 0
+    const n = parseIT(val)
     setQtaMap(m => ({ ...m, [nome]: n }))
     if (!isCongelabile(nome)) setVendMap(m => ({ ...m, [nome]: n }))
   }
-  const setV = (nome, val) => setVendMap(m => ({ ...m, [nome]: parseFloat(val) || 0 }))
+  const setV = (nome, val) => setVendMap(m => ({ ...m, [nome]: parseIT(val) }))
 
   const riepilogo = useMemo(() => {
     const ings = {}

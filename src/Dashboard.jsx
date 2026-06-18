@@ -119,6 +119,19 @@ const SemilavoratiView = lazyWithReload(() => import('./views/SemilavoratiView')
 // view components defined at module scope can call ssave/sload without prop-drilling.
 let _ctx_orgId = null;
 let _ctx_sedeId = null;
+// Audit 2026-07-01 CRITICAL: protezione race "context-switch tra due ssave
+// consecutive". Ogni ssave registra una Promise in `_pendingSaves`. Quando
+// cambia il contesto (Dashboard render con nuovo orgId/sedeId), aspettiamo
+// che il set sia vuoto prima di aggiornare _ctx — evita "data di org A
+// salvata su org B" se l'utente cambia sede mentre un handler ha già fatto
+// `await ssave(k1, v1)` e sta per fare `await ssave(k2, v2)`.
+const _pendingSaves = new Set();
+async function _flushPendingSaves() {
+  // Snapshot per evitare modifiche concorrenti durante l'iterazione.
+  const snap = Array.from(_pendingSaves);
+  if (snap.length === 0) return;
+  await Promise.allSettled(snap);
+}
 // Backup localStorage di TUTTI i ssave. Recovery se Supabase ritorna vuoto al login.
 // Le chiavi shared sono indicizzate solo per orgId; quelle per-sede includono
 // anche sedeId per evitare che switchare sede sovrascriva i backup dell'altra.
@@ -136,8 +149,17 @@ function bkReadLS(key, orgId, sedeId) {
   try { const raw = localStorage.getItem(_bkKey(orgId, sedeId, key)); if (!raw) return null; const o = JSON.parse(raw); return o?.v ?? null; } catch { return null; }
 }
 function ssave(key, val) {
-  bkWriteLS(key, val, _ctx_orgId, _ctx_sedeId);
-  return _ssave(key, val, _ctx_orgId, _ctx_sedeId);
+  // Cattura IL contesto AL CALL SITE (sincrono) per garantire che la riga
+  // venga scritta sulla coppia (orgId, sedeId) corretta — anche se _ctx
+  // cambia prima del completamento della Promise.
+  const capturedOrgId = _ctx_orgId;
+  const capturedSedeId = _ctx_sedeId;
+  bkWriteLS(key, val, capturedOrgId, capturedSedeId);
+  const p = _ssave(key, val, capturedOrgId, capturedSedeId);
+  _pendingSaves.add(p);
+  // Pulizia del set quando la Promise si chiude (qualunque esito).
+  p.finally?.(() => { _pendingSaves.delete(p) });
+  return p;
 }
 function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
 
@@ -1194,7 +1216,17 @@ export default function Dashboard({
   isTrialAttivo = false,
   onSignOut = null,
 }) {
-  // Sync module-level storage context with current org/sede
+  // Sync module-level storage context with current org/sede.
+  // Audit 2026-07-01 CRITICAL: prima di cambiare contesto, aspettiamo che
+  // le scritture pendenti completino. Senza, una ssave registrata con il
+  // contesto vecchio potrebbe non avere finito quando un'altra ssave
+  // immediatamente successiva viene chiamata col contesto nuovo. Le ssave
+  // gia' partite catturano sempre IL contesto al call-site (vedi ssave),
+  // quindi gia' robuste. Questo barrier protegge il caso "ho cliccato
+  // Salva e nel frattempo cambio sede dal menu".
+  if (_ctx_orgId !== orgId || _ctx_sedeId !== sedeId) {
+    _flushPendingSaves().catch(()=>{}); // best-effort, non blocca il render
+  }
   _ctx_orgId = orgId;
   _ctx_sedeId = sedeId;
   // "Tutte le sedi": vista aggregata azienda (sola lettura). Le viste operative
@@ -1343,9 +1375,22 @@ export default function Dashboard({
     return `linear-gradient(135deg, ${c} 0%, ${dark} 100%)`;
   })();
 
-  const notify=(msg,ok=true)=>{setToast({msg,ok});setTimeout(()=>setToast(null),3000);};
+  // Audit 2026-07-01 HIGH: timer accumulato sovrascriveva il successivo toast.
+  // Tracking di un singolo timer attivo + clear al prossimo notify/unmount.
+  const notifyTimerRef = useRef(null);
+  const notify=(msg,ok=true)=>{
+    if (notifyTimerRef.current) clearTimeout(notifyTimerRef.current);
+    setToast({msg,ok});
+    notifyTimerRef.current = setTimeout(()=>{ setToast(null); notifyTimerRef.current = null; },3000);
+  };
   // Espone notify globalmente per i call site che non l'hanno in scope (es. export PDF rate-limited)
-  useEffect(()=>{ window.__foodos_notify=notify; return ()=>{ delete window.__foodos_notify; }; },[]);
+  useEffect(()=>{
+    window.__foodos_notify=notify;
+    return ()=>{
+      delete window.__foodos_notify;
+      if (notifyTimerRef.current) { clearTimeout(notifyTimerRef.current); notifyTimerRef.current = null; }
+    };
+  },[]);
 
   const _RIC_CACHE_KEY = `ric_cache_${orgId}`;
   const SK_LOGRIF = "pasticceria-logrif-v1";
@@ -2875,7 +2920,7 @@ export default function Dashboard({
         )}
         {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} LEX={LEX}/>}
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
-        {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola}/>}
+        {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX}/>}
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}

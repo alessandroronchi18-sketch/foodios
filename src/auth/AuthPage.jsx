@@ -425,6 +425,12 @@ export function ResetPasswordPage({ onDone }) {
   const [loading, setLoading] = useState(false)
   const [errore, setErrore]   = useState('')
   const [successo, setSuccesso] = useState(false)
+  // Audit 2026-07-01 HIGH: cleanup setTimeout. Se il componente unmounta nei
+  // 2s post-success, signOut/onDone partirebbero su componente smontato.
+  const signoutTimerRef = useRef(null)
+  useEffect(() => () => {
+    if (signoutTimerRef.current) clearTimeout(signoutTimerRef.current)
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -438,7 +444,11 @@ export function ResetPasswordPage({ onDone }) {
       const { error } = await supabase.auth.updateUser({ password: pwd })
       if (error) throw error
       setSuccesso(true)
-      setTimeout(async () => { await supabase.auth.signOut(); onDone() }, 2000)
+      if (signoutTimerRef.current) clearTimeout(signoutTimerRef.current)
+      signoutTimerRef.current = setTimeout(async () => {
+        await supabase.auth.signOut()
+        onDone()
+      }, 2000)
     } catch (err) {
       setErrore(err.message || 'Errore nell\'aggiornamento della password')
     } finally { setLoading(false) }

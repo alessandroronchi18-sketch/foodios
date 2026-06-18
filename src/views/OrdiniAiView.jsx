@@ -129,11 +129,37 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
   }
 
   async function copia() {
+    const testo = genTestoOrdine()
+    // Path moderno: navigator.clipboard. Su iOS Safari pre-13.4 o contesti
+    // non-secure fallisce: fallback a textarea + execCommand('copy').
     try {
-      await navigator.clipboard.writeText(genTestoOrdine())
-      notifyFn('Testo ordine copiato negli appunti — incollalo in mail/WhatsApp al fornitore', true)
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(testo)
+        notifyFn('Testo ordine copiato negli appunti — incollalo in mail/WhatsApp al fornitore', true)
+        return
+      }
     } catch {
-      notifyFn('Errore copia. Seleziona manualmente il testo qui sotto.', false)
+      // cade nel fallback
+    }
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = testo
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.top = '0'
+      ta.style.left = '0'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      // iOS richiede selezione esplicita prima di execCommand.
+      ta.focus()
+      ta.select()
+      ta.setSelectionRange(0, testo.length)
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      if (ok) notifyFn('Testo ordine copiato — incollalo in mail/WhatsApp al fornitore', true)
+      else notifyFn('Copia non riuscita. Seleziona manualmente il testo qui sotto.', false)
+    } catch {
+      notifyFn('Copia non supportata su questo browser. Seleziona manualmente il testo.', false)
     }
   }
 

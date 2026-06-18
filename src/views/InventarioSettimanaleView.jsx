@@ -167,11 +167,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             for (const r of (arr || [])) {
               const k = `${r.gusto_nome}|${r.data}`
               if (!map[k]) {
-                map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }
+                map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
               }
               map[k].produzione_g += Number(r.produzione_g) || 0
               map[k].rimanenza_g += Number(r.rimanenza_g) || 0
               map[k].scarto_g += Number(r.scarto_g) || 0
+              map[k].spedito_g += Number(r.spedito_g) || 0
             }
           }
           setRighe(Object.values(map))
@@ -195,7 +196,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     const inizio = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
     const fine = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString().slice(0, 10)
     supabase.from('inventario_produzione')
-      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id')
+      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id')
       .eq('organization_id', orgId).in('sede_id', sediProdIds)
       .gte('data', inizio).lt('data', fine)
       .then(({ data }) => {
@@ -204,10 +205,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           const map = {}
           for (const r of (data || [])) {
             const k = `${r.gusto_nome}|${r.data}`
-            if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }
+            if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
             map[k].produzione_g += Number(r.produzione_g) || 0
             map[k].rimanenza_g += Number(r.rimanenza_g) || 0
             map[k].scarto_g += Number(r.scarto_g) || 0
+            map[k].spedito_g += Number(r.spedito_g) || 0
           }
           setMeseData({ righe: Object.values(map), inizio, fine })
         } else {
@@ -223,7 +225,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     const oggi = new Date()
     const inizio = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1).toISOString().slice(0, 10)
     supabase.from('inventario_produzione')
-      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id')
+      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id')
       .eq('organization_id', orgId).in('sede_id', sediProdIds)
       .gte('data', inizio)
       .order('data')
@@ -236,10 +238,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           const map = {}
           for (const r of (data || [])) {
             const k = `${r.gusto_nome}|${r.data}`
-            if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }
+            if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
             map[k].produzione_g += Number(r.produzione_g) || 0
             map[k].rimanenza_g += Number(r.rimanenza_g) || 0
             map[k].scarto_g += Number(r.scarto_g) || 0
+            map[k].spedito_g += Number(r.spedito_g) || 0
           }
           setStoricoData({ righe: Object.values(map), inizio })
         } else {
@@ -298,7 +301,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       // al valore reale.
       const { data: serverRow } = await supabase
         .from('inventario_produzione')
-        .select('produzione_g, rimanenza_g, scarto_g')
+        .select('produzione_g, rimanenza_g, scarto_g, spedito_g')
         .eq('organization_id', orgId).eq('sede_id', sedeId)
         .eq('gusto_nome', gustoNome).eq('data', dataIso)
         .maybeSingle()
@@ -815,14 +818,21 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 // Sede dest in modalita' inventario: la quantita' diventa PROD
                 // di oggi su quella sede (sommata a se esistente).
                 const { data: cellDest } = await supabase.from('inventario_produzione')
-                  .select('produzione_g, rimanenza_g, scarto_g')
+                  .select('produzione_g, rimanenza_g, scarto_g, spedito_g')
                   .eq('organization_id', orgId).eq('sede_id', destSedeId)
                   .eq('gusto_nome', gusto).eq('data', oggiIso)
                   .maybeSingle()
+                // Audit 2026-07-01 HIGH: la spedizione verso una sede in modalita'
+                // inventario somma a `produzione_g` della dest MA non scala il magazzino
+                // MP della dest (il prodotto e' GIA' stato pesato sulla sede origine).
+                // Trattare come INCREMENTO di RIMANENZA (carico) e' piu' onesto:
+                // produzione = quanto e' stato prodotto OGGI; spedito da altra sede e'
+                // PRODOTTO PRONTO che entra in vetrina, non produzione locale.
                 await salvaCella(orgId, destSedeId, gusto, oggiIso, {
-                  produzione_g: (cellDest?.produzione_g || 0) + qtaG,
-                  rimanenza_g: cellDest?.rimanenza_g || 0,
+                  produzione_g: cellDest?.produzione_g || 0,
+                  rimanenza_g: (cellDest?.rimanenza_g || 0) + qtaG,
                   scarto_g: cellDest?.scarto_g || 0,
+                  spedito_g: cellDest?.spedito_g || 0,
                 })
               } else {
                 // Sede dest in modalita' stampi: carichiamo stock_prodotti_finiti

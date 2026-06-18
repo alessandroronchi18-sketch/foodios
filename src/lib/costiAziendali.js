@@ -115,10 +115,14 @@ export function importoMensile(voce, asOfDate) {
     case 'una_tantum': {
       const start = voce?.data_inizio || voce?.created_at || voce?.data
       if (!start) return v / 12
-      const startMs = new Date(start).getTime()
-      if (!Number.isFinite(startMs)) return v / 12
-      const ref = asOfDate ? new Date(asOfDate).getTime() : Date.now()
-      const monthsElapsed = (ref - startMs) / (30.44 * 86400000)
+      const startD = new Date(start)
+      if (!Number.isFinite(startD.getTime())) return v / 12
+      // Audit 2026-07-01 LOW: prima usavamo 30.44 (giorni medi astronomici).
+      // Mesi calendariali sono piu' onesti per "spalmato 12 mesi".
+      const refD = asOfDate ? new Date(asOfDate) : new Date()
+      const monthsElapsed =
+        (refD.getFullYear() - startD.getFullYear()) * 12 +
+        (refD.getMonth() - startD.getMonth())
       return monthsElapsed >= 0 && monthsElapsed < 12 ? v / 12 : 0
     }
     case 'mensile':
