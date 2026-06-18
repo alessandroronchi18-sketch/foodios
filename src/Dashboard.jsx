@@ -834,7 +834,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
 
   const card = { background:"#FFF", borderRadius:14, padding:"24px 28px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)", marginBottom:20 };
   const label = { fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8, display:"block" };
-  const input = { width:"100%", padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, fontWeight:500, color:C.text, background:"#FAFAFA", outline:"none" };
+  const input = { width:"100%", padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:16, fontWeight:500, color:C.text, background:"#FAFAFA", outline:"none" };
 
   const TABS = [
     ["generale", "gear", "Generale"],
@@ -1582,6 +1582,7 @@ export default function Dashboard({
   // ── Importazioni globali usate dalla pagina "Importa dati" ────────────────
   // Delivery: auto-detect piattaforma in base alle prime righe del file
   const handleImportDeliveryGlobal = useCallback(async (files) => {
+    let base = chiusure || [];
     for (const f of Array.from(files||[])) {
       try {
         const text = await f.text();
@@ -1594,8 +1595,13 @@ export default function Dashboard({
           notify(`Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
           continue;
         }
-        const nuove = mergeInChiusure(chiusure||[], righe, piattaforma);
-        await ssave(SK_CHIUS, nuove); setChiusure(nuove); // SAVE FIRST (il throw è gestito dal catch sotto)
+        // Audit 2026-06-17 CRITICAL: il loop closure capture di `chiusure` faceva
+        // partire ogni file dalla stessa baseline → ultimo ssave sovrascriveva
+        // i precedenti. Usiamo `base` accumulato per applicare i merge in sequenza.
+        const nuove = mergeInChiusure(base, righe, piattaforma);
+        await ssave(SK_CHIUS, nuove);
+        base = nuove;
+        setChiusure(nuove);
         notify(`✓ ${righe.length} giorni importati da ${piattaforma}`);
       } catch (e) {
         notify(`${f.name}: ${e.message}`, false);
@@ -1606,6 +1612,7 @@ export default function Dashboard({
   // Casse: prova i parser conosciuti (zucchetti/streamcassa/toast) — se nessuno funziona avvisa
   const handleImportCasseGlobal = useCallback(async (files) => {
     const sistemi = ['zucchetti', 'streamcassa', 'toast'];
+    let base = chiusure || [];
     for (const f of Array.from(files||[])) {
       let righe = null, sistema = null;
       for (const s of sistemi) {
@@ -1615,10 +1622,10 @@ export default function Dashboard({
         notify(`Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
         continue;
       }
-      const nuove = mergeInChiusureCassa(chiusure||[], righe, sistema);
-      // SAVE FIRST: questo loop non ha try/catch esterno, gestisco qui
+      const nuove = mergeInChiusureCassa(base, righe, sistema);
       try { await ssave(SK_CHIUS, nuove); }
       catch (e) { notify(`${f.name}: ${e.message||'rete'}`, false); continue; }
+      base = nuove;
       setChiusure(nuove);
       notify(`✓ ${righe.length} giorni importati da ${sistema}`);
     }
@@ -2900,11 +2907,11 @@ export default function Dashboard({
         {view==="changelog"&&<ChangelogView/>}
         {view==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
         {view==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
-        {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId}/>}
+        {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId} notify={notify}/>}
         {view==="forecast"&&<ForecastView orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} setView={setView}/>}
-        {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId}/>}
-        {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId}/>}
-        {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario}/>}
+        {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} notify={notify}/>}
+        {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId} notify={notify}/>}
+        {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {view==="ai-brain"&&(canAccessView("ai-brain",piano,auth?.user?.email)?<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ai-brain" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="ricette-ai"&&(canAccessView("ricette-ai",piano,auth?.user?.email)?<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ricette-ai" onUpgrade={()=>setView("impostazioni")}/>)}
         {view==="marketplace"&&(canAccessView("marketplace",piano,auth?.user?.email)?<MarketplaceView/>:<UpgradeGate view="marketplace" onUpgrade={()=>setView("impostazioni")}/>)}

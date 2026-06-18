@@ -88,7 +88,7 @@ export default async function handler(req, res) {
   try {
     const { data: existing, error: selErr } = await supabase
       .from('stripe_webhook_events')
-      .select('event_id, processed_at')
+      .select('event_id, type, processed_at')
       .eq('event_id', event.id)
       .maybeSingle()
     if (selErr) {
@@ -96,8 +96,6 @@ export default async function handler(req, res) {
         idempotencyAvailable = false
         console.warn('[stripe-webhook] idempotency table missing — proceeding (FIX: applicare migration)')
       } else if (selErr.code === '42703') {
-        // colonna processed_at non esiste → migration 20260624 non applicata.
-        // Comportamento legacy: la row presence stessa è il marker "fatto".
         console.warn('[stripe-webhook] processed_at column missing — applicare 20260624 migration')
         idempotencyAvailable = false
       } else {
@@ -105,18 +103,41 @@ export default async function handler(req, res) {
         return res.status(503).json({ error: 'idempotency check failed', code: selErr.code })
       }
     } else if (existing?.processed_at) {
+      // Verifica che il type combaci: se la row registrata ha type diverso da quello
+      // dell'evento ricevuto, qualcosa è andato storto (event.id collision improbabile,
+      // o manipolazione DB). Logghiamo e accettiamo comunque come duplicate per non
+      // ri-eseguire side-effect.
+      if (existing.type && existing.type !== event.type) {
+        console.warn(`[stripe-webhook] event_id ${event.id} type mismatch: stored=${existing.type} received=${event.type}`)
+      }
       return res.status(200).json({ received: true, duplicate: true })
     }
 
     if (idempotencyAvailable) {
-      // Claim: upsert con processed_at=NULL. Se la row esiste già (retry dopo crash)
-      // l'upsert resta NULL, riprovando la finalizzazione.
+      // Claim: INSERT...ON CONFLICT DO NOTHING per evitare di sovrascrivere
+      // accidentalmente processed_at di una row finalizzata (race tra select e claim).
+      // Audit 2026-06-17: prima usava upsert senza ignoreDuplicates → in race
+      // ri-apriva eventi già finalizzati (double SDI emission, ecc.).
       const { error: upErr } = await supabase
         .from('stripe_webhook_events')
-        .upsert({ event_id: event.id, type: event.type, processed_at: null }, { onConflict: 'event_id' })
+        .upsert(
+          { event_id: event.id, type: event.type, processed_at: null },
+          { onConflict: 'event_id', ignoreDuplicates: true }
+        )
       if (upErr) {
         console.error('[stripe-webhook] idempotency claim failed', upErr.code, upErr.message)
         return res.status(503).json({ error: 'idempotency claim failed', code: upErr.code })
+      }
+      // Ri-verifica processed_at dopo il claim: in race fra il primo select
+      // (esisteva con processed_at=null) e il claim (DO NOTHING), un'altra
+      // istanza potrebbe averlo finalizzato.
+      const { data: post } = await supabase
+        .from('stripe_webhook_events')
+        .select('processed_at')
+        .eq('event_id', event.id)
+        .maybeSingle()
+      if (post?.processed_at) {
+        return res.status(200).json({ received: true, duplicate: true })
       }
     }
   } catch (e) {
@@ -319,21 +340,37 @@ export default async function handler(req, res) {
           }
         } catch (e) { console.error('[stripe-webhook] discount tracking', e) }
 
-        // Emissione fattura elettronica SDI via Fatture in Cloud (fire-and-forget).
-        // Solo se configurato — senza FATTUREINCLOUD_API_TOKEN, skip silenzioso.
-        if (process.env.FATTUREINCLOUD_API_TOKEN && process.env.FATTUREINCLOUD_COMPANY_ID && process.env.INTERNAL_API_SECRET) {
+        // Emissione fattura elettronica SDI: accodata su sdi_emission_queue.
+        // Una funzione cron schedulata processa la coda. Pattern queue-first per
+        // evitare il fire-and-forget fetch che su serverless veniva troncato
+        // (audit 2026-06-17 HIGH).
+        if (process.env.FATTUREINCLOUD_API_TOKEN && process.env.FATTUREINCLOUD_COMPANY_ID) {
           try {
-            const base = new URL(req.url, `https://${req.headers.host}`).origin
-            // fire-and-forget, NON await: il webhook deve rispondere a Stripe entro 5s
-            fetch(`${base}/api/sdi-emit-invoice`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-internal-secret': process.env.INTERNAL_API_SECRET,
-              },
-              body: JSON.stringify({ stripe_invoice_id: inv.id }),
-            }).catch(e => console.error('[stripe-webhook] sdi-emit-invoice trigger failed', e?.message))
-          } catch (e) { console.error('[stripe-webhook] sdi trigger error', e?.message) }
+            await supabase.from('sdi_emission_queue').insert({
+              stripe_invoice_id: inv.id,
+              status: 'pending',
+            })
+          } catch (e) {
+            // Tabella forse non ancora migrata: log e fallback su trigger sincrono.
+            console.warn('[stripe-webhook] sdi_emission_queue insert failed, falling back to sync emit', e?.message)
+            if (process.env.INTERNAL_API_SECRET && process.env.PUBLIC_BASE_URL) {
+              try {
+                // Await: paghiamo latenza ma garantiamo che la richiesta parta.
+                // Se SDI fallisce, ritorniamo comunque 200 a Stripe e ripiombiamo
+                // sulla queue alla prossima fattura.
+                await fetch(`${process.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/sdi-emit-invoice`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-internal-secret': process.env.INTERNAL_API_SECRET,
+                  },
+                  body: JSON.stringify({ stripe_invoice_id: inv.id }),
+                })
+              } catch (fe) {
+                console.error('[stripe-webhook] sdi sync fallback failed', fe?.message)
+              }
+            }
+          }
         }
         break
       }

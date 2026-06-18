@@ -22,6 +22,22 @@ import { C, TNUM, margColor, fmt, fmt0, fmtp, KPI, PageHeader } from './_shared'
 // Ombra premium coerente con la Dashboard home.
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 
+// Quando un movimento stock PF resta orfano (carico riuscito ma trasferimento
+// E scarto di rollback entrambi falliti), salviamo un record da reconcile a
+// mano. Best-effort: se anche questa fallisce, console.error e basta.
+async function registraStockOrfano({ sedeId, prodotto, pezzi, motivo }) {
+  try {
+    await supabase.from('error_log').insert({
+      endpoint: 'produzione-giornaliera',
+      operation: 'stock_pf_orphan',
+      code: 'STOCK_PF_ORPHAN',
+      message: `sede=${sedeId} prodotto=${prodotto} pezzi=${pezzi} motivo=${motivo || 'n/a'}`,
+    })
+  } catch (e) {
+    console.error('registraStockOrfano insert failed', e?.message)
+  }
+}
+
 // Titolo di pannello con chip icona (gerarchia premium come la Dashboard home).
 function PanelHead({ icon, title, color = C.red }) {
   return (
@@ -317,11 +333,39 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   //    qui sono notificati ma non bloccano: la sessione e' gia' salvata.
   // Stock PF (carico vetrina + eventuale trasferimento) — condiviso tra il flusso
   // titolare e quello dipendente. Usa solo nome/vendibile (niente ingredienti).
+  // Variante: SOLO trasferimento (no carico). Usata dal flusso dipendente,
+  // dove il server ha già fatto il carico stock PF in produzione-registra.
+  const eseguiTrasferimentoAuto = async () => {
+    const sedeProduttiva = sedeAttiva?.id
+    if (!orgId || !sedeProduttiva) return
+    const sedeDest = destinazioneSedeId && destinazioneSedeId !== sedeProduttiva ? destinazioneSedeId : null
+    if (!sedeDest) return
+    const errors = []
+    for (const r of ricette) {
+      const stampi = qtaMap[r.nome] || 0
+      const vendibile = vendibileMap[r.nome] || stampi
+      if (vendibile <= 0) continue
+      const reg = getR(r.nome, r)
+      const unitaFactor = Number(reg.unita)
+      const pezzi = vendibile * (Number.isFinite(unitaFactor) && unitaFactor > 0 ? unitaFactor : 1)
+      if (pezzi <= 0) continue
+      const prodottoKey = r.nome.toUpperCase().trim()
+      try {
+        await creaTrasferimento({ orgId, sedeDa: sedeProduttiva, sedeA: sedeDest, tipo: 'prodotto', prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Da produzione del ${data}`, autoInvia: true })
+      } catch (e) {
+        errors.push(`${r.nome}: ${e.message}`)
+      }
+    }
+    if (errors.length) notify('Alcuni trasferimenti falliti: ' + errors.slice(0, 2).join('; '), false)
+  }
+
   const eseguiStockPF = async () => {
     const sedeProduttiva = sedeAttiva?.id
     if (!orgId || !sedeProduttiva) return
     const sedeDest = destinazioneSedeId && destinazioneSedeId !== sedeProduttiva ? destinazioneSedeId : null
     const stockErrors = [], transferErrors = []
+    // Tracking carichi riusciti per registrare orfani in caso di rollback fallito.
+    const caricati = []
     for (const r of ricette) {
       const stampi = qtaMap[r.nome] || 0
       const vendibile = vendibileMap[r.nome] || stampi
@@ -333,13 +377,20 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       const prodottoKey = r.nome.toUpperCase().trim()
       try {
         await caricoProduzionePF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Sessione ${data}${sessNote ? ' · ' + sessNote : ''}` })
+        caricati.push({ prodotto: prodottoKey, pezzi })
       } catch (e) { stockErrors.push(`${r.nome}: ${e.message}`); continue }
       if (sedeDest) {
         try {
           await creaTrasferimento({ orgId, sedeDa: sedeProduttiva, sedeA: sedeDest, tipo: 'prodotto', prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Da produzione del ${data}`, autoInvia: true })
         } catch (e) {
           transferErrors.push(`${r.nome}: ${e.message}`)
-          try { await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: 'Rollback trasferimento fallito' }) } catch (rb) { console.error('Rollback carico fallito:', rb) }
+          try {
+            await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, note: 'Rollback trasferimento fallito' })
+          } catch (rb) {
+            // Audit 2026-06-17 CRITICAL: se anche scartoPF fallisce, ghost stock
+            // permanente. Salviamo l'orfano in tabella per recupero manuale.
+            await registraStockOrfano({ sedeId: sedeProduttiva, prodotto: prodottoKey, pezzi, motivo: `rollback trasferimento fallito + scarto fallito: ${rb?.message || rb}` })
+          }
         }
       }
     }
@@ -380,10 +431,20 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         return
       }
       setMagazzino(resp.magazzino); setGiornaliero(resp.giornaliero)
-      await eseguiStockPF()
+      // Stock PF: il server fa già il carico vetrina. Qui gestiamo SOLO l'eventuale
+      // trasferimento auto verso un'altra sede (è un'operazione cross-sede che il
+      // server attualmente non esegue lato dipendente).
+      if (destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id) {
+        await eseguiTrasferimentoAuto()
+      }
+      const orfani = Array.isArray(resp.stockOrfani) ? resp.stockOrfani : []
       setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false); setSalvando(false)
       const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id ? ` — trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}` : ''
-      notify(`Produzione registrata${msgDest} — magazzino e stock vetrina aggiornati`)
+      if (orfani.length > 0) {
+        notify(`Produzione registrata${msgDest}, ma ${orfani.length} prodotti non hanno aggiornato lo stock vetrina (riconciliare a mano)`, false)
+      } else {
+        notify(`Produzione registrata${msgDest} — magazzino e stock vetrina aggiornati`)
+      }
       return
     }
 

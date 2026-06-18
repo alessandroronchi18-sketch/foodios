@@ -93,13 +93,12 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
 
   // Calcolo FC per ricetta + classificazione
   const items = useMemo(() => {
-    const ricetteArr = Array.isArray(ricettario) ? ricettario : []
-    if (ricetteArr.length === 0) return []
-    const ingCosti = buildIngCosti(ricetteArr)
-    const arr = ricetteArr.map(r => {
-      const fc = calcolaFC(r, ingCosti, ricetteArr) || {}
-      const fcPerPezzo = Number(fc.fcPerPezzo) || Number(fc.fc) || 0
-      const prezzo = Number(getR(r, 'prezzo')) || 0
+    const ricette = ricettario?.ricette ? Object.values(ricettario.ricette) : []
+    if (ricette.length === 0) return []
+    const ingCosti = buildIngCosti(ricettario?.ingredienti_costi || {})
+    const arr = ricette.map(r => {
+      const { tot: fcPerPezzo } = calcolaFC(r, ingCosti, ricettario)
+      const prezzo = Number(getR(r.nome, r).prezzo) || 0
       const margine = prezzo - fcPerPezzo
       const nome = (r.nome || '').toUpperCase().trim()
       const ven = venditeAggregate[nome] || { qta: 0, ricavo: 0 }
@@ -114,7 +113,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
         ricavoTot: ven.ricavo,
         margineTot: ven.qta * margine,
       }
-    }).filter(x => x.prezzo > 0)  // ricette senza prezzo non si possono classificare
+    }).filter(x => x.prezzo > 0)
     return arr
   }, [ricettario, venditeAggregate])
 

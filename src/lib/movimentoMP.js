@@ -13,6 +13,23 @@
 
 import { sload, ssave } from './storage'
 import { normIng } from './foodcost'
+import { supabase } from './supabase'
+
+// Registra un movimento MP orfano (ssave + rollback ssave entrambi falliti).
+// Best-effort: se anche questo fallisce, console.error.
+async function registraMovimentoOrfano(info) {
+  try {
+    await supabase.from('error_log').insert({
+      endpoint: 'movimentoMP',
+      operation: 'mp_orphan',
+      code: 'MP_ORPHAN',
+      message: JSON.stringify(info).slice(0, 1500),
+      org_id: info.orgId || null,
+    })
+  } catch (e) {
+    console.error('[movimentoMP] registraMovimentoOrfano insert failed', e?.message)
+  }
+}
 
 const SK_MAG = 'pasticceria-magazzino-v1'
 
@@ -83,15 +100,19 @@ export async function spostaMaterialePrima({ orgId, sedeDa, sedeA, ingrediente, 
     try {
       await ssave(SK_MAG, magDa, orgId, sedeDa)
     } catch (rollbackErr) {
-      // Audit 2026-06-14 PM: rollback fallito = stato inconsistente. Lascia
-      // traccia esplicita console (Sentry client lo cattura) per investigare.
-      console.error('[movimentoMP] CRITICAL: rollback ssave fallito, stato magazzino sede sorgente non ripristinato', {
+      // Audit 2026-06-17 CRITICAL: rollback fallito = stato inconsistente.
+      // Loggo su console (Sentry) E persisto su error_log per visibilità admin.
+      const info = {
         orgId, sedeDa, sedeA,
         ingrediente: k,
         decrement_originale: magDa[k]?.giacenza_g,
         decrement_applicato: newMagDa[k]?.giacenza_g,
+        quantita,
+        save_dest_error: e?.message,
         rollback_error: rollbackErr?.message,
-      })
+      }
+      console.error('[movimentoMP] CRITICAL: rollback ssave fallito', info)
+      await registraMovimentoOrfano(info)
     }
     throw new Error('Trasferimento fallito sull\'incremento destinazione (rollback applicato): ' + e.message)
   }

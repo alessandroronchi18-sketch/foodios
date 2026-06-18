@@ -30,7 +30,10 @@ const GREEN = T.green || '#16A34A'
 
 export default function ReformulationView({ ricettario, orgId }) {
   const isMobile = useIsMobile()
-  const ricetteArr = Array.isArray(ricettario) ? ricettario : []
+  const ricetteArr = useMemo(
+    () => (ricettario?.ricette ? Object.values(ricettario.ricette) : []),
+    [ricettario]
+  )
   const [ricSel, setRicSel] = useState('')
   const [fcTarget, setFcTarget] = useState('')
   const [loading, setLoading] = useState(false)
@@ -41,17 +44,16 @@ export default function ReformulationView({ ricettario, orgId }) {
 
   const fcAttuale = useMemo(() => {
     if (!ricCurrent) return null
-    const ic = buildIngCosti(ricetteArr)
-    const fc = calcolaFC(ricCurrent, ic, ricetteArr) || {}
-    const fcPezzo = Number(fc.fcPerPezzo) || Number(fc.fc) || 0
-    const prezzo = Number(getR(ricCurrent, 'prezzo')) || 0
+    const ic = buildIngCosti(ricettario?.ingredienti_costi || {})
+    const { tot: fcPezzo } = calcolaFC(ricCurrent, ic, ricettario)
+    const prezzo = Number(getR(ricCurrent.nome, ricCurrent).prezzo) || 0
     return {
       fcPezzo,
       prezzo,
       fcPct: prezzo > 0 ? (fcPezzo / prezzo) * 100 : 0,
       ingredienti: (ricCurrent.ingredienti || ricCurrent.composizione || []).slice(0, 30),
     }
-  }, [ricCurrent, ricetteArr])
+  }, [ricCurrent, ricettario])
 
   async function genera() {
     if (!ricCurrent || !fcTarget || !fcAttuale) return

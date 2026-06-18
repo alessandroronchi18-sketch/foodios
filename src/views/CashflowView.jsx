@@ -42,7 +42,8 @@ const TIPI_EVENTO = [
   { id: 'altro',     lbl: 'Altro' },
 ]
 
-export default function CashflowView({ orgId, sedeId }) {
+export default function CashflowView({ orgId, sedeId, notify }) {
+  const notifyFn = notify || ((m) => { try { console.log('[cashflow]', m) } catch {} })
   const isMobile = useIsMobile()
   const [chiusure, setChiusure] = useState([])
   const [fatture, setFatture] = useState([])
@@ -134,8 +135,14 @@ export default function CashflowView({ orgId, sedeId }) {
 
   async function salvaSaldo(nuovo) {
     const next = { ...settings, saldoOggi: Number(nuovo) || 0 }
-    setSettings(next)
-    try { await ssave(SK_CASH_SETTINGS, next, orgId, null) } catch {}
+    // Save-first: persist PRIMA di setState. Se save fallisce non aggiorniamo la UI
+    // e mostriamo l'errore — niente drift state↔DB (audit 2026-06-17 CRITICAL).
+    try {
+      await ssave(SK_CASH_SETTINGS, next, orgId, null)
+      setSettings(next)
+    } catch (e) {
+      notifyFn('Errore salvataggio saldo: ' + (e?.message || 'sconosciuto'), false)
+    }
   }
 
   async function aggiungiEvento() {
@@ -152,7 +159,7 @@ export default function CashflowView({ orgId, sedeId }) {
       setEventi(prev => [...prev, data].sort((a, b) => (a.data_attesa || '').localeCompare(b.data_attesa || '')))
       setNewEv({ tipo: 'uscita', descrizione: '', data_attesa: '', importo: '' })
       setShowAddEvento(false)
-    } catch (e) { alert('Errore: ' + e.message) }
+    } catch (e) { notifyFn('Errore: ' + (e?.message || 'salvataggio fallito'), false) }
   }
 
   async function eliminaEvento(id) {
@@ -160,7 +167,7 @@ export default function CashflowView({ orgId, sedeId }) {
     try {
       await supabase.from('cashflow_eventi').delete().eq('id', id)
       setEventi(prev => prev.filter(e => e.id !== id))
-    } catch (e) { alert('Errore: ' + e.message) }
+    } catch (e) { notifyFn('Errore: ' + (e?.message || 'eliminazione fallita'), false) }
   }
 
   // Mini chart SVG: linea atteso/ottim/pessim

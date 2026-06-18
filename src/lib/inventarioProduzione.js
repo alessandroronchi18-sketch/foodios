@@ -97,7 +97,7 @@ export async function caricaSettimana(orgId, sedeId, lunediIso) {
 
   const { data, error } = await supabase
     .from('inventario_produzione')
-    .select('id, gusto_nome, data, produzione_g, rimanenza_g, scarto_g, note, updated_at')
+    .select('id, gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, note, updated_at')
     .eq('organization_id', orgId)
     .eq('sede_id', sedeId)
     .gte('data', inizioIso)
@@ -107,19 +107,27 @@ export async function caricaSettimana(orgId, sedeId, lunediIso) {
   return data || []
 }
 
-// Upsert di una singola cella (gusto × giorno). idempotente sulla unique
-// (org, sede, gusto, data). Ritorna la riga finale o lancia.
+// Upsert di una singola cella (gusto × giorno). Patch-only: i campi NON
+// specificati nel patch preservano il valore esistente sulla cella. Questo
+// evita che un import di sprechi azzeri silenziosamente uno `spedito_g`
+// precedentemente registrato per la stessa cella.
 export async function salvaCella(orgId, sedeId, gustoNome, dataIso, patch) {
+  const num = (v) => Math.max(0, Math.round(Number(v) || 0))
+  const has = (k) => Object.prototype.hasOwnProperty.call(patch, k)
   const row = {
     organization_id: orgId,
     sede_id: sedeId,
     gusto_nome: normGusto(gustoNome),
     data: dataIso,
-    produzione_g: Math.max(0, Math.round(Number(patch.produzione_g) || 0)),
-    rimanenza_g: Math.max(0, Math.round(Number(patch.rimanenza_g) || 0)),
-    scarto_g: Math.max(0, Math.round(Number(patch.scarto_g) || 0)),
+    produzione_g: num(patch.produzione_g),
+    rimanenza_g: num(patch.rimanenza_g),
+    scarto_g: num(patch.scarto_g),
+    spedito_g: has('spedito_g') ? num(patch.spedito_g) : undefined,
     note: patch.note || null,
   }
+  // Se spedito_g non è nel patch, lasciamo il DB scegliere (mantenere valore
+  // esistente in caso di update). Su INSERT viene popolato dal DEFAULT 0.
+  if (row.spedito_g === undefined) delete row.spedito_g
   const { data, error } = await supabase
     .from('inventario_produzione')
     .upsert(row, { onConflict: 'organization_id,sede_id,gusto_nome,data' })
@@ -427,9 +435,11 @@ export function inventarioASessioni(righeInventario) {
       const prod = Number(r.produzione_g) || 0
       const riman = Number(r.rimanenza_g) || 0
       const scarto = Number(r.scarto_g) || 0
+      const spedito = Number(r.spedito_g) || 0
       const dMs = new Date(r.data).getTime()
       if (prevDayMs !== null && Math.round((dMs - prevDayMs) / 86400000) !== 1) rimanPrev = 0
-      const venduto = Math.max(0, rimanPrev + prod - riman - scarto)
+      // venduto = riman_prev + prod − riman − scarto − spedito (sede origine)
+      const venduto = Math.max(0, rimanPrev + prod - riman - scarto - spedito)
       const vendutoKg = venduto / 1000
       const prodKg = prod / 1000
       if (prodKg > 0 || vendutoKg > 0) {

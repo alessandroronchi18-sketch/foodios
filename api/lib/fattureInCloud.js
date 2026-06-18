@@ -52,15 +52,21 @@ async function ficRequest(method, path, body) {
 // altrimenti lo crea. Usato per evitare duplicati clienti.
 export async function upsertCliente({ ragioneSociale, partitaIva, codiceFiscale, indirizzo, cap, citta, provincia, nazione = 'IT', codiceDestinatario, pec, email }) {
   const { companyId } = getConfig()
-  // 1. Cerca per P.IVA
+  // 1. Cerca per P.IVA. Validiamo strict (solo cifre/lettere alfanumeriche IT,
+  // max 16 char per codice fiscale persona fisica) PRIMA dell'interpolazione
+  // in query, altrimenti caratteri come `"` o spazi rompono il query language
+  // di FiC e potenzialmente espongono injection (audit 2026-06-17 CRITICAL).
   if (partitaIva) {
-    try {
-      const found = await ficRequest('GET', `/c/${companyId}/entities/clients?q=vat_number = "${partitaIva}"&per_page=1`)
-      const existing = found?.data?.[0]
-      if (existing) {
-        return { id: existing.id, name: existing.name, isNew: false }
-      }
-    } catch { /* non bloccare, prova insert */ }
+    const pivaClean = String(partitaIva).replace(/[^A-Za-z0-9]/g, '').slice(0, 16)
+    if (pivaClean && pivaClean === String(partitaIva).replace(/\s/g, '')) {
+      try {
+        const found = await ficRequest('GET', `/c/${companyId}/entities/clients?q=vat_number = "${pivaClean}"&per_page=1`)
+        const existing = found?.data?.[0]
+        if (existing) {
+          return { id: existing.id, name: existing.name, isNew: false }
+        }
+      } catch { /* non bloccare, prova insert */ }
+    }
   }
   // 2. Crea nuovo cliente
   const payload = {

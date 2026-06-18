@@ -699,7 +699,21 @@ function ImpersonaModal({ cliente, link, onClose }) {
   )
 }
 
+function useIsNarrowScreen(maxWidth = 720) {
+  const [isNarrow, setIsNarrow] = React.useState(false)
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia(`(max-width:${maxWidth}px)`)
+    const upd = () => setIsNarrow(mq.matches)
+    upd()
+    if (mq.addEventListener) mq.addEventListener('change', upd); else mq.addListener(upd)
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', upd); else mq.removeListener(upd) }
+  }, [maxWidth])
+  return isNarrow
+}
+
 function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione, onSalvaNote }) {
+  const isNarrow = useIsNarrowScreen(720)
   const stato = statoCliente(cliente)
   const giorni = giorniRimanenti(cliente)
 
@@ -754,9 +768,11 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
 
   return (
     <Modal title={`${cliente.nome_attivita}`} onClose={onClose} width={780}>
-      {/* Header: stato + KPI in linea */}
+      {/* Header: stato + KPI in linea. Audit 2026-06-17: collassa su narrow. */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10,
+        display: 'grid',
+        gridTemplateColumns: isNarrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: 10,
         padding: '12px 14px', background: COLORS.rowAlt, borderRadius: 10, marginBottom: 16,
       }}>
         <div>
@@ -998,6 +1014,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
 
 // ─── Componente principale ─────────────────────────────────────────────────
 export default function AdminPage() {
+  const isAdminNarrow = useIsNarrowScreen(900)
   const toast = useToast()
   const [clienti, setClienti] = useState([])
   const [stats, setStats] = useState(null)
@@ -1775,7 +1792,11 @@ export default function AdminPage() {
               <Icon name="warning" size={13} /> Errore Stripe: {stripeMrr.error}
             </div>
           ) : stripeMrr ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isAdminNarrow ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
+              gap: 10
+            }}>
               <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>MRR fatturato</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro((stripeMrr.mrr_cents || 0) / 100)}</div>
@@ -3147,7 +3168,7 @@ export default function AdminPage() {
           onConferma={async () => {
             const res = await apiCall('/api/admin', {
               method: 'POST',
-              body: JSON.stringify({ orgId: demoFor.cliente.org_id, tipo: 'pulisci_demo_fatture', valore: 'execute' }),
+              body: JSON.stringify({ orgId: demoFor.cliente.org_id, tipo: 'pulisci_demo_fatture', valore: 'esegui' }),
             })
             const data = await res.json().catch(() => ({}))
             await fetchData()

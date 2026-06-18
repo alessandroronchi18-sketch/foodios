@@ -1275,12 +1275,19 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
   }, [loading, repartiKey, dipKey, adminNome])
 
   // Salva posizioni + frecce senza ricostruire il canvas (preserva il riferimento reparti).
+  // Pattern: setState ottimistico (per evitare flicker durante drag), ma con
+  // rollback al valore precedente se ssave fallisce + notify utente. Audit
+  // 2026-06-17 HIGH: prima il catch era silenzioso → drift UI vs DB.
   const salvaLayout = useCallback((nextNodes, nextEdges) => {
     const pos = {}
     for (const n of nextNodes) pos[n.id] = { x: Math.round(n.position.x), y: Math.round(n.position.y) }
-    const next = { ...orgRef.current, layout: { pos, edges: nextEdges.map(e => ({ id: e.id, source: e.source, target: e.target })) } }
+    const prev = orgRef.current
+    const next = { ...prev, layout: { pos, edges: nextEdges.map(e => ({ id: e.id, source: e.source, target: e.target })) } }
     orgRef.current = next; setOrg(next)
-    ssave(SK_ORG, next, orgId, null).catch(() => notify?.('Errore salvataggio organigramma', false))
+    ssave(SK_ORG, next, orgId, null).catch((e) => {
+      orgRef.current = prev; setOrg(prev)
+      notify?.('Errore salvataggio organigramma: ' + (e?.message || 'rete'), false)
+    })
   }, [orgId, notify])
 
   // NB: il reducer di setNodes/setEdges DEVE essere puro. In StrictMode (dev)
@@ -1309,27 +1316,33 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
   const onNodesDelete = useCallback((deleted) => {
     const repIds = deleted.filter(n => n.id.startsWith('rep-')).map(n => n.id.slice(4))
     if (!repIds.length) return
-    // Rimuovi anche pos/edges orfani che puntavano ai reparti cancellati,
-    // così non resta garbage nel layout salvato.
     const orphanIds = new Set(repIds.map(id => 'rep-' + id))
-    const prevLayout = orgRef.current.layout || {}
+    const prev = orgRef.current
+    const prevLayout = prev.layout || {}
     const cleanedPos = Object.fromEntries(Object.entries(prevLayout.pos || {}).filter(([k]) => !orphanIds.has(k)))
     const cleanedEdges = (prevLayout.edges || []).filter(e => !orphanIds.has(e.source) && !orphanIds.has(e.target))
     const next = {
-      ...orgRef.current,
-      reparti: (orgRef.current.reparti || []).filter(r => !repIds.includes(r.id)),
+      ...prev,
+      reparti: (prev.reparti || []).filter(r => !repIds.includes(r.id)),
       layout: { pos: cleanedPos, edges: cleanedEdges },
     }
     orgRef.current = next; setOrg(next)
-    ssave(SK_ORG, next, orgId, null).catch((e) => console.error('Errore salvataggio reparti:', e))
-  }, [orgId])
+    ssave(SK_ORG, next, orgId, null).catch((e) => {
+      orgRef.current = prev; setOrg(prev)
+      notify?.('Errore salvataggio reparti: ' + (e?.message || 'rete'), false)
+    })
+  }, [orgId, notify])
 
   function addReparto() {
     const nome = newRepNome.trim(); if (!nome) { setAddingRep(false); return }
     const id = 'rep-' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3)
-    const next = { ...orgRef.current, reparti: [...(orgRef.current.reparti || []), { id, nome, capoId: null, membri: [] }] }
+    const prev = orgRef.current
+    const next = { ...prev, reparti: [...(prev.reparti || []), { id, nome, capoId: null, membri: [] }] }
     orgRef.current = next; setOrg(next)
-    ssave(SK_ORG, next, orgId, null).catch(() => notify?.('Errore salvataggio', false))
+    ssave(SK_ORG, next, orgId, null).catch((e) => {
+      orgRef.current = prev; setOrg(prev)
+      notify?.('Errore salvataggio: ' + (e?.message || 'rete'), false)
+    })
     setNewRepNome(''); setAddingRep(false)
   }
 
@@ -1626,6 +1639,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome 
 
 // ── Calcolo lordo↔netto stipendio (banda informativa nel form) ────────────
 function CalcoloLordoNetto({ lordo, netto, setForm }) {
+  const isMobile = useIsMobile()
   const result = useMemo(() => {
     if (lordo && !netto) return calcolaStipendio({ lordo, mensilita: 13 })
     if (netto && !lordo) return calcolaStipendio({ netto, mensilita: 13 })
@@ -1637,7 +1651,7 @@ function CalcoloLordoNetto({ lordo, netto, setForm }) {
       <div style={{ fontSize: 10, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
         Stima (13 mensilità + INPS + IRPEF a scaglioni)
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
         <div>
           <div style={{ color: '#475264', marginBottom: 2 }}>Lordo</div>
           <div style={{ fontWeight: 800, color: '#0E1726', fontSize: 13 }}>{fmt(result.lordo)}</div>

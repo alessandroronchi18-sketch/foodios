@@ -794,8 +794,8 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
     const qty = ing.qty1stampo || 0
     if (!qty) continue
 
-    if (ricettario) {
-      const semiKey = Object.keys(ricettario.ricette || {}).find(k => {
+    if (ricettario?.ricette) {
+      const semiKey = Object.keys(ricettario.ricette).find(k => {
         const r = ricettario.ricette[k]
         if (r.tipo !== 'semilavorato') return false
         return normIng(k.toLowerCase()) === nomeNorm ||
@@ -866,8 +866,8 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
     if (!qty) continue
 
     // Semilavorato? Ricorsione max 3 livelli, ciclo-detect via path
-    if (ricettario) {
-      const semiKey = Object.keys(ricettario.ricette || {}).find(k => {
+    if (ricettario?.ricette) {
+      const semiKey = Object.keys(ricettario.ricette).find(k => {
         const r = ricettario.ricette[k]
         if (r.tipo !== 'semilavorato') return false
         return normIng(k.toLowerCase()) === nomeNorm ||

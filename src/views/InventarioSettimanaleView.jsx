@@ -796,12 +796,17 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             try {
               const qtaG = Math.round(Number(kg) * 1000)
               const oggiIso = new Date().toISOString().slice(0, 10)
-              // 1) scarico sede origine: somma a scarto_g della cella di oggi
+              // 1) scarico sede origine: somma a SPEDITO_G (NON scarto_g): la
+              // spedizione interna è kg "consumati" della disponibilità di
+              // origine ma NON sono spreco. Tenere spedito separato evita di
+               // drogare la quadratura cassa con un drift fittizio. Audit
+              // 2026-06-17 CRITICAL.
               const cella = (righe || []).find(r => r.gusto_nome === gusto && r.data === oggiIso)
               await salvaCella(orgId, sedeId, gusto, oggiIso, {
                 produzione_g: cella?.produzione_g || 0,
                 rimanenza_g: cella?.rimanenza_g || 0,
-                scarto_g: (cella?.scarto_g || 0) + qtaG,
+                scarto_g: cella?.scarto_g || 0,
+                spedito_g: (cella?.spedito_g || 0) + qtaG,
               })
               const destSede = (sedi || []).find(s => s.id === destSedeId)
               const destInventario = destSede?.is_sede_produzione && destSede?.metodo_produzione === 'inventario'

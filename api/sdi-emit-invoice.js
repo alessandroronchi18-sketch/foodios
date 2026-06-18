@@ -109,12 +109,26 @@ export default async function handler(req, res) {
       const cust = await stripe.customers.retrieve(inv.customer)
       orgId = cust?.metadata?.organization_id || null
       if (!orgId) {
-        // fallback: cerca per stripe_customer_id su organizations
         const { data: org } = await supabase
           .from('organizations').select('id').eq('stripe_customer_id', inv.customer).maybeSingle()
         orgId = org?.id || null
       }
-      importoNetto = (inv.amount_paid - (inv.tax || 0)) / 100  // sottrai IVA gia' inclusa
+      // Calcolo netto: preferire subtotal_excluding_tax (presente solo con Stripe Tax
+      // attivo). Se non c'è, dedurre dal totale: con Stripe Tax disattivato il prezzo
+      // Stripe è inclusivo IVA → netto = total / (1 + IVA). Audit 2026-06-17 CRITICAL:
+      // prima si faceva (amount_paid - inv.tax) / 100, ma inv.tax è null senza Tax →
+      // si scriveva il lordo come netto, gonfiando la fattura del 22%.
+      const subtotalExcl = Number.isFinite(inv.subtotal_excluding_tax) ? inv.subtotal_excluding_tax : null
+      const taxAmount = Number.isFinite(inv.tax) ? inv.tax : null
+      const aliquotaIvaPct = 22 // TODO derivare da inv.total_tax_amounts[].tax_rate quando Stripe Tax attivo
+      if (subtotalExcl != null) {
+        importoNetto = subtotalExcl / 100
+      } else if (taxAmount != null && taxAmount > 0) {
+        importoNetto = (inv.amount_paid - taxAmount) / 100
+      } else {
+        // Nessun dato IVA da Stripe: assumi prezzo IVA-inclusiva (setup tipico non-Tax).
+        importoNetto = (inv.amount_paid / 100) / (1 + aliquotaIvaPct / 100)
+      }
       pianoLabel = inv.lines?.data?.[0]?.description || 'Abbonamento FoodOS'
     } catch (e) {
       return res.status(400).json({ error: `Stripe lookup fallito: ${e.message}` })

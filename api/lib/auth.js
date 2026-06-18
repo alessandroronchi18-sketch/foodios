@@ -135,28 +135,33 @@ export async function verificaAdmin(req, supabase) {
     if (isLocalDev && (process.env.DISABLE_ADMIN_MFA || '').toLowerCase() === 'true') {
       return { user, reason: 'ok_mfa_disabled_dev_only' }
     }
-    // MFA bypass via whitelist email (ADMIN_MFA_WHITELIST env, csv).
-    // Pre-revenue ops: l'admin pre-MFA può accedere se la sua email e' esplicitamente
-    // whitelistata. Andra' rimosso al primo cliente pagante. Email match canonico
-    // (lower+trim) per evitare cose tipo casing/spazi.
-    const whitelistRaw = process.env.ADMIN_MFA_WHITELIST || ''
-    if (whitelistRaw) {
-      const whitelist = whitelistRaw
-        .split(',')
-        .map(e => e.toLowerCase().trim())
-        .filter(Boolean)
-      const userEmail = (user.email || '').toLowerCase().trim()
-      if (whitelist.includes(userEmail)) {
-        return { user, reason: 'ok_mfa_whitelisted' }
+    // MFA bypass via whitelist email — ATTIVO SOLO in dev locale (no VERCEL_URL).
+    // In QUALSIASI deploy Vercel la whitelist viene ignorata: fail-closed.
+    // Audit 2026-06: prima questo branch attivava la whitelist anche in prod,
+    // di fatto disabilitando MFA per il founder. Ora richiede aal2 ovunque.
+    if (isLocalDev) {
+      const whitelistRaw = process.env.ADMIN_MFA_WHITELIST || ''
+      if (whitelistRaw) {
+        const whitelist = whitelistRaw
+          .split(',')
+          .map(e => e.toLowerCase().trim())
+          .filter(Boolean)
+        const userEmail = (user.email || '').toLowerCase().trim()
+        if (whitelist.includes(userEmail)) {
+          return { user, reason: 'ok_mfa_whitelisted_dev_only' }
+        }
       }
     }
     const aalLevel = decodeJwtClaim(token, 'aal')
     if (aalLevel !== 'aal2') {
+      // Conservativo: su exception del listFactors trattiamo come "non enrolled",
+      // così l'admin riceve l'istruzione di iscrivere MFA invece che il prompt
+      // sbagliato "mfa_required" (impossibile da soddisfare se non l'ha mai attivato).
       let hasVerifiedFactor = false
       try {
         const { data: f } = await supabase.auth.admin.mfa.listFactors({ userId: user.id })
         hasVerifiedFactor = (f?.factors || []).some(x => x.status === 'verified')
-      } catch { hasVerifiedFactor = true }
+      } catch { hasVerifiedFactor = false }
       return { user: null, reason: hasVerifiedFactor ? 'mfa_required' : 'mfa_not_enrolled' }
     }
     return { user, reason: 'ok' }
