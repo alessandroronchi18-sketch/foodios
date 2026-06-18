@@ -119,7 +119,7 @@ export default function MarketplaceView() {
               <div style={{ fontSize: 15, fontWeight: 800, color: TXT, marginTop: 4 }}>{l.prodotto}</div>
               <div style={{ fontSize: 13, color: MID, marginTop: 2 }}>{l.fornitore_nome}</div>
               <div style={{ display: 'flex', gap: 12, fontSize: 12, color: SOFT, marginTop: 10, flexWrap: 'wrap' }}>
-                {l.prezzo_medio && <span>💰 <strong>€{Number(l.prezzo_medio).toFixed(2)}</strong>/{l.unita}</span>}
+                {l.prezzo_medio && <span>💰 <strong>€ {Number(l.prezzo_medio).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>/{l.unita}</span>}
                 {l.lead_time_gg && <span>🚚 {l.lead_time_gg}gg</span>}
                 {l.moq && <span>📦 MOQ {l.moq}{l.unita}</span>}
                 {l.rating && <span>⭐ {Number(l.rating).toFixed(1)} ({l.recensioni_n})</span>}

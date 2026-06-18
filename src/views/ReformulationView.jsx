@@ -168,7 +168,7 @@ Proponi le 3 varianti come da istruzioni.`
 
         {fcAttuale && (
           <div style={{ marginTop: 14, padding: '10px 12px', background: '#F1F5F9', borderRadius: 8, fontSize: 12.5, color: MID }}>
-            <strong>Stato attuale:</strong> {ricCurrent.nome} · FC €{fcAttuale.fcPezzo.toFixed(2)}/pz ({fcAttuale.fcPct.toFixed(1)}%) · Prezzo €{fcAttuale.prezzo.toFixed(2)}
+            <strong>Stato attuale:</strong> {ricCurrent.nome} · FC € {fcAttuale.fcPezzo.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz ({fcAttuale.fcPct.toFixed(1)}%) · Prezzo € {fcAttuale.prezzo.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         )}
       </div>

@@ -222,7 +222,7 @@ export const PREZZI_HORECA = {
   "semi di chia":           { costoKg:8.50 },
   "semi di lino":           { costoKg:2.80 },
   "semi di papavero":       { costoKg:10.50 },
-  "semi  di papavero":      { costoKg:10.50 },
+  "semi di papavero":       { costoKg:10.50 },
   "semi di girasole":       { costoKg:2.80 },
   "semi di zucca":          { costoKg:6.50 },
   "semi di sesamo":         { costoKg:5.50 },
@@ -491,7 +491,7 @@ export const SING_PLUR = [
   ["semi di chia","seme di chia"],["semi di lino","seme di lino"],
   ["semi di girasole","seme di girasole"],["semi di zucca","seme di zucca"],
   ["semi di sesamo","seme di sesamo"],["semi di papavero","seme di papavero"],
-  ["semi  di papavero","seme di papavero"],
+  ["semi di papavero","seme di papavero"],
   ["papavero","seme di papavero"],
   ["scorze di limone","scorza di limone"],
   ["cioccolato domori 64%","cioccolato domori"],
@@ -506,7 +506,7 @@ export const SING_PLUR = [
   ["gocce di cioccolato","goccia di cioccolato"],
   ["scaglie di cioccolato","scaglia di cioccolato"],
   ["chips cioccolato","chips cioccolato"],
-  ["zucchine","zucchina"],["carote","carota"],
+  ["zucchine","zucchina"],
 ]
 
 const _NORM_MAP = new Map(SING_PLUR.map(([pl, sg]) => [pl, sg]))
@@ -706,8 +706,12 @@ export function buildIngCosti(fromFile) {
   // il loop su `fc`: garantisce che il lookup (normIng(input)) trovi sempre
   // l'entry, anche per chiavi del dizionario che includono sinonimi mappati
   // da SING_PLUR e non sarebbero raggiungibili altrimenti.
-  for (const [k, v] of Object.entries(PREZZI_HORECA))
-    out[normIng(k)] = { costoKg: v.costoKg, costoG: parseFloat((v.costoKg / 1000).toFixed(6)), isStima: true }
+  for (const [k, v] of Object.entries(PREZZI_HORECA)) {
+    // Difesa: HORECA hardcoded ma se in futuro venisse iniettato un costoKg
+    // non valido, isFinite guard come sul ramo fc (audit 2026-06-17 MEDIUM).
+    const costoG = Number.isFinite(v.costoKg) ? parseFloat((v.costoKg / 1000).toFixed(6)) : 0
+    out[normIng(k)] = { costoKg: v.costoKg, costoG, isStima: true }
+  }
   for (const [k, v] of Object.entries(fc)) {
     // Accettiamo 0 come valore valido (ingrediente gratis: omaggio fornitore,
     // materia prima da orto, scarto recuperato). Solo NaN/undefined fanno cadere

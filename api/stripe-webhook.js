@@ -48,6 +48,23 @@ function planFromPriceId(priceId) {
   return null
 }
 
+// Validazione check digit P.IVA IT (Luhn-mod-11). Una P.IVA come 00000000000
+// passa la regex /^[0-9]{11}$/ ma è invalida (audit 2026-06-17 MEDIUM).
+function isValidPivaIT(piva) {
+  if (!/^[0-9]{11}$/.test(piva)) return false
+  let sum = 0
+  for (let i = 0; i < 10; i++) {
+    let d = parseInt(piva[i], 10)
+    if (i % 2 === 1) {
+      d *= 2
+      if (d > 9) d -= 9
+    }
+    sum += d
+  }
+  const check = (10 - (sum % 10)) % 10
+  return check === parseInt(piva[10], 10)
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
@@ -272,13 +289,17 @@ export default async function handler(req, res) {
             nazione: addr.country || 'IT',
             business_info_updated_at: new Date().toISOString(),
           }
-          // Sanitizza P.IVA italiana: rimuovi prefisso IT, valida formato.
-          // Se la P.IVA non e' 11 cifre la scartiamo (null) invece di
-          // salvare un valore malformato che farebbe poi fallire l'emissione
-          // SDI con un errore poco diagnosticabile a valle.
+          // Sanitizza P.IVA italiana: rimuovi prefisso IT, valida formato +
+          // verifica check digit Luhn-mod-11 (audit 2026-06-17 MEDIUM).
+          // Una P.IVA tipo 00000000000 passa la regex ma è invalida; meglio
+          // scartarla qui piuttosto che far fallire SDI a valle con errore criptico.
           if (patch.partita_iva && patch.nazione === 'IT') {
             const cleaned = String(patch.partita_iva).replace(/^IT/i, '').replace(/[^0-9]/g, '')
-            patch.partita_iva = /^[0-9]{11}$/.test(cleaned) ? cleaned : null
+            if (/^[0-9]{11}$/.test(cleaned) && isValidPivaIT(cleaned)) {
+              patch.partita_iva = cleaned
+            } else {
+              patch.partita_iva = null
+            }
           }
           // Aggiorna solo i campi non null (non sovrascrivere con null)
           const filtered = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== null))

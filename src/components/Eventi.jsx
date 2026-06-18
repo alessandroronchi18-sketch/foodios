@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
 import { onEnterAutoComplete } from '../lib/autocomplete'
@@ -154,6 +154,7 @@ async function exportPreventivoPDF(evento, ricetteMap, ingCosti, nomeAttivita) {
 
 export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAttivita, tipoAttivita }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const [eventi, setEventi] = useState([])
   const [loading, setLoading] = useState(true)
@@ -385,7 +386,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
       {editing == null && tab === 'archivio' && eventiArchivioFiltrati.length > 0 && (() => {
         const margC = kpiArchivio.margPct >= 50 ? T.green : kpiArchivio.margPct >= 30 ? T.amber : T.brand
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 20 }}>
             <KPI label="Eventi" value={kpiArchivio.eventi} icon={<Icon name="calendar" size={18} />} color={T.text} />
             <KPI label="Ricavi" value={fmtEur(kpiArchivio.ricavi)} icon={<Icon name="euro" size={18} />} color={T.green} />
             <KPI label="Food cost" value={fmtEur(kpiArchivio.fc)} sub={`${kpiArchivio.fcPct.toFixed(1)}% sui ricavi`} icon={<Icon name="receipt" size={18} />} color={T.amber} />
@@ -524,7 +525,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             const t = calcolaTotali(draft)
             const saldo = t.totRicavo - Number(draft.acconto || 0)
             return (
-              <div style={{ marginTop: 18, padding: 16, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, boxShadow: T.bgSubtle ? 'inset 0 1px 2px rgba(15,23,42,0.03)' : undefined }}>
+              <div style={{ marginTop: 18, padding: 16, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 12, boxShadow: T.bgSubtle ? 'inset 0 1px 2px rgba(15,23,42,0.03)' : undefined }}>
                 <div><div style={lbl}>Totale</div><div style={{ fontSize: 18, fontWeight: 800, color: T.text, ...TNUM }}>{fmtEur(t.totRicavo)}</div></div>
                 <div><div style={lbl}>Food cost</div><div style={{ fontSize: 18, fontWeight: 800, color: T.amber, ...TNUM }}>{fmtEur(t.totFC)}</div></div>
                 <div><div style={lbl}>Margine</div><div style={{ fontSize: 18, fontWeight: 800, color: t.margPct >= 50 ? T.green : t.margPct >= 30 ? T.amber : T.brand, ...TNUM }}>{fmtEur(t.margine)} ({t.margPct.toFixed(0)}%)</div></div>

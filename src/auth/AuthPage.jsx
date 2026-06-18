@@ -107,6 +107,7 @@ function checkPwd(p) {
 }
 
 function PasswordStrength({ password }) {
+  const isMobile = useIsMobile()
   if (!password) return null
   const c = checkPwd(password)
   const score = Object.values(c).filter(Boolean).length
@@ -135,7 +136,7 @@ function PasswordStrength({ password }) {
         </div>
         <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 50, textAlign: 'right' }}>{label}</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px 10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '4px 10px' }}>
         {req.map(([ok, txt]) => (
           <div key={txt} style={{ fontSize: 11, color: ok ? T.green : T.textSoft, display: 'flex', alignItems: 'center', gap: 4, fontWeight: ok ? 600 : 500 }}>
             <span style={{ fontSize: 9 }}>{ok ? '●' : '○'}</span>{txt}

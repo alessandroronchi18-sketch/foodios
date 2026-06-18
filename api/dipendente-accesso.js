@@ -32,7 +32,10 @@ export default async function handler(req) {
     .from('profiles').select('id, organization_id, ruolo, email').eq('id', targetUserId).maybeSingle()
   if (tErr) return json({ error: 'Lettura profilo fallita' }, 500, req)
   if (!target || target.organization_id !== orgId) return json({ error: 'Dipendente non trovato nella tua azienda' }, 404, req)
-  if (target.ruolo !== 'dipendente') return json({ error: 'Operazione consentita solo sugli account dipendente' }, 403, req)
+  // Whitelist esplicita: solo 'dipendente' (audit 2026-06-17 LOW). Se in
+  // futuro arriva un ruolo terzo non-dipendente (es. manager), questa API
+  // ritorna 403 invece di esporlo a delete/disattiva tramite questa via.
+  if (!['dipendente'].includes(target.ruolo)) return json({ error: 'Operazione consentita solo sugli account dipendente' }, 403, req)
 
   if (azione === 'elimina') {
     const { error: pErr } = await supabase.from('profiles').delete().eq('id', targetUserId).eq('organization_id', orgId)

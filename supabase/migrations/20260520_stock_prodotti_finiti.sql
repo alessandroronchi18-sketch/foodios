@@ -183,7 +183,7 @@ begin
 
   v_org := public.get_user_org_id();
   if v_t.organization_id <> v_org then
-    raise exception 'Trasferimento non appartiene all''organizzazione corrente';
+    raise exception 'Trasferimento non appartiene alla organizzazione corrente';
   end if;
 
   if v_t.stato not in ('bozza') then
@@ -247,7 +247,7 @@ begin
   select * into v_t from public.trasferimenti where id = p_id;
   if not found then raise exception 'Trasferimento non trovato'; end if;
   if v_t.organization_id <> public.get_user_org_id() then
-    raise exception 'Trasferimento non appartiene all''organizzazione corrente';
+    raise exception 'Trasferimento non appartiene alla organizzazione corrente';
   end if;
 
   if v_t.stato not in ('inviato') then
@@ -302,7 +302,7 @@ begin
   select * into v_t from public.trasferimenti where id = p_id;
   if not found then raise exception 'Trasferimento non trovato'; end if;
   if v_t.organization_id <> public.get_user_org_id() then
-    raise exception 'Trasferimento non appartiene all''organizzazione corrente';
+    raise exception 'Trasferimento non appartiene alla organizzazione corrente';
   end if;
 
   if v_t.stato = 'annullato' then return v_t; end if;

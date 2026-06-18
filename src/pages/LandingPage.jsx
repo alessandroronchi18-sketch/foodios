@@ -146,6 +146,7 @@ function Button({ children, variant = 'primary', onClick, style, size = 'md' }) 
    DASHBOARD PREVIEW
 ─────────────────────────────────────────────────────────────────────────── */
 function DashboardPreview() {
+  const isMobile = useIsMobile()
   return (
     <div style={{
       background: T.paper, borderRadius: 18, overflow: 'hidden',
@@ -205,7 +206,7 @@ function DashboardPreview() {
             Buongiorno, Marco
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 8, marginBottom: 14 }}>
             {[
               { l: 'Ricavi oggi', v: '€ 847',  sub: '+12%' },
               { l: 'Food cost',   v: '26,8%',  sub: 'target 30%' },

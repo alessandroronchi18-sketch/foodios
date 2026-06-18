@@ -20,7 +20,14 @@ export function hasResaIngrediente(nomeNorm) {
 }
 
 export function setResaIngrediente(nomeNorm, resa) {
-  _store[nomeNorm] = Math.max(0.01, Math.min(1.0, parseFloat(resa)||1.0));
+  // Audit 2026-06-17 LOW: parseFloat(0) || 1.0 = 1.0 (resa zero impossibile
+  // fisicamente diventava silenziosamente 100%). Warning esplicito.
+  const parsed = parseFloat(resa);
+  if (Number.isFinite(parsed) && parsed <= 0) {
+    console.warn('[rese] resa <= 0 per', nomeNorm, '→ clamped a 0.01 (1%)');
+  }
+  const value = Number.isFinite(parsed) && parsed > 0 ? parsed : 1.0;
+  _store[nomeNorm] = Math.max(0.01, Math.min(1.0, value));
 }
 
 export function loadRese(obj) {

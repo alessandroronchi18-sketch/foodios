@@ -56,7 +56,12 @@ async function logAdmin(supabase, adminEmail, azione, orgId, ip, userAgent) {
       ip,
       user_agent: (userAgent || '').slice(0, 200),
     })
-  } catch { /* non bloccare per errore di log */ }
+  } catch (e) {
+    // Audit 2026-06-17 MEDIUM: prima il catch era muto, errori DiskFull etc
+    // sparivano. Console.error perché Sentry server lo cattura; le azioni
+    // restano permesse (non vogliamo che il log block l'op stessa).
+    console.error('[logAdmin] insert failed:', e?.message, { azione, adminEmail })
+  }
 }
 
 // ─── handlers GET ──────────────────────────────────────────────────────────
@@ -1738,11 +1743,18 @@ export default async function handler(req) {
         await logAdmin(supabase, user.email, 'esporta_csv', null, ip, ua)
         const clienti = await getClienti(supabase)
         const header = 'Nome attivita,Tipo,Email,Nome completo,Piano,Stato,Sedi,Record,Registrata il,Ultimo accesso,Trial scade'
+        // Anti-CSV-injection: se il valore inizia con =+-@\t\r, prefisso '
+        // (audit 2026-06-17 MEDIUM: un nome_attivita "=cmd|..." si trasforma
+        // in formula Excel quando l'admin apre il CSV).
+        const q = v => {
+          let s = String(v ?? '')
+          if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) s = "'" + s
+          return `"${s.replace(/"/g, '""')}"`
+        }
         const rows = clienti.map(c => {
           const stato = !c.attivo ? 'Bloccato'
             : c.org_approvata ? 'Pagante'
             : (c.trial_ends_at && new Date(c.trial_ends_at) > new Date()) ? 'Trial' : 'Scaduto'
-          const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`
           return [
             q(c.nome_attivita), q(c.tipo), q(c.email), q(c.nome_completo),
             q(c.piano), q(stato), c.num_sedi || 0, c.num_record || 0,

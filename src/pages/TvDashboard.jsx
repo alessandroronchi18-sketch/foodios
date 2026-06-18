@@ -35,7 +35,10 @@ export default function TvDashboard() {
   useEffect(() => {
     load()
     const refresh = setInterval(load, REFRESH_MS)
-    const tick = setInterval(() => setNow(new Date()), 1000)
+    // Audit 2026-06-17 MEDIUM: tick a 1s causava re-render dell'intero
+    // dashboard ogni secondo. Aggiorniamo a 30s (granularità sufficiente per
+    // orario HH:mm) — riduce CPU/repaint del 30x.
+    const tick = setInterval(() => setNow(new Date()), 30_000)
     return () => { clearInterval(refresh); clearInterval(tick) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -104,11 +104,23 @@ export async function eliminaVoceCosto(id, soft = true) {
 }
 
 // Normalizza l'importo della voce in valore MENSILE.
-export function importoMensile(voce) {
+// una_tantum: spalmato sui 12 mesi DALLA data_inizio (audit 2026-06-17 MEDIUM:
+// prima la quota continuava a contribuire al P&L all'infinito anche per costi
+// del 2024 valutati nel 2030). Se data_inizio mancante, cap conservativo 12
+// mesi dalla creazione voce; se nessun riferimento, comportamento legacy v/12.
+export function importoMensile(voce, asOfDate) {
   const v = Number(voce?.importo) || 0
   switch (voce?.periodicita) {
     case 'annuale': return v / 12
-    case 'una_tantum': return v / 12
+    case 'una_tantum': {
+      const start = voce?.data_inizio || voce?.created_at || voce?.data
+      if (!start) return v / 12
+      const startMs = new Date(start).getTime()
+      if (!Number.isFinite(startMs)) return v / 12
+      const ref = asOfDate ? new Date(asOfDate).getTime() : Date.now()
+      const monthsElapsed = (ref - startMs) / (30.44 * 86400000)
+      return monthsElapsed >= 0 && monthsElapsed < 12 ? v / 12 : 0
+    }
     case 'mensile':
     default: return v
   }

@@ -340,9 +340,27 @@ export function parseFatturaXML(xmlText) {
   }];
 }
 
+// Legge un file come stringa, provando UTF-8 e poi windows-1252 come fallback
+// (audit 2026-06-17 MEDIUM: export POS italiani spesso latin1, l'UTF-8 default
+// produceva mojibake su é/à/ò che poi rompeva i matchFormato).
+export async function readTextSmart(file) {
+  const buf = await file.arrayBuffer()
+  // Sniff BOM UTF-8
+  const view = new Uint8Array(buf)
+  if (view.length >= 3 && view[0] === 0xEF && view[1] === 0xBB && view[2] === 0xBF) {
+    return new TextDecoder('utf-8').decode(buf.slice(3))
+  }
+  // Tenta UTF-8 strict: se fallisce, fallback latin1
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buf)
+  } catch {
+    return new TextDecoder('windows-1252').decode(buf)
+  }
+}
+
 // ── Dispatch automatico per tipo sistema ─────────────────────────────────────
 export async function parseFile(sistema, file) {
-  const text = await file.text();
+  const text = await readTextSmart(file);
 
   switch (sistema) {
     case 'zucchetti':

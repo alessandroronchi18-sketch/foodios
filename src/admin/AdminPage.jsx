@@ -1548,7 +1548,12 @@ export default function AdminPage() {
       const stato = !c.attivo ? 'Bloccato'
         : c.org_approvata ? 'Pagante'
         : (c.trial_ends_at && new Date(c.trial_ends_at) > new Date()) ? 'Trial' : 'Scaduto'
-      const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`
+      const q = v => {
+        let s = String(v ?? '')
+        // Anti-CSV-injection (audit 2026-06-17 MEDIUM)
+        if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) s = "'" + s
+        return `"${s.replace(/"/g, '""')}"`
+      }
       return [
         q(c.nome_attivita), q(c.tipo), q(c.email), q(c.nome_completo),
         q(c.piano), q(stato), c.num_sedi || 0, c.num_record || 0,

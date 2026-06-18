@@ -112,7 +112,14 @@ export async function caricaSettimana(orgId, sedeId, lunediIso) {
 // evita che un import di sprechi azzeri silenziosamente uno `spedito_g`
 // precedentemente registrato per la stessa cella.
 export async function salvaCella(orgId, sedeId, gustoNome, dataIso, patch) {
-  const num = (v) => Math.max(0, Math.round(Number(v) || 0))
+  // Audit 2026-06-17 LOW: input negativo silenziato a 0. Logghiamo warning
+  // se l'utente passa un valore <0 esplicito (typo) invece di azzerare
+  // silenziosamente.
+  const num = (v) => {
+    const n = Number(v) || 0
+    if (n < 0) console.warn('[salvaCella] valore negativo clamped a 0:', v)
+    return Math.max(0, Math.round(n))
+  }
   const has = (k) => Object.prototype.hasOwnProperty.call(patch, k)
   const row = {
     organization_id: orgId,

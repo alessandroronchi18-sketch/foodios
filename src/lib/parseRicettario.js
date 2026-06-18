@@ -83,7 +83,10 @@ export async function parseRicettario(file) {
     ricette[nome] = {
       nome,
       sheetName,
-      numStampi: num(rows[1]?.[1]) || 1,
+      // numStampi=0 esplicito è dato strano: l'utente ha probabilmente svuotato
+      // la cella, ma JS Number("0") || 1 = 1 silenzia. Usiamo `??` per
+      // distinguere 0 (preservato per warning) da NaN/undefined (default 1).
+      numStampi: (() => { const n = num(rows[1]?.[1]); return Number.isFinite(n) && n > 0 ? n : 1 })(),
       totImpasto1: num(rows[0]?.[5]),
       foodCost1: num(rows[2]?.[5]),
       ingredienti,

@@ -326,7 +326,79 @@ do $audit_rl$ begin
   end if;
 end $audit_rl$;
 
--- 15) get_user_org_id LIMIT 1 (defense-in-depth, audit 1 NOTE).
+-- 15) admin_org_cascade_delete: RPC SECURITY DEFINER per cancellare un org in
+--     un'unica transazione (audit 6 LOW). Prima si facevano 22 delete sequenziali
+--     senza atomicità → timeout Vercel 15s lasciava org "mezzo cancellate".
+--     Chiamata via supabase.rpc dal pannello admin (service_role bypassa RLS).
+create or replace function public.admin_org_cascade_delete(p_org_id uuid)
+returns table(table_name text, rows_deleted bigint) as $cascade$
+declare
+  v_table text;
+  v_count bigint;
+  v_tables text[] := array[
+    'user_data',
+    'sedi',
+    'profiles',
+    'audit_log',
+    'admin_log',
+    'feedback',
+    'app_banners',
+    'error_log',
+    'rate_limits',
+    'login_attempts',
+    'stripe_webhook_events',
+    'sdi_invoice_log',
+    'sdi_emission_queue',
+    'stock_prodotti_finiti',
+    'movimenti_stock_pf',
+    'trasferimenti',
+    'inventario_produzione',
+    'discount_redemptions',
+    'forecast_giornaliero',
+    'competitor_prices',
+    'documentary_snapshots',
+    'wa_settings',
+    'wa_messages',
+    'fatture',
+    'note_giornaliere',
+    'extracted_invoices',
+    'vendite_b2b',
+    'clienti_b2b',
+    'pagamenti_scadenze',
+    'costi_aziendali',
+    'dipendenti',
+    'turni',
+    'haccp_temp_log',
+    'haccp_apparecchi',
+    'marketplace_listings',
+    'referral'
+  ];
+begin
+  -- Cancellazione in ordine: prima foglie, poi root (organizations stessa).
+  foreach v_table in array v_tables loop
+    if to_regclass('public.'||v_table) is not null then
+      execute format('delete from public.%I where organization_id = $1', v_table)
+        using p_org_id;
+      get diagnostics v_count = row_count;
+      table_name := v_table;
+      rows_deleted := v_count;
+      return next;
+    end if;
+  end loop;
+  -- Infine, organizations
+  delete from public.organizations where id = p_org_id;
+  get diagnostics v_count = row_count;
+  table_name := 'organizations';
+  rows_deleted := v_count;
+  return next;
+end;
+$cascade$ language plpgsql security definer
+set search_path = public, pg_temp;
+
+revoke all on function public.admin_org_cascade_delete(uuid) from public, anon, authenticated;
+-- Solo service_role (l'API admin via service key) può invocarla.
+
+-- 16) get_user_org_id LIMIT 1 (defense-in-depth, audit 1 NOTE).
 create or replace function public.get_user_org_id() returns uuid as $get_org$
 declare
   org_id uuid;
