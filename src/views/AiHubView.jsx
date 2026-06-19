@@ -133,7 +133,7 @@ const STATUS_STYLE = {
   SOON: { bg: 'rgba(148,163,184,0.16)', fg: '#64748B', label: 'COMING SOON' },
 }
 
-export default function AiHubView({ orgId, setView, piano, userEmail }) {
+export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmail }) {
   const isMobile = useIsMobile()
   const [upgrade, setUpgrade] = useState(null)
 
@@ -325,7 +325,7 @@ export default function AiHubView({ orgId, setView, piano, userEmail }) {
           featureName={upgrade.featureName}
           requiredPlan={upgrade.requiredPlan}
           onClose={() => setUpgrade(null)}
-          onCta={() => setView?.('impostazioni')}
+          onCta={() => goToUpgrade?.()}
         />
       )}
     </div>

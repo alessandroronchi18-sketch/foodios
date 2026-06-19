@@ -53,9 +53,12 @@ export default function FeedbackButton({ viewCorrente }) {
         onClick={() => setOpen(true)}
         style={{
           position: 'fixed',
-          // Su mobile la bottom-nav occupa il fondo: alzo il FAB sopra di essa
-          // (e lo rimpicciolisco) così non copre il pulsante "Altro".
-          bottom: isMobile ? 76 : 20, right: isMobile ? 14 : 20,
+          // Posizionato SOPRA il FAB AI Assistant (che sta a bottom: 92 mobile / 24 desktop
+          // con altezza 56). Stack verticale per non sovrapporsi (bug 18 giu).
+          // AI FAB: bottom 24 + height 56 + gap 12 = feedback bottom 92 desktop.
+          // Su mobile: AI FAB a 92 + height 56 + gap 12 = feedback a 160.
+          bottom: isMobile ? 160 : 92,
+          right: isMobile ? 18 : 26,  // allineato con il centro del FAB AI (più grande, 56)
           width: isMobile ? 46 : 52, height: isMobile ? 46 : 52,
           borderRadius: '50%',
           background: '#6E0E1A',
@@ -64,7 +67,7 @@ export default function FeedbackButton({ viewCorrente }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer',
           boxShadow: '0 6px 20px rgba(110,14,26,0.35)',
-          zIndex: 50,
+          zIndex: 1002,  // sopra AI FAB (1001) per evitare che AI ci si sieda sopra
           transition: 'transform 0.15s ease',
         }}
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}

@@ -560,6 +560,7 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
     cosaCambia.push(`Cambio da "${labelMetodo(info.oldMetodo)}" a "${labelMetodo(info.newMetodo)}".`)
     cosaCambia.push('La nuova modalità userà tabelle e logiche diverse: lo storico nella vecchia modalità resta visibile ma non si potranno più registrare nuovi dati nello stesso modo.')
     cosaCambia.push('Il magazzino materie prime e il ricettario non vengono modificati: cambia solo COME registri la produzione giornaliera.')
+    cosaCambia.push('Consigliato: cambia metodo a inizio mese per avere reportistica mensile coerente — i giorni del mese in corso restano sul vecchio metodo.')
   }
 
   return (

@@ -2008,6 +2008,7 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
 function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
   // value e' sempre in grammi internamente. Lo state locale puo' essere
   // formattato in kg per la visualizzazione e riconvertito a g al commit.
+  const isMobile = useIsMobile()
   const toDisplay = (g) => {
     if (g === '' || g === 0 || g == null) return ''
     return unita === 'kg' ? (g / 1000).toString().replace('.', ',') : String(g)
@@ -2030,7 +2031,7 @@ function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
       onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
       style={{
         width: '100%', minWidth: 56, padding: '8px 6px', textAlign: 'right',
-        fontSize: 13, fontFamily: 'inherit',
+        fontSize: isMobile ? 16 : 13, fontFamily: 'inherit',
         border: 'none', outline: 'none',
         background: saving ? 'rgba(110,14,26,0.05)' : 'transparent',
         color: C.text, fontWeight: local ? 600 : 400,

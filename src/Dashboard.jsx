@@ -100,6 +100,8 @@ const MarketplaceView = lazyWithReload(() => import('./views/MarketplaceView'))
 const WhatsAppView = lazyWithReload(() => import('./views/WhatsAppView'))
 const DocumentaryView = lazyWithReload(() => import('./views/DocumentaryView'))
 const AiHubView = lazyWithReload(() => import('./views/AiHubView'))
+const HomeDipendente = lazyWithReload(() => import('./views/HomeDipendente'))
+const PushNotificationToggle = lazyWithReload(() => import('./components/PushNotificationToggle'))
 const FotoOCR = lazyWithReload(() => import('./components/FotoOCR'))
 import { compressImage } from './lib/imageUtils'
 import { trackViewOpen } from './lib/usageTracking'
@@ -737,10 +739,12 @@ function NuovoMeseModal({onCrea,onClose}) {
 
 
 // ─── IMPOSTAZIONI VIEW ────────────────────────────────────────────────────────
-function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, onImportPrezzi, notify, onChangelogOpen }) {
+function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, onImportPrezzi, notify, onChangelogOpen, initialTab }) {
   const [nomeMod, setNomeMod] = useState(nomeAttivita || "");
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState("generale");
+  const [tab, setTab] = useState(initialTab || "generale");
+  // Se initialTab cambia (es. utente clicca un secondo upgrade), aggiorna il tab.
+  useEffect(() => { if (initialTab) setTab(initialTab); }, [initialTab]);
   const [reports, setReports] = useState([]);
   const [emailReport, setEmailReport] = useState(true);
   const [loadingReports, setLoadingReports] = useState(false);
@@ -950,6 +954,17 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
             )}
           </div>
 
+          {/* Notifiche push (Modalità Dipendente PWA) */}
+          <div style={card}>
+            <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}>
+              <Icon name="bell" size={16}/> Notifiche
+            </div>
+            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14 }}>
+              Attiva le notifiche push per ricevere reminder operativi su questo dispositivo (scadenze, alert, daily brief).
+            </div>
+            <PushNotificationToggle deviceLabel={`${nomeAttivita || 'FoodOS'} - ${typeof navigator!=='undefined' && /iPhone|iPad/.test(navigator.userAgent) ? 'iOS' : 'web'}`}/>
+          </div>
+
           {/* Novità & Changelog */}
           <div style={card}>
             <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}><Icon name="clipboard" size={16}/> Novità & Changelog</div>
@@ -1128,6 +1143,7 @@ class ErrorBoundary extends React.Component {
 // NASCOSTO — sia in UI (questo set) sia a livello DB (RLS, vedi migration
 // 20260607_dipendente_no_lettura_sensibili.sql).
 const DIPENDENTE_VIEWS = new Set([
+  'home-dipendente', // Modalità Dipendente XL: landing 6 pulsantoni mobile-first.
   'giornaliero',     // Produzione — "caricare i prodotti" (solo oggi)
   'inventario-gusti',// Inventario differenziale per gelaterie/yogurt (alternativa a giornaliero)
   'chiusura',        // Cassa (solo oggi)
@@ -1192,7 +1208,13 @@ export default function Dashboard({
   const [chiusure,setChiusure]=useState([]);
   const [esclusi,setEsclusi]=useState(new Set());
   const [view,setView]=useState(() => {
-    try { return sessionStorage.getItem(`foodios_view_${orgId||'_'}`) || "home"; } catch { return "home"; }
+    try {
+      const stored = sessionStorage.getItem(`foodios_view_${orgId||'_'}`);
+      if (stored) return stored;
+      // Default: 'home' titolare, 'home-dipendente' dipendente.
+      // Nota: auth.ruolo è disponibile a questo punto perché useAuth risolve prima del mount Dashboard.
+      return auth?.ruolo === 'dipendente' ? "home-dipendente" : "home";
+    } catch { return "home"; }
   });
   useEffect(() => {
     try { sessionStorage.setItem(`foodios_view_${orgId||'_'}`, view); } catch {}
@@ -1217,6 +1239,13 @@ export default function Dashboard({
   const [profileOpen, setProfileOpen] = useState(false);
   const [cmdkOpen, setCmdkOpen] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState(null);  // {featureName, requiredPlan}
+  // Tab iniziale per Impostazioni quando aperto da CTA upgrade (default 'generale').
+  // goToUpgrade() naviga a Impostazioni > Abbonamento, dove AbbonamentoPanel gestisce Stripe Checkout.
+  const [impostazioniInitialTab, setImpostazioniInitialTab] = useState('generale');
+  const goToUpgrade = useCallback(() => {
+    setImpostazioniInitialTab('abbonamento');
+    setView('impostazioni');
+  }, []);
   useEffect(() => {
     function onOpen() { setCmdkOpen(true) }
     window.addEventListener('foodios:cmdk', onOpen)
@@ -1233,8 +1262,10 @@ export default function Dashboard({
     // Fallback dipendente: se sulla sede attiva e' attivo il metodo inventario,
     // la "home produzione" del dipendente diventa 'inventario-gusti'.
     if (isDip && !DIPENDENTE_VIEWS.has(view)) {
-      const isInv = sedeAttiva?.is_sede_produzione === true && sedeAttiva?.metodo_produzione === 'inventario'
-      setView(isInv ? 'inventario-gusti' : 'giornaliero')
+      // Fallback dipendente: torna alla home dipendente (sostituisce il vecchio
+      // redirect diretto a giornaliero/inventario-gusti — la home dipendente
+      // è il punto di ingresso pulito).
+      setView('home-dipendente')
     }
   }, [isDip, view, sedeAttiva]);
   // Quando si clicca "Modifica" su una card ricetta, salviamo qui il nome
@@ -2036,7 +2067,7 @@ export default function Dashboard({
           {/* Linea accento brand in cima (firma premium) */}
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)"}}/>
           {/* Logo + nome (sx) */}
-          <button onClick={()=>go(isDip?"giornaliero":"home")} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
+          <button onClick={()=>go(isDip?"home-dipendente":"home")} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
             {customLogo ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/> : <Logo size={26} style={{borderRadius:6}}/>}
             <span style={{fontSize:15,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",whiteSpace:"nowrap"}}>{appName}</span>
           </button>
@@ -2834,8 +2865,17 @@ export default function Dashboard({
           </div>
         )}
 
-        {/* Home dashboard */}
+        {/* Home dashboard (titolare) */}
         {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}
+
+        {/* Home Dipendente — Modalità Dipendente XL: 6 pulsantoni mobile-first */}
+        {view==="home-dipendente"&&<HomeDipendente
+          user={auth?.user}
+          sedeAttiva={sedeAttiva}
+          isInventario={sedeAttiva?.is_sede_produzione === true && sedeAttiva?.metodo_produzione === 'inventario'}
+          setView={setView}
+          notify={notify}
+        />}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
         {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify} tipoAttivita={tipoAttivita}/>}
@@ -2879,7 +2919,7 @@ export default function Dashboard({
         {view==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} onNavigate={setView}/>}
         {view==="costi-aziendali"&&<CostiAziendaliView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
-        {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")}/>}
+        {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
         {view==="importa-dati"&&<ImportaDatiView
           onImportRicettario={handleFile}
           onImportPrezzi={handleImportPrezzi}
@@ -2887,10 +2927,10 @@ export default function Dashboard({
           onImportCasse={handleImportCasseGlobal}
           onImportFatture={handleImportFattureGlobal}
           notify={notify}/>}
-        {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="confronto-sedi"&&(canAccessView("confronto-sedi",piano,auth?.user?.email)?<ConfrontoSedi orgId={orgId} sedi={sedi}/>:<UpgradeGate view="confronto-sedi" onUpgrade={goToUpgrade}/>)}
         {view==="eventi"&&<EventiView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita}/>}
-        {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={()=>setView("impostazioni")}/>)}
-        {view==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={()=>setView("impostazioni")}/>)}
+        {view==="trasferimenti"&&!isAllSedi&&(canAccessView("trasferimenti",piano,auth?.user?.email)?<TrasferimentiView orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify}/>:<UpgradeGate view="trasferimenti" onUpgrade={goToUpgrade}/>)}
+        {view==="integrazioni"&&(canAccessView("integrazioni",piano,auth?.user?.email)?<Integrazioni orgId={orgId} sedeId={sedeId} notify={notify}/>:<UpgradeGate view="integrazioni" onUpgrade={goToUpgrade}/>)}
         {view==="scadenzario"&&<Scadenzario orgId={orgId} sedeId={sedeId} sedi={sedi}/>}
         {view==="changelog"&&<ChangelogView/>}
         {view==="recensioni"&&<RecensioniView nomeAttivita={nomeAttivita}/>}
@@ -2900,23 +2940,23 @@ export default function Dashboard({
         {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} notify={notify}/>}
         {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId} notify={notify}/>}
         {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
-        {view==="ai-brain"&&(canAccessView("ai-brain",piano,auth?.user?.email)?<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ai-brain" onUpgrade={()=>setView("impostazioni")}/>)}
-        {view==="ricette-ai"&&(canAccessView("ricette-ai",piano,auth?.user?.email)?<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ricette-ai" onUpgrade={()=>setView("impostazioni")}/>)}
-        {view==="marketplace"&&(canAccessView("marketplace",piano,auth?.user?.email)?<MarketplaceView/>:<UpgradeGate view="marketplace" onUpgrade={()=>setView("impostazioni")}/>)}
-        {view==="whatsapp"&&(canAccessView("whatsapp",piano,auth?.user?.email)?<WhatsAppView orgId={orgId} user={auth?.user}/>:<UpgradeGate view="whatsapp" onUpgrade={()=>setView("impostazioni")}/>)}
-        {view==="documentary"&&(canAccessView("documentary",piano,auth?.user?.email)?<DocumentaryView orgId={orgId} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="documentary" onUpgrade={()=>setView("impostazioni")}/>)}
-        {view==="ai-hub"&&<AiHubView orgId={orgId} setView={setView} piano={piano} userEmail={auth?.user?.email}/>}
+        {view==="ai-brain"&&(canAccessView("ai-brain",piano,auth?.user?.email)?<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ai-brain" onUpgrade={goToUpgrade}/>)}
+        {view==="ricette-ai"&&(canAccessView("ricette-ai",piano,auth?.user?.email)?<RecipeInventorView orgId={orgId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ricette-ai" onUpgrade={goToUpgrade}/>)}
+        {view==="marketplace"&&(canAccessView("marketplace",piano,auth?.user?.email)?<MarketplaceView/>:<UpgradeGate view="marketplace" onUpgrade={goToUpgrade}/>)}
+        {view==="whatsapp"&&(canAccessView("whatsapp",piano,auth?.user?.email)?<WhatsAppView orgId={orgId} user={auth?.user}/>:<UpgradeGate view="whatsapp" onUpgrade={goToUpgrade}/>)}
+        {view==="documentary"&&(canAccessView("documentary",piano,auth?.user?.email)?<DocumentaryView orgId={orgId} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="documentary" onUpgrade={goToUpgrade}/>)}
+        {view==="ai-hub"&&<AiHubView orgId={orgId} setView={setView} goToUpgrade={goToUpgrade} piano={piano} userEmail={auth?.user?.email}/>}
         <CommandPalette open={cmdkOpen} onClose={()=>setCmdkOpen(false)} onNavigate={(v)=>setView(v)} orgId={orgId}/>
         {upgradeModal && (
           <UpgradeModal
             featureName={upgradeModal.featureName}
             requiredPlan={upgradeModal.requiredPlan}
             onClose={()=>setUpgradeModal(null)}
-            onCta={()=>setView("impostazioni")}
+            onCta={goToUpgrade}
           />
         )}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip}/>}
-        {currentMese&&!["home","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
+        {currentMese&&!["home","home-dipendente","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
           <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
         )}
         </React.Suspense>
