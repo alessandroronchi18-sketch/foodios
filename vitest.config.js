@@ -44,15 +44,13 @@ export default defineConfig({
         'src/lib/sessionGuard.js',
       ],
       thresholds: {
-        // Audit 2026-07-01 batch 11 push: 37% → 73% lines (+36 punti, +481 test).
-        // Threshold 70 dà margine 3% per modifiche minori senza rompere CI.
-        // Per salire ulteriormente: testare storage.js (1%, supabase mock) +
-        // auth.js (1%, supabase auth mock) + componenti React (richiede
-        // @testing-library/react).
-        lines: 70,
-        functions: 75,
-        statements: 70,
-        branches: 60,
+        // Audit 2026-07-01 batch 11-12 push: 37% → 94% lines (+57 punti).
+        // 1054/1054 test, 63 file di test, 672 test nuovi nel batch.
+        // Threshold 90/90/85/75 dà margine 4% sotto al baseline 94/91/95/81.
+        lines: 90,
+        functions: 90,
+        statements: 85,
+        branches: 75,
       },
     },
   },

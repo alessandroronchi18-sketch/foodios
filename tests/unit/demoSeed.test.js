@@ -11,20 +11,32 @@ import { describe, it, expect, vi } from 'vitest'
 vi.mock('../../src/lib/storage', () => ({
   ssave: vi.fn(async () => true),
 }))
+// Mock dinamico per supabase: i test che testano hasDemoData possono
+// overriddare la chain via supabaseRef.responseQueue.
+const supabaseRef = {
+  responseQueue: [],  // [{ data, error }] in ordine FIFO
+  selectError: null,
+}
+
 vi.mock('../../src/lib/supabase', () => ({
   supabase: {
     from: () => ({
       insert: async () => ({ error: null }),
       select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: null }),
-        }),
+        eq: function () {
+          return this  // chain
+        },
+        maybeSingle: async () => {
+          if (supabaseRef.selectError) throw supabaseRef.selectError
+          const next = supabaseRef.responseQueue.shift()
+          return next || { data: null, error: null }
+        },
       }),
     }),
   },
 }))
 
-import { seedDemoData } from '../../src/lib/demoSeed'
+import { seedDemoData, hasDemoData } from '../../src/lib/demoSeed'
 import { ssave } from '../../src/lib/storage'
 
 describe('seedDemoData — struttura', () => {
@@ -92,5 +104,42 @@ describe('seedDemoData — struttura', () => {
       expect(c.kpi.totV).toBeGreaterThan(0)
       expect(c.kpi.totFC).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('hasDemoData', () => {
+  it('senza orgId → false', async () => {
+    expect(await hasDemoData({ orgId: null })).toBe(false)
+  })
+
+  it('select error → false (fail-safe)', async () => {
+    supabaseRef.selectError = new Error('db down')
+    expect(await hasDemoData({ orgId: 'o', sedeId: 's' })).toBe(false)
+    supabaseRef.selectError = null
+  })
+
+  it('row con data_value array contenente _demo=true → true', async () => {
+    supabaseRef.responseQueue.push({ data: { data_value: [{ _demo: true }, { id: 'altra' }] } })
+    expect(await hasDemoData({ orgId: 'o', sedeId: 's' })).toBe(true)
+  })
+
+  it('row con id che inizia per "demo-ch-" → true', async () => {
+    supabaseRef.responseQueue.push({ data: { data_value: [{ id: 'demo-ch-2026-06-15' }] } })
+    expect(await hasDemoData({ orgId: 'o', sedeId: 's' })).toBe(true)
+  })
+
+  it('row senza dati demo → false', async () => {
+    supabaseRef.responseQueue.push({ data: { data_value: [{ id: 'ch-2026', _demo: false }] } })
+    expect(await hasDemoData({ orgId: 'o', sedeId: 's' })).toBe(false)
+  })
+
+  it('data_value non-array → false (no crash)', async () => {
+    supabaseRef.responseQueue.push({ data: { data_value: { broken: true } } })
+    expect(await hasDemoData({ orgId: 'o', sedeId: 's' })).toBe(false)
+  })
+
+  it('row mancante → false', async () => {
+    supabaseRef.responseQueue.push({ data: null })
+    expect(await hasDemoData({ orgId: 'o', sedeId: 's' })).toBe(false)
   })
 })

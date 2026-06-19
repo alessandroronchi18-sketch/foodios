@@ -13,3 +13,6 @@ dist
 /playwright/.cache/
 /blob-report/
 tests/.seed-state.json
+
+# Coverage report (rigenerato locally via `npm run test:coverage`)
+coverage/
