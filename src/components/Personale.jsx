@@ -4,6 +4,7 @@ import '@xyflow/react/dist/style.css'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
+import SetPinDialog from './SetPinDialog'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { SkeletonList } from './Skeleton'
@@ -1399,24 +1400,34 @@ const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 function AccessiTab({ orgId, notify, isMobile }) {
   const [meId, setMeId] = useState(null)
   const [dipendenti, setDipendenti] = useState([])   // profiles ruolo='dipendente'
+  const [pinStatuses, setPinStatuses] = useState({}) // { user_id: { has_pin, pin_set_at } }
   const [inviti, setInviti] = useState([])           // org_inviti pending non accettati
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(null)             // id in lavorazione
   const [delConf, setDelConf] = useState(null)       // dipendente in conferma eliminazione
+  const [pinTarget, setPinTarget] = useState(null)   // dipendente per cui aprire il SetPinDialog
 
   async function carica() {
     if (!orgId) return
-    const [{ data: { user } }, dip, inv] = await Promise.all([
+    const [{ data: { user } }, dip, inv, pinRes] = await Promise.all([
       supabase.auth.getUser(),
       // RPC dedicata: la RLS su profiles non garantisce al titolare la lettura dei
       // profili degli altri membri → la lista passa da fos_dipendenti_org (solo-titolare).
       supabase.rpc('fos_dipendenti_org'),
       supabase.from('org_inviti').select('id,email,stato,created_at').eq('organization_id', orgId).eq('stato', 'pending').order('created_at', { ascending: false }),
+      // Stato PIN per riga (fail-soft: se RPC non esiste, fai finta che nessuno abbia PIN)
+      supabase.rpc('fos_dipendente_pin_status'),
     ])
     setMeId(user?.id || null)
     setDipendenti(dip.data || [])
     setInviti(inv.data || [])
+    // Mappa pinStatuses → { user_id: { has_pin, pin_set_at } }
+    const map = {}
+    for (const r of (pinRes?.data || [])) {
+      map[r.id] = { has_pin: !!r.has_pin, pin_set_at: r.pin_set_at }
+    }
+    setPinStatuses(map)
     setLoading(false)
   }
   useEffect(() => { setLoading(true); carica() }, [orgId])
@@ -1544,21 +1555,38 @@ function AccessiTab({ orgId, notify, isMobile }) {
       </div>
       {dipendenti.length === 0 && <div style={{ fontSize: 12, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>Nessun account dipendente ancora.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-        {dipendenti.map(d => (
+        {dipendenti.map(d => {
+          const pinInfo = pinStatuses[d.id]
+          const hasPin = !!pinInfo?.has_pin
+          return (
           <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
               <div style={{ fontSize: 11, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.email}</div>
             </div>
+            {/* Badge PIN: visibile solo se impostato */}
+            {hasPin && (
+              <span title="PIN attivo per login rapido da tablet"
+                style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: '#1E40AF', background: '#DBEAFE', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Icon name="key" size={11} />PIN
+              </span>
+            )}
             <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.approvato ? C.green : C.amber, background: d.approvato ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Icon name={d.approvato ? 'checkCircle' : 'hourglass'} size={11} />{d.approvato ? 'Attivo' : 'In attesa / sospeso'}
             </span>
+            {/* Bottone PIN: imposta o cambia */}
+            <button onClick={() => setPinTarget(d)} disabled={busy === d.id}
+              title={hasPin ? 'Cambia o rimuovi PIN' : 'Imposta PIN per login rapido tablet'}
+              style={btn(hasPin ? '#DBEAFE' : C.white, hasPin ? '#1E40AF' : C.textMid, `1px solid ${hasPin ? '#93C5FD' : C.border}`)}>
+              <Icon name="key" size={12} />{hasPin ? 'PIN' : 'Imposta PIN'}
+            </button>
             {d.approvato
               ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Disattiva</button>
               : <button onClick={() => setApprovato(d.id, true)} disabled={busy === d.id} style={btn(C.green, C.white)}><Icon name="check" size={12} />Attiva</button>}
             <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Elimina account" style={btn(C.white, C.red, `1px solid ${C.red}40`)}><Icon name="trash" size={12} /></button>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Inviti in attesa di registrazione */}
@@ -1576,6 +1604,17 @@ function AccessiTab({ orgId, notify, isMobile }) {
             ))}
           </div>
         </>
+      )}
+
+      {/* Set/Cambia/Rimuovi PIN dipendente */}
+      {pinTarget && (
+        <SetPinDialog
+          dipendente={pinTarget}
+          currentStatus={pinStatuses[pinTarget.id]}
+          onClose={() => setPinTarget(null)}
+          onDone={() => carica()}
+          notify={notify}
+        />
       )}
 
       {/* Conferma eliminazione */}
