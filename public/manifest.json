@@ -1,14 +1,16 @@
 {
   "name": "FoodOS — Gestionale Food Cost",
   "short_name": "FoodOS",
-  "description": "Gestionale food cost per pasticcerie e ristorazione artigianale italiana.",
-  "start_url": "/",
+  "description": "Gestionale food cost per pasticcerie, gelaterie, bar e ristorazione artigianale italiana. Cassa, produzione, magazzino, P&L e AI Assistant.",
+  "start_url": "/?source=pwa",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#F8FAFC",
   "theme_color": "#6E0E1A",
   "orientation": "any",
   "scope": "/",
   "lang": "it-IT",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/favicon.svg",
@@ -23,5 +25,36 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["business", "productivity", "food"]
+  "shortcuts": [
+    {
+      "name": "Registra produzione",
+      "short_name": "Produzione",
+      "description": "Apri la registrazione produzione del giorno",
+      "url": "/?shortcut=produzione",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Inventario gusti",
+      "short_name": "Inventario",
+      "description": "Registra residui mattutini",
+      "url": "/?shortcut=inventario",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Chiusura cassa",
+      "short_name": "Chiusura",
+      "description": "Apri la chiusura serale",
+      "url": "/?shortcut=chiusura",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Sprechi e omaggi",
+      "short_name": "Sprechi",
+      "description": "Registra spreco o omaggio",
+      "url": "/?shortcut=sprechi",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ],
+  "categories": ["business", "productivity", "food"],
+  "prefer_related_applications": false
 }

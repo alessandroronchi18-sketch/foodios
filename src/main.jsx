@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react'
 import App from './App.jsx'
 import { ToastProvider, GlobalToastBridge } from './components/Toast.jsx'
 import { ConfirmProvider } from './components/ConfirmModal.jsx'
+import { registerServiceWorker, setupInstallPrompt } from './lib/pwa'
 
 // ─── Sentry — SDK ufficiale con scrubber ───────────────────────────────────
 // DSN nel client è pubblico per design (rate-limited lato Sentry).
@@ -121,6 +122,21 @@ function AppErrorFallback({ resetError }) {
     </div>
   )
 }
+
+// PWA: registra service worker + cattura beforeinstallprompt.
+// Su update disponibile, mostra prompt nativo (toast non ancora montato a init).
+setupInstallPrompt()
+registerServiceWorker({
+  onUpdateAvailable: (apply) => {
+    // Lasciamo che l'utente accetti via toast tramite window.__foodos_toast
+    // (popolato da GlobalToastBridge dopo render). Fallback: applica al prossimo reload.
+    if (window.__foodos_toast) {
+      window.__foodos_toast.info('Nuova versione disponibile — ricarica per aggiornare', {
+        action: { label: 'Aggiorna', onClick: () => apply() },
+      })
+    }
+  },
+})
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
