@@ -116,3 +116,23 @@ export function safeErrorResponse(error, context = {}, fallbackStatus = 500, cor
     headers: { 'Content-Type': 'application/json', ...corsHeaders },
   })
 }
+
+// ── Helper per endpoint Node Vercel (req,res-style) ─────────────────────────
+// jsonOk/jsonError sono shortcut per non ripetere setHeader + status + json.
+// safeLog è un wrapper console.log con prefisso strutturato (Vercel Logs lo
+// vede come JSON-on-line se ctx è serializzabile).
+
+export function jsonOk(res, body, status = 200) {
+  res.setHeader('Content-Type', 'application/json')
+  return res.status(status).json(body)
+}
+
+export function jsonError(res, status, code, message) {
+  res.setHeader('Content-Type', 'application/json')
+  return res.status(status).json({ error: code, ...(message ? { message } : {}) })
+}
+
+export function safeLog(event, ctx = {}) {
+  try { console.log('[' + event + ']', JSON.stringify(ctx)) }
+  catch { console.log('[' + event + ']') }
+}
