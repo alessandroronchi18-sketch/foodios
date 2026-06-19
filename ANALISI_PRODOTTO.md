@@ -319,7 +319,7 @@ Business / commerciale 35/100   "ready-to-sell+POS"   (era 34 il 17 giu, +1)
 MATURITÀ AZIENDA (blend) ~48/100                       (era ~44 il 17 giu, +4)
 ```
 
-**Test 900/900 verdi** (era 346 a inizio batch 10, +554 totali). Line coverage 37% → 76% (+39 pts) via @vitest/coverage-v8.
+**Test 1054/1054 verdi** (era 346, +708 totali). Line coverage 37% → 94% (+57 pts) via @vitest/coverage-v8. CI threshold lines:90/functions:90.
 **Build prod 1.8MB gzip (no regressions).** Working tree clean.
 
 ### Categorie low-score post-lift (batch 10)
@@ -329,7 +329,7 @@ MATURITÀ AZIENDA (blend) ~48/100                       (era ~44 il 17 giu, +4)
 | **Onboarding wizard** | 68 | **82** | +14 | Demo data 1-click + checklist Primi passi |
 | **Sprechi/Omaggi** | 70 | **82** | +12 | CAUSALI ASL + banner soglia % |
 | **DevOps/CI** | 72 | **84** | +12 | Smoke prod + migration-check + branch-protection runbook |
-| **Test coverage** | 73 | **92** | +19 | **900/900 test (era 346 a inizio batch 10, +554 totali). Line coverage 37% → 76% via @vitest/coverage-v8.** 23 nuovi test file: safeFetch, originGuard, exportGuard, costiAziendali, stipendiCalc, aiBudget, stockPF, trasferimenti, venditeB2B helpers, usageTracking, apiFetch, uiKit, inventarioProduzioneExt, parseRicettario, safeError, sdiProvider, fattureInCloud (100%), cors (100%), aiEngine esteso, analizzaFotoAI (100%), importCassa (100%), parseFatturaXML (97%), inventarioImport (94%), pdfExport (89%), confirmModal. CI threshold lines:70 functions:75 statements:70 branches:60. Restano 1%: storage.js (supabase chain mock complesso), auth.js (server-side), exportPDF.js (jsPDF DOM mock pesante) — refactor architetturali, non bugfix |
+| **Test coverage** | 73 | **97** | +24 | **1054/1054 test (era 346, +708 totali). Line coverage 37% → 94%** via @vitest/coverage-v8. 30 nuovi test file + 2 helper (supabaseMock, supabaseAuthMock). Coverage finale 100% lines: aiBudget, fattureInCloud, analizzaFotoAI, importCassa, exportPDF, demoSeed, auth, autocomplete, dateLocal, lessico, multiSediMerge, parseRicettario, uiKit, exportGuard, movimentiSpeciali, stockPF, sepa. 95%+ lines: stipendiCalc, parseFatturaXML, costiAziendali, trasferimenti, inventarioImport, inventarioProduzione, apiFetch, planAccess, safeError, cryptoCompare, storage (98%). CI threshold lines:90 functions:90 statements:85 branches:75. |
 | **Performance** | 76 | **86** | +10 | Paginazione Magazzino/Scadenzario + React.memo |
 | **Osservabilità** | 76 | **86** | +10 | Slack webhook + /api/health diagnostic |
 | HACCP | 64 | 64 | = | **Parcheggiato** (no design partner lo chiede) |
