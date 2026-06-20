@@ -158,6 +158,20 @@ export async function verificaAdmin(req, supabase) {
         }
       }
     }
+    // PROD BYPASS founder-only (audit 2026-06-20):
+    // Accettato regresso security temporaneo: pre-revenue, founder unico admin,
+    // no MFA UI di enrollment ancora costruita. Da rimuovere quando UI pronta.
+    // L'env ADMIN_PROD_MFA_BYPASS contiene email comma-separated che skippano
+    // l'aal2 check anche in prod. Log esplicito nel reason per audit_log.
+    const prodBypassRaw = process.env.ADMIN_PROD_MFA_BYPASS || ''
+    if (prodBypassRaw) {
+      const prodBypass = prodBypassRaw
+        .split(',').map(e => e.toLowerCase().trim()).filter(Boolean)
+      const userEmail = (user.email || '').toLowerCase().trim()
+      if (prodBypass.includes(userEmail)) {
+        return { user, reason: 'ok_mfa_prod_bypass_founder' }
+      }
+    }
     const aalLevel = decodeJwtClaim(token, 'aal')
     if (aalLevel !== 'aal2') {
       // Audit 2026-07-01 HIGH: distinguere "exception (transient)" da "factors
