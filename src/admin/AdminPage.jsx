@@ -1024,6 +1024,64 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                   </div>
                 )}
               </div>
+
+              {/* Audit 2026-06-19 Customer 360 write: liste con revoca per
+                  integrazioni attive + dispositivi push. Solo se count > 0. */}
+              {c360.integrazioni && c360.integrazioni.items?.filter(i => i.attiva).length > 0 && (
+                <div style={{ marginTop: 10, padding: 10, background: COLORS.bg || '#FAFAFA', border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
+                    Integrazioni attive — clic su × per revocare
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {c360.integrazioni.items.filter(i => i.attiva).map(i => (
+                      <span key={i.id} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600,
+                        background: COLORS.blueBg, color: COLORS.blue,
+                        border: `1px solid ${COLORS.blue}`,
+                      }}>
+                        {i.tipo}
+                        {i.ultimo_sync && <span style={{ fontSize: 9, opacity: 0.7 }}>· {new Date(i.ultimo_sync).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>}
+                        <button
+                          onClick={() => onAzione('integrazione_disattiva', { integrazione_id: i.id, tipo: i.tipo })}
+                          title={`Revoca integrazione ${i.tipo}`}
+                          style={{
+                            background: 'transparent', border: 'none', cursor: 'pointer',
+                            color: COLORS.blue, padding: '0 4px', fontSize: 14, lineHeight: 1, opacity: 0.7,
+                          }}
+                        >×</button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {c360.push && c360.push.devices?.length > 0 && (
+                <div style={{ marginTop: 10, padding: 10, background: COLORS.bg || '#FAFAFA', border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
+                    Dispositivi push sottoscritti — clic su × per revocare
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {c360.push.devices.map(d => (
+                      <span key={d.id} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '3px 4px 3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600,
+                        background: COLORS.rowAlt, color: COLORS.text,
+                        border: `1px solid ${COLORS.border}`,
+                      }} title={d.ua_short || ''}>
+                        {d.label || 'tablet senza nome'}
+                        <button
+                          onClick={() => onAzione('push_sub_revoca', { sub_id: d.id, label: d.label || 'dispositivo' })}
+                          title="Revoca dispositivo"
+                          style={{
+                            background: 'transparent', border: 'none', cursor: 'pointer',
+                            color: COLORS.textMute, padding: '0 4px', fontSize: 14, lineHeight: 1, opacity: 0.7,
+                          }}
+                        >×</button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
@@ -1161,6 +1219,8 @@ export default function AdminPage() {
   // Filtri / ordinamento
   const [search, setSearch] = useState('')
   const [filtroStato, setFiltroStato] = useState('tutti')
+  // Audit 2026-06-19 Customer 360 filtri: solo clienti con condizione attiva.
+  const [filtroFlag, setFiltroFlag] = useState('tutti')  // tutti | scadute | integrazioni | push
   const [filtroTipo, setFiltroTipo] = useState('tutti')
   const [sortBy, setSortBy] = useState('registrata_il')
   const [sortDir, setSortDir] = useState('desc')
@@ -1387,6 +1447,51 @@ export default function AdminPage() {
     }
   }, [apiCall])
 
+  // Audit 2026-06-19 Customer 360: email domain blocklist
+  const [blocklist, setBlocklist] = useState([])
+  const [blocklistLoading, setBlocklistLoading] = useState(false)
+  const [nuovoBlocco, setNuovoBlocco] = useState({ domain: '', motivo: '' })
+  const fetchBlocklist = useCallback(async () => {
+    setBlocklistLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=email_blocklist')
+      const data = await res.json()
+      setBlocklist(data.blocklist || [])
+    } catch (err) {
+      console.error('blocklist:', err.message)
+    } finally {
+      setBlocklistLoading(false)
+    }
+  }, [apiCall])
+  const aggiungiBlocco = useCallback(async () => {
+    const d = (nuovoBlocco.domain || '').trim().toLowerCase()
+    if (!d) { toast.error('Inserisci un dominio (es. mailinator.com)'); return }
+    try {
+      await apiCall('/api/admin', {
+        method: 'POST',
+        body: JSON.stringify({ tipo: 'email_blocklist_aggiungi', domain: d, motivo: nuovoBlocco.motivo }),
+      })
+      setNuovoBlocco({ domain: '', motivo: '' })
+      await fetchBlocklist()
+      toast.success(`Dominio ${d} bloccato`)
+    } catch (e) {
+      toast.error('Errore: ' + e.message)
+    }
+  }, [nuovoBlocco, apiCall, fetchBlocklist, toast])
+  const rimuoviBlocco = useCallback(async (domain) => {
+    if (!confirm(`Sbloccare il dominio ${domain}?\nGli utenti con email @${domain} potranno tornare a registrarsi.`)) return
+    try {
+      await apiCall('/api/admin', {
+        method: 'POST',
+        body: JSON.stringify({ tipo: 'email_blocklist_rimuovi', domain }),
+      })
+      await fetchBlocklist()
+      toast.success(`Dominio ${domain} sbloccato`)
+    } catch (e) {
+      toast.error('Errore: ' + e.message)
+    }
+  }, [apiCall, fetchBlocklist, toast])
+
   // Tier 2 fetches: Stripe MRR + events + errori produzione
   const fetchStripeMrr = useCallback(async () => {
     setStripeMrrLoading(true)
@@ -1428,8 +1533,8 @@ export default function AdminPage() {
     }
   }, [apiCall])
 
-  useEffect(() => { fetchData(); fetchAudit(); fetchCodici(); fetchPricing(); fetchBanners() },
-    [fetchData, fetchAudit, fetchCodici, fetchPricing, fetchBanners])
+  useEffect(() => { fetchData(); fetchAudit(); fetchCodici(); fetchPricing(); fetchBanners(); fetchBlocklist() },
+    [fetchData, fetchAudit, fetchCodici, fetchPricing, fetchBanners, fetchBlocklist])
   useEffect(() => { fetchFeedback() }, [fetchFeedback])
   // Stripe MRR + events: caricamento on-demand (1 sola volta all'apertura
   // pannello, refresh manuale). Stripe API ha rate limit 100/s ma chiamate
@@ -1719,6 +1824,10 @@ export default function AdminPage() {
       }
       if (filtroTipo !== 'tutti' && c.tipo !== filtroTipo) return false
       if (filtroStato !== 'tutti' && statoCliente(c) !== filtroStato) return false
+      // Audit 2026-06-19 Customer 360 flag filter
+      if (filtroFlag === 'scadute' && !(c.n_fatture_scadute > 0)) return false
+      if (filtroFlag === 'integrazioni' && !(c.n_integrazioni_attive > 0)) return false
+      if (filtroFlag === 'push' && !(c.n_push_subs > 0)) return false
       return true
     })
 
@@ -1737,7 +1846,7 @@ export default function AdminPage() {
       return 0
     })
     return out
-  }, [clienti, search, filtroStato, filtroTipo, sortBy, sortDir])
+  }, [clienti, search, filtroStato, filtroTipo, filtroFlag, sortBy, sortDir])
 
   // ── Metriche avanzate ────────────────────────────────────────────────
   const metricheAvanzate = useMemo(() => {
@@ -1993,6 +2102,80 @@ export default function AdminPage() {
           )}
         </Card>
 
+        {/* ── Customer 360 globale (Audit 2026-06-19): KPI cross-org ─ */}
+        {stats?.customer360 && (() => {
+          const c360 = stats.customer360
+          const i = c360.integrazioni || {}
+          const b = c360.b2b || {}
+          const p = c360.pos || {}
+          const pu = c360.push || {}
+          const s = c360.scadenzario || {}
+          return (
+            <Card style={{ padding: 16, marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
+                  <Icon name="layers" size={14} /> Moduli &amp; operazioni (cross-cliente)
+                </h3>
+                <span style={{ fontSize: 11, color: COLORS.textMute }}>Mese in corso</span>
+              </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isAdminNarrow ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
+                gap: 10,
+              }}>
+                <div style={{ padding: '10px 12px', background: COLORS.blueBg, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                    <Icon name="integ" size={10} /> Integrazioni
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.blue }}>{i.n_attive_totali ?? 0}</div>
+                  <div style={{ fontSize: 10, color: COLORS.blue, opacity: 0.85 }}>
+                    su {i.n_clienti ?? 0} clienti
+                    {i.top_tipi?.length > 0 && ` · top: ${i.top_tipi.slice(0, 2).map(t => t.tipo).join(', ')}`}
+                  </div>
+                </div>
+                <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                    <Icon name="building" size={10} /> B2B (mese)
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro(b.ricavo_mtd || 0)}</div>
+                  <div style={{ fontSize: 10, color: COLORS.ok, opacity: 0.85 }}>
+                    {b.n_vendite_mtd ?? 0} vendite · {b.n_clienti_attivi_mtd ?? 0} clienti
+                  </div>
+                </div>
+                <div style={{ padding: '10px 12px', background: COLORS.okBg, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.ok, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                    <Icon name="creditCard" size={10} /> POS (mese)
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.ok }}>{fmtEuro(p.ricavo_mtd || 0)}</div>
+                  <div style={{ fontSize: 10, color: COLORS.ok, opacity: 0.85 }}>
+                    {p.n_scontrini_mtd ?? 0} scontrini · {p.n_clienti_attivi_mtd ?? 0} clienti
+                  </div>
+                </div>
+                <div style={{ padding: '10px 12px', background: COLORS.blueBg, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.blue, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                    <Icon name="bell" size={10} /> Push subs
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: COLORS.blue }}>{pu.n_dispositivi ?? 0}</div>
+                  <div style={{ fontSize: 10, color: COLORS.blue, opacity: 0.85 }}>
+                    su {pu.n_clienti ?? 0} clienti
+                  </div>
+                </div>
+                <div style={{ padding: '10px 12px', background: (s.n_clienti_overdue || 0) > 0 ? COLORS.errBg : COLORS.blockedBg, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                    <Icon name="warning" size={10} /> Fatture scadute
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked }}>
+                    {s.n_clienti_overdue ?? 0}
+                  </div>
+                  <div style={{ fontSize: 10, color: (s.n_clienti_overdue || 0) > 0 ? COLORS.err : COLORS.blocked, opacity: 0.85 }}>
+                    clienti · {fmtEuro(s.totale_overdue || 0)}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )
+        })()}
+
         {/* ── Azioni rapide ──────────────────────────────────────── */}
         <Card style={{ padding: 16, marginBottom: 20 }}>
           <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 800 }}><Icon name="bolt" size={14} /> Azioni rapide</h3>
@@ -2058,6 +2241,17 @@ export default function AdminPage() {
             >
               <option value="tutti">Tutti i tipi</option>
               {tipiDisponibili.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            {/* Audit 2026-06-19 Customer 360: filtri rapidi flag */}
+            <select
+              value={filtroFlag} onChange={e => setFiltroFlag(e.target.value)}
+              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}
+              title="Filtra per condizioni Customer 360"
+            >
+              <option value="tutti">Tutti (no filtro 360)</option>
+              <option value="scadute">Solo con fatture scadute</option>
+              <option value="integrazioni">Solo con integrazioni attive</option>
+              <option value="push">Solo con push subscribed</option>
             </select>
           </div>
 
@@ -2721,6 +2915,83 @@ export default function AdminPage() {
           )}
         </Card>
 
+        {/* ── Email domain blocklist (Audit 2026-06-19) ─────────────── */}
+        <Card style={{ marginBottom: 30, overflow: 'hidden' }}>
+          <div style={{
+            padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`,
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          }}>
+            <strong style={{ fontSize: 14 }}>
+              <Icon name="lock" size={14} /> Blocklist domini email
+            </strong>
+            <span style={{ fontSize: 12, color: COLORS.textMute }}>
+              {blocklist.length} domini bloccati
+            </span>
+            <div style={{ flex: 1 }} />
+            <Btn kind="neutral" size="sm" onClick={fetchBlocklist} disabled={blocklistLoading}>
+              {blocklistLoading ? '…' : <Icon name="refresh" size={14} />}
+            </Btn>
+          </div>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.rowAlt }}>
+            <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 8 }}>
+              Aggiungi un dominio (es. <code>mailinator.com</code>, <code>tempmail.io</code>): chi prova
+              a registrarsi con un'email @dominio verrà respinto al signup. Il check è in
+              <code> handle_new_user</code> trigger Supabase, fail-open su errori.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                value={nuovoBlocco.domain}
+                onChange={e => setNuovoBlocco({ ...nuovoBlocco, domain: e.target.value })}
+                placeholder="dominio.com"
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, minWidth: 200 }}
+              />
+              <input
+                value={nuovoBlocco.motivo}
+                onChange={e => setNuovoBlocco({ ...nuovoBlocco, motivo: e.target.value })}
+                placeholder="Motivo (opzionale, es. 'email temporanea')"
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, flex: 1, minWidth: 200 }}
+              />
+              <Btn kind="danger" size="sm" onClick={aggiungiBlocco}>
+                <Icon name="plus" size={13} /> Blocca
+              </Btn>
+            </div>
+          </div>
+          {blocklist.length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              Nessun dominio bloccato. La blocklist è vuota.
+            </div>
+          ) : (
+            <table style={{ width: '100%', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
+                  <th style={th()}>Dominio</th>
+                  <th style={th()}>Motivo</th>
+                  <th style={th()}>Aggiunto da</th>
+                  <th style={th()}>Quando</th>
+                  <th style={th()}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {blocklist.map(b => (
+                  <tr key={b.domain} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <td style={{ ...td(), fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, color: COLORS.err }}>
+                      @{b.domain}
+                    </td>
+                    <td style={td()}>{b.motivo || <span style={{ color: COLORS.textMute }}>—</span>}</td>
+                    <td style={{ ...td(), color: COLORS.textMute }}>{b.created_by || '—'}</td>
+                    <td style={{ ...td(), color: COLORS.textMute }}>{fmtDataOra(b.created_at)}</td>
+                    <td style={{ ...td(), textAlign: 'right' }}>
+                      <Btn kind="ghost" size="sm" onClick={() => rimuoviBlocco(b.domain)} title="Sblocca">
+                        <Icon name="x" size={13} />
+                      </Btn>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+
         </>)}
 
         {adminTab === 'security' && (<>
@@ -3314,8 +3585,31 @@ export default function AdminPage() {
           dettaglio={dettaglio}
           loading={dettaglioLoading}
           onClose={() => { setDettaglioFor(null); setDettaglio(null) }}
-          onAzione={tipo => {
+          onAzione={async (tipo, payload) => {
             const c = dettaglioFor
+            // Audit 2026-06-19: write actions Customer 360 → restano nel modal
+            // e fanno reload del dettaglio (UI aggiornata in-place).
+            if (tipo === 'integrazione_disattiva') {
+              if (!confirm(`Revocare integrazione "${payload?.tipo || ''}" per ${c.nome_attivita}?\nIl cliente smette di sincronizzare dati con quella terza parte.`)) return
+              try {
+                await azione(c.org_id, 'integrazione_disattiva', { integrazione_id: payload.integrazione_id })
+                const fresh = await apiCall(`/api/admin?action=cliente_dettaglio&org_id=${c.org_id}`)
+                setDettaglio(await fresh.json())
+                toast.success(`Integrazione ${payload.tipo} revocata`)
+              } catch { /* azione() ha gia notificato */ }
+              return
+            }
+            if (tipo === 'push_sub_revoca') {
+              if (!confirm(`Revocare dispositivo "${payload?.label || 'tablet'}" per ${c.nome_attivita}?\nNon riceverà più notifiche push.`)) return
+              try {
+                await azione(c.org_id, 'push_sub_revoca', { sub_id: payload.sub_id })
+                const fresh = await apiCall(`/api/admin?action=cliente_dettaglio&org_id=${c.org_id}`)
+                setDettaglio(await fresh.json())
+                toast.success(`Dispositivo ${payload.label || ''} revocato`)
+              } catch { /* azione() ha gia notificato */ }
+              return
+            }
+            // Azioni "legacy": chiudono il modal e aprono il flow dedicato
             setDettaglioFor(null); setDettaglio(null)
             if (tipo === 'impersona') handleImpersona(c)
             else if (tipo === 'email') setEmailFor(c)

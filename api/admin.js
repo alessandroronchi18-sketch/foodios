@@ -67,11 +67,31 @@ async function logAdmin(supabase, adminEmail, azione, orgId, ip, userAgent) {
 // ─── handlers GET ──────────────────────────────────────────────────────────
 
 async function getClienti(supabase) {
-  const [overviewRes, usersRes] = await Promise.all([
+  // Audit 2026-06-19 Customer 360 lista: arricchiamo ogni riga con flag
+  // ha_fatture_scadute, n_integrazioni_attive, n_push_subs in modo che la
+  // tabella clienti possa filtrare/badge senza un round-trip per riga.
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const [overviewRes, usersRes, integR, pushR, scadR] = await Promise.all([
     supabase.from('admin_overview').select('*').order('registrata_il', { ascending: false }),
     supabase.auth.admin.listUsers({ perPage: 1000 }),
+    fetchSafe(supabase.from('integrazioni').select('organization_id').eq('attiva', true)),
+    fetchSafe(supabase.from('push_subscriptions').select('organization_id').eq('active', true)),
+    fetchSafe(supabase.from('fatture').select('organization_id, importo, importo_pagato, tipo')
+      .lt('data_scadenza', todayIso).or('tipo.is.null,tipo.eq.fattura')),
   ])
   if (overviewRes.error) throw new Error(`admin_overview: ${overviewRes.error.message}`)
+
+  // Aggregazione single-pass O(N) sugli array piatti dei 3 join
+  const integByOrg = {}
+  for (const r of (integR.data || [])) integByOrg[r.organization_id] = (integByOrg[r.organization_id] || 0) + 1
+  const pushByOrg = {}
+  for (const r of (pushR.data || [])) pushByOrg[r.organization_id] = (pushByOrg[r.organization_id] || 0) + 1
+  const scadByOrg = {}
+  for (const r of (scadR.data || [])) {
+    if (r.tipo && r.tipo !== 'fattura') continue
+    const residuo = (Number(r.importo) || 0) - (Number(r.importo_pagato) || 0)
+    if (residuo > 0.01) scadByOrg[r.organization_id] = (scadByOrg[r.organization_id] || 0) + 1
+  }
 
   const authMap = {}
   for (const u of usersRes.data?.users || []) {
@@ -88,8 +108,108 @@ async function getClienti(supabase) {
       ...c,
       ultimo_accesso: meta.last_sign_in_at || c.ultimo_accesso || null,
       email_confermata: !!meta.email_confirmed_at,
+      n_integrazioni_attive: integByOrg[c.org_id] || 0,
+      n_push_subs: pushByOrg[c.org_id] || 0,
+      n_fatture_scadute: scadByOrg[c.org_id] || 0,
     }
   })
+}
+
+// Audit 2026-06-19 Customer 360 globale: aggrega gli stessi 7 moduli del
+// modal cliente ma a livello cross-org per il tab Overview. Tutte le query
+// in parallelo, errori swallow → ogni area torna 0 se la tabella manca.
+async function getGlobalCustomer360(supabase) {
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0)
+  const isoMonthDate = startOfMonth.toISOString().slice(0, 10)
+  const todayIso = new Date().toISOString().slice(0, 10)
+
+  const [
+    integR, b2bR, posR, pushR, scadR,
+  ] = await Promise.all([
+    fetchSafe(supabase.from('integrazioni').select('organization_id, tipo, attiva').eq('attiva', true)),
+    fetchSafe(supabase.from('vendite_b2b').select('organization_id, totale').gte('data', isoMonthDate)),
+    fetchSafe(supabase.from('pos_scontrini').select('organization_id, totale_lordo, provider').gte('data', isoMonthDate)),
+    fetchSafe(supabase.from('push_subscriptions').select('organization_id, id').eq('active', true)),
+    fetchSafe(supabase.from('fatture').select('organization_id, importo, importo_pagato, tipo')
+      .lt('data_scadenza', todayIso).or('tipo.is.null,tipo.eq.fattura')),
+  ])
+
+  // Integrazioni: top tipi per # clienti
+  const integByTipo = {}
+  const integClienti = new Set()
+  for (const r of (integR.data || [])) {
+    integClienti.add(r.organization_id)
+    integByTipo[r.tipo] = (integByTipo[r.tipo] || 0) + 1
+  }
+  const topTipi = Object.entries(integByTipo)
+    .map(([tipo, n]) => ({ tipo, n }))
+    .sort((a, b) => b.n - a.n).slice(0, 5)
+
+  // B2B: ricavo totale MTD + clienti attivi
+  const b2bClienti = new Set()
+  let b2bRicavo = 0
+  for (const r of (b2bR.data || [])) {
+    b2bClienti.add(r.organization_id)
+    b2bRicavo += Number(r.totale) || 0
+  }
+
+  // POS: ricavo totale MTD + clienti attivi + provider distinti
+  const posClienti = new Set()
+  const posProviders = new Set()
+  let posRicavo = 0
+  for (const r of (posR.data || [])) {
+    posClienti.add(r.organization_id)
+    if (r.provider) posProviders.add(r.provider)
+    posRicavo += Number(r.totale_lordo) || 0
+  }
+
+  // Push: dispositivi + clienti
+  const pushClienti = new Set()
+  for (const r of (pushR.data || [])) pushClienti.add(r.organization_id)
+
+  // Scadenzario: clienti con almeno 1 fattura scaduta non pagata
+  const scadClienti = new Set()
+  let scadTot = 0
+  let scadN = 0
+  for (const r of (scadR.data || [])) {
+    const tot = Number(r.importo) || 0
+    const pag = Number(r.importo_pagato) || 0
+    const residuo = tot - pag
+    if (residuo > 0.01) {
+      scadClienti.add(r.organization_id)
+      scadTot += residuo
+      scadN++
+    }
+  }
+
+  return {
+    integrazioni: {
+      n_clienti: integClienti.size,
+      n_attive_totali: (integR.data || []).length,
+      top_tipi: topTipi,
+    },
+    b2b: {
+      n_clienti_attivi_mtd: b2bClienti.size,
+      ricavo_mtd: Math.round(b2bRicavo * 100) / 100,
+      n_vendite_mtd: (b2bR.data || []).length,
+    },
+    pos: {
+      n_clienti_attivi_mtd: posClienti.size,
+      ricavo_mtd: Math.round(posRicavo * 100) / 100,
+      n_scontrini_mtd: (posR.data || []).length,
+      providers: Array.from(posProviders),
+    },
+    push: {
+      n_dispositivi: (pushR.data || []).length,
+      n_clienti: pushClienti.size,
+    },
+    scadenzario: {
+      n_clienti_overdue: scadClienti.size,
+      n_fatture_overdue: scadN,
+      totale_overdue: Math.round(scadTot * 100) / 100,
+    },
+  }
 }
 
 async function getStats(supabase, clienti) {
@@ -142,11 +262,16 @@ async function getStats(supabase, clienti) {
     })
   }
 
+  // Audit 2026-06-19 Customer 360 globale: include cross-org KPI accanto
+  // agli altri stats (no nuova action richiesta lato client).
+  const c360 = await getGlobalCustomer360(supabase)
+
   return {
     totale, paganti, trial, scaduti, bloccati,
     nuoviSettimana, nuoviMese,
     mrrStimato, giorniMediTrial, conversionRate, inattivi,
     crescita: settimane,
+    customer360: c360,
   }
 }
 
@@ -436,6 +561,79 @@ async function getClienteDettaglio(supabase, orgId) {
     costi: customer360?.costi || null,
     stipendi: customer360?.stipendi || null,
   }
+}
+
+// ─── Email domain blocklist (Audit 2026-06-19) ───────────────────────────
+// L'admin può bannare interi domini email dal signup. Il check è in
+// handle_new_user (vedi migration 20260703).
+async function getEmailBlocklist(supabase) {
+  const { data, error } = await supabase
+    .from('email_domain_blocklist')
+    .select('domain, motivo, created_by, created_at')
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
+async function azEmailBlocklistAggiungi(supabase, domain, motivo, addedBy) {
+  const d = (domain || '').toLowerCase().trim()
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(d)) throw new Error('Dominio non valido (formato atteso: esempio.com)')
+  if (d.length > 100) throw new Error('Dominio troppo lungo')
+  const { error } = await supabase
+    .from('email_domain_blocklist')
+    .upsert({ domain: d, motivo: (motivo || '').slice(0, 200) || null, created_by: addedBy || null })
+  if (error) throw new Error(error.message)
+}
+
+async function azEmailBlocklistRimuovi(supabase, domain) {
+  const d = (domain || '').toLowerCase().trim()
+  if (!d) throw new Error('Dominio obbligatorio')
+  const { error } = await supabase
+    .from('email_domain_blocklist')
+    .delete()
+    .eq('domain', d)
+  if (error) throw new Error(error.message)
+}
+
+// ─── Audit 2026-06-19 Customer 360 write actions ─────────────────────────
+// Revoca integrazione di un cliente (set attiva=false). Idempotente: se la
+// row non esiste o è già inattiva, no-op. Org-scoped per evitare cross-tenant.
+async function azIntegrazioneDisattiva(supabase, orgId, integrazioneId) {
+  if (!orgId || !integrazioneId) throw new Error('org_id e integrazione_id obbligatori')
+  // Sicurezza: verifica che la row appartenga realmente all'org indicata
+  // (defense-in-depth contro forged integrazione_id).
+  const { data: row, error: e1 } = await supabase
+    .from('integrazioni')
+    .select('id, organization_id')
+    .eq('id', integrazioneId)
+    .eq('organization_id', orgId)
+    .maybeSingle()
+  if (e1) throw new Error(e1.message)
+  if (!row) throw new Error('Integrazione non trovata per questa organizzazione')
+  const { error: e2 } = await supabase
+    .from('integrazioni')
+    .update({ attiva: false })
+    .eq('id', integrazioneId)
+  if (e2) throw new Error(e2.message)
+}
+
+// Revoca un dispositivo push (set active=false). Stesso pattern: org-scoped.
+// Il prossimo invio /api/push-send vedrà active=false e salterà il device.
+async function azPushSubRevoca(supabase, orgId, subId) {
+  if (!orgId || !subId) throw new Error('org_id e sub_id obbligatori')
+  const { data: row, error: e1 } = await supabase
+    .from('push_subscriptions')
+    .select('id, organization_id')
+    .eq('id', subId)
+    .eq('organization_id', orgId)
+    .maybeSingle()
+  if (e1) throw new Error(e1.message)
+  if (!row) throw new Error('Sottoscrizione push non trovata per questa organizzazione')
+  const { error: e2 } = await supabase
+    .from('push_subscriptions')
+    .update({ active: false })
+    .eq('id', subId)
+  if (e2) throw new Error(e2.message)
 }
 
 // ─── Note CRM admin ──────────────────────────────────────────────────────
@@ -1825,6 +2023,11 @@ export default async function handler(req) {
         return json({ banners: list }, 200, req)
       }
 
+      if (action === 'email_blocklist') {
+        const list = await getEmailBlocklist(supabase)
+        return json({ blocklist: list }, 200, req)
+      }
+
       if (action === 'stripe_mrr') {
         // Stripe puo' non essere configurato (pre-revenue) o avere errori di
         // chiamata. Ritorniamo un payload "unavailable" parlante invece di un
@@ -2146,6 +2349,15 @@ export default async function handler(req) {
           await azBannerDisattiva(supabase, sanitizeStrict(body.id || '', 36)); break
         case 'banner_elimina':
           await azBannerElimina(supabase, sanitizeStrict(body.id || '', 36)); break
+        // Audit 2026-06-19 Customer 360 write: revoca integrazione + push sub.
+        case 'integrazione_disattiva':
+          await azIntegrazioneDisattiva(supabase, orgId, sanitizeStrict(body.integrazione_id || '', 36)); break
+        case 'push_sub_revoca':
+          await azPushSubRevoca(supabase, orgId, sanitizeStrict(body.sub_id || '', 36)); break
+        case 'email_blocklist_aggiungi':
+          await azEmailBlocklistAggiungi(supabase, body.domain, body.motivo, user.email); break
+        case 'email_blocklist_rimuovi':
+          await azEmailBlocklistRimuovi(supabase, body.domain); break
         default:
           return json({ error: 'Azione non riconosciuta' }, 400, req)
       }
