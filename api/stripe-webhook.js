@@ -252,8 +252,42 @@ export default async function handler(req, res) {
             // ripetersi finche' qualcuno non interviene manualmente.
             await supabase.from('organizations').update(patch).eq('id', orgByCustomer.id)
             return res.status(500).json({ error: 'metadata_mismatch — admin alert' })
-          } else {
+          } else if (orgByCustomer) {
             await supabase.from('organizations').update(patch).eq('id', orgId)
+          } else {
+            // Audit 2026-06-19 HIGH: customer non ancora collegato a NESSUNA org →
+            // metadata.organization_id non è verificato dal pagamento. Prima di
+            // accettare, controlliamo che l'org bersaglio non abbia GIÀ un altro
+            // stripe_customer_id (in tal caso è takeover). Se ok, accettiamo e
+            // legiamo il customer (lock-in: prossime sub mismatch saranno bloccate
+            // dal ramo cross-check sopra).
+            const { data: targetOrg } = await supabase
+              .from('organizations')
+              .select('id, stripe_customer_id')
+              .eq('id', orgId)
+              .maybeSingle()
+            if (!targetOrg) {
+              await supabase.from('error_log').insert({
+                endpoint: 'stripe-webhook',
+                operation: 'metadata_unknown_org',
+                code: 'STRIPE_UNKNOWN_ORG',
+                message: `sub ${sub.id}: metadata.organization_id=${orgId} non esiste`,
+              }).catch(() => {})
+              return res.status(500).json({ error: 'unknown_org' })
+            }
+            if (targetOrg.stripe_customer_id && targetOrg.stripe_customer_id !== sub.customer) {
+              await supabase.from('error_log').insert({
+                endpoint: 'stripe-webhook',
+                operation: 'customer_takeover',
+                code: 'STRIPE_CUSTOMER_TAKEOVER',
+                message: `sub ${sub.id}: tentato collegamento customer ${sub.customer} a org ${orgId} che ha già customer ${targetOrg.stripe_customer_id}`,
+                org_id: orgId,
+              }).catch(() => {})
+              return res.status(500).json({ error: 'customer_takeover — admin alert' })
+            }
+            await supabase.from('organizations')
+              .update({ ...patch, stripe_customer_id: sub.customer })
+              .eq('id', orgId)
           }
         } else {
           // Fallback: trova org via customer_id (no metadata setto da checkout)

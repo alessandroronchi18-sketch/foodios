@@ -256,7 +256,15 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     if (!r.ok) throw new Error(`Errore servizio AI (${r.status}). Riprova fra qualche istante.`)
     const d = await r.json()
     const text = d.content?.find(b => b.type === 'text')?.text || '{}'
-    const obj = JSON.parse(text.replace(/```json|```/g, '').trim())
+    // L'AI può restituire JSON malformato (markdown extra, troncamento, ecc.):
+    // intercettiamo il parse error per evitare crash silenzioso dell'analisi
+    // scontrino. Audit 2026-06-19 HIGH.
+    let obj
+    try {
+      obj = JSON.parse(text.replace(/```json|```/g, '').trim())
+    } catch {
+      throw new Error('Risposta AI non in formato JSON — riprova fra qualche istante.')
+    }
 
     // Validazione lato client: filtra prodotti senza prezzo / qta valida e
     // sposta gli incerti dichiarati dall'AI + quelli che non passano le

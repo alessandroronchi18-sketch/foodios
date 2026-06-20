@@ -140,7 +140,14 @@ Instructions:
     const stripped = raw.replace(/```json\n?|```/g, '').trim()
     const match = stripped.match(/\{[\s\S]*\}/)
     if (!match) throw new Error('Risposta AI non in formato JSON — riprova')
-    return JSON.parse(match[0])
+    // Audit 2026-06-19 HIGH: JSON.parse fallisce se il match include solo l'apertura
+    // di un oggetto annidato (regex greedy può catturare brace sbilanciate). Throw
+    // user-friendly invece di crash silenzioso.
+    try {
+      return JSON.parse(match[0])
+    } catch {
+      throw new Error('Risposta AI con JSON non valido — riprova fra qualche istante.')
+    }
   }
 
   const handleAnalizza = () => {

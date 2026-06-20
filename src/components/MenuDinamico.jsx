@@ -583,12 +583,24 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
   }, [orgId, sedeId])
 
   // Persisti il menù quando cambia la selezione (dopo il load iniziale).
+  // Audit 2026-06-19 MED: debounce 500ms + sequence number per evitare race su
+  // selezioni rapide (10 click ravvicinati → 10 ssave in volo → out-of-order
+  // responses possono lasciare il DB con uno stato intermedio invece dell'ultimo).
+  const saveSeq = useRef(0)
   useEffect(() => {
     if (!loaded || !orgId) return
     if (skipNextSave.current) { skipNextSave.current = false; return }
-    ssave(SK_MENU, menuItems, orgId, sedeId)
-      .then(() => setErrSave(false))
-      .catch(e => { console.error('menu save failed', e); setErrSave(true) })
+    const mySeq = ++saveSeq.current
+    const snapshot = menuItems
+    const t = setTimeout(() => {
+      ssave(SK_MENU, snapshot, orgId, sedeId)
+        .then(() => { if (mySeq === saveSeq.current) setErrSave(false) })
+        .catch(e => {
+          console.error('menu save failed', e)
+          if (mySeq === saveSeq.current) setErrSave(true)
+        })
+    }, 500)
+    return () => clearTimeout(t)
   }, [menuItems, loaded, orgId, sedeId])
 
   const TABS = [

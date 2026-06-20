@@ -37,7 +37,11 @@ async function verifyTwilioSignature(req, rawBody) {
   // Se TWILIO_AUTH_TOKEN non e' settato, il bot non e' ancora live.
   // In quel caso accettiamo le richieste solo se header x-foodios-allow-test
   // matchea CRON_SECRET (testing manuale ammin).
+  // Audit 2026-06-19 MED: il bypass deve essere disponibile SOLO in non-prod
+  // (CRON_SECRET è condiviso con altri cron → exposure più ampia). Su Vercel
+  // production il webhook deve avere TWILIO_AUTH_TOKEN configurato.
   if (!token) {
+    if (process.env.VERCEL_ENV === 'production') return false
     const test = req.headers.get('x-foodios-allow-test')
     return !!(test && test === process.env.CRON_SECRET)
   }

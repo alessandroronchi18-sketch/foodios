@@ -1420,8 +1420,17 @@ function AccessiTab({ orgId, notify, isMobile }) {
       supabase.rpc('fos_dipendente_pin_status'),
     ])
     setMeId(user?.id || null)
-    setDipendenti(dip.data || [])
-    setInviti(inv.data || [])
+    // Audit 2026-06-19 HIGH: precedentemente le RPC che ritornavano error venivano
+    // ignorate → lista dipendenti vuota silenziosa, nessuna notifica utente.
+    // Ora notify esplicito sui due RPC critici (dip + inviti). pinRes resta soft.
+    if (dip?.error) {
+      notify?.('Impossibile caricare la lista dipendenti: ' + (dip.error.message || 'errore RPC'), false)
+    }
+    if (inv?.error) {
+      notify?.('Impossibile caricare gli inviti pendenti: ' + (inv.error.message || 'errore DB'), false)
+    }
+    setDipendenti(dip?.data || [])
+    setInviti(inv?.data || [])
     // Mappa pinStatuses → { user_id: { has_pin, pin_set_at } }
     const map = {}
     for (const r of (pinRes?.data || [])) {
