@@ -2358,6 +2358,20 @@ export default async function handler(req) {
           await azEmailBlocklistAggiungi(supabase, body.domain, body.motivo, user.email); break
         case 'email_blocklist_rimuovi':
           await azEmailBlocklistRimuovi(supabase, body.domain); break
+        case 'seed_demo_full': {
+          // Audit 2026-06-20: popola org di test con 3 mesi di dati realistici
+          // (ricettario 15, magazzino 30, chiusure 90gg, produzione, sprechi,
+          // fornitori 6, fatture 18, dipendenti 5, turni 12 settimane, clienti
+          // B2B 4, vendite B2B 24, costi aziendali 8). Idempotente: cleanup
+          // [Demo data] precedenti prima di reinsert.
+          if (!orgId) throw new Error('org_id richiesto')
+          const { data: sede } = await supabase.from('sedi')
+            .select('id').eq('organization_id', orgId).limit(1).maybeSingle()
+          const sedeId = sede?.id || null
+          const { seedDemoDataFull } = await import('../src/lib/demoSeedFull.js')
+          result = await seedDemoDataFull({ orgId, sedeId, supabase })
+          break
+        }
         default:
           return json({ error: 'Azione non riconosciuta' }, 400, req)
       }

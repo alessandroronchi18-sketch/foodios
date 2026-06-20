@@ -869,6 +869,10 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         <Btn kind="neutral" size="sm" onClick={() => onAzione('email')}><Icon name="mail" size={13} /> Email</Btn>
         <Btn kind="success" size="sm" onClick={() => onAzione('regala')}><Icon name="gift" size={13} /> Regala mesi</Btn>
         <Btn kind="neutral" size="sm" onClick={() => onAzione('reset_password')}><Icon name="refresh" size={13} /> Reset password</Btn>
+        {/* Audit 2026-06-20: bottone demo data per test scenari realistici */}
+        <Btn kind="ghost" size="sm" onClick={() => onAzione('seed_demo_full')} title="Popola questa org con 3 mesi di dati demo (ricettario, produzione, cassa, dipendenti, fornitori, B2B, costi)">
+          <Icon name="sparkles" size={13} /> Popola demo data
+        </Btn>
       </div>
 
       {/* Note CRM (autosave 1.5s) */}
@@ -3606,6 +3610,26 @@ export default function AdminPage() {
                 const fresh = await apiCall(`/api/admin?action=cliente_dettaglio&org_id=${c.org_id}`)
                 setDettaglio(await fresh.json())
                 toast.success(`Dispositivo ${payload.label || ''} revocato`)
+              } catch { /* azione() ha gia notificato */ }
+              return
+            }
+            if (tipo === 'seed_demo_full') {
+              // Audit 2026-06-20: popola demo data 3 mesi su org di test.
+              // Idempotente (cleanup [Demo data] precedenti prima di reinsert).
+              const msg = `Popolare "${c.nome_attivita}" con dati demo realistici?\n\n` +
+                `→ 15 ricette · 90gg chiusure cassa · ~140 sessioni produzione\n` +
+                `→ 5 dipendenti + turni 12 settimane\n` +
+                `→ 6 fornitori + 18 fatture · 4 clienti B2B + 24 vendite\n` +
+                `→ 8 costi aziendali · sprechi/omaggi a campione\n\n` +
+                `Operazione IDEMPOTENTE: pulisce le righe demo precedenti.\n` +
+                `Consigliata SOLO su org di test, non su account reali con dati.`
+              if (!confirm(msg)) return
+              try {
+                const data = await azione(c.org_id, 'seed_demo_full', {})
+                const cnt = data?.counts || {}
+                const fresh = await apiCall(`/api/admin?action=cliente_dettaglio&org_id=${c.org_id}`)
+                setDettaglio(await fresh.json())
+                toast.success(`Demo popolato: ${cnt.ricette || 0} ricette · ${cnt.chiusure || 0} chiusure · ${cnt.dipendenti || 0} dip · ${cnt.fatture || 0} fatture · ${cnt.vendite_b2b || 0} vendite B2B · ${cnt.costi_aziendali || 0} costi`)
               } catch { /* azione() ha gia notificato */ }
               return
             }
