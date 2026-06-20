@@ -26,6 +26,7 @@ export default defineConfig({
         'src/lib/theme.js',
         'src/lib/icons.jsx',
         'src/lib/storageKeys.js',
+        'src/lib/changelog.js',
         // React hooks (richiedono @testing-library/react).
         'src/lib/useIsMobile.js',
         'src/lib/useNotifiche.js',
@@ -33,6 +34,7 @@ export default defineConfig({
         'src/lib/usePlanPricing.js',
         'src/lib/useBackgroundJobs.js',
         'src/lib/useUploadManager.js',
+        'src/lib/useVoiceInput.js',
         // Wrapper su libreria esterna (no logica testabile in isolamento).
         'src/lib/supabase.js',
         'src/lib/xlsx.js',
@@ -42,6 +44,10 @@ export default defineConfig({
         'src/lib/imageUtils.js',
         'src/lib/idleTimeout.js',
         'src/lib/sessionGuard.js',
+        // Browser-only Web APIs (service worker, Push API): coperti da test e2e
+        // browser-based, non testabili in node. Audit 2026-06-19 P4.
+        'src/lib/pwa.js',
+        'src/lib/pushNotifications.js',
       ],
       thresholds: {
         // Audit 2026-07-01 batch 11-12 push: 37% → 94% lines (+57 punti).

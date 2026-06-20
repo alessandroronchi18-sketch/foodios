@@ -123,6 +123,35 @@ async function sendBriefEmail({ to, subject, html, replyTo }) {
   })
 }
 
+// Push best-effort: invia il brief come notifica push a TUTTI i dispositivi
+// dell'org (titolare + dipendenti) che hanno fatto subscribe via PWA.
+// Ritorna { sent, failed, no_subscribers? } o null su errore.
+// Audit 2026-06-19: wiring iniziale push notifications da cron a /api/push-send.
+async function sendBriefPush({ appUrl, orgId, title, body }) {
+  const secret = process.env.INTERNAL_SECRET || process.env.CRON_SECRET
+  if (!secret) return null
+  try {
+    const r = await fetch(`${appUrl}/api/push-send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-secret': secret,
+      },
+      body: JSON.stringify({
+        organization_id: orgId,
+        title,
+        body: (body || '').slice(0, 140),
+        url: '/',
+        tag: 'foodios-daily-brief',
+      }),
+    })
+    if (!r.ok) return { error: `http_${r.status}` }
+    return await r.json()
+  } catch (e) {
+    return { error: e.message?.slice(0, 80) || 'fetch_failed' }
+  }
+}
+
 export default async function handler(req) {
   const auth = verifyBearerSecret(
     req.headers.get('Authorization') || req.headers.get('authorization') || '',
@@ -281,7 +310,21 @@ export default async function handler(req) {
         }
       }
 
-      results.push({ orgId: org.id, briefId: inserted.id, emailSent, hasSignal })
+      // 6) Push notifications best-effort. Rispetta settings.push === false
+      // (canale disattivabile separato da email). Idempotente per giorno: il
+      // service-worker dedup via tag 'foodios-daily-brief'.
+      let pushSent = null
+      if (settings.push !== false) {
+        const pr = await sendBriefPush({
+          appUrl,
+          orgId: org.id,
+          title: `Brief del mattino · ${orgName}`,
+          body: briefText,
+        })
+        if (pr) pushSent = pr.error ? `err:${pr.error}` : `${pr.sent ?? 0}/${(pr.sent ?? 0) + (pr.failed ?? 0)}`
+      }
+
+      results.push({ orgId: org.id, briefId: inserted.id, emailSent, pushSent, hasSignal })
 
       // ─── Brief SETTIMANALE (solo lunedi, idempotente) ────────────────────
       if (isLunedi && !processedWeekToday.has(org.id) && hasSignal) {
@@ -329,6 +372,15 @@ export default async function handler(req) {
                     .eq('id', wkInserted.id)
                 } catch {}
               }
+            }
+            // Push settimanale: tag distinto per non sovrapporsi al giornaliero.
+            if (settings.push !== false) {
+              await sendBriefPush({
+                appUrl,
+                orgId: org.id,
+                title: `Brief settimanale · ${orgName}`,
+                body: wkText,
+              })
             }
             results.push({ orgId: org.id, weeklyBriefId: wkInserted?.id })
           }
