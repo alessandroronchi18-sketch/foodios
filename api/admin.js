@@ -2028,6 +2028,26 @@ export default async function handler(req) {
         return json({ blocklist: list }, 200, req)
       }
 
+      if (action === 'load_demo_menu') {
+        // Audit 2026-06-20: carica menu personalizzato salvato per l'org
+        // (così riapri il modal e vedi quello che avevi prima, senza ri-estrazione).
+        const orgIdParam = sanitizeStrict(url.searchParams.get('org_id') || '', 36)
+        if (!orgIdParam || !validateUUID(orgIdParam)) {
+          return json({ error: 'org_id non valido' }, 400, req)
+        }
+        const { data } = await supabase
+          .from('user_data')
+          .select('data_value, updated_at')
+          .eq('organization_id', orgIdParam)
+          .eq('data_key', 'pasticceria-demo-custom-menu-v1')
+          .is('sede_id', null)
+          .maybeSingle()
+        return json({
+          menu: data?.data_value || null,
+          updated_at: data?.updated_at || null,
+        }, 200, req)
+      }
+
       if (action === 'stripe_mrr') {
         // Stripe puo' non essere configurato (pre-revenue) o avere errori di
         // chiamata. Ritorniamo un payload "unavailable" parlante invece di un
@@ -2370,6 +2390,56 @@ export default async function handler(req) {
           const sedeId = sede?.id || null
           const { seedDemoDataFull } = await import('../src/lib/demoSeedFull.js')
           result = await seedDemoDataFull({ orgId, sedeId, supabase })
+          break
+        }
+        case 'seed_demo_personalized': {
+          // Audit 2026-06-20: seed con menu personalizzato (prodotti reali
+          // del cliente, per pitch). customMenu deve essere {ricette, ingredienti_costi,
+          // nome_attivita?, citta?} — costruito client-side da menuExtractor.
+          if (!orgId) throw new Error('org_id richiesto')
+          const cm = body?.customMenu
+          if (!cm || !cm.ricette || Object.keys(cm.ricette).length === 0) {
+            throw new Error('customMenu richiesto con almeno 1 ricetta')
+          }
+          // Limite di sicurezza: max 50 ricette per non esplodere il payload
+          if (Object.keys(cm.ricette).length > 50) {
+            throw new Error('Massimo 50 ricette per menu')
+          }
+          const { data: sede } = await supabase.from('sedi')
+            .select('id').eq('organization_id', orgId).limit(1).maybeSingle()
+          const sedeId = sede?.id || null
+          const { seedDemoDataFull } = await import('../src/lib/demoSeedFull.js')
+          result = await seedDemoDataFull({ orgId, sedeId, supabase, customMenu: cm })
+          break
+        }
+        case 'save_demo_menu': {
+          // Audit 2026-06-20: persiste il menu personalizzato per l'org così
+          // riapri il modal e vedi quello che avevi prima.
+          if (!orgId) throw new Error('org_id richiesto')
+          const cm = body?.customMenu
+          if (!cm) throw new Error('customMenu richiesto')
+          // Upsert manuale (replica di ssave server-side)
+          const { data: existing } = await supabase
+            .from('user_data')
+            .select('id')
+            .eq('organization_id', orgId)
+            .eq('data_key', 'pasticceria-demo-custom-menu-v1')
+            .is('sede_id', null)
+          const now = new Date().toISOString()
+          if (existing && existing.length > 0) {
+            await supabase.from('user_data')
+              .update({ data_value: cm, updated_at: now })
+              .eq('organization_id', orgId)
+              .eq('data_key', 'pasticceria-demo-custom-menu-v1')
+              .is('sede_id', null)
+          } else {
+            await supabase.from('user_data').insert({
+              organization_id: orgId, sede_id: null,
+              data_key: 'pasticceria-demo-custom-menu-v1',
+              data_value: cm, updated_at: now,
+            })
+          }
+          result = { ok: true, saved_at: now }
           break
         }
         default:

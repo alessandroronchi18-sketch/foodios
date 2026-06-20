@@ -7,6 +7,7 @@ import { color as T, radius as R, shadow as S, motion as M, tnum as _tnum, typo 
 import { useToast } from '../components/Toast'
 import { apiFetch } from '../lib/apiFetch'
 import Icon from '../components/Icon'
+import PersonalizeDemoModal from './PersonalizeDemoModal'
 
 // ─── Costanti ──────────────────────────────────────────────────────────────
 const PIANI = ['trial', 'base', 'pro', 'enterprise']
@@ -870,8 +871,12 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         <Btn kind="success" size="sm" onClick={() => onAzione('regala')}><Icon name="gift" size={13} /> Regala mesi</Btn>
         <Btn kind="neutral" size="sm" onClick={() => onAzione('reset_password')}><Icon name="refresh" size={13} /> Reset password</Btn>
         {/* Audit 2026-06-20: bottone demo data per test scenari realistici */}
-        <Btn kind="ghost" size="sm" onClick={() => onAzione('seed_demo_full')} title="Popola questa org con 3 mesi di dati demo (ricettario, produzione, cassa, dipendenti, fornitori, B2B, costi)">
-          <Icon name="sparkles" size={13} /> Popola demo data
+        <Btn kind="ghost" size="sm" onClick={() => onAzione('seed_demo_full')} title="Popola questa org con 3 mesi di dati demo generici (per testare tutte le sezioni dell'app)">
+          <Icon name="sparkles" size={13} /> Demo generica
+        </Btn>
+        {/* Audit 2026-06-20: bottone demo personalizzata (pitch-ready) */}
+        <Btn kind="warn" size="sm" onClick={() => onAzione('personalize_demo')} title="Pre-pitch: estrai menu reale del cliente da foto/testo e popola la demo con i SUOI prodotti">
+          <Icon name="sparkles" size={13} /> 🪄 Demo personalizzata
         </Btn>
       </div>
 
@@ -1244,6 +1249,7 @@ export default function AdminPage() {
   const [priceConfirm, setPriceConfirm] = useState(false)
   const [priceSaving, setPriceSaving] = useState(false)
   const [dettaglioFor, setDettaglioFor] = useState(null)  // cliente target del dettaglio
+  const [personalizeFor, setPersonalizeFor] = useState(null)  // cliente target demo personalizzata
   const [dettaglio, setDettaglio] = useState(null)
   const [dettaglioLoading, setDettaglioLoading] = useState(false)
   // Tier 1: feedback inbox + banner globali
@@ -3613,6 +3619,13 @@ export default function AdminPage() {
               } catch { /* azione() ha gia notificato */ }
               return
             }
+            if (tipo === 'personalize_demo') {
+              // Audit 2026-06-20: apre il wizard demo personalizzata
+              // (chiude il modal corrente, apre PersonalizeDemoModal)
+              setDettaglioFor(null); setDettaglio(null)
+              setPersonalizeFor(c)
+              return
+            }
             if (tipo === 'seed_demo_full') {
               // Audit 2026-06-20: popola demo data 3 mesi su org di test.
               // Idempotente (cleanup [Demo data] precedenti prima di reinsert).
@@ -3657,10 +3670,19 @@ export default function AdminPage() {
             await fetchData()
             fetchAudit()
             if (data?.deleted >= 0) {
-              // un piccolo toast-like via alert per coerenza con le altre azioni
               toast.success(`✓ Eliminate ${data.deleted} fatture demo`)
             }
           }}
+        />
+      )}
+      {/* Audit 2026-06-20: wizard demo personalizzata (pitch-ready) */}
+      {personalizeFor && (
+        <PersonalizeDemoModal
+          cliente={personalizeFor}
+          apiCall={apiCall}
+          toast={toast}
+          onClose={() => setPersonalizeFor(null)}
+          onImpersona={(c) => { handleImpersona(c) }}
         />
       )}
     </div>

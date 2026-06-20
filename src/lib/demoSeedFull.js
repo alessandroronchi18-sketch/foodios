@@ -337,24 +337,39 @@ function buildMagazzino() {
   }
 }
 
+// ─── Helper: estrae lista vendibili dal ricettario (skip semilavorati) ────
+function extractVendibili(ricettario) {
+  const out = []
+  for (const [nome, r] of Object.entries(ricettario?.ricette || {})) {
+    if (r?.tipo === 'semilavorato') continue
+    // Prezzo riferito all'unità di vendita: se tipo=fetta, ricetta.prezzo è
+    // €/fetta; se tipo=pezzo, ricetta.prezzo è €/pezzo (singolo); se tipo=kg,
+    // ricetta.prezzo è €/kg ma di solito si vende per vaschetta da ~500g.
+    const prezzoUnitVendita = Number(r.prezzo) || 0
+    if (prezzoUnitVendita <= 0) continue
+    out.push({
+      nome,
+      tipo: r.tipo || 'pezzo',
+      unita: Number(r.unita) || 1,
+      prezzo: prezzoUnitVendita,
+    })
+  }
+  return out
+}
+
 // ─── 3) CHIUSURE CASSA (90 giorni) ────────────────────────────────────────
 // Domenica chiusa, sab/ven +30%, picchi su festività italiane.
-function buildChiusure() {
+// I prezzi/prodotti vengono dal ricettario (default o customMenu).
+function buildChiusure(vendibili) {
   const r = rng(2026620)
   const out = []
   const oggi = today()
-  const RICETTE = [
-    'CROSTATA ALBICOCCA', 'CROSTATA LAMPONI', 'CROSTATA MELE',
-    'BISCOTTI NOCCIOLA', 'BISCOTTI CIOCCOLATO', 'COOKIES AMERICANI',
-    'TORTA CIOCCOLATO', 'TORTA LIMONE', 'TORTA CAROTE',
-    'PLUMCAKE LIMONE', 'BANANA BREAD',
-    'MUFFIN CIOCCOLATO', 'MUFFIN MIRTILLI',
-  ]
-  // Festività che gonfiano i ricavi
+  if (!vendibili || vendibili.length === 0) return out
+  // Festività che gonfiano i ricavi (Pasqua 2026, festa mamma, repubblica)
   const PEAKS = new Set([
-    '2026-03-22', '2026-04-05', '2026-04-06', // domenica delle palme, pasqua, pasquetta (mock)
-    '2026-05-10', // festa della mamma
-    '2026-06-02', // festa repubblica
+    '2026-04-05', '2026-04-06',  // pasqua + pasquetta
+    '2026-05-10',                // festa mamma
+    '2026-06-02',                // repubblica
   ])
   for (let i = 90; i >= 1; i--) {
     const d = addDays(oggi, -i)
@@ -366,23 +381,24 @@ function buildChiusure() {
     const base = isPeak ? 1100 : (isWeekend ? 720 : 480)
     const variazione = Math.round((r() - 0.5) * 140)
     const ricavo = base + variazione
-    // Costruisci 5-9 righe vendita realistiche per chiusura
-    const nRighe = 5 + Math.floor(r() * 5)
+    // Costruisci 5-9 righe vendita usando i prodotti del ricettario
+    const nRighe = Math.min(vendibili.length, 5 + Math.floor(r() * 5))
     const venduto = []
     let saldoVenduto = 0
+    const usati = new Set()
     for (let j = 0; j < nRighe; j++) {
-      const nome = choice(r, RICETTE)
-      const qta = 1 + Math.floor(r() * 4)
-      // Prezzo realistic per pezzo
-      const prezzoUnit = nome.startsWith('CROSTATA') ? 24 + Math.floor(r() * 8)
-        : nome.startsWith('TORTA') ? 30 + Math.floor(r() * 12)
-        : nome.startsWith('PLUMCAKE') || nome.startsWith('BANANA') ? 16 + Math.floor(r() * 6)
-        : nome.startsWith('MUFFIN') ? 2.0 + r() * 0.5
-        : nome.startsWith('BISCOTTI') ? 12 + Math.floor(r() * 6)
-        : nome.startsWith('COOKIES') ? 14 + Math.floor(r() * 4)
-        : 5
+      let prod
+      let tries = 0
+      do { prod = choice(r, vendibili); tries++ } while (usati.has(prod.nome) && tries < 10)
+      usati.add(prod.nome)
+      // qta plausibile: per torte intere 1-2, per pezzi 2-6, per fette 1-3
+      const qta = prod.tipo === 'fetta'
+        ? 1 + Math.floor(r() * 2)
+        : (prod.prezzo < 3 ? 2 + Math.floor(r() * 5) : 1 + Math.floor(r() * 3))
+      // Piccola variazione prezzo (sconti/promo) ±10%
+      const prezzoUnit = roundCents(prod.prezzo * (0.92 + r() * 0.16))
       const totale = roundCents(prezzoUnit * qta)
-      venduto.push({ nome, qta, prezzoUnit: roundCents(prezzoUnit), totale })
+      venduto.push({ nome: prod.nome, qta, prezzoUnit, totale })
       saldoVenduto += totale
     }
     // Riconcilia ricavo target con somma vendite (aggiusta ultimo)
@@ -415,17 +431,12 @@ function buildChiusure() {
 }
 
 // ─── 4) PRODUZIONE GIORNALIERA (sessioni SK_GIOR) ─────────────────────────
-function buildGiornaliero() {
+function buildGiornaliero(vendibili) {
   const r = rng(2026621)
   const out = []
   const oggi = today()
-  const RICETTE = [
-    'CROSTATA ALBICOCCA', 'CROSTATA LAMPONI', 'CROSTATA MELE',
-    'BISCOTTI NOCCIOLA', 'BISCOTTI CIOCCOLATO', 'COOKIES AMERICANI',
-    'TORTA CIOCCOLATO', 'TORTA LIMONE', 'TORTA CAROTE',
-    'PLUMCAKE LIMONE', 'BANANA BREAD',
-    'MUFFIN CIOCCOLATO', 'MUFFIN MIRTILLI',
-  ]
+  if (!vendibili || vendibili.length === 0) return out
+  const RICETTE = vendibili.map(v => v.nome)
   for (let i = 90; i >= 0; i--) {
     const d = addDays(oggi, -i)
     const dow = d.getDay()
@@ -460,12 +471,13 @@ function buildGiornaliero() {
 }
 
 // ─── 5) MOVIMENTI SPECIALI (sprechi + omaggi sparsi) ──────────────────────
-function buildMovimenti() {
+function buildMovimenti(vendibili) {
   const r = rng(2026622)
   const out = []
   const oggi = today()
   const CAUSALI = ['scaduto', 'rotto', 'errore_produzione', 'omaggio_cliente']
-  const RICETTE = ['CROSTATA ALBICOCCA', 'TORTA CIOCCOLATO', 'BISCOTTI NOCCIOLA', 'MUFFIN MIRTILLI', 'PLUMCAKE LIMONE']
+  if (!vendibili || vendibili.length === 0) return out
+  const RICETTE = vendibili.slice(0, Math.min(5, vendibili.length)).map(v => v.nome)
   // ~1-2 sprechi a settimana per 12 settimane
   for (let week = 0; week < 13; week++) {
     const nEvents = 1 + Math.floor(r() * 2)
@@ -673,34 +685,38 @@ const CLIENTI_B2B_DEMO = [
     note: '[Demo] Eventi grandi, ordini su prenotazione' },
 ]
 
-function buildVenditeB2BRows(clientiIds, sedeId) {
+function buildVenditeB2BRows(clientiIds, sedeId, vendibili) {
   const r = rng(2026625)
   const oggi = today()
   const rows = []
-  const PRODOTTI = ['CROSTATA ALBICOCCA', 'CROSTATA LAMPONI', 'BISCOTTI NOCCIOLA', 'BISCOTTI CIOCCOLATO',
-                     'TORTA CIOCCOLATO', 'MUFFIN CIOCCOLATO', 'PLUMCAKE LIMONE', 'BANANA BREAD']
-  // 6 vendite per cliente × 4 = 24 totali, spalmate sui 90 giorni
+  if (!vendibili || vendibili.length === 0) return rows
+  // Per B2B prezzo all'ingrosso ~70% del retail (sconto wholesale)
+  const PRODOTTI_B2B = vendibili.map(v => ({
+    ...v,
+    prezzo_b2b: roundCents(v.prezzo * 0.70),
+  }))
+  // 6 vendite per cliente × N clienti, spalmate sui 90 giorni
   for (const cid of clientiIds) {
     for (let i = 0; i < 6; i++) {
       const dayOffset = -Math.floor(r() * 90) - 1
       const d = addDays(oggi, dayOffset)
       // 3-5 righe per vendita
-      const nRighe = 3 + Math.floor(r() * 3)
+      const nRighe = Math.min(vendibili.length, 3 + Math.floor(r() * 3))
       const usate = new Set()
       const righe = []
       for (let k = 0; k < nRighe; k++) {
-        let p = choice(r, PRODOTTI)
+        let p
         let tries = 0
-        while (usate.has(p) && tries < 5) { p = choice(r, PRODOTTI); tries++ }
-        usate.add(p)
-        const qta = 3 + Math.floor(r() * 12)
-        const prezzo = p.startsWith('CROSTATA') ? 16 + Math.floor(r() * 4)
-          : p.startsWith('TORTA') ? 24 + Math.floor(r() * 6)
-          : p.startsWith('PLUMCAKE') || p.startsWith('BANANA') ? 12 + Math.floor(r() * 4)
-          : p.startsWith('MUFFIN') ? 1.5 + r() * 0.5
-          : 8 + Math.floor(r() * 4)
+        do { p = choice(r, PRODOTTI_B2B); tries++ } while (usate.has(p.nome) && tries < 10)
+        usate.add(p.nome)
+        // qta wholesale: 3-15 per pezzi piccoli, 1-5 per torte intere
+        const qta = p.tipo === 'fetta' || p.prezzo > 15
+          ? 1 + Math.floor(r() * 4)
+          : 3 + Math.floor(r() * 12)
+        // Sconto extra random ±5%
+        const prezzo = roundCents(p.prezzo_b2b * (0.95 + r() * 0.10))
         const totRiga = roundCents(prezzo * qta)
-        righe.push({ prodotto: p, qta, prezzo: roundCents(prezzo), totale: totRiga })
+        righe.push({ prodotto: p.nome, qta, prezzo, totale: totRiga })
       }
       const totale = roundCents(righe.reduce((s, x) => s + x.totale, 0))
       const stato = dayOffset < -45 ? 'fatturata' : (dayOffset < -7 ? 'consegnata' : (r() > 0.3 ? 'consegnata' : 'bozza'))
@@ -766,24 +782,69 @@ async function cleanupDemo(supabase, orgId) {
 /**
  * Popola dati demo COMPLETI sull'org (3 mesi realistici). Best-effort,
  * idempotente: pulisce le righe `[Demo data]` precedenti prima di reinserire.
- * Tutto serve come "scenario realistico per testare l'app".
  *
- * Ritorna { ok, counts } con i numeri delle entità create.
+ * Opzioni:
+ *   customMenu: { ricette, ingredienti_costi, nome_attivita?, citta? }
+ *     - se fornito, sostituisce il ricettario default
+ *     - chiusure/produzione/B2B usano i prodotti del customMenu
+ *     - nome_attivita aggiorna organizations.nome (pitch-friendly)
+ *
+ * Ritorna { ok, counts, override } con i numeri delle entità create.
  */
-export async function seedDemoDataFull({ orgId, sedeId, supabase } = {}) {
+export async function seedDemoDataFull({ orgId, sedeId, supabase, customMenu = null } = {}) {
   if (!orgId) throw new Error('orgId richiesto per seed demo full')
   if (!supabase) throw new Error('supabase client richiesto (anon o service-role)')
 
   // ── 0) Cleanup precedenti
   await cleanupDemo(supabase, orgId)
 
-  // ── 1) user_data: ricettario, magazzino, chiusure, produzione, sprechi,
-  //       formati, logprezzi
-  const ricettario = buildRicettario()
+  // ── 1) Ricettario: custom override o default 15 ricette
+  let ricettario
+  if (customMenu?.ricette && Object.keys(customMenu.ricette).length > 0) {
+    // Custom: merge con ingredienti default per le voci comuni (farina/zucchero
+    // ecc.) così le ricette custom possono usarle. ingredienti_costi del custom
+    // hanno priorità per gli ingredienti specifici (mascarpone, savoiardi, ecc.)
+    const defaultRic = buildRicettario()
+    ricettario = {
+      ingredienti_costi: {
+        ...defaultRic.ingredienti_costi,
+        ...(customMenu.ingredienti_costi || {}),
+      },
+      ricette: customMenu.ricette,
+    }
+  } else {
+    ricettario = buildRicettario()
+  }
+  const vendibili = extractVendibili(ricettario)
+
+  // Override nome organizzazione (per pitch)
+  let override = { nome_aggiornato: false, citta_aggiornata: false }
+  if (customMenu?.nome_attivita) {
+    try {
+      const { error } = await supabase.from('organizations')
+        .update({ nome: customMenu.nome_attivita.slice(0, 100) })
+        .eq('id', orgId)
+      if (!error) override.nome_aggiornato = true
+    } catch { /* skip */ }
+  }
+  if (customMenu?.citta) {
+    try {
+      const { data: sede } = await supabase.from('sedi').select('id')
+        .eq('organization_id', orgId).limit(1).maybeSingle()
+      if (sede?.id) {
+        const { error } = await supabase.from('sedi')
+          .update({ citta: customMenu.citta.slice(0, 60) })
+          .eq('id', sede.id)
+        if (!error) override.citta_aggiornata = true
+      }
+    } catch { /* skip */ }
+  }
+
+  // ── 2) user_data: magazzino, chiusure, produzione, sprechi, formati, logprezzi
   const magazzino = buildMagazzino()
-  const chiusure = buildChiusure()
-  const giornaliero = buildGiornaliero()
-  const movimenti = buildMovimenti()
+  const chiusure = buildChiusure(vendibili)
+  const giornaliero = buildGiornaliero(vendibili)
+  const movimenti = buildMovimenti(vendibili)
   const formati = buildFormati()
   const logPrezzi = buildLogPrezzi()
 
@@ -858,7 +919,7 @@ export async function seedDemoDataFull({ orgId, sedeId, supabase } = {}) {
     } catch { /* skip */ }
   }
   let nVenditeB2B = 0
-  const vendite = buildVenditeB2BRows(clientiIds, sedeId).map(v => ({ ...v, organization_id: orgId }))
+  const vendite = buildVenditeB2BRows(clientiIds, sedeId, vendibili).map(v => ({ ...v, organization_id: orgId }))
   for (const v of vendite) {
     try {
       await supabase.from('vendite_b2b').insert(v)
@@ -879,6 +940,7 @@ export async function seedDemoDataFull({ orgId, sedeId, supabase } = {}) {
 
   return {
     ok: true,
+    override,
     counts: {
       ricette: Object.keys(ricettario.ricette).length,
       ingredienti_prezzi: Object.keys(ricettario.ingredienti_costi).length,
