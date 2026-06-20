@@ -167,9 +167,165 @@ async function getAuditLog(supabase) {
   }))
 }
 
+// Audit 2026-06-19 Customer 360: estensione del dettaglio cliente con tutte le
+// aree precedentemente invisibili dall'admin (integrazioni, vendite B2B, POS,
+// push subs, scadenzario, costi aziendali). Ogni query è isolata in try/catch
+// per non rompere il modal se una tabella manca o ha schema diverso.
+async function fetchSafe(promise) {
+  try { return await promise } catch { return { data: null, error: null, count: 0 } }
+}
+
+async function getCustomer360(supabase, orgId) {
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0)
+  const isoMonth = startOfMonth.toISOString()
+  const isoMonthDate = isoMonth.slice(0, 10)
+  const next7gg = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+  const todayIso = new Date().toISOString().slice(0, 10)
+
+  // Tutte le query in parallelo. Errori swallow → la rispettiva area apparirà
+  // come { count: 0 } nel modal, non rompe il rendering.
+  const [
+    integrazioniR, b2bClientiR, b2bVenditeMtdR,
+    posR, pushSubsR,
+    scadOverdueR, scadProxR,
+    costiR, stipendiR,
+  ] = await Promise.all([
+    fetchSafe(supabase.from('integrazioni')
+      .select('id, tipo, attiva, ultimo_sync, created_at')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: false })),
+    fetchSafe(supabase.from('clienti_b2b')
+      .select('id, attivo', { count: 'exact', head: true })
+      .eq('organization_id', orgId)
+      .eq('attivo', true)),
+    fetchSafe(supabase.from('vendite_b2b')
+      .select('totale, data, organization_id')
+      .eq('organization_id', orgId)
+      .gte('data', isoMonthDate)),
+    fetchSafe(supabase.from('pos_scontrini')
+      .select('totale_lordo, data, provider')
+      .eq('organization_id', orgId)
+      .gte('data', isoMonthDate)),
+    fetchSafe(supabase.from('push_subscriptions')
+      .select('id, device_label, user_agent, created_at, last_notified_at, active')
+      .eq('organization_id', orgId)
+      .eq('active', true)
+      .order('created_at', { ascending: false })),
+    fetchSafe(supabase.from('fatture')
+      .select('id, importo, importo_pagato, data_scadenza, tipo')
+      .eq('organization_id', orgId)
+      .lt('data_scadenza', todayIso)
+      .or('tipo.is.null,tipo.eq.fattura')),
+    fetchSafe(supabase.from('fatture')
+      .select('id, importo, importo_pagato, data_scadenza, tipo')
+      .eq('organization_id', orgId)
+      .gte('data_scadenza', todayIso)
+      .lte('data_scadenza', next7gg)
+      .or('tipo.is.null,tipo.eq.fattura')),
+    fetchSafe(supabase.from('costi_aziendali')
+      .select('importo, periodicita, attivo')
+      .eq('organization_id', orgId)
+      .eq('attivo', true)),
+    fetchSafe(supabase.from('dipendenti')
+      .select('stipendio_lordo_mensile, archiviato')
+      .eq('organization_id', orgId)
+      .or('archiviato.is.null,archiviato.eq.false')),
+  ])
+
+  // ── Integrazioni: lista + count attive ────────────────────────────────────
+  const integrazioniRows = integrazioniR.data || []
+  const integrazioniAttive = integrazioniRows.filter(r => r.attiva)
+
+  // ── B2B: clienti attivi + ricavo MTD ──────────────────────────────────────
+  const b2bVendite = b2bVenditeMtdR.data || []
+  const b2bRicavoMtd = b2bVendite.reduce((s, v) => s + (Number(v.totale) || 0), 0)
+
+  // ── POS: scontrini MTD + ricavo MTD + provider distinti ───────────────────
+  const posRows = posR.data || []
+  const posRicavoMtd = posRows.reduce((s, r) => s + (Number(r.totale_lordo) || 0), 0)
+  const posProviders = Array.from(new Set(posRows.map(r => r.provider).filter(Boolean)))
+
+  // ── Push subs: lista (max 8) ──────────────────────────────────────────────
+  const pushSubsRows = (pushSubsR.data || []).slice(0, 8)
+  const pushSubsCount = (pushSubsR.data || []).length
+
+  // ── Scadenzario: fatture scadute non pagate + prossime 7gg ────────────────
+  const scadOverdueRows = (scadOverdueR.data || []).filter(f => {
+    // Nota di credito esclusa (tipo='nota_credito' compensa il dovuto)
+    if (f.tipo && f.tipo !== 'fattura') return false
+    const tot = Number(f.importo) || 0
+    const pagato = Number(f.importo_pagato) || 0
+    return tot - pagato > 0.01
+  })
+  const scadOverdueTot = scadOverdueRows.reduce((s, f) => s + Math.max(0, (Number(f.importo) || 0) - (Number(f.importo_pagato) || 0)), 0)
+  const scadProxRows = (scadProxR.data || []).filter(f => {
+    if (f.tipo && f.tipo !== 'fattura') return false
+    return (Number(f.importo) || 0) - (Number(f.importo_pagato) || 0) > 0.01
+  })
+
+  // ── Costi aziendali: equivalente mensile ──────────────────────────────────
+  const costiRows = costiR.data || []
+  const costiMensile = costiRows.reduce((s, c) => {
+    const imp = Number(c.importo) || 0
+    if (c.periodicita === 'mensile') return s + imp
+    if (c.periodicita === 'annuale') return s + (imp / 12)
+    // una_tantum: ignorato nel costo ricorrente mensile (UI lo mostra come totale a parte)
+    return s
+  }, 0)
+
+  // ── Stipendi: lordo mensile attivi ────────────────────────────────────────
+  const stipendiRows = stipendiR.data || []
+  const stipendiMensile = stipendiRows.reduce((s, d) => s + (Number(d.stipendio_lordo_mensile) || 0), 0)
+
+  return {
+    integrazioni: {
+      n_attive: integrazioniAttive.length,
+      n_totali: integrazioniRows.length,
+      items: integrazioniRows.map(r => ({
+        id: r.id, tipo: r.tipo, attiva: !!r.attiva,
+        ultimo_sync: r.ultimo_sync, created_at: r.created_at,
+      })),
+    },
+    b2b: {
+      n_clienti_attivi: b2bClientiR.count || 0,
+      n_vendite_mtd: b2bVendite.length,
+      ricavo_mtd: Math.round(b2bRicavoMtd * 100) / 100,
+    },
+    pos: {
+      n_scontrini_mtd: posRows.length,
+      ricavo_mtd: Math.round(posRicavoMtd * 100) / 100,
+      providers: posProviders,
+    },
+    push: {
+      n_attive: pushSubsCount,
+      devices: pushSubsRows.map(s => ({
+        id: s.id,
+        label: s.device_label || null,
+        ua_short: (s.user_agent || '').slice(0, 60),
+        created_at: s.created_at,
+        last_notified_at: s.last_notified_at,
+      })),
+    },
+    scadenzario: {
+      n_overdue: scadOverdueRows.length,
+      totale_overdue: Math.round(scadOverdueTot * 100) / 100,
+      n_prossime_7gg: scadProxRows.length,
+    },
+    costi: {
+      n_voci_attive: costiRows.length,
+      totale_mensile: Math.round(costiMensile * 100) / 100,
+    },
+    stipendi: {
+      n_dipendenti: stipendiRows.length,
+      lordo_mensile: Math.round(stipendiMensile * 100) / 100,
+    },
+  }
+}
+
 async function getClienteDettaglio(supabase, orgId) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-  const [sediRes, dataRes, eventiRes, orgRes, fattureCntRes, dipendentiCntRes, profileRes] = await Promise.all([
+  const [sediRes, dataRes, eventiRes, orgRes, fattureCntRes, dipendentiCntRes, profileRes, customer360] = await Promise.all([
     supabase
       .from('sedi')
       .select('id, nome, attiva, is_default')
@@ -205,6 +361,7 @@ async function getClienteDettaglio(supabase, orgId) {
       .eq('organization_id', orgId)
       .eq('ruolo', 'titolare')
       .maybeSingle(),
+    getCustomer360(supabase, orgId),
   ])
 
   const usageMap = {}
@@ -270,6 +427,14 @@ async function getClienteDettaglio(supabase, orgId) {
     org: orgRes.data || null,
     activation,
     counts: { fatture: nFatture, dipendenti: nDipendenti },
+    // Audit 2026-06-19 Customer 360: campi nuovi (legacy frontend ignora se assenti)
+    integrazioni: customer360?.integrazioni || null,
+    b2b: customer360?.b2b || null,
+    pos: customer360?.pos || null,
+    push: customer360?.push || null,
+    scadenzario: customer360?.scadenzario || null,
+    costi: customer360?.costi || null,
+    stipendi: customer360?.stipendi || null,
   }
 }
 

@@ -765,6 +765,17 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
   const org = dettaglio?.org || null
   const activation = dettaglio?.activation || null
   const counts = dettaglio?.counts || null
+  // Audit 2026-06-19 Customer 360: 7 aree precedentemente invisibili
+  const c360 = {
+    integrazioni: dettaglio?.integrazioni || null,
+    b2b: dettaglio?.b2b || null,
+    pos: dettaglio?.pos || null,
+    push: dettaglio?.push || null,
+    scadenzario: dettaglio?.scadenzario || null,
+    costi: dettaglio?.costi || null,
+    stipendi: dettaglio?.stipendi || null,
+  }
+  const has360 = c360.integrazioni || c360.b2b || c360.pos || c360.push || c360.scadenzario || c360.costi || c360.stipendi
 
   const usageOperativo = usage.filter(u => CHIAVI_OPERATIVE_SET.has(u.data_key))
   const usageAltro = usage.filter(u => !CHIAVI_OPERATIVE_SET.has(u.data_key))
@@ -896,6 +907,126 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMute }}>Caricamento dettaglio…</div>
       ) : (
         <>
+          {/* Customer 360 — moduli e operazioni (Audit 2026-06-19).
+              Aree prima invisibili: integrazioni, B2B, POS, push subs, scadenzario,
+              costi aziendali, stipendi. Grid 2col mobile / 4col desktop. */}
+          {has360 && (
+            <section style={{ marginBottom: 18 }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
+                <Icon name="layers" size={13} /> Moduli &amp; operazioni
+              </h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isNarrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+                gap: 8,
+              }}>
+                {/* Integrazioni */}
+                {c360.integrazioni && (
+                  <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                      <Icon name="integ" size={10} /> Integrazioni
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.integrazioni.n_attive > 0 ? COLORS.blue : COLORS.textMute, ...tnum }}>
+                      {c360.integrazioni.n_attive}<span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 500 }}>/{c360.integrazioni.n_totali}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                      {c360.integrazioni.items.filter(i => i.attiva).slice(0, 3).map(i => i.tipo).join(', ') || 'nessuna attiva'}
+                    </div>
+                  </div>
+                )}
+                {/* Vendite B2B */}
+                {c360.b2b && (
+                  <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                      <Icon name="building" size={10} /> Vendite B2B (mese)
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.b2b.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
+                      €{Number(c360.b2b.ricavo_mtd || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                      {c360.b2b.n_vendite_mtd} vendite · {c360.b2b.n_clienti_attivi} clienti attivi
+                    </div>
+                  </div>
+                )}
+                {/* POS scontrini */}
+                {c360.pos && (
+                  <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                      <Icon name="creditCard" size={10} /> POS (mese)
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.pos.ricavo_mtd > 0 ? COLORS.ok : COLORS.textMute, ...tnum }}>
+                      €{Number(c360.pos.ricavo_mtd || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                      {c360.pos.n_scontrini_mtd} scontrini
+                      {c360.pos.providers.length > 0 && ` · ${c360.pos.providers.slice(0, 2).join(', ')}`}
+                    </div>
+                  </div>
+                )}
+                {/* Push subscriptions */}
+                {c360.push && (
+                  <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                      <Icon name="bell" size={10} /> Push subs
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.push.n_attive > 0 ? COLORS.blue : COLORS.textMute, ...tnum }}>
+                      {c360.push.n_attive}
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                      {c360.push.devices.length > 0
+                        ? c360.push.devices.slice(0, 2).map(d => d.label || 'tablet').join(', ')
+                        : 'nessun dispositivo'}
+                    </div>
+                  </div>
+                )}
+                {/* Scadenzario fatture */}
+                {c360.scadenzario && (
+                  <div style={{ padding: 10, background: c360.scadenzario.n_overdue > 0 ? COLORS.errBg : COLORS.rowAlt, borderRadius: 8, border: `1px solid ${c360.scadenzario.n_overdue > 0 ? COLORS.err : COLORS.border}` }}>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                      <Icon name="warning" size={10} /> Fatture scadute
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.scadenzario.n_overdue > 0 ? COLORS.err : COLORS.textMute, ...tnum }}>
+                      {c360.scadenzario.n_overdue}
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                      {c360.scadenzario.n_overdue > 0
+                        ? `€${Number(c360.scadenzario.totale_overdue).toLocaleString('it-IT', { maximumFractionDigits: 0 })} non pagato`
+                        : `${c360.scadenzario.n_prossime_7gg} in scadenza 7gg`}
+                    </div>
+                  </div>
+                )}
+                {/* Costi aziendali */}
+                {c360.costi && (
+                  <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                      <Icon name="receipt" size={10} /> Costi mensili
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.costi.totale_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
+                      €{Number(c360.costi.totale_mensile || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                      {c360.costi.n_voci_attive} voci attive
+                    </div>
+                  </div>
+                )}
+                {/* Stipendi */}
+                {c360.stipendi && (
+                  <div style={{ padding: 10, background: COLORS.rowAlt, borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                      <Icon name="users" size={10} /> Stipendi (lordo/mese)
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: c360.stipendi.lordo_mensile > 0 ? COLORS.warn : COLORS.textMute, ...tnum }}>
+                      €{Number(c360.stipendi.lordo_mensile || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })}
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                      {c360.stipendi.n_dipendenti} dipendenti attivi
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
           {/* Sedi */}
           <section style={{ marginBottom: 18 }}>
             <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 800, color: COLORS.text }}>
