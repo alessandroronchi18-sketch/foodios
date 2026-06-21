@@ -1230,6 +1230,7 @@ export default function AdminPage() {
   const [filtroStato, setFiltroStato] = useState('tutti')
   // Audit 2026-06-19 Customer 360 filtri: solo clienti con condizione attiva.
   const [filtroFlag, setFiltroFlag] = useState('tutti')  // tutti | scadute | integrazioni | push
+  const [filtroSignal, setFiltroSignal] = useState('tutti')  // tutti | hot | silent | churning | new_value | errors
   const [filtroTipo, setFiltroTipo] = useState('tutti')
   const [sortBy, setSortBy] = useState('registrata_il')
   const [sortDir, setSortDir] = useState('desc')
@@ -1502,6 +1503,139 @@ export default function AdminPage() {
     }
   }, [apiCall, fetchBlocklist, toast])
 
+  // ─── ADMIN v2 — Audit 2026-06-20 ────────────────────────────────────────
+  // Activity feed (live poll 12s)
+  const [activity, setActivity] = useState([])
+  const [activityLoading, setActivityLoading] = useState(false)
+  const fetchActivity = useCallback(async () => {
+    setActivityLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=activity_feed&limit=80')
+      const data = await res.json()
+      setActivity(data.events || [])
+    } catch (err) { console.error('activity:', err.message) }
+    finally { setActivityLoading(false) }
+  }, [apiCall])
+
+  // Customer signals (hot/silent/churning/...)
+  const [signals, setSignals] = useState({})  // org_id → { status, detail }
+  const [signalsLoading, setSignalsLoading] = useState(false)
+  const fetchSignals = useCallback(async () => {
+    setSignalsLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=customer_signals')
+      const data = await res.json()
+      const map = {}
+      for (const s of (data.signals || [])) map[s.org_id] = s
+      setSignals(map)
+    } catch (err) { console.error('signals:', err.message) }
+    finally { setSignalsLoading(false) }
+  }, [apiCall])
+
+  // Onboarding funnel
+  const [funnel, setFunnel] = useState(null)
+  const [funnelDays, setFunnelDays] = useState(60)
+  const [funnelLoading, setFunnelLoading] = useState(false)
+  const fetchFunnel = useCallback(async () => {
+    setFunnelLoading(true)
+    try {
+      const res = await apiCall(`/api/admin?action=onboarding_funnel&days=${funnelDays}`)
+      const data = await res.json()
+      setFunnel(data)
+    } catch (err) { console.error('funnel:', err.message) }
+    finally { setFunnelLoading(false) }
+  }, [apiCall, funnelDays])
+
+  // Errors raggruppati
+  const [errorsGrouped, setErrorsGrouped] = useState([])
+  const [errorsGroupedDays, setErrorsGroupedDays] = useState(7)
+  const [errorsGroupedLoading, setErrorsGroupedLoading] = useState(false)
+  const fetchErrorsGrouped = useCallback(async () => {
+    setErrorsGroupedLoading(true)
+    try {
+      const res = await apiCall(`/api/admin?action=errors_grouped&days=${errorsGroupedDays}`)
+      const data = await res.json()
+      setErrorsGrouped(data.groups || [])
+    } catch (err) { console.error('errorsGrouped:', err.message) }
+    finally { setErrorsGroupedLoading(false) }
+  }, [apiCall, errorsGroupedDays])
+
+  // AI cost per customer
+  const [aiCost, setAiCost] = useState(null)
+  const [aiCostDays, setAiCostDays] = useState(30)
+  const [aiCostLoading, setAiCostLoading] = useState(false)
+  const fetchAiCost = useCallback(async () => {
+    setAiCostLoading(true)
+    try {
+      const res = await apiCall(`/api/admin?action=ai_cost_by_customer&days=${aiCostDays}`)
+      const data = await res.json()
+      setAiCost(data)
+    } catch (err) { console.error('aiCost:', err.message) }
+    finally { setAiCostLoading(false) }
+  }, [apiCall, aiCostDays])
+
+  // Cmd+K global search
+  const [cmdkOpen, setCmdkOpen] = useState(false)
+  const [cmdkQuery, setCmdkQuery] = useState('')
+  const [cmdkResults, setCmdkResults] = useState(null)
+  const [cmdkLoading, setCmdkLoading] = useState(false)
+  // Cmd+K listener globale
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCmdkOpen(o => !o)
+      } else if (e.key === 'Escape' && cmdkOpen) {
+        setCmdkOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [cmdkOpen])
+  // Debounced search
+  useEffect(() => {
+    if (!cmdkOpen || cmdkQuery.trim().length < 2) {
+      setCmdkResults(null)
+      return
+    }
+    setCmdkLoading(true)
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiCall(`/api/admin?action=global_search&q=${encodeURIComponent(cmdkQuery.trim())}`)
+        const data = await res.json()
+        setCmdkResults(data)
+      } catch (err) {
+        console.error('cmdk:', err.message)
+      } finally {
+        setCmdkLoading(false)
+      }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [cmdkQuery, cmdkOpen, apiCall])
+
+  // SQL editor
+  const [sqlQuery, setSqlQuery] = useState('select id, nome, created_at\nfrom organizations\norder by created_at desc\nlimit 20')
+  const [sqlResult, setSqlResult] = useState(null)
+  const [sqlError, setSqlError] = useState('')
+  const [sqlRunning, setSqlRunning] = useState(false)
+  const runSqlQuery = useCallback(async () => {
+    setSqlRunning(true); setSqlError(''); setSqlResult(null)
+    try {
+      const res = await apiCall('/api/admin', {
+        method: 'POST',
+        body: JSON.stringify({ tipo: 'sql_query', query: sqlQuery }),
+      })
+      const data = await res.json()
+      if (data.ok === false || data.error) {
+        setSqlError(data.error || 'Errore query')
+      } else {
+        setSqlResult(data)
+      }
+    } catch (err) {
+      setSqlError(err.message)
+    } finally { setSqlRunning(false) }
+  }, [apiCall, sqlQuery])
+
   // Tier 2 fetches: Stripe MRR + events + errori produzione
   const fetchStripeMrr = useCallback(async () => {
     setStripeMrrLoading(true)
@@ -1551,6 +1685,24 @@ export default function AdminPage() {
   // ripetute hanno costo, meglio non spammare.
   useEffect(() => { fetchStripeMrr(); fetchStripeEvents(); fetchErrori() },
     [fetchStripeMrr, fetchStripeEvents, fetchErrori])
+  // Audit 2026-06-20 admin v2: signals + activity al mount, poll activity 12s
+  useEffect(() => { fetchSignals() }, [fetchSignals])
+  useEffect(() => {
+    fetchActivity()
+    const t = setInterval(fetchActivity, 12_000)
+    return () => clearInterval(t)
+  }, [fetchActivity])
+  // Funnel / errors grouped / ai cost: caricano alla prima visita del tab
+  useEffect(() => {
+    if (adminTab === 'funnel' && !funnel && !funnelLoading) fetchFunnel()
+  }, [adminTab, funnel, funnelLoading, fetchFunnel])
+  useEffect(() => {
+    if (adminTab === 'health' && errorsGrouped.length === 0 && !errorsGroupedLoading) fetchErrorsGrouped()
+    if (adminTab === 'health' && !aiCost && !aiCostLoading) fetchAiCost()
+  }, [adminTab, errorsGrouped.length, errorsGroupedLoading, fetchErrorsGrouped, aiCost, aiCostLoading, fetchAiCost])
+  useEffect(() => { fetchFunnel() }, [funnelDays, fetchFunnel])
+  useEffect(() => { fetchErrorsGrouped() }, [errorsGroupedDays, fetchErrorsGrouped])
+  useEffect(() => { fetchAiCost() }, [aiCostDays, fetchAiCost])
   // Audit 2026-06-14: AI telemetry + health + security + usage caricati on-demand
   useEffect(() => { fetchAiTelemetry(); fetchHealth(); fetchSecurity(); fetchUsageStats() },
     [fetchAiTelemetry, fetchHealth, fetchSecurity, fetchUsageStats])
@@ -1838,6 +1990,11 @@ export default function AdminPage() {
       if (filtroFlag === 'scadute' && !(c.n_fatture_scadute > 0)) return false
       if (filtroFlag === 'integrazioni' && !(c.n_integrazioni_attive > 0)) return false
       if (filtroFlag === 'push' && !(c.n_push_subs > 0)) return false
+      // Audit 2026-06-20: filtro per signal status
+      if (filtroSignal !== 'tutti') {
+        const s = signals[c.org_id]
+        if (!s || s.status !== filtroSignal) return false
+      }
       return true
     })
 
@@ -1856,7 +2013,7 @@ export default function AdminPage() {
       return 0
     })
     return out
-  }, [clienti, search, filtroStato, filtroTipo, filtroFlag, sortBy, sortDir])
+  }, [clienti, search, filtroStato, filtroTipo, filtroFlag, filtroSignal, signals, sortBy, sortDir])
 
   // ── Metriche avanzate ────────────────────────────────────────────────
   const metricheAvanzate = useMemo(() => {
@@ -1920,7 +2077,15 @@ export default function AdminPage() {
               : 'caricamento…'}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => setCmdkOpen(true)} title="Cerca tutto (Cmd+K)"
+            style={{
+              background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 8,
+              padding: '6px 10px', fontSize: 12, color: COLORS.textMute, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>
+            <Icon name="search" size={12} /> Cerca <span style={{ fontFamily: 'monospace', fontSize: 10, padding: '1px 4px', background: '#FFF', borderRadius: 3, border: `1px solid ${COLORS.border}` }}>⌘K</span>
+          </button>
           <Btn kind="neutral" onClick={() => { fetchData(); fetchAudit() }} disabled={loading}>
             {loading ? '…' : <><Icon name="refresh" size={14} /> Aggiorna</>}
           </Btn>
@@ -1936,12 +2101,14 @@ export default function AdminPage() {
       }}>
         <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 2, overflowX: 'auto' }}>
           {[
-            { id: 'overview',  label: 'Overview',  icon: 'home',     desc: 'KPI, MRR, crescita, azioni rapide' },
-            { id: 'clienti',   label: 'Clienti',   icon: 'users',    desc: 'Tabella clienti, filtri, bulk action' },
-            { id: 'ai',        label: 'AI & Analytics', icon: 'sparkles', desc: 'Telemetria AI, costi Claude, utilizzo view' },
-            { id: 'health',    label: 'Health',    icon: 'bolt',     desc: 'Cron status, errori produzione, deploy' },
-            { id: 'security',  label: 'Security',  icon: 'shield',   desc: 'Login attempts, anomalie, audit log' },
-            { id: 'ops',       label: 'Ops',       icon: 'cog',      desc: 'Pricing, codici sconto, feedback, banner, migration' },
+            { id: 'overview',  label: 'Overview',  icon: 'home',     desc: 'KPI, MRR, crescita, customer 360 globale' },
+            { id: 'clienti',   label: 'Clienti',   icon: 'users',    desc: 'Tabella con badge hot/silent/churning, filtri, bulk' },
+            { id: 'activity',  label: 'Attività',  icon: 'bolt',     desc: 'Live feed eventi: errori, audit, feedback, azioni admin' },
+            { id: 'funnel',    label: 'Funnel',    icon: 'trendUp',  desc: 'Onboarding step funnel, drop-off, time-to-value' },
+            { id: 'health',    label: 'Health',    icon: 'shield',   desc: 'Errori raggruppati, AI cost per cliente, cron status' },
+            { id: 'security',  label: 'Security',  icon: 'lock',     desc: 'Login attempts, anomalie, audit admin actions' },
+            { id: 'ops',       label: 'Ops',       icon: 'cog',      desc: 'Pricing, codici sconto, feedback, banner, blocklist, SQL editor' },
+            { id: 'ai',        label: 'AI',        icon: 'sparkles', desc: 'Telemetria AI feature-by-feature, modelli, costi totali' },
           ].map(t => {
             const active = adminTab === t.id
             return (
@@ -2263,6 +2430,19 @@ export default function AdminPage() {
               <option value="integrazioni">Solo con integrazioni attive</option>
               <option value="push">Solo con push subscribed</option>
             </select>
+            {/* Audit 2026-06-20: filtro signal */}
+            <select
+              value={filtroSignal} onChange={e => setFiltroSignal(e.target.value)}
+              style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}
+              title="Filtra per segnale comportamentale"
+            >
+              <option value="tutti">Tutti (no filtro signal)</option>
+              <option value="hot">🔥 Hot — da chiamare</option>
+              <option value="silent">😴 Silent — trial inattivo</option>
+              <option value="churning">☠️ Churn risk — pagante in calo</option>
+              <option value="new_value">✨ New value — primo wow</option>
+              <option value="errors">⚠ Errors — bug ricorrenti</option>
+            </select>
           </div>
 
           {/* Bulk action bar (appare quando >=1 selezione) */}
@@ -2352,8 +2532,27 @@ export default function AdminPage() {
                           />
                         </td>
                         <td style={{ ...td(), cursor: 'pointer' }} onClick={() => apriDettaglio(c)} title="Apri dettaglio cliente">
-                          <div style={{ fontWeight: 700, color: COLORS.accent, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}>
+                          <div style={{ fontWeight: 700, color: COLORS.accent, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
                             {c.nome_attivita || '—'}
+                            {/* Audit 2026-06-20: signal badge inline */}
+                            {signals[c.org_id] && signals[c.org_id].status !== 'normal' && (() => {
+                              const s = signals[c.org_id]
+                              const cfg = {
+                                hot: { bg: '#FEF3C7', fg: '#92400E', txt: '🔥 hot' },
+                                silent: { bg: '#E0E7FF', fg: '#3730A3', txt: '😴 silent' },
+                                churning: { bg: COLORS.errBg, fg: COLORS.err, txt: '☠️ churn' },
+                                new_value: { bg: COLORS.okBg, fg: COLORS.ok, txt: '✨ new value' },
+                                errors: { bg: COLORS.errBg, fg: COLORS.err, txt: '⚠ errors' },
+                                blocked: { bg: COLORS.blockedBg, fg: COLORS.blocked, txt: '🚫 blocked' },
+                              }[s.status] || { bg: COLORS.rowAlt, fg: COLORS.textMute, txt: s.status }
+                              return (
+                                <span title={s.detail} style={{
+                                  fontSize: 9, padding: '2px 6px', borderRadius: 99,
+                                  background: cfg.bg, color: cfg.fg, fontWeight: 700,
+                                  textTransform: 'uppercase', letterSpacing: '0.04em',
+                                }}>{cfg.txt}</span>
+                              )
+                            })()}
                           </div>
                           {c.nome_completo && <div style={{ fontSize: 11, color: COLORS.textMute }}>{c.nome_completo}</div>}
                         </td>
@@ -2445,6 +2644,133 @@ export default function AdminPage() {
           )}
         </Card>
 
+        </>)}
+
+        {/* ═══ ACTIVITY (NEW · audit 2026-06-20) ═══════════════════════ */}
+        {adminTab === 'activity' && (<>
+          <Card style={{ marginBottom: 20, padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
+                <Icon name="bolt" size={14} /> Cosa succede adesso
+                <span style={{ fontSize: 11, fontWeight: 400, color: COLORS.textMute, marginLeft: 10 }}>
+                  ultimi 80 eventi · si aggiorna ogni 12 secondi
+                </span>
+              </h3>
+              <Btn kind="neutral" size="sm" onClick={fetchActivity} disabled={activityLoading}>
+                {activityLoading ? '…' : <Icon name="refresh" size={13} />}
+              </Btn>
+            </div>
+            {activity.length === 0 ? (
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                Nessun evento recente. {activityLoading && '(caricamento…)'}
+              </div>
+            ) : (
+              <div style={{ maxHeight: 600, overflowY: 'auto', border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
+                {activity.map((ev, i) => {
+                  const sevColor = ev.severity === 'err' ? COLORS.err : ev.severity === 'warn' ? COLORS.warn : COLORS.textMute
+                  const sevBg = ev.severity === 'err' ? COLORS.errBg : ev.severity === 'warn' ? COLORS.warnBg : 'transparent'
+                  const ago = (() => {
+                    const ms = Date.now() - new Date(ev.ts).getTime()
+                    if (ms < 60_000) return 'adesso'
+                    if (ms < 3600_000) return `${Math.floor(ms / 60_000)}m fa`
+                    if (ms < 86400_000) return `${Math.floor(ms / 3600_000)}h fa`
+                    return `${Math.floor(ms / 86400_000)}g fa`
+                  })()
+                  const cliente = ev.org_id ? clienti.find(c => c.org_id === ev.org_id) : null
+                  return (
+                    <div key={`${ev.kind}-${ev.ref_id || i}`} style={{
+                      padding: '10px 14px',
+                      borderBottom: i < activity.length - 1 ? `1px solid ${COLORS.border}` : 'none',
+                      display: 'grid',
+                      gridTemplateColumns: '80px 90px 1fr 100px',
+                      gap: 10, alignItems: 'center', fontSize: 12,
+                      background: sevBg,
+                      cursor: cliente ? 'pointer' : 'default',
+                    }} onClick={() => cliente && apriDettaglio(cliente)}>
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                        color: sevColor, padding: '2px 6px', background: '#FFF', borderRadius: 4, textAlign: 'center',
+                        border: `1px solid ${sevColor}`,
+                      }}>{ev.kind}</span>
+                      <span style={{ color: COLORS.textMute, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{ago}</span>
+                      <div>
+                        <div style={{ fontWeight: 600, color: COLORS.text }}>{ev.title}</div>
+                        {ev.detail && <div style={{ color: COLORS.textMute, fontSize: 11, marginTop: 2 }}>{ev.detail}</div>}
+                      </div>
+                      <div style={{ color: COLORS.textMute, fontSize: 10, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {cliente ? cliente.nome_attivita : (ev.code || '')}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </Card>
+        </>)}
+
+        {/* ═══ FUNNEL (NEW · audit 2026-06-20) ═════════════════════════ */}
+        {adminTab === 'funnel' && (<>
+          <Card style={{ marginBottom: 20, padding: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>
+                <Icon name="trendUp" size={14} /> Onboarding funnel
+              </h3>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[30, 60, 90, 180].map(d => (
+                  <Btn key={d} kind={funnelDays === d ? 'primary' : 'neutral'} size="sm" onClick={() => setFunnelDays(d)}>
+                    {d}gg
+                  </Btn>
+                ))}
+                <Btn kind="neutral" size="sm" onClick={fetchFunnel} disabled={funnelLoading}>
+                  {funnelLoading ? '…' : <Icon name="refresh" size={13} />}
+                </Btn>
+              </div>
+            </div>
+            {!funnel ? (
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                {funnelLoading ? 'Caricamento…' : 'Premi un periodo per caricare il funnel.'}
+              </div>
+            ) : funnel.n === 0 ? (
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                Nessun cliente registrato negli ultimi {funnelDays} giorni.
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 14 }}>
+                  Base: <strong style={{ color: COLORS.text }}>{funnel.n}</strong> clienti registrati ultimi {funnel.days} giorni
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {funnel.steps.map((s, i) => {
+                    const prev = i > 0 ? funnel.steps[i - 1] : null
+                    const dropOff = prev && prev.n > 0 ? Math.round(100 - 100 * s.n / prev.n) : 0
+                    return (
+                      <div key={s.key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 80px 80px', gap: 12, alignItems: 'center', fontSize: 13 }}>
+                        <div style={{ fontWeight: 600, color: COLORS.text }}>{s.label}</div>
+                        <div style={{ height: 22, background: COLORS.rowAlt, borderRadius: 4, position: 'relative', overflow: 'hidden' }}>
+                          <div style={{
+                            position: 'absolute', top: 0, left: 0, bottom: 0,
+                            width: `${s.pct}%`,
+                            background: s.pct >= 75 ? COLORS.ok : s.pct >= 40 ? COLORS.blue : s.pct >= 20 ? COLORS.warn : COLORS.err,
+                            transition: 'width 250ms',
+                          }} />
+                          <span style={{ position: 'absolute', left: 8, top: 2, fontSize: 11, fontWeight: 700, color: '#FFF', textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
+                            {s.n}
+                          </span>
+                        </div>
+                        <div style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, textAlign: 'right' }}>{s.pct}%</div>
+                        <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: 11, color: dropOff > 30 ? COLORS.err : COLORS.textMute, textAlign: 'right' }}>
+                          {prev && dropOff > 0 ? `-${dropOff}%` : ''}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ marginTop: 16, padding: 12, background: COLORS.warnBg, borderRadius: 8, fontSize: 11, color: COLORS.warn, border: `1px solid ${COLORS.warn}` }}>
+                  <strong>Drop-off grossi</strong>: i punti dove perdi più del 30% sono opportunità di copy/UX da rifinire.
+                </div>
+              </>
+            )}
+          </Card>
         </>)}
 
         {adminTab === 'ops' && (<>
@@ -3002,6 +3328,103 @@ export default function AdminPage() {
           )}
         </Card>
 
+        {/* ═══ SQL EDITOR read-only (audit 2026-06-20) ════════════════ */}
+        <Card style={{ marginBottom: 30, padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <strong style={{ fontSize: 14 }}><Icon name="tool" size={14} /> SQL editor (read-only)</strong>
+              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+                Solo SELECT/WITH · max 500 righe · whitelist tabelle · 0 DDL/DML
+              </div>
+            </div>
+            <Btn kind="primary" onClick={runSqlQuery} disabled={sqlRunning}>
+              {sqlRunning ? <><Icon name="hourglass" size={13} /> Esecuzione…</> : <><Icon name="bolt" size={13} /> Run query</>}
+            </Btn>
+          </div>
+          {/* Pre-built queries */}
+          <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 6, fontWeight: 600 }}>Query rapide:</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+            {[
+              { label: 'Top 20 paganti per MRR', q: `select o.id, o.nome, o.piano, o.stripe_status, o.created_at\nfrom organizations o\nwhere o.approvato = true\norder by o.created_at desc\nlimit 20` },
+              { label: 'Clienti trial >30gg senza pagare', q: `select o.id, o.nome, o.trial_ends_at, o.created_at\nfrom organizations o\nwhere o.approvato = false\n  and o.created_at < now() - interval '30 days'\norder by o.created_at\nlimit 50` },
+              { label: 'Top 10 per # user_data', q: `select organization_id, count(*) as n_rows, max(updated_at) as last_update\nfrom user_data\ngroup by organization_id\norder by n_rows desc\nlimit 10` },
+              { label: 'Errori ultime 24h per endpoint', q: `select endpoint, code, count(*) as n\nfrom error_log\nwhere created_at > now() - interval '24 hours'\ngroup by endpoint, code\norder by n desc\nlimit 30` },
+              { label: 'Cost AI per cliente ultimo mese', q: `select organization_id, sum(cost_usd_estimated) as cost, sum(calls) as calls\nfrom ai_usage_daily\nwhere date > current_date - 30\ngroup by organization_id\norder by cost desc\nlimit 30` },
+              { label: 'Fatture aperte over 60gg', q: `select organization_id, fornitore_nome, importo, data_scadenza\nfrom fatture\nwhere data_scadenza < now() - interval '60 days'\n  and coalesce(importo_pagato, 0) < importo\norder by data_scadenza\nlimit 50` },
+              { label: 'Push subscriptions per org', q: `select organization_id, count(*) as n_dispositivi\nfrom push_subscriptions\nwhere active = true\ngroup by organization_id\norder by n_dispositivi desc\nlimit 30` },
+              { label: 'Feedback non gestiti', q: `select id, sentiment, user_email, messaggio, created_at\nfrom feedback\nwhere coalesce(gestito, false) = false\norder by created_at desc\nlimit 30` },
+            ].map((p, i) => (
+              <button key={i} onClick={() => setSqlQuery(p.q)}
+                style={{ background: COLORS.rowAlt, border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: '4px 10px', fontSize: 11, color: COLORS.textSoft, cursor: 'pointer' }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={sqlQuery}
+            onChange={e => setSqlQuery(e.target.value)}
+            rows={8}
+            spellCheck={false}
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 12,
+              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              border: `1px solid ${COLORS.border}`, background: '#FAFAFA',
+              resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5,
+            }}
+          />
+          {sqlError && (
+            <div style={{ marginTop: 10, padding: '10px 12px', background: COLORS.errBg, color: COLORS.err, borderRadius: 8, fontSize: 12, border: `1px solid ${COLORS.err}` }}>
+              <Icon name="warning" size={13} /> {sqlError}
+              {sqlError.includes('admin_safe_select') && (
+                <div style={{ marginTop: 6, fontSize: 11 }}>
+                  Applica la migration <code>20260704_admin_safe_select.sql</code> in Supabase SQL editor per abilitare l'editor.
+                </div>
+              )}
+            </div>
+          )}
+          {sqlResult && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, color: COLORS.textMute, marginBottom: 6 }}>
+                {sqlResult.count} righe · query: <code style={{ fontSize: 10 }}>{(sqlResult.query || '').slice(0, 120)}…</code>
+              </div>
+              {sqlResult.rows.length === 0 ? (
+                <div style={{ padding: 16, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Nessuna riga.</div>
+              ) : (
+                <div style={{ overflowX: 'auto', border: `1px solid ${COLORS.border}`, borderRadius: 8, maxHeight: 400, overflowY: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: 11, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
+                    <thead>
+                      <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
+                        {Object.keys(sqlResult.rows[0]).map(col => (
+                          <th key={col} style={{ ...th(), fontSize: 10, fontFamily: 'inherit' }}>{col}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sqlResult.rows.slice(0, 100).map((row, i) => (
+                        <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          {Object.values(row).map((v, j) => (
+                            <td key={j} style={{ ...td(), fontFamily: 'inherit', fontSize: 11, color: COLORS.textSoft, whiteSpace: 'nowrap', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                              title={String(v)}>
+                              {v === null ? <span style={{ color: COLORS.textMute, fontStyle: 'italic' }}>null</span>
+                                : typeof v === 'object' ? JSON.stringify(v).slice(0, 80)
+                                : String(v).slice(0, 80)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {sqlResult.rows.length > 100 && (
+                    <div style={{ padding: 8, textAlign: 'center', fontSize: 10, color: COLORS.textMute, background: COLORS.rowAlt }}>
+                      Mostro le prime 100 righe su {sqlResult.count}. Stringi la query per vedere tutto.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+
         </>)}
 
         {adminTab === 'security' && (<>
@@ -3112,6 +3535,128 @@ export default function AdminPage() {
                   )}
                 </div>
               ))}
+            </div>
+          )}
+        </Card>
+
+        {/* ═══ ERRORS GROUPED (NEW · audit 2026-06-20) ════════════════ */}
+        <Card style={{ marginTop: 16, padding: 0 }}>
+          <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <strong style={{ fontSize: 14 }}><Icon name="warning" size={14} /> Errori raggruppati</strong>
+            <span style={{ fontSize: 11, color: COLORS.textMute }}>per endpoint + codice · ultimi {errorsGroupedDays} giorni</span>
+            <span style={{ flex: 1 }} />
+            <select value={errorsGroupedDays} onChange={e => setErrorsGroupedDays(parseInt(e.target.value, 10))}
+              style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+              <option value={1}>24h</option>
+              <option value={7}>7gg</option>
+              <option value={30}>30gg</option>
+              <option value={90}>90gg</option>
+            </select>
+            <Btn kind="neutral" size="sm" onClick={fetchErrorsGrouped} disabled={errorsGroupedLoading}>
+              {errorsGroupedLoading ? '…' : <Icon name="refresh" size={13} />}
+            </Btn>
+          </div>
+          {errorsGrouped.length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              {errorsGroupedLoading ? 'Caricamento…' : 'Nessun errore raggruppato in questo periodo. 🎉'}
+            </div>
+          ) : (
+            <div style={{ maxHeight: 500, overflowY: 'auto' }}>
+              <table style={{ width: '100%', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
+                    <th style={th()}>Endpoint:operation</th>
+                    <th style={{ ...th(), textAlign: 'right' }}>Count</th>
+                    <th style={{ ...th(), textAlign: 'right' }}>Users</th>
+                    <th style={{ ...th(), textAlign: 'right' }}>Orgs</th>
+                    <th style={th()}>Codice</th>
+                    <th style={th()}>Sample message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {errorsGrouped.slice(0, 50).map((g, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                      <td style={{ ...td(), fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 600 }}>
+                        {g.endpoint}{g.operation ? `:${g.operation}` : ''}
+                      </td>
+                      <td style={{ ...td(), textAlign: 'right', fontWeight: 700, color: g.count > 20 ? COLORS.err : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>{g.count}</td>
+                      <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{g.n_users}</td>
+                      <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{g.n_orgs}</td>
+                      <td style={{ ...td(), fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 10 }}>
+                        <span style={{ padding: '1px 5px', background: COLORS.errBg, color: COLORS.err, borderRadius: 4, fontWeight: 700 }}>{g.code}</span>
+                      </td>
+                      <td style={{ ...td(), fontSize: 11, color: COLORS.textSoft, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={g.sample_message}>
+                        {g.sample_message}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
+        {/* ═══ AI COST PER CUSTOMER (NEW · audit 2026-06-20) ══════════ */}
+        <Card style={{ marginTop: 16, padding: 0 }}>
+          <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <strong style={{ fontSize: 14 }}><Icon name="coins" size={14} /> Costi AI per cliente</strong>
+            <span style={{ fontSize: 11, color: COLORS.textMute }}>
+              ultimi {aiCostDays} gg · totale {aiCost ? '$' + (aiCost.total_cost_usd || 0).toFixed(2) : '—'}
+            </span>
+            <span style={{ flex: 1 }} />
+            <select value={aiCostDays} onChange={e => setAiCostDays(parseInt(e.target.value, 10))}
+              style={{ fontSize: 12, padding: '4px 8px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: '#fff' }}>
+              <option value={7}>7gg</option>
+              <option value={30}>30gg</option>
+              <option value={90}>90gg</option>
+              <option value={365}>1 anno</option>
+            </select>
+            <Btn kind="neutral" size="sm" onClick={fetchAiCost} disabled={aiCostLoading}>
+              {aiCostLoading ? '…' : <Icon name="refresh" size={13} />}
+            </Btn>
+          </div>
+          {!aiCost || (aiCost.customers || []).length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              {aiCostLoading ? 'Caricamento…' : 'Nessuna chiamata AI in questo periodo.'}
+            </div>
+          ) : (
+            <div style={{ maxHeight: 500, overflowY: 'auto' }}>
+              <table style={{ width: '100%', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
+                    <th style={th()}>Cliente</th>
+                    <th style={{ ...th(), textAlign: 'right' }}>Costo USD</th>
+                    <th style={{ ...th(), textAlign: 'right' }}>Calls</th>
+                    <th style={{ ...th(), textAlign: 'right' }}>Tokens in/out</th>
+                    <th style={th()}>Top feature</th>
+                    <th style={th()}>Ultima call</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiCost.customers.slice(0, 100).map((c, i) => {
+                    const cliente = clienti.find(cl => cl.org_id === c.organization_id)
+                    return (
+                      <tr key={c.organization_id} style={{ borderBottom: `1px solid ${COLORS.border}`, cursor: cliente ? 'pointer' : 'default' }}
+                        onClick={() => cliente && apriDettaglio(cliente)}>
+                        <td style={{ ...td(), fontWeight: 600 }}>
+                          {c.nome || (c.organization_id || '').slice(0, 8) + '…'}
+                        </td>
+                        <td style={{ ...td(), textAlign: 'right', fontWeight: 700, color: c.total_cost_usd > 5 ? COLORS.err : c.total_cost_usd > 1 ? COLORS.warn : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
+                          ${c.total_cost_usd.toFixed(3)}
+                        </td>
+                        <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{c.total_calls}</td>
+                        <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums', fontSize: 10 }}>
+                          {Math.round(c.tokens_in / 1000)}k / {Math.round(c.tokens_out / 1000)}k
+                        </td>
+                        <td style={{ ...td(), fontSize: 11 }}>
+                          {c.top_features.map(f => `${f.feature} $${f.cost_usd.toFixed(2)}`).join(' · ')}
+                        </td>
+                        <td style={{ ...td(), color: COLORS.textMute, fontSize: 11 }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '—'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </Card>
@@ -3675,6 +4220,104 @@ export default function AdminPage() {
           }}
         />
       )}
+      {/* Audit 2026-06-20: Cmd+K global search overlay */}
+      {cmdkOpen && (
+        <div onClick={() => setCmdkOpen(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+          paddingTop: '12vh', zIndex: 200,
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#FFF', borderRadius: 12, width: '92%', maxWidth: 680,
+            maxHeight: '70vh', display: 'flex', flexDirection: 'column',
+            boxShadow: '0 30px 80px rgba(0,0,0,0.4)',
+            border: `1px solid ${COLORS.border}`,
+          }}>
+            <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icon name="search" size={14} color={COLORS.textMute} />
+              <input
+                autoFocus
+                value={cmdkQuery}
+                onChange={e => setCmdkQuery(e.target.value)}
+                placeholder="Cerca cliente, errore, feedback, audit…"
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 14, background: 'transparent' }}
+              />
+              <span style={{ fontSize: 10, color: COLORS.textMute, padding: '2px 6px', background: COLORS.rowAlt, borderRadius: 4, fontFamily: 'monospace' }}>esc</span>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
+              {!cmdkResults && cmdkQuery.length < 2 && (
+                <div style={{ padding: 24, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                  Almeno 2 caratteri. Cerca tra clienti (nome/email), errori, feedback, audit log.
+                </div>
+              )}
+              {cmdkLoading && (
+                <div style={{ padding: 24, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                  Cercando…
+                </div>
+              )}
+              {cmdkResults && !cmdkLoading && (
+                <>
+                  {[
+                    ['clienti', 'Clienti', 'users'],
+                    ['errori', 'Errori', 'warning'],
+                    ['feedback', 'Feedback', 'mail'],
+                    ['audit', 'Audit log', 'shield'],
+                  ].map(([k, label, icon]) => {
+                    const items = cmdkResults[k] || []
+                    if (items.length === 0) return null
+                    return (
+                      <div key={k} style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '6px 8px' }}>
+                          <Icon name={icon} size={10} /> {label} ({items.length})
+                        </div>
+                        {items.map((it, i) => {
+                          let title, subtitle, onClick
+                          if (k === 'clienti') {
+                            const cliente = clienti.find(c => c.org_id === it.id)
+                            title = it.nome
+                            subtitle = it.tipo || ''
+                            onClick = () => { if (cliente) { apriDettaglio(cliente); setCmdkOpen(false) } }
+                          } else if (k === 'errori') {
+                            const cliente = clienti.find(c => c.org_id === it.org_id)
+                            title = `${it.endpoint || '?'}:${it.operation || ''} · ${it.code || ''}`
+                            subtitle = it.message
+                            onClick = () => { if (cliente) { apriDettaglio(cliente); setCmdkOpen(false) } }
+                          } else if (k === 'feedback') {
+                            const cliente = clienti.find(c => c.org_id === it.organization_id)
+                            title = `${it.sentiment}: ${it.user_email || 'anon'}`
+                            subtitle = it.messaggio
+                            onClick = () => { setAdminTab('ops'); setCmdkOpen(false) }
+                          } else if (k === 'audit') {
+                            title = `${it.azione} (${it.admin_email})`
+                            subtitle = it.org_id ? `org: ${it.org_id.slice(0, 8)}…` : ''
+                            onClick = () => { setAdminTab('security'); setCmdkOpen(false) }
+                          }
+                          return (
+                            <div key={`${k}-${it.id || i}`} onClick={onClick} style={{
+                              padding: '8px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12,
+                              borderBottom: `1px solid ${COLORS.border}`,
+                            }} onMouseEnter={e => e.currentTarget.style.background = COLORS.rowAlt}
+                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                              <div style={{ fontWeight: 600, color: COLORS.text }}>{title}</div>
+                              {subtitle && <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</div>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                  {Object.values(cmdkResults).every(arr => (arr || []).length === 0) && (
+                    <div style={{ padding: 24, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                      Niente trovato per "{cmdkQuery}".
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Audit 2026-06-20: wizard demo personalizzata (pitch-ready) */}
       {personalizeFor && (
         <PersonalizeDemoModal

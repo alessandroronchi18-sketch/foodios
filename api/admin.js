@@ -1946,6 +1946,487 @@ async function azCleanupE2E(supabase, conferma, expectedCount = null) {
   return results
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// AUDIT 2026-06-20 — ADMIN v2: activity feed, customer signals, funnel,
+// errors grouped, AI cost per cliente, global search, SQL editor sicuro.
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── Activity feed: ultimi 80 eventi mergeati ─────────────────────────────
+// Sorgenti: error_log (errori prod), audit_log (modifiche dati), feedback,
+// admin_log (azioni admin). Best-effort: se una tabella manca, salta.
+async function getActivityFeed(supabase, limit = 80) {
+  const [errR, audR, fbR, admR] = await Promise.all([
+    fetchSafe(supabase.from('error_log')
+      .select('id, created_at, endpoint, operation, code, status, message, org_id')
+      .order('created_at', { ascending: false }).limit(40)),
+    fetchSafe(supabase.from('audit_log')
+      .select('id, created_at, table_name, operation, row_id, new_data')
+      .order('created_at', { ascending: false }).limit(40)),
+    fetchSafe(supabase.from('feedback')
+      .select('id, created_at, sentiment, user_email, messaggio, organization_id')
+      .order('created_at', { ascending: false }).limit(20)),
+    fetchSafe(supabase.from('admin_log')
+      .select('id, created_at, admin_email, azione, org_id')
+      .order('created_at', { ascending: false }).limit(20)),
+  ])
+
+  const events = []
+  for (const e of (errR.data || [])) {
+    events.push({
+      kind: 'error',
+      ts: e.created_at,
+      org_id: e.org_id,
+      title: `${e.endpoint || '?'} · ${e.operation || ''}`,
+      detail: (e.message || '').slice(0, 200),
+      code: e.code || `HTTP_${e.status || '?'}`,
+      severity: 'err',
+      ref_id: e.id,
+    })
+  }
+  for (const e of (audR.data || [])) {
+    if (e.table_name === 'organizations' && e.operation === 'UPDATE') {
+      const newD = e.new_data || {}
+      const title = newD.approvato ? 'Cliente approvato' : (newD.attivo === false ? 'Cliente bloccato' : 'Org aggiornata')
+      events.push({
+        kind: 'audit',
+        ts: e.created_at,
+        org_id: e.row_id,
+        title,
+        detail: '',
+        severity: 'info',
+        ref_id: e.id,
+      })
+    }
+  }
+  for (const f of (fbR.data || [])) {
+    events.push({
+      kind: 'feedback',
+      ts: f.created_at,
+      org_id: f.organization_id,
+      title: `Feedback ${f.sentiment}: ${f.user_email || 'anonimo'}`,
+      detail: (f.messaggio || '').slice(0, 200),
+      severity: f.sentiment === 'bug' ? 'warn' : 'info',
+      ref_id: f.id,
+    })
+  }
+  for (const a of (admR.data || [])) {
+    events.push({
+      kind: 'admin',
+      ts: a.created_at,
+      org_id: a.org_id,
+      title: `${a.azione} (${a.admin_email || ''})`,
+      detail: '',
+      severity: 'info',
+      ref_id: a.id,
+    })
+  }
+
+  events.sort((a, b) => (b.ts || '').localeCompare(a.ts || ''))
+  return events.slice(0, limit)
+}
+
+// ─── Customer signals: hot / silent / churning / new-value / normal ──────
+// Per ogni org calcola uno status azionabile in base a engagement recente.
+async function getCustomerSignals(supabase) {
+  const now = new Date()
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString()
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000).toISOString()
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString()
+  const isoMonthDate = (() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d.toISOString().slice(0,10) })()
+
+  // Bulk fetch: clienti base + ultimi accessi via auth + attività recente
+  const [orgsR, usersR, udLastR, errR] = await Promise.all([
+    supabase.from('organizations')
+      .select('id, nome, approvato, attivo, trial_ends_at, stripe_status, created_at')
+      .limit(1000),
+    supabase.auth.admin.listUsers({ perPage: 1000 }),
+    fetchSafe(supabase.from('user_data')
+      .select('organization_id, updated_at')
+      .gte('updated_at', thirtyDaysAgo)
+      .order('updated_at', { ascending: false })
+      .limit(5000)),
+    fetchSafe(supabase.from('error_log')
+      .select('org_id')
+      .gte('created_at', sevenDaysAgo)
+      .limit(2000)),
+  ])
+  if (orgsR.error) throw new Error(orgsR.error.message)
+
+  // Mappa per-org delle ultime attività
+  const lastUd = new Map()   // org_id → ISO ultimo update
+  const cntUd7 = new Map()   // org_id → count user_data updates ultimi 7gg
+  const cntUd14 = new Map()  // org_id → count user_data updates 8-14gg fa
+  for (const r of (udLastR.data || [])) {
+    if (!r.organization_id) continue
+    const ts = r.updated_at
+    if (!lastUd.has(r.organization_id) || ts > lastUd.get(r.organization_id)) {
+      lastUd.set(r.organization_id, ts)
+    }
+    if (ts >= sevenDaysAgo) {
+      cntUd7.set(r.organization_id, (cntUd7.get(r.organization_id) || 0) + 1)
+    } else if (ts >= fourteenDaysAgo) {
+      cntUd14.set(r.organization_id, (cntUd14.get(r.organization_id) || 0) + 1)
+    }
+  }
+  // Errori produzione per org ultimi 7gg
+  const errByOrg = new Map()
+  for (const e of (errR.data || [])) {
+    if (!e.org_id) continue
+    errByOrg.set(e.org_id, (errByOrg.get(e.org_id) || 0) + 1)
+  }
+  // Mappa email per ultimo sign in (titolare)
+  const lastSignInByEmail = {}
+  for (const u of (usersR.data?.users || [])) {
+    if (u.email) lastSignInByEmail[u.email.toLowerCase()] = u.last_sign_in_at
+  }
+  // Mappa titolare per org
+  const { data: profs } = await supabase.from('profiles')
+    .select('organization_id, email, ruolo')
+    .eq('ruolo', 'titolare')
+    .limit(2000)
+  const titolareByOrg = new Map()
+  for (const p of (profs || [])) {
+    if (!titolareByOrg.has(p.organization_id)) titolareByOrg.set(p.organization_id, p.email?.toLowerCase())
+  }
+
+  const signals = []
+  for (const o of (orgsR.data || [])) {
+    if (o.attivo === false) {
+      signals.push({ org_id: o.id, status: 'blocked', detail: 'bloccato manualmente' })
+      continue
+    }
+    const lastUdTs = lastUd.get(o.id) || null
+    const c7 = cntUd7.get(o.id) || 0
+    const c14 = cntUd14.get(o.id) || 0
+    const errs = errByOrg.get(o.id) || 0
+    const titolareEmail = titolareByOrg.get(o.id)
+    const lastSignIn = titolareEmail ? lastSignInByEmail[titolareEmail] : null
+    const trialOk = o.trial_ends_at && new Date(o.trial_ends_at) > now
+    const trialDays = o.trial_ends_at ? Math.floor((new Date(o.trial_ends_at) - now) / 86400000) : null
+
+    // CHURNING: pagante con drop attività ≥50% vs settimana scorsa
+    if (o.approvato && c14 > 0 && c7 < c14 * 0.5) {
+      signals.push({
+        org_id: o.id, status: 'churning',
+        detail: `attività ${c7} ultimi 7gg vs ${c14} sett. prec. (-${Math.round(100 - 100 * c7 / c14)}%)`,
+      })
+      continue
+    }
+    // ERRORS: tanti errori produzione recenti
+    if (errs >= 10) {
+      signals.push({
+        org_id: o.id, status: 'errors',
+        detail: `${errs} errori produzione ultimi 7gg`,
+      })
+      continue
+    }
+    // HOT: trial < 14gg + ≥3 attività ultima settimana
+    if (trialOk && trialDays != null && trialDays <= 14 && c7 >= 3) {
+      signals.push({
+        org_id: o.id, status: 'hot',
+        detail: `trial ${trialDays}gg + ${c7} attività ultimi 7gg`,
+      })
+      continue
+    }
+    // NEW VALUE: registrato ≥ 3gg fa + < 14gg + prima attività dopo registrazione
+    const ageDays = Math.floor((now - new Date(o.created_at)) / 86400000)
+    if (ageDays >= 3 && ageDays <= 14 && c7 >= 1 && !o.approvato) {
+      signals.push({
+        org_id: o.id, status: 'new_value',
+        detail: `registrato ${ageDays}gg fa, attivo`,
+      })
+      continue
+    }
+    // SILENT: trial attivo MA 0 attività ultimi 7gg
+    if (trialOk && c7 === 0 && ageDays >= 2) {
+      signals.push({
+        org_id: o.id, status: 'silent',
+        detail: 'trial attivo, 0 attività ultimi 7gg',
+      })
+      continue
+    }
+    signals.push({ org_id: o.id, status: 'normal', detail: '' })
+  }
+  return signals
+}
+
+// ─── Onboarding funnel: dropoff step per step su clienti registrati ──────
+async function getOnboardingFunnel(supabase, days = 60) {
+  const since = new Date(Date.now() - days * 86400000).toISOString()
+  const sinceDate = since.slice(0, 10)
+  const [orgsR, usersR] = await Promise.all([
+    supabase.from('organizations')
+      .select('id, created_at, approvato, attivo, trial_ends_at')
+      .gte('created_at', since).limit(2000),
+    supabase.auth.admin.listUsers({ perPage: 1000 }),
+  ])
+  if (orgsR.error) throw new Error(orgsR.error.message)
+  const userByEmail = {}
+  for (const u of (usersR.data?.users || [])) {
+    if (u.email) userByEmail[u.email.toLowerCase()] = u
+  }
+  const orgs = orgsR.data || []
+  const orgIds = orgs.map(o => o.id)
+  if (orgIds.length === 0) {
+    return { days, n: 0, steps: [] }
+  }
+  // Bulk per ogni step
+  const [sediR, profsR, udR, fattureR] = await Promise.all([
+    fetchSafe(supabase.from('sedi').select('organization_id, created_at').in('organization_id', orgIds)),
+    fetchSafe(supabase.from('profiles').select('organization_id, email, ruolo').eq('ruolo', 'titolare').in('organization_id', orgIds)),
+    fetchSafe(supabase.from('user_data').select('organization_id, data_key, updated_at').in('organization_id', orgIds)
+      .in('data_key', ['pasticceria-ricettario-v1', 'pasticceria-chiusure-v1', 'pasticceria-magazzino-v1'])),
+    fetchSafe(supabase.from('fatture').select('organization_id, data_emissione').in('organization_id', orgIds).limit(2000)),
+  ])
+  const sediByOrg = new Set()
+  for (const s of (sediR.data || [])) sediByOrg.add(s.organization_id)
+  const titolareEmailByOrg = {}
+  for (const p of (profsR.data || [])) titolareEmailByOrg[p.organization_id] = (p.email || '').toLowerCase()
+  const ricByOrg = new Set()
+  const chiusByOrg = new Set()
+  for (const u of (udR.data || [])) {
+    if (u.data_key === 'pasticceria-ricettario-v1') ricByOrg.add(u.organization_id)
+    if (u.data_key === 'pasticceria-chiusure-v1') chiusByOrg.add(u.organization_id)
+  }
+  const fattByOrg = new Set()
+  for (const f of (fattureR.data || [])) fattByOrg.add(f.organization_id)
+
+  let nRegistrati = orgs.length
+  let nEmail = 0, nSede = 0, nRicettario = 0, nChiusura = 0, nFattura = 0, nAttivo7gg = 0, nPagante = 0
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+
+  for (const o of orgs) {
+    const titEmail = titolareEmailByOrg[o.id]
+    const u = titEmail ? userByEmail[titEmail] : null
+    if (u?.email_confirmed_at) nEmail++
+    if (sediByOrg.has(o.id)) nSede++
+    if (ricByOrg.has(o.id)) nRicettario++
+    if (chiusByOrg.has(o.id)) nChiusura++
+    if (fattByOrg.has(o.id)) nFattura++
+    if (u?.last_sign_in_at && u.last_sign_in_at >= sevenDaysAgo) nAttivo7gg++
+    if (o.approvato) nPagante++
+  }
+  const pct = (n) => nRegistrati > 0 ? Math.round(100 * n / nRegistrati) : 0
+  return {
+    days,
+    n: nRegistrati,
+    steps: [
+      { key: 'registrato',  label: 'Registrato',                  n: nRegistrati, pct: 100 },
+      { key: 'email',       label: 'Email confermata',            n: nEmail,      pct: pct(nEmail) },
+      { key: 'sede',        label: 'Sede creata',                 n: nSede,       pct: pct(nSede) },
+      { key: 'ricettario',  label: 'Ricettario popolato',         n: nRicettario, pct: pct(nRicettario) },
+      { key: 'chiusura',    label: 'Prima chiusura cassa',        n: nChiusura,   pct: pct(nChiusura) },
+      { key: 'fattura',     label: 'Prima fattura caricata',      n: nFattura,    pct: pct(nFattura) },
+      { key: 'attivo7gg',   label: 'Attivo ultimi 7gg',           n: nAttivo7gg,  pct: pct(nAttivo7gg) },
+      { key: 'pagante',     label: 'Pagante',                     n: nPagante,    pct: pct(nPagante) },
+    ],
+  }
+}
+
+// ─── Errori raggruppati per endpoint+codice ──────────────────────────────
+async function getErrorsGrouped(supabase, days = 7) {
+  const since = new Date(Date.now() - days * 86400000).toISOString()
+  const { data, error } = await supabase.from('error_log')
+    .select('endpoint, operation, code, status, message, org_id, user_id, created_at')
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(5000)
+  if (error) throw new Error(error.message)
+  const groups = new Map()
+  for (const e of (data || [])) {
+    const key = `${e.endpoint || '?'}::${e.operation || ''}::${e.code || `HTTP_${e.status || '?'}`}`
+    if (!groups.has(key)) {
+      groups.set(key, {
+        endpoint: e.endpoint || '?',
+        operation: e.operation || '',
+        code: e.code || `HTTP_${e.status || '?'}`,
+        count: 0,
+        users: new Set(),
+        orgs: new Set(),
+        first_ts: e.created_at,
+        last_ts: e.created_at,
+        sample_message: e.message || '',
+      })
+    }
+    const g = groups.get(key)
+    g.count++
+    if (e.user_id) g.users.add(e.user_id)
+    if (e.org_id) g.orgs.add(e.org_id)
+    if (e.created_at < g.first_ts) g.first_ts = e.created_at
+    if (e.created_at > g.last_ts) g.last_ts = e.created_at
+  }
+  const out = Array.from(groups.values()).map(g => ({
+    endpoint: g.endpoint,
+    operation: g.operation,
+    code: g.code,
+    count: g.count,
+    n_users: g.users.size,
+    n_orgs: g.orgs.size,
+    first_ts: g.first_ts,
+    last_ts: g.last_ts,
+    sample_message: g.sample_message.slice(0, 200),
+  }))
+  out.sort((a, b) => b.count - a.count)
+  return out
+}
+
+// ─── AI cost per cliente (ai_usage_daily aggregato) ──────────────────────
+async function getAICostByCustomer(supabase, days = 30) {
+  const sinceDate = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+  const { data, error } = await supabase.from('ai_usage_daily')
+    .select('organization_id, feature, calls, cost_usd_estimated, tokens_in_estimated, tokens_out_estimated, last_call_at')
+    .gte('date', sinceDate)
+    .limit(10000)
+  if (error) throw new Error(error.message)
+  const byOrg = new Map()
+  for (const r of (data || [])) {
+    if (!byOrg.has(r.organization_id)) {
+      byOrg.set(r.organization_id, {
+        organization_id: r.organization_id,
+        total_calls: 0,
+        total_cost_usd: 0,
+        tokens_in: 0,
+        tokens_out: 0,
+        last_call_at: r.last_call_at,
+        by_feature: {},
+      })
+    }
+    const o = byOrg.get(r.organization_id)
+    o.total_calls += Number(r.calls) || 0
+    o.total_cost_usd += Number(r.cost_usd_estimated) || 0
+    o.tokens_in += Number(r.tokens_in_estimated) || 0
+    o.tokens_out += Number(r.tokens_out_estimated) || 0
+    if (r.last_call_at && r.last_call_at > o.last_call_at) o.last_call_at = r.last_call_at
+    o.by_feature[r.feature] = (o.by_feature[r.feature] || 0) + Number(r.cost_usd_estimated || 0)
+  }
+  // Hydrate con nome cliente
+  const orgIds = Array.from(byOrg.keys())
+  if (orgIds.length > 0) {
+    const { data: orgs } = await supabase.from('organizations')
+      .select('id, nome').in('id', orgIds)
+    for (const o of (orgs || [])) {
+      const e = byOrg.get(o.id)
+      if (e) e.nome = o.nome
+    }
+  }
+  const out = Array.from(byOrg.values())
+    .map(o => ({
+      ...o,
+      total_cost_usd: Math.round(o.total_cost_usd * 1000) / 1000,
+      top_features: Object.entries(o.by_feature)
+        .sort((a, b) => b[1] - a[1]).slice(0, 3)
+        .map(([f, c]) => ({ feature: f, cost_usd: Math.round(c * 1000) / 1000 })),
+    }))
+    .sort((a, b) => b.total_cost_usd - a.total_cost_usd)
+  const tot = out.reduce((s, o) => s + o.total_cost_usd, 0)
+  return { days, total_cost_usd: Math.round(tot * 100) / 100, customers: out }
+}
+
+// ─── Global search ───────────────────────────────────────────────────────
+async function globalSearch(supabase, q) {
+  const query = (q || '').trim().slice(0, 100)
+  if (query.length < 2) return { clienti: [], errori: [], feedback: [], audit: [] }
+  const like = `%${query.replace(/[%_]/g, '\\$&')}%`
+  const [clientiR, errR, fbR, audR] = await Promise.all([
+    fetchSafe(supabase.from('organizations')
+      .select('id, nome, tipo')
+      .or(`nome.ilike.${like},nome_attivita.ilike.${like}`)
+      .limit(8)),
+    fetchSafe(supabase.from('error_log')
+      .select('id, endpoint, operation, code, message, created_at, org_id')
+      .ilike('message', like)
+      .order('created_at', { ascending: false }).limit(8)),
+    fetchSafe(supabase.from('feedback')
+      .select('id, user_email, messaggio, sentiment, created_at, organization_id')
+      .ilike('messaggio', like)
+      .order('created_at', { ascending: false }).limit(8)),
+    fetchSafe(supabase.from('admin_log')
+      .select('id, admin_email, azione, org_id, created_at')
+      .or(`azione.ilike.${like},admin_email.ilike.${like}`)
+      .order('created_at', { ascending: false }).limit(8)),
+  ])
+  return {
+    clienti: clientiR.data || [],
+    errori: (errR.data || []).map(e => ({ ...e, message: (e.message || '').slice(0, 200) })),
+    feedback: (fbR.data || []).map(f => ({ ...f, messaggio: (f.messaggio || '').slice(0, 200) })),
+    audit: audR.data || [],
+  }
+}
+
+// ─── SQL editor SELECT-only (sicuro) ─────────────────────────────────────
+// Whitelist tabelle leggibili dall'admin. Tutto il resto bloccato a livello
+// parser. Niente DDL/DML/funzioni potenzialmente pericolose. Max 500 righe.
+const SQL_TABLES_ALLOWED = new Set([
+  'organizations', 'profiles', 'sedi', 'user_data', 'fatture', 'fornitori',
+  'dipendenti', 'turni', 'clienti_b2b', 'vendite_b2b', 'costi_aziendali',
+  'feedback', 'error_log', 'audit_log', 'admin_log', 'rate_limits',
+  'banners', 'ai_usage_daily', 'integrazioni', 'push_subscriptions',
+  'codici_sconto', 'cron_runs', 'pin_attempts', 'email_domain_blocklist',
+  'pos_scontrini', 'scadenzario_pagamenti', 'plan_pricing', 'login_attempts',
+  'daily_briefs', 'documentary_snapshots',
+])
+const SQL_BLOCKED_KEYWORDS = [
+  /\binsert\s+into\b/i, /\bupdate\s+\w+\s+set\b/i, /\bdelete\s+from\b/i,
+  /\bdrop\s+/i, /\bcreate\s+/i, /\balter\s+/i, /\btruncate\s+/i,
+  /\bgrant\s+/i, /\brevoke\s+/i, /\bcopy\s+/i,
+  /\bpg_(read_file|catalog|sleep|advisory_lock|stat_file|ls_dir)\b/i,
+  /\b(auth\.)?(users|sessions|refresh_tokens|mfa_factors|mfa_amr_claims)\b/i,
+  /;\s*\w/,  // statement separator follows by other stuff
+]
+function validateSafeSelectSQL(q) {
+  if (!q || typeof q !== 'string') return { ok: false, error: 'Query vuota' }
+  const trimmed = q.trim().replace(/;$/, '').trim()
+  if (!trimmed) return { ok: false, error: 'Query vuota' }
+  if (trimmed.length > 4000) return { ok: false, error: 'Query troppo lunga (max 4000 char)' }
+  if (!/^select\b/i.test(trimmed) && !/^with\b/i.test(trimmed)) {
+    return { ok: false, error: 'Solo SELECT/WITH ammessi' }
+  }
+  for (const pat of SQL_BLOCKED_KEYWORDS) {
+    if (pat.test(trimmed)) return { ok: false, error: `Keyword bloccata: ${pat.source}` }
+  }
+  // Tabelle referenziate: tutte FROM/JOIN <name> devono essere in whitelist
+  const tableRefs = []
+  const fromJoinRe = /\b(?:from|join)\s+([a-zA-Z_][\w.]*)/gi
+  let m
+  while ((m = fromJoinRe.exec(trimmed)) !== null) {
+    const t = m[1].toLowerCase().replace(/^public\./, '')
+    tableRefs.push(t)
+  }
+  for (const t of tableRefs) {
+    // CTE alias non sono in whitelist ma sono dichiarati dentro la query → ok se
+    // matchano un WITH ... AS. Skip se non in whitelist E non in WITH.
+    if (SQL_TABLES_ALLOWED.has(t)) continue
+    // Permetti CTE: cerca "with <t> as ("
+    const ctePattern = new RegExp(`\\bwith\\s+${t}\\b\\s+as`, 'i')
+    if (ctePattern.test(trimmed)) continue
+    // Permetti subsequent "<prev>, <t> as ("
+    const ctePattern2 = new RegExp(`,\\s*${t}\\b\\s+as`, 'i')
+    if (ctePattern2.test(trimmed)) continue
+    return { ok: false, error: `Tabella non permessa: ${t}` }
+  }
+  return { ok: true, query: trimmed + ' LIMIT 500' }
+}
+
+async function runSafeSelectQuery(supabase, q, adminEmail) {
+  const v = validateSafeSelectSQL(q)
+  if (!v.ok) return { ok: false, error: v.error }
+  try {
+    // Esecuzione via RPC dedicata se esiste, altrimenti via direct REST
+    // (default postgres role del service_role può eseguire SELECT su tutto).
+    const { data, error } = await supabase.rpc('admin_safe_select', { p_query: v.query })
+    if (error) {
+      // Se la RPC non esiste, fallback su error chiaro
+      if (error.message?.toLowerCase().includes('does not exist') || error.code === 'PGRST202') {
+        return { ok: false, error: 'RPC admin_safe_select non installata in DB. Migration da applicare.', need_migration: true }
+      }
+      return { ok: false, error: error.message }
+    }
+    return { ok: true, rows: data || [], count: (data || []).length, query: v.query }
+  } catch (e) {
+    return { ok: false, error: e.message || 'exception' }
+  }
+}
+
 // ─── handler principale ────────────────────────────────────────────────────
 
 export default async function handler(req) {
@@ -2026,6 +2507,38 @@ export default async function handler(req) {
       if (action === 'email_blocklist') {
         const list = await getEmailBlocklist(supabase)
         return json({ blocklist: list }, 200, req)
+      }
+
+      // ═══ ADMIN v2 — audit 2026-06-20 ═══════════════════════════════
+      if (action === 'activity_feed') {
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '60', 10), 200)
+        const events = await getActivityFeed(supabase, limit)
+        return json({ events }, 200, req)
+      }
+      if (action === 'customer_signals') {
+        const signals = await getCustomerSignals(supabase)
+        return json({ signals }, 200, req)
+      }
+      if (action === 'onboarding_funnel') {
+        const days = Math.min(parseInt(url.searchParams.get('days') || '60', 10), 365)
+        const funnel = await getOnboardingFunnel(supabase, days)
+        await logAdmin(supabase, user.email, `onboarding_funnel:${days}d`, null, ip, ua)
+        return json(funnel, 200, req)
+      }
+      if (action === 'errors_grouped') {
+        const days = Math.min(parseInt(url.searchParams.get('days') || '7', 10), 90)
+        const groups = await getErrorsGrouped(supabase, days)
+        return json({ days, groups }, 200, req)
+      }
+      if (action === 'ai_cost_by_customer') {
+        const days = Math.min(parseInt(url.searchParams.get('days') || '30', 10), 365)
+        const data = await getAICostByCustomer(supabase, days)
+        return json(data, 200, req)
+      }
+      if (action === 'global_search') {
+        const q = url.searchParams.get('q') || ''
+        const data = await globalSearch(supabase, q)
+        return json(data, 200, req)
       }
 
       if (action === 'load_demo_menu') {
@@ -2374,6 +2887,13 @@ export default async function handler(req) {
           await azIntegrazioneDisattiva(supabase, orgId, sanitizeStrict(body.integrazione_id || '', 36)); break
         case 'push_sub_revoca':
           await azPushSubRevoca(supabase, orgId, sanitizeStrict(body.sub_id || '', 36)); break
+        case 'sql_query': {
+          // Audit 2026-06-20: SQL editor read-only per admin.
+          // Pattern: validation client-side regex multi-layer + RPC admin_safe_select.
+          const q = body?.query || ''
+          result = await runSafeSelectQuery(supabase, q, user.email)
+          break
+        }
         case 'email_blocklist_aggiungi':
           await azEmailBlocklistAggiungi(supabase, body.domain, body.motivo, user.email); break
         case 'email_blocklist_rimuovi':
