@@ -263,6 +263,10 @@ export function useAuth() {
   // Dipendente non ancora attivato (o disattivato) dal titolare: accesso negato a
   // livello DB (get_user_org_id ritorna null). L'app mostra una schermata "in attesa".
   const inAttesa       = isDipendente && profile?.approvato !== true
+  // Audit 2026-06-21: titolari nuovi devono essere approvati manualmente dall'admin
+  // per evitare scam. La colonna organizations.in_attesa=true blocca l'accesso.
+  // Admin e dipendenti (gestiti via flag profile.approvato) sono esclusi dal gate.
+  const orgInAttesa    = !isAdmin && !isDipendente && org?.in_attesa === true
 
   return {
     user,
@@ -284,6 +288,7 @@ export function useAuth() {
     ruolo,
     isDipendente,
     inAttesa,
+    orgInAttesa,
     orgId: profile?.organization_id || null,
     sedeId: sedeAttiva?.id || null,
   }

@@ -260,6 +260,32 @@ export default function App() {
     )
   }
 
+  // Titolare nuovo signup in attesa di approvazione admin (audit 2026-06-21).
+  if (auth.orgInAttesa) {
+    return (
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#FAF7F5', padding:24 }}>
+        <div style={{ maxWidth:480, width:'100%', background:'#FFF', border:'1px solid #E8DDD8', borderRadius:16, padding:'36px 32px', textAlign:'center', boxShadow:'0 10px 28px rgba(15,23,42,0.06)' }}>
+          <div style={{ fontSize:30, marginBottom:14 }}>⏳</div>
+          <div style={{ fontSize:20, fontWeight:800, color:'#3F2D29', marginBottom:12 }}>
+            Stiamo verificando il tuo account
+          </div>
+          <div style={{ fontSize:14, color:'#6B4C44', lineHeight:1.6, marginBottom:24 }}>
+            Per evitare scam e account fittizi, ogni nuova azienda viene controllata a mano. Di solito ci vogliono <strong>poche ore lavorative</strong>.
+            <br/><br/>
+            Riceverai un'email a <b>{auth.user?.email}</b> quando sarà tutto pronto.
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8, fontSize:12, color:'#94785D', marginBottom:24, background:'#FBF6F1', borderRadius:10, padding:'14px 16px', textAlign:'left' }}>
+            <div><strong style={{ color:'#3F2D29' }}>Hai dubbi o vuoi velocizzare?</strong></div>
+            <div>Scrivici a <a href="mailto:supporto@foodios.it" style={{ color:'#6E0E1A', fontWeight:700 }}>supporto@foodios.it</a> raccontando della tua attività.</div>
+          </div>
+          <button onClick={() => auth.signOut()} style={{ padding:'10px 20px', background:'transparent', color:'#6B4C44', border:'1px solid #E8DDD8', borderRadius:10, fontSize:13, cursor:'pointer' }}>
+            Esci
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // Trial scaduto
   if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} onSignOut={auth.signOut} />
 

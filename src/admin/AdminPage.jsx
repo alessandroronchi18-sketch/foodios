@@ -1613,6 +1613,36 @@ export default function AdminPage() {
     return () => clearTimeout(t)
   }, [cmdkQuery, cmdkOpen, apiCall])
 
+  // Pending signups (audit 2026-06-21)
+  const [pendingOrgs, setPendingOrgs] = useState([])
+  const [pendingLoading, setPendingLoading] = useState(false)
+  const fetchPending = useCallback(async () => {
+    setPendingLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=pending_approvals')
+      const data = await res.json()
+      setPendingOrgs(data.orgs || [])
+    } catch (err) { console.error('pending:', err.message) }
+    finally { setPendingLoading(false) }
+  }, [apiCall])
+  const approvaSignup = useCallback(async (orgId) => {
+    try {
+      await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ orgId, tipo: 'approva_signup' }) })
+      await fetchPending()
+      await fetchData()
+      toast.success('Cliente approvato. Ora può entrare.')
+    } catch (e) { toast.error('Errore: ' + e.message) }
+  }, [apiCall, fetchPending, fetchData, toast])
+  const rifiutaSignup = useCallback(async (orgId, nome) => {
+    if (!confirm(`Rifiutare e CANCELLARE "${nome}"?\n\nL'org + utente vengono eliminati definitivamente. Operazione irreversibile.\n\nUsa solo per scam evidenti.`)) return
+    try {
+      await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ orgId, tipo: 'rifiuta_signup', confirm: 'rifiuta' }) })
+      await fetchPending()
+      await fetchData()
+      toast.success('Org rifiutata e cancellata.')
+    } catch (e) { toast.error('Errore: ' + e.message) }
+  }, [apiCall, fetchPending, fetchData, toast])
+
   // SQL editor
   const [sqlQuery, setSqlQuery] = useState('select id, nome, created_at\nfrom organizations\norder by created_at desc\nlimit 20')
   const [sqlResult, setSqlResult] = useState(null)
@@ -1685,6 +1715,12 @@ export default function AdminPage() {
   // ripetute hanno costo, meglio non spammare.
   useEffect(() => { fetchStripeMrr(); fetchStripeEvents(); fetchErrori() },
     [fetchStripeMrr, fetchStripeEvents, fetchErrori])
+  // Audit 2026-06-21: pending signups al mount + poll 30s (per email-notification-less workflow)
+  useEffect(() => {
+    fetchPending()
+    const t = setInterval(fetchPending, 30_000)
+    return () => clearInterval(t)
+  }, [fetchPending])
   // Audit 2026-06-20 admin v2: signals + activity al mount, poll activity 12s
   useEffect(() => { fetchSignals() }, [fetchSignals])
   useEffect(() => {
@@ -2102,6 +2138,7 @@ export default function AdminPage() {
         <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 2, overflowX: 'auto' }}>
           {[
             { id: 'overview',  label: 'Overview',  icon: 'home',     desc: 'KPI, MRR, crescita, customer 360 globale' },
+            { id: 'pending',   label: '⏳ In attesa', icon: 'hourglass', desc: 'Approva o rifiuta nuove iscrizioni (anti-scam gate)' },
             { id: 'clienti',   label: 'Clienti',   icon: 'users',    desc: 'Tabella con badge hot/silent/churning, filtri, bulk' },
             { id: 'activity',  label: 'Attività',  icon: 'bolt',     desc: 'Live feed eventi: errori, audit, feedback, azioni admin' },
             { id: 'funnel',    label: 'Funnel',    icon: 'trendUp',  desc: 'Onboarding step funnel, drop-off, time-to-value' },
@@ -2644,6 +2681,73 @@ export default function AdminPage() {
           )}
         </Card>
 
+        </>)}
+
+        {/* ═══ PENDING APPROVALS (NEW · audit 2026-06-21) ═════════════ */}
+        {adminTab === 'pending' && (<>
+          <Card style={{ marginBottom: 20, padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <strong style={{ fontSize: 14 }}>⏳ Iscrizioni in attesa di approvazione</strong>
+                <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+                  Nuove organizzazioni che hanno fatto signup. Approva quelle vere, rifiuta lo scam.
+                </div>
+              </div>
+              <Btn kind="neutral" size="sm" onClick={fetchPending} disabled={pendingLoading}>
+                {pendingLoading ? '…' : <Icon name="refresh" size={13} />}
+              </Btn>
+            </div>
+            {pendingOrgs.length === 0 ? (
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+                {pendingLoading ? 'Caricamento…' : 'Nessuna org in attesa. Tutti i nuovi signup sono stati gestiti.'}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {pendingOrgs.map(o => {
+                  const ageH = (Date.now() - new Date(o.created_at).getTime()) / 3600000
+                  const ageLabel = ageH < 1 ? `${Math.round(ageH * 60)}min`
+                    : ageH < 24 ? `${Math.round(ageH)}h`
+                    : `${Math.round(ageH / 24)}gg`
+                  const isOld = ageH > 24
+                  return (
+                    <div key={o.id} style={{
+                      padding: '14px 16px',
+                      background: isOld ? COLORS.warnBg : COLORS.card,
+                      border: `1px solid ${isOld ? COLORS.warn : COLORS.border}`,
+                      borderRadius: 10,
+                      display: 'grid',
+                      gridTemplateColumns: '1fr auto',
+                      gap: 12, alignItems: 'center',
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: 14, color: COLORS.text, marginBottom: 4 }}>
+                          {o.nome} <span style={{ fontSize: 11, fontWeight: 400, color: COLORS.textMute, textTransform: 'capitalize' }}>· {o.tipo || 'attività'}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: COLORS.textSoft }}>
+                          {o.titolare_email}
+                          {o.titolare_nome && <> · <span style={{ color: COLORS.textMute }}>{o.titolare_nome}</span></>}
+                        </div>
+                        <div style={{ fontSize: 11, color: isOld ? COLORS.warn : COLORS.textMute, marginTop: 4 }}>
+                          iscritta {ageLabel} fa {isOld && <strong>(da rispondere)</strong>}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Btn kind="success" size="sm" onClick={() => approvaSignup(o.id)}>
+                          <Icon name="check" size={13} /> Approva
+                        </Btn>
+                        <Btn kind="danger" size="sm" onClick={() => rifiutaSignup(o.id, o.nome)}>
+                          <Icon name="x" size={13} /> Rifiuta e cancella
+                        </Btn>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div style={{ marginTop: 14, padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 11, color: COLORS.blue, border: `1px solid ${COLORS.blue}` }}>
+              <strong>Come funziona:</strong> ogni nuovo titolare che si registra parte con <code>in_attesa=true</code>. Vede una schermata "Stiamo verificando il tuo account" e non può usare l'app finché non lo approvi qui. Si refresha ogni 30s. Le org si possono anche bloccare/sbloccare dopo dalla tabella Clienti.
+            </div>
+          </Card>
         </>)}
 
         {/* ═══ ACTIVITY (NEW · audit 2026-06-20) ═══════════════════════ */}

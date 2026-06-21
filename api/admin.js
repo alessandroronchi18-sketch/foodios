@@ -2541,6 +2541,31 @@ export default async function handler(req) {
         return json(data, 200, req)
       }
 
+      if (action === 'pending_approvals') {
+        // Audit 2026-06-21: lista org in_attesa=true per il signup gate.
+        const { data, error } = await supabase.from('organizations')
+          .select('id, nome, tipo, created_at, trial_ends_at')
+          .eq('in_attesa', true)
+          .order('created_at', { ascending: true })
+          .limit(200)
+        if (error) throw new Error(error.message)
+        // Hydrate con titolare email per ogni org
+        const ids = (data || []).map(o => o.id)
+        const profMap = {}
+        if (ids.length > 0) {
+          const { data: profs } = await supabase.from('profiles')
+            .select('organization_id, email, nome_completo, created_at')
+            .in('organization_id', ids).eq('ruolo', 'titolare')
+          for (const p of (profs || [])) profMap[p.organization_id] = p
+        }
+        const orgs = (data || []).map(o => ({
+          ...o,
+          titolare_email: profMap[o.id]?.email || null,
+          titolare_nome: profMap[o.id]?.nome_completo || null,
+        }))
+        return json({ orgs }, 200, req)
+      }
+
       if (action === 'load_demo_menu') {
         // Audit 2026-06-20: carica menu personalizzato salvato per l'org
         // (così riapri il modal e vedi quello che avevi prima, senza ri-estrazione).
@@ -2887,6 +2912,35 @@ export default async function handler(req) {
           await azIntegrazioneDisattiva(supabase, orgId, sanitizeStrict(body.integrazione_id || '', 36)); break
         case 'push_sub_revoca':
           await azPushSubRevoca(supabase, orgId, sanitizeStrict(body.sub_id || '', 36)); break
+        case 'approva_signup': {
+          // Audit 2026-06-21: admin approva una nuova org (in_attesa → false)
+          if (!orgId) throw new Error('org_id richiesto')
+          const { error } = await supabase.from('organizations')
+            .update({
+              in_attesa: false,
+              approvato_il: new Date().toISOString(),
+              approvato_da: user.email,
+            })
+            .eq('id', orgId)
+          if (error) throw new Error(error.message)
+          result = { ok: true }
+          break
+        }
+        case 'rifiuta_signup': {
+          // Cancellazione fisica dell'org (cascade su sedi, profiles, user_data)
+          // + dell'auth user titolare. Action distruttiva: validato con body.confirm
+          if (!orgId) throw new Error('org_id richiesto')
+          if (body?.confirm !== 'rifiuta') throw new Error('confirm=rifiuta richiesto')
+          // Trova auth user del titolare prima di cancellare org
+          const { data: titolare } = await supabase.from('profiles')
+            .select('id, email').eq('organization_id', orgId).eq('ruolo', 'titolare').maybeSingle()
+          await supabase.from('organizations').delete().eq('id', orgId)
+          if (titolare?.id) {
+            try { await supabase.auth.admin.deleteUser(titolare.id) } catch { /* ignore */ }
+          }
+          result = { ok: true, deleted: { org: orgId, user: titolare?.id } }
+          break
+        }
         case 'sql_query': {
           // Audit 2026-06-20: SQL editor read-only per admin.
           // Pattern: validation client-side regex multi-layer + RPC admin_safe_select.
