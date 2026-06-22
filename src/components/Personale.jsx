@@ -1134,7 +1134,9 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
 // Carichiamo qui il count dipendenti attivi + costo lavoro stimato per dare
 // al titolare un'idea immediata della scala (sopra le tab) senza dover entrare
 // in un singolo sotto-tab.
-function HeaderPersonale({ orgId, isMobile }) {
+// Audit 2026-06-22: aggiunto isTablet alla signature (era usato al rigo 1192
+// ma mai destrutturato dai props → ReferenceError in build minificato).
+function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
   const mese = useMemo(() => new Date().toISOString().slice(0, 7), [])
   const [d, setD] = useState({ nDip: 0, costoContratto: 0, costoMese: 0, ricavi: 0, oreMese: 0, nonAssegnati: 0, repartiScoperti: [], hasReparti: false })
 
@@ -1667,7 +1669,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome 
 
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: isMobile ? 12 : 0 }}>
-      <HeaderPersonale orgId={orgId} isMobile={isMobile}/>
+      <HeaderPersonale orgId={orgId} isMobile={isMobile} isTablet={isTablet}/>
 
       {/* Tab pill moderni — sostituiscono il vecchio underline tab */}
       <div style={{ display: 'flex', gap: 4, marginBottom: isMobile ? 18 : 26,
