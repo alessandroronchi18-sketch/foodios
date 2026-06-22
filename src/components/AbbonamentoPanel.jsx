@@ -10,44 +10,97 @@ import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { apiFetch } from '../lib/apiFetch'
 
-const PIANI = [
+// Audit 2026-06-21: 3-tier Bottega/Maestro/Insegna con ROI claim.
+// Fallback statico — viene sovrascritto dalla query plan_pricing al mount
+// se l'admin ha modificato nomi/prezzi/descrizioni dal pannello.
+const PIANI_DEFAULT = [
+  {
+    id: 'base',
+    label: 'Bottega',
+    prezzo: '€69',
+    periodo: '/mese',
+    desc: 'Per il banco singolo. Smetti di sbagliare i prezzi. Già il primo mese ti ripaghi.',
+    features: [
+      'Ricettario + food cost automatico',
+      'Magazzino + alert sotto-soglia',
+      'Scadenzario fatture (PDF/Excel import)',
+      'Chiusure cassa manuali',
+      'Sprechi e omaggi tracking',
+      'Export PDF (P&L, ricette)',
+      '1 sede · 1 utente',
+      '20 foto AI/mese (OCR scontrini)',
+      'Supporto email 48h',
+    ],
+    highlight: false,
+  },
   {
     id: 'pro',
-    label: 'Pro',
-    prezzo: '€89',
+    label: 'Maestro',
+    prezzo: '€149',
     periodo: '/mese',
-    desc: 'Tutto per gestire la tua attività al meglio.',
+    desc: 'Sostituisce un controller part-time. Le 23 feature AI lavorano per te 24/7.',
     features: [
-      'Sedi illimitate',
-      'Ricettario illimitato',
-      'Food cost automatico',
-      'AI Assistant',
-      'Export PDF',
-      'Scadenzario fatture',
-      'Supporto email',
+      'Tutto di Bottega +',
+      '2 sedi · 3 utenti (col PIN tablet)',
+      'Daily Brief AI ogni mattina',
+      'Forecast vendite 7gg (meteo + eventi)',
+      'Menu engineering (star vs dog)',
+      'Cashflow predittivo 30/60/90gg',
+      'Brain AI chat + Recipe Inventor',
+      'OCR fatture in entrata',
+      'POS integration CSV (15 casse IT)',
+      '100 foto AI/mese',
+      'Supporto email 24h',
     ],
     highlight: true,
   },
   {
-    id: 'chain',
-    label: 'Chain',
-    prezzo: '€149',
+    id: 'enterprise',
+    label: 'Insegna',
+    prezzo: '€399',
     periodo: '/mese',
-    desc: 'Per catene e gruppi con più sedi e collaboratori.',
+    desc: 'Sostituisce 1 controller dedicato + l\'IT contractor. Per chi ha 3+ sedi.',
     features: [
-      'Tutto del piano Pro',
-      'Utenti multipli per sede',
-      'API access',
-      'White label (logo personalizzato)',
-      'Supporto prioritario',
-      'SLA garantito',
+      'Tutto di Maestro +',
+      'Sedi illimitate · Utenti illimitati',
+      'Confronto sedi + Trasferimenti',
+      'Integrazioni real-time (Tilby, Zucchetti)',
+      'WhatsApp Bot operativo',
+      'Marketplace fornitori HORECA',
+      'Documentary AI trimestrale',
+      'API access + White-label',
+      '500 foto AI/mese',
+      'Supporto Slack/telefono 4h business',
+      'SLA 99.5% scritto',
     ],
+    highlight: false,
   },
 ]
 
 export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   const [loading, setLoading] = useState(null) // 'pro' | 'chain' | 'portal' | null
   const [billingMsg, setBillingMsg] = useState(null)
+  // Audit 2026-06-21: legge plan_pricing dinamico se admin ha modificato.
+  const [PIANI, setPIANI] = useState(PIANI_DEFAULT)
+  useEffect(() => {
+    let alive = true
+    supabase.from('plan_pricing').select('*').then(({ data }) => {
+      if (!alive || !data || data.length === 0) return
+      // Merge: per ogni piano default, sovrascrivi prezzo/nome/desc se in DB
+      const byPlan = {}
+      for (const r of data) byPlan[r.plan] = r
+      setPIANI(prev => prev.map(p => {
+        const r = byPlan[p.id]
+        if (!r) return p
+        const out = { ...p }
+        if (r.prezzo_mese_cents != null) out.prezzo = `€${Math.round(r.prezzo_mese_cents / 100)}`
+        if (r.nome_display) out.label = r.nome_display
+        if (r.descrizione) out.desc = r.descrizione
+        return out
+      }))
+    })
+    return () => { alive = false }
+  }, [])
 
   // Intercetta il redirect da Stripe Checkout (?billing=success / cancel)
   useEffect(() => {

@@ -17,44 +17,74 @@
 //  - Pro        = livello 2: tutte le Pro accessibili, le Chain lucchettate.
 //  - Chain (enterprise) = livello 3: tutto disponibile, NIENTE badge.
 
+// Audit 2026-06-21: rinominato marketing in Bottega/Maestro/Insegna. La colonna
+// DB "piano" mantiene CHECK in ('trial','base','pro','enterprise') — il rename
+// e` solo a livello UI/label per non rompere historical data.
+//
+// Trial e` livello Maestro (rank 2): il cliente assaggia tutto il valore AI
+// nei 30gg, poi sceglie Bottega/Maestro/Insegna in base alle sue dimensioni.
 export const PLAN_RANK = {
-  trial:      1,  // trial = Base (14gg per Base, prima era 2 = Pro)
-  base:       1,
-  pro:        2,
-  enterprise: 3,
-  chain:      3,  // alias
+  trial:      2,  // Maestro durante prova
+  base:       1,  // Bottega
+  pro:        2,  // Maestro
+  enterprise: 3,  // Insegna
+  chain:      3,  // alias storico
 }
 
 // view-id → piano minimo richiesto per accedervi.
-// Tier mapping (post implementazione 23 AI features, 2026-06-12):
-//  - Pro+ minimo: forecast, menu-engineering, cashflow, reformulation,
-//    competitor-pricing, ordini-ai, recensioni  (per ora 'pro' rank == 'trial'
-//    rank, quindi tutti li vedono in prova; quando alziamo trial→1 i Base
-//    li vedranno gated)
-//  - Chain (enterprise) only: ai-brain, whatsapp, ricette-ai, marketplace,
-//    documentary, confronto-sedi, trasferimenti, integrazioni
+// Audit 2026-06-21 — riorganizzato in 3 tier (Bottega/Maestro/Insegna):
+//  - Bottega (base): ricettario, food cost, magazzino, scadenzario, chiusure,
+//    sprechi, P&L base, export PDF, OCR fatture con quota, AI Assistant base.
+//    Niente forecast/menu eng/AI evoluta/multi-sede.
+//  - Maestro (pro): le 23 feature AI evolute. Multi-sede 2, multi-utente 3.
+//  - Insegna (enterprise): integrazioni real-time casse, multi-sede unlimited,
+//    WhatsApp Bot, Marketplace, white-label, API.
 export const VIEW_MIN_PLAN = {
-  // Pro+ tier
+  // Maestro tier (AI evoluta)
   'forecast':           'pro',
   'menu-engineering':   'pro',
   'cashflow':           'pro',
   'reformulation':      'pro',
   'competitor-pricing': 'pro',
   'ordini-ai':          'pro',
-  // Chain (enterprise) tier
+  'ai-brain':           'pro',
+  'ricette-ai':         'pro',
+  'recensioni':         'pro',
+  // Insegna (enterprise) tier — multi-sede + integrazioni real-time + brand
   'confronto-sedi': 'enterprise',
   'trasferimenti':  'enterprise',
   'integrazioni':   'enterprise',
-  'ai-brain':       'enterprise',
   'whatsapp':       'enterprise',
-  'ricette-ai':     'enterprise',
   'marketplace':    'enterprise',
   'documentary':    'enterprise',
 }
 
 // Etichetta leggibile del piano (per i messaggi di upgrade).
+// Audit 2026-06-21: rinominati a Bottega/Maestro/Insegna.
 export const PLAN_LABEL = {
-  trial: 'Prova', base: 'Pro', pro: 'Pro', enterprise: 'Chain', chain: 'Chain',
+  trial:      'Prova',
+  base:       'Bottega',
+  pro:        'Maestro',
+  enterprise: 'Insegna',
+  chain:      'Insegna',  // alias storico
+}
+
+// Prezzo €/mese per piano (sorgente di verita` per la UI).
+export const PLAN_PRICE_EUR = {
+  trial:      0,
+  base:       69,
+  pro:        149,
+  enterprise: 399,
+  chain:      399,
+}
+
+// Caps per piano (audit 2026-06-21): n_sedi, n_utenti, ai_foto_mese.
+export const PLAN_LIMITS = {
+  trial:      { sedi: 2,        utenti: 3,        ai_foto_mese: 100 },
+  base:       { sedi: 1,        utenti: 1,        ai_foto_mese: 20 },
+  pro:        { sedi: 2,        utenti: 3,        ai_foto_mese: 100 },
+  enterprise: { sedi: Infinity, utenti: Infinity, ai_foto_mese: 500 },
+  chain:      { sedi: Infinity, utenti: Infinity, ai_foto_mese: 500 },
 }
 
 export function planRank(piano) {

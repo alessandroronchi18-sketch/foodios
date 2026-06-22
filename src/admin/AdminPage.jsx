@@ -1419,6 +1419,8 @@ export default function AdminPage() {
           plan: priceDraft.plan,
           prezzo_mese_cents: cents,
           stripe_price_id: priceDraft.stripe_price_id || '',
+          nome_display: priceDraft.nome_display || '',
+          descrizione: priceDraft.descrizione || '',
         }),
       })
       setPriceDraft(null); setPriceConfirm(false)
@@ -2998,23 +3000,33 @@ export default function AdminPage() {
               Modifica il prezzo mostrato. Per cambiare l'importo <b>realmente addebitato</b>, crea un nuovo Price su Stripe
               e incolla qui il suo ID (<code>price_…</code>): il checkout userà quello. Ogni modifica richiede una conferma esplicita.
             </div>
-            {['pro', 'chain'].map(plan => {
-              const row = pricing.find(p => p.plan === plan) || { plan, prezzo_mese_cents: plan === 'pro' ? 8900 : 14900, stripe_price_id: null }
+            {['base', 'pro', 'enterprise'].map(plan => {
+              const defaults = { base: { prezzo_mese_cents: 6900, nome_display: 'Bottega', descrizione: 'Per il banco singolo' }, pro: { prezzo_mese_cents: 14900, nome_display: 'Maestro', descrizione: 'Sostituisce un controller part-time' }, enterprise: { prezzo_mese_cents: 39900, nome_display: 'Insegna', descrizione: 'Per chi ha 3+ sedi' } }
+              const def = defaults[plan]
+              const row = pricing.find(p => p.plan === plan) || { plan, ...def, stripe_price_id: null }
               const inEdit = priceDraft?.plan === plan
               const euroAttuale = (row.prezzo_mese_cents / 100).toFixed(2)
+              const nomeAttuale = row.nome_display || def.nome_display
+              const descrAttuale = row.descrizione || def.descrizione
               return (
                 <div key={plan} style={{ border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 10, background: inEdit ? '#FFFBEB' : COLORS.card }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                    <div>
-                      <strong style={{ fontSize: 13, textTransform: 'capitalize' }}>{plan}</strong>
-                      <span style={{ marginLeft: 10, fontSize: 18, fontWeight: 800, color: COLORS.accent }}>€{euroAttuale}</span>
-                      <span style={{ fontSize: 11, color: COLORS.textMute }}>/mese</span>
-                      <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: 14 }}>{nomeAttuale}</strong>
+                        <span style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em' }}>(DB: {plan})</span>
+                        <span style={{ marginLeft: 6, fontSize: 18, fontWeight: 800, color: COLORS.accent }}>€{euroAttuale}</span>
+                        <span style={{ fontSize: 11, color: COLORS.textMute }}>/mese</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 4, lineHeight: 1.4 }}>
+                        {descrAttuale}
+                      </div>
+                      <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 4 }}>
                         Stripe price: <code>{row.stripe_price_id || '— (usa env)'}</code>
                       </div>
                     </div>
                     {!inEdit && (
-                      <Btn kind="neutral" size="sm" onClick={() => { setPriceDraft({ plan, euro: euroAttuale, stripe_price_id: row.stripe_price_id || '' }); setPriceConfirm(false) }}>
+                      <Btn kind="neutral" size="sm" onClick={() => { setPriceDraft({ plan, euro: euroAttuale, stripe_price_id: row.stripe_price_id || '', nome_display: nomeAttuale, descrizione: descrAttuale }); setPriceConfirm(false) }}>
                         <Icon name="edit" size={14} /> Modifica
                       </Btn>
                     )}
@@ -3022,6 +3034,12 @@ export default function AdminPage() {
                   {inEdit && (
                     <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: 11, color: COLORS.textSoft }}>
+                          Nome display
+                          <input type="text" value={priceDraft.nome_display || ''} maxLength={60}
+                            onChange={e => { setPriceDraft(d => ({ ...d, nome_display: e.target.value })); setPriceConfirm(false) }}
+                            style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontWeight: 700, width: 180 }} />
+                        </label>
                         <label style={{ fontSize: 11, color: COLORS.textSoft }}>
                           Prezzo €/mese
                           <input type="number" min="0" step="0.01" value={priceDraft.euro}
@@ -3035,6 +3053,12 @@ export default function AdminPage() {
                             style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 13, fontFamily: 'monospace', width: '100%', boxSizing: 'border-box' }} />
                         </label>
                       </div>
+                      <label style={{ fontSize: 11, color: COLORS.textSoft }}>
+                        Descrizione (claim ROI)
+                        <textarea value={priceDraft.descrizione || ''} maxLength={300} rows={2}
+                          onChange={e => { setPriceDraft(d => ({ ...d, descrizione: e.target.value })); setPriceConfirm(false) }}
+                          style={{ display: 'block', marginTop: 4, padding: '8px 10px', borderRadius: 8, border: `1px solid ${COLORS.border}`, fontSize: 12, width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                      </label>
                       {!priceConfirm ? (
                         <div style={{ display: 'flex', gap: 8 }}>
                           <Btn kind="primary" size="sm" onClick={() => setPriceConfirm(true)}>Salva…</Btn>
@@ -3043,8 +3067,12 @@ export default function AdminPage() {
                       ) : (
                         <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 12px' }}>
                           <div style={{ fontSize: 12, color: '#7F1D1D', marginBottom: 8 }}>
-                            Confermi il prezzo del piano <b>{plan}</b>: <b>€{euroAttuale}</b> → <b>€{(parseFloat(String(priceDraft.euro).replace(',', '.')) || 0).toFixed(2)}</b>/mese?
-                            {priceDraft.stripe_price_id && <> Il checkout userà <code>{priceDraft.stripe_price_id}</code>.</>}
+                            Confermi piano <b>{plan}</b>: nome "{priceDraft.nome_display}" · prezzo <b>€{euroAttuale}</b> → <b>€{(parseFloat(String(priceDraft.euro).replace(',', '.')) || 0).toFixed(2)}</b>/mese?
+                            {priceDraft.stripe_price_id && <> Stripe price <code>{priceDraft.stripe_price_id}</code>.</>}
+                            <div style={{ marginTop: 6, fontSize: 11, opacity: 0.85 }}>
+                              ⚠ I clienti già abbonati restano al loro prezzo Stripe attuale finché non disdicono.
+                              Le nuove sottoscrizioni useranno il nuovo prezzo.
+                            </div>
                           </div>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <Btn kind="primary" size="sm" onClick={salvaPrezzo} disabled={priceSaving}>{priceSaving ? 'Salvataggio…' : '✓ Conferma e salva'}</Btn>

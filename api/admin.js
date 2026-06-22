@@ -1608,8 +1608,11 @@ async function getPlanPricing(supabase) {
 }
 
 async function setPlanPricing(supabase, body, adminEmail) {
-  const plan = body.plan === 'chain' ? 'chain' : body.plan === 'pro' ? 'pro' : null
-  if (!plan) throw new Error('Piano non valido (pro|chain)')
+  // Audit 2026-06-21: aggiunto 'base' (Bottega) ai piani gestibili + nome_display
+  // + descrizione modificabili dall'admin senza migrazione DB.
+  const VALID_PLANS = new Set(['base', 'pro', 'enterprise', 'chain'])
+  const plan = VALID_PLANS.has(body.plan) ? body.plan : null
+  if (!plan) throw new Error('Piano non valido (base|pro|enterprise)')
 
   // Importo in centesimi: intero positivo, max 100.000 €/mese (sanity guard).
   const cents = parseInt(body.prezzo_mese_cents, 10)
@@ -1623,19 +1626,27 @@ async function setPlanPricing(supabase, body, adminEmail) {
   }
   stripePriceId = stripePriceId || null
 
+  // Nome display + descrizione opzionali (testo libero, 1-60 / 1-300 caratteri).
+  const nomeDisplay = body.nome_display ? sanitize(body.nome_display, 60) : null
+  const descrizione = body.descrizione ? sanitize(body.descrizione, 300) : null
+
   const { data: prev } = await supabase
     .from('plan_pricing').select('prezzo_mese_cents').eq('plan', plan).maybeSingle()
 
+  const patch = {
+    plan,
+    prezzo_mese_cents: cents,
+    stripe_price_id: stripePriceId,
+    label: nomeDisplay || (plan === 'base' ? 'Bottega' : plan === 'pro' ? 'Maestro' : 'Insegna'),
+    aggiornato_da: adminEmail,
+    aggiornato_il: new Date().toISOString(),
+  }
+  if (nomeDisplay) patch.nome_display = nomeDisplay
+  if (descrizione) patch.descrizione = descrizione
+
   const { data: row, error } = await supabase
     .from('plan_pricing')
-    .upsert({
-      plan,
-      prezzo_mese_cents: cents,
-      stripe_price_id: stripePriceId,
-      label: plan === 'chain' ? 'Chain' : 'Pro',
-      aggiornato_da: adminEmail,
-      aggiornato_il: new Date().toISOString(),
-    }, { onConflict: 'plan' })
+    .upsert(patch, { onConflict: 'plan' })
     .select().single()
   if (error) throw new Error(error.message)
 

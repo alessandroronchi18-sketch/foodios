@@ -9,26 +9,28 @@ describe('planAccess', () => {
     }
   })
 
-  it('view Chain-only: solo enterprise/chain accede', () => {
+  it('view Insegna-only: solo enterprise/chain accede', () => {
+    // Audit 2026-06-21: Bottega/Maestro/Insegna. Trial assaggia Maestro (rank 2)
+    // ma resta gated sulle Insegna (multi-sede + integrazioni real-time).
     for (const v of ['confronto-sedi', 'trasferimenti', 'integrazioni']) {
       expect(canAccessView(v, 'enterprise')).toBe(true)
       expect(canAccessView(v, 'chain')).toBe(true)
       expect(canAccessView(v, 'pro')).toBe(false)
       expect(canAccessView(v, 'base')).toBe(false)
-      expect(canAccessView(v, 'trial')).toBe(false) // trial = livello Base
+      expect(canAccessView(v, 'trial')).toBe(false) // trial = Maestro (rank 2), non Insegna
     }
   })
 
-  it('planRank: enterprise/chain > pro > base = trial (3 tier veri)', () => {
+  it('planRank: enterprise/chain > pro = trial > base (audit 2026-06-21)', () => {
     expect(planRank('enterprise')).toBeGreaterThan(planRank('pro'))
     expect(planRank('chain')).toBe(planRank('enterprise'))
-    expect(planRank('pro')).toBeGreaterThan(planRank('base'))
-    expect(planRank('base')).toBe(planRank('trial'))
-    expect(planRank('xyz')).toBe(planRank('pro')) // default prudente (rank 2)
+    expect(planRank('pro')).toBe(planRank('trial')) // trial assaggia Maestro
+    expect(planRank('trial')).toBeGreaterThan(planRank('base'))
+    expect(planRank('xyz')).toBe(planRank('pro'))   // default prudente
   })
 
   it('requiredPlanLabel: etichetta solo per view gated', () => {
-    expect(requiredPlanLabel('confronto-sedi')).toBe('Chain')
+    expect(requiredPlanLabel('confronto-sedi')).toBe('Insegna')
     expect(requiredPlanLabel('ricettario')).toBeNull()
   })
 
@@ -61,36 +63,40 @@ describe('planAccess', () => {
     expect(effectivePlan(null,    'altro@example.com')).toBe('trial')
   })
 
-  // ── Nuove 5 Chain view (post 2026-06) ───────────────────────────────────
-  it('le 5 nuove Chain view sono gated per piano non-enterprise', () => {
-    for (const v of ['ai-brain', 'whatsapp', 'ricette-ai', 'marketplace', 'documentary']) {
+  // ── Audit 2026-06-21: Bottega / Maestro / Insegna ─────────────────────────
+  it('view Insegna-only sono gated per piano non-enterprise', () => {
+    // Solo le feature multi-sede + integrazioni real-time + WhatsApp + Marketplace
+    // sono Insegna-tier (le altre AI sono passate a Maestro)
+    for (const v of ['whatsapp', 'marketplace', 'documentary', 'confronto-sedi', 'trasferimenti', 'integrazioni']) {
       expect(canAccessView(v, 'pro')).toBe(false)
       expect(canAccessView(v, 'enterprise')).toBe(true)
     }
   })
 
-  it('le 6 view Pro+ sono accessibili a pro/enterprise, NON a trial/base', () => {
-    for (const v of ['forecast', 'menu-engineering', 'cashflow', 'reformulation', 'competitor-pricing', 'ordini-ai']) {
-      // PLAN_RANK 3-tier: trial=base=1, pro=2, enterprise/chain=3
-      expect(canAccessView(v, 'trial')).toBe(false)
+  it('view Maestro+ sono accessibili a pro/enterprise/trial, NON a base', () => {
+    // Audit 2026-06-21: ai-brain e ricette-ai promossi a Maestro (era Insegna).
+    // Trial assaggia tutto Maestro (rank 2) per generare valore prima upgrade.
+    for (const v of ['forecast', 'menu-engineering', 'cashflow', 'reformulation', 'competitor-pricing', 'ordini-ai', 'ai-brain', 'ricette-ai']) {
       expect(canAccessView(v, 'base')).toBe(false)
+      expect(canAccessView(v, 'trial')).toBe(true)  // trial = Maestro
       expect(canAccessView(v, 'pro')).toBe(true)
       expect(canAccessView(v, 'enterprise')).toBe(true)
     }
   })
 
-  it('logica 3-tier sui badge: Base vede ⬩ su Pro+Chain, Pro solo su Chain, Chain nessuno', () => {
-    // Base/trial: tutte le view gated sono lockate (Pro + Chain)
+  it('logica 3-tier badge: Bottega vede locked su Maestro+Insegna, Maestro solo su Insegna, Insegna nessuno', () => {
+    // Bottega: tutte le AI feature gated sono lockate
     for (const v of ['forecast', 'reformulation', 'ai-brain', 'whatsapp']) {
       expect(canAccessView(v, 'base')).toBe(false)
     }
-    // Pro: solo Chain lockate
-    expect(canAccessView('forecast', 'pro')).toBe(true)        // Pro feature → ok
+    // Maestro: solo Insegna lockate
+    expect(canAccessView('forecast', 'pro')).toBe(true)        // Maestro feature
     expect(canAccessView('reformulation', 'pro')).toBe(true)
-    expect(canAccessView('ai-brain', 'pro')).toBe(false)       // Chain → lockata
-    expect(canAccessView('whatsapp', 'pro')).toBe(false)
-    // Chain: tutto accessibile
-    for (const v of ['forecast', 'reformulation', 'ai-brain', 'whatsapp', 'marketplace', 'documentary']) {
+    expect(canAccessView('ai-brain', 'pro')).toBe(true)        // ora Maestro
+    expect(canAccessView('whatsapp', 'pro')).toBe(false)       // Insegna-only
+    expect(canAccessView('confronto-sedi', 'pro')).toBe(false) // Insegna-only
+    // Insegna: tutto accessibile
+    for (const v of ['forecast', 'reformulation', 'ai-brain', 'whatsapp', 'marketplace', 'documentary', 'confronto-sedi']) {
       expect(canAccessView(v, 'enterprise')).toBe(true)
     }
   })
