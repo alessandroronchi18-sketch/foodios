@@ -168,6 +168,45 @@ export default async function handler(req, res) {
         const s = event.data.object
         const orgId = s.metadata?.organization_id
         if (!orgId) break
+
+        // Audit 2026-06-21: gestione checkout one-shot per pacchetti AI/foto.
+        // mode='payment' (non subscription) + metadata.pack_type → accredita
+        // calls_remaining in ai_credit_packs_purchased. Idempotente via
+        // stripe_session_id unique.
+        if (s.mode === 'payment' && s.metadata?.pack_type) {
+          const packType = s.metadata.pack_type
+          const calls = parseInt(s.metadata.calls_included || '0', 10)
+          if (calls > 0 && s.payment_status === 'paid') {
+            const oneYearLater = new Date(Date.now() + 365 * 86400000).toISOString()
+            await supabase.from('ai_credit_packs_purchased').insert({
+              organization_id: orgId,
+              pack_type: packType,
+              calls_included: calls,
+              calls_remaining: calls,
+              amount_paid_cents: s.amount_total || 0,
+              stripe_session_id: s.id,
+              stripe_payment_intent_id: s.payment_intent || null,
+              scade_il: oneYearLater,
+            })
+            // Email conferma acquisto pack
+            const { data: prof2 } = await supabase
+              .from('profiles').select('email').eq('organization_id', orgId).eq('ruolo', 'titolare').limit(1).maybeSingle()
+            if (prof2?.email) {
+              await sendEmail({
+                to: prof2.email,
+                subject: `FoodOS · ${calls} foto AI extra accreditate`,
+                html: `<div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:24px">
+                  <h1 style="color:#6E0E1A;margin:0 0 16px">${calls} foto AI accreditate ✓</h1>
+                  <p>Hai aggiunto al tuo account un pacchetto di <strong>${calls} analisi AI</strong>.</p>
+                  <p>Potrai usarle per fotografare scontrini, fatture, listini concorrenti o qualsiasi altra cosa nell'app. Restano valide per 12 mesi.</p>
+                  <p style="color:#94A3B8;font-size:12px;margin-top:32px">FoodOS</p>
+                </div>`,
+              }).catch(() => {})
+            }
+          }
+          break  // pack one-shot: skip il resto del codice subscription
+        }
+
         // La subscription esiste già; il webhook subscription.created arriverà a breve
         // (o è già arrivato). Qui aggiorniamo customer_id per sicurezza.
         const updates = { stripe_customer_id: s.customer }

@@ -392,6 +392,142 @@ function PrezziImportSection({ onImportPrezzi }) {
   )
 }
 
+// Audit 2026-06-21: pacchetti foto/AI extra. Cliente compra calls in più
+// via Stripe Checkout one-shot. Lista i pack acquistati + saldo residuo.
+function PacchettiAIPanel({ auth, notify }) {
+  const [packs, setPacks] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const orgId = auth?.org?.id
+
+  React.useEffect(() => {
+    if (!orgId) return
+    setLoading(true)
+    supabase.from('ai_credit_packs_purchased')
+      .select('*').eq('organization_id', orgId)
+      .order('acquistato_il', { ascending: false })
+      .then(({ data }) => setPacks(data || []))
+      .finally(() => setLoading(false))
+  }, [orgId])
+
+  const totaleResidue = packs.reduce((s, p) => {
+    if (p.scade_il && new Date(p.scade_il) < new Date()) return s
+    return s + (p.calls_remaining || 0)
+  }, 0)
+
+  const PACKS_CATALOG = [
+    { id: 'foto_50',   prezzo: '€5',  calls: 50,   per_call: '10¢', best: false },
+    { id: 'foto_200',  prezzo: '€15', calls: 200,  per_call: '7,5¢', best: true },
+    { id: 'foto_1000', prezzo: '€60', calls: 1000, per_call: '6¢',  best: false },
+  ]
+
+  async function compra(packType) {
+    setBusy(true)
+    try {
+      const session = await supabase.auth.getSession()
+      const token = session.data.session?.access_token
+      if (!token) throw new Error('Sessione scaduta')
+      const res = await fetch('/api/buy-ai-pack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ pack_type: packType }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error || 'Errore creazione checkout')
+      window.location.href = data.url
+    } catch (e) {
+      notify('Errore: ' + e.message, false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.55, marginBottom: 18 }}>
+        Hai finito le foto AI incluse nel piano? Compra un pacchetto extra. Valido 12 mesi,
+        si consuma quando l'app legge scontrini, fatture, listini concorrenti, menu OCR.
+      </p>
+
+      {/* Saldo residuo */}
+      <div style={{ padding: 16, background: totaleResidue > 0 ? '#F0FDF4' : '#F8FAFC', borderRadius: 12, marginBottom: 18, border: `1px solid ${totaleResidue > 0 ? '#86EFAC' : '#E2E8F0'}` }}>
+        <div style={{ fontSize: 11, color: totaleResidue > 0 ? '#065F46' : '#64748B', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Saldo foto AI</div>
+        <div style={{ fontSize: 32, fontWeight: 900, color: totaleResidue > 0 ? '#16A34A' : '#94A3B8', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
+          {totaleResidue} foto
+        </div>
+      </div>
+
+      {/* Catalogo */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+        {PACKS_CATALOG.map(p => (
+          <div key={p.id} style={{
+            padding: 16, borderRadius: 12,
+            background: p.best ? '#FEF2F2' : '#FFF',
+            border: `2px solid ${p.best ? '#6E0E1A' : '#E2E8F0'}`,
+            position: 'relative',
+          }}>
+            {p.best && (
+              <div style={{ position: 'absolute', top: -10, right: 12, background: '#6E0E1A', color: '#FFF', padding: '2px 10px', borderRadius: 99, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
+                CONSIGLIATO
+              </div>
+            )}
+            <div style={{ fontSize: 28, fontWeight: 900, color: '#1C0A0A' }}>{p.prezzo}</div>
+            <div style={{ fontSize: 13, color: '#1C0A0A', fontWeight: 700, marginTop: 4 }}>{p.calls} foto AI</div>
+            <div style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>{p.per_call} a foto</div>
+            <button onClick={() => compra(p.id)} disabled={busy}
+              style={{
+                marginTop: 14, width: '100%',
+                padding: '10px 14px', borderRadius: 8,
+                background: p.best ? '#6E0E1A' : '#FFF',
+                color: p.best ? '#FFF' : '#6E0E1A',
+                border: `1px solid #6E0E1A`,
+                fontSize: 13, fontWeight: 700, cursor: busy ? 'wait' : 'pointer',
+                opacity: busy ? 0.6 : 1,
+              }}>
+              {busy ? 'Apertura…' : 'Compra'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Storico acquisti */}
+      {!loading && packs.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, color: '#94A3B8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', marginBottom: 8 }}>
+            Acquisti precedenti
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {packs.map(p => {
+              const scaduto = p.scade_il && new Date(p.scade_il) < new Date()
+              const esaurito = p.calls_remaining === 0
+              return (
+                <div key={p.id} style={{
+                  padding: '10px 14px', borderRadius: 8,
+                  background: '#F8FAFC', border: '1px solid #E2E8F0',
+                  display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center', fontSize: 12,
+                  opacity: scaduto || esaurito ? 0.55 : 1,
+                }}>
+                  <div>
+                    <strong>{p.calls_included} foto</strong>
+                    <span style={{ color: '#64748B', marginLeft: 8 }}>€{(p.amount_paid_cents / 100).toFixed(2)}</span>
+                  </div>
+                  <div style={{ color: esaurito ? '#DC2626' : '#16A34A', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                    {esaurito ? 'esaurito' : `${p.calls_remaining}/${p.calls_included} disp.`}
+                  </div>
+                  <div style={{ color: '#94A3B8', fontSize: 11 }}>
+                    {new Date(p.acquistato_il).toLocaleDateString('it-IT')}
+                    {scaduto && ' · scaduto'}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ReseSection({ notify }) {
   const [rese, setRese] = useState(() => getAllRese())
   const [filtro, setFiltro] = useState('')
@@ -596,6 +732,11 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, on
           id: 'abbonamento', label: 'Piano e abbonamento', icon: 'creditCard',
           summary: isPagante ? (piano === 'enterprise' ? 'Chain attivo' : 'Pro attivo') : 'Trial / non attivo',
           render: () => <AbbonamentoPanel org={auth?.org} notify={notify}/>,
+        },
+        {
+          id: 'pacchetti-ai', label: 'Pacchetti foto AI', icon: 'sparkles',
+          summary: 'Compra analisi AI extra per scontrini, fatture, listini',
+          render: () => <PacchettiAIPanel auth={auth} notify={notify}/>,
         },
       ],
     },

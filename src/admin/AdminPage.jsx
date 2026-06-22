@@ -1643,6 +1643,52 @@ export default function AdminPage() {
     } catch (e) { toast.error('Errore: ' + e.message) }
   }, [apiCall, fetchPending, fetchData, toast])
 
+  // Codici sconto: redemptions viewer + ad-hoc generator (G2 batch 19b)
+  const [redemptionsFor, setRedemptionsFor] = useState(null) // codice currently viewed
+  const [redemptions, setRedemptions] = useState([])
+  const [redemptionsLoading, setRedemptionsLoading] = useState(false)
+  const openRedemptions = useCallback(async (codice) => {
+    setRedemptionsFor(codice); setRedemptions([]); setRedemptionsLoading(true)
+    try {
+      const res = await apiCall(`/api/admin?action=codice_redemptions&codice=${encodeURIComponent(codice)}`)
+      const data = await res.json()
+      setRedemptions(data.items || [])
+    } catch (e) { toast.error(e.message) }
+    finally { setRedemptionsLoading(false) }
+  }, [apiCall, toast])
+  const [adHocOpen, setAdHocOpen] = useState(false)
+  const [adHocForm, setAdHocForm] = useState({ target_org_id: '', tipo_sconto: 'percent', valore_sconto: 20, durata: 'once', descrizione: '' })
+  const generaAdHoc = useCallback(async () => {
+    if (!adHocForm.target_org_id) { toast.error('Seleziona un cliente'); return }
+    try {
+      const res = await apiCall('/api/admin', {
+        method: 'POST',
+        body: JSON.stringify({ tipo: 'genera_codice_ad_hoc', ...adHocForm }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      toast.success('Codice ad-hoc creato — copialo dalla lista in alto')
+      setAdHocOpen(false)
+      setAdHocForm({ target_org_id: '', tipo_sconto: 'percent', valore_sconto: 20, durata: 'once', descrizione: '' })
+      fetchCodici()
+    } catch (e) { toast.error(e.message) }
+  }, [adHocForm, apiCall, fetchCodici, toast])
+
+  // Referral admin (G3 batch 19b)
+  const [refAdmin, setRefAdmin] = useState(null)
+  const [refAdminLoading, setRefAdminLoading] = useState(false)
+  const fetchRefAdmin = useCallback(async () => {
+    setRefAdminLoading(true)
+    try {
+      const res = await apiCall('/api/admin?action=referral_admin')
+      setRefAdmin(await res.json())
+    } catch (e) { console.error('ref admin:', e.message) }
+    finally { setRefAdminLoading(false) }
+  }, [apiCall])
+  useEffect(() => {
+    if (adminTab === 'ops' && !refAdmin && !refAdminLoading) fetchRefAdmin()
+  }, [adminTab, refAdmin, refAdminLoading, fetchRefAdmin])
+
   // SQL editor
   const [sqlQuery, setSqlQuery] = useState('select id, nome, created_at\nfrom organizations\norder by created_at desc\nlimit 20')
   const [sqlResult, setSqlResult] = useState(null)
@@ -3024,6 +3070,9 @@ export default function AdminPage() {
               <Btn kind="neutral" size="sm" onClick={fetchCodici} disabled={codiciLoading}>
                 {codiciLoading ? '…' : <Icon name="refresh" size={14} />}
               </Btn>
+              <Btn kind="warn" size="sm" onClick={() => setAdHocOpen(true)} title="Genera un codice personale per un cliente specifico (1 utilizzo)">
+                <Icon name="gift" size={13} /> Ad-hoc per cliente
+              </Btn>
               <Btn kind="primary" size="sm" onClick={() => setShowNuovoCodice(true)}>
                 + Nuovo codice
               </Btn>
@@ -3096,6 +3145,9 @@ export default function AdminPage() {
                             <Btn kind="neutral" size="sm" onClick={() => { navigator.clipboard.writeText(c.codice).catch(() => {}) }} title="Copia codice">
                               <Icon name="clipboard" size={14} />
                             </Btn>
+                            <Btn kind="neutral" size="sm" onClick={() => openRedemptions(c.codice)} title="Vedi chi ha usato questo codice">
+                              <Icon name="users" size={14} />
+                            </Btn>
                             {c.attivo && (
                               <Btn kind="warn" size="sm"
                                 onClick={async () => {
@@ -3128,6 +3180,71 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+          )}
+        </Card>
+
+        {/* ═══ REFERRAL admin (audit 2026-06-21) ═════════════════════ */}
+        <Card style={{ marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <strong style={{ fontSize: 14 }}><Icon name="gift" size={14} /> Programma referral</strong>
+              <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
+                Top referrer · mesi gratis distribuiti · cap anti-scam
+              </div>
+            </div>
+            <Btn kind="neutral" size="sm" onClick={fetchRefAdmin} disabled={refAdminLoading}>
+              {refAdminLoading ? '…' : <Icon name="refresh" size={13} />}
+            </Btn>
+          </div>
+          {!refAdmin ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              {refAdminLoading ? 'Caricamento…' : 'Apri la sezione per caricare i dati.'}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, padding: 14 }}>
+                <div style={{ padding: 12, background: COLORS.rowAlt, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', fontWeight: 700 }}>Codici usati totali</div>
+                  <div style={{ fontSize: 22, fontWeight: 900 }}>{refAdmin.totale_utilizzi || 0}</div>
+                </div>
+                <div style={{ padding: 12, background: COLORS.okBg, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: COLORS.ok, textTransform: 'uppercase', fontWeight: 700 }}>Mesi gratis distribuiti</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.ok }}>{refAdmin.totale_mesi_distribuiti || 0}</div>
+                </div>
+                <div style={{ padding: 12, background: COLORS.blueBg, borderRadius: 8 }}>
+                  <div style={{ fontSize: 10, color: COLORS.blue, textTransform: 'uppercase', fontWeight: 700 }}>Top referrer attivi</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: COLORS.blue }}>{(refAdmin.top || []).length}</div>
+                </div>
+              </div>
+              {(refAdmin.top || []).length > 0 && (
+                <div style={{ borderTop: `1px solid ${COLORS.border}`, maxHeight: 300, overflowY: 'auto' }}>
+                  <table style={{ width: '100%', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: COLORS.rowAlt, borderBottom: `1px solid ${COLORS.border}` }}>
+                        <th style={th()}>Cliente</th>
+                        <th style={th()}>Codice</th>
+                        <th style={{ ...th(), textAlign: 'right' }}>Inviti</th>
+                        <th style={{ ...th(), textAlign: 'right' }}>Mesi bonus accumulati</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {refAdmin.top.map(r => {
+                        const cliente = clienti.find(c => c.org_id === r.organization_id)
+                        return (
+                          <tr key={r.codice} style={{ borderBottom: `1px solid ${COLORS.border}`, cursor: cliente ? 'pointer' : 'default' }}
+                            onClick={() => cliente && apriDettaglio(cliente)}>
+                            <td style={{ ...td(), fontWeight: 700 }}>{r.nome}</td>
+                            <td style={{ ...td(), fontFamily: 'monospace', color: COLORS.accent }}>{r.codice}</td>
+                            <td style={{ ...td(), textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{r.utilizzi}</td>
+                            <td style={{ ...td(), textAlign: 'right', fontWeight: 700, color: COLORS.ok, fontVariantNumeric: 'tabular-nums' }}>{r.mesi_bonus_totali}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </Card>
 
@@ -4324,6 +4441,100 @@ export default function AdminPage() {
           }}
         />
       )}
+      {/* Audit 2026-06-21: Redemptions viewer modal */}
+      {redemptionsFor && (
+        <Modal title={`Utilizzi del codice ${redemptionsFor}`} onClose={() => setRedemptionsFor(null)} width={640}>
+          {redemptionsLoading ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>Caricamento…</div>
+          ) : redemptions.length === 0 ? (
+            <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
+              Nessuno ha ancora usato questo codice.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {redemptions.map(r => (
+                <div key={r.id} style={{ padding: '10px 12px', background: COLORS.rowAlt, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{r.nome_org || (r.organization_id || '').slice(0, 8) + '…'}</div>
+                    <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>{fmtDataOra(r.utilizzato_il)}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 700, color: COLORS.ok, fontSize: 13 }}>
+                      €{((r.ammontare_scontato_cents || 0) / 100).toFixed(2)} scontati
+                    </div>
+                    {r.stripe_invoice_id && (
+                      <div style={{ fontSize: 10, color: COLORS.textMute, fontFamily: 'monospace' }}>{r.stripe_invoice_id.slice(0, 18)}…</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div style={{ padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 11, color: COLORS.blue }}>
+                Totale risparmiato: <strong>€{(redemptions.reduce((s, r) => s + (r.ammontare_scontato_cents || 0), 0) / 100).toFixed(2)}</strong> · {redemptions.length} utilizzi
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* Audit 2026-06-21: Modal genera codice ad-hoc per cliente */}
+      {adHocOpen && (
+        <Modal title="Codice sconto ad-hoc per un cliente" onClose={() => setAdHocOpen(false)} width={560}>
+          <div style={{ fontSize: 12, color: COLORS.textMute, marginBottom: 14, lineHeight: 1.5 }}>
+            Genera un codice unico (1 solo utilizzo) per un cliente specifico. Utile dopo un pitch:
+            "ti faccio uno sconto se ti iscrivi ora".
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>Cliente</span>
+              <select value={adHocForm.target_org_id} onChange={e => setAdHocForm({ ...adHocForm, target_org_id: e.target.value })}
+                style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
+                <option value="">— seleziona —</option>
+                {clienti.filter(c => c.nome_attivita).map(c => (
+                  <option key={c.org_id} value={c.org_id}>{c.nome_attivita} ({c.email})</option>
+                ))}
+              </select>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>Tipo sconto</span>
+                <select value={adHocForm.tipo_sconto} onChange={e => setAdHocForm({ ...adHocForm, tipo_sconto: e.target.value })}
+                  style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
+                  <option value="percent">Percentuale</option>
+                  <option value="amount">Importo fisso (€ cent)</option>
+                </select>
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>
+                  Valore {adHocForm.tipo_sconto === 'percent' ? '(1-100)' : '(cents, es. 1000 = €10)'}
+                </span>
+                <input type="number" value={adHocForm.valore_sconto} onChange={e => setAdHocForm({ ...adHocForm, valore_sconto: parseInt(e.target.value, 10) || 0 })}
+                  style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
+              </label>
+            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>Durata</span>
+              <select value={adHocForm.durata} onChange={e => setAdHocForm({ ...adHocForm, durata: e.target.value })}
+                style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
+                <option value="once">1 fattura (sconto una volta)</option>
+                <option value="forever">Per sempre (sconto su ogni fattura)</option>
+              </select>
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>Note interne (opzionale)</span>
+              <input value={adHocForm.descrizione} onChange={e => setAdHocForm({ ...adHocForm, descrizione: e.target.value })}
+                placeholder="es. Pitch del 21/06, sconto post-incontro"
+                style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12 }} />
+            </label>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <Btn kind="neutral" onClick={() => setAdHocOpen(false)}>Annulla</Btn>
+            <Btn kind="primary" onClick={generaAdHoc} disabled={!adHocForm.target_org_id}>
+              <Icon name="gift" size={13} /> Genera codice
+            </Btn>
+          </div>
+        </Modal>
+      )}
+
       {/* Audit 2026-06-20: Cmd+K global search overlay */}
       {cmdkOpen && (
         <div onClick={() => setCmdkOpen(false)} style={{

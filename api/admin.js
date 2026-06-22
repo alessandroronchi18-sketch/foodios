@@ -2541,6 +2541,56 @@ export default async function handler(req) {
         return json(data, 200, req)
       }
 
+      if (action === 'codice_redemptions') {
+        // Audit 2026-06-21: lista chi ha usato un dato codice sconto
+        const codice = sanitizeStrict(url.searchParams.get('codice') || '', 50)
+        if (!codice) return json({ error: 'codice richiesto' }, 400, req)
+        const { data } = await supabase.from('discount_redemptions')
+          .select('*').eq('codice', codice).order('utilizzato_il', { ascending: false }).limit(200)
+        // Hydrate con nome cliente
+        const orgIds = (data || []).map(r => r.organization_id).filter(Boolean)
+        const orgMap = {}
+        if (orgIds.length > 0) {
+          const { data: orgs } = await supabase.from('organizations')
+            .select('id, nome').in('id', orgIds)
+          for (const o of (orgs || [])) orgMap[o.id] = o.nome
+        }
+        const items = (data || []).map(r => ({ ...r, nome_org: orgMap[r.organization_id] || null }))
+        return json({ items }, 200, req)
+      }
+      if (action === 'referral_admin') {
+        // Audit 2026-06-21: leaderboard referral + mesi bonus distribuiti
+        const { data: ref } = await supabase.from('referral')
+          .select('organization_id, codice, utilizzi, mesi_guadagnati')
+          .order('utilizzi', { ascending: false })
+          .limit(100)
+        const orgIds = (ref || []).map(r => r.organization_id)
+        const orgMap = {}
+        if (orgIds.length > 0) {
+          const { data: orgs } = await supabase.from('organizations')
+            .select('id, nome, mesi_bonus').in('id', orgIds)
+          for (const o of (orgs || [])) orgMap[o.id] = o
+        }
+        // Conta inviti ricevuti totali
+        const { count: tot_codici_usati } = await supabase
+          .from('organizations')
+          .select('id', { count: 'exact', head: true })
+          .not('referral_code_usato', 'is', null)
+        const top = (ref || []).map(r => ({
+          codice: r.codice,
+          nome: orgMap[r.organization_id]?.nome || '-',
+          utilizzi: r.utilizzi || 0,
+          mesi_bonus_totali: orgMap[r.organization_id]?.mesi_bonus || 0,
+          organization_id: r.organization_id,
+        })).filter(x => x.utilizzi > 0)
+        const tot_mesi = (ref || []).reduce((s, r) => s + (r.mesi_guadagnati || 0), 0)
+        return json({
+          top,
+          totale_utilizzi: tot_codici_usati || 0,
+          totale_mesi_distribuiti: tot_mesi,
+        }, 200, req)
+      }
+
       if (action === 'pending_approvals') {
         // Audit 2026-06-21: lista org in_attesa=true per il signup gate.
         const { data, error } = await supabase.from('organizations')
@@ -2912,6 +2962,59 @@ export default async function handler(req) {
           await azIntegrazioneDisattiva(supabase, orgId, sanitizeStrict(body.integrazione_id || '', 36)); break
         case 'push_sub_revoca':
           await azPushSubRevoca(supabase, orgId, sanitizeStrict(body.sub_id || '', 36)); break
+        case 'modifica_codice_sconto': {
+          // Audit 2026-06-21: aggiorna metadata del codice (descrizione,
+          // scade_il, max_redemptions, attivo). Tipo/valore restano immutabili
+          // (Stripe Coupon non si modifica - bisogna crearne uno nuovo).
+          const id = sanitizeStrict(body.id || '', 36)
+          if (!id) throw new Error('id richiesto')
+          const patch = {}
+          if (body.descrizione != null) patch.descrizione = sanitize(body.descrizione, 200)
+          if (body.attivo != null) patch.attivo = !!body.attivo
+          if (body.scade_il != null) {
+            const d = body.scade_il ? new Date(body.scade_il) : null
+            if (d && !isNaN(d.getTime())) patch.scade_il = d.toISOString()
+            else if (body.scade_il === null || body.scade_il === '') patch.scade_il = null
+          }
+          if (body.max_redemptions != null && body.max_redemptions !== '') {
+            const m = parseInt(body.max_redemptions, 10)
+            if (Number.isFinite(m) && m > 0) patch.max_redemptions = Math.min(100000, m)
+          }
+          if (Object.keys(patch).length === 0) throw new Error('Nessuna modifica fornita')
+          const { error } = await supabase.from('discount_codes').update(patch).eq('id', id)
+          if (error) throw new Error(error.message)
+          result = { ok: true, patched: Object.keys(patch) }
+          break
+        }
+        case 'genera_codice_ad_hoc': {
+          // Audit 2026-06-21: genera un codice unico per un cliente specifico
+          // (es. "MARIO-2026-DOMENICA-OFF-A7B4"). Stesso flow di crea_codice
+          // ma con codice auto-generato dal nome cliente + token random.
+          const targetOrgId = sanitizeStrict(body.target_org_id || '', 36)
+          if (!targetOrgId) throw new Error('target_org_id richiesto')
+          const { data: org } = await supabase.from('organizations')
+            .select('nome').eq('id', targetOrgId).maybeSingle()
+          if (!org) throw new Error('Org non trovata')
+          // Codice: prefix nome cliente (4 char) + 4 char random
+          const prefix = (org.nome || 'AD')
+            .replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 4).padEnd(4, 'X')
+          const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+          const buf = new Uint8Array(4)
+          crypto.getRandomValues(buf)
+          const codice = prefix + '-' + Array.from(buf, b => ALPH[b % ALPH.length]).join('')
+          // Delega a creaCodiceSconto con max_redemptions=1, durata once per default
+          const payload = {
+            codice,
+            descrizione: body.descrizione || `Ad-hoc per ${org.nome}`,
+            tipo_sconto: body.tipo_sconto || 'percent',
+            valore_sconto: body.valore_sconto || 20,
+            durata: body.durata || 'once',
+            max_redemptions: 1,  // 1 sola, ad-hoc
+            scade_il: body.scade_il || null,
+          }
+          result = { ok: true, codice: await creaCodiceSconto(supabase, payload, user.email) }
+          break
+        }
         case 'approva_signup': {
           // Audit 2026-06-21: admin approva una nuova org (in_attesa → false)
           if (!orgId) throw new Error('org_id richiesto')
