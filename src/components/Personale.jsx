@@ -1410,27 +1410,35 @@ function AccessiTab({ orgId, notify, isMobile }) {
 
   async function carica() {
     if (!orgId) return
-    const [{ data: { user } }, dip, inv, pinRes] = await Promise.all([
-      supabase.auth.getUser(),
-      // RPC dedicata: la RLS su profiles non garantisce al titolare la lettura dei
-      // profili degli altri membri → la lista passa da fos_dipendenti_org (solo-titolare).
-      supabase.rpc('fos_dipendenti_org'),
-      supabase.from('org_inviti').select('id,email,stato,created_at').eq('organization_id', orgId).eq('stato', 'pending').order('created_at', { ascending: false }),
-      // Stato PIN per riga (fail-soft: se RPC non esiste, fai finta che nessuno abbia PIN)
-      supabase.rpc('fos_dipendente_pin_status'),
-    ])
+    // Audit 2026-06-22 CRITICAL: destructure annidata `[{ data: { user } }]`
+    // crashava il render se supabase.auth.getUser() ritornava data:null
+    // (es. sessione scaduta o RPC fos_dipendenti_org inesistente → throw
+    // dentro Promise.all → tutte le promesse rigettate). Sostituito con
+    // accesso safe e try/catch globale.
+    let userRes, dip, inv, pinRes
+    try {
+      [userRes, dip, inv, pinRes] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.rpc('fos_dipendenti_org'),
+        supabase.from('org_inviti').select('id,email,stato,created_at').eq('organization_id', orgId).eq('stato', 'pending').order('created_at', { ascending: false }),
+        supabase.rpc('fos_dipendente_pin_status'),
+      ])
+    } catch (e) {
+      notify?.('Errore caricamento personale: ' + (e?.message || 'rete'), false)
+      setLoading(false)
+      return
+    }
+    const user = userRes?.data?.user || null
     setMeId(user?.id || null)
-    // Audit 2026-06-19 HIGH: precedentemente le RPC che ritornavano error venivano
-    // ignorate → lista dipendenti vuota silenziosa, nessuna notifica utente.
-    // Ora notify esplicito sui due RPC critici (dip + inviti). pinRes resta soft.
+    // Notify su RPC che ritornano error (lista dipendenti vuota silenziosa)
     if (dip?.error) {
       notify?.('Impossibile caricare la lista dipendenti: ' + (dip.error.message || 'errore RPC'), false)
     }
     if (inv?.error) {
       notify?.('Impossibile caricare gli inviti pendenti: ' + (inv.error.message || 'errore DB'), false)
     }
-    setDipendenti(dip?.data || [])
-    setInviti(inv?.data || [])
+    setDipendenti(Array.isArray(dip?.data) ? dip.data : [])
+    setInviti(Array.isArray(inv?.data) ? inv.data : [])
     // Mappa pinStatuses → { user_id: { has_pin, pin_set_at } }
     const map = {}
     for (const r of (pinRes?.data || [])) {
