@@ -22,6 +22,7 @@ export default function FeedbackButton({ viewCorrente }) {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [err, setErr] = useState('')
+  const [hover, setHover] = useState(false)
 
   async function invia() {
     if (messaggio.trim().length < 3) { setErr('Scrivi almeno 3 caratteri'); return }
@@ -48,32 +49,53 @@ export default function FeedbackButton({ viewCorrente }) {
 
   return (
     <>
-      <button
-        aria-label="Invia feedback"
-        onClick={() => setOpen(true)}
+      <div
         style={{
           position: 'fixed',
-          // Posizionato SOPRA il FAB AI Assistant (che sta a bottom: 92 mobile / 24 desktop
-          // con altezza 56). Stack verticale per non sovrapporsi (bug 18 giu).
-          // AI FAB: bottom 24 + height 56 + gap 12 = feedback bottom 92 desktop.
-          // Su mobile: AI FAB a 92 + height 56 + gap 12 = feedback a 160.
+          // Audit 2026-06-22: stessa dimensione e stile dell'AI FAB (56px,
+          // gradient bg, shadow forte). Stack verticale gap 12px sopra l'AI.
           bottom: isMobile ? 160 : 92,
-          right: isMobile ? 18 : 26,  // allineato con il centro del FAB AI (più grande, 56)
-          width: isMobile ? 46 : 52, height: isMobile ? 46 : 52,
-          borderRadius: '50%',
-          background: '#6E0E1A',
-          color: '#FFF',
-          border: 'none',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 6px 20px rgba(110,14,26,0.35)',
-          zIndex: 1002,  // sopra AI FAB (1001) per evitare che AI ci si sieda sopra
-          transition: 'transform 0.15s ease',
+          right: 24,
+          zIndex: 1002,
+          display: 'flex', alignItems: 'center', gap: 10,
         }}
-        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
-        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-        title="Invia feedback ad Alessandro"
-      ><Icon name="chat" size={22}/></button>
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+      >
+        {/* Tooltip etichetta (compare on-hover sulla SINISTRA del FAB) */}
+        <span style={{
+          background: 'rgba(15,23,42,0.92)',
+          color: '#FFF',
+          padding: '6px 10px',
+          borderRadius: 8,
+          fontSize: 12,
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+          opacity: hover ? 1 : 0,
+          transform: hover ? 'translateX(0)' : 'translateX(8px)',
+          pointerEvents: 'none',
+          transition: 'opacity 0.16s ease, transform 0.16s ease',
+        }}>Feedback</span>
+        <button
+          aria-label="Invia feedback"
+          onClick={() => setOpen(true)}
+          className="ai-fab"
+          style={{
+            width: 56, height: 56,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0810 100%)',
+            color: '#FFF',
+            border: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 6px 20px rgba(110,14,26,0.42)',
+            transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px) scale(1.04)'; e.currentTarget.style.boxShadow = '0 10px 28px rgba(110,14,26,0.45)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 6px 20px rgba(110,14,26,0.42)' }}
+        ><Icon name="chat" size={22}/></button>
+      </div>
 
       {open && (
         <div
