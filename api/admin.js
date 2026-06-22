@@ -2449,8 +2449,11 @@ export default async function handler(req) {
 
   const supabase = await getSupabase()
 
-  // Rate limit (più generoso per admin)
-  const rl = await checkRateLimit(supabase, `admin:${ip}`, 60, 60, 300)
+  // Rate limit admin: piu` generoso del default visto che la pagina admin
+  // v2 poll-driven (activity 12s + pending 30s + signals + Cmd+K + bulk delete)
+  // facilmente fa 50+ richieste al minuto durante uso normale.
+  // Audit 2026-06-21: 60/min → 200/min, block ridotto da 5min a 1min.
+  const rl = await checkRateLimit(supabase, `admin:${ip}`, 200, 60, 60)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
   const auth = await verificaAdmin(req, supabase)

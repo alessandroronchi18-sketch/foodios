@@ -1628,20 +1628,23 @@ export default function AdminPage() {
   const approvaSignup = useCallback(async (orgId) => {
     try {
       await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ orgId, tipo: 'approva_signup' }) })
-      await fetchPending()
-      await fetchData()
+      // Audit 2026-06-21: ottimistic UI remove + skip doppio refresh per
+      // rispettare rate limit su delete bulk.
+      setPendingOrgs(prev => prev.filter(o => o.id !== orgId))
       toast.success('Cliente approvato. Ora può entrare.')
     } catch (e) { toast.error('Errore: ' + e.message) }
-  }, [apiCall, fetchPending, fetchData, toast])
+  }, [apiCall, toast])
   const rifiutaSignup = useCallback(async (orgId, nome) => {
     if (!confirm(`Rifiutare e CANCELLARE "${nome}"?\n\nL'org + utente vengono eliminati definitivamente. Operazione irreversibile.\n\nUsa solo per scam evidenti.`)) return
     try {
       await apiCall('/api/admin', { method: 'POST', body: JSON.stringify({ orgId, tipo: 'rifiuta_signup', confirm: 'rifiuta' }) })
-      await fetchPending()
-      await fetchData()
+      // Audit 2026-06-21: rimosso doppio refresh (pending + data). Aggiorno
+      // solo lista pending lato UI; la lista clienti si aggiornera` al prossimo
+      // poll naturale (no urgenza, l'utente non si vede piu` su entrambe).
+      setPendingOrgs(prev => prev.filter(o => o.id !== orgId))
       toast.success('Org rifiutata e cancellata.')
     } catch (e) { toast.error('Errore: ' + e.message) }
-  }, [apiCall, fetchPending, fetchData, toast])
+  }, [apiCall, toast])
 
   // Codici sconto: redemptions viewer + ad-hoc generator (G2 batch 19b)
   const [redemptionsFor, setRedemptionsFor] = useState(null) // codice currently viewed
