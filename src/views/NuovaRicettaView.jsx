@@ -404,7 +404,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               {/* Tipo unità */}
               <div>
                 <div style={fieldLabel}>Tipo unità</div>
-                <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value, unita: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.unita, prezzo: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.prezzo }))}
+                <select value={form.tipo} aria-label="Tipo unità" onChange={e => setForm(f => ({ ...f, tipo: e.target.value, unita: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.unita, prezzo: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.prezzo }))}
                   style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }}>
                   <option value="fetta">Fetta</option><option value="pezzo">Pezzo</option><option value="interno">Uso interno</option><option value="semilavorato">Semilavorato (base/impasto)</option>
                 </select>
@@ -421,6 +421,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div>
                 <div style={fieldLabel}>{form.tipo === "pezzo" ? "Pezzi per stampo" : "Fette / porzioni per stampo"}</div>
                 <input type="number" min="0" value={form.unita} disabled={isSemiOrInterno}
+                  aria-label={form.tipo === "pezzo" ? "Pezzi per stampo" : "Fette o porzioni per stampo"}
                   onChange={e => setForm(f => ({ ...f, unita: parseFloat(e.target.value) || 0 }))}
                   style={{ ...inputBase, opacity: isSemiOrInterno ? 0.5 : 1 }} />
               </div>
@@ -429,6 +430,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div>
                 <div style={fieldLabel}>Prezzo vendita / unità (€)</div>
                 <input type="number" min="0" step="0.5" value={form.prezzo} disabled={isSemiOrInterno}
+                  aria-label="Prezzo vendita per unità in euro"
                   onChange={e => setForm(f => ({ ...f, prezzo: parseFloat(e.target.value) || 0 }))}
                   style={{ ...inputBase, opacity: isSemiOrInterno ? 0.5 : 1 }} />
               </div>
@@ -436,7 +438,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               {/* Note */}
               <div>
                 <div style={fieldLabel}>Note (cottura, temperatura…)</div>
-                <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="es. 180°C per 45 min"
+                <input value={form.note} aria-label="Note ricetta (cottura, temperatura)" onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="es. 180°C per 45 min"
                   style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
               </div>
             </div>
@@ -484,6 +486,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                           </td>
                           <td style={{ padding: "4px 10px", textAlign: "right" }}>
                             <input type="number" min="0" value={ing.qty1stampo}
+                              aria-label={`Grammi per stampo di ${ing.nome}`}
                               onChange={e => {
                                 const n = [...form.ingredienti];
                                 n[i] = { ...n[i], qty1stampo: parseFloat(e.target.value) || 0 };
@@ -507,7 +510,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 110px auto", gap: 8, alignItems: "flex-end" }}>
               <div>
                 <div style={fieldLabel}>Ingrediente</div>
-                <input value={newIngNome}
+                <input value={newIngNome} aria-label="Nome ingrediente da aggiungere"
                   onChange={e => setNewIngNome(e.target.value)}
                   onKeyDown={onEnterAutoComplete(tuttiIng, newIngNome, setNewIngNome, () => { if (newIngQty) addIng() })}
                   placeholder="es. burro" list="ing-autocomplete"
@@ -516,7 +519,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </div>
               <div>
                 <div style={fieldLabel}>Grammi</div>
-                <input type="number" min="0" value={newIngQty} onChange={e => setNewIngQty(e.target.value)} onKeyDown={e => e.key === "Enter" && addIng()}
+                <input type="number" min="0" value={newIngQty} aria-label="Grammi di ingrediente da aggiungere" onChange={e => setNewIngQty(e.target.value)} onKeyDown={e => e.key === "Enter" && addIng()}
                   placeholder="es. 200"
                   style={{ ...inputBase, fontSize: isMobile ? 16 : 14, padding: "9px 11px" }} />
               </div>
