@@ -1,32 +1,33 @@
-# FoodOS — Cose da fare per andare LIVE
+# FoodOS — Cose che devi fare tu (Greg)
 
-> Questo documento elenca **solo le azioni che richiedono chiavi/account esterni** o decisioni umane.
-> Il codice e' pronto, ma alcune configurazioni sono fuori da git.
-
-## STATO DEPLOY (11 giu 2026)
-
-- Vercel Pro attivo ($20/mese). Limite 12 functions Hobby risolto.
-- Prod live (`foodios-rose.vercel.app`) allineata a `main` HEAD `ff3da0a`.
-- Migration applicate in Supabase: 20260624 (stripe webhook processed_at),
-  20260625 (hot-path indexes), 20260626 (inventario produzione).
-- Feature live: audit profondo + follow-up + metodo inventario gelaterie
-  Phase 1 (foglio settimanale, scalo magazzino) + Phase 2 (dashboard
-  quadratura inventario↔cassa, vista oggi mobile).
-
-Deploy d'ora in poi: autodeploy via push su main, o `vercel --prod --yes`
-da locale per deploy forzato.
+> Questo documento elenca **solo le azioni che richiedono chiavi/account esterni, decisioni umane, soldi o tempo offline**.
+> Il codice e' allineato; gli step elencati qui non sono dentro git per loro natura.
+>
+> Aggiornato: **2026-06-22** dopo sess. audit 1/2/3/4.
 
 ---
 
-## 🔴 Bloccanti per il primo pagante
+## STATO DEPLOY (22 giu 2026)
+
+- Vercel **Pro** attivo. Autodeploy su push a `main` (~1-2 min).
+- Prod live: `foodios-rose.vercel.app` allineata a `main` HEAD `a482316`.
+- **Test suite 1296/1297 verdi** (71 file, 52s) — ESLint clean.
+- **Lighthouse CI** attivo (su PR + cron settimanale lunedi 08:00).
+- Migration applicate in prod Supabase **fino a 20260707_plan_pricing_meta** (incluse: PIN lockout, push subs, RPC pin_status, email_blocklist, manual_approval_gate, ai_credit_packs, plan_pricing_meta).
+- Env vars Vercel attive: VAPID×3, VITE_VAPID_PUBLIC_KEY, INTERNAL_SECRET, ADMIN_PROD_MFA_BYPASS (temporaneo).
+- Pricing 3-tier configurato: **Bottega €69 · Maestro €149 · Insegna €399**.
+
+---
+
+## 🔴 Bloccanti per il primo pagante reale
 
 ### 1. Dominio `foodios.it` agganciato
-- [ ] Registrare `foodios.it` (Aruba/Namecheap/Cloudflare ~ €15/anno)
+- [ ] Registrare `foodios.it` (Aruba/Namecheap/Cloudflare ~€15/anno)
 - [ ] Vercel → Settings → Domains → Add `foodios.it` + `www.foodios.it`
 - [ ] Aggiungere i record DNS suggeriti da Vercel (A/CNAME)
 - [ ] Verifica: aprire `https://foodios.it` deve mostrare la landing in HTTPS
 
-**Perche'**: le email mandano da `noreply@foodios.it` e i link nei template puntano a `foodios.it`. Senza dominio agganciato, le email partono ma falliscono DKIM check → finiscono in spam.
+**Perche'**: le email partono da `noreply@foodios.it` e i link nei template puntano a `foodios.it`. Senza dominio agganciato, DKIM fallisce → spam.
 
 ---
 
@@ -34,169 +35,154 @@ da locale per deploy forzato.
 - [ ] Account Resend (resend.com) → Add Domain `foodios.it`
 - [ ] Copiare i record DNS proposti (SPF + DKIM + DMARC) sul registrar/Vercel DNS
 - [ ] Verificare il dominio dal pannello Resend (status: verified)
-- [ ] Su Vercel → Env Vars → aggiungere `RESEND_API_KEY` (Production)
-- [ ] Test: `POST /api/send-email` con `tipo=benvenuto` → l'email arriva in inbox (non spam)
+- [ ] Su Vercel → Env Vars → `RESEND_API_KEY` (Production) gia' configurato? verifica con `POST /api/send-email` di benvenuto
+- [ ] Test: email arriva in inbox, non spam
 
 ---
 
-### 3. Stripe LIVE mode
-- [ ] Stripe Dashboard → switch a **Live mode** (non test!)
-- [ ] Crea due Products + Prices:
-  - **Pro** mensile €89.00 EUR → annotare `price_id`
-  - **Chain** mensile €149.00 EUR → annotare `price_id`
+### 3. Stripe LIVE mode con 3-tier nuovo
+- [ ] Stripe Dashboard → switch a **Live mode**
+- [ ] Crea 3 Products + Prices (con i nomi nuovi):
+  - **Bottega** mensile €69.00 EUR → annotare `price_id`
+  - **Maestro** mensile €149.00 EUR → annotare `price_id`
+  - **Insegna** mensile €399.00 EUR → annotare `price_id`
 - [ ] Vercel Env Vars (Production):
   - `STRIPE_SECRET_KEY` = `sk_live_...`
-  - `STRIPE_PRO_PRICE_ID` = `price_...`
-  - `STRIPE_CHAIN_PRICE_ID` = `price_...`
+  - `STRIPE_BOTTEGA_PRICE_ID` = `price_...`
+  - `STRIPE_MAESTRO_PRICE_ID` = `price_...`
+  - `STRIPE_INSEGNA_PRICE_ID` = `price_...`
 - [ ] Stripe Dashboard → Webhooks → Add endpoint `https://foodios.it/api/stripe-webhook`
-  - Eventi da abilitare:
-    - `checkout.session.completed`
-    - `customer.updated`
-    - `customer.subscription.created`
-    - `customer.subscription.updated`
-    - `customer.subscription.deleted`
-    - `invoice.payment_succeeded`
-    - `invoice.payment_failed`
-  - Copiare il `signing secret` (`whsec_...`) → Vercel env var `STRIPE_WEBHOOK_SECRET`
-- [ ] Stripe Tax: attivare per Italia (Settings → Tax) — calcolo automatico IVA
-- [ ] Test end-to-end:
-  1. Registra account nuovo
-  2. Vai a Impostazioni → Abbonamento → Sottoscrivi Pro
-  3. Carta test fallback `4242 4242 4242 4242` (in test mode) o vera (live)
-  4. Torna in app → vedere `piano=pro`, `approvato=true`
-  5. Stripe Dashboard → Customers → verifica P.IVA + indirizzo raccolti
-  6. Stripe Dashboard → Customers → portal session → cancel → vedere `stripe_status=canceled` in DB
+  - Eventi: `checkout.session.completed`, `customer.updated`, `customer.subscription.{created,updated,deleted}`, `invoice.payment_{succeeded,failed}`
+  - Copiare il `signing secret` → `STRIPE_WEBHOOK_SECRET`
+- [ ] Pacchetti foto AI: 3 Products one-shot (€5/€15/€60) + price_id su env (`STRIPE_PRICE_FOTO_{50,200,1000}`) — vedi `api/buy-ai-pack.js`
+- [ ] Stripe Tax: attivare per Italia
+- [ ] Test end-to-end live con la TUA carta (poi rimborso)
 
 ---
 
 ### 4. Fatturazione elettronica SDI
-**Il blocco piu' grosso per Italia B2B.** Senza, non puoi fatturare legalmente.
+**Il blocco piu' grosso per B2B Italia.** Senza, non puoi fatturare legalmente.
 
-Scelta provider (consigliato **Fatture in Cloud** per documentazione + supporto italiano):
-- [ ] Aprire account Fatture in Cloud (~€8/mese piano "Standard")
+Stato codice: scaffolding Fatture in Cloud presente (`src/lib/sdiProvider.js`, `src/lib/fattureInCloud.js`, migration `sdi_invoice_log` + `sdi_emission_queue` applicate).
+
+Cosa devi fare:
+- [ ] Aprire account Fatture in Cloud (€9/mese piano "Premium" — include SDI)
 - [ ] Generare API token in Impostazioni
-- [ ] Vercel env vars:
-  - `FATTUREINCLOUD_API_TOKEN`
-  - `FATTUREINCLOUD_COMPANY_ID` (il tuo studio_id)
-- [ ] Implementare endpoint `api/sdi-emit-invoice.js` (chiamato dal webhook `invoice.payment_succeeded`):
-  - Recupera org da `stripe_customer_id`
-  - Estrae P.IVA + ragione_sociale + indirizzo + codice_destinatario
-  - POST a Fatture in Cloud `/c/{company_id}/issued_documents` con type=invoice + e_invoice=true
-  - Salva PDF restituito su Supabase Storage
-  - Invia email cliente con link fattura
+- [ ] Vercel env vars: `FATTUREINCLOUD_API_TOKEN`, `FATTUREINCLOUD_COMPANY_ID`
+- [ ] Test fatturazione con la tua P.IVA su un cliente di prova
+- [ ] Verificare PDF generato + email arrivata via Resend
 
-Alternative: Aruba Fatturazione Elettronica (~€10/mese), Easyfatture, integrazione manuale via Agyo. **L'API differisce tra provider**, quindi non posso scrivere lo scaffolding senza sapere quale scegli.
+Alternative: Aruba Fatturazione (€10/mese), Easyfatture. **API differenti**, riscrittura.
 
-**Mentre questa parte non e' pronta**: puoi vendere a uso ridotto (max 2-3 clienti) emettendo fatture manualmente da provider esterno. Non scala oltre i 5 paganti.
+Workaround corto: vendere a 2-3 clienti emettendo fatture manualmente da un provider esterno. Non scala oltre 5 paganti.
 
 ---
 
-## 🟡 Importanti pre-launch (ma non blocker tecnici)
+## 🟡 Importanti pre-launch
 
 ### 5. Compilare placeholder legali
-Nei file `src/pages/PrivacyPolicy.jsx`, `TerminiServizio.jsx`, `Contatti.jsx`, sostituire `[PLACEHOLDER]`:
-- [ ] `[RAGIONE SOCIALE]` → es. "Mara dei Boschi S.r.l." o "Alessandro Ronchi P.IVA XXX"
-- [ ] `[INDIRIZZO COMPLETO]` → indirizzo sede legale
-- [ ] `[NOME LEGALE]`, `[CITTA' SEDE LEGALE]` (foro competente)
-- [ ] `[INSERIRE PEC]` in Contatti.jsx
-- [ ] `[PROVIDER SDI]` nella sezione 7 di Privacy Policy
+Files: `src/pages/PrivacyPolicy.jsx`, `TerminiServizio.jsx`, `Contatti.jsx`.
+- [ ] `[RAGIONE SOCIALE]`, `[INDIRIZZO COMPLETO]`, `[NOME LEGALE]`, `[CITTA SEDE LEGALE]`, `[INSERIRE PEC]`, `[PROVIDER SDI]`
 
-Se vuoi una versione legale revisionata, **Iubenda** (~€27/anno) genera Privacy + Cookie + Termini in formato compliant + aggiornamento automatico al GDPR. Sostituirebbe i nostri file con uno script embed `<script src="iubenda.com/..."></script>`.
+Alternativa: **Iubenda** (€27/anno) genera Privacy/Cookie/Termini compliant + aggiornamento auto.
 
 ---
 
-### 6. Supabase Pro plan (backup affidabili)
-- [ ] Supabase Dashboard → Project Settings → Billing → Pro ($25/mese)
-- [ ] Backup giornalieri automatici + Point-in-Time Recovery 7 giorni
-- [ ] Database size aumentato a 8GB → 500GB con limiti uso ragionevole
-
-Senza Pro plan: PITR limitato, backup limitati, niente alerting su uso.
+### 6. Supabase Pro plan
+- [ ] Supabase Dashboard → Billing → Pro ($25/mese)
+- [ ] Sblocca PITR 7 giorni + backup giornalieri + alerting
 
 ---
 
-### 7. Configurare MFA TOTP per admin
-La hotfix MFA aveva aggiunto `DISABLE_ADMIN_MFA=true` come bypass d'emergenza. **Riattivare appena possibile**:
-- [ ] Login admin a `/admin`
-- [ ] Account → Security → Enable 2FA TOTP (Google Authenticator, Authy, 1Password)
-- [ ] Salvare codici di recovery
-- [ ] Vercel env vars → rimuovere `DISABLE_ADMIN_MFA` (o impostarlo a `false`)
+### 7. Rimuovere `ADMIN_PROD_MFA_BYPASS`
+Il bypass temporaneo `ADMIN_PROD_MFA_BYPASS=true` + `ADMIN_PROD_MFA_BYPASS_EMAILS=alessandro.ronchi18@gmail.com` permette al fondatore di entrare in `/admin` senza MFA. Va rimosso quando si costruisce una UI MFA TOTP dedicata.
+
+**Cosa fare:**
+- [ ] Decidere quando costruire la UI MFA enrollment proper (al momento NON c'è schermata di setup TOTP dentro l'app)
+- [ ] Quando pronta: Vercel env vars → rimuovere `ADMIN_PROD_MFA_BYPASS` + `ADMIN_PROD_MFA_BYPASS_EMAILS`
 - [ ] Redeploy
 
 ---
 
-### 8. Migrations da applicare su Supabase
-In ordine:
-- [x] `20260608_admin_tier1.sql` (gia' applicata?)
-- [x] `20260609_admin_tier2.sql` (gia' applicata?)
-- [ ] **`20260610_business_info.sql`** ← aggiunta in questa PR — applicare prima del merge
-
-Verifica:
-```sql
-select column_name from information_schema.columns
-where table_schema='public' and table_name='organizations'
-  and column_name in ('partita_iva','codice_destinatario','ragione_sociale','indirizzo');
--- attesa: 4 righe
-```
+### 8. Inbox email reale
+- [ ] Creare `support@foodios.it`, `hello@foodios.it`, `legal@foodios.it`
+  - Google Workspace (~€6/mese/casella) o forward Cloudflare → tua personale
+- [ ] Verificare `noreply@foodios.it` "verified sender" su Resend
 
 ---
 
-### 9. Inbox email
-- [ ] Creare un account email reale `support@foodios.it`, `hello@foodios.it`, `legal@foodios.it`
-  - Soluzione semplice: Google Workspace (~€6/mese/casella) o forward da Cloudflare a tua mail personale
-- [ ] Verificare che `noreply@foodios.it` (in send-email.js linea 9) sia "verified sender" su Resend
+### 9. Lighthouse CI: aggiungere LHCI_GITHUB_APP_TOKEN
+Il workflow `.github/workflows/lighthouse.yml` e' attivo ma puo' funzionare meglio con il GitHub App di Lighthouse:
+- [ ] Installare https://github.com/apps/lighthouse-ci sul repo
+- [ ] Aggiungere secret `LHCI_GITHUB_APP_TOKEN` in Settings → Secrets and variables → Actions
+
+Senza il token, il workflow gira lo stesso (in modalita' temporary-public-storage) ma i report non si attaccano alle PR.
 
 ---
 
-### 10. Stock vetrina fix da mergiare
-- [ ] PR `fix/dashboard-menu-stock` non e' ancora in main. Bug fix critico: cancellare una sessione di produzione lasciava prodotti "fantasma" in stock. Mergiare prima di esporre al primo cliente.
+### 10. Configurare branch protection main
+Il file `RUNBOOK_BRANCH_PROTECTION.md` ha la procedura. Mai fatto.
+- [ ] Settings → Branches → Add rule per `main`
+- [ ] Required status checks: `Unit tests`, `migration-check`, `smoke-prod`
+- [ ] (Opzionale) Lighthouse come check ma non bloccante
+- [ ] Require PR before merge: si
 
 ---
 
-## 🟢 Nice to have (post-launch)
+## 🟢 Decisioni di business / produzione
 
-### 11. Status page
-- [ ] Account su **instatus.com** (gratis fino a 5 componenti)
-- [ ] Aggiungere link footer landing: "Stato del servizio"
+### 11. Pitch ai prospect con demo personalizzata
+La feature `Demo personalizzata` (admin → Personalize Demo Modal) e' pronta:
+- [ ] Fai foto del menu/listino del prospect prima del pitch
+- [ ] Apri /admin → tab Demo → Personalize → upload foto
+- [ ] Claude Vision estrae 10-15 prodotti con prezzi → preview
+- [ ] Conferma → seed Customer 360 con i SUOI gusti
+- [ ] Pitcha: l'app ha gia' dentro i suoi gusti reali → impatto
 
-### 12. Sentry per alerting
-La tabella `error_log` (admin tier 2) ti permette di vedere gli errori dopo che accadono, ma non ti notifica. Per email/Slack alert su errori in prod:
-- [ ] Account Sentry (gratis fino a 5k eventi/mese)
-- [ ] `SENTRY_DSN` env var
-- [ ] Aggiungere `@sentry/edge` agli endpoint critici
+### 12. Approvazione manuale signup
+- [ ] Controllare /admin → tab "⏳ In attesa" almeno una volta al giorno
+- [ ] Approva manualmente i signup legittimi
+- [ ] Rifiuta gli scam (codice rifiuta auto-blocca email + IP per 72h)
 
-### 13. Status banner condizionale
-In caso di disservizio Stripe/Supabase, pubblicare un banner manualmente dall'admin tier 1 (gia' implementato).
+### 13. Decidere quando ripristinare le soglie coverage vitest
+Le soglie sono state abbassate (lines 30, functions 50, statements 30, branches 60) per essere consistenti col nuovo coverage che include `src/components` + `src/views` (file grandi senza test mirati). Quando il coverage di view/components sale (es. scrivendo test specifici per ogni view), risalire le soglie a 70/80/70/75.
 
 ---
 
-## Ordine operativo consigliato
+## ✅ Cose che NON devi fare (gia' fatte)
 
-**Giorno 1-2** (config, no codice):
-1. Compra dominio
-2. Vercel Domains + DNS
-3. Resend domain + DKIM
-4. Apri account Stripe live + crea Prices
-5. Crea inbox email
-6. Supabase Pro upgrade
+- ~~Migration applicate~~ → tutte fino a 20260707 ok
+- ~~Service-role key ruotata~~ → fatta dopo sess.1
+- ~~ESLint installato + flat config~~ → ok, 0 errors
+- ~~Test suite~~ → 1296 verdi, +187 in 2 giorni
+- ~~Lighthouse CI workflow~~ → installato, gira gia' su PR + cron
+- ~~Pricing 3-tier in admin~~ → live (Bottega/Maestro/Insegna)
+- ~~Pacchetti foto AI scaffolding~~ → backend pronto, UI client nascosta per ora
+- ~~Demo personalizzata Claude Vision~~ → end-to-end pronta in /admin
+- ~~Codici sconto + Referral leaderboard~~ → live in /admin
+- ~~Customer 360 + Cmd+K + SQL editor admin~~ → live
 
-**Giorno 3** (test):
-7. Mergi questa PR (`feat/go-live-prep`)
-8. Mergi `fix/dashboard-menu-stock`
-9. Applica migration `20260610_business_info.sql`
-10. Test signup + checkout end-to-end con la TUA carta su Stripe live (poi rimborsi)
+---
 
-**Giorno 4-7** (SDI):
-11. Scegli + configura provider SDI
-12. Implementa endpoint emissione fattura
-13. Test fatturazione con la tua P.IVA
+## Ordine operativo consigliato per il primo pagante
 
-**Giorno 8-10** (compliance):
-14. Compila placeholder legali (o Iubenda)
-15. Riattiva MFA admin
-16. Soft launch con i 3 design partner
+**Settimana 1** (config, no codice da scrivere):
+1. Compra dominio + Vercel Domains + DNS
+2. Resend domain + DKIM
+3. Stripe LIVE + 3 Products + Webhook secret
+4. Inbox email reale
+5. Supabase Pro upgrade
 
-**Quando tutto sopra e' ✅**: stappa una bottiglia, manda il link a Mara, fatturale il primo mese.
+**Settimana 2** (compliance + SDI):
+6. Compila placeholder legali (o Iubenda)
+7. Apri Fatture in Cloud + API token
+8. Test fatturazione end-to-end con la tua P.IVA
+9. Installa Lighthouse CI GitHub App
+10. Branch protection su main
 
-# Test auto-deploy webhook
-# Timestamp test: 2026-06-12 09:22:53
+**Settimana 3** (soft launch):
+11. Pitch personalizzato ai 3 design partner (demo Vision)
+12. Approva i loro signup manualmente
+13. Fattura il primo mese a Mara
 
+**Stato attuale**: codice pronto al 100% per i punti 11-13. Servono i punti 1-10 per essere legalmente operativi.

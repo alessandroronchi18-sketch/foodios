@@ -76,6 +76,34 @@ describe('Accessibility (axe-core) — form pubblici e onboarding', () => {
     expect(results).toHaveNoViolations()
   })
 
+  it('ConfirmProvider con confirm aperto non ha violation a11y', async () => {
+    const mod = await import('../../src/components/ConfirmModal')
+    const { ConfirmProvider, useConfirm } = mod
+    function Trigger() {
+      const confirm = useConfirm()
+      React.useEffect(() => { confirm({ title: 'Conferma', message: 'Sei sicuro?' }) }, [confirm])
+      return null
+    }
+    const { container } = render(
+      <ConfirmProvider><Trigger /></ConfirmProvider>
+    )
+    const results = await axe(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    expect(results).toHaveNoViolations()
+  })
+
+  it('UpgradeModal aperto non ha violation a11y', async () => {
+    const { default: Up } = await import('../../src/components/UpgradeModal')
+    const { container } = render(
+      <Up open feature="ai_brain" piano="base" onClose={() => {}} onUpgrade={() => {}} />
+    )
+    const results = await axe(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    expect(results).toHaveNoViolations()
+  })
+
   it('Impostazioni — sezione profilo + cambio email non ha violation a11y', async () => {
     const { default: Imp } = await import('../../src/components/Impostazioni')
     const { container } = render(

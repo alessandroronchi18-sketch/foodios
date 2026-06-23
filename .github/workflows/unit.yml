@@ -17,8 +17,10 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install dependencies
-        run: npm ci
-      - name: Unit tests (Vitest)
+        run: npm ci --legacy-peer-deps
+      - name: Lint (ESLint flat config) — fail on errors, tolerate warnings
+        run: npx eslint src/ --max-warnings 200
+      - name: Unit tests (Vitest, ~1300 test in <60s)
         run: npm test
       - name: Build (sanity)
         run: npm run build

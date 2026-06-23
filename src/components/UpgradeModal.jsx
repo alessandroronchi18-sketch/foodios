@@ -34,7 +34,7 @@ export default function UpgradeModal({
   const tier = PLAN_TIER[requiredPlan] || PLAN_TIER.enterprise
 
   return (
-    <div role="dialog" aria-modal="true"
+    <div role="dialog" aria-modal="true" aria-label={`Upgrade richiesto al piano ${tier.label}`}
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 300,

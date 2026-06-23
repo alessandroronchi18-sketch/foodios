@@ -10,7 +10,7 @@ export default function ChainBadge({ active = false, size = 14, title = 'Funzion
   // Colore: piu' "premium" quando NON active (cosi spicca su sfondo chiaro).
   // Quando active (item selezionato in red light bg), virata su tono caldo neutro.
   return (
-    <span title={title} aria-label={title}
+    <span role="img" title={title} aria-label={title}
       style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <defs>
