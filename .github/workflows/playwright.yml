@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           # Node 22+: serve il WebSocket nativo richiesto da @supabase/supabase-js
           # (global-setup/helper creano il client). Su Node 20 createClient lancia.
