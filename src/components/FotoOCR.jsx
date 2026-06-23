@@ -335,7 +335,7 @@ Instructions:
                     {(parsed.ingredienti || []).filter(i => i.prezzo_kg > 0).map((ing, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 8px', background: '#FEF9EC', borderRadius: 4 }}>
                         <span style={{ color: C.text, fontWeight: 600, textTransform: 'capitalize' }}>{ing.nome}</span>
-                        <span style={{ color: C.amber, fontWeight: 700 }}>€{ing.prezzo_kg.toFixed(2)}/kg</span>
+                        <span style={{ color: C.amber, fontWeight: 700 }}>€ {Number(ing.prezzo_kg).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</span>
                       </div>
                     ))}
                     {(parsed.ingredienti || []).filter(i => i.prezzo_kg > 0).length === 0 && (

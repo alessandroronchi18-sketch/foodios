@@ -51,7 +51,7 @@ function graficoPestimanale(chiusureMese) {
   for (let i = 0; i < 5; i++) {
     const pct = Math.round((settimane[i] / max) * 20)
     const bar = '█'.repeat(pct) + '░'.repeat(20 - pct)
-    lines.push(`Sett.${i + 1}  ${bar}  €${settimane[i].toFixed(0)}`)
+    lines.push(`Sett.${i + 1}  ${bar}  € ${Math.round(settimane[i]).toLocaleString('it-IT')}`)
   }
   return lines.join('\n')
 }
@@ -92,7 +92,7 @@ async function generaPDF(org, dati, periodo) {
   const fatturePagate = (dati.fatture || []).filter(f => f.stato === 'pagata').length
 
   const kpiItems = [
-    ['Ricavi totali', `€ ${kpiTotV.toFixed(2)}`],
+    ['Ricavi totali', `€ ${Number(kpiTotV).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
     ['Food cost medio', `${kpiFoodCost.toFixed(1)}%`],
     ['Prodotto più venduto', dati.topProdotto || '—'],
     ['Fatture pagate', String(fatturePagate)],
@@ -139,7 +139,7 @@ async function generaPDF(org, dati, periodo) {
     y += 7
     for (const [i, f] of fornitori5.entries()) {
       addLine(`${i + 1}. ${f.fornitore}`, 14, y, 10, 'normal', [15, 23, 42])
-      addLine(`€ ${f.totale.toFixed(2)}`, 155, y, 10, 'bold', [15, 23, 42])
+      addLine(`€ ${Number(f.totale).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 155, y, 10, 'bold', [15, 23, 42])
       y += 7
     }
   }

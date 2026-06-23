@@ -87,9 +87,11 @@ Output JSON ESATTAMENTE in questo formato:
 }
 SOLO il JSON. NIENTE markdown. NIENTE testo extra.`
 
+      // Audit 2026-06-22: numeri in formato IT
+      const _e = n => `€ ${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       const userMsg = `Ricetta: ${ricCurrent.nome}
-Food cost attuale: €${fcAttuale.fcPezzo.toFixed(2)}/pezzo (${fcAttuale.fcPct.toFixed(1)}%)
-Prezzo vendita attuale: €${fcAttuale.prezzo.toFixed(2)}
+Food cost attuale: ${_e(fcAttuale.fcPezzo)}/pezzo (${fcAttuale.fcPct.toFixed(1)}%)
+Prezzo vendita attuale: ${_e(fcAttuale.prezzo)}
 Food cost TARGET richiesto: ${fcTarget}%
 
 Ingredienti attuali:
@@ -190,7 +192,7 @@ Proponi le 3 varianti come da istruzioni.`
                 <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginTop: 4 }}>{v.titolo}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
-                <Stat label="Delta FC" value={`€${v.delta_fc_eur > 0 ? '+' : ''}${(v.delta_fc_eur || 0).toFixed(2)}`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
+                <Stat label="Delta FC" value={`${v.delta_fc_eur > 0 ? '+' : ''}€ ${Number(v.delta_fc_eur || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
                 <Stat label="FC stimato" value={`${(v.fc_risultante_pct || 0).toFixed(1)}%`} />
                 <Stat label="Rischio gusto" value={v.rischio_gusto || '—'} color={v.rischio_gusto === 'basso' ? GREEN : v.rischio_gusto === 'alto' ? BRAND : MID} />
                 <Stat label="Impatto vendite" value={`${(v.impatto_vendite_pct || 0).toFixed(0)}%`} color={v.impatto_vendite_pct < -5 ? BRAND : MID} />

@@ -124,14 +124,16 @@ Restituisci JSON ESATTO:
 }
 Niente markdown, solo JSON.`
 
+      // Audit 2026-06-22: numeri in formato IT
+      const _e = n => `€ ${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       const userMsg = `Prodotto: ${ricSel}
-Tuo prezzo: €${fcInfo.prezzo.toFixed(2)}
-Tuo food cost: €${fcInfo.fcPezzo.toFixed(2)} (${(fcInfo.fcPezzo/fcInfo.prezzo*100).toFixed(1)}%)
+Tuo prezzo: ${_e(fcInfo.prezzo)}
+Tuo food cost: ${_e(fcInfo.fcPezzo)} (${(fcInfo.fcPezzo/fcInfo.prezzo*100).toFixed(1)}%)
 
 Competitor (${compStats.n} rilevati):
-- Prezzo min: €${compStats.min.toFixed(2)}
-- Prezzo max: €${compStats.max.toFixed(2)}
-- Prezzo medio: €${compStats.media.toFixed(2)}`
+- Prezzo min: ${_e(compStats.min)}
+- Prezzo max: ${_e(compStats.max)}
+- Prezzo medio: ${_e(compStats.media)}`
 
       const res = await fetch('/api/ai', {
         method: 'POST',
@@ -195,11 +197,11 @@ Competitor (${compStats.n} rilevati):
           <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: 10.5, fontWeight: 700, color: '#0369A1', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Il tuo prezzo</div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: TXT, marginTop: 2 }}>€{fcInfo.prezzo.toFixed(2)}</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: TXT, marginTop: 2 }}>€ {Number(fcInfo.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             <div style={{ fontSize: 12, color: MID, lineHeight: 1.5 }}>
-              Food cost €{fcInfo.fcPezzo.toFixed(2)} ({(fcInfo.fcPezzo / fcInfo.prezzo * 100).toFixed(1)}%)<br/>
-              Margine lordo €{(fcInfo.prezzo - fcInfo.fcPezzo).toFixed(2)}
+              Food cost € {Number(fcInfo.fcPezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({(fcInfo.fcPezzo / fcInfo.prezzo * 100).toFixed(1)}%)<br/>
+              Margine lordo € {Number(fcInfo.prezzo - fcInfo.fcPezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
 
@@ -225,9 +227,9 @@ Competitor (${compStats.n} rilevati):
             <>
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
-                  <Stat label="Media zona" value={`€${compStats.media.toFixed(2)}`} hint={`${compStats.n} rilevati`}/>
-                  <Stat label="Range min-max" value={`€${compStats.min.toFixed(2)} - €${compStats.max.toFixed(2)}`}/>
-                  <Stat label="Tuo prezzo" value={`€${fcInfo.prezzo.toFixed(2)}`}
+                  <Stat label="Media zona" value={`€ ${Number(compStats.media).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} hint={`${compStats.n} rilevati`}/>
+                  <Stat label="Range min-max" value={`€ ${Number(compStats.min).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - € ${Number(compStats.max).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}/>
+                  <Stat label="Tuo prezzo" value={`€ ${Number(fcInfo.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     color={fcInfo.prezzo < compStats.media * 0.9 ? AMBER : fcInfo.prezzo > compStats.media * 1.1 ? BRAND : GREEN}/>
                   <button onClick={chiediAi} disabled={aiLoading}
                     style={{ marginLeft: 'auto', background: BRAND, color: '#FFF', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -243,7 +245,7 @@ Competitor (${compStats.n} rilevati):
                   }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: TXT, marginBottom: 6, textTransform: 'capitalize' }}>
                       Verdetto: {(aiInsight.verdetto || '').replace('_', ' ')}
-                      {aiInsight.prezzo_consigliato && <> · suggerito €{aiInsight.prezzo_consigliato.toFixed(2)}</>}
+                      {aiInsight.prezzo_consigliato && <> · suggerito € {Number(aiInsight.prezzo_consigliato).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>}
                     </div>
                     <div style={{ fontSize: 12.5, color: MID, lineHeight: 1.5 }}>{aiInsight.spiegazione}</div>
                     {aiInsight.azione && <div style={{ fontSize: 12.5, color: TXT, marginTop: 6, fontWeight: 600 }}>→ {aiInsight.azione}</div>}
@@ -258,7 +260,7 @@ Competitor (${compStats.n} rilevati):
                 {compFiltered.map(c => (
                   <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 6px', borderTop: `1px solid ${BORDER}` }}>
                     <span style={{ flex: 1, fontSize: 13, color: TXT }}>{c.competitor_nome}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: TXT, fontVariantNumeric: 'tabular-nums' }}>€{Number(c.prezzo).toFixed(2)}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: TXT, fontVariantNumeric: 'tabular-nums' }}>€ {Number(c.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     <button onClick={() => rimuoviCompetitor(c.id)} style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 4 }}>
                       <Icon name="x" size={12}/>
                     </button>

@@ -938,7 +938,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false}/>
                         <XAxis dataKey="data" tick={{fontSize:8,fill:C.textSoft}} tickLine={false} axisLine={false} interval={n<=10?0:Math.floor(n/8)}/>
                         <YAxis tick={{fontSize:8,fill:C.textSoft}} tickLine={false} axisLine={false} tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} width={38}/>
-                        <Tooltip formatter={(v,name)=>[`€${v.toFixed(2)}`,name]} contentStyle={{fontSize:10,borderRadius:8,border:`1px solid ${C.border}`}}/>
+                        <Tooltip formatter={(v,name)=>[`€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,name]} contentStyle={{fontSize:10,borderRadius:8,border:`1px solid ${C.border}`}}/>
                         <Bar dataKey="Ricavi"  fill={C.red}  opacity={0.85} radius={[3,3,0,0]}/>
                         <Bar dataKey="Margine" fill={C.green} opacity={0.7} radius={[3,3,0,0]}/>
                         <Bar dataKey="Spreco"  fill={C.amber} opacity={0.6} radius={[3,3,0,0]}/>
