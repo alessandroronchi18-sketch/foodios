@@ -298,12 +298,12 @@ export default async function handler(req) {
         </tr>`).join('')
       await sendEmail({
         to: recipient,
-        subject: `⚠️ ${ingredienti.length} ingrediente${ingredienti.length === 1 ? '' : 'i'} sotto soglia — FoodOS`,
+        subject: `⚠️ ${ingredienti.length} ${ingredienti.length === 1 ? 'ingrediente' : 'ingredienti'} sotto soglia — FoodOS`,
         html: `
           <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;background:#FDFAF7;">
             <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">Scorte sotto soglia 📦</h1>
             <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 20px;">
-              <strong>${escapeHtml(nomeAttivita || 'La tua attività')}</strong> ha ${ingredienti.length} ingrediente${ingredienti.length === 1 ? '' : 'i'} da riordinare:
+              <strong>${escapeHtml(nomeAttivita || 'La tua attività')}</strong> ha ${ingredienti.length} ${ingredienti.length === 1 ? 'ingrediente' : 'ingredienti'} da riordinare:
             </p>
             <table style="width:100%;border-collapse:collapse;background:#FFF;border:1px solid #E8DDD8;border-radius:8px;overflow:hidden;">
               <thead><tr style="background:#F5EDE8;">

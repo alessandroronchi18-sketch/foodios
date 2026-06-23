@@ -1,0 +1,1027 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > ChainBadge active=true 1`] = `
+<span
+  aria-label="Custom title"
+  role="img"
+  style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
+  title="Custom title"
+>
+  <svg
+    height="20"
+    viewBox="0 0 24 24"
+    width="20"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <defs>
+      <lineargradient
+        id="gold-r1"
+        x1="0%"
+        x2="100%"
+        y1="0%"
+        y2="100%"
+      >
+        <stop
+          offset="0%"
+          stop-color="#FFD86B"
+        />
+        <stop
+          offset="55%"
+          stop-color="#E89B43"
+        />
+        <stop
+          offset="100%"
+          stop-color="#6E0E1A"
+        />
+      </lineargradient>
+    </defs>
+    <path
+      d="M12 3.2 L14.6 9.4 L20.8 12 L14.6 14.6 L12 20.8 L9.4 14.6 L3.2 12 L9.4 9.4 Z"
+      fill="url(#gold-r1)"
+      stroke="rgba(110,14,26,0.45)"
+      stroke-linejoin="round"
+      stroke-width="0.6"
+    />
+    <circle
+      cx="18.5"
+      cy="5.5"
+      fill="#FFE9A0"
+      opacity="0.7"
+      r="0.9"
+    />
+    <circle
+      cx="5.5"
+      cy="18.5"
+      fill="#FFE9A0"
+      opacity="0.5"
+      r="0.7"
+    />
+    <circle
+      cx="20"
+      cy="17"
+      fill="#FFE9A0"
+      opacity="0.4"
+      r="0.5"
+    />
+  </svg>
+</span>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > ChainBadge default 1`] = `
+<span
+  aria-label="Funzione esclusiva piano Chain"
+  role="img"
+  style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
+  title="Funzione esclusiva piano Chain"
+>
+  <svg
+    height="14"
+    viewBox="0 0 24 24"
+    width="14"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <defs>
+      <lineargradient
+        id="gold-r0"
+        x1="0%"
+        x2="100%"
+        y1="0%"
+        y2="100%"
+      >
+        <stop
+          offset="0%"
+          stop-color="#FFD86B"
+        />
+        <stop
+          offset="55%"
+          stop-color="#E89B43"
+        />
+        <stop
+          offset="100%"
+          stop-color="#6E0E1A"
+        />
+      </lineargradient>
+    </defs>
+    <path
+      d="M12 3.2 L14.6 9.4 L20.8 12 L14.6 14.6 L12 20.8 L9.4 14.6 L3.2 12 L9.4 9.4 Z"
+      fill="url(#gold-r0)"
+      stroke="rgba(110,14,26,0.45)"
+      stroke-linejoin="round"
+      stroke-width="0.6"
+    />
+    <circle
+      cx="18.5"
+      cy="5.5"
+      fill="#FFE9A0"
+      opacity="0.9"
+      r="0.9"
+    />
+    <circle
+      cx="5.5"
+      cy="18.5"
+      fill="#FFE9A0"
+      opacity="0.7"
+      r="0.7"
+    />
+    <circle
+      cx="20"
+      cy="17"
+      fill="#FFE9A0"
+      opacity="0.6"
+      r="0.5"
+    />
+  </svg>
+</span>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > Icon money 1`] = `
+<svg
+  aria-hidden="true"
+  fill="none"
+  height="18"
+  stroke="currentColor"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  stroke-width="1.8"
+  style="flex-shrink: 0; display: inline-block; vertical-align: text-bottom;"
+  viewBox="0 0 24 24"
+  width="18"
+>
+  <rect
+    height="12"
+    rx="2"
+    width="20"
+    x="2"
+    y="6"
+  />
+  <circle
+    cx="12"
+    cy="12"
+    r="3"
+  />
+  <line
+    x1="6"
+    x2="6"
+    y1="12"
+    y2="12"
+  />
+  <line
+    x1="18"
+    x2="18"
+    y1="12"
+    y2="12"
+  />
+</svg>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > Icon star 1`] = `
+<svg
+  aria-hidden="true"
+  fill="currentColor"
+  height="24"
+  stroke="none"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  stroke-width="1.8"
+  style="flex-shrink: 0; display: inline-block; vertical-align: text-bottom;"
+  viewBox="0 0 24 24"
+  width="24"
+>
+  <polygon
+    points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+  />
+</svg>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > Icon trash con title 1`] = `
+<svg
+  aria-label="Elimina"
+  fill="none"
+  height="16"
+  role="img"
+  stroke="currentColor"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  stroke-width="1.8"
+  style="flex-shrink: 0; display: inline-block; vertical-align: text-bottom;"
+  viewBox="0 0 24 24"
+  width="16"
+>
+  <title>
+    Elimina
+  </title>
+  <polyline
+    points="3 6 5 6 21 6"
+  />
+  <path
+    d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+  />
+  <path
+    d="M10 11v6M14 11v6"
+  />
+  <path
+    d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+  />
+</svg>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > Logo custom size + dark 1`] = `
+<span
+  style="display: inline-flex; align-items: center; gap: 15px;"
+>
+  <svg
+    aria-label="FoodOS"
+    height="48"
+    role="img"
+    style="display: block; flex-shrink: 0;"
+    viewBox="0 0 64 64"
+    width="48"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M 14 0 L 50 0 C 58 0 64 6 64 14 L 64 50 C 64 58 58 64 50 64 L 14 64 C 6 64 0 58 0 50 L 0 14 C 0 6 6 0 14 0 Z"
+      fill="#6E0E1A"
+    />
+    <path
+      d="M 19 14 L 49 14 L 49 23 L 29 23 L 29 29 L 44 29 L 44 37 L 29 37 L 29 50 L 19 50 Z"
+      fill="#FFFFFF"
+    />
+  </svg>
+  <span
+    style="font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.028em; color: #1A130E; line-height: 1; white-space: nowrap;"
+  >
+    FoodOS
+  </span>
+</span>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > Logo default size 1`] = `
+<span
+  style="display: inline-flex; line-height: 0;"
+>
+  <svg
+    aria-label="FoodOS"
+    height="32"
+    role="img"
+    style="display: block; flex-shrink: 0;"
+    viewBox="0 0 64 64"
+    width="32"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M 14 0 L 50 0 C 58 0 64 6 64 14 L 64 50 C 64 58 58 64 50 64 L 14 64 C 6 64 0 58 0 50 L 0 14 C 0 6 6 0 14 0 Z"
+      fill="#6E0E1A"
+    />
+    <path
+      d="M 19 14 L 49 14 L 49 23 L 29 23 L 29 29 L 44 29 L 44 37 L 29 37 L 29 50 L 19 50 Z"
+      fill="#FFFFFF"
+    />
+  </svg>
+</span>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > SedeContextBanner multisede 1`] = `
+<div
+  style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; font-size: 12px; font-weight: 600; margin-bottom: 16px;"
+>
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="16"
+    stroke="currentColor"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="1.8"
+    style="flex-shrink: 0; display: inline-block; vertical-align: text-bottom;"
+    viewBox="0 0 24 24"
+    width="16"
+  >
+    <path
+      d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
+    />
+    <circle
+      cx="12"
+      cy="10"
+      r="3"
+    />
+  </svg>
+  <div
+    style="line-height: 1.35; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+  >
+    <div>
+      Sede attiva: 
+      <strong
+        style="font-weight: 800;"
+      >
+        Torino
+      </strong>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > SedeContextBanner singola sede 1`] = `null`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > ToastProvider con tre toast (success/warn/error) 1`] = `
+<div
+  aria-label="Notifiche"
+  aria-live="polite"
+  role="region"
+  style="position: fixed; bottom: 20px; right: 20px; z-index: 100; display: flex; flex-direction: column; gap: 10px; max-width: calc(100vw - 40px); pointer-events: none;"
+>
+  <div
+    role="status"
+    style="background: #0E9F6E; color: #FFFFFF; border: 1px solid #0C7C56; border-radius: 10px; padding: 10px 14px; min-width: 280px; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.18); display: flex; align-items: flex-start; gap: 10px; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.45; pointer-events: auto; animation: fos-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden;"
+  >
+    <span
+      style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;"
+    >
+      ✓
+    </span>
+    <span
+      style="white-space: pre-wrap; word-break: break-word; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+    >
+      Salvato
+    </span>
+    <button
+      aria-label="Chiudi notifica"
+      style="background: transparent; color: #FFFFFF; border: none none; padding: 0px; margin-left: 4px; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7;"
+    >
+      ×
+    </button>
+    <div
+      style="position: absolute; left: 0px; bottom: 0px; height: 2px; width: 100%; background: rgba(255, 255, 255, 0.35); transition: width 4000ms linear;"
+    />
+    <style>
+      @keyframes fos-toast-in { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+    </style>
+  </div>
+  <div
+    role="status"
+    style="background: #D97706; color: #FFFFFF; border: 1px solid #A65906; border-radius: 10px; padding: 10px 14px; min-width: 280px; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.18); display: flex; align-items: flex-start; gap: 10px; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.45; pointer-events: auto; animation: fos-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden;"
+  >
+    <span
+      style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;"
+    >
+      <svg
+        aria-hidden="true"
+        fill="none"
+        height="13"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.8"
+        style="flex-shrink: 0; display: inline-block; vertical-align: text-bottom;"
+        viewBox="0 0 24 24"
+        width="13"
+      >
+        <path
+          d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+        />
+        <line
+          x1="12"
+          x2="12"
+          y1="9"
+          y2="13"
+        />
+        <line
+          x1="12"
+          x2="12"
+          y1="17"
+          y2="17"
+        />
+      </svg>
+    </span>
+    <span
+      style="white-space: pre-wrap; word-break: break-word; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+    >
+      Attenzione
+    </span>
+    <button
+      aria-label="Chiudi notifica"
+      style="background: transparent; color: #FFFFFF; border: none none; padding: 0px; margin-left: 4px; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7;"
+    >
+      ×
+    </button>
+    <div
+      style="position: absolute; left: 0px; bottom: 0px; height: 2px; width: 100%; background: rgba(255, 255, 255, 0.35); transition: width 4000ms linear;"
+    />
+    <style>
+      @keyframes fos-toast-in { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+    </style>
+  </div>
+  <div
+    role="status"
+    style="background: #6E0E1A; color: #FFFFFF; border: 1px solid #4A0612; border-radius: 10px; padding: 10px 14px; min-width: 280px; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.18); display: flex; align-items: flex-start; gap: 10px; font-family: Inter, system-ui, sans-serif; font-size: 13px; line-height: 1.45; pointer-events: auto; animation: fos-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1); position: relative; overflow: hidden;"
+  >
+    <span
+      style="flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;"
+    >
+      !
+    </span>
+    <span
+      style="white-space: pre-wrap; word-break: break-word; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+    >
+      Errore
+    </span>
+    <button
+      aria-label="Chiudi notifica"
+      style="background: transparent; color: #FFFFFF; border: none none; padding: 0px; margin-left: 4px; font-size: 18px; line-height: 1; cursor: pointer; opacity: 0.7;"
+    >
+      ×
+    </button>
+    <div
+      style="position: absolute; left: 0px; bottom: 0px; height: 2px; width: 100%; background: rgba(255, 255, 255, 0.35); transition: width 6000ms linear;"
+    />
+    <style>
+      @keyframes fos-toast-in { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+    </style>
+  </div>
+</div>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal piano base -> insegna 1`] = `
+<div
+  aria-label="Upgrade richiesto al piano Chain"
+  aria-modal="true"
+  role="dialog"
+  style="position: fixed; z-index: 300; background: rgba(11, 4, 8, 0.66); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; animation: _upg_fade 0.18s ease-out;"
+>
+  <style>
+    
+        @keyframes _upg_fade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes _upg_pop {
+          from { transform: translateY(10px) scale(0.98); opacity: 0; }
+          to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes _upg_grad {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+      
+  </style>
+  <div
+    style="position: relative; max-width: 480px; width: 100%; background: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.40), 0 8px 24px rgba(110,14,26,0.20); animation: _upg_pop 0.22s cubic-bezier(.32,.72,0,1);"
+  >
+    <div
+      style="position: relative; padding: 24px 24px 20px; background: linear-gradient(135deg, #0B0408 0%, #1C0A0A 30%, #4A0612 70%, #6E0E1A 100%); animation: _upg_grad 8s ease-in-out infinite; color: #FFF; overflow: hidden;"
+    >
+      <div
+        style="position: absolute; top: -60px; right: -40px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(232,75,58,0.35) 0%, transparent 70%); pointer-events: none;"
+      />
+      <div
+        style="position: absolute; opacity: 0.1; pointer-events: none; background-image: radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px); background-size: 18px 18px;"
+      />
+      <button
+        aria-label="Chiudi"
+        style="position: absolute; top: 14px; right: 14px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.20); color: #FFF; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0px;"
+      >
+        <svg
+          fill="none"
+          height="13"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2.5"
+          viewBox="0 0 24 24"
+          width="13"
+        >
+          <line
+            x1="18"
+            x2="6"
+            y1="6"
+            y2="18"
+          />
+          <line
+            x1="6"
+            x2="18"
+            y1="6"
+            y2="18"
+          />
+        </svg>
+      </button>
+      <div
+        style="position: relative;"
+      >
+        <div
+          style="display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.10); border: 1px solid rgba(255, 255, 255, 0.18); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;"
+        >
+          <span
+            aria-label="Funzione esclusiva piano Chain"
+            role="img"
+            style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
+            title="Funzione esclusiva piano Chain"
+          >
+            <svg
+              height="11"
+              viewBox="0 0 24 24"
+              width="11"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                <lineargradient
+                  id="gold-r2"
+                  x1="0%"
+                  x2="100%"
+                  y1="0%"
+                  y2="100%"
+                >
+                  <stop
+                    offset="0%"
+                    stop-color="#FFD86B"
+                  />
+                  <stop
+                    offset="55%"
+                    stop-color="#E89B43"
+                  />
+                  <stop
+                    offset="100%"
+                    stop-color="#6E0E1A"
+                  />
+                </lineargradient>
+              </defs>
+              <path
+                d="M12 3.2 L14.6 9.4 L20.8 12 L14.6 14.6 L12 20.8 L9.4 14.6 L3.2 12 L9.4 9.4 Z"
+                fill="url(#gold-r2)"
+                stroke="rgba(110,14,26,0.45)"
+                stroke-linejoin="round"
+                stroke-width="0.6"
+              />
+              <circle
+                cx="18.5"
+                cy="5.5"
+                fill="#FFE9A0"
+                opacity="0.9"
+                r="0.9"
+              />
+              <circle
+                cx="5.5"
+                cy="18.5"
+                fill="#FFE9A0"
+                opacity="0.7"
+                r="0.7"
+              />
+              <circle
+                cx="20"
+                cy="17"
+                fill="#FFE9A0"
+                opacity="0.6"
+                r="0.5"
+              />
+            </svg>
+          </span>
+           Funzione del piano 
+          Chain
+        </div>
+        <h2
+          style="margin: 14px 0px 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2;"
+        >
+          Sblocca 
+          Questa funzione
+        </h2>
+        <p
+          style="margin: 0px; font-size: 13.5px; color: rgba(255, 255, 255, 0.78); line-height: 1.55;"
+        >
+          Tutto quello che il tuo commercialista, il tuo team e il tuo CFO non sanno.
+        </p>
+      </div>
+    </div>
+    <div
+      style="padding: 20px 24px 22px;"
+    >
+      <div
+        style="background: linear-gradient(135deg, #FFD86B18, transparent 70%); border: 1px solid #FFD86B55; border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;"
+      >
+        <div
+          style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #FFD86B, #E89B43); display: inline-flex; align-items: center; justify-content: center; color: #1C0A0A; font-weight: 800; font-size: 11px; letter-spacing: 0.1em; box-shadow: 0 6px 14px #FFD86B55;"
+        >
+          CHAIN
+        </div>
+        <div>
+          <div
+            style="font-size: 11.5px; font-weight: 700; color: #8B95A7; letter-spacing: 0.08em; text-transform: uppercase;"
+          >
+            Piano 
+            Chain
+          </div>
+          <div
+            style="font-size: 14px; font-weight: 700; color: #0E1726; margin-top: 1px; font-feature-settings: 'tnum';"
+          >
+            €299/mese · €239 annuale (+ setup €990)
+          </div>
+        </div>
+      </div>
+      <div
+        style="font-size: 12.5px; color: #475264; line-height: 1.6; margin-bottom: 18px;"
+      >
+        Con il piano 
+        <strong
+          style="color: #0E1726;"
+        >
+          Chain
+        </strong>
+         sblocchi questa funzione e tutte le altre marcate con
+        <span
+          style="display: inline-block; vertical-align: middle; margin: 0px 4px;"
+        >
+          <span
+            aria-label="Funzione esclusiva piano Chain"
+            role="img"
+            style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
+            title="Funzione esclusiva piano Chain"
+          >
+            <svg
+              height="11"
+              viewBox="0 0 24 24"
+              width="11"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                <lineargradient
+                  id="gold-r3"
+                  x1="0%"
+                  x2="100%"
+                  y1="0%"
+                  y2="100%"
+                >
+                  <stop
+                    offset="0%"
+                    stop-color="#FFD86B"
+                  />
+                  <stop
+                    offset="55%"
+                    stop-color="#E89B43"
+                  />
+                  <stop
+                    offset="100%"
+                    stop-color="#6E0E1A"
+                  />
+                </lineargradient>
+              </defs>
+              <path
+                d="M12 3.2 L14.6 9.4 L20.8 12 L14.6 14.6 L12 20.8 L9.4 14.6 L3.2 12 L9.4 9.4 Z"
+                fill="url(#gold-r3)"
+                stroke="rgba(110,14,26,0.45)"
+                stroke-linejoin="round"
+                stroke-width="0.6"
+              />
+              <circle
+                cx="18.5"
+                cy="5.5"
+                fill="#FFE9A0"
+                opacity="0.9"
+                r="0.9"
+              />
+              <circle
+                cx="5.5"
+                cy="18.5"
+                fill="#FFE9A0"
+                opacity="0.7"
+                r="0.7"
+              />
+              <circle
+                cx="20"
+                cy="17"
+                fill="#FFE9A0"
+                opacity="0.6"
+                r="0.5"
+              />
+            </svg>
+          </span>
+        </span>
+        nella tua dashboard. Prova 30 giorni senza carta di credito.
+      </div>
+      <div
+        style="display: flex; gap: 8px;"
+      >
+        <button
+          style="padding: 11px 18px; background: transparent; border: 1px solid #E5E9EF; border-radius: 10px; color: #475264; font-size: 13px; font-weight: 700; cursor: pointer; flex-grow: 0; flex-shrink: 0; flex-basis: auto;"
+        >
+          Più tardi
+        </button>
+        <button
+          style="padding: 11px 18px; background: linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%); border: none none; border-radius: 10px; color: #FFF; font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 20px rgba(110,14,26,0.30); display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+        >
+          Confronta i piani
+          <svg
+            fill="none"
+            height="13"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2.5"
+            viewBox="0 0 24 24"
+            width="13"
+          >
+            <line
+              x1="5"
+              x2="19"
+              y1="12"
+              y2="12"
+            />
+            <polyline
+              points="12 5 19 12 12 19"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal piano base -> pro 1`] = `
+<div
+  aria-label="Upgrade richiesto al piano Pro"
+  aria-modal="true"
+  role="dialog"
+  style="position: fixed; z-index: 300; background: rgba(11, 4, 8, 0.66); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 16px; animation: _upg_fade 0.18s ease-out;"
+>
+  <style>
+    
+        @keyframes _upg_fade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes _upg_pop {
+          from { transform: translateY(10px) scale(0.98); opacity: 0; }
+          to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes _upg_grad {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+      
+  </style>
+  <div
+    style="position: relative; max-width: 480px; width: 100%; background: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.40), 0 8px 24px rgba(110,14,26,0.20); animation: _upg_pop 0.22s cubic-bezier(.32,.72,0,1);"
+  >
+    <div
+      style="position: relative; padding: 24px 24px 20px; background: linear-gradient(135deg, #0B0408 0%, #1C0A0A 30%, #4A0612 70%, #6E0E1A 100%); animation: _upg_grad 8s ease-in-out infinite; color: #FFF; overflow: hidden;"
+    >
+      <div
+        style="position: absolute; top: -60px; right: -40px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(232,75,58,0.35) 0%, transparent 70%); pointer-events: none;"
+      />
+      <div
+        style="position: absolute; opacity: 0.1; pointer-events: none; background-image: radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px); background-size: 18px 18px;"
+      />
+      <button
+        aria-label="Chiudi"
+        style="position: absolute; top: 14px; right: 14px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.20); color: #FFF; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0px;"
+      >
+        <svg
+          fill="none"
+          height="13"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2.5"
+          viewBox="0 0 24 24"
+          width="13"
+        >
+          <line
+            x1="18"
+            x2="6"
+            y1="6"
+            y2="18"
+          />
+          <line
+            x1="6"
+            x2="18"
+            y1="6"
+            y2="18"
+          />
+        </svg>
+      </button>
+      <div
+        style="position: relative;"
+      >
+        <div
+          style="display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.10); border: 1px solid rgba(255, 255, 255, 0.18); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;"
+        >
+          <span
+            aria-label="Funzione esclusiva piano Chain"
+            role="img"
+            style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
+            title="Funzione esclusiva piano Chain"
+          >
+            <svg
+              height="11"
+              viewBox="0 0 24 24"
+              width="11"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                <lineargradient
+                  id="gold-r4"
+                  x1="0%"
+                  x2="100%"
+                  y1="0%"
+                  y2="100%"
+                >
+                  <stop
+                    offset="0%"
+                    stop-color="#FFD86B"
+                  />
+                  <stop
+                    offset="55%"
+                    stop-color="#E89B43"
+                  />
+                  <stop
+                    offset="100%"
+                    stop-color="#6E0E1A"
+                  />
+                </lineargradient>
+              </defs>
+              <path
+                d="M12 3.2 L14.6 9.4 L20.8 12 L14.6 14.6 L12 20.8 L9.4 14.6 L3.2 12 L9.4 9.4 Z"
+                fill="url(#gold-r4)"
+                stroke="rgba(110,14,26,0.45)"
+                stroke-linejoin="round"
+                stroke-width="0.6"
+              />
+              <circle
+                cx="18.5"
+                cy="5.5"
+                fill="#FFE9A0"
+                opacity="0.9"
+                r="0.9"
+              />
+              <circle
+                cx="5.5"
+                cy="18.5"
+                fill="#FFE9A0"
+                opacity="0.7"
+                r="0.7"
+              />
+              <circle
+                cx="20"
+                cy="17"
+                fill="#FFE9A0"
+                opacity="0.6"
+                r="0.5"
+              />
+            </svg>
+          </span>
+           Funzione del piano 
+          Pro
+        </div>
+        <h2
+          style="margin: 14px 0px 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2;"
+        >
+          Sblocca 
+          Questa funzione
+        </h2>
+        <p
+          style="margin: 0px; font-size: 13.5px; color: rgba(255, 255, 255, 0.78); line-height: 1.55;"
+        >
+          Il braccio destro digitale che lavora mentre dormi.
+        </p>
+      </div>
+    </div>
+    <div
+      style="padding: 20px 24px 22px;"
+    >
+      <div
+        style="background: linear-gradient(135deg, #E89B4318, transparent 70%); border: 1px solid #E89B4355; border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;"
+      >
+        <div
+          style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #E89B43, #E89B43); display: inline-flex; align-items: center; justify-content: center; color: #1C0A0A; font-weight: 800; font-size: 11px; letter-spacing: 0.1em; box-shadow: 0 6px 14px #E89B4355;"
+        >
+          PRO
+        </div>
+        <div>
+          <div
+            style="font-size: 11.5px; font-weight: 700; color: #8B95A7; letter-spacing: 0.08em; text-transform: uppercase;"
+          >
+            Piano 
+            Pro
+          </div>
+          <div
+            style="font-size: 14px; font-weight: 700; color: #0E1726; margin-top: 1px; font-feature-settings: 'tnum';"
+          >
+            €119/mese · €95 annuale
+          </div>
+        </div>
+      </div>
+      <div
+        style="font-size: 12.5px; color: #475264; line-height: 1.6; margin-bottom: 18px;"
+      >
+        Con il piano 
+        <strong
+          style="color: #0E1726;"
+        >
+          Pro
+        </strong>
+         sblocchi questa funzione e tutte le altre marcate con
+        <span
+          style="display: inline-block; vertical-align: middle; margin: 0px 4px;"
+        >
+          <span
+            aria-label="Funzione esclusiva piano Chain"
+            role="img"
+            style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"
+            title="Funzione esclusiva piano Chain"
+          >
+            <svg
+              height="11"
+              viewBox="0 0 24 24"
+              width="11"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                <lineargradient
+                  id="gold-r5"
+                  x1="0%"
+                  x2="100%"
+                  y1="0%"
+                  y2="100%"
+                >
+                  <stop
+                    offset="0%"
+                    stop-color="#FFD86B"
+                  />
+                  <stop
+                    offset="55%"
+                    stop-color="#E89B43"
+                  />
+                  <stop
+                    offset="100%"
+                    stop-color="#6E0E1A"
+                  />
+                </lineargradient>
+              </defs>
+              <path
+                d="M12 3.2 L14.6 9.4 L20.8 12 L14.6 14.6 L12 20.8 L9.4 14.6 L3.2 12 L9.4 9.4 Z"
+                fill="url(#gold-r5)"
+                stroke="rgba(110,14,26,0.45)"
+                stroke-linejoin="round"
+                stroke-width="0.6"
+              />
+              <circle
+                cx="18.5"
+                cy="5.5"
+                fill="#FFE9A0"
+                opacity="0.9"
+                r="0.9"
+              />
+              <circle
+                cx="5.5"
+                cy="18.5"
+                fill="#FFE9A0"
+                opacity="0.7"
+                r="0.7"
+              />
+              <circle
+                cx="20"
+                cy="17"
+                fill="#FFE9A0"
+                opacity="0.6"
+                r="0.5"
+              />
+            </svg>
+          </span>
+        </span>
+        nella tua dashboard. Prova 30 giorni senza carta di credito.
+      </div>
+      <div
+        style="display: flex; gap: 8px;"
+      >
+        <button
+          style="padding: 11px 18px; background: transparent; border: 1px solid #E5E9EF; border-radius: 10px; color: #475264; font-size: 13px; font-weight: 700; cursor: pointer; flex-grow: 0; flex-shrink: 0; flex-basis: auto;"
+        >
+          Più tardi
+        </button>
+        <button
+          style="padding: 11px 18px; background: linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%); border: none none; border-radius: 10px; color: #FFF; font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 20px rgba(110,14,26,0.30); display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+        >
+          Confronta i piani
+          <svg
+            fill="none"
+            height="13"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2.5"
+            viewBox="0 0 24 24"
+            width="13"
+          >
+            <line
+              x1="5"
+              x2="19"
+              y1="12"
+              y2="12"
+            />
+            <polyline
+              points="12 5 19 12 12 19"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
