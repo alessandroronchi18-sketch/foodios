@@ -11,7 +11,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['tests/unit/**/*.test.js'],
+    include: ['tests/unit/**/*.test.{js,jsx}'],
     globals: true,
     // singleThread per evitare race su coverage temp dir su macOS.
     pool: 'threads',

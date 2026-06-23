@@ -915,12 +915,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
   // ─── Sezione gruppo ──────────────────────────────────────────────────────────
   function Gruppo({ keyU, items }) {
+    // Audit 2026-06-22 CRITICAL: hook DEVE essere chiamato prima dell'early
+    // return — altrimenti hook order corrupts se items.length cambia.
+    const [shownAll, setShownAll] = useState(false)
     if (!items.length) return null
     const cfg = URGENZA_CFG[keyU]
     const totaleGruppo = items.reduce((s, f) => s + (f.totale || 0), 0)
     const isUrgent = keyU === 'scaduta'
-    // Local state per "Mostra tutte" entro il gruppo (audit Performance).
-    const [shownAll, setShownAll] = useState(false)
 
     return (
       <section style={{

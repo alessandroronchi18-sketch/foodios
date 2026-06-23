@@ -498,7 +498,9 @@ function PageHeader({breadcrumb, title, subtitle, action}) {
 // ─── SIMULATORE PREZZI VIEW ───────────────────────────────────────────────────
 
 // ─── PRODUZIONE VIEW ──────────────────────────────────────────────────────────
-function ProduzioneView({ricettario,mese,onSave,onAddAction}) {
+// Audit 2026-06-22: aggiunto nomeAttivita ai props — era usato al rigo 539
+// (aiPrompt) ma mai destrutturato → ReferenceError in build minificato.
+function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
   const isMobile = useIsMobile();
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
   const ricette  = Object.keys(ricettario?.ricette||{}).filter(n=>isRicettaValida(n) && getR(n,ricettario?.ricette?.[n]).tipo!=="interno" && getR(n,ricettario?.ricette?.[n]).tipo!=="semilavorato");
@@ -1302,7 +1304,9 @@ export default function Dashboard({
     'scheda-allergeni':'ricette', menu:'ricette',
     simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', 'menu-engineering':'ai', cashflow:'ai', forecast:'ai', reformulation:'ai', 'competitor-pricing':'ai', 'ordini-ai':'ai', 'ai-brain':'ai', 'ricette-ai':'ai', marketplace:'ai', whatsapp:'ai', documentary:'ai', 'ai-hub':'ai', recensioni:'ai',
     magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'vendite-b2b':'acquisti', 'importa-dati':'acquisti',
-    personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda', recensioni:'azienda',
+    // Audit 2026-06-22: rimosso `recensioni:'azienda'` (duplicato col rigo sopra
+    // che lo metteva in 'ai' — la seconda chiave sovrascriveva, hiding ai sidebar).
+    personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
   }), []);
   useEffect(() => {
@@ -2691,16 +2695,13 @@ export default function Dashboard({
             personale:"Personale", haccp:"HACCP", menu:"Menù",
             azioni:"AI Assistant", integrazioni:"Integrazioni", storico:"Storico",
             calendario:"Calendario", previsione:"Previsioni",
-            forecast:"Forecast AI", cashflow:"Cashflow", "menu-engineering":"Menu eng.",
-            reformulation:"Ottimizza ricette", "competitor-pricing":"Pricing competitor",
-            "ai-brain":"Brain AI", "ricette-ai":"Inventa ricette", marketplace:"Marketplace",
-            whatsapp:"WhatsApp", documentary:"Documentary",
-            "ordini-ai":"Ordini AI", recensioni:"Recensioni AI",
             "scheda-allergeni":"Scheda allergeni", impostazioni:"Impostazioni",
             "sprechi-omaggi":"Perdite & cessioni",
             "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
             "importa-dati":"Importa dati", "registro-attivita":"Registro attività",
-            // 18 feature AI nuove (2026-06)
+            // Audit 2026-06-22: rimosso blocco duplicato (le chiavi seconde
+            // sovrascrivevano le prime, ma alcune label avevano testo migliore).
+            // Mantenuti i label migliori del set "18 feature AI 2026-06".
             recensioni:"Recensioni AI", "menu-engineering":"Menu engineering", cashflow:"Cashflow",
             forecast:"Forecast AI", reformulation:"Ottimizza ricette AI", "ordini-ai":"Ordini AI fornitori",
             "competitor-pricing":"Pricing vs competitor", "ai-brain":"FoodOS Brain", "ricette-ai":"Inventa ricette AI",
@@ -2957,7 +2958,7 @@ export default function Dashboard({
         )}
         {view==="calendario"&&<CalendarioOperativo giornaliero={giornaliero} chiusure={chiusure} orgId={orgId} sedeId={sedeId} setView={setView} notify={notify} isMobile={isMobile} isDipendente={isDip}/>}
         {currentMese&&!["home","home-dipendente","ricettario","semilavorati","pl","simulatore","azioni","magazzino","giornaliero","nuova-ricetta","storico","chiusura","impostazioni","confronto-sedi","trasferimenti","integrazioni","scadenzario","calendario","changelog","scheda-allergeni","fornitori","personale","menu","previsione","eventi","importa-dati","recensioni","menu-engineering","cashflow","ai-brain","forecast","reformulation","ordini-ai","competitor-pricing","ricette-ai","marketplace","documentary","whatsapp"].includes(view)&&(
-          <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct}/>
+          <ProduzioneView key={view} ricettario={ricettario} mese={currentMese} onSave={e=>handleSave(view,e)} onAddAction={handleAddAct} nomeAttivita={nomeAttivita}/>
         )}
         </React.Suspense>
         </div>{/* /fos-page */}

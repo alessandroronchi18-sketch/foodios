@@ -991,7 +991,12 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   // Produttività: € di fatturato per ora lavorata.
   const fatturatoPerOra = totOre>0 ? ricavi/totOre : 0
   // Pianificato vs lavorato: ore_effettive (consuntivo) vs ore pianificate dei turni.
-  const oreEffettive = turni.reduce((s,t)=>s+(Number(consuntivo?.[t.id]) ?? (t.ore||0)), 0)
+  // Audit 2026-06-22: Number() ritorna NaN (non null) per undefined → `?? fallback`
+  // non funziona. Sostituito con isFinite check.
+  const oreEffettive = turni.reduce((s, t) => {
+    const v = Number(consuntivo?.[t.id])
+    return s + (Number.isFinite(v) ? v : (t.ore || 0))
+  }, 0)
   const deltaOre = oreEffettive - totOre
   // Costo per reparto: somma costo turni dei membri di ogni reparto (organigramma).
   const repartoDi = {}

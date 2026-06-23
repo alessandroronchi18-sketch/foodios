@@ -260,12 +260,15 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       .filter(c => (c?.data || '').startsWith(mese))
       .reduce((s, c) => s + Number(c?.kpi?.totV || c?.totale || 0), 0)
     if (ricavi <= 0) return null
-    const pct = (aggregat.totPerso / ricavi) * 100
+    // Audit 2026-06-22: typo `aggregat` → `diag` (la variabile useMemo sopra).
+    // Causava ReferenceError silente che faceva fallire useMemo e nascondeva
+    // il badge soglia sprechi.
+    const pct = (diag.totPerso / ricavi) * 100
     let livello = 'ok'
     if (pct >= 5) livello = 'alto'
     else if (pct >= 2) livello = 'medio'
     return { ricavi, pct, livello }
-  }, [chiusureMese, mese, aggregat.totPerso, isDip])
+  }, [chiusureMese, mese, diag.totPerso, isDip])
 
   // Food cost del mese (dal ricettario reale) — per l'incidenza % della perdita.
   // Solo titolare: il dipendente ha ricettario sanitizzato (FC=0) → niente diagnosi.

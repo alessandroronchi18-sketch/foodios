@@ -22,25 +22,28 @@ const PIE_COLORS = [C.red, '#E07040', '#D4A030', '#5B8FCE', '#7B7B7B', '#A0522D'
 
 // ─── TortaCard ───────────────────────────────────────────────────────────────
 function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant = 'ricetta' }) {
+  // Audit 2026-06-22 CRITICAL: TUTTI gli hook DEVONO essere chiamati prima
+  // dell'early return (regole React). Il vecchio codice metteva 3 useState +
+  // 1 useEffect DOPO `if (reg.tipo === 'interno') return null` → hook order
+  // diverso tra render → silent state corruption.
   const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const reg = getR(ric.nome, ric)
-  if (reg.tipo === 'interno') return null
-
   const isSemi = variant === 'semilavorato' || reg.tipo === 'semilavorato'
 
   const [editPrezzo, setEditPrezzo] = useState(reg.prezzo)
   const [editUnita, setEditUnita] = useState(reg.unita)
   const [exportingPdf, setExportingPdf] = useState(false)
 
-  // Audit 2026-07-01 LOW: se l'utente cambia org/sede (impersonation admin) e
-  // il componente non si rimonta, le state local restano sui valori della
-  // ricetta precedente. Reset su cambio nome.
+  // Reset state quando cambia ricetta (impersonation admin / cambio org).
   useEffect(() => {
     setEditPrezzo(reg.prezzo)
     setEditUnita(reg.unita)
   }, [ric.nome, reg.prezzo, reg.unita])
+
+  // Early return DOPO tutti gli hook.
+  if (reg.tipo === 'interno') return null
 
   const handleSaveRegola = () => {
     const p = parseFloat(editPrezzo) || reg.prezzo

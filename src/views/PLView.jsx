@@ -252,6 +252,9 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
 // ─── SCENARIO PREZZI ─────────────────────────────────────────────────────────
 function ScenarioPrezzi({ rows, euro, pct }) {
   const isMobile = useIsMobile()
+  // Audit 2026-06-22: isTablet usato al rigo 290 ma mai chiamato → ReferenceError
+  // in build minificato (stessa classe del bug HeaderPersonale).
+  const isTablet = useIsTablet()
   const [prezzi, setPrezzi] = useState(() => Object.fromEntries(rows.map(r => [r.nome, r.reg.prezzo.toFixed(2)])))
   const setP = (nome, v) => setPrezzi(p => ({ ...p, [nome]: v }))
 

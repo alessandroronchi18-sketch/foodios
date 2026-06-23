@@ -523,7 +523,10 @@ function MenuPreview({ menuItems, setMenuItems, nomeAttivita, isMobile }) {
 }
 
 /* ─── BANDA DIAGNOSI ─────────────────────────────────────────────────── */
-function BandaDiagnosi({ menuItems, popVenduto, isMobile }) {
+// Audit 2026-06-22: aggiunto isTablet ai props (era usato al rigo 541 ma mai
+// destrutturato → ReferenceError in build minificato, stessa classe del bug
+// HeaderPersonale).
+function BandaDiagnosi({ menuItems, popVenduto, isMobile, isTablet = false }) {
   const n = menuItems.length
   const margMedio = n ? menuItems.reduce((s,m)=>s+(Number(m.margPct)||0),0)/n : 0
   // Food cost medio % sul ricavo (FC / ricavo).
@@ -639,7 +642,7 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
       ) : (
         <>
           {/* Banda diagnosi */}
-          <BandaDiagnosi menuItems={menuItems} popVenduto={popVenduto} isMobile={isMobile}/>
+          <BandaDiagnosi menuItems={menuItems} popVenduto={popVenduto} isMobile={isMobile} isTablet={isTablet}/>
 
           <SH sub={`Seleziona ${LEX.ricette === 'pizze' || LEX.ricette === 'gusti' || LEX.ricette === 'piatti' || LEX.ricette === 'formati' ? `i ${LEX.ricette}` : `le ${LEX.ricette}`}, analizza i quadranti BCG ed esporta il menù.`}>Menù del giorno</SH>
 

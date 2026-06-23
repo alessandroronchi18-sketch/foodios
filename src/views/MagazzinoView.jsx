@@ -558,6 +558,17 @@ export default function MagazzinoView({
   const [deleteIngConf, setDeleteIngConf] = useState(null)
   const [deleteIngPin, setDeleteIngPin] = useState('')
   const [formIng, setFormIng] = useState('')
+  // Audit 2026-06-22: focusQtyDeferred era riferito ai righi 870/948 ma definito
+  // SOLO in ProdottiFinitiTab (scope diverso) → ReferenceError. Lo replico qui.
+  const _focusTimerRef = useRef(null)
+  useEffect(() => () => { if (_focusTimerRef.current) clearTimeout(_focusTimerRef.current) }, [])
+  function focusQtyDeferred() {
+    if (_focusTimerRef.current) clearTimeout(_focusTimerRef.current)
+    _focusTimerRef.current = setTimeout(() => {
+      try { document.getElementById('mag-qty-input')?.focus() } catch { /* skip */ }
+      _focusTimerRef.current = null
+    }, 100)
+  }
   const [formQty, setFormQty] = useState('')
   const [formNote, setFormNote] = useState('')
   const [formMode, setFormMode] = useState('carico')
