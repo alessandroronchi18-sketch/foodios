@@ -123,4 +123,71 @@ describe('Accessibility (axe-core) — form pubblici e onboarding', () => {
     })
     expect(results).toHaveNoViolations()
   })
+
+  it('AICard — loading state non ha violation a11y', async () => {
+    const { default: AICard } = await import('../../src/components/AICard')
+    const { container } = render(
+      <AICard icon="bulb" title="Analisi" subtitle="AI insights" state="loading" />
+    )
+    const results = await axe(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    expect(results).toHaveNoViolations()
+  })
+
+  it('AICard — error state con retry non ha violation a11y', async () => {
+    const { default: AICard } = await import('../../src/components/AICard')
+    const { container } = render(
+      <AICard icon="alertCircle" title="Errore" subtitle="..." state="error"
+        error="Test errore amichevole" onRetry={() => {}} />
+    )
+    const results = await axe(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    expect(results).toHaveNoViolations()
+  })
+
+  it('AICard — empty state con CTA non ha violation a11y', async () => {
+    const { default: AICard } = await import('../../src/components/AICard')
+    const { container } = render(
+      <AICard icon="bulb" title="Analisi" subtitle="..." state="idle"
+        emptyExample="es. analizza giugno" ctaLabel="Genera" onCta={() => {}} />
+    )
+    const results = await axe(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    expect(results).toHaveNoViolations()
+  })
+
+  it('ChainBadge variants non hanno violation a11y', async () => {
+    const { default: ChainBadge } = await import('../../src/components/ChainBadge')
+    const { container } = render(
+      <>
+        <ChainBadge />
+        <ChainBadge active size={18} />
+        <ChainBadge size={24} title="Custom" />
+      </>
+    )
+    const results = await axe(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    expect(results).toHaveNoViolations()
+  })
+
+  it('SedeContextBanner singola e multi-sede non hanno violation a11y', async () => {
+    const { default: Banner } = await import('../../src/components/SedeContextBanner')
+    const { container } = render(
+      <>
+        <Banner sedi={[{ id: '1', nome: 'Torino' }]} sedeAttiva={{ id: '1', nome: 'Torino' }} contesto="magazzino" />
+        <Banner
+          sedi={[{ id: '1', nome: 'Torino' }, { id: '2', nome: 'Milano' }]}
+          sedeAttiva={{ id: '1', nome: 'Torino' }} contesto="produzione"
+        />
+      </>
+    )
+    const results = await axe(container, {
+      rules: { 'color-contrast': { enabled: false } },
+    })
+    expect(results).toHaveNoViolations()
+  })
 })

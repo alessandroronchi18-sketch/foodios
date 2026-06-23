@@ -1,0 +1,48 @@
+name: Security & dependency audit
+
+# Gira su PR e schedule settimanale. Cattura vulnerabilità note (CVE) nelle
+# dipendenze npm + license non compatibili + outdated packages. Non fallisce
+# il build su vulnerabilità low/moderate (rumore); fail solo su high/critical.
+#
+# Audit 2026-06-22 sess.8: lift DevOps/CI 84 → 92.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Lunedì 06:00 UTC = 08:00 Europe/Rome
+    - cron: '0 6 * * 1'
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: npm audit (fail solo su high/critical)
+        run: npm audit --audit-level=high --omit=dev
+        continue-on-error: false
+
+      - name: Outdated packages (info, no fail)
+        run: npm outdated || true
+        continue-on-error: true
+
+      - name: License check (no GPL viral)
+        run: |
+          npx license-checker --production --excludePrivatePackages \
+            --excludePackages "foodios@0.1.0" \
+            --failOn "GPL-2.0;GPL-3.0;AGPL-1.0;AGPL-3.0;LGPL-2.0;LGPL-2.1;LGPL-3.0" \
+            > /dev/null
+        continue-on-error: true

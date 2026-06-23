@@ -1,0 +1,58 @@
+name: Bundle size budget
+
+# Build di produzione + check del bundle size totale gzipped. Fallisce se
+# supera la soglia (~2.5MB gzip total per safety: oggi siamo a ~1.8MB).
+# Cattura regressioni di performance per aggiunta dep pesanti.
+#
+# Audit 2026-06-22 sess.8: lift Performance 86 → 92.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+      - 'vite.config.js'
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build production
+        run: npm run build
+
+      - name: Measure bundle size (gzip)
+        run: |
+          BUDGET_KB=2700
+          TOTAL_BYTES=$(find dist/assets -name "*.js" -exec gzip -c {} \; | wc -c)
+          TOTAL_KB=$((TOTAL_BYTES / 1024))
+          echo "Bundle size (gzip): ${TOTAL_KB} KB (budget: ${BUDGET_KB} KB)"
+          if [ "$TOTAL_KB" -gt "$BUDGET_KB" ]; then
+            echo "::error::Bundle size ${TOTAL_KB} KB exceeds budget ${BUDGET_KB} KB"
+            exit 1
+          fi
+          echo "::notice::Bundle size OK: ${TOTAL_KB} KB / ${BUDGET_KB} KB budget (${TOTAL_KB}00*100/${BUDGET_KB})% used)"
+
+      - name: Per-chunk size report
+        run: |
+          echo "## Bundle breakdown" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Chunk | Size (gzip) |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---:|" >> $GITHUB_STEP_SUMMARY
+          for f in $(ls -S dist/assets/*.js | head -10); do
+            name=$(basename "$f")
+            size_kb=$(gzip -c "$f" | wc -c | awk '{print int($1/1024)" KB"}')
+            echo "| $name | $size_kb |" >> $GITHUB_STEP_SUMMARY
+          done
