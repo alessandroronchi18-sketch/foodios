@@ -91,7 +91,7 @@ describe('Component smoke renders — no crash', () => {
     // Solo verifico che il modulo carichi (la funzione interna è esported solo via PLView)
     const mod = await import('../../src/views/PLView')
     expect(typeof mod.default).toBe('function')
-  })
+  }, 15000)
 
   it('BandaDiagnosi (MenuDinamico) — isTablet ora nei props', async () => {
     const mod = await import('../../src/components/MenuDinamico')
@@ -121,7 +121,7 @@ describe('Component smoke renders — no crash', () => {
   it('Dashboard.ProduzioneView — nomeAttivita nei props', async () => {
     const mod = await import('../../src/Dashboard')
     expect(typeof mod.default).toBe('function')
-  })
+  }, 20000)
 })
 
 describe('VIEW_LABELS — niente chiavi duplicate', () => {

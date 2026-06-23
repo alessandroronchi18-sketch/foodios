@@ -614,6 +614,7 @@ async function azIntegrazioneDisattiva(supabase, orgId, integrazioneId) {
     .from('integrazioni')
     .update({ attiva: false })
     .eq('id', integrazioneId)
+    .eq('organization_id', orgId)
   if (e2) throw new Error(e2.message)
 }
 
@@ -633,6 +634,7 @@ async function azPushSubRevoca(supabase, orgId, subId) {
     .from('push_subscriptions')
     .update({ active: false })
     .eq('id', subId)
+    .eq('organization_id', orgId)
   if (e2) throw new Error(e2.message)
 }
 

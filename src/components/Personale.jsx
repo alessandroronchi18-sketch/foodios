@@ -18,9 +18,10 @@ const C = {
   border: T.border, borderStr: T.borderStr,
 }
 
-function fmt(n) { return n==null?"—":`€${Number(n).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}` }
-function fmt0(n) { return `€${Math.round(Number(n)||0).toLocaleString('it-IT')}` }
-function fmtH(h) { return `${h.toFixed(1)}h` }
+function fmt(n) { const v = Number(n); return n==null||!Number.isFinite(v)?"—":`€${v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}` }
+function fmt0(n) { const v = Number(n); return `€${Math.round(Number.isFinite(v)?v:0).toLocaleString('it-IT')}` }
+// fmtH: numeric Postgres + utenti che digitano stringhe in input → coercion + guard.
+function fmtH(h) { const v = Number(h); return `${(Number.isFinite(v)?v:0).toFixed(1)}h` }
 // Nome completo (nome + cognome) per disambiguare gli omonimi senza ambiguità.
 function etichettaNome(nome) {
   const n = String(nome || '').trim()
@@ -191,7 +192,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
       }
       let err, dipId = editId
       if (editId) {
-        ({ error: err } = await supabase.from("dipendenti").update(payload).eq("id", editId))
+        // Audit 2026-06-22: defense-in-depth org filter su update (RLS è già attiva, ma se la
+        // funzione gira con service-role o se RLS è bypassata accidentalmente, evita cross-tenant).
+        ({ error: err } = await supabase.from("dipendenti").update(payload).eq("id", editId).eq("organization_id", orgId))
       } else {
         const { data: ins, error: e2 } = await supabase.from("dipendenti").insert(payload).select("id").single()
         err = e2; dipId = ins?.id
@@ -253,7 +256,9 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
     setEditId(d.id); if (isMobile) setShowForm(true)
   }
 
-  const costoMeseTot = lista.reduce((s,d)=>s+(d.costo_orario||0)*(d.ore_settimana||0)*4.33, 0)
+  // Audit 2026-06-22: costo_orario/ore_settimana sono numeric in Postgres → string da PostgREST.
+  const _num = (x) => { const n = Number(x); return Number.isFinite(n) ? n : 0 }
+  const costoMeseTot = lista.reduce((s,d)=>s + _num(d.costo_orario)*_num(d.ore_settimana)*4.33, 0)
   const inputSt = { width:"100%", height: 40, padding: "0 12px", borderRadius: R.md, border:`1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color:C.text, background: C.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
   const formVisible = !isMobile || showForm
 
@@ -659,8 +664,11 @@ function TurniTab({ orgId, notify, isMobile }) {
     return Math.max(0, (h2*60+m2 - h1*60-m1)/60)
   }
 
-  const totOre = turni.reduce((s,t)=>s+(t.ore||0), 0)
-  const totCosto = turni.reduce((s,t)=>s+(t.costo||0), 0)
+  // Audit 2026-06-22: ore/costo possono arrivare come stringa da PostgREST
+  // (numeric) → `0 + "8.00"` concatena e la somma collassa in NaN.
+  const numOk = (x) => { const n = Number(x); return Number.isFinite(n) ? n : 0 }
+  const totOre = turni.reduce((s,t)=>s + numOk(t.ore), 0)
+  const totCosto = turni.reduce((s,t)=>s + numOk(t.costo), 0)
 
   const GIORNI = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"]
   const weekDays = days
@@ -971,9 +979,13 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   }
 
   const { turni, dipendenti, ricavi, organigramma, consuntivo } = dati
-  const totOre = turni.reduce((s,t)=>s+(t.ore||0), 0)
-  const totCosto = turni.reduce((s,t)=>s+(t.costo||0), 0)
-  const costoFissoMese = dipendenti.reduce((s,d)=>s+(d.costo_orario||0)*(d.ore_settimana||0)*4.33, 0)
+  // Audit 2026-06-22: turni.ore/costo sono numeric in Postgres → PostgREST
+  // a volte serializza come stringa. `0 + "8.00"` concatena (string +) e la
+  // somma collassa in NaN, da cui "NaNh" nel KPI Ore piani. vs lavorate.
+  const numOk = (x) => { const n = Number(x); return Number.isFinite(n) ? n : 0 }
+  const totOre = turni.reduce((s,t)=>s + numOk(t.ore), 0)
+  const totCosto = turni.reduce((s,t)=>s + numOk(t.costo), 0)
+  const costoFissoMese = dipendenti.reduce((s,d)=>s + numOk(d.costo_orario)*numOk(d.ore_settimana)*4.33, 0)
   const giorniLavorati = new Set(turni.map(t=>t.data)).size
   const costoMedioOra = totOre>0 ? totCosto/totOre : 0
   const costoGiorno = giorniLavorati>0 ? totCosto/giorniLavorati : 0
@@ -991,11 +1003,14 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   // Produttività: € di fatturato per ora lavorata.
   const fatturatoPerOra = totOre>0 ? ricavi/totOre : 0
   // Pianificato vs lavorato: ore_effettive (consuntivo) vs ore pianificate dei turni.
-  // Audit 2026-06-22: Number() ritorna NaN (non null) per undefined → `?? fallback`
-  // non funziona. Sostituito con isFinite check.
+  // Audit 2026-06-22: doppio fix — (1) Number() su `t.ore` per evitare concat
+  // stringa quando PostgREST serializza numeric come stringa; (2) isFinite
+  // guard sul consuntivo perché Number(undefined) = NaN, non null → `??` non
+  // sarebbe scattato.
   const oreEffettive = turni.reduce((s, t) => {
     const v = Number(consuntivo?.[t.id])
-    return s + (Number.isFinite(v) ? v : (t.ore || 0))
+    if (Number.isFinite(v)) return s + v
+    return s + numOk(t.ore)
   }, 0)
   const deltaOre = oreEffettive - totOre
   // Costo per reparto: somma costo turni dei membri di ogni reparto (organigramma).
