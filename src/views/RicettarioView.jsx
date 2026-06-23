@@ -111,7 +111,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           )}
           <div style={{ fontSize: 11, color: C.textSoft, lineHeight: 1.4 }}>
             {isSemi
-              ? `Base interna · ${pesoTotSemi >= 1000 ? `${(pesoTotSemi / 1000).toFixed(2)} kg` : `${Math.round(pesoTotSemi)} g`} per batch${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
+              ? `Base interna · ${pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`} per batch${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
               : `${reg.unita} ${reg.tipo === 'fetta' ? 'fette' : 'pezzi'} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`}
           </div>
           {(ric.allergeni || []).length > 0 && (
@@ -132,7 +132,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         {/* KPI inline */}
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
           {(isSemi ? [
-            { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(pesoTotSemi / 1000).toFixed(2)} kg` : `${Math.round(pesoTotSemi)} g`, c: C.text, bg: SEMI.panel },
+            { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text, bg: SEMI.panel },
             { lbl: 'Costo batch', val: fmt(fc), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
             { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
           ] : [
@@ -338,7 +338,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="bank" size={14} /> Riepilogo batch</div>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 8 }}>
                   {[
-                    { lbl: 'Peso totale', val: pesoTotSemi >= 1000 ? `${(pesoTotSemi / 1000).toFixed(2)} kg` : `${Math.round(pesoTotSemi)} g`, c: C.text },
+                    { lbl: 'Peso totale', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text },
                     { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent },
                     { lbl: 'Costo / 100 g', val: fmt(costoGSemi * 100), c: SEMI.accent },
                   ].map(({ lbl, val, c }) => (

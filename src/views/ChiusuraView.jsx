@@ -461,7 +461,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const stL = confronto.filter(r => r.st !== null)
   const avgST = stL.length > 0 ? stL.reduce((s, r) => s + r.st, 0) / stL.length : 0
   const stC = st => st >= 85 ? C.green : st >= 65 ? C.amber : C.red
-  const fmtKg = g => g >= 1000 ? `${(g / 1000).toFixed(2)} kg` : `${Math.round(g)} g`
+  const fmtKg = g => g >= 1000 ? `${(Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(g)||0).toLocaleString('it-IT')} g`
 
   const handleSalva = async () => {
     if (salvando) return // evita doppio scarico stock PF su doppio click sincrono

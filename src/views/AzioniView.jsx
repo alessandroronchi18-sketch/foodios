@@ -85,8 +85,9 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
 
     // Chiusure recenti
     const ultimeChiusure = [...(chiusure || [])].sort((a,b) => b.data?.localeCompare(a.data)).slice(0, 5);
+    const _eur = (n) => `€${Math.round(Number(n)||0).toLocaleString('it-IT')}`
     const chiusureRec = ultimeChiusure.map(c =>
-      `- ${c.data}: venduto €${c.kpi?.totV?.toFixed(2) || 0}, FC €${c.kpi?.totFC?.toFixed(2) || 0}, margine €${c.kpi?.totM?.toFixed(2) || 0} (${c.kpi?.totMP?.toFixed(1) || 0}%)`
+      `- ${c.data}: venduto ${_eur(c.kpi?.totV)}, FC ${_eur(c.kpi?.totFC)}, margine ${_eur(c.kpi?.totM)} (${(c.kpi?.totMP ?? 0).toFixed(1)}%)`
     ).join("\n");
 
     // Magazzino alert

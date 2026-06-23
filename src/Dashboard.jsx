@@ -538,7 +538,8 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
   const totV=rows.reduce((s,r)=>s+(r.stampiVenduti||0),0);
   const st=totP>0?(totV/totP*100):0;
 
-  const aiPrompt=`${nomeAttivita} — ${mese.label}. Ricavi totali €${totR.toFixed(2)}, food cost €${totFC.toFixed(2)}, margine lordo ${totMP.toFixed(1)}%. Stampi prodotti ${totP}, venduti ${totV}, sell-through ${st.toFixed(1)}%. Prodotti: ${rows.filter(r=>r.stampiProdotti>0).map(r=>`${r.ricettaNome} ${r.stampiProdotti}prod/${r.stampiVenduti}vend marg${r.margPct.toFixed(0)}%`).join(", ")}. ${mese.meteo?`Meteo: ${mese.meteo.tempMean}°C, ${mese.meteo.giorniSole}gg sole.`:""} Suggerisci 3 azioni concrete.`;
+  const _eur = (n) => `€${Math.round(Number(n)||0).toLocaleString('it-IT')}`
+  const aiPrompt=`${nomeAttivita} — ${mese.label}. Ricavi totali ${_eur(totR)}, food cost ${_eur(totFC)}, margine lordo ${totMP.toFixed(1)}%. Stampi prodotti ${totP.toLocaleString('it-IT')}, venduti ${totV.toLocaleString('it-IT')}, sell-through ${st.toFixed(1)}%. Prodotti: ${rows.filter(r=>r.stampiProdotti>0).map(r=>`${r.ricettaNome} ${r.stampiProdotti}prod/${r.stampiVenduti}vend marg${r.margPct.toFixed(0)}%`).join(", ")}. ${mese.meteo?`Meteo: ${mese.meteo.tempMean}°C, ${mese.meteo.giorniSole}gg sole.`:""} Suggerisci 3 azioni concrete.`;
   const runAI=async()=>{ setAiLoad(true); setAiData(await getAI(aiPrompt,`mese-${mese.key}`,sload,ssave)); setAiLoad(false); };
 
   return (

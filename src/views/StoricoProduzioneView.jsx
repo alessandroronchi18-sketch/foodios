@@ -823,7 +823,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             const n = giorni.length;
             const euro = v => v==null?"—":`€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
             const pct  = v => v==null?"—":`${Number(v).toFixed(1)}%`;
-            const fmt2 = v => v>=1000?`€${(v/1000).toFixed(1)}k`:`€${v.toFixed(0)}`;
+            const fmt2 = v => v>=1000?`€${(v/1000).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})}k`:`€${Math.round(v).toLocaleString('it-IT')}`;
 
             // Aggregati totali
             const totRicavi  = giorni.reduce((s,g)=>s+(g.kpi?.totV||g.venduto?.reduce((ss,p)=>ss+(p.totale||0),0)||0),0);

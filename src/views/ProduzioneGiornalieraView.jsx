@@ -524,7 +524,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     setTab('storico')
   }
 
-  const fmtG = g => g >= 1000 ? `${(g / 1000).toFixed(2)} kg` : `${Math.round(g)} g`
+  const fmtG = g => g >= 1000 ? `${(Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(g)||0).toLocaleString('it-IT')} g`
   const margPct = riepilogo.ricavoTot > 0 ? ((riepilogo.ricavoTot - riepilogo.fcTot) / riepilogo.ricavoTot * 100) : 0
 
   return (

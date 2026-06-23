@@ -121,7 +121,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
     const lines = ['Buongiorno,', '', 'Vi chiedo gentilmente di prepararci il seguente ordine:', '']
     for (const s of suggerimenti) {
       const qta = s.qtaSuggerita
-      const unit = qta >= 1000 ? `${(qta / 1000).toFixed(1)} kg` : `${Math.round(qta)} g`
+      const unit = qta >= 1000 ? `${(Number(qta) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` : `${Math.round(Number(qta)||0).toLocaleString('it-IT')} g`
       lines.push(`- ${s.nome}: ${unit}`)
     }
     lines.push('', 'Grazie!', '')

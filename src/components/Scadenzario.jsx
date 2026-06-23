@@ -735,7 +735,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
             style={{ padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: T.text }} />
           <input type="number" inputMode="decimal" value={pagImporto} onChange={e => setPagImporto(e.target.value)}
-            placeholder={`€ ${residuoTot.toFixed(2)}`}
+            placeholder={`€ ${Number(residuoTot || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             title="Vuoto = salda l'intero residuo. Importo minore = acconto."
             style={{ width: 86, padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: T.text }} />
           <select value={pagMetodo} onChange={e => setPagMetodo(e.target.value)}

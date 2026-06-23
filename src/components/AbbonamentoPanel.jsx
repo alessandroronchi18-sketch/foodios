@@ -93,7 +93,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
         const r = byPlan[p.id]
         if (!r) return p
         const out = { ...p }
-        if (r.prezzo_mese_cents != null) out.prezzo = `€${Math.round(r.prezzo_mese_cents / 100)}`
+        if (r.prezzo_mese_cents != null) out.prezzo = `€${Math.round(r.prezzo_mese_cents / 100).toLocaleString('it-IT')}`
         if (r.nome_display) out.label = r.nome_display
         if (r.descrizione) out.desc = r.descrizione
         return out

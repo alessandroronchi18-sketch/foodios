@@ -124,7 +124,7 @@ function setPdfMetadata(doc, opts = {}) {
 }
 
 function fmt(v) {
-  return `€ ${Number(v || 0).toFixed(2)}`
+  return `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 // ─── 1. Ricetta PDF ───────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita
       const c = costMap[normIng(ing.nome)]
       const costoG = c?.costoG || 0
       const costoTot = qtyG * costoG
-      const qtyDisp = qtyG >= 1000 ? `${(qtyG / 1000).toFixed(2)} kg` : `${Math.round(qtyG)} g`
+      const qtyDisp = qtyG >= 1000 ? `${(Number(qtyG) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(qtyG)||0).toLocaleString('it-IT')} g`
       return [ing.nome, qtyDisp, fmt(costoG * 1000) + '/kg', fmt(costoTot)]
     })
 

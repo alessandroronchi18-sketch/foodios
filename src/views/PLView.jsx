@@ -1039,7 +1039,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={[...rows].sort((a, b) => b.ricavo - a.ricavo)} layout="vertical" margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" horizontal={false}/>
-              <XAxis type="number" tickFormatter={v => `€${v.toFixed(0)}`} tick={{ fill: C.textSoft, fontSize: 9 }} axisLine={false} tickLine={false}/>
+              <XAxis type="number" tickFormatter={v => `€${Math.round(v).toLocaleString('it-IT')}`} tick={{ fill: C.textSoft, fontSize: 9 }} axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="short" width={80} tick={{ fill: C.textMid, fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false}/>
               <Tooltip formatter={(v, n) => [`€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`, n]} contentStyle={{ borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 11 }}/>
               <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} radius={[0, 3, 3, 0]}/>

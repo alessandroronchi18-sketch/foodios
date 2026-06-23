@@ -449,7 +449,7 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
                     <td style={{ padding: '7px 10px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '—'}</td>
                     <td style={{ padding: '7px 10px', color: COLORS.text, fontWeight: 500 }}>{f.fornitore}</td>
                     <td style={{ padding: '7px 10px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{f.numero_rif || '—'}</td>
-                    <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toFixed(2)}</td>
+                    <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -3853,7 +3853,7 @@ export default function AdminPage() {
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 14 }}><Icon name="coins" size={14} /> Costi AI per cliente</strong>
             <span style={{ fontSize: 11, color: COLORS.textMute }}>
-              ultimi {aiCostDays} gg · totale {aiCost ? '$' + (aiCost.total_cost_usd || 0).toFixed(2) : '—'}
+              ultimi {aiCostDays} gg · totale {aiCost ? '$' + Number(aiCost.total_cost_usd || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
             </span>
             <span style={{ flex: 1 }} />
             <select value={aiCostDays} onChange={e => setAiCostDays(parseInt(e.target.value, 10))}
