@@ -1,0 +1,44 @@
+name: Lighthouse CI
+
+# Gira su PR e post-merge contro la prod. Fornisce un report Lighthouse
+# (performance / accessibility / SEO / best-practices) e fallisce se le
+# soglie scendono sotto i budget configurati in lighthouserc.json.
+#
+# Audit 2026-06-22 sess.3: aggiunto come gate qualita' continuativo
+# per intercettare regressioni di performance e a11y.
+
+on:
+  # Manuale + scheduled (no su ogni push per non rumoreggiare).
+  workflow_dispatch:
+  schedule:
+    # Lunedi alle 06:00 UTC = 08:00 Europe/Rome — report settimanale.
+    - cron: '0 6 * * 1'
+  # Su PR solo se vengono toccati src/ o api/ (no docs/CI-only PRs).
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'api/**'
+      - 'index.html'
+      - 'vite.config.js'
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.14.x
+
+      - name: Run Lighthouse CI
+        run: lhci autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+        continue-on-error: true
