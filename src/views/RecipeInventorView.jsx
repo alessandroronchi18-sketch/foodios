@@ -13,6 +13,7 @@ import React, { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
+import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 
@@ -105,40 +106,31 @@ ${allergie.trim() ? `Allergie da evitare: ${allergie.trim()}` : ''}
 
 Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagionale).`
 
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          model: 'claude-opus-4-7',
-          max_tokens: 4000,
-          temperature: 0.7,
-          system,
-          messages: [{ role: 'user', content: userMsg }],
-        }),
+      const { json: parsed } = await callAi({
+        feature: 'recipe-inventor',
+        model: 'claude-opus-4-7',
+        system,
+        prompt: userMsg,
+        maxTokens: 4000,
+        parseJson: true,
+        timeoutMs: 90_000,  // Opus + 3 ricette dettagliate = lento
       })
-      if (!res.ok) {
-        if (res.status === 429) throw new Error('Troppe richieste AI. Riprova fra 1 minuto.')
-        if (res.status === 401) throw new Error('Sessione scaduta. Esci e rientra.')
-        throw new Error(`Servizio AI indisponibile (HTTP ${res.status}). Riprova fra poco.`)
+      if (!parsed || !Array.isArray(parsed.ricette) || parsed.ricette.length === 0) {
+        throw Object.assign(new Error('Output malformato'), { friendly: 'L\'AI non ha inventato ricette valide. Riprova con parametri diversi.' })
       }
-      const json = await res.json()
-      const text = (json.content || []).find(c => c.type === 'text')?.text || ''
-      const m = text.match(/\{[\s\S]*\}/)
-      if (!m) throw new Error('AI non ha prodotto JSON')
-      const parsed = JSON.parse(m[0])
-      setRicette(parsed.ricette || [])
+      setRicette(parsed.ricette)
 
-      // Salva su recipe_inventions
+      // Salva su recipe_inventions (storia delle invenzioni — utile per riprovare).
       try {
         await supabase.from('recipe_inventions').insert({
           organization_id: orgId,
           user_id: user?.id,
           prompt: { tipo, mood, ingredienti, allergie, stagione, mese },
-          ricette: parsed.ricette || [],
+          ricette: parsed.ricette,
         })
       } catch {}
     } catch (e) {
-      setError(e.message)
+      setError(e.friendly || e.message)
     } finally {
       setLoading(false)
     }

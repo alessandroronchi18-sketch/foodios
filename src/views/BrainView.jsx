@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
+import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 
@@ -127,24 +128,14 @@ REGOLE:
 - Non inventare numeri: usa solo quelli del contesto.
 - Niente emoji, niente "Buongiorno" all'inizio di ogni risposta.`
 
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 800,
-          temperature: 0.5,
-          system,
-          messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
-        }),
+      const { text: txt } = await callAi({
+        feature: 'brain-chat',
+        model: 'claude-sonnet-4-6',
+        system,
+        messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
+        maxTokens: 800,
+        timeoutMs: 40_000,
       })
-      if (!res.ok) {
-        if (res.status === 429) throw new Error('Troppe richieste AI. Riprova fra 1 minuto.')
-        if (res.status === 401) throw new Error('Sessione scaduta. Esci e rientra.')
-        throw new Error(`Servizio AI indisponibile (HTTP ${res.status}). Riprova fra poco.`)
-      }
-      const json = await res.json()
-      const txt = (json.content || []).find(c => c.type === 'text')?.text || ''
       const finalMsgs = [...newMsgs, { role: 'assistant', content: txt }]
       setMessages(finalMsgs)
 
@@ -171,7 +162,7 @@ REGOLE:
         }
       } catch (e) { console.warn('persist brain failed:', e.message) }
     } catch (e) {
-      setMessages(m => [...m, { role: 'assistant', content: '⚠️ Errore: ' + e.message }])
+      setMessages(m => [...m, { role: 'assistant', content: e.friendly || ('Errore: ' + e.message) }])
     } finally { setLoading(false) }
   }
 

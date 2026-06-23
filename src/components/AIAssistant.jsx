@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
+import { callAi } from '../lib/aiClient'
 
 // Mini-renderer markdown (l'AI risponde in markdown: **grassetto**, ##, elenchi).
 // Senza, gli asterischi/cancelletti apparivano letterali. Niente librerie esterne.
@@ -111,26 +112,19 @@ export default function AIAssistant() {
     setInput('')
     setLoading(true)
     try {
-      const session = await supabase.auth.getSession()
-      const token = session.data.session?.access_token
       const apiMessages = next.map(m => ({ role: m.role, content: m.content }))
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 800,
-          system: SYSTEM_PROMPT,
-          messages: apiMessages,
-        })
+      const { text } = await callAi({
+        feature: 'ai-assistant',
+        model: 'claude-sonnet-4-6',
+        system: SYSTEM_PROMPT,
+        messages: apiMessages,
+        maxTokens: 800,
+        timeoutMs: 40_000,
       })
-      const data = await res.json()
-      const reply = data?.content?.find?.(b => b.type === 'text')?.text
-        || data?.error
-        || 'Mi dispiace, c\'è stato un problema. Riprova tra poco.'
+      const reply = text?.trim() || 'Non ho una risposta utile in questo momento. Riprova fra poco.'
       setMessages(m => [...m, { role: 'assistant', content: reply }])
     } catch (e) {
-      setMessages(m => [...m, { role: 'assistant', content: 'Errore di connessione. Riprova tra poco.' }])
+      setMessages(m => [...m, { role: 'assistant', content: e.friendly || 'Errore di connessione. Riprova fra poco.' }])
     } finally {
       setLoading(false)
     }

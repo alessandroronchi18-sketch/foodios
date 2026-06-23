@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
+import { callAi } from '../lib/aiClient'
 import Icon from './Icon'
 
 // AiExplainButton — bottone "Spiegami" accanto a un KPI o numero importante.
@@ -55,26 +56,17 @@ Valore: ${value}
 Contesto (JSON):
 ${JSON.stringify(context, null, 2)}`
 
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 400,
-          temperature: 0.3,
-          system,
-          messages: [{ role: 'user', content: userMsg }],
-        }),
+      const { text } = await callAi({
+        feature: 'explain-kpi',
+        model: 'claude-sonnet-4-6',
+        system,
+        prompt: userMsg,
+        maxTokens: 400,
+        timeoutMs: 25_000,
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Errore AI')
-      const text = (json.content || []).find(c => c.type === 'text')?.text || ''
-      setExplanation(text.trim())
+      setExplanation((text || '').trim())
     } catch (e) {
-      setError(e.message)
+      setError(e.friendly || e.message)
     } finally {
       setLoading(false)
     }

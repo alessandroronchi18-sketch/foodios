@@ -16,6 +16,7 @@ import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // consumatori — PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage —
 // sono tutti gia' lazy.
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
+import { callAi as _callAi, parseAiJson as _parseAiJson } from './lib/aiClient'
 import { mergeArr as _mergeArr, mergeMag as _mergeMag } from './lib/multiSediMerge'
 import { analizzaFotoAI } from './lib/analizzaFotoAI'
 import { supabase } from './lib/supabase'
@@ -383,15 +384,21 @@ async function getAI(prompt, key, sload, ssave) {
 {"sintesi":"<2 frasi con numeri chiave>","alert":"<1 frase su cosa ottimizzare>","azioni":[{"titolo":"<3 parole>","desc":"<1 frase concreta>"},{"titolo":"<3 parole>","desc":"<1 frase concreta>"},{"titolo":"<3 parole>","desc":"<1 frase concreta>"}]}
 Niente markdown, niente testo fuori dal JSON.`;
   try {
-    const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:500,system:sys,messages:[{role:"user",content:prompt}]})});
-    const d=await r.json();
-    const raw=d.content?.find(b=>b.type==="text")?.text||"{}";
-    let obj; try{obj=JSON.parse(raw.replace(/```json|```/g,"").trim());}catch{obj={sintesi:raw,alert:"",azioni:[]};}
-    _aiCache[key]=obj;
-    const all={...(await sload(SK_AI)||{}),[key]:obj};
-    await ssave(SK_AI,all);
+    const { text: raw, json: parsed } = await _callAi({
+      feature: 'dashboard-monthly-insight',
+      model: 'claude-sonnet-4-6',
+      system: sys,
+      prompt,
+      maxTokens: 500,
+      parseJson: true,
+      timeoutMs: 25_000,
+    });
+    const obj = parsed || _parseAiJson(raw) || { sintesi: raw || 'Analisi non disponibile.', alert: '', azioni: [] };
+    _aiCache[key] = obj;
+    const all = { ...(await sload(SK_AI) || {}), [key]: obj };
+    await ssave(SK_AI, all);
     return obj;
-  } catch { return {sintesi:"Analisi non disponibile.",alert:"",azioni:[]}; }
+  } catch { return { sintesi: 'Analisi non disponibile.', alert: '', azioni: [] }; }
 }
 
 // ─── DESIGN ───────────────────────────────────────────────────────────────────

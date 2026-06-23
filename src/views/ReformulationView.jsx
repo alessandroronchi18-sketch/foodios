@@ -58,71 +58,83 @@ export default function ReformulationView({ ricettario, orgId }) {
   async function genera() {
     if (!ricCurrent || !fcTarget || !fcAttuale) return
     setLoading(true); setError(null); setVarianti(null)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) throw new Error('Sessione scaduta')
 
-      const system = `Sei un food cost consultant per pasticcerie/gelaterie italiane.
-L'utente vuole portare una ricetta a un food cost target. Proponi ESATTAMENTE
-3 varianti, ognuna in una direzione diversa:
-- "sostituzioni": modifica ingredienti (es. zucchero raffinato -> zucchero canna)
-- "rese": riduzione grammature mantenendo gusto/percezione
-- "pricing": semplicemente alzare il prezzo di vendita (con stima impatto domanda)
+    // Numeri italiani (memory feedback-numeri-italiani)
+    const _e = n => `€ ${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const deltaTarget = fcAttuale.fcPct - fcTarget
+    const fcEurTarget = fcAttuale.prezzo * fcTarget / 100
 
-Per OGNI variante valuta:
-- delta_fc_eur: quanti EUR per pezzo risparmi (o aumenti il margine, per pricing)
-- fc_risultante_pct: food cost % stimato dopo la modifica
-- rischio_gusto: "basso"|"medio"|"alto" (per pricing e' sempre "n/a")
-- impatto_vendite_pct: stima cambiamento vendite (negativo se rischio cliente)
-- spiegazione: 2 frasi max, italiano corrente, niente emoji
+    // Prompt potenziato: persona Mara pasticcera (memory feedback-no-ai-copy),
+    // contesto benchmark, vincoli operativi (es. non proporre ingredienti
+    // sintetici/non-artigianali), e few-shot example impliciti via schema esteso.
+    const system = `Sei Mara, una consulente food cost esperta di pasticcerie e gelaterie artigianali italiane.
+Parli come una collega: frasi brevi, niente "Vorrei suggerire", italiano umano.
 
-Output JSON ESATTAMENTE in questo formato:
+Il cliente vuole portare una ricetta a food cost target. Proponi ESATTAMENTE 3 varianti,
+una per direzione strategica:
+
+1. "sostituzioni" — cambia ingredienti mantenendo l'artigianalità (mai sciroppi industriali,
+   mai aromi sintetici, mai grassi vegetali idrogenati). Es: latte fresco→latte UHT,
+   crema fresca→panna 35% bidone, cioccolato 70%→cioccolato 60% (compromessi accettabili).
+2. "rese" — riduci grammature di 5-15% sugli ingredienti più costosi senza compromettere
+   la struttura (non puoi togliere uova ai bignè, ma puoi togliere il 10% del cioccolato
+   alla glassa).
+3. "pricing" — alza il prezzo. Stima impatto vendite usando elasticità tipica artigianale:
+   +5% prezzo ≈ -3-4% vendite, +10% prezzo ≈ -8-12% vendite.
+
+Per OGNI variante:
+- delta_fc_eur: € risparmiati (sostituzioni/rese) o di margine in più (pricing)
+- fc_risultante_pct: food cost % stimato dopo modifica (deve avvicinarsi al target ${fcTarget}%)
+- rischio_gusto: "basso" | "medio" | "alto" (per pricing sempre "n/a")
+- impatto_vendite_pct: cambio stimato volumi (negativo se peggiora)
+- spiegazione: 2 frasi max, italiano umano, niente emoji, niente AI-tone
+- raccomandazione: "consigliata" | "secondaria" | "ultima_spiaggia"
+- difficolta_implementazione: "facile" | "media" | "complessa"
+
+Restituisci SOLO JSON valido (niente markdown):
 {
   "varianti": [
-    { "tipo": "sostituzioni", "titolo": "<titolo>", "delta_fc_eur": <num>, "fc_risultante_pct": <num>, "rischio_gusto": "basso|medio|alto", "impatto_vendite_pct": <num>, "spiegazione": "<2 frasi>", "azioni": [{"ingrediente_attuale": "<>", "ingrediente_nuovo": "<>", "delta_grammi": <num o null>}] },
-    { "tipo": "rese", ... stesso schema },
-    { "tipo": "pricing", "titolo": "...", "delta_fc_eur": 0, "fc_risultante_pct": <num>, "rischio_gusto": "n/a", "impatto_vendite_pct": <num>, "spiegazione": "...", "azioni": [{"prezzo_attuale": <num>, "prezzo_nuovo": <num>}] }
-  ]
-}
-SOLO il JSON. NIENTE markdown. NIENTE testo extra.`
+    { "tipo": "sostituzioni", "titolo": "<titolo breve>", "delta_fc_eur": <num>, "fc_risultante_pct": <num>, "rischio_gusto": "basso|medio|alto", "impatto_vendite_pct": <num>, "spiegazione": "<2 frasi>", "raccomandazione": "consigliata|secondaria|ultima_spiaggia", "difficolta_implementazione": "facile|media|complessa", "azioni": [{"ingrediente_attuale": "<>", "ingrediente_nuovo": "<>", "delta_grammi": <num o null>}] },
+    { "tipo": "rese", ... stesso schema con azioni: [{"ingrediente": "<>", "qta_attuale": <num>, "qta_nuova": <num>}] },
+    { "tipo": "pricing", "titolo": "...", "delta_fc_eur": 0, "fc_risultante_pct": <num>, "rischio_gusto": "n/a", "impatto_vendite_pct": <num>, "spiegazione": "...", "raccomandazione": "...", "difficolta_implementazione": "...", "azioni": [{"prezzo_attuale": <num>, "prezzo_nuovo": <num>}] }
+  ],
+  "verdetto_globale": "<1 frase: qual è la più sensata oggi, viste le 3>"
+}`
 
-      // Audit 2026-06-22: numeri in formato IT
-      const _e = n => `€ ${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      const userMsg = `Ricetta: ${ricCurrent.nome}
-Food cost attuale: ${_e(fcAttuale.fcPezzo)}/pezzo (${fcAttuale.fcPct.toFixed(1)}%)
-Prezzo vendita attuale: ${_e(fcAttuale.prezzo)}
-Food cost TARGET richiesto: ${fcTarget}%
+    const userMsg = `Ricetta: ${ricCurrent.nome}
 
-Ingredienti attuali:
+Stato attuale:
+- Food cost: ${_e(fcAttuale.fcPezzo)}/pezzo (${fcAttuale.fcPct.toFixed(1)}% del prezzo)
+- Prezzo vendita: ${_e(fcAttuale.prezzo)}
+- Margine lordo per pezzo: ${_e(fcAttuale.prezzo - fcAttuale.fcPezzo)} (${(100-fcAttuale.fcPct).toFixed(1)}%)
+
+Target:
+- Food cost desiderato: ${fcTarget}% (= ${_e(fcEurTarget)} per pezzo)
+- Devi tagliare ${Math.abs(deltaTarget).toFixed(1)} punti % (${deltaTarget > 0 ? 'riducendo costi' : 'puoi anche alzare il food cost'})
+
+Ingredienti attuali della ricetta:
 ${fcAttuale.ingredienti.map(i => `- ${i.nome || i.ingrediente} ${i.qta_g || i.quantita || ''}g`).join('\n')}
 
-Proponi le 3 varianti come da istruzioni.`
+Restituisci 3 varianti come da schema, italiano umano.`
 
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          model: 'claude-opus-4-7',
-          max_tokens: 2000,
-          temperature: 0.4,
-          system,
-          messages: [{ role: 'user', content: userMsg }],
-        }),
+    try {
+      const { json } = await callAi({
+        feature: 'reformulation',
+        model: 'claude-opus-4-7',
+        system,
+        prompt: userMsg,
+        maxTokens: 2500,
+        parseJson: true,
+        timeoutMs: 60_000,    // Opus può essere lento
       })
-      if (!res.ok) {
-        if (res.status === 429) throw new Error('Troppe richieste AI. Riprova fra 1 minuto.')
-        if (res.status === 401) throw new Error('Sessione scaduta. Esci e rientra.')
-        throw new Error(`Servizio AI indisponibile (HTTP ${res.status}). Riprova fra poco.`)
+      if (!json || !Array.isArray(json.varianti) || json.varianti.length === 0) {
+        throw Object.assign(new Error('Output malformato'), { friendly: 'L\'AI non ha prodotto varianti valide. Riprova.' })
       }
-      const json = await res.json()
-      const text = (json.content || []).find(c => c.type === 'text')?.text || ''
-      const m = text.match(/\{[\s\S]*\}/)
-      if (!m) throw new Error('AI non ha prodotto JSON')
-      const parsed = JSON.parse(m[0])
-      setVarianti(parsed.varianti || [])
+      setVarianti(json.varianti)
+      // Verdetto globale come state separato per evitare di rompere il render esistente.
+      window.__lastReformulationVerdict = json.verdetto_globale || null
     } catch (e) {
-      setError(e.message)
+      setError(e.friendly || e.message)
     } finally {
       setLoading(false)
     }

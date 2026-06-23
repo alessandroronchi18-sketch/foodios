@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
+import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 
@@ -109,59 +110,71 @@ export default function CompetitorPricingView({ orgId, sedeId, ricettario, notif
   async function chiediAi() {
     if (!compStats || !fcInfo) return
     setAiLoading(true); setAiInsight(null)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
 
-      const system = `Sei un pricing consultant per pasticcerie italiane.
-Ricevi: il tuo prezzo, food cost, e prezzi competitor (min/max/media).
-Restituisci JSON ESATTO:
+    // Numeri italiani (memory feedback-numeri-italiani)
+    const _e = n => `€ ${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const fcPct = (fcInfo.fcPezzo / fcInfo.prezzo * 100)
+    const targetFC = 30  // benchmark pasticceria sana
+    const yourMargPct = 100 - fcPct
+    const distMin = ((fcInfo.prezzo - compStats.min) / compStats.min * 100)
+    const distMax = ((fcInfo.prezzo - compStats.max) / compStats.max * 100)
+    const distMed = ((fcInfo.prezzo - compStats.media) / compStats.media * 100)
+
+    // Prompt potenziato: include benchmark settore, distanza % dai competitor,
+    // chiede output strutturato esteso (verdetto + range + impatto margine + confidence).
+    // Anti AI-tone: "Mara pasticcera" persona (memory feedback-no-ai-copy).
+    const system = `Sei Mara, una consulente di pricing per pasticcerie e gelaterie italiane.
+Parli come una collega esperta, frasi brevi, italiano umano. Niente "Mi dispiace ma...",
+niente "Vorrei suggerire", niente lessico da AI. Vai dritta al punto.
+
+Benchmark settore (pasticceria artigianale IT):
+- Food cost sano: 25-30% del prezzo vendita
+- Margine lordo target: 70-75%
+- Differenza prezzo vs competitor media: ±15% è "in linea", oltre è sotto/sovra
+
+Restituisci SOLO JSON valido (no markdown), con questi campi esatti:
 {
-  "verdetto": "sottoprezzato"|"in_linea"|"sovrapprezzato",
-  "prezzo_consigliato": <num>,
-  "spiegazione": "<2 frasi italiano>",
-  "azione": "<1 frase azione concreta>"
-}
-Niente markdown, solo JSON.`
+  "verdetto": "sottoprezzato" | "in_linea" | "sovrapprezzato",
+  "prezzo_consigliato": <num decimale, mai stringa>,
+  "range_consigliato": { "min": <num>, "max": <num> },
+  "impatto_margine_pct": <num — differenza punti % vs margine attuale>,
+  "confidence": <0.0-1.0 — quanta certezza nel verdetto, in base al n. competitor>,
+  "spiegazione": "<max 2 frasi: cosa vedo nei dati, in italiano umano>",
+  "azione": "<1 frase imperativa: cosa fare lunedì, tipo 'alza il prezzo a X' o 'tieni il prezzo, lavora sul food cost'>",
+  "rischio": "<1 frase: cosa potrebbe andare male se applichi l'azione>"
+}`
 
-      // Audit 2026-06-22: numeri in formato IT
-      const _e = n => `€ ${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      const userMsg = `Prodotto: ${ricSel}
-Tuo prezzo: ${_e(fcInfo.prezzo)}
-Tuo food cost: ${_e(fcInfo.fcPezzo)} (${(fcInfo.fcPezzo/fcInfo.prezzo*100).toFixed(1)}%)
+    const userMsg = `Prodotto: ${ricSel}
 
-Competitor (${compStats.n} rilevati):
-- Prezzo min: ${_e(compStats.min)}
-- Prezzo max: ${_e(compStats.max)}
-- Prezzo medio: ${_e(compStats.media)}`
+Tuo posizionamento attuale:
+- Tuo prezzo: ${_e(fcInfo.prezzo)}
+- Tuo food cost: ${_e(fcInfo.fcPezzo)} (${fcPct.toFixed(1)}% del prezzo)
+- Tuo margine lordo: ${yourMargPct.toFixed(1)}% (benchmark sano: ${100-targetFC}%)
 
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 300,
-          temperature: 0.3,
-          system,
-          messages: [{ role: 'user', content: userMsg }],
-        }),
+Competitor in zona (${compStats.n} ${compStats.n === 1 ? 'rilevato' : 'rilevati'}):
+- Min: ${_e(compStats.min)} (tu sei ${distMin >= 0 ? '+' : ''}${distMin.toFixed(1)}% rispetto al min)
+- Max: ${_e(compStats.max)} (tu sei ${distMax >= 0 ? '+' : ''}${distMax.toFixed(1)}% rispetto al max)
+- Media: ${_e(compStats.media)} (tu sei ${distMed >= 0 ? '+' : ''}${distMed.toFixed(1)}% rispetto alla media)
+
+Confidence calibration: ${compStats.n} competitor → confidence max ${Math.min(0.95, 0.3 + compStats.n * 0.15).toFixed(2)}.
+Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
+
+    try {
+      const { json } = await callAi({
+        feature: 'competitor-pricing',
+        model: 'claude-sonnet-4-6',
+        system,
+        prompt: userMsg,
+        maxTokens: 500,
+        parseJson: true,
+        timeoutMs: 25_000,
       })
-      if (!res.ok) {
-        if (res.status === 429) throw new Error('Troppe richieste AI. Riprova fra 1 minuto.')
-        if (res.status === 401) throw new Error('Sessione scaduta. Esci e rientra.')
-        throw new Error(`Servizio AI indisponibile (HTTP ${res.status}). Riprova fra poco.`)
+      if (!json || !json.verdetto) {
+        throw Object.assign(new Error('Output AI malformato'), { friendly: 'L\'AI non ha risposto correttamente. Riprova.' })
       }
-      const json = await res.json()
-      const text = (json.content || []).find(c => c.type === 'text')?.text || ''
-      const m = text.match(/\{[\s\S]*\}/)
-      if (m) {
-        try { setAiInsight(JSON.parse(m[0])) }
-        catch { setAiInsight({ verdetto: 'errore', spiegazione: 'AI ha prodotto JSON non valido' }) }
-      } else {
-        setAiInsight({ verdetto: 'errore', spiegazione: 'AI non ha prodotto JSON' })
-      }
+      setAiInsight({ ...json, _generatedAt: new Date().toISOString() })
     } catch (e) {
-      setAiInsight({ verdetto: 'errore', spiegazione: e.message })
+      setAiInsight({ verdetto: 'errore', spiegazione: e.friendly || e.message })
     } finally { setAiLoading(false) }
   }
 
@@ -239,16 +252,49 @@ Competitor (${compStats.n} rilevati):
 
                 {aiInsight && (
                   <div style={{
-                    background: aiInsight.verdetto === 'sottoprezzato' ? '#FEF3C7' : aiInsight.verdetto === 'sovrapprezzato' ? '#FEF2F2' : '#F0FDF4',
-                    border: `1px solid ${aiInsight.verdetto === 'sottoprezzato' ? AMBER : aiInsight.verdetto === 'sovrapprezzato' ? BRAND : GREEN}`,
+                    background: aiInsight.verdetto === 'sottoprezzato' ? '#FEF3C7' : aiInsight.verdetto === 'sovrapprezzato' ? '#FEF2F2' : aiInsight.verdetto === 'errore' ? '#FFF3F3' : '#F0FDF4',
+                    border: `1px solid ${aiInsight.verdetto === 'sottoprezzato' ? AMBER : aiInsight.verdetto === 'sovrapprezzato' ? BRAND : aiInsight.verdetto === 'errore' ? BRAND : GREEN}`,
                     borderRadius: 10, padding: '12px 14px', marginTop: 12,
                   }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: TXT, marginBottom: 6, textTransform: 'capitalize' }}>
-                      Verdetto: {(aiInsight.verdetto || '').replace('_', ' ')}
-                      {aiInsight.prezzo_consigliato && <> · suggerito € {Number(aiInsight.prezzo_consigliato).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>}
+                    <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: TXT, textTransform: 'capitalize' }}>
+                        Verdetto: {(aiInsight.verdetto || '').replace('_', ' ')}
+                      </div>
+                      {aiInsight.prezzo_consigliato && (
+                        <div style={{ fontSize: 12.5, color: MID, fontWeight: 700 }}>
+                          → € {Number(aiInsight.prezzo_consigliato).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {aiInsight.range_consigliato?.min && aiInsight.range_consigliato?.max && (
+                            <span style={{ fontWeight: 500, color: SOFT }}> (€ {Number(aiInsight.range_consigliato.min).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} – € {Number(aiInsight.range_consigliato.max).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</span>
+                          )}
+                        </div>
+                      )}
+                      {typeof aiInsight.confidence === 'number' && (
+                        <div title="Quanta certezza ha l'AI nel verdetto, sulla base del numero di competitor"
+                          style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 4, background: '#FFF', color: SOFT, fontWeight: 600 }}>
+                          {Math.round(aiInsight.confidence * 100)}% sicurezza
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: 12.5, color: MID, lineHeight: 1.5 }}>{aiInsight.spiegazione}</div>
-                    {aiInsight.azione && <div style={{ fontSize: 12.5, color: TXT, marginTop: 6, fontWeight: 600 }}>→ {aiInsight.azione}</div>}
+                    {aiInsight.spiegazione && (
+                      <div style={{ fontSize: 12.5, color: MID, lineHeight: 1.55 }}>{aiInsight.spiegazione}</div>
+                    )}
+                    {aiInsight.azione && (
+                      <div style={{ fontSize: 12.5, color: TXT, marginTop: 8, fontWeight: 700 }}>
+                        → {aiInsight.azione}
+                      </div>
+                    )}
+                    {typeof aiInsight.impatto_margine_pct === 'number' && aiInsight.impatto_margine_pct !== 0 && (
+                      <div style={{ fontSize: 11.5, color: SOFT, marginTop: 6 }}>
+                        Impatto stimato sul margine: <strong style={{ color: aiInsight.impatto_margine_pct > 0 ? GREEN : BRAND }}>
+                          {aiInsight.impatto_margine_pct > 0 ? '+' : ''}{Number(aiInsight.impatto_margine_pct).toFixed(1)} punti %
+                        </strong>
+                      </div>
+                    )}
+                    {aiInsight.rischio && (
+                      <div style={{ fontSize: 11.5, color: SOFT, marginTop: 6, fontStyle: 'italic' }}>
+                        ⚠ {aiInsight.rischio}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

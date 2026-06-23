@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
+import { callAi } from '../lib/aiClient'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { C, PageHeader } from './_shared'
@@ -158,21 +159,18 @@ ${azioniStr}
     try {
       const ctx = buildContext();
       const history = messages.slice(-6).map(m => ({ role:m.role, content:m.content }));
-      const res = await fetch("/api/ai", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1000,
-          system: ctx,
-          messages: [...history, { role:"user", content:q }],
-        }),
+      const { text } = await callAi({
+        feature: 'azioni-chat',
+        model: 'claude-sonnet-4-6',
+        system: ctx,
+        messages: [...history, { role: 'user', content: q }],
+        maxTokens: 1000,
+        timeoutMs: 35_000,
       });
-      const data = await res.json();
-      const reply = data.content?.[0]?.text || "Errore nella risposta.";
-      setMessages(prev => [...prev, { role:"assistant", content:reply, ts:Date.now() }]);
-    } catch(e) {
-      setMessages(prev => [...prev, { role:"assistant", content:"Errore di connessione. Riprova.", ts:Date.now() }]);
+      const reply = text?.trim() || 'Non ho una risposta utile in questo momento.';
+      setMessages(prev => [...prev, { role: 'assistant', content: reply, ts: Date.now() }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { role: 'assistant', content: e.friendly || 'Errore di connessione. Riprova.', ts: Date.now() }]);
     }
     setLoading(false);
   };

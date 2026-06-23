@@ -10,6 +10,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
+import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 
@@ -72,27 +73,19 @@ Testo della recensione:
 
 Genera le 3 risposte come da istruzioni.`
 
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          temperature: 0.45,
-          system,
-          messages: [{ role: 'user', content: userMsg }],
-        }),
+      const { json: parsed } = await callAi({
+        feature: 'reply-recensioni',
+        model: 'claude-sonnet-4-6',
+        system,
+        prompt: userMsg,
+        maxTokens: 1000,
+        parseJson: true,
+        timeoutMs: 30_000,
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Errore AI')
-      const text = (json.content || []).find(c => c.type === 'text')?.text || ''
-      // Estrai JSON dal testo (a volte il modello aggiunge ```json)
-      const m = text.match(/\{[\s\S]*\}/)
-      if (!m) throw new Error('Risposta AI non valida')
-      const parsed = JSON.parse(m[0])
+      if (!parsed) throw Object.assign(new Error('Risposta AI non valida'), { friendly: 'L\'AI non ha prodotto risposte valide. Riprova.' })
       setRisposte(parsed)
     } catch (e) {
-      setError(e.message)
+      setError(e.friendly || e.message)
     } finally {
       setLoading(false)
     }

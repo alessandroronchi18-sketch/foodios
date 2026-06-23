@@ -10,6 +10,7 @@ import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import { backgroundManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
+import { callAi, parseAiJson } from '../lib/aiClient'
 import { color as T } from '../lib/theme'
 
 // Palette compatibile con il vecchio Dashboard.jsx (C.*)
@@ -114,40 +115,23 @@ Instructions:
   }
 
   const analyzeOneImage = async (imgData, imgMediaType) => {
-    const r = await fetch('/api/ai', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6', max_tokens: 1500,
-        messages: [{
-          role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: imgMediaType, data: imgData } },
-            { type: 'text', text: PROMPTS[mode] },
-          ],
-        }],
-      }),
+    const { text, json: viaParser } = await callAi({
+      feature: `foto-ocr-${mode}`,
+      model: 'claude-sonnet-4-6',
+      maxTokens: 1500,
+      timeoutMs: 60_000,
+      messages: [{
+        role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: imgMediaType, data: imgData } },
+          { type: 'text', text: PROMPTS[mode] },
+        ],
+      }],
+      parseJson: true,
     })
-    if (r.status === 401) throw new Error('Sessione scaduta. Esci e rientra per riprovare.')
-    if (r.status === 429) throw new Error('Troppe richieste AI in poco tempo. Riprova fra un minuto.')
-    if (!r.ok) throw new Error(`Errore servizio AI (${r.status}). Riprova fra qualche istante.`)
-    const d = await r.json()
-    if (d.error) throw new Error(d.error)
-    const raw = d.content?.find(b => b.type === 'text')?.text || ''
-    if (!raw) throw new Error("Nessuna risposta dall'AI — riprova")
-    const stripped = raw.replace(/```json\n?|```/g, '').trim()
-    const match = stripped.match(/\{[\s\S]*\}/)
-    if (!match) throw new Error('Risposta AI non in formato JSON — riprova')
-    // Audit 2026-06-19 HIGH: JSON.parse fallisce se il match include solo l'apertura
-    // di un oggetto annidato (regex greedy può catturare brace sbilanciate). Throw
-    // user-friendly invece di crash silenzioso.
-    try {
-      return JSON.parse(match[0])
-    } catch {
-      throw new Error('Risposta AI con JSON non valido — riprova fra qualche istante.')
-    }
+    // parseJson sa già pulire markdown + estrarre primo {…}. Fallback strict.
+    const out = viaParser ?? parseAiJson(text)
+    if (!out) throw Object.assign(new Error('Risposta AI con JSON non valido'), { friendly: 'L\'AI non ha restituito dati validi. Riprova con una foto più nitida o riprova fra 30s.' })
+    return out
   }
 
   const handleAnalizza = () => {

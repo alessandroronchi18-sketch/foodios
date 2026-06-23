@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase'
 import { ssave as _ssave, sload } from '../lib/storage'
 import { backgroundManager, uploadManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
+import { callAi, parseAiJson } from '../lib/aiClient'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
@@ -240,31 +241,20 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   }
 
   const analyzeReceipt = async (imgData, mediaType) => {
-    const r = await fetch('/api/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6', max_tokens: 2000,
-        messages: [{ role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: imgData } },
-          { type: 'text', text: PROMPT },
-        ] }],
-      }),
+    const { text, json: viaParser } = await callAi({
+      feature: 'chiusura-ocr-scontrino',
+      model: 'claude-sonnet-4-6',
+      maxTokens: 2000,
+      timeoutMs: 60_000,
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: imgData } },
+        { type: 'text', text: PROMPT },
+      ] }],
+      parseJson: true,
     })
-    if (r.status === 401) throw new Error('Sessione scaduta. Esci e rientra per riprovare.')
-    if (r.status === 429) throw new Error('Troppe richieste AI in poco tempo. Riprova fra un minuto.')
-    if (!r.ok) throw new Error(`Errore servizio AI (${r.status}). Riprova fra qualche istante.`)
-    const d = await r.json()
-    const text = d.content?.find(b => b.type === 'text')?.text || '{}'
-    // L'AI può restituire JSON malformato (markdown extra, troncamento, ecc.):
-    // intercettiamo il parse error per evitare crash silenzioso dell'analisi
-    // scontrino. Audit 2026-06-19 HIGH.
-    let obj
-    try {
-      obj = JSON.parse(text.replace(/```json|```/g, '').trim())
-    } catch {
-      throw new Error('Risposta AI non in formato JSON — riprova fra qualche istante.')
-    }
+    // parseAiJson sa già pulire markdown e bilanciare graffe. Fallback strict.
+    const obj = viaParser ?? parseAiJson(text)
+    if (!obj) throw Object.assign(new Error('JSON malformato'), { friendly: 'L\'AI non ha estratto dati validi dallo scontrino. Riprova con una foto più nitida.' })
 
     // Validazione lato client: filtra prodotti senza prezzo / qta valida e
     // sposta gli incerti dichiarati dall'AI + quelli che non passano le

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
+import { callAi } from '../lib/aiClient'
 import Icon from './Icon'
 
 // Command Palette (Cmd+K / Ctrl+K) — search globale con intent parser AI.
@@ -102,24 +103,15 @@ Compito:
 3. Altrimenti rispondi con: TEXT: <risposta breve in italiano>
 Massimo 60 parole.`
 
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 220,
-          temperature: 0.2,
-          system,
-          messages: [{ role: 'user', content: q }],
-        }),
+      const { text } = await callAi({
+        feature: 'cmdk-intent',
+        model: 'claude-haiku-4-5-20251001',
+        system,
+        prompt: q,
+        maxTokens: 220,
+        timeoutMs: 12_000,    // Haiku è veloce, cap stretto per UX snappy
       })
-      if (!res.ok) {
-        const msg = res.status === 429 ? 'Troppe richieste AI' : `Errore AI (${res.status})`
-        throw new Error(msg)
-      }
-      const json = await res.json()
-      const text = (json.content || []).find(c => c.type === 'text')?.text || ''
-      const txt = text.trim()
+      const txt = (text || '').trim()
       // Parsing: prefix navigate/data/text
       if (txt.toUpperCase().startsWith('NAVIGATE:')) {
         const view = txt.substring(9).trim().replace(/\.$/, '')
@@ -130,7 +122,7 @@ Massimo 60 parole.`
         setAiAnswer({ kind: 'text', text: txt.replace(/^TEXT:\s*/i, '') })
       }
     } catch (e) {
-      setAiAnswer({ kind: 'error', text: e.message })
+      setAiAnswer({ kind: 'error', text: e.friendly || e.message })
     } finally {
       setAiLoading(false)
     }
