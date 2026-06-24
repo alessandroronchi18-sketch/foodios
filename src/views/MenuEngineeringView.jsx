@@ -32,10 +32,10 @@ const GREEN = T.green || '#16A34A'
 const AMBER = T.amber || '#D97706'
 
 const QUAD_LABEL = {
-  STAR:    { lbl: '⭐ Star',       short: 'Star',      bg: '#F0FDF4', fg: GREEN,  desc: 'Tieni stretti: alti volumi + alti margini' },
-  PLOWHORSE:{ lbl: '🐎 Plowhorse', short: 'Plowhorse', bg: '#FEF3C7', fg: AMBER,  desc: 'Popolare ma poco redditizio: alza prezzo o riduci food cost' },
-  PUZZLE:  { lbl: '🧩 Puzzle',    short: 'Puzzle',   bg: '#E0F2FE', fg: '#0369A1', desc: 'Alto margine ma vende poco: marketing/promo/riposiziona' },
-  DOG:     { lbl: '🐕 Dog',       short: 'Dog',      bg: '#FEF2F2', fg: BRAND,  desc: 'Basso margine + basso volume: considera sostituirlo' },
+  STAR:    { lbl: 'Star',       short: 'Star',      bg: '#F0FDF4', fg: GREEN,  desc: 'Tieni stretti: alti volumi + alti margini' },
+  PLOWHORSE:{ lbl: 'Plowhorse', short: 'Plowhorse', bg: '#FEF3C7', fg: AMBER,  desc: 'Popolare ma poco redditizio: alza prezzo o riduci food cost' },
+  PUZZLE:  { lbl: 'Puzzle',    short: 'Puzzle',   bg: '#E0F2FE', fg: '#0369A1', desc: 'Alto margine ma vende poco: marketing/promo/riposiziona' },
+  DOG:     { lbl: 'Dog',       short: 'Dog',      bg: '#FEF2F2', fg: BRAND,  desc: 'Basso margine + basso volume: considera sostituirlo' },
 }
 
 function classifica(popolarita, margine, mediaPop, mediaMarg) {
@@ -217,16 +217,16 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                   subtitle: sedeAttiva?.nome || '',
                   periodo: `Ultimi ${periodo} giorni`,
                   kpi: [
-                    { label: '⭐ Stars', value: String(stats.STAR.length), sub: 'da proteggere' },
-                    { label: '🐎 Plowhorses', value: String(stats.PLOWHORSE.length), sub: 'rialza prezzo' },
-                    { label: '🧩 Puzzles', value: String(stats.PUZZLE.length), sub: 'promo/marketing' },
-                    { label: '🐕 Dogs', value: String(stats.DOG.length), sub: 'sostituire' },
+                    { label: 'Stars', value: String(stats.STAR.length), sub: 'da proteggere' },
+                    { label: 'Plowhorses', value: String(stats.PLOWHORSE.length), sub: 'rialza prezzo' },
+                    { label: 'Puzzles', value: String(stats.PUZZLE.length), sub: 'promo/marketing' },
+                    { label: 'Dogs', value: String(stats.DOG.length), sub: 'sostituire' },
                   ],
                   sections: [
-                    { title: '⭐ Stars (proteggi)',     table: { columns: ['Prodotto', 'Qta vendute', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.STAR.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + x.margine.toFixed(2)]) } },
-                    { title: '🐎 Plowhorses (rialza)',  table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PLOWHORSE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + x.margine.toFixed(2)]) } },
-                    { title: '🧩 Puzzles (promo)',      table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PUZZLE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + x.margine.toFixed(2)]) } },
-                    { title: '🐕 Dogs (sostituire)',    table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.DOG.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + x.margine.toFixed(2)]) } },
+                    { title: 'Stars (proteggi)',     table: { columns: ['Prodotto', 'Qta vendute', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.STAR.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Plowhorses (rialza)',  table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PLOWHORSE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Puzzles (promo)',      table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PUZZLE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Dogs (sostituire)',    table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.DOG.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
                   ],
                 })}
               />
@@ -243,10 +243,10 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                   <rect x={chart.xMid} y={chart.yMid} width={chart.W - chart.PAD - chart.xMid} height={chart.H - chart.PAD - chart.yMid} fill="#FEF3C7" opacity="0.4" />
 
                   {/* Label quadranti */}
-                  <text x={chart.PAD + 8} y={chart.PAD + 16} fontSize="10" fontWeight="700" fill="#0369A1">🧩 PUZZLE</text>
-                  <text x={chart.W - chart.PAD - 50} y={chart.PAD + 16} fontSize="10" fontWeight="700" fill={GREEN}>⭐ STAR</text>
-                  <text x={chart.PAD + 8} y={chart.H - chart.PAD - 8} fontSize="10" fontWeight="700" fill={BRAND}>🐕 DOG</text>
-                  <text x={chart.W - chart.PAD - 70} y={chart.H - chart.PAD - 8} fontSize="10" fontWeight="700" fill={AMBER}>🐎 PLOWHORSE</text>
+                  <text x={chart.PAD + 8} y={chart.PAD + 16} fontSize="10" fontWeight="700" fill="#0369A1">PUZZLE</text>
+                  <text x={chart.W - chart.PAD - 50} y={chart.PAD + 16} fontSize="10" fontWeight="700" fill={GREEN}>STAR</text>
+                  <text x={chart.PAD + 8} y={chart.H - chart.PAD - 8} fontSize="10" fontWeight="700" fill={BRAND}>DOG</text>
+                  <text x={chart.W - chart.PAD - 70} y={chart.H - chart.PAD - 8} fontSize="10" fontWeight="700" fill={AMBER}>PLOWHORSE</text>
 
                   {/* Linee assi */}
                   <line x1={chart.PAD} y1={chart.yMid} x2={chart.W - chart.PAD} y2={chart.yMid} stroke="#CBD5E1" strokeDasharray="4,4" />

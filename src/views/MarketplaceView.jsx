@@ -26,10 +26,10 @@ const CATEGORIE = [
   { id: 'materie_prime',  lbl: '🌾 Materie prime' },
   { id: 'cioccolato',     lbl: '🍫 Cioccolato' },
   { id: 'farine',         lbl: '🌾 Farine' },
-  { id: 'latticini',      lbl: '🥛 Latticini' },
-  { id: 'frutta_secca',   lbl: '🌰 Frutta secca' },
-  { id: 'imballaggi',     lbl: '📦 Imballaggi' },
-  { id: 'attrezzature',   lbl: '🔧 Attrezzature' },
+  { id: 'latticini',      lbl: 'Latticini' },
+  { id: 'frutta_secca',   lbl: 'Frutta secca' },
+  { id: 'imballaggi',     lbl: 'Imballaggi' },
+  { id: 'attrezzature',   lbl: 'Attrezzature' },
 ]
 
 export default function MarketplaceView() {
@@ -119,23 +119,23 @@ export default function MarketplaceView() {
               <div style={{ fontSize: 15, fontWeight: 800, color: TXT, marginTop: 4 }}>{l.prodotto}</div>
               <div style={{ fontSize: 13, color: MID, marginTop: 2 }}>{l.fornitore_nome}</div>
               <div style={{ display: 'flex', gap: 12, fontSize: 12, color: SOFT, marginTop: 10, flexWrap: 'wrap' }}>
-                {l.prezzo_medio && <span>💰 <strong>€ {Number(l.prezzo_medio).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>/{l.unita}</span>}
-                {l.lead_time_gg && <span>🚚 {l.lead_time_gg}gg</span>}
-                {l.moq && <span>📦 MOQ {l.moq}{l.unita}</span>}
-                {l.rating && <span>⭐ {Number(l.rating).toFixed(1)} ({l.recensioni_n})</span>}
-                {l.zona_servita && <span>📍 {l.zona_servita}</span>}
+                {l.prezzo_medio && <span><strong>€ {Number(l.prezzo_medio).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>/{l.unita}</span>}
+                {l.lead_time_gg && <span>{l.lead_time_gg}gg consegna</span>}
+                {l.moq && <span>MOQ {l.moq}{l.unita}</span>}
+                {l.rating && <span>★ {Number(l.rating).toFixed(1)} ({l.recensioni_n})</span>}
+                {l.zona_servita && <span>{l.zona_servita}</span>}
               </div>
               <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
                 {l.contatto_email && (
                   <a href={`mailto:${l.contatto_email}?subject=Richiesta offerta - ${encodeURIComponent(l.prodotto)}`}
-                    style={{ flex: 1, background: BRAND, color: '#FFF', textDecoration: 'none', padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
-                    📧 Email
+                    style={{ flex: 1, background: BRAND, color: '#FFF', textDecoration: 'none', padding: '10px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, textAlign: 'center', minHeight: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    Email
                   </a>
                 )}
                 {l.contatto_tel && (
                   <a href={`tel:${l.contatto_tel}`}
-                    style={{ flex: 1, background: 'transparent', color: TXT, border: `1px solid ${BORDER}`, textDecoration: 'none', padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
-                    📞 Chiama
+                    style={{ flex: 1, background: 'transparent', color: TXT, border: `1px solid ${BORDER}`, textDecoration: 'none', padding: '10px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, textAlign: 'center', minHeight: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    Chiama
                   </a>
                 )}
               </div>
@@ -145,7 +145,7 @@ export default function MarketplaceView() {
       )}
 
       <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
-        💡 Il marketplace cresce con i suggerimenti della community. Vuoi un fornitore aggiunto? <a href="mailto:support@foodios.it" style={{ color: BRAND }}>support@foodios.it</a>
+        Il marketplace cresce con i suggerimenti della community. Vuoi un fornitore aggiunto? <a href="mailto:support@foodios.it" style={{ color: BRAND }}>support@foodios.it</a>
       </div>
     </div>
   )

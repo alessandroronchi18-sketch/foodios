@@ -410,7 +410,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             style={{ flex:1, padding: isMobile ? "14px" : "10px", background:C.red, color:C.white, border:"none", borderRadius:8, fontWeight:800, fontSize: isMobile ? 15 : 12, cursor:"pointer" }}>
             {saving ? "…" : editId ? "Salva" : "Aggiungi"}
           </button>
-          {editId && <button onClick={reset} aria-label="Annulla modifica" style={{ padding: isMobile ? "14px" : "10px 14px", background:C.white, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize: isMobile ? 14 : 12, color:C.textMid, cursor:"pointer" }}>✕</button>}
+          {editId && <button onClick={reset} aria-label="Annulla modifica" style={{ padding: isMobile ? "14px" : "10px 14px", minWidth: 44, background:C.white, border:`1px solid ${C.borderStr}`, borderRadius:8, fontSize: isMobile ? 14 : 12, color:C.textMid, cursor:"pointer", display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={14}/></button>}
         </div>
       </div>
       )}

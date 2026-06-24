@@ -124,8 +124,8 @@ export default function OcrFatturaButton({ orgId, sedeId, onSave, buttonLabel = 
               </div>
             )}
             {error && (
-              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px', color: '#991B1B', fontSize: 13, marginBottom: 12 }}>
-                ⚠️ {error}
+              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 12px', color: '#991B1B', fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="alertCircle" size={14} /> {error}
               </div>
             )}
             {extracted && !loading && (

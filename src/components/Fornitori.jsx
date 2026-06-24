@@ -366,14 +366,14 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, onMutate }) 
                 {f.note && <div style={{ fontSize: 10, color: C.textSoft, marginTop: 4, fontStyle: "italic" }}>{f.note}</div>}
               </div>
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button onClick={() => initEdit(f)} title="Modifica" style={{ padding: "5px 10px", borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: 10, color: C.textMid, cursor: "pointer", display: "inline-flex", alignItems: "center" }}><Icon name="edit" size={13} /></button>
+                <button onClick={() => initEdit(f)} aria-label="Modifica fornitore" title="Modifica" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon name="edit" size={14} /></button>
                 {inArchivio ? (
                   <>
-                    <button onClick={() => riattiva(f.id)} title="Riattiva" style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid #10B981", background: "#ECFDF5", fontSize: 10, color: "#065F46", cursor: "pointer", fontWeight: 700, display: "inline-flex", alignItems: "center" }}><Icon name="refresh" size={13} /></button>
-                    <button onClick={() => elimina(f)} title="Elimina definitivamente" style={{ padding: "5px 10px", borderRadius: 8, border: `1px solid ${C.red}40`, background: C.redLight, fontSize: 10, color: C.red, cursor: "pointer", display: "inline-flex", alignItems: "center" }}><Icon name="trash" size={13} /></button>
+                    <button onClick={() => riattiva(f.id)} aria-label="Riattiva fornitore" title="Riattiva" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: "1px solid #10B981", background: "#ECFDF5", color: "#065F46", cursor: "pointer", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon name="refresh" size={14} /></button>
+                    <button onClick={() => elimina(f)} aria-label="Elimina fornitore definitivamente" title="Elimina definitivamente" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: `1px solid ${C.red}40`, background: C.redLight, color: C.red, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon name="trash" size={14} /></button>
                   </>
                 ) : (
-                  <button onClick={() => archivia(f.id)} title="Archivia" style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid #F59E0B", background: "#FEF3C7", fontSize: 10, color: "#92400E", cursor: "pointer", display: "inline-flex", alignItems: "center" }}><Icon name="package" size={13} /></button>
+                  <button onClick={() => archivia(f.id)} aria-label="Archivia fornitore" title="Archivia" style={{ width: 36, height: 36, padding: 0, borderRadius: 8, border: "1px solid #F59E0B", background: "#FEF3C7", color: "#92400E", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon name="package" size={14} /></button>
                 )}
               </div>
             </div>

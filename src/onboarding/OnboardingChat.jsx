@@ -71,11 +71,11 @@ const STEPS = [
     key: 'obiettivo',
     bot: 'Ultima domanda: qual è il tuo obiettivo principale con FoodOS?',
     options: [
-      { label: '💰 Calcolare il food cost vero', value: 'food_cost' },
-      { label: '📈 Capire dove perdo soldi', value: 'profittabilita' },
-      { label: '📦 Gestire meglio magazzino/sprechi', value: 'magazzino' },
-      { label: '🤖 Avere un assistente AI giornaliero', value: 'ai_assistant' },
-      { label: '🏆 Crescere con dati alla mano', value: 'crescita' },
+      { label: 'Calcolare il food cost vero', value: 'food_cost' },
+      { label: 'Capire dove perdo soldi', value: 'profittabilita' },
+      { label: 'Gestire meglio magazzino/sprechi', value: 'magazzino' },
+      { label: 'Avere un assistente AI giornaliero', value: 'ai_assistant' },
+      { label: 'Crescere con dati alla mano', value: 'crescita' },
     ],
   },
 ]

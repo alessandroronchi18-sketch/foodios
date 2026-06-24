@@ -215,7 +215,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                       <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false })} disabled={q <= 0}
-                        style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 11, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer', marginRight: 4 }}>
+                        style={{ padding: '8px 12px', minHeight: 36, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 12, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer', marginRight: 4 }}>
                         Scarto
                       </button>
                       {q > 0 && (
@@ -454,11 +454,11 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                     <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {editing ? (
                         <>
-                          <button onClick={() => tentaSalva(row)} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: 10, fontWeight: 800, cursor: 'pointer', marginRight: 4 }}>Salva</button>
-                          <button onClick={cancelEdit} style={{ padding: '6px 10px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 10, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
+                          <button onClick={() => tentaSalva(row)} style={{ padding: '8px 14px', minHeight: 36, borderRadius: 6, border: 'none', background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', marginRight: 4 }}>Salva</button>
+                          <button onClick={cancelEdit} style={{ padding: '8px 12px', minHeight: 36, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
                         </>
                       ) : (
-                        <button onClick={() => startEdit(row)} style={{ padding: '6px 12px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 10, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="edit" size={11} />Modifica</button>
+                        <button onClick={() => startEdit(row)} style={{ padding: '8px 14px', minHeight: 36, borderRadius: 6, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="edit" size={13} />Modifica</button>
                       )}
                     </td>
                   </tr>

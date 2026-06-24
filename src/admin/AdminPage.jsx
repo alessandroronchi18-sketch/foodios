@@ -2568,7 +2568,7 @@ export default function AdminPage() {
               <option value="hot">🔥 Hot — da chiamare</option>
               <option value="silent">😴 Silent — trial inattivo</option>
               <option value="churning">☠️ Churn risk — pagante in calo</option>
-              <option value="new_value">✨ New value — primo wow</option>
+              <option value="new_value">New value — primo wow</option>
               <option value="errors">⚠ Errors — bug ricorrenti</option>
             </select>
           </div>
@@ -2669,7 +2669,7 @@ export default function AdminPage() {
                                 hot: { bg: '#FEF3C7', fg: '#92400E', txt: '🔥 hot' },
                                 silent: { bg: '#E0E7FF', fg: '#3730A3', txt: '😴 silent' },
                                 churning: { bg: COLORS.errBg, fg: COLORS.err, txt: '☠️ churn' },
-                                new_value: { bg: COLORS.okBg, fg: COLORS.ok, txt: '✨ new value' },
+                                new_value: { bg: COLORS.okBg, fg: COLORS.ok, txt: 'new value' },
                                 errors: { bg: COLORS.errBg, fg: COLORS.err, txt: '⚠ errors' },
                                 blocked: { bg: COLORS.blockedBg, fg: COLORS.blocked, txt: '🚫 blocked' },
                               }[s.status] || { bg: COLORS.rowAlt, fg: COLORS.textMute, txt: s.status }
@@ -3045,7 +3045,7 @@ export default function AdminPage() {
               const def = defaults[plan]
               const row = pricing.find(p => p.plan === plan) || { plan, ...def, stripe_price_id: null }
               const inEdit = priceDraft?.plan === plan
-              const euroAttuale = (row.prezzo_mese_cents / 100).toFixed(2)
+              const euroAttuale = Number(row.prezzo_mese_cents / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
               const nomeAttuale = row.nome_display || def.nome_display
               const descrAttuale = row.descrizione || def.descrizione
               return (
@@ -3185,7 +3185,7 @@ export default function AdminPage() {
                         </td>
                         <td style={td()}>
                           <span style={{ fontWeight: 700, color: c.valore_sconto === 100 && c.tipo_sconto === 'percent' ? '#059669' : COLORS.accent }}>
-                            {c.tipo_sconto === 'percent' ? `-${c.valore_sconto}%` : `-€${(c.valore_sconto / 100).toFixed(2)}`}
+                            {c.tipo_sconto === 'percent' ? `-${c.valore_sconto}%` : `-€${Number(c.valore_sconto / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                           </span>
                           {c.valore_sconto === 100 && c.tipo_sconto === 'percent' && (
                             <div style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}><Icon name="gift" size={11} /> Gratis</div>
@@ -3354,7 +3354,7 @@ export default function AdminPage() {
                           {e.customer_email || (e.customer_id ? <code>{e.customer_id.slice(0, 16)}…</code> : '—')}
                         </td>
                         <td style={{ padding: '8px 18px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          {e.amount_cents != null ? `${(e.amount_cents / 100).toFixed(2)} ${(e.currency || 'EUR').toUpperCase()}` : ''}
+                          {e.amount_cents != null ? `${Number(e.amount_cents / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${(e.currency || 'EUR').toUpperCase()}` : ''}
                         </td>
                       </tr>
                     )
@@ -3850,7 +3850,7 @@ export default function AdminPage() {
           </div>
           {errorsGrouped.length === 0 ? (
             <div style={{ padding: 30, textAlign: 'center', color: COLORS.textMute, fontSize: 12 }}>
-              {errorsGroupedLoading ? 'Caricamento…' : 'Nessun errore raggruppato in questo periodo. 🎉'}
+              {errorsGroupedLoading ? 'Caricamento…' : 'Nessun errore raggruppato in questo periodo.'}
             </div>
           ) : (
             <div style={{ maxHeight: 500, overflowY: 'auto' }}>
@@ -3934,14 +3934,14 @@ export default function AdminPage() {
                           {c.nome || (c.organization_id || '').slice(0, 8) + '…'}
                         </td>
                         <td style={{ ...td(), textAlign: 'right', fontWeight: 700, color: c.total_cost_usd > 5 ? COLORS.err : c.total_cost_usd > 1 ? COLORS.warn : COLORS.text, fontVariantNumeric: 'tabular-nums' }}>
-                          ${c.total_cost_usd.toFixed(3)}
+                          ${Number(c.total_cost_usd).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                         </td>
                         <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums' }}>{c.total_calls}</td>
                         <td style={{ ...td(), textAlign: 'right', color: COLORS.textMute, fontVariantNumeric: 'tabular-nums', fontSize: 10 }}>
                           {Math.round(c.tokens_in / 1000)}k / {Math.round(c.tokens_out / 1000)}k
                         </td>
                         <td style={{ ...td(), fontSize: 11 }}>
-                          {c.top_features.map(f => `${f.feature} $${f.cost_usd.toFixed(2)}`).join(' · ')}
+                          {c.top_features.map(f => `${f.feature} $${Number(f.cost_usd).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(' · ')}
                         </td>
                         <td style={{ ...td(), color: COLORS.textMute, fontSize: 11 }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '—'}</td>
                       </tr>
@@ -4531,7 +4531,7 @@ export default function AdminPage() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 700, color: COLORS.ok, fontSize: 13 }}>
-                      €{((r.ammontare_scontato_cents || 0) / 100).toFixed(2)} scontati
+                      €{Number((r.ammontare_scontato_cents || 0) / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} scontati
                     </div>
                     {r.stripe_invoice_id && (
                       <div style={{ fontSize: 10, color: COLORS.textMute, fontFamily: 'monospace' }}>{r.stripe_invoice_id.slice(0, 18)}…</div>
@@ -4540,7 +4540,7 @@ export default function AdminPage() {
                 </div>
               ))}
               <div style={{ padding: 10, background: COLORS.blueBg, borderRadius: 8, fontSize: 11, color: COLORS.blue }}>
-                Totale risparmiato: <strong>€{(redemptions.reduce((s, r) => s + (r.ammontare_scontato_cents || 0), 0) / 100).toFixed(2)}</strong> · {redemptions.length} utilizzi
+                Totale risparmiato: <strong>€{Number(redemptions.reduce((s, r) => s + (r.ammontare_scontato_cents || 0), 0) / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> · {redemptions.length} utilizzi
               </div>
             </div>
           )}

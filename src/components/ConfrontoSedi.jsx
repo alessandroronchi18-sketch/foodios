@@ -679,7 +679,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   padding: isMobile ? 14 : 18,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 22 }}>🏆</span>
+                    <Icon name="award" size={22} color={GRN}/>
                     <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GRN }}>
                       Sede champion (replica il modello)
                     </div>
@@ -724,7 +724,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: SOFT }}>
-                    📊 Visualizzazione interattiva
+                    Visualizzazione interattiva
                   </div>
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {METRICS.map(m => (
@@ -799,7 +799,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           {ranking.length >= 2 && (
             <div style={{ background: 'linear-gradient(180deg, #FFFEF0 0%, #FFF 80%)', border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 20, marginBottom: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
-                🏆 Classifica ricavi {periodoLabel}
+                Classifica ricavi {periodoLabel}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {ranking.map((r, i) => {
@@ -835,7 +835,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           {alerts.length > 0 && (
             <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginBottom: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: SOFT, marginBottom: 10 }}>
-                ⚠️ Alerts da gestire ({alerts.length})
+                Alerts da gestire ({alerts.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {alerts.map((a, i) => {

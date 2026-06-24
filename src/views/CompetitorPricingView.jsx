@@ -319,7 +319,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
       )}
 
       <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
-        💡 V2 in roadmap: scraping automatico menu pubblici (Google Maps / Just Eat) in raggio 1km dalla sede.
+        V2 in roadmap: scraping automatico menu pubblici (Google Maps / Just Eat) in raggio 1km dalla sede.
       </div>
     </div>
   )

@@ -392,7 +392,7 @@ function Step3Done({ result, cliente, onImpersona, onClose }) {
   return (
     <div>
       <div style={{ padding: 16, background: P.okBg, borderRadius: 10, marginBottom: 16, textAlign: 'center', border: `1px solid ${P.ok}` }}>
-        <div style={{ fontSize: 32, marginBottom: 4 }}>✨</div>
+        <div style={{ marginBottom: 4 }}><Icon name="sparkles" size={32} color={P.ok}/></div>
         <div style={{ fontSize: 15, fontWeight: 800, color: P.ok, marginBottom: 4 }}>
           Demo personalizzata popolata
         </div>

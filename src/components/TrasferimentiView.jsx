@@ -466,7 +466,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           padding: isMobile ? 14 : 18, marginTop: 18, marginBottom: 16,
         }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
-            📊 Accuratezza mese
+            Accuratezza mese
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
             <div>
@@ -511,7 +511,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#0369A1' }}>
-              ⚡ Trasferimenti rapidi salvati
+              Trasferimenti rapidi salvati
             </div>
             <div style={{ fontSize: 11, color: '#075985' }}>1 click → form pre-compilato</div>
           </div>
@@ -761,7 +761,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {scope === 'tutte' && flussiMese.length > 0 && !loading && (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: isMobile ? 14 : 18, marginBottom: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
-            📊 Flussi questo mese
+            Flussi questo mese
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
             {flussiMese.map((f, i) => {

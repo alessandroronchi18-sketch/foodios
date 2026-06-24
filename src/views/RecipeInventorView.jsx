@@ -227,8 +227,8 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 11 }}>
                 {r.tempo_preparazione_min && <Chip>⏱ {r.tempo_preparazione_min} min</Chip>}
                 {r.porzioni && <Chip>👥 {r.porzioni} porzioni</Chip>}
-                {r.food_cost_stimato_pz && <Chip>💰 FC € {Number(r.food_cost_stimato_pz).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz</Chip>}
-                {r.prezzo_consigliato && <Chip color={BRAND}>📍 vendi € {Number(r.prezzo_consigliato).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Chip>}
+                {r.food_cost_stimato_pz && <Chip>FC € {Number(r.food_cost_stimato_pz).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz</Chip>}
+                {r.prezzo_consigliato && <Chip color={BRAND}>vendi € {Number(r.prezzo_consigliato).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Chip>}
               </div>
               {Array.isArray(r.ingredienti) && (
                 <div>
@@ -252,7 +252,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
               )}
               {r.perche_funziona && (
                 <div style={{ fontSize: 11.5, color: SOFT, fontStyle: 'italic', borderTop: `1px solid ${BORDER}`, paddingTop: 8 }}>
-                  💡 {r.perche_funziona}
+                  {r.perche_funziona}
                 </div>
               )}
             </div>
@@ -261,7 +261,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
       )}
 
       <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
-        ⚠️ Le ricette sono proposte AI. Testale sempre con piccole produzioni prima di metterle in vetrina.
+        Le ricette sono proposte AI. Testale sempre con piccole produzioni prima di metterle in vetrina.
       </div>
     </div>
   )
