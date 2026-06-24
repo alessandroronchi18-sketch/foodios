@@ -876,8 +876,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 <div style={{ position: 'relative', maxWidth: isMobile ? 200 : 'none' }}>
                   <img src={preview} alt="scontrino" style={{ width: '100%', borderRadius: 10, border: `1px solid ${C.border}`, display: 'block' }}/>
                   <button aria-label="Rimuovi foto scontrino" onClick={() => { setPreview(null); setImg(null); setVenduto(null); setSalvato(false); if (inputRef.current) inputRef.current.value = '' }}
-                    aria-label="Rimuovi"
-                    style={{ position: 'absolute', top: 5, right: 5, width: isMobile ? 40 : 20, height: isMobile ? 40 : 20, borderRadius: isMobile ? 8 : 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: isMobile ? 16 : 10, cursor: 'pointer', fontWeight: 700 }}>✕</button>
+                    style={{ position: 'absolute', top: 5, right: 5, width: isMobile ? 40 : 24, height: isMobile ? 40 : 24, borderRadius: isMobile ? 8 : 10, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#FFF', fontSize: isMobile ? 16 : 12, cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={isMobile ? 18 : 12} color="#FFF"/></button>
                   <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFile}/>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
