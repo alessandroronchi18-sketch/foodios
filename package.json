@@ -20,7 +20,7 @@
     "check": "npm run lint && npm run test && npm run build",
     "prepush": "npm run lint && npm test && npm run build",
     "hooks:install": "bash scripts/install-hooks.sh",
-    "postinstall": "bash scripts/install-hooks.sh || true"
+    "postinstall": "node -e \"if(!process.env.CI&&!process.env.VERCEL&&!process.env.GITHUB_ACTIONS){try{require('child_process').execSync('bash scripts/install-hooks.sh',{stdio:'inherit'})}catch(e){}}\""
   },
   "dependencies": {
     "@sentry/react": "^10.53.1",

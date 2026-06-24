@@ -214,13 +214,22 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px 16px',
+      padding: '88px 16px 32px',  // padding-top 88 per dare spazio al top bar fixed
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     }}>
-      {/* Top bar: progress dots + skip ghost */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, padding: '20px 28px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* Top bar fixed: logo F + FoodOS · progress dots centrate · Salta tutto.
+          Su mobile la riga e' stretta — riduciamo spacing e il "Salta tutto"
+          dello Step 1 e' sotto al bottone Iniziamo (qui solo da Step 2 in poi). */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0,
+        padding: '14px 16px',
+        background: 'rgba(252,253,254,0.92)',
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        borderBottom: '1px solid rgba(229,233,239,0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 8, zIndex: 10,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8,
             background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -228,7 +237,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
             boxShadow: '0 4px 10px rgba(110,14,26,0.32)' }}>F</div>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#0E1726', letterSpacing: '-0.01em' }}>FoodOS</div>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
           {[1,2,3].map(i => (
             <div key={i} style={{
               width: i === step ? 24 : 6,
@@ -239,9 +248,14 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
             }} />
           ))}
         </div>
-        <button onClick={onSkip} style={BTN_GHOST}>
-          Salta tutto →
-        </button>
+        {/* Step 1: nessun skip qui (e' sotto al CTA Iniziamo). Step 2+: skip qui. */}
+        {step >= 2 ? (
+          <button onClick={onSkip} style={BTN_GHOST}>
+            Salta tutto →
+          </button>
+        ) : (
+          <div style={{ width: 60, flexShrink: 0 }} />
+        )}
       </div>
 
       <div style={{ width: '100%', maxWidth: 560, textAlign: 'center' }}>
@@ -263,36 +277,47 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               Benvenuto{nomeAttivita ? ', ' : ''}<br/>
               <span style={{ color: BRAND }}>{nomeAttivita || 'la tua attività'}</span>
             </h1>
-            <p style={{ color: '#475264', fontSize: 17, lineHeight: 1.55,
-              marginBottom: 14, letterSpacing: '-0.005em' }}>
-              In <strong style={{ color: '#0E1726', fontWeight: 600 }}>2 minuti</strong> sei operativo.
+            <p style={{ color: '#475264', fontSize: 17, lineHeight: 1.7,
+              marginBottom: 24, letterSpacing: '-0.005em', textAlign: 'center' }}>
+              In <strong style={{ color: '#0E1726', fontWeight: 600 }}>2 minuti</strong> sei operativo.<br/>
               Hai <strong style={{ color: '#0E1726', fontWeight: 600 }}>3 mesi gratuiti</strong> per esplorare.
             </p>
-            <div style={{ display: 'inline-flex', flexWrap: 'wrap', justifyContent: 'center', gap: 16,
-              padding: '14px 18px', background: '#FFF',
+            {/* 4 feature key icon, allineate in grid 2x2 — icone tutte alla stessa coord X */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto auto',
+              justifyContent: 'center', alignItems: 'center',
+              columnGap: 28, rowGap: 12,
+              padding: '16px 20px', background: '#FFF',
               border: '1px solid #E5E9EF', borderRadius: 12,
-              marginBottom: 32, maxWidth: 480,
+              marginBottom: 28, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto',
               boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }}>
               {[
-                ['barChart', 'Food cost in real-time'],
-                ['camera', 'OCR scontrini'],
-                ['store', 'Multi-sede'],
-                ['shield', 'HACCP ASL-ready'],
+                ['barChart', 'Food cost real-time'],
+                ['camera',   'OCR scontrini'],
+                ['store',    'Multi-sede'],
+                ['package',  'Magazzino & sprechi'],
               ].map(([ico, txt]) => (
-                <div key={txt} style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
-                  fontSize: 12.5, color: '#475264', fontWeight: 500 }}>
-                  <Icon name={ico} size={14} color={BRAND} />
-                  <span>{txt}</span>
+                <div key={txt} style={{ display: 'flex', alignItems: 'center', gap: 8,
+                  fontSize: 13, color: '#475264', fontWeight: 500, justifyContent: 'flex-start' }}>
+                  <Icon name={ico} size={16} color={BRAND} />
+                  <span style={{ whiteSpace: 'nowrap' }}>{txt}</span>
                 </div>
               ))}
             </div>
-            <div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
               <button onClick={() => setStep(2)} style={BTN_PRIMARY}>
                 Iniziamo
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="9 18 15 12 9 6"/>
                 </svg>
+              </button>
+              <button onClick={onSkip} style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: '#64748B', fontSize: 14, fontWeight: 600,
+                padding: '8px 16px', textDecoration: 'underline',
+                fontFamily: 'inherit',
+              }}>
+                Salta tutto e vai alla dashboard
               </button>
             </div>
           </div>
@@ -302,11 +327,12 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
         {step === 2 && (
           <div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
-              margin: '0 0 12px', letterSpacing: '-0.025em' }}>
+              margin: '20px 0 16px', letterSpacing: '-0.025em' }}>
               Come vuoi iniziare?
             </h1>
-            <p style={{ color: '#8B95A7', fontSize: 14, lineHeight: 1.5, marginBottom: 28 }}>
-              Tutto è modificabile dopo. Puoi anche saltare e tornare quando vuoi.
+            <p style={{ color: '#64748B', fontSize: 14, lineHeight: 1.55, marginBottom: 32,
+              maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
+              Tutto si modifica dopo. Puoi saltare e tornare quando vuoi.
             </p>
 
             <div style={{ display: 'grid', gap: 12, marginBottom: 24 }}>
@@ -336,9 +362,9 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                   width: 48, height: 48, borderRadius: 12, flexShrink: 0,
                   background: parseStats ? '#16A34A' : '#F1F4F8',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22, color: parseStats ? '#FFF' : '#475264',
+                  color: parseStats ? '#FFF' : '#475264',
                 }}>
-                  {parseError ? <Icon name="warning" size={22}/> : parseStats ? '✓' : (parsing ? <Icon name="hourglass" size={22}/> : <Icon name="folder" size={22}/>)}
+                  {parseError ? <Icon name="warning" size={22}/> : parseStats ? <Icon name="check" size={22} color="#FFF"/> : (parsing ? <Icon name="hourglass" size={22}/> : <Icon name="folder" size={22}/>)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3,
@@ -355,12 +381,25 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                           : 'Trascina qui o clicca per selezionare un file .xlsx'}
                   </div>
                   {!parseStats && !parsing && (
-                    <div style={{ marginTop: 4, fontSize: 11.5, color: '#8B95A7' }}>
-                      Non hai un file? <a
-                        href="#"
+                    <div style={{ marginTop: 8 }}>
+                      <button
+                        type="button"
                         onClick={e => { e.preventDefault(); e.stopPropagation(); downloadTemplate() }}
-                        style={{ color: BRAND, textDecoration: 'underline', fontWeight: 500 }}
-                      >Scarica template</a>
+                        style={{
+                          background: '#FFF',
+                          border: `1px solid ${BRAND}`,
+                          color: BRAND,
+                          padding: '6px 12px',
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      ><Icon name="download" size={12}/> Scarica template Excel</button>
                     </div>
                   )}
                 </div>
@@ -375,85 +414,94 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               {/* Path B: demo data 1-click (anti "schermata vuota") */}
               <button onClick={handleDemoSeed} disabled={demoSeeding || parsing || !!parseStats}
                 style={{
-                  textAlign: 'left', padding: '16px 20px',
+                  textAlign: 'left', padding: '20px 22px',
                   background: demoStats ? '#F0FDF4' : '#FFFBEB',
-                  border: `1.5px solid ${demoStats ? '#16A34A' : '#FBBF24'}`,
-                  borderRadius: 12,
+                  border: `2px solid ${demoStats ? '#16A34A' : '#FBBF24'}`,
+                  borderRadius: 14,
                   cursor: (demoSeeding || parsing || parseStats) ? 'not-allowed' : 'pointer',
                   opacity: (parsing || parseStats) ? 0.55 : 1,
-                  display: 'flex', alignItems: 'center', gap: 14,
+                  display: 'flex', alignItems: 'center', gap: 16,
                   transition: 'all 0.18s',
+                  fontFamily: 'inherit',
                 }}
                 onMouseEnter={e => { if (!demoSeeding && !parsing && !parseStats && !demoStats) e.currentTarget.style.borderColor = '#F59E0B' }}
                 onMouseLeave={e => { if (!demoSeeding && !demoStats) e.currentTarget.style.borderColor = '#FBBF24' }}
               >
                 <div style={{
-                  width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                  width: 48, height: 48, borderRadius: 12, flexShrink: 0,
                   background: demoStats ? '#16A34A' : '#FEF3C7',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: demoStats ? '#FFF' : '#92400E',
                 }}>
-                  {demoStats ? '✓' : <Icon name={demoSeeding ? 'hourglass' : 'sparkles'} size={20}/>}
+                  {demoStats ? <Icon name="check" size={22} color="#FFF"/> : <Icon name={demoSeeding ? 'hourglass' : 'sparkles'} size={22}/>}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0E1726', marginBottom: 2 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3, letterSpacing: '-0.01em' }}>
                     {demoStats
-                      ? 'Dati demo caricati!'
+                      ? 'Dati demo caricati'
                       : demoSeeding
                         ? 'Carico i dati demo…'
-                        : 'Vedi com\'è con dati demo'}
+                        : 'Esplora con dati di esempio'}
                   </div>
-                  <div style={{ fontSize: 12, color: demoError ? '#DC2626' : '#475264', lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 13, color: demoError ? '#DC2626' : '#475264', lineHeight: 1.5 }}>
                     {demoError
                       ? demoError
                       : demoStats
-                        ? `${demoStats.ricette} ricette · ${demoStats.ingredienti} ingredienti · ${demoStats.chiusure} chiusure storiche · 1 fattura aperta. Pronti da esplorare.`
-                        : '5 ricette tipo, magazzino, 7gg di chiusure + 1 fattura demo. Cancellabili in 1 click.'}
+                        ? `${demoStats.ricette} ricette · ${demoStats.ingredienti} ingredienti · ${demoStats.chiusure} chiusure · 1 fattura. Pronti da esplorare.`
+                        : '5 ricette tipo, magazzino e chiusure cassa precaricate. Rimuovi tutto con 1 click.'}
                   </div>
                 </div>
               </button>
 
-              {/* Hint metodo Inventario gusti per gelaterie / laboratori */}
-              <div style={{
-                padding: '12px 14px', background: '#F0F9FF',
-                border: '1px solid #BAE6FD', borderRadius: 10,
-                fontSize: 12, color: '#075985', lineHeight: 1.5,
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-              }}>
-                <Icon name="info" size={15} style={{ flexShrink: 0, marginTop: 1 }} color="#0284C7"/>
-                <div>
-                  <strong>Sei una gelateria o un laboratorio?</strong> Se produci gusti
-                  (pistacchio, nocciola...) ma vendi formati (cono, coppetta, vaschetta),
-                  puoi attivare il metodo <strong>Inventario gusti</strong> dopo l'onboarding
-                  in <strong>Impostazioni → Sedi</strong>.
-                </div>
-              </div>
-
-              {/* Path C: inizia vuoto */}
+              {/* Path C: inizia vuoto — stesso layout dei box sopra, palette neutra */}
               <button onClick={onComplete} disabled={parsing}
                 style={{
-                  textAlign: 'left', padding: '16px 20px',
-                  background: 'transparent',
-                  border: '1px dashed #CBD5E1',
-                  borderRadius: 12,
+                  textAlign: 'left', padding: '20px 22px',
+                  background: '#F8FAFC',
+                  border: '2px solid #E5E9EF',
+                  borderRadius: 14,
                   cursor: parsing ? 'wait' : 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 14,
-                  color: '#8B95A7',
+                  display: 'flex', alignItems: 'center', gap: 16,
                   transition: 'all 0.18s',
+                  fontFamily: 'inherit',
+                  width: '100%',
                 }}
-                onMouseEnter={e => { if (!parsing) { e.currentTarget.style.borderColor = '#94A3B8'; e.currentTarget.style.color = '#475264' } }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.color = '#8B95A7' }}
+                onMouseEnter={e => { if (!parsing) e.currentTarget.style.borderColor = '#94A3B8' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E9EF' }}
               >
-                <div style={{ display: 'inline-flex' }}><Icon name="bolt" size={20}/></div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2, letterSpacing: '-0.005em' }}>
-                    Inizia vuoto, configurerò dopo
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+                  background: '#FFFFFF',
+                  border: '1px solid #E5E9EF',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#64748B',
+                }}>
+                  <Icon name="bolt" size={22}/>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0E1726', marginBottom: 3, letterSpacing: '-0.01em' }}>
+                    Inizia vuoto
                   </div>
-                  <div style={{ fontSize: 11.5, lineHeight: 1.4 }}>
-                    Vai direttamente alla dashboard senza dati.
+                  <div style={{ fontSize: 13, color: '#475264', lineHeight: 1.5 }}>
+                    Vai diretto alla dashboard. Aggiungi ricette e dati quando vuoi.
                   </div>
                 </div>
               </button>
+
+              {/* Hint gelateria/laboratorio — meno prominente, fuori dai 3 box azione */}
+              <div style={{
+                padding: '10px 14px', background: '#F0F9FF',
+                border: '1px solid #BAE6FD', borderRadius: 10,
+                fontSize: 12, color: '#075985', lineHeight: 1.5,
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+                marginTop: 4,
+              }}>
+                <Icon name="info" size={14} style={{ flexShrink: 0, marginTop: 2 }} color="#0284C7"/>
+                <div>
+                  Hai una gelateria o un laboratorio con gusti e formati separati?
+                  Attiva l'<strong>Inventario gusti</strong> dopo, da <strong>Impostazioni → Sedi</strong>.
+                </div>
+              </div>
             </div>
           </div>
         )}
