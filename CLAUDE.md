@@ -126,10 +126,16 @@ Esempio: `ProduzioneGiornalieraView.handleConferma` (riga ~100).
 ## Come avviare in locale
 
 ```bash
-npm install
+npm install                 # installa anche i git hooks via postinstall
 cp .env.example .env.local  # poi inserisci le tue chiavi Supabase + admin email
 npm run dev                 # http://localhost:5173
 ```
+
+**Git pre-push hook attivo**: ogni push su `main` esegue automaticamente
+`eslint src/` + `npm test` + `npm run build`. Se uno fallisce, il push e'
+bloccato. Per bypassare in emergenza: `git push --no-verify` (sconsigliato).
+Branch personali (feat/* fix/*) pushano senza gate — il check lo fa la CI
+sulla PR.
 
 Per testare le API in locale serve Vercel Dev:
 ```bash

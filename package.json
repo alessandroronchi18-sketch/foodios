@@ -17,7 +17,10 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:install": "playwright install --with-deps chromium",
-    "check": "npm run lint && npm run test"
+    "check": "npm run lint && npm run test && npm run build",
+    "prepush": "npm run lint && npm test && npm run build",
+    "hooks:install": "bash scripts/install-hooks.sh",
+    "postinstall": "bash scripts/install-hooks.sh || true"
   },
   "dependencies": {
     "@sentry/react": "^10.53.1",

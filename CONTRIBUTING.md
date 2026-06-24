@@ -31,11 +31,27 @@ Tipi:
 
 1. Crea branch da `main`: `git checkout -b fix/<short-desc>`
 2. Codice + test
-3. Lint + test locale: `npm run check` (eseguire lint + test)
+3. Lint + test + build locale: `npm run check` (lint + test + build)
 4. Commit con messaggio descrittivo
-5. Push e apri PR
-6. Aspetta CI: unit + lighthouse + security-audit + migration-check
+5. Push — il **pre-push hook** ri-esegue lint + test + build (solo se pushi su `main`)
+6. Aspetta CI GH Actions: unit + lighthouse + security-audit + migration-check + deploy
 7. Se CI verde, merge
+
+### Git pre-push hook
+
+Installato automaticamente dal `npm install` via `scripts/install-hooks.sh`. Si
+attiva solo sui push diretti a `main` (branch personali no — la PR fa il check).
+
+Cosa fa:
+- ESLint: 0 errori (warnings fino a 200 OK)
+- Vitest unit tests: tutti devono passare
+- Build production: deve compilare
+
+Se uno fallisce, il push viene **bloccato**. Per emergenze: `git push --no-verify`
+(sconsigliato — è esattamente cosa è successo il 24 giu 2026 e ha causato 6 ore
+di sito mobile fermo a una versione vecchia).
+
+Reinstalla i hook manualmente: `npm run hooks:install`
 
 ## Cosa NON fare
 
