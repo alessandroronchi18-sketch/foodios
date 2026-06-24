@@ -25,6 +25,15 @@ vi.mock('../../src/lib/supabase', () => ({
   },
 }))
 
+// Audit 2026-06-24: mock aiClient per evitare fetch '/api/ai' (vedi nota in
+// views-render-smoke).
+vi.mock('../../src/lib/aiClient', () => ({
+  callAi: () => Promise.resolve({ text: '', json: null }),
+  parseAiJson: (s) => { try { return JSON.parse(s) } catch { return null } },
+  friendlyAiError: () => 'Errore AI (mock).',
+  sanitizeUserInput: (t) => String(t || ''),
+}))
+
 describe('Accessibility (axe-core) — form pubblici e onboarding', () => {
   it('AuthPage non ha violation strutturali a11y', async () => {
     const { default: AuthPage } = await import('../../src/auth/AuthPage')

@@ -16,6 +16,16 @@ export default defineConfig({
     // singleThread per evitare race su coverage temp dir su macOS.
     pool: 'threads',
     threads: { singleThread: true },
+    // Audit 2026-06-24: timeout esteso per i test dynamic-import (universal-
+    // import-smoke, views-render-smoke, accessibility-axe) che caricano file
+    // grandi (Dashboard 2900 righe, AdminPage 3300 righe) e in CI sotto carico
+    // possono superare 5s default.
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    // Limita massimi heap per evitare OOM su GitHub Actions runner (7GB).
+    maxConcurrency: 4,
+    // Slow-test reporter per identificare test problematici in futuro.
+    slowTestThreshold: 5000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],

@@ -53,6 +53,18 @@ vi.mock('../../src/lib/storage', () => ({
   sloadAllSedi: () => Promise.resolve({}),
 }))
 
+// Audit 2026-06-24: mock aiClient per evitare fetch '/api/ai' relativo che in
+// ambiente node viene risolto a http://127.0.0.1:3000 → ECONNREFUSED nei test
+// che renderizzano view con useEffect che invoca callAi (es. BrainView,
+// CompetitorPricing, ReformulationView).
+vi.mock('../../src/lib/aiClient', () => ({
+  callAi: () => Promise.resolve({ text: '', json: null, raw: null, ms: 0 }),
+  parseAiJson: (s) => { try { return JSON.parse(s) } catch { return null } },
+  friendlyAiError: () => 'Errore AI (mock).',
+  sanitizeUserInput: (t) => String(t || ''),
+  default: () => Promise.resolve({ text: '', json: null, raw: null, ms: 0 }),
+}))
+
 // Prop pack di base: copre la maggioranza delle view operative.
 const baseProps = {
   orgId: 'org-test',
