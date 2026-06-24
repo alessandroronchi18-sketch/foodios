@@ -8,7 +8,9 @@
 //
 // Cache versioning: bumpa CACHE_VERSION quando cambi contratti.
 
-const CACHE_VERSION = 'foodios-v1-2026-06-18';
+// IMPORTANT: bumpa questa versione ad ogni deploy con cambi UI/UX.
+// Altrimenti i client con SW attivo vedono il vecchio shell HTML/CSS.
+const CACHE_VERSION = 'foodios-v2-2026-06-24';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
