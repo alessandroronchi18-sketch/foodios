@@ -23,9 +23,19 @@ const RETRY_DELAY_MS = 1_200            // 1.2s prima di retry su errore transie
 // - Strip caratteri Unicode "zero-width" usati per prompt-injection invisibile
 // - Truncate per evitare body too large (max 100k char default)
 // - Trim
+// Escape unicode espliciti per evitare "irregular whitespace" ESLint:
+//   U+200B-U+200D = zero-width space/non-joiner/joiner (3 caratteri)
+//   U+2060-U+206F = word joiner + invisible operators (16 caratteri)
+//   U+FEFF        = BOM (1 carattere)
+// Usati per prompt-injection invisibile in stringhe.
+const ZERO_WIDTH_RE = new RegExp(
+  '[\\u200B-\\u200D\\u2060-\\u206F\\uFEFF]',
+  'g'
+)
+
 export function sanitizeUserInput(text, maxLen = 100_000) {
   if (text == null) return ''
-  const noZeroWidth = String(text).replace(/[​-‍⁠-⁯﻿]/g, '')
+  const noZeroWidth = String(text).replace(ZERO_WIDTH_RE, '')
   return noZeroWidth.slice(0, maxLen).trim()
 }
 
