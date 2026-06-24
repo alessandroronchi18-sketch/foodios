@@ -19,8 +19,7 @@
     "test:e2e:install": "playwright install --with-deps chromium",
     "check": "npm run lint && npm run test && npm run build",
     "prepush": "npm run lint && npm test && npm run build",
-    "hooks:install": "bash scripts/install-hooks.sh",
-    "postinstall": "node -e \"if(!process.env.CI&&!process.env.VERCEL&&!process.env.GITHUB_ACTIONS){try{require('child_process').execSync('bash scripts/install-hooks.sh',{stdio:'inherit'})}catch(e){}}\""
+    "hooks:install": "bash scripts/install-hooks.sh"
   },
   "dependencies": {
     "@sentry/react": "^10.53.1",
