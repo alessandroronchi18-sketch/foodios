@@ -11,6 +11,7 @@ import React from 'react'
 import { color as T } from '../lib/theme'
 import Icon from './Icon'
 import ChainBadge from './ChainBadge'
+import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 
 const BRAND      = T.brand   || '#6E0E1A'
 const TXT        = T.text    || '#0E1726'
@@ -19,10 +20,13 @@ const SOFT       = T.textSoft|| '#8B95A7'
 const CARD       = T.bgCard  || '#FFFFFF'
 const BORDER     = T.border  || '#E5E9EF'
 
-const PLAN_TIER = {
-  pro:        { label: 'Pro',   color: '#E89B43', prezzo: '€119/mese · €95 annuale', tagline: 'Il braccio destro digitale che lavora mentre dormi.' },
-  enterprise: { label: 'Chain', color: '#FFD86B', prezzo: '€299/mese · €239 annuale (+ setup €990)', tagline: 'Tutto quello che il tuo commercialista, il tuo team e il tuo CFO non sanno.' },
-  chain:      { label: 'Chain', color: '#FFD86B', prezzo: '€299/mese · €239 annuale (+ setup €990)', tagline: 'Tutto quello che il tuo commercialista, il tuo team e il tuo CFO non sanno.' },
+// Audit 2026-06-24: nome+prezzo del piano vengono dal hook usePlanPricing,
+// che a sua volta legge da /api/pricing → plan_pricing.nome_display modificabile
+// dall'admin. Color + tagline restano statici (decisione di brand, non admin).
+const PLAN_TIER_STATIC = {
+  pro:        { color: '#E89B43', tagline: 'Il braccio destro digitale che lavora mentre dormi.' },
+  enterprise: { color: '#FFD86B', tagline: 'Tutto quello che il tuo commercialista, il tuo team e il tuo CFO non sanno.' },
+  chain:      { color: '#FFD86B', tagline: 'Tutto quello che il tuo commercialista, il tuo team e il tuo CFO non sanno.' },
 }
 
 export default function UpgradeModal({
@@ -31,7 +35,17 @@ export default function UpgradeModal({
   onClose,
   onCta,
 }) {
-  const tier = PLAN_TIER[requiredPlan] || PLAN_TIER.enterprise
+  const planMeta = usePlanPricing()
+  // Alias retro-compat: 'enterprise' = 'chain' in plan_pricing.
+  const dynKey = requiredPlan === 'enterprise' ? 'chain' : requiredPlan
+  const dynLabel = planMeta.nome?.[dynKey] || (requiredPlan === 'enterprise' ? 'Insegna' : 'Maestro')
+  const dynPrezzo = planMeta[dynKey] // numero in euro
+  const tier = {
+    label:  dynLabel,
+    color:  (PLAN_TIER_STATIC[requiredPlan] || PLAN_TIER_STATIC.enterprise).color,
+    prezzo: dynPrezzo ? `€${fmtPrezzo(dynPrezzo)}/mese` : '',
+    tagline: (PLAN_TIER_STATIC[requiredPlan] || PLAN_TIER_STATIC.enterprise).tagline,
+  }
 
   return (
     <div role="dialog" aria-modal="true" aria-label={`Upgrade richiesto al piano ${tier.label}`}

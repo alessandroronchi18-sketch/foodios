@@ -1288,7 +1288,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
               gap: isMobile ? 16 : 20, alignItems: 'stretch',
             }}>
-              {/* BOTTEGA — piano entry singola sede */}
+              {/* BOTTEGA — piano entry singola sede (nome+desc da admin) */}
               <div style={{
                 background: T.cream,
                 border: `1px solid ${T.border}`,
@@ -1300,10 +1300,10 @@ export default function LandingPage({ onLogin, onRegister }) {
                   Single shop
                 </div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4 }}>
-                  Bottega
+                  {prezzi.nome?.base || 'Bottega'}
                 </div>
                 <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20 }}>
-                  Una sede, l'essenziale.
+                  {prezzi.desc?.base || 'Una sede, l\'essenziale.'}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
                   <span style={{ fontFamily: SERIF, fontSize: 48, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.base)}</span>
@@ -1357,9 +1357,9 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div style={{
                   fontFamily: SERIF, fontWeight: 600,
                   fontSize: 26, color: T.cream, letterSpacing: '-0.02em', marginBottom: 4,
-                }}>Maestro</div>
+                }}>{prezzi.nome?.pro || 'Maestro'}</div>
                 <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.65)', marginBottom: 20 }}>
-                  Sostituisce un controller part-time.
+                  {prezzi.desc?.pro || 'Sostituisce un controller part-time.'}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
                   <span style={{ fontFamily: SERIF, fontSize: isMobile ? 56 : 64, fontWeight: 600, color: '#FFF', letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.pro)}</span>
@@ -1403,10 +1403,10 @@ export default function LandingPage({ onLogin, onRegister }) {
                   Multi-sede / catena
                 </div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4 }}>
-                  Insegna
+                  {prezzi.nome?.chain || 'Insegna'}
                 </div>
                 <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20 }}>
-                  Sostituisce 1 controller + IT contractor.
+                  {prezzi.desc?.chain || 'Sostituisce 1 controller + IT contractor.'}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
                   <span style={{ fontFamily: SERIF, fontSize: 48, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.chain)}</span>

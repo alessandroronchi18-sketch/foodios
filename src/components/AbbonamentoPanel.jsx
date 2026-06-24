@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { apiFetch } from '../lib/apiFetch'
+import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 
 // Audit 2026-06-21: 3-tier Bottega/Maestro/Insegna con ROI claim.
 // Fallback statico — viene sovrascritto dalla query plan_pricing al mount
@@ -80,27 +81,23 @@ const PIANI_DEFAULT = [
 export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   const [loading, setLoading] = useState(null) // 'pro' | 'chain' | 'portal' | null
   const [billingMsg, setBillingMsg] = useState(null)
-  // Audit 2026-06-21: legge plan_pricing dinamico se admin ha modificato.
-  const [PIANI, setPIANI] = useState(PIANI_DEFAULT)
-  useEffect(() => {
-    let alive = true
-    supabase.from('plan_pricing').select('*').then(({ data }) => {
-      if (!alive || !data || data.length === 0) return
-      // Merge: per ogni piano default, sovrascrivi prezzo/nome/desc se in DB
-      const byPlan = {}
-      for (const r of data) byPlan[r.plan] = r
-      setPIANI(prev => prev.map(p => {
-        const r = byPlan[p.id]
-        if (!r) return p
-        const out = { ...p }
-        if (r.prezzo_mese_cents != null) out.prezzo = `€${Math.round(r.prezzo_mese_cents / 100).toLocaleString('it-IT')}`
-        if (r.nome_display) out.label = r.nome_display
-        if (r.descrizione) out.desc = r.descrizione
-        return out
-      }))
-    })
-    return () => { alive = false }
-  }, [])
+  // Audit 2026-06-24: source of truth unificata via usePlanPricing.
+  // L'admin modifica `plan_pricing` → /api/pricing → hook → tutto si aggiorna
+  // automaticamente (landing, abbonamento, modali, email).
+  const planMeta = usePlanPricing()
+  const PIANI = PIANI_DEFAULT.map(p => {
+    // Alias retro-compat: 'enterprise' = 'chain' in plan_pricing.
+    const key = p.id === 'enterprise' ? 'chain' : p.id
+    const dynPrezzo = planMeta[key]
+    const dynNome = planMeta.nome?.[key]
+    const dynDesc = planMeta.desc?.[key]
+    return {
+      ...p,
+      prezzo: dynPrezzo ? `€${fmtPrezzo(dynPrezzo)}` : p.prezzo,
+      label:  dynNome || p.label,
+      desc:   dynDesc || p.desc,
+    }
+  })
 
   // Intercetta il redirect da Stripe Checkout (?billing=success / cancel)
   useEffect(() => {

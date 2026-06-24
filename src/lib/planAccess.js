@@ -61,6 +61,10 @@ export const VIEW_MIN_PLAN = {
 
 // Etichetta leggibile del piano (per i messaggi di upgrade).
 // Audit 2026-06-21: rinominati a Bottega/Maestro/Insegna.
+// Audit 2026-06-24: questi sono SOLO FALLBACK. La sorgente di verità è
+// `plan_pricing.nome_display` modificabile dall'admin. Per leggere il nome
+// dinamico usa `getPlanLabel(plan)` da `./usePlanPricing.js` (sync, cache)
+// oppure `usePlanPricing().nome.{base,pro,chain}` (hook React).
 export const PLAN_LABEL = {
   trial:      'Prova',
   base:       'Bottega',
@@ -119,9 +123,22 @@ export function canAccessView(view, piano, userEmail) {
 }
 
 // Piano (etichetta) richiesto da una view gated, o null se libera.
+// Audit 2026-06-24: usa il nome dinamico via cache singleton se disponibile,
+// altrimenti fallback statico (es. prima del primo fetch /api/pricing).
+// La cache si popola al primo render della LandingPage / AbbonamentoPanel.
 export function requiredPlanLabel(view) {
   const need = VIEW_MIN_PLAN[view]
-  return need ? (PLAN_LABEL[need] || need) : null
+  if (!need) return null
+  // Leggi dal singleton globale window.__foodos_plan_cache (popolato da
+  // usePlanPricing al primo fetch). Evita import cycle.
+  try {
+    const cache = (typeof window !== 'undefined') ? window.__foodos_plan_cache : null
+    if (cache) {
+      const key = need === 'enterprise' ? 'chain' : need
+      if (cache[key]?.nome_display) return cache[key].nome_display
+    }
+  } catch {}
+  return PLAN_LABEL[need] || need
 }
 
 // Label leggibile della view per i prompt di upgrade. Solo le view-id
