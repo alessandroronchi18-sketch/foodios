@@ -135,7 +135,8 @@ function Button({ children, variant = 'primary', onClick, style, size = 'md' }) 
         padding: px, fontSize: fs, fontWeight: 600, fontFamily: SANS,
         borderRadius: 999, letterSpacing: '-0.005em',
         cursor: 'pointer', transition: 'all 0.2s ease',
-        display: 'inline-flex', alignItems: 'center', gap: 8,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        whiteSpace: 'nowrap',
         ...styles[variant], ...style,
       }}
     >{children}</button>
@@ -162,13 +163,16 @@ function DashboardPreview() {
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#E6BD5A' }}/>
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#5AB877' }}/>
         <div style={{ flex: 1, height: 22, borderRadius: 6, background: T.paper, marginLeft: 10,
-          display:'flex', alignItems:'center', padding:'0 10px',
+          display:'flex', alignItems:'center', padding:'0 10px', minWidth: 0,
           fontSize: 10, color: T.textSoft, letterSpacing:'0.02em',
           border: `1px solid ${T.border}`,
-        }}>app.foodos.it · Pasticceria del Corso</div>
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>{isMobile ? 'app.foodos.it' : 'app.foodos.it · Pasticceria del Corso'}</div>
       </div>
 
       <div style={{ display: 'flex', background: T.cream }}>
+        {/* Audit 2026-06-24: sidebar nascosta su mobile per evitare overflow viewport */}
+        {!isMobile && (
         <div style={{
           width: 150, background: T.inkSoft, padding: '16px 0',
           display: 'flex', flexDirection: 'column', flexShrink: 0,
@@ -197,8 +201,9 @@ function DashboardPreview() {
             }}>{n}</div>
           ))}
         </div>
+        )}
 
-        <div style={{ flex: 1, padding: '18px 20px', minWidth: 0 }}>
+        <div style={{ flex: 1, padding: isMobile ? '14px 14px' : '18px 20px', minWidth: 0 }}>
           <div style={{ fontSize: 9, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 4 }}>
             Mercoledì · 13 maggio
           </div>
@@ -303,21 +308,27 @@ function Faq({ q, a, open, onToggle }) {
    ROI CALCULATOR
 ─────────────────────────────────────────────────────────────────────────── */
 function RoiCalculator() {
+  const isMobile = useIsMobile()
   const [ricavi, setRicavi] = useState(15000)
   const fcReduzione = 2
   const risparmio = Math.round(ricavi * (fcReduzione / 100))
   const annualSavings = risparmio * 12
-  const annualCost = 89 * 12
+  // Audit 2026-06-24: prezzo aggiornato a Maestro €149 (era €89 vecchio piano).
+  const annualCost = 149 * 12
   const netGain = annualSavings - annualCost
   const roi = Math.round((annualSavings / annualCost - 1) * 100)
 
   return (
     <div style={{
       background: T.paper, border: `1px solid ${T.border}`,
-      borderRadius: 24, padding: '36px 36px',
+      borderRadius: 24, padding: isMobile ? '24px 20px' : '36px 36px',
       boxShadow: '0 20px 60px rgba(15,9,7,0.06)',
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 36, alignItems: 'center' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1px 1fr',
+        gap: isMobile ? 28 : 36, alignItems: 'center',
+      }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>
             Calcola il tuo risparmio
@@ -340,7 +351,10 @@ function RoiCalculator() {
           </div>
         </div>
 
-        <div style={{ background: T.border, width: 1, height: '80%', margin: '0 auto' }}/>
+        {isMobile
+          ? <div style={{ background: T.border, height: 1, width: '100%' }}/>
+          : <div style={{ background: T.border, width: 1, height: '80%', margin: '0 auto' }}/>
+        }
 
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: T.green, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 14 }}>
@@ -349,8 +363,11 @@ function RoiCalculator() {
           <div style={{ fontSize: 13, color: T.textMid, marginBottom: 18, lineHeight: 1.6 }}>
             Riducendo il food cost solo del <strong style={{ color: T.ink }}>{fcReduzione}%</strong>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ fontFamily: SERIF, fontSize: 56, fontWeight: 700, color: T.green, letterSpacing: '-0.04em', lineHeight: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{
+              fontFamily: SERIF, fontSize: isMobile ? 42 : 56,
+              fontWeight: 700, color: T.green, letterSpacing: '-0.04em', lineHeight: 1,
+            }}>
               € {annualSavings.toLocaleString('it-IT')}
             </span>
           </div>
@@ -361,7 +378,7 @@ function RoiCalculator() {
           }}>
             <Icon name="checkCirc" size={18} color={T.green}/>
             <div style={{ fontSize: 12, color: T.green, fontWeight: 600 }}>
-              ROI di <strong>{roi}%</strong> · costo annuo €{annualCost} → guadagno netto €{netGain.toLocaleString('it-IT')}
+              ROI di <strong>{roi}%</strong> · costo annuo €{annualCost.toLocaleString('it-IT')} → guadagno netto €{netGain.toLocaleString('it-IT')}
             </div>
           </div>
         </div>
@@ -630,7 +647,7 @@ export default function LandingPage({ onLogin, onRegister }) {
     { q: 'Devo essere bravo con i computer?', a: 'No. Se sai usare WhatsApp, sai usare FoodOS. È pensato per essere usato dal titolare, non dal nipote bravo con la tecnologia. Niente formule, niente Excel da non rompere.' },
     { q: 'Posso importare il mio ricettario esistente?', a: "Sì. Carichi un file Excel o CSV e FoodOS lo converte in automatico. L'AI sa leggere anche foto di ricette scritte a mano sul quaderno e immagini delle etichette per registrare i costi automaticamente." },
     { q: 'Quanto dura la prova gratuita?', a: 'Tre mesi pieni, gratis. Senza carta di credito. Se dopo i tre mesi non ti convince, scarichi i tuoi dati e basta. Nessun addebito automatico, mai.' },
-    { q: 'Posso gestire più sedi o brand?', a: "Sì, già nel piano Pro hai sedi illimitate con dati separati e dashboard aggregata. Il piano Chain aggiunge utenti multipli per sede, API access e white-label per chi gestisce strutture più articolate." },
+    { q: 'Posso gestire più sedi o brand?', a: "Sì. Il piano Maestro gestisce fino a 2 sedi con 3 utenti, perfetto per chi ha laboratorio + punto vendita o sta crescendo. Il piano Insegna è invece pensato per catene piccole e gruppi: sedi e utenti illimitati, integrazioni real-time con le casse, API e white-label." },
     { q: 'Cosa succede ai miei dati se smetto?', a: 'Sono tuoi. Puoi esportarli in Excel/PDF in qualsiasi momento, anche durante il trial. Non li condividiamo con nessuno e non li usiamo per addestrare AI di terzi.' },
   ]
 
@@ -651,23 +668,30 @@ export default function LandingPage({ onLogin, onRegister }) {
         transition: 'all 0.3s ease',
       }}>
         <div style={{
-          maxWidth: 1180, margin: '0 auto', padding: '0 24px',
-          height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          maxWidth: 1180, margin: '0 auto',
+          padding: isMobile ? '0 16px' : '0 24px',
+          height: isMobile ? 56 : 64,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 8,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Logo size={32} style={{ borderRadius: 8, boxShadow: '0 4px 12px rgba(110,14,26,0.22)' }}/>
-            <span style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 600, letterSpacing: '-0.03em', color: T.ink }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, minWidth: 0 }}>
+            <Logo size={isMobile ? 28 : 32} style={{ borderRadius: 8, boxShadow: '0 4px 12px rgba(110,14,26,0.22)', flexShrink: 0 }}/>
+            <span style={{
+              fontFamily: SERIF, fontSize: isMobile ? 18 : 22, fontWeight: 600,
+              letterSpacing: '-0.03em', color: T.ink,
+            }}>
               FoodOS
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6, flexShrink: 0 }}>
             <button onClick={onLogin} style={{
-              padding: '8px 16px', background: 'none', border: 'none',
-              fontSize: 14, fontWeight: 500, color: T.textMid, cursor: 'pointer',
-              fontFamily: SANS, borderRadius: 999,
+              padding: isMobile ? '6px 10px' : '8px 16px',
+              background: 'none', border: 'none',
+              fontSize: isMobile ? 13 : 14, fontWeight: 500, color: T.textMid, cursor: 'pointer',
+              fontFamily: SANS, borderRadius: 999, whiteSpace: 'nowrap',
             }}>Accedi</button>
             <Button variant="primary" size="sm" onClick={onRegister}>
-              Prova gratis <Icon name="arrowR" size={14} color="#FFF"/>
+              {isMobile ? 'Prova' : 'Prova gratis'} <Icon name="arrowR" size={14} color="#FFF"/>
             </Button>
           </div>
         </div>
@@ -689,10 +713,11 @@ export default function LandingPage({ onLogin, onRegister }) {
           <div style={{
             display: 'grid',
             gridTemplateColumns: isMobile ? '1fr' : '1.05fr 1fr',
-            gap: 56, alignItems: 'center',
+            gap: isMobile ? 32 : 56, alignItems: 'center',
           }}>
 
             <div style={{
+              minWidth: 0,
               opacity: heroIn ? 1 : 0,
               transform: heroIn ? 'translateY(0)' : 'translateY(24px)',
               transition: 'opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -722,6 +747,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               <p style={{
                 fontSize: isMobile ? 16 : 19, color: T.textMid,
                 lineHeight: 1.6, maxWidth: 520, margin: '0 0 36px',
+                wordBreak: 'break-word', overflowWrap: 'anywhere',
               }}>
                 FoodOS calcola il food cost di ogni ricetta, traccia la produzione giornaliera e
                 ti mostra i margini reali. <strong style={{ color: T.ink, fontWeight: 600 }}>In italiano, con i tuoi numeri,
@@ -753,7 +779,7 @@ export default function LandingPage({ onLogin, onRegister }) {
             </div>
 
             <div style={{
-              position: 'relative',
+              position: 'relative', minWidth: 0,
               opacity: heroIn ? 1 : 0,
               transform: heroIn ? 'translateY(0)' : 'translateY(40px)',
               transition: 'opacity 0.9s 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -847,7 +873,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 fontFamily: SANS, fontSize: 16, fontWeight: 400, color: T.textMid,
                 letterSpacing: '-0.005em', lineHeight: 1.55, margin: 0,
               }}>
-                Una pasticceria reale che carica il ricettario, fotografa lo scontrino di fine giornata e vede
+                Una giornata vera: carichi il ricettario, fotografi lo scontrino di fine giornata e vedi
                 i margini per prodotto. Zero parole vuote.
               </p>
             </div>
@@ -883,11 +909,11 @@ export default function LandingPage({ onLogin, onRegister }) {
                 </div>
                 <div style={{ textAlign: 'center', maxWidth: 480 }}>
                   <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 6 }}>
-                    Mara dei Boschi · 3 minuti
+                    Una giornata con FoodOS · 3 minuti
                   </div>
                   <div style={{ fontSize: 14, opacity: 0.78, lineHeight: 1.5 }}>
-                    Pasticceria di Torino mostra come usa FoodOS ogni giorno: dal ricettario al food cost,
-                    dalla foto dello scontrino al margine reale.
+                    Dal ricettario al food cost, dalla foto dello scontrino al margine reale.
+                    Niente promesse, solo l'app che gira sui dati di una giornata vera.
                   </div>
                 </div>
                 <div style={{
@@ -1259,121 +1285,161 @@ export default function LandingPage({ onLogin, onRegister }) {
           <Reveal delay={100}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : '1.2fr 0.9fr',
-              gap: 20, alignItems: 'stretch',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+              gap: isMobile ? 16 : 20, alignItems: 'stretch',
             }}>
+              {/* BOTTEGA — piano entry singola sede */}
+              <div style={{
+                background: T.cream,
+                border: `1px solid ${T.border}`,
+                borderRadius: 24,
+                padding: isMobile ? '28px 24px' : '36px 28px',
+                display: 'flex', flexDirection: 'column',
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>
+                  Single shop
+                </div>
+                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4 }}>
+                  Bottega
+                </div>
+                <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20 }}>
+                  Una sede, l'essenziale.
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontFamily: SERIF, fontSize: 48, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.base)}</span>
+                  <span style={{ fontSize: 13, color: T.textSoft }}>/ mese</span>
+                </div>
+                <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 20 }}>
+                  IVA esclusa · 3 mesi gratis
+                </div>
+                <Button variant="secondary" onClick={onRegister} style={{ marginBottom: 20, justifyContent: 'center' }}>
+                  Inizia gratis
+                </Button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[
+                    '1 sede, 1 utente',
+                    'Ricettario illimitato',
+                    'Food cost automatico',
+                    'AI Assistant base',
+                    '20 foto AI/mese',
+                    'P&L mensile',
+                    'Export PDF & Excel',
+                  ].map(f => (
+                    <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: T.textMid }}>
+                      <Icon name="check" size={13} color={T.green}/>{f}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* MAESTRO — piano standard evidenziato */}
               <div style={{
                 background: T.inkSoft,
-                borderRadius: 24, padding: '40px 40px',
+                borderRadius: 24,
+                padding: isMobile ? '32px 24px' : '40px 32px',
                 color: T.textOnDark, position: 'relative', overflow: 'hidden',
                 display: 'flex', flexDirection: 'column',
               }}>
                 <div aria-hidden style={{
                   position: 'absolute', top: -60, right: -60,
                   width: 240, height: 240, borderRadius: '50%',
-                  background: 'radial-gradient(circle, rgba(110,14,26,0.20), transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(110,14,26,0.22), transparent 70%)',
                   pointerEvents: 'none',
                 }}/>
-
                 <div style={{
                   display: 'inline-flex', alignSelf: 'flex-start',
                   background: T.red, color: '#FFF',
                   fontSize: 10, fontWeight: 700,
                   padding: '5px 12px', borderRadius: 999,
                   letterSpacing: '0.12em', textTransform: 'uppercase',
-                  marginBottom: 24,
-                }}>Piano standard</div>
-
+                  marginBottom: 20,
+                }}>Più scelto</div>
                 <div style={{
                   fontFamily: SERIF, fontWeight: 600,
                   fontSize: 26, color: T.cream, letterSpacing: '-0.02em', marginBottom: 4,
-                }}>FoodOS Pro</div>
-                <div style={{ fontSize: 14, color: 'rgba(244,236,227,0.65)', marginBottom: 24 }}>
-                  Sedi illimitate. Tutto incluso.
+                }}>Maestro</div>
+                <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.65)', marginBottom: 20 }}>
+                  Sostituisce un controller part-time.
                 </div>
-
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontFamily: SERIF, fontSize: 72, fontWeight: 600, color: '#FFF', letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.pro)}</span>
-                  <span style={{ fontSize: 16, color: 'rgba(244,236,227,0.8)' }}>/ mese</span>
+                  <span style={{ fontFamily: SERIF, fontSize: isMobile ? 56 : 64, fontWeight: 600, color: '#FFF', letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.pro)}</span>
+                  <span style={{ fontSize: 15, color: 'rgba(244,236,227,0.8)' }}>/ mese</span>
                 </div>
-                <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.78)', marginBottom: 28 }}>
-                  IVA esclusa · fatturato mensile
+                <div style={{ fontSize: 13, color: 'rgba(244,236,227,0.78)', marginBottom: 24 }}>
+                  IVA esclusa · 3 mesi gratis
                 </div>
-
-                <Button variant="primary" size="lg" onClick={onRegister} style={{ marginBottom: 28 }}>
-                  Inizia 3 mesi gratis <Icon name="arrowR" size={16} color="#FFF"/>
+                <Button variant="primary" size="lg" onClick={onRegister} style={{ marginBottom: 24 }}>
+                  Inizia gratis <Icon name="arrowR" size={16} color="#FFF"/>
                 </Button>
-
-                <div style={{
-                  display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                  gap: '12px 24px',
-                }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
-                    'Sedi illimitate',
-                    'Ricettario illimitato',
-                    'Food cost automatico',
-                    'P&L mensile',
-                    'Produzione giornaliera',
-                    'AI Assistant',
-                    'Magazzino & scadenze',
+                    '2 sedi, 3 utenti',
+                    'Tutto il Bottega +',
+                    '23 feature AI complete',
+                    '100 foto AI/mese',
+                    'Brain (chat AI persistente)',
+                    'Reformulation Engine',
+                    'Forecast vendite + meteo',
+                    'Menu Engineering',
+                    'Multi-sede + trasferimenti',
                     'Import fatture SDI',
-                    'Allergeni (Reg. UE 1169)',
-                    'Export PDF & Excel',
                   ].map(f => (
-                    <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(244,236,227,0.85)' }}>
-                      <Icon name="check" size={14} color={T.red}/>{f}
+                    <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'rgba(244,236,227,0.88)' }}>
+                      <Icon name="check" size={13} color={T.red}/>{f}
                     </div>
                   ))}
                 </div>
               </div>
 
+              {/* INSEGNA — piano premium multi-sede */}
               <div style={{
                 background: T.cream,
                 border: `1px solid ${T.border}`,
-                borderRadius: 24, padding: '40px 36px',
+                borderRadius: 24,
+                padding: isMobile ? '28px 24px' : '36px 28px',
                 display: 'flex', flexDirection: 'column',
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 24 }}>
-                  Hai un team?
+                <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 20 }}>
+                  Multi-sede / catena
                 </div>
-
-                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 6 }}>
-                  FoodOS Chain
+                <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 24, color: T.ink, letterSpacing: '-0.02em', marginBottom: 4 }}>
+                  Insegna
                 </div>
-                <div style={{ fontSize: 14, color: T.textMid, marginBottom: 24 }}>
-                  Per chi delega ai collaboratori.
+                <div style={{ fontSize: 13, color: T.textMid, marginBottom: 20 }}>
+                  Sostituisce 1 controller + IT contractor.
                 </div>
-
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontFamily: SERIF, fontSize: 56, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.chain)}</span>
-                  <span style={{ fontSize: 14, color: T.textSoft }}>/ mese</span>
+                  <span style={{ fontFamily: SERIF, fontSize: 48, fontWeight: 600, color: T.ink, letterSpacing: '-0.045em', lineHeight: 1 }}>€{fmtPrezzo(prezzi.chain)}</span>
+                  <span style={{ fontSize: 13, color: T.textSoft }}>/ mese</span>
                 </div>
-                <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 24 }}>
-                  Tutto Pro + team & integrazioni
+                <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 20 }}>
+                  IVA esclusa · 3 mesi gratis
                 </div>
-
-                <Button variant="secondary" onClick={onRegister} style={{ marginBottom: 24, justifyContent: 'center' }}>
-                  Prova gratis
+                <Button variant="secondary" onClick={onRegister} style={{ marginBottom: 20, justifyContent: 'center' }}>
+                  Parla con noi
                 </Button>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
-                    'Tutto di FoodOS Pro',
-                    'Utenti multipli per sede',
+                    'Sedi e utenti illimitati',
+                    'Tutto il Maestro +',
+                    'Integrazioni casse real-time',
+                    '500 foto AI/mese',
+                    'WhatsApp Bot',
+                    'Marketplace fornitori',
                     'API access',
-                    'White-label (logo personalizzato)',
-                    'Supporto prioritario dedicato',
+                    'White-label',
+                    'Supporto prioritario',
                     'SLA garantito',
                   ].map(f => (
-                    <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: T.textMid }}>
-                      <Icon name="check" size={14} color={T.green}/>{f}
+                    <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: T.textMid }}>
+                      <Icon name="check" size={13} color={T.green}/>{f}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: T.textSoft }}>
+            <div style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: T.textSoft, padding: '0 16px' }}>
               Esigenze custom o on-premise? <a href="mailto:support@foodios.it" style={{ color: T.ink, fontWeight: 600, textDecoration: 'none', borderBottom: `1px solid ${T.ink}` }}>Scrivici per il piano Enterprise →</a>
             </div>
           </Reveal>

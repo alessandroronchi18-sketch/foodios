@@ -5,10 +5,10 @@ export default function ChiSiamo() {
   return (
     <LegalLayout title="Chi siamo" updated="2026-05-29" related={[['Contatti', '/contatti']]}>
       <LegalP>
-        FoodOS nasce da un problema concreto: <strong>gestire una pasticceria artigianale e' un
-        casino di Excel, post-it e WhatsApp</strong>. Sappiamo perche' abbiamo aperto la nostra,
-        Mara dei Boschi a Torino, e ogni settimana abbiamo perso ore a fare quello che un software
-        dovrebbe fare per noi.
+        FoodOS nasce da un problema concreto: <strong>gestire una pasticceria, una gelateria o un
+        ristorante artigianale e' un casino di Excel, post-it e WhatsApp</strong>. Tra ricette,
+        food cost, scontrini e fornitori, ogni settimana si perdono ore a fare quello che un
+        software dovrebbe fare da solo.
       </LegalP>
 
       <LegalH2>Cosa fa FoodOS</LegalH2>
@@ -29,10 +29,10 @@ export default function ChiSiamo() {
 
       <LegalH2>Da dove veniamo</LegalH2>
       <LegalP>
-        <strong>Mara dei Boschi</strong> e' la nostra pasticceria di Torino dove FoodOS gira ogni
-        giorno. Tutto quello che vedi nel software e' nato da un problema concreto del banco o del
-        laboratorio. La filosofia: niente feature inutili, niente AI per il gusto di averla,
-        solo cose che fanno risparmiare tempo e errori.
+        FoodOS nasce dall'esperienza diretta in laboratorio: tutto quello che vedi nel software
+        e' nato da un problema concreto del banco, del laboratorio o della cassa.
+        La filosofia: niente feature inutili, niente AI per il gusto di averla,
+        solo cose che fanno risparmiare tempo e ridurre errori.
       </LegalP>
 
       <LegalH2>Come lavoriamo</LegalH2>
