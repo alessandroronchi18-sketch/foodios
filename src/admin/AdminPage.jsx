@@ -446,10 +446,10 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
               <tbody>
                 {matches.map((f, i) => (
                   <tr key={f.id} style={{ borderBottom: i < matches.length - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
-                    <td style={{ padding: '7px 10px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '—'}</td>
-                    <td style={{ padding: '7px 10px', color: COLORS.text, fontWeight: 500 }}>{f.fornitore}</td>
-                    <td style={{ padding: '7px 10px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{f.numero_rif || '—'}</td>
-                    <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '—'}</td>
+                    <td style={{ padding: '8px 12px', color: COLORS.text, fontWeight: 500 }}>{f.fornitore}</td>
+                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{f.numero_rif || '—'}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1146,7 +1146,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                           borderTop: i === 0 ? 'none' : `1px solid ${COLORS.border}`,
                           background: COLORS.card,
                         }}>
-                          <td style={{ padding: '7px 10px' }}>
+                          <td style={{ padding: '8px 12px' }}>
                             <span style={{ fontWeight: 600, color: COLORS.text }}>
                               {LABEL_CHIAVE[u.data_key] || u.data_key}
                             </span>
@@ -1154,9 +1154,9 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                               <span style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px', borderRadius: 4, background: COLORS.blueBg, color: COLORS.blue, fontWeight: 700, textTransform: 'uppercase' }}>op</span>
                             )}
                           </td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: COLORS.textSoft, fontWeight: 600 }}>{u.conteggio}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: COLORS.textMute }}>{u.n_sedi || '—'}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: fresca ? COLORS.ok : COLORS.textMute, whiteSpace: 'nowrap', fontWeight: fresca ? 600 : 400 }}>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: COLORS.textSoft, fontWeight: 600 }}>{u.conteggio}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: COLORS.textMute }}>{u.n_sedi || '—'}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: fresca ? COLORS.ok : COLORS.textMute, whiteSpace: 'nowrap', fontWeight: fresca ? 600 : 400 }}>
                             {u.ultimo ? fmtDataOra(u.ultimo) : '—'}
                           </td>
                         </tr>

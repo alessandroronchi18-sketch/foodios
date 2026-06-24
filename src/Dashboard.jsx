@@ -17,6 +17,7 @@ import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // sono tutti gia' lazy.
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
 import { callAi as _callAi, parseAiJson as _parseAiJson } from './lib/aiClient'
+import { SkeletonText, SkeletonGrid } from './components/Skeleton'
 import { mergeArr as _mergeArr, mergeMag as _mergeMag } from './lib/multiSediMerge'
 import { analizzaFotoAI } from './lib/analizzaFotoAI'
 import { supabase } from './lib/supabase'
@@ -657,12 +658,12 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
                       {["stampiProdotti","stampiVenduti","spreco"].map(f=>(
                         <td key={f} style={{padding:"6px 8px",textAlign:"center"}}>
                           <input type="number" min="0" step="1" value={e[f]||""} onChange={ev=>upd(i,f,ev.target.value)}
-                            style={{width:66,padding:"7px 8px",borderRadius:7,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:13,textAlign:"center",fontWeight:700,color:C.text}}/>
+                            style={{width:66,padding:"8px 8px",borderRadius:8,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:13,textAlign:"center",fontWeight:700,color:C.text}}/>
                         </td>
                       ))}
                       <td style={{padding:"6px 8px"}}>
                         <input type="text" value={e.note||""} onChange={ev=>upd(i,"note",ev.target.value)} placeholder="note…"
-                          style={{width:"100%",padding:"7px 8px",borderRadius:7,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:11,color:C.text}}/>
+                          style={{width:"100%",padding:"8px 8px",borderRadius:8,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:12,color:C.text}}/>
                       </td>
                     </tr>
                   );
@@ -683,7 +684,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
               <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Icon name="robot" size={14}/> Consulenza AI — {mese.label}</div>
               <div style={{fontSize:11,color:C.textSoft}}>Analisi automatica basata sui tuoi dati. Aggiornata ad ogni richiesta.</div>
             </div>
-            {hasData&&<button onClick={runAI} disabled={aiLoad} style={{padding:"9px 20px",background:aiLoad?"#EEE":C.red,color:aiLoad?C.textSoft:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:11,cursor:aiLoad?"default":"pointer",display:"inline-flex",alignItems:"center",gap:6}}>{aiLoad?<><Icon name="hourglass" size={12}/> Elaboro…</>:"▶ Analizza ora"}</button>}
+            {hasData&&<button onClick={runAI} disabled={aiLoad} style={{padding:"10px 20px",background:aiLoad?"#EEE":C.red,color:aiLoad?C.textSoft:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:11,cursor:aiLoad?"default":"pointer",display:"inline-flex",alignItems:"center",gap:6}}>{aiLoad?<><Icon name="hourglass" size={12}/> Elaboro…</>:"▶ Analizza ora"}</button>}
           </div>
           {!hasData&&<div style={{color:C.textSoft,fontSize:12}}>Inserisci prima i dati di produzione nella tab "Inserimento dati".</div>}
           {aiData&&(
@@ -723,8 +724,8 @@ function NuovoMeseModal({onCrea,onClose}) {
         <h2 style={{margin:"0 0 20px",fontSize:18,fontWeight:900,color:C.text}}>Nuovo mese</h2>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:24}}>
           {[
-            {lbl:"Mese",el:<select value={m} onChange={e=>setM(+e.target.value)} style={{width:"100%",padding:"9px 10px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text,background:C.white}}>{MN.slice(1).map((mn,i)=><option key={i+1} value={i+1}>{mn}</option>)}</select>},
-            {lbl:"Anno",el:<input type="number" value={y} onChange={e=>setY(+e.target.value)} style={{width:"100%",padding:"9px 10px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text}}/>},
+            {lbl:"Mese",el:<select value={m} onChange={e=>setM(+e.target.value)} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text,background:C.white}}>{MN.slice(1).map((mn,i)=><option key={i+1} value={i+1}>{mn}</option>)}</select>},
+            {lbl:"Anno",el:<input type="number" value={y} onChange={e=>setY(+e.target.value)} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:12,color:C.text}}/>},
           ].map(({lbl,el})=>(
             <div key={lbl}>
               <label style={{fontSize:9,fontWeight:700,color:C.textSoft,textTransform:"uppercase",letterSpacing:"0.09em",display:"block",marginBottom:6}}>{lbl}</label>
@@ -1927,7 +1928,21 @@ export default function Dashboard({
   const currentMese=produzione[view];
   const ingCostiMain = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
 
-  if(!ready) return <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:C.textSoft}}>Caricamento…</div>;
+  if(!ready) return (
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{maxWidth:420,width:"100%"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+          <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg, #6E0E1A, #4A0612)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:18,fontFamily:"'Fraunces',serif"}}>F</div>
+          <div>
+            <div style={{fontSize:18,fontWeight:700,color:C.text,letterSpacing:"-0.02em"}}>FoodOS</div>
+            <div style={{fontSize:12,color:C.textSoft,marginTop:2}}>Caricamento dati…</div>
+          </div>
+        </div>
+        <SkeletonText lines={3}/>
+        <div style={{marginTop:16}}><SkeletonGrid count={4} cols={2}/></div>
+      </div>
+    </div>
+  );
 
   return (
     <ErrorBoundary>
@@ -2097,7 +2112,7 @@ export default function Dashboard({
                 <div key={sec.id} style={{position:"relative",height:"100%",display:"flex",alignItems:"center"}} onMouseEnter={()=>setHoverSec(sec.id)} onMouseLeave={()=>setHoverSec(null)}>
                   <button
                     onClick={()=>{ if(sec.headerView){ go(sec.headerView) } }}
-                    style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,border:"none",cursor:sec.headerView?"pointer":"default",whiteSpace:"nowrap",
+                    style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",borderRadius:8,border:"none",cursor:sec.headerView?"pointer":"default",whiteSpace:"nowrap",
                     background:open?"rgba(255,255,255,0.14)":secActive?"rgba(255,255,255,0.08)":(sec.id==="ai"?"linear-gradient(120deg, rgba(232,75,58,0.18), rgba(255,216,107,0.10))":"transparent"),
                     color:secActive||open?"#fff":"rgba(255,255,255,0.80)",fontSize:12.5,fontWeight:secActive?700:(sec.id==="ai"?700:500),fontFamily:"inherit",
                     boxShadow:secActive?"inset 0 -2px 0 #E84B3A":"none",
@@ -2125,7 +2140,7 @@ export default function Dashboard({
           <div style={{position:"relative",flexShrink:0}}>
             <input value={sidebarSearch} onChange={e=>setSidebarSearch(e.target.value)} placeholder="Cerca…"
               onKeyDown={e=>{ if(e.key==="Enter"&&searchHits.length){ e.preventDefault(); go(searchHits[0].id); } if(e.key==="Escape") setSidebarSearch(''); }}
-              style={{width:150,padding:"7px 10px 7px 30px",borderRadius:8,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+              style={{width:150,padding:"8px 12px 8px 32px",borderRadius:8,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:12,outline:"none",fontFamily:"inherit"}}/>
             <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.5)",display:"flex",pointerEvents:"none"}}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </span>
@@ -2174,13 +2189,13 @@ export default function Dashboard({
                   {lbl:"Impostazioni",ic:"settings",on:()=>go("impostazioni")},
                   {lbl:"Novità",ic:"bell",on:()=>go("changelog")},
                 ].map(r=>(
-                  <button key={r.lbl} onClick={r.on} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize:12.5,fontWeight:500,color:C.text,fontFamily:"inherit"}}
+                  <button key={r.lbl} onClick={r.on} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize:12.5,fontWeight:500,color:C.text,fontFamily:"inherit"}}
                     onMouseEnter={e=>e.currentTarget.style.background="#F4EEEA"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <span style={{color:C.textSoft,display:"flex"}}>{ic(ICONS[r.ic],15)}</span>{r.lbl}
                   </button>
                 ))}
                 {/* Zoom */}
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"9px 10px",margin:"4px 0",borderTop:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"8px 12px",margin:"4px 0",borderTop:`1px solid ${C.border}`,borderBottom:`1px solid ${C.border}`}}>
                   <span style={{fontSize:12,color:C.textMid,fontWeight:600}}>Zoom</span>
                   <div style={{display:"flex",alignItems:"center",gap:4}}>
                     <button onClick={()=>stepZoom(-1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:15,fontWeight:800,color:C.textMid,cursor:"pointer",lineHeight:1}}>−</button>
@@ -2188,7 +2203,7 @@ export default function Dashboard({
                     <button onClick={()=>stepZoom(1)} style={{width:24,height:24,borderRadius:6,border:`1px solid ${C.borderStr}`,background:C.white,fontSize:14,fontWeight:800,color:C.textMid,cursor:"pointer",lineHeight:1}}>+</button>
                   </div>
                 </div>
-                <button onClick={()=>{setProfileOpen(false);onSignOut&&onSignOut();}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"9px 10px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize:12.5,fontWeight:600,color:C.red,fontFamily:"inherit"}}
+                <button onClick={()=>{setProfileOpen(false);onSignOut&&onSignOut();}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",cursor:"pointer",fontSize:12.5,fontWeight:600,color:C.red,fontFamily:"inherit"}}
                   onMouseEnter={e=>e.currentTarget.style.background=C.redLight} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   <span style={{display:"flex"}}>{ic(ICONS.logOut,15)}</span>Esci
                 </button>
@@ -2576,7 +2591,7 @@ export default function Dashboard({
                 </div>
               )}
               <button onClick={()=>setShowNotifiche(o=>!o)}
-                style={{width:"100%",padding:"9px 12px",background:"rgba(255,255,255,0.04)",
+                style={{width:"100%",padding:"8px 12px",background:"rgba(255,255,255,0.04)",
                   border:`1px solid ${T.borderOnDark}`,borderRadius:R.md,
                   color:T.textOnDarkMid,fontSize:12,fontWeight:500,cursor:"pointer",
                   display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:8,
@@ -2588,7 +2603,7 @@ export default function Dashboard({
                 {nonLette>0&&<span style={{background:T.brand,color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"2px 7px"}}>{nonLette}</span>}
               </button>
               <button onClick={()=>onSignOut&&onSignOut()}
-                style={{width:"100%",padding:"9px 12px",background:"transparent",border:`1px solid ${T.borderOnDarkStr}`,
+                style={{width:"100%",padding:"8px 12px",background:"transparent",border:`1px solid ${T.borderOnDarkStr}`,
                   borderRadius:R.md,color:T.textOnDarkMid,fontSize:12,fontWeight:500,cursor:"pointer",
                   display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10,
                   transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}`}}

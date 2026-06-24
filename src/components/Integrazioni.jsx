@@ -484,7 +484,7 @@ function StatoConnessioni({ notify }) {
         </div>
       </div>
       <button onClick={verifica} disabled={busy}
-        style={{ padding: '7px 14px', background: '#FFF', color: C.text, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: busy ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        style={{ padding: '8px 16px', background: '#FFF', color: C.text, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: busy ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
         {busy ? '…' : <><Icon name="refresh" size={13} /> Verifica ora</>}
       </button>
     </div>
@@ -721,7 +721,7 @@ export default function Integrazioni({ orgId, sedeId }) {
   }
 
   const btnStyle = (primary) => ({
-    padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+    padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
     border: primary ? 'none' : `1px solid ${C.border}`,
     background: primary ? C.red : C.white, color: primary ? C.white : C.textMid,
     display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -835,7 +835,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                             <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>URL WEBHOOK</div>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                               <code style={{ flex: 1, fontSize: 11, background: C.white, border: `1px solid ${C.border}`,
-                                borderRadius: 8, padding: '7px 10px', color: C.text, display: 'block', wordBreak: 'break-all',
+                                borderRadius: 8, padding: '8px 12px', color: C.text, display: 'block', wordBreak: 'break-all',
                                 minWidth: 0 }}>
                                 {window.location.origin}/api/webhook-zucchetti
                               </code>
@@ -850,7 +850,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                           <div>
                             <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 4, fontWeight: 600 }}>HEADERS RICHIESTI</div>
                             <code style={{ fontSize: 10, background: C.white, border: `1px solid ${C.border}`,
-                              borderRadius: 8, padding: '9px 12px', color: C.textMid, display: 'block', lineHeight: 2 }}>
+                              borderRadius: 8, padding: '8px 12px', color: C.textMid, display: 'block', lineHeight: 2 }}>
                               x-organization-id: {orgId}<br />
                               x-zucchetti-secret: {'<ZUCCHETTI_WEBHOOK_SECRET da Vercel env>'}<br />
                               Content-Type: application/json
@@ -1005,7 +1005,7 @@ export default function Integrazioni({ orgId, sedeId }) {
               Le integrazioni con catena distributiva &amp; gestionali italiani sono in alta priorità.
             </div>
             <a href={`mailto:support@foodios.it?subject=${encodeURIComponent('Richiesta integrazione FoodOS')}&body=${encodeURIComponent('Vorrei attivare l\'integrazione con:\n\n[Nome software/fornitore]\n\nUso questo software per:\n- ...\n\nVolume previsto (transazioni/mese):\n- ...\n')}`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: C.red, color: '#FFF', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: C.red, color: '#FFF', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
               <Icon name="mail" size={13} /> Richiedi una nuova integrazione
             </a>
           </div>

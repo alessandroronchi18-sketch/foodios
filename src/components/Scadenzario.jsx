@@ -700,7 +700,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     transition: `background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
   })
   const primaryBtn = { padding: '10px 16px', background: T.brandGradient, color: T.textOnDark, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, letterSpacing: '-0.005em', boxShadow: S.brandSoft }
-  const ghostBtn = { padding: '9px 14px', background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, cursor: 'pointer', color: T.textMid, letterSpacing: '-0.005em', display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.xs }
+  const ghostBtn = { padding: '8px 16px', background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, cursor: 'pointer', color: T.textMid, letterSpacing: '-0.005em', display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.xs }
 
   if (!orgId) return (
     <div style={{ padding: 40, textAlign: 'center', color: T.textSoft }}>Caricamento in corso...</div>
@@ -805,16 +805,16 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         background: baseBg,
         boxShadow: isScaduta ? `inset 3px 0 0 0 ${T.brand}` : 'none',
       }}>
-        <td style={{ padding: '9px 12px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <td style={{ padding: '8px 12px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           <span title={f.fornitore}>{f.fornitore}</span>
         </td>
-        <td style={{ padding: '9px 12px', color: T.textMid, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>
+        <td style={{ padding: '8px 12px', color: T.textMid, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>
           {f.numero_rif || '—'}
         </td>
-        <td style={{ padding: '9px 12px', color: T.textMid, whiteSpace: 'nowrap' }}>
+        <td style={{ padding: '8px 12px', color: T.textMid, whiteSpace: 'nowrap' }}>
           {fmtDate(f.data_fattura)}
         </td>
-        <td style={{ padding: '9px 12px', whiteSpace: 'nowrap' }}>
+        <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
           {f.stato === 'pagata' ? (
             <span style={{ color: T.textSoft }}>—</span>
           ) : f.dueIso ? (
@@ -829,21 +829,21 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           )}
         </td>
         <td style={{
-          padding: '9px 12px', textAlign: 'right',
+          padding: '8px 12px', textAlign: 'right',
           fontWeight: isScaduta ? 800 : 700,
           color: isScaduta ? T.brand : T.text,
           letterSpacing: '-0.015em', whiteSpace: 'nowrap',
         }}>
           {fmtEuro(f.totale)}
         </td>
-        <td style={{ padding: '9px 12px' }}>
+        <td style={{ padding: '8px 12px' }}>
           <span style={{
             background: cfg.pillBg, color: cfg.pillFg,
             padding: '3px 9px', borderRadius: 8, fontSize: 10, fontWeight: 700,
             letterSpacing: '0.04em', whiteSpace: 'nowrap',
           }}>{cfg.label}</span>
         </td>
-        <td style={{ padding: '9px 12px' }}>
+        <td style={{ padding: '8px 12px' }}>
           <ActionsCell f={f} compact />
         </td>
       </tr>

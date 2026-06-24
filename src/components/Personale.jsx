@@ -1563,7 +1563,7 @@ function AccessiTab({ orgId, notify, isMobile }) {
 
   if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
 
-  const btn = (bg, color, border) => ({ padding: '7px 12px', borderRadius: 8, border: border || 'none', background: bg, color, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 })
+  const btn = (bg, color, border) => ({ padding: '8px 12px', borderRadius: 8, border: border || 'none', background: bg, color, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 })
 
   return (
     <div style={{ maxWidth: 760 }}>

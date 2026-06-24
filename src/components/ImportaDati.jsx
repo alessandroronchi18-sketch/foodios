@@ -325,7 +325,7 @@ export default function ImportaDatiView({
                     display: 'flex', alignItems: 'flex-start', gap: 8,
                     background: esito.ok ? T.greenLight : T.redLight,
                     border: `1px solid ${esito.ok ? T.green : T.red}22`,
-                    borderRadius: 10, padding: '9px 12px',
+                    borderRadius: 10, padding: '8px 12px',
                     fontSize: 12, fontWeight: 600, lineHeight: 1.45,
                     color: esito.ok ? T.green : T.red,
                   }}>
