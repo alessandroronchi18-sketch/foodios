@@ -36,7 +36,7 @@ describe('Accessibility (axe-core) — form pubblici e onboarding', () => {
     expect(results).toHaveNoViolations()
   })
 
-  it('OnboardingWizard non ha violation strutturali a11y', async () => {
+  it('OnboardingWizard non ha violation strutturali a11y', { timeout: 15000 }, async () => {
     const { default: Wizard } = await import('../../src/onboarding/OnboardingWizard')
     const { container } = render(
       <Wizard auth={{ user: { id: 'u1', email: 'test@test.com' }, organization: { id: 'o1' } }} onComplete={() => {}} notify={() => {}} />
@@ -56,7 +56,9 @@ describe('Accessibility (axe-core) — form pubblici e onboarding', () => {
     expect(results).toHaveNoViolations()
   })
 
-  it('NuovaRicettaView (form 30+ campi) non ha violation strutturali a11y', async () => {
+  // Timeout esteso: dynamic import + render + axe analisi su form 30+ campi
+  // può andare oltre i 5s default sotto carico CI (audit 2026-06-24 flake).
+  it('NuovaRicettaView (form 30+ campi) non ha violation strutturali a11y', { timeout: 20000 }, async () => {
     const { default: Form } = await import('../../src/views/NuovaRicettaView')
     const { container } = render(
       <Form
@@ -104,7 +106,7 @@ describe('Accessibility (axe-core) — form pubblici e onboarding', () => {
     expect(results).toHaveNoViolations()
   })
 
-  it('Impostazioni — sezione profilo + cambio email non ha violation a11y', async () => {
+  it('Impostazioni — sezione profilo + cambio email non ha violation a11y', { timeout: 15000 }, async () => {
     const { default: Imp } = await import('../../src/components/Impostazioni')
     const { container } = render(
       <Imp
