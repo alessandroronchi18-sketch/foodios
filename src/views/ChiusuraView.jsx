@@ -710,11 +710,11 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             {importPreview?.tipo === 'aggregated' && (
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.green, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={12} />{importPreview.righe.length} giorni rilevati</div>
-                <div style={{ maxHeight: 180, overflowY: 'auto', borderRadius: 8, border: `1px solid ${C.border}` }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                <div style={{ maxHeight: 180, overflowY: 'auto', overflowX: 'auto', borderRadius: 8, border: `1px solid ${C.border}`, WebkitOverflowScrolling: 'touch' }}>
+                  <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: 11 }}>
                     <thead><tr style={{ background: '#F8F4F2' }}>
                       {['Data', 'Importo', 'Commissione', 'Netto', 'Ordini'].map(h => (
-                        <th key={h} style={{ padding: '6px 10px', textAlign: h === 'Data' ? 'left' : 'right', fontWeight: 700, color: C.textSoft }}>{h}</th>
+                        <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Data' ? 'left' : 'right', fontWeight: 700, color: C.textSoft }}>{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>{importPreview.righe.map((r, i) => (

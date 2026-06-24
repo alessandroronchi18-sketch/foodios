@@ -1127,14 +1127,14 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                 Nessun dato salvato — il cliente non ha mai inserito nulla.
               </div>
             ) : (
-              <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: COLORS.rowAlt }}>
-                      <th style={{ padding: '7px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Area</th>
-                      <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Record</th>
-                      <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sedi</th>
-                      <th style={{ padding: '7px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ultimo</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Area</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Record</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sedi</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ultimo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2877,7 +2877,7 @@ export default function AdminPage() {
                       padding: '10px 14px',
                       borderBottom: i < activity.length - 1 ? `1px solid ${COLORS.border}` : 'none',
                       display: 'grid',
-                      gridTemplateColumns: '80px 90px 1fr 100px',
+                      gridTemplateColumns: isAdminNarrow ? '70px 1fr' : '80px 90px 1fr 100px',
                       gap: 10, alignItems: 'center', fontSize: 12,
                       background: sevBg,
                       cursor: cliente ? 'pointer' : 'default',
@@ -2939,7 +2939,7 @@ export default function AdminPage() {
                     const prev = i > 0 ? funnel.steps[i - 1] : null
                     const dropOff = prev && prev.n > 0 ? Math.round(100 - 100 * s.n / prev.n) : 0
                     return (
-                      <div key={s.key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 80px 80px', gap: 12, alignItems: 'center', fontSize: 13 }}>
+                      <div key={s.key} style={{ display: 'grid', gridTemplateColumns: isAdminNarrow ? '1fr 60px 60px' : '180px 1fr 80px 80px', gap: 12, alignItems: 'center', fontSize: 13 }}>
                         <div style={{ fontWeight: 600, color: COLORS.text }}>{s.label}</div>
                         <div style={{ height: 22, background: COLORS.rowAlt, borderRadius: 4, position: 'relative', overflow: 'hidden' }}>
                           <div style={{

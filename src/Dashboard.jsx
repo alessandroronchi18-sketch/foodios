@@ -589,8 +589,8 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
               <KPI iconName="target" label="Sell-through" value={fmtp(st)} sub={`${totV}/${totP} stampi`} color={st>=80?C.green:st>=60?C.amber:C.red}/>
             </div>
             <SH>Risultati per Prodotto</SH>
-            <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+            <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflowX:"auto",marginBottom:24,boxShadow:"0 1px 4px rgba(0,0,0,0.04)",WebkitOverflowScrolling:"touch"}}>
+              <table style={{width:"100%",minWidth:isMobile?640:"auto",borderCollapse:"collapse",fontSize:11}}>
                 <thead>
                   <tr style={{background:"#F8F4F2"}}>
                     {["Prodotto","Prodotti","Venduti","Sell-T %","Ricavi €","Food Cost €","Margine €","Margine %"].map((h,i)=>(

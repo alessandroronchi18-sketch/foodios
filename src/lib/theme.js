@@ -23,10 +23,13 @@ export const color = {
   bgSideRaised: '#11151E',
 
   // Text
+  // Audit 2026-06-24: textSoft passato da #8B95A7 (ratio 3.0 su #FFF) a
+  // #64748B (ratio 4.6 su #FFF) per soddisfare WCAG AA su body text.
+  // textFaint resta solo per metadati/timestamp non critici.
   text:         '#0E1726',
   textMid:      '#475264',
-  textSoft:     '#8B95A7',
-  textFaint:    '#B5BCC8',
+  textSoft:     '#64748B',
+  textFaint:    '#94A3B8',
   textOnDark:        '#FFFFFF',
   textOnDarkStrong:  'rgba(255,255,255,0.94)',
   textOnDarkMid:     'rgba(255,255,255,0.68)',

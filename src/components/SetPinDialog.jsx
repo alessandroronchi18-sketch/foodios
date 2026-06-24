@@ -185,7 +185,7 @@ export default function SetPinDialog({ dipendente, currentStatus, onClose, onDon
                       touchAction: 'manipulation',
                     }}>{d}</button>
                 ))}
-                <button onClick={pressBack} disabled={busy}
+                <button onClick={pressBack} disabled={busy} aria-label="Cancella ultima cifra"
                   style={{
                     aspectRatio: '1.2', fontSize: 14, fontWeight: 700,
                     background: '#FFF', color: SOFT, border: `1px solid ${BORDER}`,

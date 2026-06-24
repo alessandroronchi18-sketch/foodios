@@ -177,7 +177,8 @@ function Step1Input({ tab, setTab, images, setImages, text, setText, nomeAttivit
                   <img src={`data:${img.media_type};base64,${img.base64}`} alt={img.name || `foto-${i}`}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <button onClick={() => setImages(images.filter((_, j) => j !== i))}
-                    style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#FFF', border: 'none', borderRadius: 99, width: 18, height: 18, cursor: 'pointer', fontSize: 11, lineHeight: 1 }}>×</button>
+                    aria-label={`Rimuovi foto ${img.name || i + 1}`}
+                    style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#FFF', border: 'none', borderRadius: 99, width: 24, height: 24, cursor: 'pointer', fontSize: 14, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                   <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.55)', color: '#FFF', fontSize: 9, padding: '1px 4px', textAlign: 'center' }}>{img.size_kb}KB</div>
                 </div>
               ))}
