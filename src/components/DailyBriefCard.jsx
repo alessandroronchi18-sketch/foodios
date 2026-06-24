@@ -15,6 +15,50 @@ const TXT = T.text || '#0E1726'
 const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 
+// Render bullet point con markdown semplice (**bold**) parsato.
+// L'AI a volte ritorna "**Titolo** — testo" o paragrafi: trasformiamo in bullet.
+function renderBriefBullets(text) {
+  if (!text) return null
+  // Split per riga o per "frasi-bullet" (•, -, *, paragrafo doppio).
+  const lines = String(text)
+    .replace(/\*\*(.+?)\*\*/g, '§§§$1§§§')   // marker per bold
+    .split(/\n+|(?:•|^-\s|^\*\s)/m)
+    .map(l => l.trim())
+    .filter(l => l && l.length > 3 && !/^[*\s•-]+$/.test(l))
+  // Se l'AI ha prodotto un solo paragrafo lungo, prova a spezzarlo su ". " in 2-4 bullet.
+  let parts = lines
+  if (parts.length === 1 && parts[0].length > 140) {
+    parts = parts[0].split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý])/).filter(p => p.trim().length > 8)
+  }
+  // Massimo 5 bullet per non sovraffollare.
+  parts = parts.slice(0, 5)
+  return (
+    <ul style={{ margin: 0, padding: '0 0 0 18px', listStyle: 'none' }}>
+      {parts.map((p, i) => (
+        <li key={i} style={{
+          position: 'relative', padding: '4px 0 4px 14px', fontSize: 14.5, lineHeight: 1.55,
+        }}>
+          <span style={{
+            position: 'absolute', left: 0, top: 12, width: 5, height: 5, borderRadius: '50%',
+            background: BRAND,
+          }}/>
+          {renderBoldParts(p)}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// Trasforma "§§§testo§§§" (era **testo**) in <strong>testo</strong>.
+function renderBoldParts(s) {
+  const parts = String(s).split(/§§§/)
+  return parts.map((p, i) =>
+    i % 2 === 1
+      ? <strong key={i} style={{ fontWeight: 700, color: TXT }}>{p}</strong>
+      : <React.Fragment key={i}>{p}</React.Fragment>
+  )
+}
+
 export default function DailyBriefCard({ orgId }) {
   const [brief, setBrief] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -97,9 +141,7 @@ export default function DailyBriefCard({ orgId }) {
       </div>
 
       <div style={{ fontSize: 14.5, lineHeight: 1.65, color: TXT }}>
-        {brief.contenuto.split(/\n+/).map((p, i) => (
-          <p key={i} style={{ margin: i === 0 ? '0 0 8px' : '0 0 8px' }}>{p}</p>
-        ))}
+        {renderBriefBullets(brief.contenuto)}
       </div>
 
       <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -111,7 +153,6 @@ export default function DailyBriefCard({ orgId }) {
           }}>
           {expanded ? '— Nascondi dettagli' : '+ Dettagli KPI'}
         </button>
-        <div style={{ marginLeft: 'auto', fontSize: 10.5, color: SOFT }}>generato dall'AI 🤖</div>
       </div>
 
       {expanded && (

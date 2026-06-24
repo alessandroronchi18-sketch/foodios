@@ -2199,6 +2199,10 @@ export default function AdminPage() {
             { id: 'ai',        label: 'AI',        icon: 'sparkles', desc: 'Telemetria AI feature-by-feature, modelli, costi totali' },
           ].map(t => {
             const active = adminTab === t.id
+            // Badge counter feedback non gestiti su tab "Ops" (feedback inbox è qui).
+            const feedbackPending = t.id === 'ops'
+              ? feedback.filter(f => !f.gestito).length
+              : 0
             return (
               <button
                 key={t.id}
@@ -2218,10 +2222,19 @@ export default function AdminPage() {
                   gap: 6,
                   whiteSpace: 'nowrap',
                   transition: 'all 0.15s',
+                  position: 'relative',
                 }}
               >
                 <Icon name={t.icon} size={14} />
                 {t.label}
+                {feedbackPending > 0 && (
+                  <span style={{
+                    background: COLORS.err || '#DC2626', color: '#FFF',
+                    fontSize: 10, fontWeight: 800,
+                    padding: '2px 7px', borderRadius: 999,
+                    marginLeft: 4, minWidth: 18, textAlign: 'center',
+                  }}>{feedbackPending}</span>
+                )}
               </button>
             )
           })}
@@ -2237,6 +2250,33 @@ export default function AdminPage() {
         )}
 
         {adminTab === 'overview' && (<>
+        {/* Alert visibile: feedback non gestiti — il founder li deve vedere subito */}
+        {feedback.filter(f => !f.gestito).length > 0 && (
+          <div
+            onClick={() => setAdminTab('ops')}
+            style={{
+              background: 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
+              border: `1px solid ${COLORS.warn || '#D97706'}`,
+              borderRadius: 12, padding: '14px 18px', marginBottom: 16,
+              display: 'flex', alignItems: 'center', gap: 12,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(217,119,6,0.18)',
+            }}
+          >
+            <Icon name="mail" size={20} color="#92400E"/>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#78350F' }}>
+                {feedback.filter(f => !f.gestito).length}{' '}
+                {feedback.filter(f => !f.gestito).length === 1 ? 'nuovo feedback da leggere' : 'nuovi feedback da leggere'}
+              </div>
+              <div style={{ fontSize: 12, color: '#92400E', marginTop: 2 }}>
+                Tocca per aprire l'inbox in tab Ops
+              </div>
+            </div>
+            <Icon name="chevR" size={16} color="#92400E"/>
+          </div>
+        )}
+
         {/* ── KPI ─────────────────────────────────────────────────── */}
         {/* Audit 2026-07-01 MED: 6-col su mobile rendeva i numeri <60px.
             Stesso pattern di responsive usato per la grid sottostante. */}

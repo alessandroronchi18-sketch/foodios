@@ -137,8 +137,9 @@ export default function AIAssistant() {
     }
   }
 
-  const fabBottom = isMobile ? 92 : 24
-  const fabRight = 24
+  // Audit 2026-06-24: FAB più piccolo + posizionato più in basso, non invasivo.
+  const fabBottom = isMobile ? 78 : 20
+  const fabRight = isMobile ? 16 : 20
   const panelWidth = isMobile ? 'calc(100vw - 24px)' : 380
   const panelHeight = isMobile ? 'calc(100vh - 160px)' : 540
   const panelBottom = isMobile ? 92 : 92
@@ -350,9 +351,9 @@ export default function AIAssistant() {
           <span style={{
             background: 'rgba(15,23,42,0.92)',
             color: '#FFF',
-            padding: '6px 10px',
-            borderRadius: 8,
-            fontSize: 12,
+            padding: '4px 8px',
+            borderRadius: 6,
+            fontSize: 11,
             fontWeight: 600,
             whiteSpace: 'nowrap',
             boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
@@ -367,17 +368,17 @@ export default function AIAssistant() {
           onClick={() => setOpen(o => !o)}
           aria-label={open ? 'Chiudi assistente' : 'Apri assistente AI'}
           style={{
-            width: 56, height: 56,
+            width: 40, height: 40,
             borderRadius: '50%',
             background: `linear-gradient(135deg, ${COLORS.brand} 0%, ${COLORS.brandDark} 100%)`,
             border: 'none',
             cursor: 'pointer',
             color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 6px 20px rgba(110,14,26,0.42)',
+            boxShadow: '0 4px 14px rgba(110,14,26,0.36)',
           }}
         >
-          {open ? <CloseIcon size={22} /> : <ChatIcon size={24} />}
+          {open ? <CloseIcon size={16} /> : <ChatIcon size={18} />}
         </button>
       </div>
     </>

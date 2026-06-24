@@ -76,7 +76,9 @@ const TASKS = [
 
 export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giornaliero, chiusure, onNavigate }) {
   const [state, setState] = useState({ dismissed: false, completati: {} })
-  const [open, setOpen] = useState(true)
+  // Audit 2026-06-24: default collassato. L'utente atterra sulla home
+  // e vede solo l'header con progress bar — cliccando si espande.
+  const [open, setOpen] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
@@ -164,11 +166,23 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
           color: allDone ? '#FFF' : '#92400E',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          {allDone ? '🎉' : <Icon name="sparkles" size={18}/>}
+          <Icon name={allDone ? 'check' : 'sparkles'} size={18}/>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginBottom: 4 }}>
-            {allDone ? 'Hai completato i Primi passi!' : `Primi passi · ${completati}/${totale} completati`}
+          <div style={{
+            fontSize: 14, fontWeight: 800, color: TXT, marginBottom: 4,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {allDone ? 'Hai completato i Primi passi!' : `Primi passi · ${completati}/${totale} completati`}
+            </span>
+            {!open && !allDone && (
+              <span style={{
+                fontSize: 10, fontWeight: 600, color: SOFT, letterSpacing: '0.04em',
+                background: '#F8FAFC', border: `1px solid ${BORDER}`,
+                padding: '2px 7px', borderRadius: 999, flexShrink: 0,
+              }}>tocca per aprire</span>
+            )}
           </div>
           <div style={{
             height: 6, background: '#F1F5F9', borderRadius: 999, overflow: 'hidden',
@@ -198,7 +212,7 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
                 border: `2px solid ${t.done ? GREEN : '#CBD5E1'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#FFF', fontSize: 13, fontWeight: 800, flexShrink: 0,
-              }}>{t.done ? '✓' : ''}</div>
+              }}>{t.done ? <Icon name="check" size={13} color="#FFF"/> : null}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontSize: 13, fontWeight: 600,

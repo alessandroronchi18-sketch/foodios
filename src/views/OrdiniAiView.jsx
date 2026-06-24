@@ -181,7 +181,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
         <div style={{ padding: 40, textAlign: 'center', color: SOFT }}>Caricamento…</div>
       ) : suggerimenti.length === 0 ? (
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 40, textAlign: 'center', color: SOFT, lineHeight: 1.6 }}>
-          <div style={{ fontSize: 26 }}>🎉</div>
+          <Icon name="check" size={28} color="#16A34A"/>
           <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Nessun ordine urgente</div>
           <div style={{ fontSize: 12, marginTop: 6 }}>Tutte le materie prime sono sopra soglia. L'AI ricontrolla quotidianamente.</div>
         </div>

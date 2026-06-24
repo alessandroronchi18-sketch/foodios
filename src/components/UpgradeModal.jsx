@@ -113,19 +113,34 @@ export default function UpgradeModal({
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
 
-          <div style={{ position: 'relative' }}>
-            {/* Eyebrow */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 999,
+          <div style={{ position: 'relative', maxWidth: 'calc(100% - 40px)' }}>
+            {/* Eyebrow — max-width per evitare overflow nome lungo */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '4px 12px', borderRadius: 999,
               background: 'rgba(255,255,255,0.10)',
               border: '1px solid rgba(255,255,255,0.18)',
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-              <ChainBadge size={11}/> Funzione del piano {tier.label}
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase',
+              maxWidth: '100%',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              <ChainBadge size={11}/>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Piano {tier.label}
+              </span>
             </div>
 
-            <h2 style={{ margin: '14px 0 4px', fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+            <h2 style={{
+              margin: '14px 0 6px', fontSize: 20, fontWeight: 800,
+              letterSpacing: '-0.02em', lineHeight: 1.25,
+              wordBreak: 'break-word', overflowWrap: 'anywhere',
+            }}>
               Sblocca {featureName}
             </h2>
-            <p style={{ margin: 0, fontSize: 13.5, color: 'rgba(255,255,255,0.78)', lineHeight: 1.55 }}>
+            <p style={{
+              margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5,
+              wordBreak: 'break-word',
+            }}>
               {tier.tagline}
             </p>
           </div>
@@ -140,18 +155,24 @@ export default function UpgradeModal({
             padding: '12px 14px',
             marginBottom: 16,
             display: 'flex', alignItems: 'center', gap: 12,
+            minWidth: 0,
           }}>
             <div style={{
               width: 38, height: 38, borderRadius: 10,
               background: `linear-gradient(135deg, ${tier.color}, #E89B43)`,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              color: '#1C0A0A', fontWeight: 800, fontSize: 11, letterSpacing: '0.1em',
+              color: '#1C0A0A', fontWeight: 800, fontSize: 11, letterSpacing: '0.06em',
               boxShadow: `0 6px 14px ${tier.color}55`,
+              flexShrink: 0,
             }}>
-              {tier.label.toUpperCase().slice(0, 5)}
+              <ChainBadge size={20} active title={tier.label}/>
             </div>
-            <div>
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: SOFT, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{
+                fontSize: 11, fontWeight: 700, color: SOFT,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
                 Piano {tier.label}
               </div>
               <div style={{ fontSize: 14, fontWeight: 700, color: TXT, marginTop: 1, fontFeatureSettings: "'tnum'" }}>

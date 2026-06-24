@@ -32,7 +32,7 @@ const TIPI = [
   { id: 'cioccolato', lbl: '🍫 Cioccolato' },
   { id: 'lievitato', lbl: '🥐 Lievitato' },
   { id: 'bevanda',  lbl: '☕ Bevanda' },
-  { id: 'altro',    lbl: '✨ Sorprendimi' },
+  { id: 'altro',    lbl: 'Sorprendimi' },
 ]
 
 const MOOD = [

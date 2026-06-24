@@ -69,8 +69,8 @@ export default async function handler(req) {
     const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase()
     if (adminEmail && process.env.RESEND_API_KEY) {
       const sentimentLabel = ({
-        bug: '🐛 Bug', feature: '💡 Idea', feedback: '💬 Feedback', complimento: '🎉 Complimento',
-      })[sentiment] || '💬 Feedback'
+        bug: 'Bug', feature: 'Idea', feedback: 'Feedback', complimento: 'Complimento',
+      })[sentiment] || 'Feedback'
 
       // Carica nome attivita' per la subject
       let nomeAttivita = 'cliente'
