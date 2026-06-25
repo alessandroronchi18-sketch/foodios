@@ -187,8 +187,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           )}
         </div>
 
-        {/* KPI inline */}
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+        {/* KPI inline — su mobile occupano tutta la riga (grid 4 col), evita
+            che vadano in overflow e che le actions si spezzino male. */}
+        <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? 'repeat(4, 1fr)' : undefined, gap: isMobile ? 6 : 4, alignItems: 'stretch', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
           {(isSemi ? [
             { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text, bg: SEMI.panel },
             { lbl: 'Costo batch', val: fmt(fc), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
@@ -199,15 +200,15 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             { lbl: 'Margine', val: fmt(margine), c: mc, bg: mbg, bold: true },
             { lbl: 'Margine %', val: fmtp(margPct), c: mc, bg: mbg, bold: true },
           ]).map(({ lbl, val, c, bg, bold }, i) => (
-            <div key={i} style={{ background: bg, padding: '7px 12px', borderRadius: 8, textAlign: 'center', minWidth: 72, height: 46, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 2, lineHeight: 1 }}>{lbl}</div>
-              <div style={{ fontSize: 12.5, fontWeight: bold ? 900 : 700, color: c, ...TNUM, lineHeight: 1.1 }}>{val}</div>
+            <div key={i} style={{ background: bg, padding: isMobile ? '6px 4px' : '7px 12px', borderRadius: 8, textAlign: 'center', minWidth: 0, height: 46, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
+              <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 2, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
+              <div style={{ fontSize: isMobile ? 11 : 12.5, fontWeight: bold ? 900 : 700, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
             </div>
           ))}
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+        {/* Actions — su mobile su riga dedicata, bottoni flex 1 per riempire spazio */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
           <button onClick={() => { setExpanded(false); setOpen(false); setEditMode(false) }}
             aria-label="Riduci card"
             title="Riduci"
@@ -432,7 +433,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo === 'semilavorato'), [ricettario])
 
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState('margine')
+  const [sortBy, setSortBy] = useState('margine_desc')
   const [gridView, setGridView] = useState(false)
 
   const fcMedio = ricette.length === 0 ? 0 : (() => {
@@ -450,13 +451,18 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
   const filtered = useMemo(() => {
     let arr = ricette.filter(r => r.nome.toLowerCase().includes(search.toLowerCase()))
     arr = [...arr].sort((a, b) => {
-      if (sortBy === 'nome') return a.nome.localeCompare(b.nome)
+      if (sortBy === 'nome_az') return a.nome.localeCompare(b.nome)
+      if (sortBy === 'nome_za') return b.nome.localeCompare(a.nome)
       const ra = getR(a.nome, a), rb = getR(b.nome, b)
       const { tot: fca } = calcolaFC(a, ingCosti, ricettario), { tot: fcb } = calcolaFC(b, ingCosti, ricettario)
-      if (sortBy === 'fc') return (fca / (ra.unita * ra.prezzo || 1)) - (fcb / (rb.unita * rb.prezzo || 1))
+      const fcpa = fca / (ra.unita * ra.prezzo || 1)
+      const fcpb = fcb / (rb.unita * rb.prezzo || 1)
+      if (sortBy === 'fc_asc')  return fcpa - fcpb
+      if (sortBy === 'fc_desc') return fcpb - fcpa
       const ma = ra.unita * ra.prezzo > 0 ? ((ra.unita * ra.prezzo - fca) / (ra.unita * ra.prezzo) * 100) : 0
       const mb = rb.unita * rb.prezzo > 0 ? ((rb.unita * rb.prezzo - fcb) / (rb.unita * rb.prezzo) * 100) : 0
-      return mb - ma
+      if (sortBy === 'margine_asc') return ma - mb
+      return mb - ma // margine_desc (default)
     })
     return arr
   }, [ricette, search, sortBy, ingCosti, ricettario])
@@ -508,9 +514,12 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
           style={{ padding: '10px 32px 10px 12px', minHeight: isMobile || isTablet ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: R.md,
             fontSize: isMobile || isTablet ? 16 : 13, color: T.text, background: T.bgCard, cursor: 'pointer', fontFamily: 'inherit', outline: 'none' }}>
-          <option value="margine">Margine ↓</option>
-          <option value="fc">Food cost ↑</option>
-          <option value="nome">Nome A-Z</option>
+          <option value="margine_desc">Margine ↓ (alto → basso)</option>
+          <option value="margine_asc">Margine ↑ (basso → alto)</option>
+          <option value="fc_asc">Food cost ↑ (basso → alto)</option>
+          <option value="fc_desc">Food cost ↓ (alto → basso)</option>
+          <option value="nome_az">Nome A → Z</option>
+          <option value="nome_za">Nome Z → A</option>
         </select>
         <div style={{ display: 'flex', gap: 2, padding: 3, background: T.bgSubtle, borderRadius: R.md }}>
           <button onClick={() => setGridView(false)} style={{ width: 34, height: 32, padding: 0, border: 'none', borderRadius: R.sm, background: !gridView ? T.bgCard : 'transparent', cursor: 'pointer', color: !gridView ? T.text : T.textSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

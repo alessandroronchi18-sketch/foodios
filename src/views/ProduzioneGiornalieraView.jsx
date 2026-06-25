@@ -529,7 +529,9 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   const margPct = riepilogo.ricavoTot > 0 ? ((riepilogo.ricavoTot - riepilogo.fcTot) / riepilogo.ricavoTot * 100) : 0
 
   return (
-    <div style={{ maxWidth: 1200 }}>
+    // paddingBottom 96 su mobile per non far coprire i bottoni dal FAB (bottom 78 + halo).
+    // boxSizing border-box sui figli evita overflow su 375px.
+    <div style={{ maxWidth: 1200, paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%', overflowX: 'hidden' }}>
       <PageHeader
         subtitle={`${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} · Il magazzino si aggiorna automaticamente`}
         action={(giornaliero || []).length > 0 && (
@@ -632,14 +634,14 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             )
           })()}
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: 24 }}>
-            <div>
-              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-                <div style={{ padding: '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div style={{ flex: 1 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: isMobile ? 14 : 24, width: '100%' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', boxSizing: 'border-box', width: '100%' }}>
+                <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data produzione</div>
                     <input type="date" value={data} onChange={e => setData(e.target.value)}
-                      style={{ padding: '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text }}/>
+                      style={{ padding: isMobile ? '10px 12px' : '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, boxSizing: 'border-box', width: isMobile ? '100%' : 'auto', maxWidth: isMobile ? '100%' : undefined }}/>
                   </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
@@ -708,14 +710,14 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                     </tbody>
                   </table>
                 </div>
-                <div style={{ padding: '14px 20px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1 1 240px' }}>
+                <div style={{ padding: isMobile ? '14px 16px' : '14px 20px', borderTop: `1px solid ${C.border}`, display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ flex: isMobile ? '1 1 auto' : '1 1 240px', width: isMobile ? '100%' : 'auto', minWidth: 0 }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Note sessione</div>
                     <input type="text" value={sessNote} onChange={e => setSessNote(e.target.value)} placeholder="es. produzione weekend, teglia extra…"
                       style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, boxSizing: 'border-box' }}/>
                   </div>
                   {haPiuSedi && (
-                    <div style={{ flex: '1 1 200px' }}>
+                    <div style={{ flex: isMobile ? '1 1 auto' : '1 1 200px', width: isMobile ? '100%' : 'auto', minWidth: 0 }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Destinazione</div>
                       <select value={destinazioneSedeId || ''} onChange={e => setDestinazioneSedeId(e.target.value || null)}
                         style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.bgCard, boxSizing: 'border-box' }}>
@@ -730,8 +732,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0, width: '100%' }}>
+              <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: isMobile ? '16px' : '20px', boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box', width: '100%' }}>
                 <PanelHead icon={<Icon name="barChart" size={16} />} title="Riepilogo sessione" color={C.text} />
                 {!hasQta ? (
                   <div style={{ color: C.textSoft, fontSize: 11, textAlign: 'center', padding: '20px 0' }}>Inserisci gli stampi prodotti</div>
@@ -783,7 +785,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               </div>
 
               {hasQta && (
-                <div style={{ background: '#FEF7F5', border: `1px solid ${C.red}30`, borderRadius: 16, padding: '16px', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 8px 22px rgba(110,14,26,0.06)' }}>
+                <div style={{ background: '#FEF7F5', border: `1px solid ${C.red}30`, borderRadius: 16, padding: isMobile ? '14px' : '16px', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 8px 22px rgba(110,14,26,0.06)', boxSizing: 'border-box', width: '100%' }}>
                   <PanelHead icon={<Icon name="gift" size={16} />} title="Stock vetrina dopo la sessione" color={C.red} />
                   <div style={{ fontSize: 11, color: C.textMid, lineHeight: 1.55, marginBottom: 8 }}>
                     Una volta confermata, questi pezzi finiscono nello stock vetrina disponibile per la vendita:
@@ -804,7 +806,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
               )}
 
               {hasQta && !isDipendente && (
-                <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
+                <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: isMobile ? '16px' : '20px', boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box', width: '100%' }}>
                   <PanelHead icon={<Icon name="receipt" size={16} />} title="Ingredienti da scalare" color={C.text} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
                     {Object.entries(riepilogo.ings).sort((a, b) => b[1] - a[1]).map(([k, qty]) => {
@@ -838,17 +840,17 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
               {hasQta && (
                 !confermando ? (
-                  <button onClick={() => setConfermando(true)} style={{ padding: '14px', background: C.red, color: C.white, border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 8px rgba(110,14,26,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}><Icon name="checkCircle" size={16} />Conferma produzione</button>
+                  <button onClick={() => setConfermando(true)} style={{ padding: isMobile ? '15px' : '14px', minHeight: 48, width: '100%', background: C.red, color: C.white, border: 'none', borderRadius: 12, fontWeight: 800, fontSize: 14, cursor: 'pointer', boxShadow: '0 2px 8px rgba(110,14,26,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, boxSizing: 'border-box' }}><Icon name="checkCircle" size={16} />Conferma produzione</button>
                 ) : (
-                  <div style={{ background: C.redLight, border: `1px solid ${C.red}30`, borderRadius: 10, padding: '16px' }}>
+                  <div style={{ background: C.redLight, border: `1px solid ${C.red}30`, borderRadius: 12, padding: isMobile ? '14px' : '16px', boxSizing: 'border-box', width: '100%' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 10 }}>Confermi? Il magazzino verrà scalato.</div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={handleConferma} disabled={salvando}
-                        style={{ flex: 1, padding: '10px', background: salvando ? '#9C887F' : C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: salvando ? 'wait' : 'pointer', opacity: salvando ? 0.7 : 1 }}>
+                        style={{ flex: 1, padding: isMobile ? '12px' : '10px', minHeight: 44, background: salvando ? '#9C887F' : C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: salvando ? 'wait' : 'pointer', opacity: salvando ? 0.7 : 1 }}>
                         {salvando ? 'Salvataggio…' : 'Sì, conferma'}
                       </button>
                       <button onClick={() => setConfermando(false)} disabled={salvando}
-                        style={{ flex: 1, padding: '10px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1 }}>
+                        style={{ flex: 1, padding: isMobile ? '12px' : '10px', minHeight: 44, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1 }}>
                         Annulla
                       </button>
                     </div>

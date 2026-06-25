@@ -21,6 +21,8 @@ const btn = (bg, fg) => ({ height: 36, padding: '0 14px', background: bg, color:
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36) }
 function fmtEur(n) { return `${Number(n || 0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €` }
+// € arrotondato all'unità per box KPI piccoli (più leggibile a colpo d'occhio)
+function fmtEur0(n) { return `${Math.round(Number(n || 0)).toLocaleString('it-IT')} €` }
 function fmtDate(d) {
   if (!d) return '—'
   try { return new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) }
@@ -241,14 +243,14 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
       : eventi.map(e => e.id === draft.id ? norm : e)
     await salvaTutti(next)
     setEditing(null); setDraft(null)
-    notify?.('✓ Evento salvato')
+    notify?.('Evento salvato')
   }
 
   async function archivia(id) {
     const next = eventi.map(e => e.id === id ? { ...e, archiviato: true, archiviato_at: new Date().toISOString() } : e)
     await salvaTutti(next)
     setArchiviaId(null)
-    notify?.('✓ Evento archiviato')
+    notify?.('Evento archiviato')
   }
 
   async function ripristina(id) {
@@ -257,7 +259,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
     // Chiudi eventuali box di conferma aperti su questo evento (elimina/archivia).
     if (eliminaId === id) { setEliminaId(null); setEliminaPin('') }
     if (archiviaId === id) setArchiviaId(null)
-    notify?.('✓ Evento ripristinato')
+    notify?.('Evento ripristinato')
   }
 
   async function confermaEliminazione() {
@@ -268,7 +270,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
     }
     await salvaTutti(eventi.filter(e => e.id !== eliminaId))
     setEliminaId(null); setEliminaPin('')
-    notify?.('✓ Evento eliminato definitivamente')
+    notify?.('Evento eliminato definitivamente')
   }
 
   function calcolaTotali(ev) {
@@ -333,7 +335,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
   const eventiCorrentiTab = tab === 'archivio' ? eventiArchivioFiltrati : eventiAttivi
 
   return (
-    <div style={{ maxWidth: 1200, padding: isMobile ? 8 : 0 }}>
+    <div style={{ maxWidth: 1200, padding: isMobile ? 8 : 0, paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%' }}>
       {/* Tab attivi / archivio */}
       {editing == null && (
         <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: `1px solid ${T.border}` }}>
@@ -564,65 +566,183 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
         const inArchivioTab = tab === 'archivio'
         const isInDeleteConfirm = eliminaId === ev.id
         const isInArchiveConfirm = archiviaId === ev.id
+        const padCard = isMobile ? 16 : isTablet ? 20 : 22
+        // Colore margine: verde >=50, ambra 30-50, brand <30
+        const margColore = t.margPct >= 50 ? T.green : t.margPct >= 30 ? T.amber : T.brand
+        // Card evento riprogettata: header titolo + badge stato a destra,
+        // riga calendario + count prodotti, note italic, 3 KPI compatti
+        // (Ricavo/Margine/Saldo) con minHeight uniformi così label e value
+        // restano incolonnati, infine bottoni in 2 righe: azioni primarie
+        // affiancate, distruttive separate sotto.
+        const kpiBox = {
+          padding: '10px 12px',
+          background: T.bgSubtle || '#F8FAFC',
+          border: `1px solid ${T.borderSoft || T.border}`,
+          borderRadius: 10,
+          display: 'flex', flexDirection: 'column',
+        }
+        const kpiLabel = {
+          fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '0.08em', color: T.textSoft,
+          minHeight: 14, lineHeight: 1.2,
+        }
+        const kpiValue = {
+          fontSize: isMobile ? 16 : 17, fontWeight: 800, letterSpacing: '-0.015em',
+          marginTop: 4, lineHeight: 1.1, minHeight: isMobile ? 19 : 20,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          ...TNUM,
+        }
+        const btnAction = (bgCol, fgCol, borderCol) => ({
+          flex: 1, padding: '11px 14px', minHeight: 44,
+          background: bgCol, color: fgCol,
+          border: borderCol ? `1px solid ${borderCol}` : 'none',
+          borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          boxSizing: 'border-box', whiteSpace: 'nowrap',
+          fontFamily: 'inherit',
+        })
         return (
-          <div key={ev.id} className={isArch ? undefined : 'fos-tile'} style={{ ...card, opacity: isArch ? 0.78 : 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 16, fontWeight: 800, color: T.text, letterSpacing: '-0.01em' }}>{ev.cliente || 'Cliente —'}</span>
-                  {!isArch && ft && (
-                    <span title={`Evento ${fmtDate(ev.data)} — pianifica la produzione di conseguenza`}
-                      style={{ fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: ft.bg, color: ft.fg, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      {ft.urgente ? <Icon name="clock" size={11} /> : null}{ft.label}
-                    </span>
-                  )}
-                  {isArch && <span style={{ fontSize: 10, background: T.bgSubtle, color: T.textSoft, padding: '2px 8px', borderRadius: 999, fontWeight: 700, letterSpacing: '0.04em' }}>{ev.archiviato ? 'ARCHIVIATO' : 'PASSATO'}</span>}
+          <div key={ev.id} className={isArch ? undefined : 'fos-tile'} style={{
+            background: T.bgCard, borderRadius: 16,
+            padding: padCard,
+            border: `1px solid ${T.border}`, boxShadow: SHADOW_PREMIUM,
+            marginBottom: 14, opacity: isArch ? 0.82 : 1, boxSizing: 'border-box',
+          }}>
+            {/* Header: titolo evento + badge stato a destra */}
+            <div style={{
+              display: 'flex', alignItems: 'flex-start',
+              justifyContent: 'space-between', gap: 10, marginBottom: 8,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: isMobile ? 17 : 18, fontWeight: 800, color: T.text,
+                  letterSpacing: '-0.015em', lineHeight: 1.25,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }} title={ev.cliente || 'Cliente'}>
+                  {ev.cliente || 'Cliente —'}
                 </div>
-                <div style={{ fontSize: 12, color: T.textMid, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Icon name="calendar" size={13} /> {fmtDate(ev.data)} · {(ev.righe || []).length} prodotti
-                </div>
-                {ev.note && <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4, fontStyle: 'italic' }}>{ev.note}</div>}
               </div>
-              <div style={{ textAlign: 'right', minWidth: 130, ...TNUM }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: '-0.025em' }}>{fmtEur(t.totRicavo)}</div>
-                <div style={{ fontSize: 11, color: t.margPct >= 50 ? T.green : t.margPct >= 30 ? T.amber : T.brand, fontWeight: 700, marginTop: 2 }}>
-                  margine {t.margPct.toFixed(0)}%
+              {!isArch && ft && (
+                <span title={`Evento ${fmtDate(ev.data)} — pianifica la produzione di conseguenza`}
+                  style={{
+                    fontSize: 10, fontWeight: 800, padding: '4px 10px',
+                    borderRadius: 999, background: ft.bg, color: ft.fg,
+                    letterSpacing: '0.04em', textTransform: 'uppercase',
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                  }}>
+                  {ft.urgente ? <Icon name="clock" size={11} /> : null}{ft.label}
+                </span>
+              )}
+              {isArch && (
+                <span style={{
+                  fontSize: 10, background: T.bgSubtle, color: T.textSoft,
+                  padding: '4px 10px', borderRadius: 999, fontWeight: 700,
+                  letterSpacing: '0.06em', flexShrink: 0, whiteSpace: 'nowrap',
+                }}>
+                  {ev.archiviato ? 'ARCHIVIATO' : 'PASSATO'}
+                </span>
+              )}
+            </div>
+
+            {/* Riga data + count prodotti */}
+            <div style={{
+              fontSize: 12.5, color: T.textMid,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              marginBottom: ev.note ? 6 : 12,
+            }}>
+              <Icon name="calendar" size={13} color={T.textMid} />
+              <span style={{ fontWeight: 600 }}>{fmtDate(ev.data)}</span>
+              <span style={{ color: T.textSoft }}>·</span>
+              <span>{(ev.righe || []).length} prodotti</span>
+            </div>
+
+            {/* Note evento */}
+            {ev.note && (
+              <div style={{
+                fontSize: 12, color: T.textSoft, marginBottom: 12,
+                fontStyle: 'italic', lineHeight: 1.5,
+              }}>
+                {ev.note}
+              </div>
+            )}
+
+            {/* KPI compatti orizzontali: Ricavo / Margine / Saldo
+                Grid 3 colonne uguali (1fr 1fr 1fr) con minHeight uniformi su
+                label/value per allineamento verticale tra le 3 box. */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+              gap: 8, marginBottom: 14,
+            }}>
+              <div style={kpiBox}>
+                <div style={kpiLabel}>Ricavo</div>
+                <div style={{ ...kpiValue, color: T.text }} title={fmtEur(t.totRicavo)}>
+                  {fmtEur0(t.totRicavo)}
                 </div>
-                <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>
-                  Saldo {fmtEur(saldo)}
+              </div>
+              <div style={kpiBox}>
+                <div style={kpiLabel}>Margine</div>
+                <div style={{ ...kpiValue, color: margColore }} title={`${fmtEur(t.margine)} (${t.margPct.toFixed(1)}%)`}>
+                  {t.margPct.toFixed(0)}%
+                </div>
+              </div>
+              <div style={kpiBox}>
+                <div style={kpiLabel}>Saldo</div>
+                <div style={{ ...kpiValue, color: saldo > 0 ? T.brand : T.green }} title={fmtEur(saldo)}>
+                  {fmtEur0(saldo)}
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
+
+            {/* Bottoni azione — riga 1: Modifica + Esporta PDF (flex 1) */}
+            <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => modifica(ev)}
-                style={{ padding: '6px 12px', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: T.textMid, cursor: 'pointer' }}>
+                style={btnAction(T.bgSubtle || '#F8FAFC', T.textMid, T.border)}>
+                <Icon name="edit" size={14} color={T.textMid} />
                 Modifica
               </button>
               <button onClick={() => exportPreventivoPDF(ev, ricetteMap, null, nomeAttivita)}
-                style={{ padding: '6px 12px', background: T.blueLight, border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#1E40AF', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <Icon name="fileText" size={13} /> Esporta PDF
+                style={btnAction('#EFF6FF', '#1E40AF', '#BFDBFE')}>
+                <Icon name="fileText" size={14} color="#1E40AF" />
+                Esporta PDF
               </button>
-              {!inArchivioTab && (
-                <button onClick={() => { setArchiviaId(ev.id); setEliminaId(null) }}
-                  title="Sposta in archivio (riportabile in qualsiasi momento)"
-                  style={{ padding: '6px 12px', background: '#FEF3C7', border: `1px solid ${T.amber}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#92400E', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <Icon name="package" size={13} /> Archivia
-                </button>
-              )}
-              {inArchivioTab && ev.archiviato && (
-                <button onClick={() => ripristina(ev.id)}
-                  title="Riporta l'evento tra gli attivi"
-                  style={{ padding: '6px 12px', background: T.greenLight, border: `1px solid ${T.green}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: '#065F46', cursor: 'pointer' }}>
-                  ↩ Ripristina
-                </button>
-              )}
-              {inArchivioTab && (
-                <button onClick={() => { setEliminaId(ev.id); setEliminaPin('') }}
-                  style={{ padding: '6px 12px', background: T.brandLight, border: `1px solid ${T.brandSoft}`, borderRadius: 8, fontSize: 11, fontWeight: 700, color: T.brand, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <Icon name="trash" size={13} /> Elimina definitivamente
-                </button>
-              )}
             </div>
+
+            {/* Riga 2 azioni secondarie: Archivia (attivi) o Ripristina (archivio) */}
+            {!inArchivioTab && (
+              <button onClick={() => { setArchiviaId(ev.id); setEliminaId(null) }}
+                title="Sposta in archivio (riportabile in qualsiasi momento)"
+                style={{
+                  ...btnAction('#FFFBEB', '#92400E', T.amber),
+                  width: '100%', marginTop: 8,
+                }}>
+                <Icon name="package" size={14} color="#92400E" />
+                Archivia
+              </button>
+            )}
+            {inArchivioTab && ev.archiviato && (
+              <button onClick={() => ripristina(ev.id)}
+                title="Riporta l'evento tra gli attivi"
+                style={{
+                  ...btnAction(T.greenLight, '#065F46', T.green),
+                  width: '100%', marginTop: 8,
+                }}>
+                <Icon name="refresh" size={14} color="#065F46" />
+                Ripristina
+              </button>
+            )}
+
+            {/* Riga 3 (solo archivio): Elimina definitivamente — full-width, rosso, distanziato */}
+            {inArchivioTab && (
+              <button onClick={() => { setEliminaId(ev.id); setEliminaPin('') }}
+                style={{
+                  ...btnAction(T.brandLight, T.brand, T.brandSoft),
+                  width: '100%', marginTop: 8,
+                }}>
+                <Icon name="trash" size={14} color={T.brand} />
+                Elimina definitivamente
+              </button>
+            )}
 
             {isInArchiveConfirm && (
               <div style={{ marginTop: 12, padding: '14px 16px', background: '#FFFBEB', border: `1px solid ${T.amber}`, borderRadius: 10 }}>

@@ -2401,9 +2401,13 @@ export default function Dashboard({
             <div style={{height:3, background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)", flexShrink:0}}/>
 
             {/* Logo header: solo su mobile (su desktop logo+nome sono nella fascia
-                superiore globale, così la sidebar ha più spazio per il menu). */}
+                superiore globale, così la sidebar ha più spazio per il menu).
+                Tap su tutto il blocco → torna alla home (audit 2026-06-25). */}
             {isMobile && (
-            <div style={{padding:"20px 20px 18px",borderBottom:`1px solid ${T.borderOnDark}`}}>
+            <button
+              onClick={()=>{ setView(isDip?"home-dipendente":"home"); setSidebarOpen(false) }}
+              aria-label={`Vai a ${appName} home`}
+              style={{padding:"20px 20px 18px",borderBottom:`1px solid ${T.borderOnDark}`,background:"transparent",border:"none",width:"100%",textAlign:"left",cursor:"pointer",display:"block"}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 {customLogo
                   ? <img src={customLogo} alt={appName} style={{height:38,maxWidth:60,objectFit:'contain',borderRadius:10}}/>
@@ -2416,7 +2420,7 @@ export default function Dashboard({
                   </div>
                 </div>
               </div>
-            </div>
+            </button>
             )}
 
             {!['confronto-sedi','trasferimenti'].includes(view) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />}
@@ -2804,11 +2808,11 @@ export default function Dashboard({
                   dangerouslySetInnerHTML={{__html:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>'}} />
               </button>
               <div style={{flex:1,minWidth:0,textAlign:"center"}}>
-                <h1 style={{margin:0,fontSize:15,fontWeight:600,color:T.text,letterSpacing:"-0.01em",
-                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.2}}>{titolo}</h1>
+                <h1 style={{margin:0,fontSize:18,fontWeight:800,color:T.text,letterSpacing:"-0.02em",
+                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.15}}>{titolo}</h1>
                 {nomeAttivita && view!=="home" && (
-                  <div style={{fontSize:10,color:T.textSoft,fontWeight:500,marginTop:1,
-                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.005em"}}>
+                  <div style={{fontSize:10.5,color:T.textSoft,fontWeight:600,marginTop:2,
+                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"0.04em",textTransform:"uppercase"}}>
                     {nomeAttivita}
                   </div>
                 )}

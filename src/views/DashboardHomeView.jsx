@@ -274,7 +274,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, color: empty ? T.textFaint : (valueColor || T.text), lineHeight: 1.0, letterSpacing: '-0.035em', position: 'relative', minHeight: isMobile ? 26 : 32, ...TNUM }}>
         {empty ? '—' : value}
       </div>
-      <div style={{ fontSize: isMobile ? 11.5 : 12.5, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative', minHeight: isMobile ? 30 : 32, lineHeight: 1.35 }}>{sub}</div>
+      <div title={typeof sub === 'string' ? sub : undefined} style={{ fontSize: isMobile ? 11.5 : 12.5, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative', minHeight: isMobile ? 30 : 32, lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
     </div>
   )
   const TINT = {
@@ -333,7 +333,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
           valueColor={T.green}
           empty={!cassaOggi && b2bOggi === 0}
           sub={b2bMese > 0
-            ? `oggi · B2B mese ${fmt0(b2bMese)}`
+            ? `B2B mese ${fmt0(b2bMese)}`
             : (cassaOggi ? 'incassati oggi' : 'non ancora registrati')}
           onClick={() => setView('chiusura')} />
         <KpiCard label="Food Cost" icon={ICO.pie} tint={TINT.fc} value={`${(fcMedio * 100).toFixed(1)}%`} valueColor={fcColor} empty={ricette.length === 0} sub={ricette.length > 0 ? 'medio ricettario' : 'non disponibile'} onClick={() => setView('simulatore')} />

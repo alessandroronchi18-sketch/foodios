@@ -405,7 +405,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   }
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%' }}>
       <PageHeader subtitle={`Foglio settimanale per la registrazione di produzione e rimanenze. Il sistema calcola automaticamente il venduto: rimanenza(ieri) + produzione(oggi) − rimanenza(oggi) − scarto.`} />
 
       {showOnboarding && !isAllSedi && <OnboardingInventario onClose={chiudiOnboarding} />}
@@ -445,7 +445,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                     cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                   }}>
-                  {sel ? '✓ ' : ''}{s.nome}
+                  {sel && <Icon name="check" size={11} color="#FFFFFF" />}{s.nome}
                 </button>
               )
             })}
@@ -525,29 +525,37 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         </button>
       </div>
 
-      {/* Toolbar navigazione settimana (solo modalita' settimana) */}
+      {/* Toolbar navigazione settimana (solo modalita' settimana) — grid 3 col uguali su mobile,
+          così Sett.prec / Questa sett / Sett.succ non si schiacciano. Il range data va sopra. */}
       {vista === 'settimana' && (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
+          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center', gap: 12, marginBottom: 20,
           background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
-          padding: '12px 16px',
+          padding: isMobile ? '12px 14px' : '12px 16px',
+          boxSizing: 'border-box',
         }}>
-          <button onClick={settimanaPrec}
-            style={{ padding: '8px 14px', minHeight: 40, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 13, color: C.textMid, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            ← Sett. prec.
-          </button>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Settimana</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{fmtRange(lunediIso)}</div>
+          <div style={{ flex: 1, textAlign: isMobile ? 'left' : 'center', order: isMobile ? 0 : 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Settimana</div>
+            <div style={{ fontSize: isMobile ? 16 : 15, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>{fmtRange(lunediIso)}</div>
           </div>
-          <button onClick={oggi}
-            style={{ padding: '8px 14px', minHeight: 40, background: '#F8FAFC', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, color: C.textMid }}>
-            Questa sett.
-          </button>
-          <button onClick={settimanaSucc}
-            style={{ padding: '8px 14px', minHeight: 40, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 13, color: C.textMid, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            Sett. succ. →
-          </button>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6,
+            order: isMobile ? 1 : 0,
+          }}>
+            <button onClick={settimanaPrec}
+              style={{ padding: '10px 8px', minHeight: 44, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: C.textMid }}>
+              ← Sett. prec.
+            </button>
+            <button onClick={oggi}
+              style={{ padding: '10px 8px', minHeight: 44, background: '#F8FAFC', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: T.brand }}>
+              Questa sett.
+            </button>
+            <button onClick={settimanaSucc}
+              style={{ padding: '10px 8px', minHeight: 44, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: C.textMid }}>
+              Sett. succ. →
+            </button>
+          </div>
         </div>
       )}
 
@@ -564,12 +572,17 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       ) : vista === 'storico' ? (
         <VistaStorico gusti={gustiOrdinati} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} unita={unitaDisplay} />
       ) : (
+        // Settimana × 7 giorni × 2 colonne (PROD/RIMAN) + GUSTO + TOT = 16 colonne.
+        // Su 375px non ci stanno, quindi tabella scrolla orizzontalmente e
+        // la prima colonna GUSTO è sticky (left:0) per non perdere il contesto.
+        // minWidth calcolato così: 160 GUSTO + 14*72 PROD/RIMAN + 110 TOT = ~1278.
         <div style={{
           background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
           overflowX: 'auto', overflowY: 'visible',
           boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
+          WebkitOverflowScrolling: 'touch',
         }}>
-          <table style={{ width: '100%', minWidth: 980, borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', minWidth: 1280, borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#F8FAFC' }}>
                 <SortableHeader
@@ -578,21 +591,32 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                   active={sort.by === 'nome'} dir={sort.dir}
                   style={thGusto}
                 />
-                {GIORNI.map((g, i) => (
-                  <th key={g} colSpan={2} style={{ ...thGiorno, borderLeft: `1px solid ${C.border}` }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.text, textTransform: 'uppercase' }}>{g} {i + 1}</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 4 }}>
-                      <SortChip label="PROD" color="#0EA5E9"
-                        active={sort.by?.tipo === 'prod' && sort.by?.giorno === i} dir={sort.dir}
-                        onClick={() => toggleSort({ tipo: 'prod', giorno: i })}
-                      />
-                      <SortChip label="RIMAN" color="#F59E0B"
-                        active={sort.by?.tipo === 'riman' && sort.by?.giorno === i} dir={sort.dir}
-                        onClick={() => toggleSort({ tipo: 'riman', giorno: i })}
-                      />
-                    </div>
-                  </th>
-                ))}
+                {GIORNI.map((g, i) => {
+                  // Calcolo data del giorno N per mostrare "gio 4" leggibile.
+                  const dIso = addDays(lunediIso, i)
+                  const giornoN = new Date(dIso).getDate()
+                  return (
+                    <th key={g} colSpan={2} style={{ ...thGiorno, borderLeft: `1px solid ${C.border}`, minWidth: 144 }}>
+                      <div style={{
+                        fontSize: 11, fontWeight: 800, color: C.text,
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                        whiteSpace: 'nowrap', lineHeight: 1.2,
+                      }}>
+                        {g} {giornoN}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 6, gap: 4 }}>
+                        <SortChip label="PROD" color="#0EA5E9"
+                          active={sort.by?.tipo === 'prod' && sort.by?.giorno === i} dir={sort.dir}
+                          onClick={() => toggleSort({ tipo: 'prod', giorno: i })}
+                        />
+                        <SortChip label="RIMAN" color="#F59E0B"
+                          active={sort.by?.tipo === 'riman' && sort.by?.giorno === i} dir={sort.dir}
+                          onClick={() => toggleSort({ tipo: 'riman', giorno: i })}
+                        />
+                      </div>
+                    </th>
+                  )
+                })}
                 <SortableHeader
                   label="VENDUTO SETT."
                   onClick={() => toggleSort('venduto')}
@@ -617,7 +641,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                       const kRim = `${gustoKey}|${dIso}|rimanenza_g`
                       return (
                         <React.Fragment key={dIso}>
-                          <td style={{ ...tdInput, borderLeft: `1px solid ${C.border}` }}>
+                          <td style={{ ...tdInput, borderLeft: `1px solid ${C.border}`, background: '#FFFFFF' }}>
                             <CellInput
                               value={cell.prod || ''}
                               saving={!!saving[kProd]}
@@ -626,7 +650,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                               onCommit={v => handleSave(gustoKey, dIso, 'produzione_g', v)}
                             />
                           </td>
-                          <td style={tdInput}>
+                          <td style={{ ...tdInput, background: '#FFFEFB' }}>
                             <CellInput
                               value={cell.riman || ''}
                               saving={!!saving[kRim]}
@@ -964,9 +988,9 @@ function DialogImport({ orgId, sedeId, righeDb, ricettario: ricettarioProp, stat
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.text }}>
             Importa file inventario
           </h2>
-          <button onClick={close}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 18, color: C.textSoft }}>
-            ✕
+          <button onClick={close} aria-label="Chiudi"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: C.textSoft, width: 36, height: 36, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="x" size={18} />
           </button>
         </div>
 
@@ -1265,8 +1289,8 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
           </div>
         </div>
         {meseRilevato && (meseRilevato.mese !== mese || meseRilevato.anno !== anno) && (
-          <div style={{ fontSize: 11.5, color: '#92400E', marginTop: 8 }}>
-            ⚠️ Stai cambiando il mese rispetto a quello rilevato nel nome file ({MESI_LABEL[meseRilevato.mese - 1]} {meseRilevato.anno}).
+          <div style={{ fontSize: 11.5, color: '#92400E', marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="warning" size={12} color="#92400E" /> Stai cambiando il mese rispetto a quello rilevato nel nome file ({MESI_LABEL[meseRilevato.mese - 1]} {meseRilevato.anno}).
           </div>
         )}
       </div>
@@ -1326,16 +1350,17 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
           <div style={{
             padding: '10px 14px', background: '#ECFDF5', border: '1px solid #A7F3D0',
             borderRadius: 10, marginBottom: 14, fontSize: 12.5, color: '#065F46',
+            display: 'inline-flex', alignItems: 'center', gap: 6,
           }}>
-            ✓ Check totali OK: la somma dei fogli sede corrisponde ai totali dichiarati.
+            <Icon name="check" size={14} color="#065F46" /> Check totali OK: la somma dei fogli sede corrisponde ai totali dichiarati.
           </div>
         ) : (
           <div style={{
             padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FECACA',
             borderRadius: 10, marginBottom: 14,
           }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#991B1B', marginBottom: 6 }}>
-              ⚠️ Trovati {checkTot.divergenze.length} gusti con totali divergenti
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#991B1B', marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="warning" size={14} color="#991B1B" /> Trovati {checkTot.divergenze.length} gusti con totali divergenti
             </div>
             <div style={{ fontSize: 11.5, color: '#7F1D1D', marginBottom: 8 }}>
               La somma dei fogli sede non coincide col valore dichiarato nel foglio TOTALI (oltre il 5%).
@@ -1375,8 +1400,8 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
           padding: '12px 14px', background: '#FEF9EB',
           border: '1px solid #FDE68A', borderRadius: 10, marginBottom: 14,
         }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#78350F', marginBottom: 6 }}>
-            ℹ️ {gustiOrfani.length} {gustiOrfani.length === 1 ? 'gusto non e\'' : 'gusti non sono'} nel ricettario
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#78350F', marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="bulb" size={14} color="#78350F" /> {gustiOrfani.length} {gustiOrfani.length === 1 ? 'gusto non è' : 'gusti non sono'} nel ricettario
           </div>
           <div style={{ fontSize: 12, color: '#78350F', lineHeight: 1.5, marginBottom: 8 }}>
             L'import procede comunque: questi gusti compariranno nel foglio con un badge "non a ricettario".
@@ -1397,11 +1422,13 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
           padding: '10px 12px', background: '#F0F9FF', border: '1px solid #BAE6FD',
           borderRadius: 10, marginBottom: 10, fontSize: 12.5, color: '#075985',
         }}>
-          🧾 <strong>Vendite B2B rilevate ({parsatoB2b.righe.length})</strong> dal foglio "{classif.b2b.sheetName}".
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="receipt" size={13} color="#075985" /> <strong>Vendite B2B rilevate ({parsatoB2b.righe.length})</strong> dal foglio "{classif.b2b.sheetName}".
+          </span>{' '}
           Saranno salvate in <em>Clienti B2B → Vendite</em>.
           {parsatoB2b.righe.filter(r => !mappaNegozioSede[normNomeSede(r.sedeNome)]).length > 0 && (
-            <div style={{ marginTop: 4, fontSize: 11.5 }}>
-              ⚠️ Alcuni negozi non corrispondono a nessuna sede esistente: queste righe saranno saltate.
+            <div style={{ marginTop: 4, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="warning" size={12} color="#075985" /> Alcuni negozi non corrispondono a nessuna sede esistente: queste righe saranno saltate.
             </div>
           )}
         </div>
@@ -1411,11 +1438,13 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
           padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FECACA',
           borderRadius: 10, marginBottom: 10, fontSize: 12.5, color: '#7F1D1D',
         }}>
-          🗑️ <strong>Prodotti eliminati rilevati ({parsatoSprechi.righe.length})</strong> dal foglio "{classif.sprechi.sheetName}".
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="trash" size={13} color="#7F1D1D" /> <strong>Prodotti eliminati rilevati ({parsatoSprechi.righe.length})</strong> dal foglio "{classif.sprechi.sheetName}".
+          </span>{' '}
           Saranno salvati come <em>scarto del giorno</em> nelle celle inventario (evita doppi conteggi).
           {parsatoSprechi.righe.filter(r => !mappaNegozioSede[normNomeSede(r.sedeNome)]).length > 0 && (
-            <div style={{ marginTop: 4, fontSize: 11.5 }}>
-              ⚠️ Alcuni negozi non corrispondono a nessuna sede esistente: queste righe saranno saltate.
+            <div style={{ marginTop: 4, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="warning" size={12} color="#7F1D1D" /> Alcuni negozi non corrispondono a nessuna sede esistente: queste righe saranno saltate.
             </div>
           )}
         </div>
@@ -1426,12 +1455,14 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
           padding: '10px 12px', background: '#F5F3FF', border: '1px solid #DDD6FE',
           borderRadius: 10, marginBottom: 10, fontSize: 12.5, color: '#4C1D95',
         }}>
-          🧪 <strong>Altri prodotti rilevati ({parsatoAltriProd.righe.length})</strong> dal foglio "{classif.altri_prod.sheetName}".
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="package" size={13} color="#4C1D95" /> <strong>Altri prodotti rilevati ({parsatoAltriProd.righe.length})</strong> dal foglio "{classif.altri_prod.sheetName}".
+          </span>{' '}
           Saranno importati come gusti speciali (es. PASTORIZZATA, CIOCCOLATA, ZABAIONE)
           nell'inventario settimanale di ogni sede.
           {parsatoAltriProd.righe.filter(r => !mappaNegozioSede[normNomeSede(r.sedeNome)]).length > 0 && (
-            <div style={{ marginTop: 4, fontSize: 11.5 }}>
-              ⚠️ Alcuni negozi non corrispondono a nessuna sede: queste righe saranno saltate.
+            <div style={{ marginTop: 4, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="warning" size={12} color="#4C1D95" /> Alcuni negozi non corrispondono a nessuna sede: queste righe saranno saltate.
             </div>
           )}
         </div>
@@ -1515,19 +1546,19 @@ function OnboardingInventario({ onClose }) {
   const [step, setStep] = useState(0)
   const steps = [
     {
-      icon: '📋',
-      titolo: 'Benvenuto nell\'Inventario',
-      testo: 'Questo metodo è pensato per business in cui produci gusti (gelato, yogurt) ma vendi formati (cono, coppetta, vaschetta). Il sistema calcola quanto hai venduto a partire da quanto produci e quanto resta.',
+      iconName: 'clipboard',
+      titolo: 'Benvenuto nell\'inventario',
+      testo: 'Questo metodo è pensato per chi produce gusti (gelato, yogurt) ma vende formati (cono, coppetta, vaschetta). Il sistema calcola quanto hai venduto a partire da quanto produci e quanto ti resta a fine giornata.',
     },
     {
-      icon: '✍️',
-      titolo: 'Compila ogni giorno 2 valori',
-      testo: 'Per ogni gusto inserisci PROD (grammi prodotti) e RIMAN (grammi rimasti a fine giornata). Il VENDUTO si calcola da solo: RIMAN(ieri) + PROD(oggi) − RIMAN(oggi). Niente scontrini da abbinare.',
+      iconName: 'edit',
+      titolo: 'Compila ogni giorno due valori',
+      testo: 'Per ogni gusto inserisci PROD (grammi prodotti) e RIMAN (grammi rimasti a fine giornata). Il VENDUTO si calcola da solo: RIMAN di ieri + PROD di oggi − RIMAN di oggi. Niente scontrini da abbinare.',
     },
     {
-      icon: '⬇️',
+      iconName: 'upload',
       titolo: 'Hai già un foglio Excel?',
-      testo: 'Click sul bottone "Importa file" in alto per caricare il foglio settimanale che usi oggi. Il sistema legge automaticamente il mese, mappa le sedi e ti chiede conferma prima di salvare.',
+      testo: 'Premi "Importa file" in alto per caricare il foglio settimanale che usi oggi. Riconosciamo il mese dal nome del file, mappiamo le sedi e ti chiediamo conferma prima di salvare.',
     },
   ]
   const last = step === steps.length - 1
@@ -1563,11 +1594,18 @@ function OnboardingInventario({ onClose }) {
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
-          <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 12 }}>{s.icon}</div>
+          <div style={{
+            width: 64, height: 64, borderRadius: 18,
+            background: 'rgba(110,14,26,0.10)', color: T.brand,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: 14,
+          }}>
+            <Icon name={s.iconName} size={30} color={T.brand} />
+          </div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.text, letterSpacing: '-0.01em', marginBottom: 10 }}>
             {s.titolo}
           </h2>
-          <p style={{ margin: 0, fontSize: 13.5, color: C.textMid, lineHeight: 1.6 }}>
+          <p style={{ margin: 0, fontSize: 13.5, color: C.textMid, lineHeight: 1.55 }}>
             {s.testo}
           </p>
         </div>
@@ -1613,10 +1651,10 @@ function IconaOrfano() {
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         width: 18, height: 18, borderRadius: '50%',
         background: '#FEF3C7', color: '#92400E',
-        fontSize: 11, fontWeight: 800, cursor: 'help',
+        cursor: 'help',
         flexShrink: 0,
       }}>
-      ⚠
+      <Icon name="warning" size={11} color="#92400E" />
       {hover && (
         <span role="tooltip" style={{
           position: 'absolute', bottom: 'calc(100% + 8px)', right: 0,
@@ -1955,22 +1993,35 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g' }) {
 }
 
 // Campo grande per la VistaOggi: input touch-friendly con label sopra.
+// Su blur formattiamo con punto migliaia IT (1.100, 2.000, 3.500). Su focus
+// togliamo il punto così l'utente può editare senza confusione.
 function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g' }) {
-  // value sempre in grammi internamente.
-  const toDisplay = (g) => {
-    if (g === 0 || g == null) return ''
-    return unita === 'kg' ? (g / 1000).toString().replace('.', ',') : String(g)
+  const [focused, setFocused] = useState(false)
+  // Formato visualizzato (in focus = numero "grezzo" senza migliaia, fuori focus = migliaia IT)
+  const toDisplay = (g, withSeparator) => {
+    if (g === 0 || g == null || g === '') return ''
+    if (unita === 'kg') {
+      const num = Number(g) / 1000
+      return withSeparator
+        ? num.toLocaleString('it-IT', { maximumFractionDigits: 2 })
+        : String(num).replace('.', ',')
+    }
+    const num = Number(g)
+    return withSeparator ? num.toLocaleString('it-IT') : String(num)
   }
-  const [local, setLocal] = useState(toDisplay(value))
-  useEffect(() => { setLocal(toDisplay(value)) }, [value, unita])
+  const [local, setLocal] = useState(toDisplay(value, true))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setLocal(toDisplay(value, focused === false)) }, [value, unita, focused])
+  const parse = (s) => Number((s || '').replace(/\./g, '').replace(',', '.')) || 0
   const commit = () => {
-    const raw = Number((local || '').replace(',', '.')) || 0
+    const raw = parse(local)
     const g = unita === 'kg' ? Math.round(raw * 1000) : Math.round(raw)
     if (g !== Number(value || 0)) onCommit(g)
+    setFocused(false)
   }
   return (
     <label style={{ display: 'block' }}>
-      <div style={{ fontSize: 10.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, minHeight: 28, lineHeight: 1.25 }}>
         {label}
       </div>
       <div style={{
@@ -1985,6 +2036,7 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
           inputMode="numeric"
           value={local}
           readOnly={readOnly}
+          onFocus={() => { setFocused(true); setLocal(toDisplay(value, false)) }}
           onChange={e => { if (!readOnly) setLocal(e.target.value.replace(/[^\d.,]/g, '')) }}
           onBlur={readOnly ? undefined : commit}
           onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
@@ -1992,7 +2044,7 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
           style={{
             flex: 1, border: 'none', outline: 'none', background: 'transparent',
             fontSize: 18, fontWeight: 700, color: C.text, textAlign: 'right',
-            padding: '12px 0',
+            padding: '12px 0', minWidth: 0,
             cursor: readOnly ? 'default' : 'text',
             ...TNUM,
           }}
@@ -2005,21 +2057,32 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
 
 // ── Cella input controllata con salvataggio on-blur ───────────────────────
 // Lo state locale serve solo a non commitare ad ogni keypress. Su blur (o
-// Enter) chiama onCommit con il valore numerico finale.
+// Enter) chiama onCommit con il valore numerico finale. Su mobile font 16
+// per non far zoomare iOS. Quando NON è in focus, numeri ≥1000 con punto
+// migliaia IT (1.100, 2.000, 3.500): leggibilità a colpo d'occhio.
 function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
-  // value e' sempre in grammi internamente. Lo state locale puo' essere
-  // formattato in kg per la visualizzazione e riconvertito a g al commit.
   const isMobile = useIsMobile()
-  const toDisplay = (g) => {
+  const [focused, setFocused] = useState(false)
+  const toDisplay = (g, withSeparator) => {
     if (g === '' || g === 0 || g == null) return ''
-    return unita === 'kg' ? (g / 1000).toString().replace('.', ',') : String(g)
+    if (unita === 'kg') {
+      const num = Number(g) / 1000
+      return withSeparator
+        ? num.toLocaleString('it-IT', { maximumFractionDigits: 2 })
+        : String(num).replace('.', ',')
+    }
+    const num = Number(g)
+    return withSeparator ? num.toLocaleString('it-IT') : String(num)
   }
-  const [local, setLocal] = useState(toDisplay(value))
-  useEffect(() => { setLocal(toDisplay(value)) }, [value, unita])
+  const [local, setLocal] = useState(toDisplay(value, true))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setLocal(toDisplay(value, focused === false)) }, [value, unita, focused])
+  const parse = (s) => Number((s || '').replace(/\./g, '').replace(',', '.')) || 0
   const commit = () => {
-    const raw = Number((local || '').replace(',', '.')) || 0
+    const raw = parse(local)
     const g = unita === 'kg' ? Math.round(raw * 1000) : Math.round(raw)
     if (g !== Number(value || 0)) onCommit(g)
+    setFocused(false)
   }
   return (
     <input
@@ -2027,15 +2090,16 @@ function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
       inputMode="numeric"
       value={local}
       readOnly={readOnly}
+      onFocus={() => { setFocused(true); setLocal(toDisplay(value, false)) }}
       onChange={e => { if (!readOnly) setLocal(e.target.value.replace(/[^\d.,]/g, '')) }}
       onBlur={readOnly ? undefined : commit}
       onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
       style={{
-        width: '100%', minWidth: 56, padding: '8px 6px', textAlign: 'right',
-        fontSize: isMobile ? 16 : 13, fontFamily: 'inherit',
+        width: '100%', minWidth: 64, padding: '10px 8px', textAlign: 'right',
+        fontSize: isMobile ? 16 : 13, fontFamily: 'inherit', boxSizing: 'border-box',
         border: 'none', outline: 'none',
         background: saving ? 'rgba(110,14,26,0.05)' : 'transparent',
-        color: C.text, fontWeight: local ? 600 : 400,
+        color: C.text, fontWeight: local ? 700 : 400,
         borderBottom: `2px solid ${local ? accent : 'transparent'}`,
         cursor: readOnly ? 'default' : 'text',
         ...TNUM,
@@ -2045,25 +2109,33 @@ function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
 }
 
 // ── Stili tabella ─────────────────────────────────────────────────────────
+// Audit 2026-06-24: header colonne giorno della settimana erano tagliati su
+// mobile (es. "GIO 4" sovrapposto a PROD/RIMAN). Soluzione: minWidth 72px
+// per cella input + sticky left sulla colonna GUSTO + minWidth tabella 1280
+// così su 375px lo scroll orizzontale funziona ma il contesto resta visibile.
 const thGusto = {
   padding: '12px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700,
   color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em',
-  position: 'sticky', left: 0, background: '#F8FAFC', zIndex: 1,
+  position: 'sticky', left: 0, background: '#F8FAFC', zIndex: 2,
   minWidth: 160,
+  boxShadow: '2px 0 0 rgba(15,23,42,0.04)',
 }
-const thGiorno = { padding: '6px 4px', textAlign: 'center' }
+const thGiorno = { padding: '8px 4px', textAlign: 'center', whiteSpace: 'nowrap' }
 const thTot = {
-  padding: '12px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700,
-  color: C.text, textTransform: 'uppercase', letterSpacing: '0.06em',
-  background: '#FEF3C7', minWidth: 110,
+  padding: '12px 14px', textAlign: 'right', fontSize: 11, fontWeight: 800,
+  color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em',
+  background: '#FEF3C7', minWidth: 120, whiteSpace: 'nowrap',
 }
 const tdGusto = {
-  padding: '10px 14px', fontSize: 13, fontWeight: 600, color: C.text,
+  padding: '10px 14px', fontSize: 13, fontWeight: 700, color: C.text,
   position: 'sticky', left: 0, background: C.bgCard, zIndex: 1,
+  minWidth: 160,
+  boxShadow: '2px 0 0 rgba(15,23,42,0.04)',
 }
-const tdInput = { padding: 0, minWidth: 64 }
+const tdInput = { padding: 0, minWidth: 72 }
 const tdTot = {
   padding: '10px 14px', textAlign: 'right', fontSize: 14, fontWeight: 800,
   color: T.brand, background: '#FEF9EB',
   fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'",
+  whiteSpace: 'nowrap',
 }
