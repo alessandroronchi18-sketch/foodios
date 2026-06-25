@@ -2397,7 +2397,7 @@ export default function Dashboard({
             }
             @keyframes _fos_onlinePulse {
               /* Audit 2026-06-25: ridotto su richiesta utente. Bagliore meno evidente,
-                 alone piu' sottile, durata loop simile. */
+                 alone più sottile, durata loop simile. */
               0%, 100% { box-shadow: 0 0 0 0 rgba(14,159,110,0.35), 0 0 4px rgba(14,159,110,0.55); }
               50%      { box-shadow: 0 0 0 3px rgba(14,159,110,0),    0 0 6px rgba(14,159,110,0.25); }
             }
@@ -2472,7 +2472,7 @@ export default function Dashboard({
           }}>
 
             {/* Accent strip ridotto su richiesta utente (2026-06-25): 3px,
-                gradient piu' subtle, loop 10s (era 5px/4s troppo evidente).
+                gradient più subtle, loop 10s (era 5px/4s troppo evidente).
                 Halo blur rimosso. */}
             <div className="fos-drawer-accent" aria-hidden="true"
               style={{height:3, flexShrink:0,
