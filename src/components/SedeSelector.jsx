@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 
 const BRAND = '#6E0E1A'
+const BRAND_HOT = '#E84B3A'
+const BRAND_WARM = '#FFB350'
 
 // variant: 'sidebar' (scuro, per la sidebar) | 'topbar' (chiaro e compatto, per
 // barra chiara) | 'topbarDark' (compatto come topbar ma palette scura, per la
@@ -39,11 +41,30 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
 
   if (!sedi || sedi.length === 0) return null
 
+  // IconBox: brand brick miniatura con conic-ring sottile quando aperto (echo dello SplashScreen).
   const iconBox = (isOpen) => (
-    <span style={{ width: top ? 22 : 28, height: top ? 22 : 28, borderRadius: top ? 7 : 8, background: isOpen ? P.iconBgOpen : P.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 120ms ease' }}>
-      <svg width={top ? 12 : 14} height={top ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke={isOpen ? P.iconStrokeOpen : P.iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-      </svg>
+    <span style={{ position: 'relative', width: top ? 22 : 28, height: top ? 22 : 28, flexShrink: 0 }}>
+      {isOpen && (
+        <span aria-hidden="true" style={{
+          position: 'absolute', inset: -2, borderRadius: top ? 9 : 10,
+          background: `conic-gradient(from 0deg, ${BRAND_HOT}, ${BRAND_WARM}, ${BRAND}, #FF7B5A, ${BRAND_HOT})`,
+          opacity: 0.85, filter: 'blur(0.4px)', pointerEvents: 'none',
+          WebkitMask: `radial-gradient(circle, transparent ${top ? 10 : 13}px, black ${top ? 11 : 14}px)`,
+          mask:        `radial-gradient(circle, transparent ${top ? 10 : 13}px, black ${top ? 11 : 14}px)`,
+          animation: '_fos_sedesel_ring 6s linear infinite',
+        }}/>
+      )}
+      <span style={{
+        position: 'relative', width: '100%', height: '100%', borderRadius: top ? 7 : 8,
+        background: isOpen ? P.iconBgOpen : P.iconBg,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background 120ms ease',
+        boxShadow: isOpen ? `0 0 18px rgba(232,75,58,0.35), inset 0 1px 0 rgba(255,255,255,0.12)` : 'none',
+      }}>
+        <svg width={top ? 12 : 14} height={top ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke={isOpen ? P.iconStrokeOpen : P.iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+      </span>
     </span>
   )
 
@@ -102,7 +123,17 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
           background: P.panelBg, border: `1px solid ${P.panelBorder}`, borderRadius: 10, overflow: 'hidden', boxShadow: P.shadow,
           animation: 'sedeSelDrop 140ms cubic-bezier(0.32,0.72,0,1)',
         }}>
-          <style>{`@keyframes sedeSelDrop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          <style>{`
+            @keyframes sedeSelDrop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes _fos_sedesel_ring { to { transform: rotate(360deg) } }
+            @keyframes _fos_sedesel_led {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(232,75,58,0.55), 0 0 6px rgba(232,75,58,0.55) }
+              50%      { box-shadow: 0 0 0 4px rgba(232,75,58,0),    0 0 12px rgba(232,75,58,0.85) }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .fos-sedesel-led, .fos-sedesel-ring { animation: none !important }
+            }
+          `}</style>
           <div style={{ padding: '8px 12px', fontSize: 9, fontWeight: 700, color: P.panelLabel, textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: `1px solid ${top ? '#F0EAE6' : 'rgba(255,255,255,0.05)'}` }}>
             Cambia sede · {sedi.length}
           </div>
@@ -122,7 +153,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
                   color: P.itemTxt, fontSize: 12.5, cursor: 'pointer', transition: 'background 100ms ease',
                 }}
               >
-                <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: active ? BRAND : (top ? '#EDE6E2' : 'rgba(255,255,255,0.08)'), flexShrink: 0 }}>
+                <span className={active ? 'fos-sedesel-led' : undefined} style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: active ? BRAND : (top ? '#EDE6E2' : 'rgba(255,255,255,0.08)'), flexShrink: 0, animation: active ? '_fos_sedesel_led 2.4s ease-in-out infinite' : undefined }}>
                   {active
                     ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={P.itemSub} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>}
@@ -149,7 +180,7 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
                   color: P.itemTxt, fontSize: 12.5, cursor: 'pointer', transition: 'background 100ms ease',
                 }}
               >
-                <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: active ? BRAND : (top ? '#EDE6E2' : 'rgba(255,255,255,0.08)'), flexShrink: 0 }}>
+                <span className={active ? 'fos-sedesel-led' : undefined} style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: active ? BRAND : (top ? '#EDE6E2' : 'rgba(255,255,255,0.08)'), flexShrink: 0, animation: active ? '_fos_sedesel_led 2.4s ease-in-out infinite' : undefined }}>
                   {active && (
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   )}
