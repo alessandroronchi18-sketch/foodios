@@ -1549,11 +1549,16 @@ export default function Dashboard({
       .catch(e => console.error('bridge inventario→giornaliero:', e))
   }, [orgId, sedeId, sedeAttiva?.metodo_produzione, sedeAttiva?.is_sede_produzione])
 
+  // Audit 2026-06-25: pop-up "Novità in FoodOS X.Y.Z" disabilitato per richiesta
+  // utente — appariva ad ogni release nuova. Resta accessibile manualmente da
+  // Impostazioni → Dati → Changelog. Marchiamo come "vista" la versione corrente
+  // cosi' se in futuro vogliamo riabilitare il pop-up parte pulito.
   useEffect(()=>{
     if(!ready) return;
-    const ULTIMA = CHANGELOG[0]?.versione;
-    const vista = localStorage.getItem('foodios-changelog-vista');
-    if(vista !== ULTIMA) setShowNovita(true);
+    try {
+      const ULTIMA = CHANGELOG[0]?.versione;
+      if (ULTIMA) localStorage.setItem('foodios-changelog-vista', ULTIMA);
+    } catch { /* localStorage non disponibile, silente */ }
   },[ready]);
 
   const handleFile=useCallback(files=>{
@@ -2801,6 +2806,13 @@ export default function Dashboard({
                 WebkitBackdropFilter:"saturate(180%) blur(14px)",
                 borderTop:`1px solid ${C.borderSoft}`,
                 paddingBottom:"env(safe-area-inset-bottom, 0px)",
+                // Audit 2026-06-25: quando il drawer e' aperto, sparisce la bottom-nav
+                // (le sue voci sono gia' nel drawer → ripetizione). Translate down
+                // per non occupare layout space e per non lasciare hit-area orfane.
+                transform: sidebarOpen ? "translateY(105%)" : "translateY(0)",
+                pointerEvents: sidebarOpen ? "none" : "auto",
+                opacity: sidebarOpen ? 0 : 1,
+                transition: "transform 0.22s ease, opacity 0.18s ease",
                 display:"flex",alignItems:"stretch",justifyContent:"space-around",
                 boxShadow:"0 -1px 0 rgba(15,23,42,0.04), 0 -4px 16px rgba(15,23,42,0.04)"}}>
                 {BOTTOM_NAV.map(item=>{

@@ -129,23 +129,38 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Onboarding wizard: mostra solo al primissimo login (orgId nuovo non
-  // ancora visto) o se l'utente vuole rivederlo (?onboarding=1 in URL).
-  // localStorage `onboarding_seen_<orgId>` traccia il completamento.
-  // Riattivato il 2026-06-01 con redesign demo-data path (skip-friendly).
+  // Onboarding wizard: mostra solo al primissimo login dopo la creazione
+  // dell'organizzazione. Source-of-truth: organizations.onboarding_completato_at
+  // (DB, sopravvive cambio device/browser/safari privata). localStorage e'
+  // solo cache per evitare il flash al primo render.
+  // Force re-show via ?onboarding=1 in URL (utile per QA / preview pitch).
   useEffect(() => {
     if (auth.orgId && onboardingVisto === null) {
       const forced = new URLSearchParams(window.location.search).get('onboarding') === '1'
       if (forced) { setOnboardingVisto(false); return }
+      // 1) DB e' la verita': se onboarding_completato_at != null → skippa
+      if (auth.org?.onboarding_completato_at) {
+        setOnboardingVisto(true)
+        try { localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1') } catch {}
+        return
+      }
+      // 2) Fallback localStorage per il flash iniziale (org ancora in caricamento)
       let visto = false
       try { visto = !!localStorage.getItem(`onboarding_seen_${auth.orgId}`) } catch {}
       setOnboardingVisto(visto)
     }
-  }, [auth.orgId, onboardingVisto])
+  }, [auth.orgId, auth.org?.onboarding_completato_at, onboardingVisto])
 
-  function completaOnboarding() {
+  async function completaOnboarding() {
     if (auth.orgId) {
       try { localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1') } catch {}
+      // Persisti su DB cosi' il flag sopravvive cambio device/browser/privata.
+      try {
+        await supabase.from('organizations')
+          .update({ onboarding_completato_at: new Date().toISOString() })
+          .eq('id', auth.orgId)
+        await auth.refreshOrg?.()
+      } catch { /* fail-soft: localStorage gia' setato sopra */ }
     }
     setOnboardingVisto(true)
   }
