@@ -14,24 +14,42 @@ const BORDER = T.border || '#E5E9EF'
 
 export default function PeriodCompareSelector({ mode = 'none', onChange, compact = false }) {
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+    <div role="radiogroup" aria-label="Periodo di confronto"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 0,
+        flexWrap: 'wrap',
+        padding: 3,
+        background: '#F1F5F9',
+        borderRadius: 999,
+        border: `1px solid ${BORDER}`,
+      }}>
       {!compact && (
-        <span style={{ fontSize: 11, color: SOFT, fontWeight: 600, marginRight: 2 }}>
-          Confronta:
+        <span style={{ fontSize: 11, color: SOFT, fontWeight: 700, padding: '0 10px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          Confronta
         </span>
       )}
-      {COMPARE_MODES.map(m => (
-        <button key={m.id} onClick={() => onChange?.(m.id)}
-          style={{
-            padding: '5px 12px', borderRadius: 999,
-            border: `1px solid ${mode === m.id ? TXT : BORDER}`,
-            background: mode === m.id ? TXT : 'transparent',
-            color: mode === m.id ? '#FFF' : MID,
-            fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-          }}>
-          {m.lbl}
-        </button>
-      ))}
+      {COMPARE_MODES.map(m => {
+        const isActive = mode === m.id
+        return (
+          <button key={m.id} onClick={() => onChange?.(m.id)}
+            role="radio" aria-checked={isActive}
+            style={{
+              padding: '7px 14px', borderRadius: 999,
+              border: 'none',
+              background: isActive ? '#FFF' : 'transparent',
+              color: isActive ? TXT : MID,
+              fontSize: 12, fontWeight: isActive ? 700 : 600,
+              cursor: 'pointer',
+              minHeight: 32,
+              boxShadow: isActive ? '0 1px 2px rgba(15,23,42,0.06), 0 4px 8px rgba(15,23,42,0.05)' : 'none',
+              transition: 'background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease',
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+            }}>
+            {m.lbl}
+          </button>
+        )
+      })}
     </div>
   )
 }

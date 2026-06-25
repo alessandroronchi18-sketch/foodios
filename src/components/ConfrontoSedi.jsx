@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
+import { ChartTip } from '../views/_shared'
 
 const TXT = T.text
 const SOFT = T.textSoft
@@ -778,35 +779,35 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   )}
                 </div>
 
-                <div style={{ width: '100%', height: 300 }}>
+                <div style={{ width: '100%', height: isMobile ? 240 : 300 }}>
                   <ResponsiveContainer>
                     {chartType === 'bar' && (
-                      <BarChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9"/>
-                        <XAxis dataKey="sede" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} />
-                        <Tooltip formatter={v => metricDef.fmt(v)} />
-                        <Legend />
-                        <Bar dataKey="current" name={`${metricDef.lbl} (attuale)`} fill={RED} radius={[6, 6, 0, 0]} />
-                        {compareMode !== 'none' && prevKey && <Bar dataKey="compare" name={metricDef.lbl + ' (confronto)'} fill={COMPARE_COLOR} radius={[6, 6, 0, 0]} />}
+                      <BarChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
+                        <CartesianGrid strokeDasharray="4 4" stroke="#E5E9EF" vertical={false}/>
+                        <XAxis dataKey="sede" tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
+                        <YAxis tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
+                        <Tooltip cursor={{ fill: 'rgba(110,14,26,0.04)' }} content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
+                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
+                        <Bar dataKey="current" name={`${metricDef.lbl} (attuale)`} fill={RED} radius={[6, 6, 0, 0]} maxBarSize={56} />
+                        {compareMode !== 'none' && prevKey && <Bar dataKey="compare" name={metricDef.lbl + ' (confronto)'} fill={COMPARE_COLOR} radius={[6, 6, 0, 0]} maxBarSize={56} />}
                       </BarChart>
                     )}
                     {chartType === 'line' && (
-                      <LineChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9"/>
-                        <XAxis dataKey="sede" tick={{ fontSize: 11 }} />
-                        <YAxis tick={{ fontSize: 11 }} />
-                        <Tooltip formatter={v => metricDef.fmt(v)} />
-                        <Legend />
-                        <Line type="monotone" dataKey="current" name={`${metricDef.lbl} (attuale)`} stroke={RED} strokeWidth={2.5} dot={{ r: 4 }} />
+                      <LineChart data={data} margin={isMobile ? { top: 8, right: 12, bottom: 8, left: 8 } : { top: 12, right: 24, bottom: 12, left: 12 }}>
+                        <CartesianGrid strokeDasharray="4 4" stroke="#E5E9EF" vertical={false}/>
+                        <XAxis dataKey="sede" tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#E5E9EF' }} />
+                        <YAxis tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={false} tickFormatter={v => metricDef.fmt(v)} width={isMobile ? 56 : 72} />
+                        <Tooltip content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
+                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
+                        <Line type="monotone" dataKey="current" name={`${metricDef.lbl} (attuale)`} stroke={RED} strokeWidth={2.5} dot={{ r: 4, fill: RED }} activeDot={{ r: 6 }} />
                         {compareMode !== 'none' && prevKey && <Line type="monotone" dataKey="compare" name={metricDef.lbl + ' (confronto)'} stroke={COMPARE_COLOR} strokeWidth={2} strokeDasharray="6 4" dot={{ r: 3 }} />}
                       </LineChart>
                     )}
                     {chartType === 'pie' && (
-                      <PieChart>
-                        <Tooltip formatter={v => metricDef.fmt(v)} />
-                        <Legend />
-                        <Pie data={data} dataKey="current" nameKey="sede" outerRadius={isMobile ? 80 : 110} label={d => d.sede}>
+                      <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+                        <Tooltip content={<ChartTip />} formatter={v => metricDef.fmt(v)} />
+                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
+                        <Pie data={data} dataKey="current" nameKey="sede" outerRadius={isMobile ? 76 : 100} innerRadius={isMobile ? 36 : 50} paddingAngle={2} label={d => d.sede} labelLine={false}>
                           {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
                       </PieChart>

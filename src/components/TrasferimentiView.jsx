@@ -628,7 +628,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
       {/* Form */}
       {showForm && (
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, marginBottom: 20 }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: isMobile ? 14 : 20, marginBottom: 20, boxSizing: 'border-box', width: '100%' }}>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <div style={lbl}>Data</div>
