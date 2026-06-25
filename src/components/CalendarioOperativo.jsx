@@ -41,8 +41,12 @@ function buildGrid(anno, mese) {
   return cells
 }
 
-const eur0 = v => `${Math.round(Number(v) || 0).toLocaleString('it-IT')} €`
-const eur2 = v => `${(Number(v) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+// useGrouping:'always' obbligatorio: senza, "4715" appare senza separatore migliaia
+// su Safari iOS private / Node senza ICU full. Vedi _shared.jsx.
+const _NF0_CAL = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
+const _NF2_CAL = new Intl.NumberFormat('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const eur0 = v => `${_NF0_CAL.format(Math.round(Number(v) || 0))} €`
+const eur2 = v => `${_NF2_CAL.format(Number(v) || 0)} €`
 
 export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sedeId, setView, notify, isMobile, isDipendente = false }) {
   const isTablet  = useIsTablet()

@@ -65,7 +65,10 @@ const tnum = _tnum;
 // ─── Utility ───────────────────────────────────────────────────────────────
 const fmtData = iso => iso ? new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'
 const fmtDataOra = iso => iso ? new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'
-const fmtEuro = n => '€' + Number(n || 0).toLocaleString('it-IT')
+// useGrouping:'always' obbligatorio: senza, "4715" appare senza separatore migliaia
+// su Safari iOS private / Node senza ICU full. Vedi _shared.jsx.
+const _ADMIN_NF = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
+const fmtEuro = n => '€' + _ADMIN_NF.format(Number(n || 0))
 
 function statoCliente(c) {
   const now = new Date()

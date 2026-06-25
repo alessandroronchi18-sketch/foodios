@@ -218,10 +218,14 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const avgST=periodiVend.length>0?periodiVend.reduce((s,p)=>s+p.avgST,0)/periodiVend.length:0;
 
   // Formattazione box grandi: arrotonda all'unità + separatore migliaia IT (1.000).
-  const eur0 = n => `${Math.round(Number(n)||0).toLocaleString('it-IT')} €`;
-  const n0   = n => `${Math.round(Number(n)||0).toLocaleString('it-IT')}`;
+  // useGrouping:'always' obbligatorio: senza, "4715" appare senza separatore migliaia
+  // su Safari iOS private / Node senza ICU full. Vedi _shared.jsx.
+  const _NF0_S = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 });
+  const _NF2_S = new Intl.NumberFormat('it-IT', { useGrouping: 'always', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const eur0 = n => `${_NF0_S.format(Math.round(Number(n)||0))} €`;
+  const n0   = n => `${_NF0_S.format(Math.round(Number(n)||0))}`;
   // Tabelle: € con separatore migliaia IT + 2 decimali (es. € 1.234,56).
-  const eurIT = v => `${Number(v||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  const eurIT = v => `${_NF2_S.format(Number(v)||0)} €`;
 
   // ── DIAGNOSI: KPI di salute sul periodo selezionato + confronto col precedente ──
   // I numeri "reali" vengono dalle chiusure (periodiVend); se non ci sono chiusure
@@ -850,7 +854,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           {(chiusure||[]).length > 0 && (() => {
             const giorni = [...(chiusure||[])].sort((a,b)=>a.data.localeCompare(b.data));
             const n = giorni.length;
-            const euro = v => v==null?"—":`${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
+            const euro = v => v==null?"—":`${_NF2_S.format(Number(v))} €`;
             const pct  = v => v==null?"—":`${Number(v).toFixed(1)}%`;
 
             // Aggregati totali

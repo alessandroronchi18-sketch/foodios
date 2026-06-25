@@ -134,11 +134,12 @@ const URGENZA_CFG = {
   pagata:    { label: 'PAGATA',           pillBg: '#DCFCE7',   pillFg: '#166534', accent: T.green,    order: 4, header: 'Pagate',           sub: 'già saldate' },
 }
 
-const fmtEuro = v =>
-  `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
-// Euro arrotondato all'unità (per i box/KPI grandi)
-const fmtEuro0 = v =>
-  `${Math.round(Number(v || 0)).toLocaleString('it-IT')} €`
+// useGrouping:'always' obbligatorio: senza, alcuni runtime (Safari iOS private,
+// Node senza ICU full) ritornano "4715" invece di "4.715". Vedi _shared.jsx.
+const _NF2 = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' })
+const _NF0 = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: 'always' })
+const fmtEuro = v => `${_NF2.format(Number(v || 0))} €`
+const fmtEuro0 = v => `${_NF0.format(Math.round(Number(v || 0)))} €`
 const fmtDate = d =>
   d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 

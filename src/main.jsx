@@ -1,3 +1,7 @@
+// PRIMO import obbligatorio: installa la patch a Number.prototype.toLocaleString
+// per forzare il separatore migliaia IT su tutti i runtime. Vedi numberFormatPatch.js.
+import './lib/numberFormatPatch'
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import * as Sentry from '@sentry/react'

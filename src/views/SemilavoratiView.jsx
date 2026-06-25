@@ -55,17 +55,19 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
           </div>
         </div>
 
-        {/* KPI compatti — su mobile 3 in riga con flex */}
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        {/* KPI compatti — grid 3 col uniformi: label e value incolonnati,
+            minHeight 56 garantita su tutte le card, larghezza identica su desktop
+            (minmax 86) e split equo su mobile. */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(3, minmax(86px, 1fr))', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
           {[
-            { lbl: 'Costo / kg', val: fmtKg(sm.costoKg), c: T.brand, bg: T.brandLight, tip: 'Costo materie prime per chilo di semilavorato prodotto' },
-            { lbl: 'Costo / 100g', val: fmtKg(sm.costoKg / 10), c: T.textMid, bg: T.bgSubtle, tip: 'Costo di una porzione tipica da 100 g' },
-            { lbl: 'Batch', val: fmtBatch(fc), c: T.text, bg: T.bgSubtle, tip: 'Costo dell’intero impasto/batch come da ricetta' },
+            { lbl: 'Costo / kg',   val: fmtKg(sm.costoKg),        c: T.brand,   bg: T.brandLight, tip: 'Costo materie prime per chilo di semilavorato prodotto' },
+            { lbl: 'Costo / 100g', val: fmtKg(sm.costoKg / 10),   c: T.textMid, bg: T.bgSubtle,   tip: 'Costo di una porzione tipica da 100 g' },
+            { lbl: 'Batch',        val: fmtBatch(fc),             c: T.text,    bg: T.bgSubtle,   tip: 'Costo dell’intero impasto/batch come da ricetta' },
           ].map(({ lbl, val, c, bg, tip }) => (
             <Tip key={lbl} text={tip}>
-              <div style={{ background: bg, padding: '9px 10px', borderRadius: R.md, textAlign: 'center', minWidth: isMobile ? 0 : 78, flex: isMobile ? 1 : 'none', cursor: 'help', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 4, minHeight: 22, lineHeight: 1.25 }}>{lbl}</div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: c, letterSpacing: '-0.015em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...TNUM }}>{val}</div>
+              <div style={{ background: bg, padding: '9px 10px', borderRadius: R.md, textAlign: 'center', minHeight: 56, cursor: 'help', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5 }}>
+                <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: c, letterSpacing: '-0.015em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.1, ...TNUM }}>{val}</div>
               </div>
             </Tip>
           ))}
@@ -94,27 +96,32 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
         </div>
       </div>
 
-      {/* Pannello: breakdown costo */}
+      {/* Pannello: breakdown costo — header con totale, righe incolonnate con
+          quantità/barra/costo/% perfettamente allineati. Numeri tabular ovunque,
+          whiteSpace nowrap per evitare a-capo nelle celle strette. */}
       {tab === 'ingredienti' && (
         <div style={{ borderTop: `1px solid ${T.borderSoft}`, background: T.bgSubtle, padding: isMobile ? '14px 16px' : '16px 20px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Composizione del costo del batch</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Composizione del costo del batch</div>
+            <div style={{ fontSize: 12, color: T.textMid, ...TNUM, whiteSpace: 'nowrap' }}>Totale <b style={{ color: T.text, fontWeight: 800 }}>{fmtKg(fc)}</b></div>
+          </div>
           {righe.length === 0 ? (
             <div style={{ fontSize: 12, color: T.textSoft }}>Nessun ingrediente con quantità.</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {righe.map((ing, j) => {
                 const pctCosto = fc > 0 ? (ing.costo / fc * 100) : 0
                 return (
-                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
-                    <span style={{ flex: isMobile ? '0 0 40%' : '0 0 32%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: ing.mancante ? T.amber : T.text, fontWeight: j === 0 ? 700 : 500, textTransform: 'capitalize' }}>
-                      {ing.nome}{ing.isSemilavorato ? ' (semilav.)' : ''}{ing.mancante ? ' · prezzo mancante' : ''}
+                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, fontSize: 12, minHeight: 28 }}>
+                    <span style={{ flex: isMobile ? '0 0 38%' : '0 0 30%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: ing.mancante ? T.amber : T.text, fontWeight: j === 0 ? 700 : 600, textTransform: 'capitalize' }}>
+                      {ing.nome}{ing.isSemilavorato ? ' (semilav.)' : ''}{ing.mancante ? ' · n/d' : ''}
                     </span>
-                    <span style={{ flex: '0 0 50px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 11 }}>{Math.round(ing.qty).toLocaleString('it-IT')} g</span>
-                    <span style={{ flex: 1, height: 7, background: T.bgCard, borderRadius: 4, overflow: 'hidden' }}>
-                      <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pctCosto)}%`, background: j === 0 ? T.brand : 'rgba(110,14,26,0.45)' }} />
+                    <span style={{ flex: '0 0 60px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 11, whiteSpace: 'nowrap' }}>{Math.round(ing.qty).toLocaleString('it-IT')} g</span>
+                    <span style={{ flex: 1, height: 7, background: T.bgCard, borderRadius: 4, overflow: 'hidden', minWidth: 24 }}>
+                      <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pctCosto)}%`, background: j === 0 ? T.brand : 'rgba(110,14,26,0.45)', transition: 'width 240ms ease' }} />
                     </span>
-                    <span style={{ flex: '0 0 70px', textAlign: 'right', ...TNUM, color: T.text, fontWeight: 600 }}>{fmtKg(ing.costo)}</span>
-                    <span style={{ flex: '0 0 46px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 11 }}>{pctCosto.toFixed(0)}%</span>
+                    <span style={{ flex: '0 0 72px', textAlign: 'right', ...TNUM, color: T.text, fontWeight: 700, whiteSpace: 'nowrap' }}>{fmtKg(ing.costo)}</span>
+                    <span style={{ flex: '0 0 44px', textAlign: 'right', ...TNUM, color: T.textSoft, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{pctCosto.toFixed(0)}%</span>
                   </div>
                 )
               })}
