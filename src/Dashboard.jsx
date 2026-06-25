@@ -2396,8 +2396,10 @@ export default function Dashboard({
               100% { background-position: 0% 50%; }
             }
             @keyframes _fos_onlinePulse {
-              0%, 100% { box-shadow: 0 0 0 0 rgba(14,159,110,0.65), 0 0 8px rgba(14,159,110,0.85); }
-              50%      { box-shadow: 0 0 0 7px rgba(14,159,110,0),    0 0 14px rgba(14,159,110,0.45); }
+              /* Audit 2026-06-25: ridotto su richiesta utente. Bagliore meno evidente,
+                 alone piu' sottile, durata loop simile. */
+              0%, 100% { box-shadow: 0 0 0 0 rgba(14,159,110,0.35), 0 0 4px rgba(14,159,110,0.55); }
+              50%      { box-shadow: 0 0 0 3px rgba(14,159,110,0),    0 0 6px rgba(14,159,110,0.25); }
             }
             @keyframes _fos_drawerIn {
               from { opacity: 0; transform: translateX(-12px); }
@@ -2469,22 +2471,15 @@ export default function Dashboard({
             backgroundSize:"auto, auto, 24px 24px, auto",
           }}>
 
-            {/* Accent strip WOW: 5px, palette estesa con viola/oro/corallo,
-                loop più rapido (4s), bordi morbidi con blur in basso. Crea
-                un "horizon line" premium che subito comunica "tech alto". */}
+            {/* Accent strip ridotto su richiesta utente (2026-06-25): 3px,
+                gradient piu' subtle, loop 10s (era 5px/4s troppo evidente).
+                Halo blur rimosso. */}
             <div className="fos-drawer-accent" aria-hidden="true"
-              style={{height:5, flexShrink:0, position:"relative",
-                background:"linear-gradient(90deg, #6E0E1A 0%, #B91C1C 15%, #E84B3A 35%, #FFB350 50%, #FF7B5A 65%, #E84B3A 80%, #6E0E1A 100%)",
-                backgroundSize:"260% 100%",
-                animation:"_fos_drawerAccent 4s ease-in-out infinite",
-                boxShadow:"0 6px 16px -2px rgba(232,75,58,0.45)",
-              }}>
-              {/* Halo sotto il banner — diffonde il bagliore nello spazio nero */}
-              <div aria-hidden="true" style={{position:"absolute", left:0, right:0, top:"100%",
-                height:24, pointerEvents:"none",
-                background:"linear-gradient(180deg, rgba(232,75,58,0.30) 0%, transparent 100%)",
-                filter:"blur(2px)"}}/>
-            </div>
+              style={{height:3, flexShrink:0,
+                background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)",
+                backgroundSize:"200% 100%",
+                animation:"_fos_drawerAccent 10s ease-in-out infinite",
+              }}/>
 
             {/* Logo header: solo su mobile (su desktop logo+nome sono nella fascia
                 superiore globale, così la sidebar ha più spazio per il menu).

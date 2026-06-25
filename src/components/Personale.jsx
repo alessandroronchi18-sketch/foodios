@@ -909,8 +909,11 @@ function TurniTab({ orgId, notify, isMobile }) {
               const cov = covByDay[dIso]
               const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "—"), data:t.data, note:t.note, ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine), ore:t.ore, ora_inizio:t.ora_inizio, ora_fine:t.ora_fine })).filter(s => s.fin > s.ini)
               const { placed, nLanes } = packLanes(dayShifts)
+              // Audit 2026-06-25: laneSpacing dinamico per evitare sovrapposizione
+              // turni mobile (barre 40px su 30px spacing → overlap 10px).
+              const laneSpacing = isMobile ? 44 : 30
               // Riga "riposo" più compatta (altezza minore) per non sprecare spazio.
-              const rowH = dayShifts.length === 0 ? 36 : (nLanes * 30 + 8)
+              const rowH = dayShifts.length === 0 ? 36 : (nLanes * laneSpacing + 8)
               const dd = new Date(dIso + "T12:00:00")
               const oggi = dIso === new Date().toISOString().slice(0, 10)
               return (
@@ -957,7 +960,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                             aria-label={`Turno ${s.nome} dalle ${_hm(s.ini)} alle ${_hm(s.fin)}`}
                             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTap() } }}
                             title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (pianificato ${fmtH(s.ore || 0)}${eff != null ? ` · effettivo ${fmtH(eff)}${straord ? ` · ${straord > 0 ? 'straord +' : ''}${straord}h` : ''}` : ''})`}
-                            style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height: 26, minHeight: isMobile ? 40 : 26, background:col, border:"none", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding: isMobile ? "0 8px" : "0 6px", overflow:"hidden", cursor:"pointer", boxShadow: selez ? "inset 0 0 0 2px rgba(255,255,255,0.95)" : "none" }}>
+                            style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * laneSpacing + 4, height: isMobile ? 40 : 26, background:col, border:"none", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding: isMobile ? "0 8px" : "0 6px", overflow:"hidden", cursor:"pointer", boxShadow: selez ? "inset 0 0 0 2px rgba(255,255,255,0.95)" : "none" }}>
                             {/* Mobile: solo NOME (più leggibile, niente troncamento di "06:00…").
                                 Desktop: nome + orari come prima. */}
                             <span style={{ fontSize: isMobile ? 11 : 10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>

@@ -4,6 +4,7 @@
 
 import React, { useState, useRef, useCallback } from 'react'
 import { color as T } from '../lib/theme'
+import useIsMobile from '../lib/useIsMobile'
 
 // Palette "C.*" usata dal vecchio Dashboard.jsx — mappa diretta ai token theme.
 // Usata per non riscrivere ogni accesso a C.foo nei body delle view.
@@ -159,6 +160,7 @@ if (typeof document !== 'undefined' && !document.getElementById('fos-kpi-css')) 
 // Audit 2026-06-25: aggiunto accent strip animato superiore + sheen sweep iniziale
 // + hover lift più drammatico con shadow brand. Futuristico ma professionale.
 export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
+  const isMobile = useIsMobile()
   const accent = color || T.brand
   const chipBg = highlight ? 'rgba(255,255,255,0.14)' : 'rgba(110,14,26,0.10)'
   const chipColor = highlight ? '#fff' : accent
@@ -201,10 +203,26 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
       <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase',
         color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6,
         minHeight: 28, lineHeight: 1.25 }}>{label}</div>
-      <div style={{ position: 'relative', fontSize: 30, fontWeight: 800, color: highlight ? T.textOnDark : color || T.text,
-        letterSpacing: '-0.035em', lineHeight: 1.05, minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...TNUM }}>
-        {value}
-      </div>
+      {/* Audit 2026-06-25: fontSize auto-shrink in base alla lunghezza del value.
+          Risolve due bug:
+          (1) Valori numerici con 2 decimali (es. "611,50 €") troncati con "..."
+              nei box stretti del grid 2-col mobile.
+          (2) Valori alfanumerici lunghi (es. "Top fornitore: CONSORZIO COOP X")
+              che andavano fuori dal box.
+          Bucket: short ≤6 char / medium 7-12 char / long >12 char. */}
+      {(() => {
+        const valStr = typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+        const len = valStr.length || 6
+        const fs = isMobile
+          ? (len <= 6 ? 24 : len <= 12 ? 19 : 14)
+          : (len <= 6 ? 30 : len <= 14 ? 24 : 18)
+        return (
+          <div style={{ position: 'relative', fontSize: fs, fontWeight: 800, color: highlight ? T.textOnDark : color || T.text,
+            letterSpacing: '-0.035em', lineHeight: 1.15, minHeight: isMobile ? 28 : 32, whiteSpace: 'nowrap', overflow: 'hidden', ...TNUM }}>
+            {value}
+          </div>
+        )
+      })()}
       {sub
         ? <div style={{ position: 'relative', fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500, minHeight: 32, lineHeight: 1.35 }}>{sub}</div>
         : <div style={{ minHeight: 32, marginTop: 7 }}/>
