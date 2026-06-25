@@ -7,7 +7,7 @@
 //   chiusure, logrif). Filtra esplicitamente solo entry array.
 // - mergeMag: { [sedeId]: magazzino } -> magazzino aggregato per chiave
 //   ingrediente, sommando giacenze e prendendo soglia massima (la soglia
-//   max e' la piu' conservativa cross-sede).
+//   max e' la più conservativa cross-sede).
 
 export function mergeArr(map) {
   return Object.values(map || {}).filter(Array.isArray).flat()

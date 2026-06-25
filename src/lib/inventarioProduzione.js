@@ -19,8 +19,8 @@ export function normGusto(s) {
   return (s || '').toString().toUpperCase().trim()
 }
 
-// Estrae l'elenco dei gusti dal ricettario E dalle righe gia' presenti in
-// inventario (DB). L'unione e' importante perche':
+// Estrae l'elenco dei gusti dal ricettario E dalle righe già presenti in
+// inventario (DB). L'unione e' importante perché:
 //   - gusti nel ricettario ma senza dati DB -> riga vuota (utente compila)
 //   - gusti in DB ma non nel ricettario -> riga visibile col dato (orfani:
 //     scenario tipico dopo import file del cliente con gusti non ancora
@@ -29,7 +29,7 @@ export function normGusto(s) {
 // Decisione UX (giu 2026): il proprietario sceglie il metodo di produzione
 // UNA volta nelle impostazioni; in modalita' inventario, TUTTE le ricette
 // tipo fetta/pezzo sono trattate come gusti. I semilavorati/interni restano
-// fuori perche' sono basi di lavorazione.
+// fuori perché sono basi di lavorazione.
 //
 // Esclusione esplicita possibile via flag `is_gusto === false` sulla ricetta.
 //
@@ -226,7 +226,7 @@ export function calcolaVendutoSettimana(righe, lunediIso) {
       // Audit 2026-07-01 HIGH: la formula deve sottrarre anche `spedito_g`
       // (kg trasferiti ad altra sede), altrimenti la quadratura inventario↔cassa
       // conta gli spediti come venduti retail → drift cronico falso.
-      // Allineata a inventarioASessioni che gia' lo fa.
+      // Allineata a inventarioASessioni che già lo fa.
       const spedito = corrente.spedito_g || 0
       const vRaw = rimanPrev + prod - riman - scarto - spedito
       out[g][dIso] = {
@@ -289,7 +289,7 @@ export function scaloMagazzinoPerGusto(magazzino, ricetta, deltaProdG) {
     const k = normIng(ing.nome)
     const corrente = nm[k] || { nome: ing.nome.trim(), giacenza_g: 0, soglia_g: 0, ultimoRifornimento: null }
     // M1 fix: ammettiamo giacenza negativa internamente. Era clampata a 0
-    // ma cosi' un PROD eccessivo seguito da correzione al ribasso non
+    // ma così un PROD eccessivo seguito da correzione al ribasso non
     // ricostruiva il deficit logico (es. zucchero -200g nascosti diventavano
     // poi +800 invece di +1000 al rollback). Ora il vero stato del magazzino
     // resta tracciabile; eventuale clamp UI si fa lato visualizzazione, non
@@ -315,7 +315,7 @@ export function ricettaDelGusto(ricettario, gustoNomeUpper) {
 
 // ── ANALISI QUADRATURA ────────────────────────────────────────────────────
 // Calcoli di alto livello per la vista "Quadratura inventario vs cassa".
-// Tutto in-memory dai dati gia' caricati.
+// Tutto in-memory dai dati già caricati.
 //
 // Euro/kg medio = stima del prezzo medio al kg dei formati di vendita.
 // Da formati con baseQtaG (grammi) + prezzoDefault (euro), calcola
@@ -338,7 +338,7 @@ export function euroKgMedioFormati(formati) {
 // venditeB2BSett = (opzionale) array di righe vendite_b2b della settimana,
 //                  per sottrarre i kg B2B dal venduto retail nel confronto
 //                  con la cassa (la cassa retail NON include i ricavi B2B
-//                  perche' sono fatturati a parte: senza sottrarre i kg
+//                  perché sono fatturati a parte: senza sottrarre i kg
 //                  B2B il drift mostra un negativo cronico falso).
 export function kpiQuadraturaSettimana(matrice, chiusureSettimana, euroKg, venditeB2BSett) {
   const totVendutoG = Object.values(matrice || {}).reduce((s, byData) =>

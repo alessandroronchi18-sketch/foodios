@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   }
   // Solo il titolare puo' aprire il customer portal (disdetta sub, scaricare
   // fatture, cambiare metodo pagamento). Il dipendente NON deve potere — audit
-  // HIGH 17 giu: prima mancava il gate (stripe-checkout.js ce l'ha gia').
+  // HIGH 17 giu: prima mancava il gate (stripe-checkout.js ce l'ha già).
   if (auth.profile.ruolo === 'dipendente') {
     return res.status(403).json({ error: 'Solo il titolare puo gestire la sottoscrizione' })
   }

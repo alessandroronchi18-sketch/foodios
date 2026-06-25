@@ -162,7 +162,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
 
   // Lo state "scenario operativo" e relativo load da SK_SCENARIO sono stati
   // rimossi insieme al box UI in giu 2026. Il dato resta in DB per
-  // retrocompatibilita ma non viene piu' usato. La fonte di verita per
+  // retrocompatibilita ma non viene più usato. La fonte di verita per
   // produzione/inventario e' ora il toggle is_sede_produzione su ogni sede.
 
   const sediAttive = sedi.filter(s => s.attiva !== false)
@@ -297,7 +297,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
     // Blocca se ci sono trasferimenti pending (inviato/in_consegna) verso o
     // da questa sede: una volta disattivata, nessun utente puo' più chiamare
     // riceviTrasferimento e lo stock di prodotti finiti resta perso a metà
-    // strada (gia' scalato dalla sede mittente, mai materializzato a B).
+    // strada (già scalato dalla sede mittente, mai materializzato a B).
     try {
       const { data: pending, error: tErr } = await supabase
         .from('trasferimenti')

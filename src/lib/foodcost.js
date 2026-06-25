@@ -880,7 +880,7 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
                normIng((r.nome || '').toLowerCase()) === nomeNorm
       })
       if (semiKey) {
-        // Ciclo diretto/indiretto? Se il semilavorato e' gia' nel cammino di
+        // Ciclo diretto/indiretto? Se il semilavorato e' già nel cammino di
         // ricorsione, NON discendere — lo segnaliamo come mancante con un
         // marker speciale che l'UI puo' riconoscere.
         if (path.includes(semiKey)) {

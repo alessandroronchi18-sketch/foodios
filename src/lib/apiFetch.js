@@ -20,7 +20,7 @@
 
 import { supabase } from './supabase'
 
-let _redirecting = false  // evita redirect doppi se piu' chiamate 401 in parallelo
+let _redirecting = false  // evita redirect doppi se più chiamate 401 in parallelo
 
 async function redirectToLogin() {
   if (_redirecting) return
@@ -76,7 +76,7 @@ export async function apiFetch(path, opts = {}) {
       // Anche dopo refresh: la sessione e' davvero invalida (utente revocato,
       // pwd cambiata, account disattivato lato admin). Logout pulito.
       redirectToLogin()
-      throw new Error('Sessione non piu' + ' valida')
+      throw new Error('Sessione non più valida')
     }
   }
 

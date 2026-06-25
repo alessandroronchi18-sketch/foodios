@@ -451,14 +451,14 @@ function MenuPreview({ menuItems, setMenuItems, nomeAttivita, isMobile }) {
                     <span style={{ fontWeight:600, fontSize:14, color:T.text, letterSpacing:"-0.01em" }}>
                       {m.nome}
                     </span>
-                    <span style={{ fontWeight:700, fontSize:14, color:T.brand, letterSpacing:"-0.015em", ...tnum }}>
+                    <span style={{ fontWeight:700, fontSize:14, color:T.brand, letterSpacing:"-0.015em", whiteSpace:"nowrap", ...tnum }}>
                       {fmt(m.prezzo)}
                     </span>
                     <span style={{
                       fontSize:11, padding:"2px 8px", borderRadius:R.full,
                       background: m.margPct>=55 ? T.greenLight : T.amberLight,
                       color: m.margPct>=55 ? T.green : T.amber,
-                      fontWeight:600, letterSpacing:"-0.005em", ...tnum,
+                      fontWeight:600, letterSpacing:"-0.005em", whiteSpace:"nowrap", ...tnum,
                     }}>{fmtp(m.margPct)}</span>
                   </div>
                   {editIdx === i ? (

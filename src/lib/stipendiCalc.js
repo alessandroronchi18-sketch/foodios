@@ -61,7 +61,7 @@ export function lordoToNetto(lordoMese, opts = {}) {
 }
 
 // Netto MENSILE -> Lordo MENSILE (stima inversa, bisezione).
-// Iteriamo perche' la mappatura netto<->lordo non e' chiusa in forma analitica.
+// Iteriamo perché la mappatura netto<->lordo non e' chiusa in forma analitica.
 export function nettoToLordo(nettoMese, opts = {}) {
   if (!(nettoMese > 0)) return 0
   let low = nettoMese  // lower bound: lordo >= netto

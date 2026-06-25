@@ -103,8 +103,8 @@ export default async function handler(req) {
     }
 
     // ── 0. TRIAL IN SCADENZA (7gg e 1gg dal cutoff) ─────────────────────────
-    // Solo se non gia' pagante. Manda 1 sola email per scaglione (7gg, 1gg).
-    // Idempotenza: ricontrolliamo prima di inviare se l'utente ha gia' ricevuto
+    // Solo se non già pagante. Manda 1 sola email per scaglione (7gg, 1gg).
+    // Idempotenza: ricontrolliamo prima di inviare se l'utente ha già ricevuto
     // notifica per questo scaglione (via user_data chiave 'trial-notify-log-v1').
     try {
       if (!org.approvato && org.trial_ends_at) {

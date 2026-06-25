@@ -5,7 +5,7 @@
 // ricalcoliamo fcUnit/fcTot col ricettario REALE (service key), riusando
 // l'IDENTICA logica di SpreciOmaggi (autoFcDaRicetta: match ricetta + calcolaFC /
 // reg.unita). Il titolare continua a usare il flusso client (ha il ricettario
-// completo, calcola corretto). Formato del movimento INVARIATO, cosi' i record
+// completo, calcola corretto). Formato del movimento INVARIATO, così i record
 // del titolare e del dipendente restano interscambiabili in aggregaGiorno.
 export const config = { runtime: 'edge' }
 

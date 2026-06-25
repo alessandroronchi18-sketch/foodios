@@ -49,7 +49,7 @@ export default function CookiePolicy() {
       <LegalP>
         Puoi disabilitare l'uso dei cookie dalle impostazioni del tuo browser. Disabilitando i
         cookie tecnici, tuttavia, NON sarai in grado di accedere all'area riservata di FoodOS.
-        Istruzioni per i browser piu' diffusi:
+        Istruzioni per i browser più diffusi:
       </LegalP>
       <LegalUl items={[
         <LegalLink href="https://support.google.com/chrome/answer/95647" target="_blank">Google Chrome</LegalLink>,

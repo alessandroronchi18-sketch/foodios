@@ -33,20 +33,20 @@ Ogni lunedi' mattina scrivi un BRIEF SETTIMANALE che riassume la settimana
 appena conclusa (max 6 frasi, max 130 parole TOTALI):
 - 1-2 highlight numerici (ricavi vs settimana prec., food cost medio)
 - top e dog della settimana (prodotti che vanno e che non vanno)
-- 1 insight strategico (perche' i numeri sono cosi, opportunita/rischi)
+- 1 insight strategico (perché i numeri sono cosi, opportunita/rischi)
 - 1 azione CONCRETA per la settimana che inizia (es. "aumenta produzione X mercoledi")
 
 REGOLE:
 - Tono diretto, italiano corrente. NIENTE saluti, NIENTE emoji.
 - USA solo i numeri del payload. NIENTE percentuali inventate.
 - Frasi brevi (<18 parole). Numeri formato italiano (€1.247, 12%).
-- Comincia con il fatto piu' importante. Concludi con l'azione.`
+- Comincia con il fatto più importante. Concludi con l'azione.`
 }
 
 // Prompt: il sistema produce 3-4 frasi totali, niente saluti, italiano nudo.
 function buildSystemPrompt() {
   return `Sei l'assistente AI di un titolare di pasticceria/gelateria italiana.
-Ogni mattina gli scrivi un brief breve (max 4 frasi, max 80 parole TOTALI) con i 2-3 fatti piu' importanti del momento:
+Ogni mattina gli scrivi un brief breve (max 4 frasi, max 80 parole TOTALI) con i 2-3 fatti più importanti del momento:
 - variazioni significative (>10%) di ricavi/food cost/trend prodotti
 - avvisi azionabili (scorte critiche, fatture scadute, chiusure mancanti)
 - 1 suggerimento operativo concreto
@@ -56,7 +56,7 @@ REGOLE:
 - NIENTE percentuali inventate: usa SOLO i numeri del payload.
 - Se il dato e' mancante o zero, NON menzionarlo: passa avanti.
 - Frasi brevi (<15 parole). Numeri in formato italiano (€ 1.247, 12%).
-- Inizia con la notizia piu' urgente. Concludi con 1 azione concreta.`
+- Inizia con la notizia più urgente. Concludi con 1 azione concreta.`
 }
 
 function buildUserPayload(snap, orgName) {
@@ -104,7 +104,7 @@ function emailHtml({ brief, orgName, briefDate, appUrl }) {
           <a href="${appUrl}" style="display:inline-block;padding:11px 22px;background:${BRAND};color:#FFF;text-decoration:none;font-size:13px;font-weight:700;border-radius:8px;">Apri dashboard &rarr;</a>
         </td></tr>
         <tr><td style="padding:18px 28px;background:#FAFAF6;border-top:1px solid #F1ECE7;font-size:11px;color:#8B95A7;line-height:1.5;">
-          Ricevi questo brief perche' sei un titolare FoodOS. Puoi disattivarlo da <strong>Impostazioni &rarr; Notifiche</strong>.
+          Ricevi questo brief perché sei un titolare FoodOS. Puoi disattivarlo da <strong>Impostazioni &rarr; Notifiche</strong>.
         </td></tr>
       </table>
     </td></tr>
@@ -165,7 +165,7 @@ export default async function handler(req) {
     try { return new URL(req.url).origin } catch { return 'https://foodios-rose.vercel.app' }
   })()
 
-  // Lista organizzazioni candidate: attive (no trial scaduto) e non gia' processate oggi.
+  // Lista organizzazioni candidate: attive (no trial scaduto) e non già processate oggi.
   const { data: orgs, error: errOrgs } = await supabase
     .from('organizations')
     .select('id, nome, nome_attivita')
@@ -177,7 +177,7 @@ export default async function handler(req) {
     return new Response(JSON.stringify(safe.body), { status: safe.status })
   }
 
-  // Filtra org gia' processate oggi (brief giornaliero).
+  // Filtra org già processate oggi (brief giornaliero).
   const orgIds = (orgs || []).map(o => o.id)
   let processedToday = new Set()
   if (orgIds.length > 0) {

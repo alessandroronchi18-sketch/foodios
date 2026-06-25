@@ -22,7 +22,7 @@
 //
 // Idempotenza:
 //   Salviamo `sdi_invoice_log` per (stripe_invoice_id, ric_organization_id) — se
-//   gia' emessa, no-op + ritorna l'id Fatture in Cloud preesistente.
+//   già emessa, no-op + ritorna l'id Fatture in Cloud preesistente.
 
 export const config = { runtime: 'nodejs' }
 
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
       // Aliquota IVA dall'invoice se presente; altrimenti 22 default.
       try {
         // Audit 2026-07-01 HIGH: prima leggevamo solo il primo tax rate; se
-        // Stripe Tax applica piu' aliquote (es. split-payment IT), prendere la
+        // Stripe Tax applica più aliquote (es. split-payment IT), prendere la
         // prima e applicarla a tutto distorce il netto. Se ce ne sono multipli
         // distinti, restiamo sul default 22 e segnaliamo nell'error_log.
         const taxRates = Array.isArray(inv.total_tax_amounts) ? inv.total_tax_amounts : []

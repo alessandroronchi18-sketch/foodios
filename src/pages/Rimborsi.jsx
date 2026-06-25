@@ -14,12 +14,12 @@ export default function Rimborsi() {
       <LegalP>
         Puoi disdire l'abbonamento in qualsiasi momento dalle <strong>Impostazioni → Abbonamento → Gestisci</strong>.
         La disdetta non comporta penali ne' costi aggiuntivi. L'accesso al servizio resta attivo
-        fino al termine del periodo di fatturazione gia' pagato.
+        fino al termine del periodo di fatturazione già pagato.
       </LegalP>
 
       <LegalH2>2. Rimborso del periodo non utilizzato</LegalH2>
       <LegalP>
-        In linea generale <strong>non rimborsiamo</strong> il canone gia' pagato per il periodo in
+        In linea generale <strong>non rimborsiamo</strong> il canone già pagato per il periodo in
         corso (proration). Il servizio resta utilizzabile fino alla data di rinnovo successiva.
       </LegalP>
 

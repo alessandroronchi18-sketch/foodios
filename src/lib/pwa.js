@@ -40,11 +40,30 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
       })
 
       // Refresh quando il SW prende controllo (post skipWaiting → reload).
+      // Audit 2026-06-25 CRITICO: questo handler era causa di "girava tra pagine
+      // a caso" — quando un chunk lazy fallisce (vecchio hash non più sul CDN),
+      // l'ErrorBoundary innesca reload, il SW poll detect nuovo SW, controllerchange
+      // triggera un secondo reload mentre l'utente sta già navigando → ciclo.
+      // Guard: reloadiamo solo se non abbiamo già reloaded negli ultimi 60s,
+      // e cancelliamo la cache prima del reload per non servire chunk obsoleti.
       let refreshing = false
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return
+        try {
+          const k = 'foodios_sw_reload_ts'
+          const last = Number(sessionStorage.getItem(k)) || 0
+          if (Date.now() - last < 60_000) return // anti-loop hard 60s
+          sessionStorage.setItem(k, String(Date.now()))
+        } catch { /* sessionStorage non disponibile, procedi */ }
         refreshing = true
-        window.location.reload()
+        // Pulisci cache runtime prima del reload — il nuovo SW caches ricomincia da zero.
+        try {
+          if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' })
+          }
+        } catch { /* noop */ }
+        // Piccolo delay per dare tempo al CLEAR_CACHE di partire.
+        setTimeout(() => window.location.reload(), 80)
       })
 
       // Polling periodico per intercettare nuovi deploy senza dover aspettare

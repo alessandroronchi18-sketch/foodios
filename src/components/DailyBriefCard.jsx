@@ -97,7 +97,7 @@ export default function DailyBriefCard({ orgId }) {
     }
   }
 
-  // Hide automaticamente se gia' letto da piu' di 6h (per non occupare home)
+  // Hide automaticamente se già letto da più di 6h (per non occupare home)
   if (brief.opened_at && (Date.now() - new Date(brief.opened_at).getTime()) > 6 * 3600 * 1000) {
     return null
   }

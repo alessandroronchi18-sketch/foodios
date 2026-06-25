@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/bump-sw-cache.mjs",
+    "prebuild": "node scripts/bump-sw-cache.mjs && node scripts/check-italian-grammar.mjs",
     "build": "vite build",
+    "grammar": "node scripts/check-italian-grammar.mjs",
     "preview": "vite preview",
     "lint": "eslint src/ --quiet",
     "lint:fix": "eslint src/ --fix",

@@ -66,7 +66,7 @@ export function useConfirm() {
   const ctx = useContext(ConfirmCtx)
   if (!ctx) {
     // Fallback ragionevole se ConfirmProvider non e' montato: usa il confirm
-    // nativo (deprecato). Cosi' il componente non crasha durante migrazioni.
+    // nativo (deprecato). Così il componente non crasha durante migrazioni.
     return async (opts) => {
       try {
         const msg = `${opts?.title || ''}\n\n${opts?.message || ''}`.trim()

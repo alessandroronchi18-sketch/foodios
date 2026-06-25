@@ -14,7 +14,7 @@ import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // recharts NON e' importato qui: 0 simboli sono usati in Dashboard.jsx (era dead
 // import che trascinava il chunk recharts 120KB gzip sul critical path). I veri
 // consumatori — PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage —
-// sono tutti gia' lazy.
+// sono tutti già lazy.
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
 import { callAi as _callAi, parseAiJson as _parseAiJson } from './lib/aiClient'
 import { SkeletonText, SkeletonGrid } from './components/Skeleton'
@@ -1180,8 +1180,8 @@ export default function Dashboard({
   // le scritture pendenti completino. Senza, una ssave registrata con il
   // contesto vecchio potrebbe non avere finito quando un'altra ssave
   // immediatamente successiva viene chiamata col contesto nuovo. Le ssave
-  // gia' partite catturano sempre IL contesto al call-site (vedi ssave),
-  // quindi gia' robuste. Questo barrier protegge il caso "ho cliccato
+  // già partite catturano sempre IL contesto al call-site (vedi ssave),
+  // quindi già robuste. Questo barrier protegge il caso "ho cliccato
   // Salva e nel frattempo cambio sede dal menu".
   if (_ctx_orgId !== orgId || _ctx_sedeId !== sedeId) {
     _flushPendingSaves().catch(()=>{}); // best-effort, non blocca il render
@@ -1532,7 +1532,7 @@ export default function Dashboard({
 
   // BRIDGE inventario→giornaliero: per le sedi in metodo='inventario',
   // SK_GIOR e' vuoto (i dati vivono in inventario_produzione). Carichiamo
-  // l'ultimo anno dalla nuova tabella e proiettiamo come sessioni cosi'
+  // l'ultimo anno dalla nuova tabella e proiettiamo come sessioni così
   // PLView/StoricoProduzioneView/DashboardHomeView/ConfrontoSedi/Simulatore
   // vedono i dati senza modifiche al loro codice. 1 stampo virtuale = 1 kg.
   useEffect(() => {
@@ -1866,7 +1866,7 @@ export default function Dashboard({
           setMagazzino(nm);
         } catch(e) {
           console.error('ssave SK_MAG:', e);
-          // Ricetta gia' salvata: ingredienti placeholder mancanti non bloccano
+          // Ricetta già salvata: ingredienti placeholder mancanti non bloccano
           // il flusso utente, ma logghiamo e mostriamo un avviso non-fatale.
           notify(`Ingredienti aggiunti in cache locale (errore DB)`, false);
         }
@@ -1967,12 +1967,12 @@ export default function Dashboard({
         //
         // Anche la lettura via .find su `sedi` come fallback: in alcuni casi
         // sedeAttiva e' temporaneamente uno stub privo dei campi inventario
-        // (es. dopo reload del profilo); cosi' evitiamo che la voce sparisca
+        // (es. dopo reload del profilo); così evitiamo che la voce sparisca
         // per un attimo nel menu mentre l'utente sta lavorando dentro la view.
         const sedeFull = (sedi || []).find(s => s.id === sedeAttiva?.id) || sedeAttiva
         const isMetodoInventario = (sedeFull?.is_sede_produzione === true
             && sedeFull?.metodo_produzione === 'inventario')
-          // Anche se sedeAttiva e' incompleta, se l'utente e' GIA' dentro
+          // Anche se sedeAttiva e' incompleta, se l'utente e' GIÀ dentro
           // 'inventario-gusti' manteniamo la voce visibile per non disorientare.
           || view === 'inventario-gusti' || view === 'quadratura-inventario'
         // Riorganizzazione menu 2026-06-13: 6 sezioni task-based,
@@ -2282,6 +2282,7 @@ export default function Dashboard({
                 }
                 setView(id); if (isMobile) setSidebarOpen(false)
               }}
+              aria-current={active ? "page" : undefined}
               style={{width:"calc(100% - 16px)",padding:"10px 14px 10px 26px",margin:"0 8px 2px",
                 borderRadius:10,
                 border:"none",cursor:"pointer",textAlign:"left",
@@ -2380,6 +2381,22 @@ export default function Dashboard({
               0%,100% { box-shadow: 0 0 0 0 rgba(110,14,26,0.6); }
               50%      { box-shadow: 0 0 0 4px rgba(110,14,26,0); }
             }
+            @keyframes _fos_drawerAccent {
+              0%   { background-position: 0% 50%; }
+              50%  { background-position: 100% 50%; }
+              100% { background-position: 0% 50%; }
+            }
+            @keyframes _fos_onlinePulse {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(14,159,110,0.55), 0 0 6px rgba(14,159,110,0.7); }
+              50%      { box-shadow: 0 0 0 5px rgba(14,159,110,0),    0 0 8px rgba(14,159,110,0.4); }
+            }
+            @keyframes _fos_drawerIn {
+              from { opacity: 0; transform: translateX(-12px); }
+              to   { opacity: 1; transform: translateX(0); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .fos-drawer-accent, .fos-online-dot, .fos-drawer-shell { animation: none !important; }
+            }
           `}</style>
 
           {isMobile&&sidebarOpen&&(
@@ -2389,32 +2406,69 @@ export default function Dashboard({
           )}
 
           {isMobile && (
-          <div style={{width:L.sidebarWidth,background:T.bgSide,display:"flex",flexDirection:"column",
+          <div className="fos-drawer-shell" style={{width:L.sidebarWidth,
+            display:"flex",flexDirection:"column",
             position:"fixed",top:0,left:0,bottom:0,zIndex:Z.drawer,flexShrink:0,
-            borderRight:`1px solid ${T.borderOnDark}`,
+            // Glassmorphism stack: dark base + saturated blur. Il backdrop-filter
+            // lavora sul contenuto SOTTO il drawer (l'overlay scuro), quindi resta
+            // leggibile anche su sfondi chiari della pagina.
+            background:"linear-gradient(180deg, rgba(11,7,15,0.86) 0%, rgba(11,7,15,0.82) 60%, rgba(11,7,15,0.88) 100%)",
+            backdropFilter:"blur(24px) saturate(180%)",
+            WebkitBackdropFilter:"blur(24px) saturate(180%)",
+            borderRight:"1px solid rgba(255,255,255,0.06)",
             transform:isMobile&&!sidebarOpen?"translateX(-100%)":"translateX(0)",
             transition:`transform ${M.durSlow} ${M.ease}`,
-            boxShadow:isMobile&&sidebarOpen?S.drawer:"none",
-            backgroundImage:"radial-gradient(circle at 100% 0%, rgba(110,14,26,0.10) 0%, transparent 36%), linear-gradient(180deg, rgba(255,255,255,0.025) 0%, transparent 38%)"}}>
+            willChange:sidebarOpen?"transform":"auto",
+            boxShadow:isMobile&&sidebarOpen?"4px 0 30px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)":"none",
+            // Decoro ambient: alone bordeaux in alto a destra + micro-griglia di
+            // puntini bianchi 1px (data-URL inline) ripetuta su tutta l'altezza.
+            backgroundImage:[
+              "radial-gradient(circle at 100% 0%, rgba(110,14,26,0.22) 0%, transparent 42%)",
+              "radial-gradient(circle at 0% 100%, rgba(232,75,58,0.10) 0%, transparent 40%)",
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='1' cy='1' r='1' fill='rgba(255,255,255,0.045)'/></svg>\")",
+              "linear-gradient(180deg, rgba(11,7,15,0.86) 0%, rgba(11,7,15,0.82) 60%, rgba(11,7,15,0.88) 100%)"
+            ].join(", "),
+            backgroundRepeat:"no-repeat, no-repeat, repeat, no-repeat",
+            backgroundSize:"auto, auto, 24px 24px, auto",
+          }}>
 
-            {/* Brand accent strip */}
-            <div style={{height:3, background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)", flexShrink:0}}/>
+            {/* Accent strip animato: brand → corallo → brand in loop lento.
+                Visualmente segnala "vivo / premium" senza essere invadente.
+                Pausato da prefers-reduced-motion. */}
+            <div className="fos-drawer-accent" aria-hidden="true"
+              style={{height:3, flexShrink:0,
+                background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 25%, #FF7B5A 50%, #E84B3A 75%, #6E0E1A 100%)",
+                backgroundSize:"200% 100%",
+                animation:"_fos_drawerAccent 8s ease-in-out infinite",
+              }}/>
 
             {/* Logo header: solo su mobile (su desktop logo+nome sono nella fascia
                 superiore globale, così la sidebar ha più spazio per il menu).
-                Tap su tutto il blocco → torna alla home (audit 2026-06-25). */}
+                Tap su tutto il blocco → torna alla home. Touch target ≥ 44px. */}
             {isMobile && (
             <button
               onClick={()=>{ setView(isDip?"home-dipendente":"home"); setSidebarOpen(false) }}
               aria-label={`Vai a ${appName} home`}
-              style={{padding:"20px 20px 18px",borderBottom:`1px solid ${T.borderOnDark}`,background:"transparent",border:"none",width:"100%",textAlign:"left",cursor:"pointer",display:"block"}}>
+              style={{padding:"18px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)",
+                background:"transparent",border:"none",width:"100%",textAlign:"left",cursor:"pointer",display:"block",
+                minHeight:44}}>
               <div style={{display:"flex",alignItems:"center",gap:12}}>
-                {customLogo
-                  ? <img src={customLogo} alt={appName} style={{height:38,maxWidth:60,objectFit:'contain',borderRadius:10}}/>
-                  : <Logo size={38} style={{borderRadius:10,boxShadow:"0 8px 22px rgba(110,14,26,0.42)"}}/>}
+                {/* Brand brick 44x44 con alone luminoso. Su tap → home. */}
+                <div style={{position:"relative", flexShrink:0}}>
+                  <div aria-hidden="true" style={{position:"absolute", inset:-6, borderRadius:16,
+                    background:"radial-gradient(circle, rgba(232,75,58,0.35) 0%, rgba(110,14,26,0) 70%)",
+                    filter:"blur(4px)", pointerEvents:"none"}}/>
+                  {customLogo
+                    ? <img src={customLogo} alt={appName}
+                        style={{position:"relative", height:44, width:44, maxWidth:60, objectFit:"contain", borderRadius:12,
+                          boxShadow:"0 10px 26px rgba(110,14,26,0.55), inset 0 1px 0 rgba(255,255,255,0.14)"}}/>
+                    : <Logo size={44}
+                        style={{position:"relative", borderRadius:12,
+                          boxShadow:"0 10px 26px rgba(110,14,26,0.55), inset 0 1px 0 rgba(255,255,255,0.14)"}}/>}
+                </div>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:16,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",lineHeight:1.15}}>{appName}</div>
-                  <div style={{fontSize:11.5,color:T.textOnDarkSoft,fontWeight:400,marginTop:3,
+                  <div style={{fontSize:17,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.02em",lineHeight:1.1}}>{appName}</div>
+                  <div style={{fontSize:11.5,color:"rgba(255,255,255,0.55)",fontWeight:500,marginTop:3,
                     whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.005em"}}>
                     {nomeAttivita || "La mia attività"}
                   </div>
@@ -2425,29 +2479,35 @@ export default function Dashboard({
 
             {!['confronto-sedi','trasferimenti'].includes(view) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />}
 
-            {/* Search nel menu — filtra le voci della sidebar in tempo reale */}
-            <div style={{padding:"12px 16px 10px",position:"relative"}}>
-              <span style={{position:"absolute", left: 26, top: "50%", transform:"translateY(-50%)", display:"flex", pointerEvents:"none", color:"rgba(255,255,255,0.45)"}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            {/* Search nel menu — filtra le voci della sidebar in tempo reale.
+                Input glass con bordo brand su focus. Min-height 38 per touch
+                comodo senza ingombrare. */}
+            <div style={{padding:"10px 16px 8px",position:"relative"}}>
+              <span aria-hidden="true" style={{position:"absolute", left: 28, top: "50%", transform:"translateY(-50%)", display:"flex", pointerEvents:"none", color:"rgba(255,255,255,0.5)"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </span>
               <input
                 value={sidebarSearch}
                 onChange={e => setSidebarSearch(e.target.value)}
-                placeholder="Cerca nel menu…"
+                placeholder="Cerca nel menu"
+                aria-label="Cerca nel menu"
                 style={{
-                  width:"100%", height:34, padding:"0 28px 0 32px",
-                  background:"rgba(255,255,255,0.06)",
-                  border:`1px solid ${T.borderOnDark}`,
-                  borderRadius:8, color:"#FFFFFF", fontSize:12.5,
+                  width:"100%", height:38, padding:"0 32px 0 36px",
+                  background:"rgba(255,255,255,0.05)",
+                  backdropFilter:"blur(8px)",
+                  WebkitBackdropFilter:"blur(8px)",
+                  border:"1px solid rgba(255,255,255,0.08)",
+                  borderRadius:10, color:"#FFFFFF", fontSize:13,
                   outline:"none", fontFamily:"inherit", boxSizing:"border-box",
-                  letterSpacing:"-0.005em",
+                  letterSpacing:"-0.005em", fontWeight:500,
+                  transition:`background ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, box-shadow ${M.durBase} ${M.ease}`,
                 }}
-                onFocus={e => { e.target.style.background="rgba(255,255,255,0.10)"; e.target.style.borderColor="rgba(232,75,58,0.55)"; }}
-                onBlur={e => { e.target.style.background="rgba(255,255,255,0.06)"; e.target.style.borderColor=T.borderOnDark; }}
+                onFocus={e => { e.target.style.background="rgba(255,255,255,0.09)"; e.target.style.borderColor="rgba(232,75,58,0.55)"; e.target.style.boxShadow="0 0 0 3px rgba(232,75,58,0.14)"; }}
+                onBlur={e => { e.target.style.background="rgba(255,255,255,0.05)"; e.target.style.borderColor="rgba(255,255,255,0.08)"; e.target.style.boxShadow="none"; }}
               />
               {sidebarSearch && (
                 <button onClick={() => setSidebarSearch('')} aria-label="Cancella ricerca"
-                  style={{position:"absolute", right: 24, top: "50%", transform:"translateY(-50%)", background:"none", border:"none", color:"rgba(255,255,255,0.6)", cursor:"pointer", padding:4, display:"flex"}}>
+                  style={{position:"absolute", right: 22, top: "50%", transform:"translateY(-50%)", background:"none", border:"none", color:"rgba(255,255,255,0.6)", cursor:"pointer", padding:6, display:"flex", borderRadius:6}}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
                 </button>
               )}
@@ -2472,6 +2532,7 @@ export default function Dashboard({
                 const accent    = active ? "#E84B3A" : "rgba(232,75,58,0.45)"
                 return (
                   <button onClick={() => { setView("home"); if (isMobile) setSidebarOpen(false) }}
+                    aria-current={active ? "page" : undefined}
                     style={{ width: "calc(100% - 16px)", margin: "4px 8px 4px", padding: "10px 12px 10px 14px",
                       background: active
                         ? "linear-gradient(90deg, rgba(232,75,58,0.18), rgba(232,75,58,0.06) 60%, transparent)"
@@ -2577,46 +2638,74 @@ export default function Dashboard({
 
             </div>
 
-            {/* Footer */}
-            <div style={{padding:"14px 16px 16px",borderTop:`1px solid ${T.borderOnDark}`}}>
+            {/* Footer: avatar + online + 2 azioni (Notifiche / Esci) come row */}
+            <div style={{padding:"12px 14px 14px",borderTop:"1px solid rgba(255,255,255,0.06)",
+              background:"linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(0,0,0,0.18) 100%)"}}>
               {auth?.user?.email&&(
-                <div style={{display:"flex",alignItems:"center",gap:10,padding:"4px 6px 12px",overflow:"hidden"}}>
-                  <div style={{width:30,height:30,borderRadius:R.md,background:"linear-gradient(135deg,#3B4252 0%,#1F2430 100%)",
-                    display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:12,fontWeight:600,color:"rgba(255,255,255,0.88)",letterSpacing:0,
-                    border:"1px solid rgba(255,255,255,0.06)"}}>
-                    {(auth.user.email||"?").slice(0,1).toUpperCase()}
+                <div style={{display:"flex",alignItems:"center",gap:11,padding:"6px 4px 12px",overflow:"hidden"}}>
+                  {/* Avatar circolare con badge online pulsante */}
+                  <div style={{position:"relative", flexShrink:0}}>
+                    <div style={{width:36,height:36,borderRadius:"50%",
+                      background:"linear-gradient(135deg, #2A1518 0%, #6E0E1A 100%)",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:13,fontWeight:700,color:"#FFFFFF",letterSpacing:0,
+                      border:"1px solid rgba(255,255,255,0.10)",
+                      boxShadow:"0 4px 12px rgba(110,14,26,0.35), inset 0 1px 0 rgba(255,255,255,0.15)"}}>
+                      {(auth.user.email||"?").slice(0,1).toUpperCase()}
+                    </div>
+                    {/* Pallino online verde animato */}
+                    <span className="fos-online-dot" aria-hidden="true"
+                      style={{position:"absolute", bottom:-1, right:-1,
+                        width:11, height:11, borderRadius:"50%",
+                        background:"#10B981",
+                        border:"2px solid rgba(11,7,15,0.95)",
+                        animation:"_fos_onlinePulse 2s ease-in-out infinite",
+                      }}/>
                   </div>
                   <div style={{flex:1,minWidth:0,overflow:"hidden"}}>
-                    <div style={{fontSize:12,color:T.textOnDarkStrong,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{auth.user.email}</div>
-                    <div style={{fontSize:10,color:T.textOnDarkSoft,fontWeight:400,marginTop:2,display:"flex",alignItems:"center",gap:5}}>
-                      <span style={{width:5,height:5,borderRadius:"50%",background:T.green,boxShadow:"0 0 0 2px rgba(14,159,110,0.18)"}}/>
+                    <div style={{fontSize:12.5,color:"#FFFFFF",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.005em"}}>{auth.user.email}</div>
+                    <div style={{fontSize:10.5,color:"rgba(255,255,255,0.55)",fontWeight:500,marginTop:2,display:"flex",alignItems:"center",gap:6,letterSpacing:"0.02em"}}>
                       Connesso
                     </div>
                   </div>
                 </div>
               )}
-              <button onClick={()=>setShowNotifiche(o=>!o)}
-                style={{width:"100%",padding:"8px 12px",background:"rgba(255,255,255,0.04)",
-                  border:`1px solid ${T.borderOnDark}`,borderRadius:R.md,
-                  color:T.textOnDarkMid,fontSize:12,fontWeight:500,cursor:"pointer",
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:8,
-                  transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}`}}
-                onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.08)";e.currentTarget.style.color="#fff";}}
-                onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.color=T.textOnDarkMid;}}>
-                {ic(ICONS.bell)}
-                Notifiche
-                {nonLette>0&&<span style={{background:T.brand,color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"2px 7px"}}>{nonLette}</span>}
-              </button>
-              <button onClick={()=>onSignOut&&onSignOut()}
-                style={{width:"100%",padding:"8px 12px",background:"transparent",border:`1px solid ${T.borderOnDarkStr}`,
-                  borderRadius:R.md,color:T.textOnDarkMid,fontSize:12,fontWeight:500,cursor:"pointer",
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10,
-                  transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}`}}
-                onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,14,26,0.14)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(110,14,26,0.42)";}}
-                onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=T.textOnDarkMid;e.currentTarget.style.borderColor=T.borderOnDarkStr;}}>
-                {ic(ICONS.logOut)}
-                Esci
-              </button>
+              {/* Row di 2 bottoni: Notifiche / Esci. Min-height 44 per touch. */}
+              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
+                <button onClick={()=>setShowNotifiche(o=>!o)}
+                  aria-label="Apri notifiche"
+                  style={{padding:"10px 10px",background:"rgba(255,255,255,0.04)",
+                    border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,
+                    color:"rgba(255,255,255,0.82)",fontSize:12,fontWeight:600,cursor:"pointer",
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+                    minHeight:44, position:"relative", letterSpacing:"-0.005em",
+                    transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`}}
+                  onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,255,255,0.08)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(255,255,255,0.14)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.color="rgba(255,255,255,0.82)";e.currentTarget.style.borderColor="rgba(255,255,255,0.08)";}}
+                  onMouseDown={e=>{e.currentTarget.style.transform="scale(0.98)";}}
+                  onMouseUp={e=>{e.currentTarget.style.transform="scale(1)";}}>
+                  {ic(ICONS.bell, 14)}
+                  <span>Notifiche</span>
+                  {nonLette>0&&<span style={{background:"#E84B3A",color:"#fff",borderRadius:10,fontSize:10,fontWeight:700,padding:"1px 6px",minWidth:18,textAlign:"center",
+                    boxShadow:"0 0 10px rgba(232,75,58,0.55)"}}>{nonLette.toLocaleString('it-IT')}</span>}
+                </button>
+                <button onClick={()=>onSignOut&&onSignOut()}
+                  aria-label="Esci dall'account"
+                  style={{padding:"10px 10px",background:"transparent",
+                    border:"1px solid rgba(255,255,255,0.10)",borderRadius:10,
+                    color:"rgba(255,255,255,0.78)",fontSize:12,fontWeight:600,cursor:"pointer",
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+                    minHeight:44, letterSpacing:"-0.005em",
+                    transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, border-color ${M.durBase} ${M.ease}, transform ${M.durFast} ${M.ease}`}}
+                  onMouseEnter={e=>{e.currentTarget.style.background="rgba(110,14,26,0.22)";e.currentTarget.style.color="#fff";e.currentTarget.style.borderColor="rgba(232,75,58,0.45)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.78)";e.currentTarget.style.borderColor="rgba(255,255,255,0.10)";}}
+                  onMouseDown={e=>{e.currentTarget.style.transform="scale(0.98)";}}
+                  onMouseUp={e=>{e.currentTarget.style.transform="scale(1)";}}>
+                  {ic(ICONS.logOut, 14)}
+                  <span>Esci</span>
+                </button>
+              </div>
+              <div style={{height:10}}/>
               {/* Link legali: solo su mobile (su desktop sono nella fascia inferiore globale) */}
               {isMobile && (
               <div style={{display:"flex",justifyContent:"center",gap:8,paddingTop:2,flexWrap:"wrap"}}>

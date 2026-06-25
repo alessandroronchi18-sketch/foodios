@@ -136,7 +136,7 @@ export default async function handler(req) {
   // interna. Per un normale utente autenticato il destinatario viene forzato
   // alla SUA stessa email di profilo (derivata server-side dal token); se non
   // e' autenticato la richiesta viene respinta. I tipi 'approvazione' (ricava
-  // il titolare dell'org) e 'custom' (gia' admin/interno) restano invariati.
+  // il titolare dell'org) e 'custom' (già admin/interno) restano invariati.
   const TIPI_CON_EMAIL = ['benvenuto', 'scadenza_trial',
     'magazzino_sotto_soglia', 'fattura_in_scadenza', 'report_mensile']
   let recipient = email

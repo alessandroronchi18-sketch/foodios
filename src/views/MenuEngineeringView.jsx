@@ -281,7 +281,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
             )}
           </div>
 
-          {/* Azioni per quadrante: tab pillole + lista dinamica (no piu' griglia 2x2 ridondante con la matrice bubble sopra) */}
+          {/* Azioni per quadrante: tab pillole + lista dinamica (no più griglia 2x2 ridondante con la matrice bubble sopra) */}
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, overflow: 'hidden' }}>
             <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, gap: 0, borderBottom: `1px solid ${BORDER}`, flexWrap: 'wrap' }}>
               {['STAR', 'PLOWHORSE', 'PUZZLE', 'DOG'].map((q, qi) => {

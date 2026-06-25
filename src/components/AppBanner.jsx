@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 
 // Banner globale dall'admin (tabella public.app_banners).
-// Carica il piu' recente attivo + non scaduto, dismissable per sessione
+// Carica il più recente attivo + non scaduto, dismissable per sessione
 // (riappare al prossimo login se l'admin non l'ha disattivato).
 const COLORI = {
   info:     { bg: '#EFF6FF', border: '#BFDBFE', fg: '#1E3A8A', icon: 'bulb' },

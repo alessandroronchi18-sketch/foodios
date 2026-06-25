@@ -38,7 +38,7 @@ export default function ChiSiamo() {
       <LegalH2>Come lavoriamo</LegalH2>
       <LegalP>
         FoodOS e' guidato dai feedback dei design partner: <strong>chi usa il prodotto decide le
-        prossime feature</strong>. Ogni settimana raccogliamo bug, idee, frustrazioni. Le piu'
+        prossime feature</strong>. Ogni settimana raccogliamo bug, idee, frustrazioni. Le più
         urgenti diventano release nello stesso giorno; le altre entrano in roadmap.
       </LegalP>
 

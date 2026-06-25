@@ -185,7 +185,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   // 2. Salva PRIMA su server (ssave) — se fallisce, abort senza toccare state
   // 3. Stock prodotti finiti: scarta i pezzi della sessione (causale 'scarto').
   //    Eccezione: se la sessione era con destinazione altra sede, il transfer
-  //    ha gia' mosso lo stock — non lo ritocchiamo, avvisiamo l'utente.
+  //    ha già mosso lo stock — non lo ritocchiamo, avvisiamo l'utente.
   // 4. Aggiorna state locale solo dopo conferma server
   const handleDeleteSessione = async (sess) => {
     if (deleteSessPin !== 'ELIMINA' || deletingSess) return
@@ -340,7 +340,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   //    (evita data loss: l'UI non mostra "salvato" se in realta' non lo e').
   // 3. Aggiorna state locale
   // 4. RPC stock_pf (carico produzione + eventuale trasferimento auto). Errori
-  //    qui sono notificati ma non bloccano: la sessione e' gia' salvata.
+  //    qui sono notificati ma non bloccano: la sessione e' già salvata.
   // Stock PF (carico vetrina + eventuale trasferimento) — condiviso tra il flusso
   // titolare e quello dipendente. Usa solo nome/vendibile (niente ingredienti).
   // Variante: SOLO trasferimento (no carico). Usata dal flusso dipendente,

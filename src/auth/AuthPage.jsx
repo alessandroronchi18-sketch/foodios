@@ -188,9 +188,9 @@ function Input({ id, icon, type = 'text', value, onChange, placeholder, required
       {type === 'password' && (
         <button type="button" tabIndex={-1}
           onClick={() => setShowPwd(s => !s)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: T.textSoft, display: 'flex' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, margin: 0, color: T.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, flexShrink: 0 }}
           aria-label={showPwd ? 'Nascondi password' : 'Mostra password'}>
-          <Icon name={showPwd ? 'eyeOff' : 'eye'} size={16} color={T.textSoft}/>
+          <Icon name={showPwd ? 'eyeOff' : 'eye'} size={18} color={T.textSoft}/>
         </button>
       )}
     </div>

@@ -52,7 +52,7 @@ export default function TerminiServizio() {
         I prezzi indicati sono per pagamento mensile in modalita' subscription. La fatturazione
         avviene con periodicita' mensile, con addebito automatico sul metodo di pagamento registrato.
         Il Fornitore si riserva il diritto di modificare i prezzi con preavviso di 30 giorni
-        comunicato via email; le modifiche non si applicano al periodo gia' pagato.
+        comunicato via email; le modifiche non si applicano al periodo già pagato.
       </LegalP>
 
       <LegalH2>6. Pagamenti e fatturazione</LegalH2>
@@ -69,7 +69,7 @@ export default function TerminiServizio() {
         Il Cliente, essendo soggetto B2B, NON e' un consumatore ai sensi del Codice del Consumo
         (D.Lgs. 206/2005). Non si applicano pertanto i 14 giorni di recesso previsti per il B2C.
         Tuttavia il Cliente puo' disdire l'abbonamento in qualsiasi momento dalle Impostazioni;
-        la disdetta diventa effettiva al termine del periodo gia' pagato (no proration di rimborso).
+        la disdetta diventa effettiva al termine del periodo già pagato (no proration di rimborso).
         Per casi particolari (es. malfunzionamento prolungato del Servizio), il Fornitore valuta
         rimborsi caso per caso — vedi <LegalLink href="/rimborsi">policy rimborsi</LegalLink>.
       </LegalP>

@@ -7,7 +7,7 @@ import React from 'react'
 
 export default function ChainBadge({ active = false, size = 14, title = 'Funzione esclusiva piano Chain' }) {
   const id = React.useId().replace(/:/g, '')
-  // Colore: piu' "premium" quando NON active (cosi spicca su sfondo chiaro).
+  // Colore: più "premium" quando NON active (cosi spicca su sfondo chiaro).
   // Quando active (item selezionato in red light bg), virata su tono caldo neutro.
   return (
     <span role="img" title={title} aria-label={title}

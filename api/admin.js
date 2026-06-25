@@ -525,9 +525,9 @@ async function getClienteDettaglio(supabase, orgId) {
       emailConfermata = !!u?.user?.email_confirmed_at
     } catch { /* ignore */ }
   }
-  // Ultimo accesso negli ultimi 7gg: usiamo ultimo evento utente piu' recente
+  // Ultimo accesso negli ultimi 7gg: usiamo ultimo evento utente più recente
   // dal subset usage (chiave operativa) come proxy, oppure last_sign_in tramite
-  // l'admin API (gia' chiamata sopra non lo include). Qui usiamo l'ultimo
+  // l'admin API (già chiamata sopra non lo include). Qui usiamo l'ultimo
   // updated_at su user_data come proxy "attivita' recente".
   const ultimoAggiornamentoIso = usage.reduce((acc, u) => u.ultimo && u.ultimo > (acc || '') ? u.ultimo : acc, null)
   const attivo7gg = ultimoAggiornamentoIso ? ultimoAggiornamentoIso > sevenDaysAgo : false
@@ -1083,7 +1083,7 @@ async function getBanners(supabase) {
 async function azBannerCrea(supabase, body, adminEmail) {
   const messaggio = sanitize(body.messaggio || '', 500)
   if (!messaggio) throw new Error('Messaggio obbligatorio')
-  // Il campo `tipo` nel body e' gia' usato per dispatchare l'action,
+  // Il campo `tipo` nel body e' già usato per dispatchare l'action,
   // quindi qui leggiamo `severity` (info/warn/critical/success).
   const severity = ['info', 'warn', 'critical', 'success'].includes(body.severity) ? body.severity : 'info'
   let scadeIl = null
@@ -1927,7 +1927,7 @@ async function azCleanupE2E(supabase, conferma, expectedCount = null) {
       `Stato cambiato dal preview: ${orgs.length} org E2E vs ${expectedCount} attesi. Riapri il preview.`
     )
   }
-  // Cap di sicurezza: se piu' di 200 org E2E sono identificate in una run,
+  // Cap di sicurezza: se più di 200 org E2E sono identificate in una run,
   // probabilmente il pattern e' troppo largo (incident).
   if (orgs.length > 200) {
     throw new Error(`Trovati ${orgs.length} org E2E in una run — limite di sicurezza 200. Verifica i pattern.`)
@@ -2454,7 +2454,7 @@ export default async function handler(req) {
 
   const ip = getClientIP(req)
   // Audit 2026-07-01 HIGH: cap user-agent IMMEDIATAMENTE per evitare downstream
-  // hot logging di stringhe grandi (10KB) — i call site di logAdmin slice gia'
+  // hot logging di stringhe grandi (10KB) — i call site di logAdmin slice già
   // a 200 ma req.headers.get puo' essere chiamato altrove in flow.
   const ua = (req.headers.get('user-agent') || '').slice(0, 256)
 
@@ -2740,7 +2740,7 @@ export default async function handler(req) {
 
       if (action === 'migrate_integrazioni') {
         // One-shot: cifra tutte le row con encryption_version=0 e config jsonb non nullo.
-        // Idempotente: rieseguito non tocca le row gia' v=1.
+        // Idempotente: rieseguito non tocca le row già v=1.
         const { encryptConfig, decryptConfig } = await import('./lib/integrationsCrypto.js')
         const { data: rows, error } = await supabase
           .from('integrazioni')

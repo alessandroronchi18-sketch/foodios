@@ -26,7 +26,7 @@ export default function FloatingActions({ viewCorrente }) {
   const wrapperRef = useRef(null)
 
   // Chiudi expansion cliccando fuori (ma non se uno dei modali e' aperto:
-  // li' il click sul backdrop e' gia' gestito dal modale stesso).
+  // li' il click sul backdrop e' già gestito dal modale stesso).
   useEffect(() => {
     if (!expanded || aiOpen || feedbackOpen) return
     function onDocClick(e) {
@@ -44,7 +44,7 @@ export default function FloatingActions({ viewCorrente }) {
   // Quando uno dei modali si chiude, ricomprimi anche il menu.
   useEffect(() => {
     if (!aiOpen && !feedbackOpen && expanded) {
-      // Lascia il menu aperto cosi' l'utente puo' aprire l'altro item
+      // Lascia il menu aperto così l'utente puo' aprire l'altro item
       // senza dover ri-tappare. Si chiude col tap fuori.
     }
   }, [aiOpen, feedbackOpen, expanded])

@@ -168,11 +168,11 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   // Prezzo non indicato → eredita il prezzo di listino della ricetta corrispondente.
   //
   // Bug fix 2026-06-13: l'inserimento manuale ora ACCUMULA invece di sostituire.
-  // - Se un prodotto e' gia' presente in `venduto` con stesso nome, ne somma la
+  // - Se un prodotto e' già presente in `venduto` con stesso nome, ne somma la
   //   quantita' (e ricalcola totale).
   // - Se e' nuovo, lo aggiunge.
   // Dopo l'aggiunta resetta `manualRows` per permettere altri inserimenti
-  // consecutivi (l'utente preme "Aggiungi" piu' volte, poi convalida al
+  // consecutivi (l'utente preme "Aggiungi" più volte, poi convalida al
   // momento del salvataggio finale).
   const usaProdottiManuali = () => {
     const nuoveRighe = manualRows.map(r => {
@@ -335,7 +335,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             const idx = nuoveChiusure.findIndex(c => c.data === dataStr)
             if (idx >= 0) {
               // Audit 2026-07-01 HIGH: merge, NON replace. Re-processare un OCR
-              // gia' confrontato con cassa cancellava cassaImport/formati.
+              // già confrontato con cassa cancellava cassaImport/formati.
               const prev = nuoveChiusure[idx]
               nuoveChiusure[idx] = {
                 ...prev,
@@ -372,7 +372,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       const nup = v.nome.toUpperCase().trim()
       // Fuzzy match cap: scontrini cortissimi (es. "CONO") matchavano qualunque
       // ricetta che contenesse quella sottostringa (es. "BIGOLINO CON ONO" o "MIGNON"
-      // → mis-attribuzione). Richiediamo che la stringa piu' corta sia >=4 char
+      // → mis-attribuzione). Richiediamo che la stringa più corta sia >=4 char
       // per il match-by-substring; per match esatto resta nessun cap.
       const nupAN = nup.replace(/[^A-Z0-9]/g, '')
       const mk = Object.keys(ricetteNote).find(k => {
@@ -416,8 +416,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   const aggMov = useMemo(() => aggregaGiorno(movimenti, dataFiltro), [movimenti, dataFiltro])
 
   // Drift porzioni per categoria: prodotto - venduto teorico - omaggi - sprechi.
-  // Drift positivo = consumo reale piu' alto del teorico (mano abbondante / residui non gestiti).
-  // Drift negativo = consumo reale piu' basso (mano stretta / vendite non registrate).
+  // Drift positivo = consumo reale più alto del teorico (mano abbondante / residui non gestiti).
+  // Drift negativo = consumo reale più basso (mano stretta / vendite non registrate).
   // Severity: |drift%| >= 20 e' anomalia significativa, >= 10 e' da monitorare.
   const driftPerCategoria = useMemo(() => formatiRiconc.categorie.map(c => {
     const mov = aggMov.perCategoria[c.categoria] || { gSpreco: 0, gOmaggio: 0 }
@@ -438,7 +438,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
   // I totali includono SIA le ricette riconosciute per nome SIA i formati generici,
   // SIA il food cost di sprechi/omaggi (sono costi reali per l'azienda).
-  // Cosi' cassa e produzione coincidono anche senza il dettaglio del gusto, e il
+  // Così cassa e produzione coincidono anche senza il dettaglio del gusto, e il
   // margine giornaliero riflette l'impatto reale delle perdite.
   const fmtV = formatiRiconc.righe.reduce((s, r) => s + r.rv, 0)
   const fmtFC = formatiRiconc.righe.reduce((s, r) => s + r.fcV, 0)
@@ -1116,7 +1116,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                       </div>
                     ))}
                     <div style={{ marginTop: 8, fontSize: 10, color: C.textSoft, lineHeight: 1.6 }}>
-                      Drift positivo: hai consumato piu' del teorico (mano abbondante o residui non gestiti).
+                      Drift positivo: hai consumato più del teorico (mano abbondante o residui non gestiti).
                       Drift negativo: hai consumato meno (mano stretta o vendite non scontrinate).
                       |drift| &lt; 5% = ok · 5-10% = da monitorare · &gt; 10% = da approfondire.
                     </div>

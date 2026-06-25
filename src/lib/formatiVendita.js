@@ -47,7 +47,7 @@ export function nuovoFormato() {
 
 // Restituisce i componenti del formato in forma normalizzata. Se il formato e'
 // in formato legacy (solo costoContenitore), lo trasforma in un singolo componente
-// "Contenitore" — cosi' il resto del codice puo' lavorare solo con componenti[].
+// "Contenitore" — così il resto del codice puo' lavorare solo con componenti[].
 export function componentiNormalizzati(formato) {
   if (Array.isArray(formato?.componenti) && formato.componenti.length > 0) {
     return formato.componenti.map(c => ({

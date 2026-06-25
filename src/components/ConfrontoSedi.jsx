@@ -166,7 +166,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
         }
       }
 
-      // Calcola le 8 settimane piu' recenti (per trend sparkline gruppo).
+      // Calcola le 8 settimane più recenti (per trend sparkline gruppo).
       const trend8 = []
       for (let i = 7; i >= 0; i--) {
         const lun = getStartOfWeek(i)

@@ -132,7 +132,7 @@ export async function saveIntegrazione(supabase, { orgId, tipo, config, attiva =
   // INSERT (no UNIQUE constraint storica su (organization_id, tipo)). Soluzione:
   // tentare upsert con onConflict; se UNIQUE non c'e' nella migration, ricade
   // sul pattern legacy SELECT+INSERT (informativo: la migration 20260701 NON
-  // aggiunge questo UNIQUE perche' alcune integrazioni storiche hanno duplicati
+  // aggiunge questo UNIQUE perché alcune integrazioni storiche hanno duplicati
   // intenzionali — vanno bonificati prima).
   try {
     const { data, error } = await supabase

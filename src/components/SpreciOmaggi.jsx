@@ -2,7 +2,7 @@
 // "Discrepanze" in un'unica vista DIAGNOSI → CAPISCI → AGISCI (stile Food Cost).
 //
 // Risponde a una sola domanda del proprietario: "quanto prodotto se n'e' andato
-// senza incasso, perche', e quanto mi e' costato?".
+// senza incasso, perché, e quanto mi e' costato?".
 //
 // MODELLO DATI (low-risk, non distruttivo):
 //   - Store canonico = SK_MOV ('pasticceria-movimenti-speciali-v1', per-sede).
@@ -13,7 +13,7 @@
 //   - LETTURA LEGACY (sola lettura, nessuna migrazione): all'avvio carichiamo
 //     ANCHE SK_DISCREPANZE ('pasticceria-discrepanze-v1') e ci pieghiamo dentro
 //     quei record storici, normalizzati alla stessa shape di display, con i loro
-//     € gia' stimati. Non scriviamo/eliminiamo mai SK_DISC. De-dup per id.
+//     € già stimati. Non scriviamo/eliminiamo mai SK_DISC. De-dup per id.
 //     I tipi storici 'porzione_grande'/'porzione_piccola' sono DRIFT di porzionatura,
 //     non perdite discrete: li mostriamo come insight informativo, NON come movimenti.
 //
@@ -534,7 +534,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
   if (isDip) {
     return (
       <div style={{ maxWidth: 760 }}>
-        <PageHeader subtitle={`Registra cio' che va perso (caduto, scaduto, errori) o che regali, cosi' resta tracciato e non sembra un ammanco di cassa${sedeAttiva ? ` · sede ${sedeAttiva.nome}` : ''}.`} />
+        <PageHeader subtitle={`Registra cio' che va perso (caduto, scaduto, errori) o che regali, così resta tracciato e non sembra un ammanco di cassa${sedeAttiva ? ` · sede ${sedeAttiva.nome}` : ''}.`} />
         {azioniRapide}
         {formCard}
         <SH sub="Le tue registrazioni di oggi.">Registrate oggi</SH>
@@ -571,7 +571,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
   return (
     <div style={{ maxWidth: 1100 }}>
       <PageHeader
-        subtitle={`Quanto prodotto se n'e' andato senza incasso, perche', e quanto ti e' costato. Perdite (scarti, avanzi, errori, ammanchi) e omaggi (regali, assaggi)${sedeAttiva ? ` · sede ${sedeAttiva.nome}` : ''}.`}
+        subtitle={`Quanto prodotto se n'e' andato senza incasso, perché, e quanto ti e' costato. Perdite (scarti, avanzi, errori, ammanchi) e omaggi (regali, assaggi)${sedeAttiva ? ` · sede ${sedeAttiva.nome}` : ''}.`}
       />
 
       {/* Selettore mese */}
@@ -665,8 +665,8 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         )}
       </div>
 
-      {/* (3) PER PRODOTTO — dove perdi piu' valore */}
-      <SH sub="I prodotti che ti costano di piu' in perdite e omaggi nel mese.">Prodotti con piu' perdite</SH>
+      {/* (3) PER PRODOTTO — dove perdi più valore */}
+      <SH sub="I prodotti che ti costano di più in perdite e omaggi nel mese.">Prodotti con più perdite</SH>
       <div style={{ ...cardStyle(), padding: isMobile ? 14 : 18, marginBottom: 24 }}>
         {diag.classifica.length === 0 ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.textSoft, padding: '8px 0' }}>
@@ -693,7 +693,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       </div>
 
       {/* (4) ELENCO MOVIMENTI DEL MESE */}
-      <SH sub="Tutti gli eventi del mese, dal piu' recente. Filtra per tipo o causale.">Movimenti del mese</SH>
+      <SH sub="Tutti gli eventi del mese, dal più recente. Filtra per tipo o causale.">Movimenti del mese</SH>
       <div style={{ ...cardStyle(), padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
           <label style={labelS}>Tipo</label>

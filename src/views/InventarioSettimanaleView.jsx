@@ -1,15 +1,15 @@
 // Inventario settimanale — metodo differenziale (gelateria/yogurt/pasta fresca).
 //
-// Esperienza utente che replica il foglio Excel che i dipendenti gia' usano:
+// Esperienza utente che replica il foglio Excel che i dipendenti già usano:
 //   righe   = gusti (ricette con is_gusto=true)
-//   colonne = 7 giorni × (PROD | RIMAN), in piu' colonna VENDUTO SETTIMANA
+//   colonne = 7 giorni × (PROD | RIMAN), in più colonna VENDUTO SETTIMANA
 //
 // I 7 giorni vanno da lunedi a domenica. Navigazione +/- settimana.
 //
 // Il venduto del giorno N e' calcolato come
 //   riman(N-1) + prod(N) - riman(N) - scarto(N)
 // usando il dato del lunedi della settimana precedente come "riman(N-1)" del
-// lunedi corrente (la query carica un giorno in piu' a sinistra).
+// lunedi corrente (la query carica un giorno in più a sinistra).
 //
 // Salvataggio per-cella su blur: ogni modifica di PROD o RIMAN scrive subito
 // la riga (upsert su unique org+sede+gusto+data). UX da foglio di calcolo.
@@ -136,13 +136,13 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   }
 
   // Lista gusti = unione di ricettario + gusti orfani (presenti in DB ma
-  // non nel ricettario). Cosi' un file importato con nomi non ancora a
+  // non nel ricettario). Così un file importato con nomi non ancora a
   // ricettario non viene "nascosto" nel foglio settimanale.
   const gusti = useMemo(() => elencoGusti(ricettario, righe), [ricettario, righe])
 
   // ID delle sedi su cui leggere: una se sede attiva, oppure il sub-set
   // selezionato dall'utente in modalita' isAllSedi.
-  // NB: dichiarato PRIMA dei useEffect cosi' possono usarlo come dep.
+  // NB: dichiarato PRIMA dei useEffect così possono usarlo come dep.
   const sediProdIds = useMemo(() => {
     if (!isAllSedi) return sedeId ? [sedeId] : []
     if (sediFiltro instanceof Set && sediFiltro.size > 0) return [...sediFiltro]
@@ -234,7 +234,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         if (isAllSedi) {
           // Aggreghiamo per (gusto, data) sommando sedi. La logica del venduto
           // poi e' calcolata in VistaStorico (richiede continuita' giornaliera);
-          // sommare RIMAN cross-sede e' coerente perche' RIMAN(N-1)+PROD(N)-RIMAN(N)
+          // sommare RIMAN cross-sede e' coerente perché RIMAN(N-1)+PROD(N)-RIMAN(N)
           // sommato per sede e' uguale a (sum RIMAN_prev) + (sum PROD) - (sum RIMAN).
           const map = {}
           for (const r of (data || [])) {
@@ -298,7 +298,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     try {
       // L2: per evitare race su 2 tab aperte sulla stessa cella, RILEGGIAMO
       // lo stato attuale dal DB prima di calcolare il delta MP. Se l'altra
-      // tab ha gia' salvato un PROD diverso da quello in memoria, ci adattiamo
+      // tab ha già salvato un PROD diverso da quello in memoria, ci adattiamo
       // al valore reale.
       const { data: serverRow } = await supabase
         .from('inventario_produzione')
@@ -307,7 +307,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         .eq('gusto_nome', gustoNome).eq('data', dataIso)
         .maybeSingle()
       const esistenteMem = righe.find(r => r.gusto_nome === gustoNome && r.data === dataIso) || {}
-      // Usa il server come fonte di verita' se ha dati piu' recenti.
+      // Usa il server come fonte di verita' se ha dati più recenti.
       const esistente = serverRow
         ? { ...esistenteMem, ...serverRow }
         : esistenteMem
@@ -691,8 +691,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             const sediCoinvolte = new Set()
 
             // 1) INVENTARIO SEDI: upsert per gusto×data + scalo magazzino MP.
-            // Per ogni cella, leggiamo il vecchio prod_g (se gia' presente in
-            // righeDb) e applichiamo scaloMagazzinoPerGusto col delta. Cosi'
+            // Per ogni cella, leggiamo il vecchio prod_g (se già presente in
+            // righeDb) e applichiamo scaloMagazzinoPerGusto col delta. Così
             // l'import e' coerente con la compilazione manuale: il magazzino
             // viene scalato in proporzione al peso impasto della ricetta.
             // NB: scaliamo SOLO per la sede attiva (per le altre il dato di
@@ -767,7 +767,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             //    inventario del giorno (oggi per default, se non specificato).
             //    Questo EVITA il doppio conteggio: il venduto e' calcolato
             //    come (riman_prev + prod - riman - scarto), quindi lo scarto
-            //    e' gia' escluso.
+            //    e' già escluso.
             const oggiIso2 = new Date().toISOString().slice(0, 10)
             if (Array.isArray(batch?.sprechi)) {
               for (const r of batch.sprechi) {
@@ -787,7 +787,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             // 4) ALTRI PRODOTTI: importiamo come gusti "categoria" su
             //    inventario_produzione per la sede/giorno specifici.
             //    Rimanenza non disponibile dal foglio (1 sola colonna kg) →
-            //    impostata a 0, ma e' OK perche' la formula del venduto resta
+            //    impostata a 0, ma e' OK perché la formula del venduto resta
             //    consistente: l'utente vede la produzione e potra' compilare
             //    RIMAN manualmente nel foglio settimanale dopo l'import.
             let okAltri = 0
@@ -861,8 +861,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                   .maybeSingle()
                 // Audit 2026-07-01 HIGH: la spedizione verso una sede in modalita'
                 // inventario somma a `produzione_g` della dest MA non scala il magazzino
-                // MP della dest (il prodotto e' GIA' stato pesato sulla sede origine).
-                // Trattare come INCREMENTO di RIMANENZA (carico) e' piu' onesto:
+                // MP della dest (il prodotto e' GIÀ stato pesato sulla sede origine).
+                // Trattare come INCREMENTO di RIMANENZA (carico) e' più onesto:
                 // produzione = quanto e' stato prodotto OGGI; spedito da altra sede e'
                 // PRODOTTO PRONTO che entra in vetrina, non produzione locale.
                 await salvaCella(orgId, destSedeId, gusto, oggiIso, {
@@ -1677,7 +1677,7 @@ function IconaOrfano() {
 
 // ── Nome gusto + (eventuale) icona warning incolonnata a destra ───────────
 // Nome a sinistra, icona di alert a destra della cella. Usa justify-content:
-// space-between cosi' l'icona resta sempre allineata al margine destro
+// space-between così l'icona resta sempre allineata al margine destro
 // indipendentemente dalla lunghezza del nome.
 function NomeGustoConFlag({ nome, orfano }) {
   return (

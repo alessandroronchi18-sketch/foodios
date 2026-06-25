@@ -32,7 +32,7 @@ export default async function handler(req) {
   }
 
   // Rate limit forte: max 3 tentativi all'ora per utente. Difesa contro
-  // brute-forcing del nome attivita' (anche se la sessione e' gia' autenticata).
+  // brute-forcing del nome attivita' (anche se la sessione e' già autenticata).
   const rl = await checkRateLimit(supabase, `acc-del:${user.id}`, 3, 3600)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 

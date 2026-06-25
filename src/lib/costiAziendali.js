@@ -118,7 +118,7 @@ export function importoMensile(voce, asOfDate) {
       const startD = new Date(start)
       if (!Number.isFinite(startD.getTime())) return v / 12
       // Audit 2026-07-01 LOW: prima usavamo 30.44 (giorni medi astronomici).
-      // Mesi calendariali sono piu' onesti per "spalmato 12 mesi".
+      // Mesi calendariali sono più onesti per "spalmato 12 mesi".
       const refD = asOfDate ? new Date(asOfDate) : new Date()
       const monthsElapsed =
         (refD.getFullYear() - startD.getFullYear()) * 12 +

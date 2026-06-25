@@ -51,7 +51,7 @@ export function nuovoMovimento(tipo = 'spreco') {
   }
 }
 
-// Carica i movimenti per una sede (array, ordinato dal piu' recente).
+// Carica i movimenti per una sede (array, ordinato dal più recente).
 export async function caricaMovimenti(orgId, sedeId) {
   if (!orgId) return []
   const v = await sload(SK_MOV, orgId, sedeId || null)
@@ -112,7 +112,7 @@ export function filtraPerIntervallo(movimenti, da, a) {
 //   }
 //
 // `unita` viene unificata in grammi quando == 'g'. Le quantita' in 'pz' vengono
-// contate separatamente come `nPzSpreco/nPzOmaggio` (sotto a `tot`), perche'
+// contate separatamente come `nPzSpreco/nPzOmaggio` (sotto a `tot`), perché
 // senza un peso non possiamo sommarle al drift in grammi.
 export function aggregaGiorno(movimenti, dataIso) {
   const sel = movimenti.filter(m => (m.ts || '').slice(0, 10) === dataIso)

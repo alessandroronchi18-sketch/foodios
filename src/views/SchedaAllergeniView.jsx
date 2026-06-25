@@ -106,19 +106,19 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
       ) : (
         <>
           {/* Tabella ricette × allergeni — righe = ricette, colonne = allergeni.
-              Audit 2026-06-24: scambiati gli assi perche' le ricette sono molte
-              piu' degli allergeni (14 standard UE) e crescono nel tempo, mentre
+              Audit 2026-06-24: scambiati gli assi perché le ricette sono molte
+              più degli allergeni (14 standard UE) e crescono nel tempo, mentre
               gli allergeni sono fissi. Vertical scroll naturale sulle ricette,
               prima colonna sticky col nome ricetta per non perdere il contesto
               scrollando orizzontalmente sui 14 allergeni. */}
-          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",marginBottom:24}}>
-            <table style={{width:"100%",borderCollapse:"collapse",minWidth:Math.max(600, 220 + ALLERGENI.length * 56)}}>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"auto",WebkitOverflowScrolling:"touch",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",marginBottom:24}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth: 140 + ALLERGENI.length * 52}}>
               <thead>
                 <tr style={{background:"#F8F4F2"}}>
-                  <th style={{padding:"12px 16px",textAlign:"left",fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,minWidth:200,position:"sticky",left:0,background:"#F8F4F2",zIndex:2}}>Ricetta</th>
+                  <th style={{padding:"10px 10px",textAlign:"left",fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,minWidth:140,maxWidth:140,position:"sticky",left:0,background:"#F8F4F2",zIndex:2,boxShadow:"4px 0 8px -4px rgba(15,23,42,0.12)"}}>Ricetta</th>
                   {ALLERGENI.map(a=>(
-                    <th key={a.id} title={a.label} style={{padding:"10px 4px",textAlign:"center",fontSize:9.5,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,minWidth:52,maxWidth:72,lineHeight:1.2,whiteSpace:"normal",wordBreak:"break-word",verticalAlign:"middle"}}>
-                      {a.label.length>10?a.label.substring(0,9)+"…":a.label}
+                    <th key={a.id} title={a.label} style={{padding:"10px 4px",textAlign:"center",fontSize:9.5,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,minWidth:48,maxWidth:60,lineHeight:1.2,whiteSpace:"normal",wordBreak:"break-word",verticalAlign:"middle"}}>
+                      {a.label.length>8?a.label.substring(0,7)+"…":a.label}
                     </th>
                   ))}
                 </tr>
@@ -126,7 +126,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
               <tbody>
                 {ricette.map((r,ri)=>(
                   <tr key={r.nome} style={{background:ri%2===0?C.white:"#FDFAF8",borderBottom:`1px solid ${C.border}`}}>
-                    <td style={{padding:"10px 16px",fontWeight:600,fontSize:12,color:C.text,position:"sticky",left:0,background:ri%2===0?C.white:"#FDFAF8",minWidth:200,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",zIndex:1}} title={r.nome}>
+                    <td style={{padding:"10px 10px",fontWeight:600,fontSize:12,color:C.text,position:"sticky",left:0,background:ri%2===0?C.white:"#FDFAF8",minWidth:140,maxWidth:140,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",zIndex:1,boxShadow:"4px 0 8px -4px rgba(15,23,42,0.06)"}} title={r.nome}>
                       {r.nome}
                     </td>
                     {ALLERGENI.map(a=>{

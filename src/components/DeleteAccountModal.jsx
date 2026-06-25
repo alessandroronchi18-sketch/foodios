@@ -130,7 +130,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
         return
       }
       notify?.('Account cancellato. Ti contatteremo via email se vuoi recuperare i dati.')
-      // Logout client-side: il server ha gia' invalidato le sessioni.
+      // Logout client-side: il server ha già invalidato le sessioni.
       try { await supabase.auth.signOut() } catch { /* silent */ }
       setTimeout(() => { window.location.href = '/' }, 800)
     } catch (e) {

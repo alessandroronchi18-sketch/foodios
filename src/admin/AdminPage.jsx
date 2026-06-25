@@ -1295,7 +1295,7 @@ export default function AdminPage() {
   }, [adminTab])
 
   // ── Helpers di chiamata API ─────────────────────────────────────────
-  // Wrapper apiFetch gestisce gia' auth + retry 401 + redirect a /login se la
+  // Wrapper apiFetch gestisce già auth + retry 401 + redirect a /login se la
   // sessione muore. Qui apiCall e' solo un alias per non cambiare i callsite.
   const apiCall = useCallback((path, opts = {}) => apiFetch(path, opts), [])
 
@@ -3765,7 +3765,7 @@ export default function AdminPage() {
             <div>
               <h3 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 800 }}><Icon name="lock" size={16} /> Migrazione integrazioni → AES-256-GCM</h3>
               <div style={{ fontSize: 11, color: COLORS.textMute, maxWidth: 600 }}>
-                Cifra in batch tutte le righe <code>public.integrazioni</code> con <code>encryption_version=0</code> (legacy). Idempotente: ri-eseguire non tocca le righe gia' v=1. Richiede <code>INTEGRATIONS_ENCRYPTION_KEY</code> in Vercel.
+                Cifra in batch tutte le righe <code>public.integrazioni</code> con <code>encryption_version=0</code> (legacy). Idempotente: ri-eseguire non tocca le righe già v=1. Richiede <code>INTEGRATIONS_ENCRYPTION_KEY</code> in Vercel.
               </div>
             </div>
             <Btn kind="warn" size="sm"

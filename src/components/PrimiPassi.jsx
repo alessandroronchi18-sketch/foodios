@@ -96,7 +96,7 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
   }, [orgId])
 
   // Calcola completati DAL VIVO dai dati reali. Persisti la data del primo
-  // completamento per i task (cosi' lo storico resta anche se i dati cambiano).
+  // completamento per i task (così lo storico resta anche se i dati cambiano).
   const checks = useMemo(() => {
     const dataCtx = { ricettario, magazzino, giornaliero, chiusure }
     return TASKS.map(t => ({ ...t, done: t.check(dataCtx) }))

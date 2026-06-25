@@ -169,7 +169,7 @@ export async function emettiFatturaElettronica({
         amount: Number((importoNetto * (1 + aliquotaIva / 100)).toFixed(2)),
         due_date: scadenza,
         paid_date: data,
-        status: 'paid',          // pagamento gia' ricevuto via Stripe
+        status: 'paid',          // pagamento già ricevuto via Stripe
         payment_account: { id: null },
       }],
       notes: stripeInvoiceId ? `Riferimento Stripe: ${stripeInvoiceId}` : null,
@@ -193,7 +193,7 @@ export async function emettiFatturaElettronica({
     } catch (e) {
       // La fattura e' creata, ma trasmissione SDI fallita. Logga e continua —
       // l'admin puo' ritrasmettere dal pannello Fatture in Cloud.
-      // Audit 2026-07-01 LOW: marcare risposta con flag perche' il caller scriva
+      // Audit 2026-07-01 LOW: marcare risposta con flag perché il caller scriva
       // status='emessa_non_trasmessa' invece di 'emessa'.
       console.error('SDI send failed for invoice', invoiceId, e.message)
       return { ...created?.data, sdiTransmitFailed: true, sdiError: e.message }

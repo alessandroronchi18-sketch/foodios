@@ -73,7 +73,7 @@ export default async function handler(req) {
   const isPrimoDelMese = now.getUTCDate() === 1
 
   // Audit 2026-06-14 PM: step INDIPENDENTI eseguiti in PARALLELO con
-  // Promise.allSettled (no piu' seriale a fail-domino). 1 stallo non
+  // Promise.allSettled (no più seriale a fail-domino). 1 stallo non
   // blocca gli altri. Solo cleanup-audit-log resta seriale alla fine.
   const independentSteps = [
     ['cron-notifiche',      () => notificheHandler(makeInternalReq(req.url, '/api/cron-notifiche'))],

@@ -86,7 +86,7 @@ export async function rallentaSeNecessario(startTime, minMs = 200) {
 // ADMIN_EMAIL letto a module-load (come admin.js / send-email.js).
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase()
 
-// Decodifica un claim dal payload JWT senza verifica firma. Sicuro perche'
+// Decodifica un claim dal payload JWT senza verifica firma. Sicuro perché
 // chiamato solo DOPO supabase.auth.getUser(token) (che verifica la firma).
 function decodeJwtClaim(token, claim) {
   try {
@@ -131,7 +131,7 @@ export async function verificaAdmin(req, supabase) {
     // valido SOLO in development locale puro (no VERCEL_URL = non e' un deploy).
     // Audit 2026-07-01 HIGH: aggiungere VERCEL_ENV check come signal canonico
     // (development|preview|production) — chi avvia `vercel dev` con
-    // NODE_ENV=production accidentalmente non bypassa piu' il flag.
+    // NODE_ENV=production accidentalmente non bypassa più il flag.
     // In QUALSIASI deploy Vercel (production / preview / development URL)
     // VERCEL_URL e' impostato → il flag non si attiva. Fail-closed.
     const isLocalDev = !process.env.VERCEL_URL

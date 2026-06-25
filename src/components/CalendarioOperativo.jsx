@@ -200,7 +200,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
     return days
   }, [anno, mese])
 
-  // Render del pannello dettaglio giorno — estratto in funzione cosi'
+  // Render del pannello dettaglio giorno — estratto in funzione così
   // su mobile possiamo inserirlo INLINE subito sotto la card cliccata
   // (audit 2026-06-24: prima compariva in fondo alla lista e non si capiva
   // dove fosse). Su desktop resta in colonna laterale sticky.
@@ -523,7 +523,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
         </div>
 
         {/* ── ③ PANNELLO DETTAGLIO GIORNO (desktop a fianco). Su mobile e'
-              gia' renderizzato inline subito sotto la card cliccata. ────── */}
+              già renderizzato inline subito sotto la card cliccata. ────── */}
         {!isMobile && renderDetail(false)}
 
       </div>

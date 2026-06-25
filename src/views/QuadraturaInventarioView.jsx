@@ -170,7 +170,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
 
   // Sparkline: ultime 4 settimane (incluse la corrente). Per ogni settimana
   // calcoliamo kg venduti totali dall'inventario + cassa retail. La cassa
-  // arriva da `chiusure` (gia' filtrata dal Dashboard), l'inventario serve
+  // arriva da `chiusure` (già filtrata dal Dashboard), l'inventario serve
   // un fetch separato.
   useEffect(() => {
     if (!orgId || !sedeId) return
@@ -242,7 +242,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
     return <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
   }
   // Quando isAllSedi e' attivo non serve sedeId: il drill-down per sede e'
-  // gia' gestito dal blocco perSede.
+  // già gestito dal blocco perSede.
   if (!sedeId && !isAllSedi) {
     return <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Seleziona una sede</div>
   }

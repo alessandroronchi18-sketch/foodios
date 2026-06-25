@@ -40,7 +40,7 @@ export default function Contatti() {
 
       <LegalH2>Feedback dentro l'app</LegalH2>
       <LegalP>
-        Se sei gia' utente di FoodOS, il modo piu' rapido per segnalare bug, idee o complimenti
+        Se sei già utente di FoodOS, il modo più rapido per segnalare bug, idee o complimenti
         e' usare il bottone <strong>Feedback</strong> in basso a destra dentro l'app — arriva direttamente
         a chi sviluppa.
       </LegalP>

@@ -46,10 +46,10 @@ export function useAuth() {
       }
       // SIGNED_IN puo' essere triggerato anche dal recupero della sessione
       // quando la tab torna in foreground dopo essere stata sospesa (browser
-      // background). In quel caso il profilo e' GIA' caricato e ri-chiamare
+      // background). In quel caso il profilo e' GIÀ caricato e ri-chiamare
       // loadProfile resetterebbe sedeAttiva al default (e l'utente vedrebbe
       // saltare la sede su quella di default es. "de gasperi" ogni volta che
-      // cambia desktop). Saltiamo se lo userId e' lo stesso gia' profilato.
+      // cambia desktop). Saltiamo se lo userId e' lo stesso già profilato.
       if (event === 'SIGNED_IN' && session?.user?.id && session.user.id === lastProfiledUserId.current) {
         setUser(session.user)
         return

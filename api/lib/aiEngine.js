@@ -336,7 +336,7 @@ export function ruleBasedSuggestions(snap, { orgId, sedeId } = {}) {
       tipo: 'food_cost_alto',
       severita: snap.foodCostMedio > 42 ? 'critical' : 'warning',
       titolo: `Food cost medio ${snap.foodCostMedio.toFixed(1)}%`,
-      descrizione: `Sopra la soglia 38%. Controlla rese, scarti e prezzi ingredienti per le ricette piu' vendute.`,
+      descrizione: `Sopra la soglia 38%. Controlla rese, scarti e prezzi ingredienti per le ricette più vendute.`,
       cta_view: 'pl', cta_label: 'Vai al P&L',
       payload: { foodCost: snap.foodCostMedio },
       dedup_key: dedupKey({ orgId, sedeId, tipo: 'food_cost_alto', entity: today.slice(0, 7) }),

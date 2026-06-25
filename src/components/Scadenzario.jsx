@@ -547,7 +547,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     })
   }, [fatture, fornitoriMap])
 
-  // Gruppi: date ASC poi totale DESC (le piu' vecchie e grosse in testa al gruppo)
+  // Gruppi: date ASC poi totale DESC (le più vecchie e grosse in testa al gruppo)
   const gruppi = useMemo(() => {
     const out = { scaduta: [], settimana: [], mese: [], futura: [], pagata: [] }
     for (const f of fattureExt) {
@@ -636,7 +636,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       if (!map[key]) map[key] = []
       map[key].push(f)
     }
-    // Ordina dal piu' recente (data_fattura desc) al piu' vecchio.
+    // Ordina dal più recente (data_fattura desc) al più vecchio.
     for (const arr of Object.values(map)) {
       arr.sort((a, b) => (b.data_fattura || '').localeCompare(a.data_fattura || ''))
     }

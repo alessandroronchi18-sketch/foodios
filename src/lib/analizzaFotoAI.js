@@ -30,7 +30,7 @@ function parseJsonLoose(testo) {
   } catch {
     const match = testo.match(/\{[\s\S]*\}/)
     if (match) return JSON.parse(match[0])
-    throw new Error("Impossibile leggere la risposta AI. Riprova con una foto piu' nitida.")
+    throw new Error("Impossibile leggere la risposta AI. Riprova con una foto più nitida.")
   }
 }
 

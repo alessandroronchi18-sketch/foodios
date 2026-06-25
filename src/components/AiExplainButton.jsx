@@ -47,7 +47,7 @@ export default function AiExplainButton({ label, value, context, compact }) {
 
       const system = `Sei un consulente food cost per pasticcerie/gelaterie italiane.
 Spiega in 2-3 paragrafi brevi (max 120 parole TOTALI) cosa significa il KPI
-dato, perche' ha quel valore in base al contesto fornito, e 1 azione concreta
+dato, perché ha quel valore in base al contesto fornito, e 1 azione concreta
 da fare. Italiano corrente, niente saluti, niente emoji. NON inventare numeri
 non presenti nel contesto: se mancano, dillo brevemente.`
 

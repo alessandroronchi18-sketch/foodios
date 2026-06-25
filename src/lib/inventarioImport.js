@@ -73,7 +73,7 @@ export function parseNomeFile(nomeFile) {
 // ── Helper: lunediDelMese ──────────────────────────────────────────────────
 // Lunedi della "settimana 1" del mese, dove sett.1 = la settimana che contiene
 // il primo lunedi del mese (no settimane parziali). Per il foglio gelateria
-// e' la convenzione piu' naturale: ogni settimana ha tutti i 7 giorni dentro
+// e' la convenzione più naturale: ogni settimana ha tutti i 7 giorni dentro
 // lo stesso layout.
 //
 // Ritorna ISO date (YYYY-MM-DD) del lunedi della settimana 1.
@@ -212,9 +212,9 @@ function addGiorni(dataIso, n) {
 }
 
 // ── Helper: identifica sheet "sede" in un workbook ─────────────────────────
-// Un workbook reale del cliente gelateria contiene piu' sheet, uno per ogni
-// sede di produzione (es. CARLINA, BERTHOLLET, DE GASPERI), piu' uno TOTALI
-// (cross-sede), piu' alcuni B2B (RISTORANTI, GELATO ELIMINATO) e ALTRI
+// Un workbook reale del cliente gelateria contiene più sheet, uno per ogni
+// sede di produzione (es. CARLINA, BERTHOLLET, DE GASPERI), più uno TOTALI
+// (cross-sede), più alcuni B2B (RISTORANTI, GELATO ELIMINATO) e ALTRI
 // PRODOTTI (per pastorizzata/cioccolata/zabaione).
 //
 // Riconosciamo gli sheet sede cercando il pattern "GUSTI" + "PROD/RIMAN" nelle
@@ -594,7 +594,7 @@ export function parseFoglioSprechi(matrice) {
 }
 
 // ── Helper: diff vs DB ─────────────────────────────────────────────────────
-// Confronta le righe parsate dal file con quelle gia' in DB per la stessa
+// Confronta le righe parsate dal file con quelle già in DB per la stessa
 // (sede, gusto, data). Ritorna 4 categorie:
 //   nuovi:        riga del file non presente in DB
 //   identici:     riga del file uguale al DB
