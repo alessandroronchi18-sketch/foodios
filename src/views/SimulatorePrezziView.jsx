@@ -217,22 +217,22 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       />
 
       {/* Target food cost */}
-      <div style={{ ...cardStyle(), padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <div style={{ ...cardStyle(), padding: isMobile ? '14px' : '12px 18px', marginBottom: 18, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14, flexWrap: 'wrap' }}>
         <Tip text="Il food cost obiettivo: la quota del prezzo di vendita che vuoi sia coperta dalle materie prime. In pasticceria/gelateria di solito 25–35%.">
           <span style={{ fontSize: 12.5, fontWeight: 600, color: T.textMid, cursor: 'help', borderBottom: '1px dashed', borderColor: T.borderStr, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Icon name="target" size={14} />Food cost obiettivo
           </span>
         </Tip>
-        <div style={{ display: 'flex', gap: 3, padding: 3, background: T.bgSubtle, borderRadius: R.md }}>
+        <div style={{ display: 'flex', gap: 3, padding: 3, background: T.bgSubtle, borderRadius: R.md, width: isMobile ? '100%' : 'auto' }}>
           {[25, 28, 30, 33, 35].map(t => (
             <button key={t} onClick={() => setTargetPct(t)}
-              style={{ padding: '6px 12px', borderRadius: R.sm, border: 'none', cursor: 'pointer', fontSize: 12.5,
+              style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 4px' : '6px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: R.sm, border: 'none', cursor: 'pointer', fontSize: isMobile ? 13 : 12.5,
                 fontWeight: targetPct === t ? 700 : 500, ...TNUM,
                 background: targetPct === t ? T.bgCard : 'transparent', color: targetPct === t ? T.brand : T.textSoft,
                 boxShadow: targetPct === t ? S.sm : 'none' }}>{t}%</button>
           ))}
         </div>
-        <span style={{ fontSize: 11.5, color: T.textSoft }}>verde ≤ {targetPct}% · ambra ≤ {targetPct + 10}% · rosso oltre</span>
+        <span style={{ fontSize: 11.5, color: T.textSoft, lineHeight: 1.4 }}>verde ≤ {targetPct}% · ambra ≤ {targetPct + 10}% · rosso oltre</span>
       </div>
 
       {/* ① DIAGNOSI */}
@@ -319,10 +319,12 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                       </td>
                       <td style={{ ...cellNum, color: T.textMid }}>{naf ? '—' : pct(r.margPct)}</td>
                       <td style={cellNum}>
-                        <span style={{ fontWeight: 700, color: T.text }}>{euro(r.prezzoConsigliato)}</span>
-                        {r.deltaPrezzo > 0.01
-                          ? <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: T.brand }}>+{euro(r.deltaPrezzo)}</span>
-                          : <span style={{ marginLeft: 6, fontSize: 11, color: T.green }}>✓</span>}
+                        <div style={{ display: 'inline-flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-end' : 'baseline', gap: isMobile ? 2 : 6 }}>
+                          <span style={{ fontWeight: 700, color: T.text }}>{euro(r.prezzoConsigliato)}</span>
+                          {r.deltaPrezzo > 0.01
+                            ? <span style={{ fontSize: 11, fontWeight: 700, color: T.brand }}>+{euro(r.deltaPrezzo)}</span>
+                            : <span style={{ fontSize: 11, color: T.green }} aria-label="in linea">✓</span>}
+                        </div>
                       </td>
                       <td style={{ textAlign: 'center', color: T.textSoft }}>{open ? '▾' : '▸'}</td>
                     </tr>
@@ -371,13 +373,13 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
           <div style={{ ...cardStyle(), padding: isMobile ? 14 : 18, marginBottom: 28 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {topIngredienti.lista.map((ing, i) => (
-                <div key={ing.nome} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ flex: '0 0 34%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: i === 0 ? 700 : 500, color: T.text }}>{ing.nome}</span>
+                <div key={ing.nome} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
+                  <span style={{ flex: isMobile ? '0 0 38%' : '0 0 34%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: isMobile ? 12 : 12.5, fontWeight: i === 0 ? 700 : 500, color: T.text }} title={ing.nome}>{ing.nome}</span>
                   <span style={{ flex: 1, height: 18, background: T.bgSubtle, borderRadius: 6, overflow: 'hidden' }}>
                     <span style={{ display: 'block', height: '100%', width: `${Math.min(100, ing.pct)}%`, background: i === 0 ? T.brand : 'rgba(110,14,26,0.5)', transition: 'width 0.3s' }} />
                   </span>
-                  <span style={{ flex: '0 0 52px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: T.text, ...TNUM }}>{ing.pct.toFixed(1)}%</span>
-                  {hasStorico && <span style={{ flex: '0 0 78px', textAlign: 'right', fontSize: 11.5, color: T.textSoft, ...TNUM }}>{euro0(ing.val)}/mese</span>}
+                  <span style={{ flex: '0 0 52px', textAlign: 'right', fontSize: isMobile ? 12 : 12.5, fontWeight: 700, color: T.text, ...TNUM }}>{ing.pct.toFixed(1)}%</span>
+                  {hasStorico && !isMobile && <span style={{ flex: '0 0 78px', textAlign: 'right', fontSize: 11.5, color: T.textSoft, ...TNUM }}>{euro0(ing.val)}/mese</span>}
                 </div>
               ))}
             </div>
@@ -414,19 +416,19 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
         </div>
 
         {/* Orizzonte + reset */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 12, marginTop: 18, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11.5, color: T.textSoft }}>Proiezione su</span>
-          <div style={{ display: 'flex', gap: 2, padding: 3, background: T.bgSubtle, borderRadius: R.md }}>
+          <div style={{ display: 'flex', gap: 2, padding: 3, background: T.bgSubtle, borderRadius: R.md, width: isMobile ? '100%' : 'auto' }}>
             {[7, 14, 30, 60, 90].map(g => (
               <button key={g} onClick={() => setOrizzonteGiorni(g)}
-                style={{ padding: '5px 10px', borderRadius: R.sm, border: 'none', ...TNUM,
+                style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 6px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: R.sm, border: 'none', ...TNUM,
                   background: orizzonteGiorni === g ? T.bgCard : 'transparent', color: orizzonteGiorni === g ? T.text : T.textSoft,
-                  fontSize: 12, fontWeight: orizzonteGiorni === g ? 600 : 500, cursor: 'pointer', boxShadow: orizzonteGiorni === g ? S.sm : 'none' }}>{g}g</button>
+                  fontSize: isMobile ? 13 : 12, fontWeight: orizzonteGiorni === g ? 600 : 500, cursor: 'pointer', boxShadow: orizzonteGiorni === g ? S.sm : 'none' }}>{g}g</button>
             ))}
           </div>
           {hasChanges && (
             <button onClick={() => { setPrezzoPct(0); setMpPct(0) }}
-              style={{ padding: '7px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12.5, fontWeight: 500, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              style={{ padding: isMobile ? '11px 14px' : '7px 12px', minHeight: isMobile ? 42 : 'auto', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12.5, fontWeight: 500, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
               <Icon name="refresh" size={13} />Azzera leve
             </button>
           )}

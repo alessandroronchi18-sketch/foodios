@@ -40,14 +40,14 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
       onMouseEnter={e => { e.currentTarget.style.boxShadow = SHADOW_HOVER; e.currentTarget.style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = SHADOW_PREMIUM; e.currentTarget.style.transform = 'translateY(0)' }}>
 
-      {/* Header riga */}
+      {/* Header riga — su mobile: card collapsed di default con chevron, tap per espandere */}
       <div style={{ padding: isMobile ? '14px 16px' : '18px 20px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: isMobile ? 14 : 16 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: R.full, background: T.brandLight, color: T.brand, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
               <Icon name="package" size={11} />Base
             </span>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: '-0.015em' }}>{sm.nome}</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: '-0.015em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{sm.nome}</h3>
             {mancanti.length > 0 && <Badge label={`${mancanti.length} prezzi stimati`} color="amber" />}
           </div>
           <div style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em', ...TNUM }}>
@@ -55,7 +55,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
           </div>
         </div>
 
-        {/* KPI compatti */}
+        {/* KPI compatti — su mobile 3 in riga con flex */}
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           {[
             { lbl: 'Costo / kg', val: fmtKg(sm.costoKg), c: T.brand, bg: T.brandLight, tip: 'Costo materie prime per chilo di semilavorato prodotto' },
@@ -63,16 +63,16 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
             { lbl: 'Batch', val: fmtBatch(fc), c: T.text, bg: T.bgSubtle, tip: 'Costo dell’intero impasto/batch come da ricetta' },
           ].map(({ lbl, val, c, bg, tip }) => (
             <Tip key={lbl} text={tip}>
-              <div style={{ background: bg, padding: '9px 12px', borderRadius: R.md, textAlign: 'center', minWidth: isMobile ? 0 : 78, flex: isMobile ? 1 : 'none', cursor: 'help' }}>
-                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 4 }}>{lbl}</div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: c, letterSpacing: '-0.015em', ...TNUM }}>{val}</div>
+              <div style={{ background: bg, padding: '9px 10px', borderRadius: R.md, textAlign: 'center', minWidth: isMobile ? 0 : 78, flex: isMobile ? 1 : 'none', cursor: 'help', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 4, minHeight: 22, lineHeight: 1.25 }}>{lbl}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: c, letterSpacing: '-0.015em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...TNUM }}>{val}</div>
               </div>
             </Tip>
           ))}
         </div>
 
-        {/* Azioni */}
-        <div style={{ display: 'flex', gap: 6, alignSelf: isMobile ? 'stretch' : 'center', flexShrink: 0 }}>
+        {/* Azioni: su mobile in flexWrap pieni a 40px+ */}
+        <div style={{ display: 'flex', gap: 6, alignSelf: isMobile ? 'stretch' : 'center', flexShrink: 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
           <button onClick={() => setTab(t => t === 'ingredienti' ? null : 'ingredienti')}
             style={tabBtn(tab === 'ingredienti', isMobile)}>
             <Icon name="receipt" size={13} />Costo
@@ -376,8 +376,9 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                   <div style={{ padding: '12px 16px', background: C.redLight, borderRadius: 12, border: `1px solid rgba(110,14,26,0.25)` }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: C.red, marginBottom: 8 }}>Scrivi <strong>ELIMINA</strong> per confermare l'eliminazione di "{sm.nome}"</div>
                     {sm.nUsi > 0 && (
-                      <div style={{ fontSize: 11.5, color: C.red, marginBottom: 8, padding: '6px 10px', background: '#FEF3F2', border: '1px dashed rgba(110,14,26,0.4)', borderRadius: 6 }}>
-                        ⚠️ Questo semilavorato e' usato in <strong>{sm.nUsi} {sm.nUsi === 1 ? 'ricetta' : 'ricette'}</strong>. Eliminandolo, quelle ricette troveranno l'ingrediente "{sm.nome}" senza ricetta sorgente (food cost potrebbe risultare diverso).
+                      <div style={{ fontSize: 11.5, color: C.red, marginBottom: 8, padding: '6px 10px', background: '#FEF3F2', border: '1px dashed rgba(110,14,26,0.4)', borderRadius: 6, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                        <Icon name="warning" size={13} style={{ marginTop: 2, flexShrink: 0 }} />
+                        <span>Questo semilavorato è usato in <strong>{sm.nUsi} {sm.nUsi === 1 ? 'ricetta' : 'ricette'}</strong>. Eliminandolo, quelle ricette troveranno l&rsquo;ingrediente &ldquo;{sm.nome}&rdquo; senza ricetta sorgente (il food cost potrebbe risultare diverso).</span>
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -509,22 +510,22 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                     </div>
                   </div>
                 ))}
-                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                  <div style={{ flex: 2 }}>
+                <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+                  <div style={{ flex: isMobile ? '1 1 100%' : 2 }}>
                     <input value={newIngNome}
                       onChange={e => setNewIngNome(e.target.value)}
                       onKeyDown={onEnterAutoComplete(tuttiIng, newIngNome, setNewIngNome, () => { if (newIngQty) addIng() })}
                       placeholder="ingrediente" list="semi-ing-list"
-                      style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }} />
                     <datalist id="semi-ing-list">{tuttiIng.map(k => <option key={k} value={k} />)}</datalist>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <input type="number" min="0" value={newIngQty} onChange={e => setNewIngQty(e.target.value)}
+                  <div style={{ flex: 1, minWidth: isMobile ? 100 : 'auto' }}>
+                    <input type="number" inputMode="decimal" min="0" value={newIngQty} onChange={e => setNewIngQty(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && addIng()}
                       placeholder="g"
-                      style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }} />
                   </div>
-                  <button onClick={addIng} style={{ padding: '9px 14px', background: T.brand, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="plus" size={14} />Aggiungi</button>
+                  <button onClick={addIng} style={{ padding: '11px 14px', minHeight: 44, background: T.brand, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5, flex: isMobile ? 1 : 'none', justifyContent: 'center' }}><Icon name="plus" size={14} />Aggiungi</button>
                 </div>
               </div>
 

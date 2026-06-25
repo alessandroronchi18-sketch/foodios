@@ -113,17 +113,17 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
         {hasStock ? (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 14 : 28, alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: isMobile ? 38 : 48, fontWeight: 800, color: T.text, letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(totPezzi)}</div>
-              <div style={{ fontSize: 13, color: T.textSoft, fontWeight: 500, marginTop: 4 }}>pezzi al banco</div>
+              <div style={{ fontSize: isMobile ? 34 : 48, fontWeight: 800, color: T.text, letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(totPezzi)}</div>
+              <div style={{ fontSize: 12.5, color: T.textSoft, fontWeight: 500, marginTop: 4 }}>pezzi al banco</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {top.map((r, i) => (
                 <div key={r.prodotto_nome} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textMid, width: isMobile ? 96 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 0 }}>{r.prodotto_nome}</span>
-                  <div style={{ flex: 1, height: 9, background: '#F0EAE6', borderRadius: 6, overflow: 'hidden' }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textMid, width: isMobile ? 110 : 128, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flexShrink: 0 }}>{r.prodotto_nome}</span>
+                  <div style={{ flex: 1, height: 9, background: '#F0EAE6', borderRadius: 6, overflow: 'hidden', minWidth: 30 }}>
                     <div style={{ width: `${Math.max(5, Number(r.quantita) / maxQ * 100)}%`, height: '100%', background: BAR[i % BAR.length], borderRadius: 6 }} />
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: T.text, width: 44, textAlign: 'right', ...TNUM }}>{n0(r.quantita)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: T.text, minWidth: 44, textAlign: 'right', ...TNUM }}>{n0(r.quantita)}</span>
                 </div>
               ))}
             </div>
@@ -137,10 +137,10 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
 
       {inArrivo > 0 && !viewAggregato && (
         <div className="fos-tile" onClick={() => setView('trasferimenti')}
-          style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', border: '1px solid #FCD34D', borderRadius: 18, padding: isMobile ? '18px 18px' : '22px 24px', cursor: 'pointer' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="truck" size={13} />In arrivo da altre sedi</div>
-          <div style={{ fontSize: isMobile ? 38 : 48, fontWeight: 800, color: '#92400E', letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{inArrivo}</div>
-          <div style={{ fontSize: 13, color: '#92400E', marginTop: 6, fontWeight: 600 }}>{inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}</div>
+          style={{ background: 'linear-gradient(135deg,#FFFBEB,#FEF3C7)', border: '1px solid #FCD34D', borderRadius: 18, padding: isMobile ? '16px 16px' : '22px 24px', cursor: 'pointer' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#92400E', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="truck" size={13} />In arrivo da altre sedi</div>
+          <div style={{ fontSize: isMobile ? 32 : 48, fontWeight: 800, color: '#92400E', letterSpacing: '-0.04em', lineHeight: 1, ...TNUM }}>{n0(inArrivo)}</div>
+          <div style={{ fontSize: 12.5, color: '#92400E', marginTop: 6, fontWeight: 600 }}>{inArrivo === 1 ? 'trasferimento da confermare' : 'trasferimenti da confermare'}</div>
         </div>
       )}
     </div>
@@ -255,22 +255,26 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
   const saluto = ora < 13 ? 'Buongiorno' : ora < 18 ? 'Buon pomeriggio' : 'Buonasera'
 
   // ── KPI card premium: icona, accento, hover-lift ──
+  // Audit 2026-06-24 mobile: minHeight uniformi su label/value/sub così le card
+  // affiancate (es. Ricavi + Food cost + Produzione + Magazzino) hanno tutti i
+  // contenuti allineati alla stessa quota anche con label su 1 vs 2 righe.
   const KpiCard = ({ label, value, sub, valueColor, icon, tint, onClick, empty, alert }) => (
     <div className="fos-tile" onClick={onClick}
       style={{ background: T.bgCard, border: `1px solid ${alert ? 'rgba(110,14,26,0.25)' : T.border}`,
-        borderRadius: 18, padding: isMobile ? '16px 16px' : '20px 22px',
+        borderRadius: 18, padding: isMobile ? '14px 14px' : '20px 22px',
         boxShadow: alert ? '0 1px 2px rgba(110,14,26,0.06), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
-        cursor: 'pointer', position: 'relative', overflow: 'hidden' }}>
+        cursor: 'pointer', position: 'relative', overflow: 'hidden',
+        display: 'flex', flexDirection: 'column', minHeight: isMobile ? 140 : 'auto' }}>
       <div style={{ position: 'absolute', top: -28, right: -28, width: 96, height: 96, borderRadius: '50%', background: tint.soft, opacity: 0.5 }} />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 12 : 14, position: 'relative' }}>
-        <span style={{ width: 36, height: 36, borderRadius: 11, background: tint.soft, color: tint.solid, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ico d={icon} size={18} /></span>
-        <span style={{ color: T.textFaint }}><Ico d={ICO.chevron} size={15} /></span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 10 : 14, position: 'relative' }}>
+        <span style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, borderRadius: 10, background: tint.soft, color: tint.solid, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ico d={icon} size={isMobile ? 15 : 18} /></span>
+        <span style={{ color: T.textFaint }}><Ico d={ICO.chevron} size={isMobile ? 13 : 15} /></span>
       </div>
-      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 6, position: 'relative' }}>{label}</div>
-      <div style={{ fontSize: isMobile ? 26 : 32, fontWeight: 800, color: empty ? T.textFaint : (valueColor || T.text), lineHeight: 1.0, letterSpacing: '-0.035em', position: 'relative', ...TNUM }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 6, position: 'relative', minHeight: 26, lineHeight: 1.25 }}>{label}</div>
+      <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, color: empty ? T.textFaint : (valueColor || T.text), lineHeight: 1.0, letterSpacing: '-0.035em', position: 'relative', minHeight: isMobile ? 26 : 32, ...TNUM }}>
         {empty ? '—' : value}
       </div>
-      <div style={{ fontSize: 12.5, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative' }}>{sub}</div>
+      <div style={{ fontSize: isMobile ? 11.5 : 12.5, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative', minHeight: isMobile ? 30 : 32, lineHeight: 1.35 }}>{sub}</div>
     </div>
   )
   const TINT = {
@@ -296,19 +300,19 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       <DailyBriefCard orgId={orgId} />
 
       {/* HERO brand */}
-      <div className="fos-rise" style={{ position: 'relative', zIndex: 30, borderRadius: 22, padding: isMobile ? '22px 22px' : '30px 34px', marginBottom: isMobile ? 18 : 24,
+      <div className="fos-rise" style={{ position: 'relative', zIndex: 30, borderRadius: isMobile ? 18 : 22, padding: isMobile ? '18px 18px' : '30px 34px', marginBottom: isMobile ? 16 : 24,
         background: 'linear-gradient(135deg, #1C0A0A 0%, #4A0612 52%, #6E0E1A 100%)',
         boxShadow: '0 14px 40px rgba(110,14,26,0.32)' }}>
         {/* Layer decorativo ritagliato a parte: NON clippa il dropdown del selettore
             (che vive nel contenuto, fuori da questo overflow:hidden). */}
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: 22, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: isMobile ? 18 : 22, pointerEvents: 'none' }}>
           <div style={{ position: 'absolute', top: -60, right: -40, width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(232,75,58,0.35) 0%, transparent 70%)' }} />
           <div style={{ position: 'absolute', bottom: -90, left: '30%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)' }} />
         </div>
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: isMobile ? 'flex-start' : 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.62)', textTransform: 'capitalize', fontWeight: 600, letterSpacing: '0.02em', marginBottom: 8 }}>{giornoLabel}</div>
-            <h1 style={{ margin: 0, fontSize: isMobile ? 28 : 42, fontWeight: 800, color: '#FFF', letterSpacing: '-0.04em', lineHeight: 1.04 }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 14 : 16 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.62)', textTransform: 'capitalize', fontWeight: 600, letterSpacing: '0.02em', marginBottom: 6 }}>{giornoLabel}</div>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 24 : 42, fontWeight: 800, color: '#FFF', letterSpacing: '-0.04em', lineHeight: 1.1, wordBreak: 'break-word' }}>
               {saluto}{nomeAttivita ? <>,<br style={{ display: isMobile ? 'block' : 'none' }} /> <span style={{ color: '#FBD7C9' }}>{nomeAttivita}</span></> : ''}
             </h1>
           </div>

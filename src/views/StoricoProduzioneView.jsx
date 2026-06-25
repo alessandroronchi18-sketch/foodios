@@ -1,7 +1,7 @@
 // StoricoProduzioneView — Storico produzioni con grafici. Estratta da Dashboard.jsx.
 import React, { useState, useMemo } from 'react'
 import { BarChart, Bar, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'
 import { lessico } from '../lib/lessico'
@@ -14,6 +14,7 @@ const MN = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', '
 
 export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], LEX = lessico() }) {
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [vista, setVista]   = useState("giornaliero"); // "giornaliero" | "settimana" | "mese"
   const [tab, setTab]       = useState("produzione"); // "produzione" | "vendite" | "confronto"
   const [dateFrom, setDateFrom] = useState("");
@@ -494,16 +495,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
       {/* ─── FILTRI DATA ─── */}
       <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap",alignItems:"center",
-        padding:"12px 16px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
+        padding:isMobile?"12px 14px":"12px 16px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
         <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textSoft}}>Periodo:</span>
-        <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
-          style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:12,color:C.text,background:C.white}}/>
+        <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} aria-label="Data inizio"
+          style={{padding:"8px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:12,color:C.text,background:C.white,flex:isMobile?1:'none',minWidth:isMobile?120:'auto'}}/>
         <span style={{fontSize:10,color:C.textSoft}}>→</span>
-        <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
-          style={{padding:"6px 10px",borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:12,color:C.text,background:C.white}}/>
+        <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} aria-label="Data fine"
+          style={{padding:"8px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:12,color:C.text,background:C.white,flex:isMobile?1:'none',minWidth:isMobile?120:'auto'}}/>
         {(dateFrom||dateTo)&&<>
           <button onClick={()=>{setDateFrom("");setDateTo("");}}
-            style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:10,fontWeight:600,cursor:"pointer"}}>✕ Reset</button>
+            style={{padding:"8px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:11,fontWeight:600,cursor:"pointer"}}>✕ Reset</button>
           <span style={{fontSize:10,color:C.amber,fontWeight:600,marginLeft:4,display:"inline-flex",alignItems:"center",gap:4}}>
             <Icon name="search" size={11} />{[dateFrom&&`Da ${dateFrom}`,dateTo&&`a ${dateTo}`].filter(Boolean).join(" ")}
           </span>
@@ -579,7 +580,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           {!hasProd&&<div style={{textAlign:"center",padding:"40px 24px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",color:C.textSoft,fontSize:13,lineHeight:1.5}}><div style={{marginBottom:10,opacity:0.5,color:C.textSoft}}><Icon name="gift" size={32} /></div>Nessuna produzione registrata.<br/><span style={{fontSize:11,color:C.textSoft,marginTop:4,display:'inline-block'}}>Vai a <b style={{color:C.text}}>Produzione</b> dal menu per iniziare.</span></div>}
           {hasProd&&(
             <>
-              <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":isTablet?"repeat(3,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
                 <KPI icon={<Icon name="package" size={18} />} label="Stampi"     value={n0(totMP)}        highlight/>
                 <KPI icon={<Icon name="money" size={18} />} label="Ricavi"     value={eur0(totRP)}      color={C.green}/>
                 <KPI icon={<Icon name="receipt" size={18} />} label="Food cost"  value={eur0(totFP)}      color={C.red}/>
@@ -676,7 +677,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           )}
           {hasVend&&(
             <>
-              <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":isTablet?"repeat(3,1fr)":"repeat(5,1fr)",gap:10,marginBottom:24}}>
                 <KPI icon={<Icon name="money" size={18} />} label="Ricavi reali"  value={eur0(totRV)}  highlight/>
                 <KPI icon={<Icon name="trendUp" size={18} />} label="Margine"       value={eur0(totMV)}  color={margColor(totRV>0?(totMV/totRV*100):0)} sub={fmtp(totRV>0?(totMV/totRV*100):0)}/>
                 <KPI icon={<Icon name="receipt" size={18} />} label="Food cost"     value={eur0(totFV)}  color={C.red}/>
@@ -907,7 +908,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </div>
 
                 {/* KPI Strip */}
-                <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":"repeat(6,1fr)",gap:8,marginBottom:16}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,1fr)":isTablet?"repeat(3,1fr)":"repeat(6,1fr)",gap:8,marginBottom:16}}>
                   {[
                     {icon:"money",lbl:"Ricavi totali",    val:euro(totRicavi),    sub:`${euro(ricavoMedio.toFixed(2))}/gg`,  color:C.green, hi:true},
                     {icon:"trendUp",lbl:"Margine lordo",    val:euro(totMarg),      sub:pct(margPct),                          color:margC(margPct)},
@@ -918,12 +919,15 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   ].map(({icon,lbl,val,sub,color,hi})=>(
                     <div key={lbl} style={{background:hi?"linear-gradient(135deg,#1C0A0A,#3D1515)":C.bgCard,
                       border:`1px solid ${hi?"transparent":C.border}`,borderRadius:16,padding:"12px 14px",
-                      boxShadow:hi?"0 4px 14px rgba(110,14,26,0.22)":"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                      boxShadow:hi?"0 4px 14px rgba(110,14,26,0.22)":"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",
+                      display:'flex',flexDirection:'column'}}>
                       <div style={{marginBottom:4,color:hi?C.white:color}}><Icon name={icon} size={15} /></div>
                       <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",
-                        color:hi?`rgba(255,255,255,0.6)`:C.textSoft,marginBottom:3}}>{lbl}</div>
-                      <div style={{fontSize:16,fontWeight:900,color:hi?C.white:color,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{val}</div>
-                      {sub&&<div style={{fontSize:9,color:hi?`rgba(255,255,255,0.55)`:C.textSoft,marginTop:2}}>{sub}</div>}
+                        color:hi?`rgba(255,255,255,0.6)`:C.textSoft,marginBottom:3,minHeight:24,lineHeight:1.25}}>{lbl}</div>
+                      <div style={{fontSize:16,fontWeight:900,color:hi?C.white:color,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'",minHeight:22,lineHeight:1.1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{val}</div>
+                      {sub
+                        ? <div style={{fontSize:9,color:hi?`rgba(255,255,255,0.55)`:C.textSoft,marginTop:2,minHeight:18,lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sub}</div>
+                        : <div style={{minHeight:18,marginTop:2}}/>}
                     </div>
                   ))}
                 </div>

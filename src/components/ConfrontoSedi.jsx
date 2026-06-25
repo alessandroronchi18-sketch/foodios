@@ -7,7 +7,7 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tool
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { caricaCostiAziendali, totaleMensile } from '../lib/costiAziendali'
 
 const TXT = T.text
@@ -80,6 +80,7 @@ const PERIODI = [
 
 export default function ConfrontoSedi({ orgId, sedi }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [kpiMap, setKpiMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [periodo, setPeriodo] = useState('settimana')
@@ -547,7 +548,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 </div>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+                  gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
                   gap: isMobile ? 12 : 18,
                 }}>
                   <div>

@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { apiFetch } from '../lib/apiFetch'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
+import useIsMobile from '../lib/useIsMobile'
 
 // Audit 2026-06-21: 3-tier Bottega/Maestro/Insegna con ROI claim.
 // Fallback statico — viene sovrascritto dalla query plan_pricing al mount
@@ -79,6 +80,7 @@ const PIANI_DEFAULT = [
 ]
 
 export default function AbbonamentoPanel({ org, notify, isInline = false }) {
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState(null) // 'pro' | 'chain' | 'portal' | null
   const [billingMsg, setBillingMsg] = useState(null)
   // Audit 2026-06-24: source of truth unificata via usePlanPricing.
@@ -104,8 +106,8 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
     const u = new URL(window.location.href)
     const b = u.searchParams.get('billing')
     if (b === 'success') {
-      setBillingMsg({ ok: true, text: 'Pagamento completato! L\'abbonamento è ora attivo.' })
-      notify?.('✓ Abbonamento attivato — grazie!')
+      setBillingMsg({ ok: true, text: 'Pagamento completato — l\'abbonamento è ora attivo.' })
+      notify?.('Abbonamento attivato, grazie!')
     } else if (b === 'cancel') {
       setBillingMsg({ ok: false, text: 'Operazione annullata. Nessun addebito.' })
     }
@@ -147,7 +149,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   const stato = org?.stripe_status
 
   const stateLabel = ({
-    active:    { text: '✓ Abbonamento attivo', color: T.green,  bg: T.greenLight },
+    active:    { text: 'Abbonamento attivo',   color: T.green,  bg: T.greenLight },
     trialing:  { text: 'In prova',             color: T.amber,  bg: T.amberLight },
     past_due:  { text: 'Pagamento in ritardo', color: T.red, bg: T.redLight },
     unpaid:    { text: 'Pagamento non riuscito', color: T.red, bg: T.redLight },
@@ -155,7 +157,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   })[stato] || null
 
   const Wrapper = isInline ? React.Fragment : 'div'
-  const wrapperProps = isInline ? {} : { style: { background:T.bgCard, borderRadius:R.xl, padding:'24px 28px', border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 } }
+  const wrapperProps = isInline ? {} : { style: { background:T.bgCard, borderRadius:R.xl, padding: isMobile ? '18px 16px' : '24px 28px', border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 } }
 
   return (
     <Wrapper {...wrapperProps}>
@@ -170,9 +172,12 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
 
       {/* Stato attuale */}
       <div style={{
-        display:'flex', alignItems:'center', justifyContent:'space-between',
-        gap:12, padding:'16px 18px', background:T.bgSubtle,
-        borderRadius:R.lg, marginBottom:20, flexWrap:'wrap',
+        display:'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        justifyContent:'space-between',
+        gap: isMobile ? 12 : 12, padding: isMobile ? '14px 14px' : '16px 18px', background:T.bgSubtle,
+        borderRadius:R.lg, marginBottom:20,
       }}>
         <div>
           <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:4 }}>
@@ -180,7 +185,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
           </div>
           <div style={{ fontSize:18, fontWeight:800, color:T.text, letterSpacing:'-0.01em' }}>
             {isPagante
-              ? (org?.piano === 'enterprise' ? 'Chain · €149/mese' : 'Pro · €89/mese')
+              ? (org?.piano === 'enterprise' ? 'Chain' : 'Pro')
               : 'Trial gratuito'}
           </div>
           {stateLabel && (
@@ -194,9 +199,10 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
         {isPagante && (
           <button onClick={gestisci} disabled={loading==='portal'}
             style={{
-              height:40, padding:'0 18px', borderRadius:R.md, fontSize:13,
+              height: 44, padding:'0 18px', borderRadius:R.md, fontSize:13,
               fontWeight:700, cursor: loading==='portal'?'not-allowed':'pointer',
               background:T.bgCard, color:T.text, border:`1px solid ${T.borderStr}`,
+              width: isMobile ? '100%' : 'auto',
             }}>
             {loading==='portal' ? '…' : 'Gestisci abbonamento'}
           </button>
@@ -216,7 +222,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
             <div key={p.id} style={{
               background:T.bgCard,
               border: p.highlight ? `2px solid ${T.brand}` : `1px solid ${T.border}`,
-              borderRadius:R.xl, padding:'20px 22px',
+              borderRadius:R.xl, padding: isMobile ? '18px 16px' : '20px 22px',
               position:'relative',
             }}>
               {p.highlight && (

@@ -17,6 +17,7 @@ import { ssave } from '../lib/storage'
 import { lessico } from '../lib/lessico'
 import { seedDemoData } from '../lib/demoSeed'
 import Icon from '../components/Icon'
+import useIsMobile from '../lib/useIsMobile'
 
 const BRAND = '#6E0E1A'
 const BRAND_DARK = '#4A0612'
@@ -92,6 +93,7 @@ const BTN_GHOST = {
 
 export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, onComplete, onSkip }) {
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
+  const isMobile = useIsMobile()
   const [step, setStep] = useState(1)
   const [dragging, setDragging] = useState(false)
   const [parsing, setParsing] = useState(false)
@@ -214,7 +216,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '88px 16px 32px',  // padding-top 88 per dare spazio al top bar fixed
+      padding: isMobile ? '72px 14px 24px' : '88px 16px 32px',  // padding-top per il top bar fixed
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     }}>
       {/* Top bar fixed: logo F + FoodOS · progress dots centrate · Salta tutto.
@@ -222,7 +224,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
           dello Step 1 e' sotto al bottone Iniziamo (qui solo da Step 2 in poi). */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0,
-        padding: '14px 16px',
+        padding: isMobile ? '10px 12px' : '14px 16px',
         background: 'rgba(252,253,254,0.92)',
         backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
         borderBottom: '1px solid rgba(229,233,239,0.6)',
@@ -250,8 +252,8 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
         </div>
         {/* Step 1: nessun skip qui (e' sotto al CTA Iniziamo). Step 2+: skip qui. */}
         {step >= 2 ? (
-          <button onClick={onSkip} style={BTN_GHOST}>
-            Salta tutto →
+          <button onClick={onSkip} style={{ ...BTN_GHOST, padding: '10px 12px', minHeight: 40 }}>
+            Salta tutto
           </button>
         ) : (
           <div style={{ width: 60, flexShrink: 0 }} />
@@ -305,7 +307,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               ))}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-              <button onClick={() => setStep(2)} style={BTN_PRIMARY}>
+              <button onClick={() => setStep(2)} style={{ ...BTN_PRIMARY, minHeight: 48, width: isMobile ? '100%' : 'auto', maxWidth: 360 }}>
                 Iniziamo
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -315,7 +317,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               <button onClick={onSkip} style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
                 color: '#64748B', fontSize: 14, fontWeight: 600,
-                padding: '8px 16px', textDecoration: 'underline',
+                padding: '10px 16px', minHeight: 40, textDecoration: 'underline',
                 fontFamily: 'inherit',
               }}>
                 Salta tutto e vai alla dashboard
@@ -522,11 +524,11 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
 
             {!addingSecondaSede ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-                <button onClick={() => setAddingSecondaSede(true)} style={BTN_PRIMARY}>
+                <button onClick={() => setAddingSecondaSede(true)} style={{ ...BTN_PRIMARY, minHeight: 48, width: isMobile ? '100%' : 'auto' }}>
                   Sì, aggiungi seconda sede
                 </button>
-                <button onClick={onComplete} style={{ ...BTN_SECONDARY, padding: '12px 28px' }}>
-                  Ho una sola sede →
+                <button onClick={onComplete} style={{ ...BTN_SECONDARY, padding: '14px 28px', minHeight: 48, width: isMobile ? '100%' : 'auto' }}>
+                  Ho una sola sede
                 </button>
               </div>
             ) : (
@@ -568,17 +570,18 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                     <Icon name="warning" size={14} style={{ marginTop: 2, flexShrink: 0 }}/><span>{sedeError}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, marginTop: 18 }}>
                   <button onClick={handleAggiungiSecondaSede}
                     disabled={!secondaSede.nome.trim() || sedeSaving}
                     style={{
-                      ...BTN_PRIMARY, flex: 1, padding: '12px 18px', fontSize: 14,
+                      ...BTN_PRIMARY, flex: 1, padding: '14px 18px', minHeight: 48, fontSize: 14,
                       opacity: !secondaSede.nome.trim() ? 0.5 : 1,
+                      width: isMobile ? '100%' : 'auto',
                     }}>
-                    {sedeSaving ? 'Salvataggio…' : 'Aggiungi e vai alla dashboard →'}
+                    {sedeSaving ? 'Salvataggio…' : 'Aggiungi e vai alla dashboard'}
                   </button>
                   <button onClick={onComplete}
-                    style={{ ...BTN_SECONDARY, padding: '12px 18px', fontSize: 13 }}>
+                    style={{ ...BTN_SECONDARY, padding: '14px 18px', minHeight: 48, fontSize: 13, width: isMobile ? '100%' : 'auto' }}>
                     Salta
                   </button>
                 </div>

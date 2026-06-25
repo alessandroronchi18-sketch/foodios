@@ -169,15 +169,18 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
       />
 
       {/* Periodo selector */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: isMobile ? 8 : 6, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11, color: SOFT, fontWeight: 600, marginRight: 6 }}>Periodo:</span>
         {[7, 14, 30, 60, 90].map(p => (
           <button key={p} onClick={() => setPeriodo(p)}
             style={{
-              padding: '5px 12px', borderRadius: 999, border: `1px solid ${BORDER}`,
+              padding: isMobile ? '10px 14px' : '5px 12px',
+              minHeight: isMobile ? 40 : 'auto',
+              borderRadius: 999, border: `1px solid ${BORDER}`,
               background: periodo === p ? TXT : 'transparent',
               color: periodo === p ? '#FFF' : MID,
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer',
+              fontVariantNumeric: 'tabular-nums',
             }}>{p}gg</button>
         ))}
       </div>
@@ -194,7 +197,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 14 : 22, marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
               <div style={{ fontSize: 13, color: MID, lineHeight: 1.5 }}>
-                <strong>{classified.length}</strong> prodotti analizzati · media popolarità {mediaPop.toFixed(1)} pz · media margine €{mediaMarg.toFixed(2)}
+                <strong>{Number(classified.length).toLocaleString('it-IT')}</strong> prodotti analizzati · media popolarità {Number(mediaPop || 0).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} pz · media margine € {Number(mediaMarg || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <AiExplainButton
@@ -279,8 +282,8 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
 
           {/* Azioni per quadrante: tab pillole + lista dinamica (no piu' griglia 2x2 ridondante con la matrice bubble sopra) */}
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${BORDER}`, flexWrap: 'wrap' }}>
-              {['STAR', 'PLOWHORSE', 'PUZZLE', 'DOG'].map(q => {
+            <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, gap: 0, borderBottom: `1px solid ${BORDER}`, flexWrap: 'wrap' }}>
+              {['STAR', 'PLOWHORSE', 'PUZZLE', 'DOG'].map((q, qi) => {
                 const meta = QUAD_LABEL[q]
                 const list = stats[q]
                 const active = tabQuad === q
@@ -289,22 +292,23 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                     key={q}
                     onClick={() => setTabQuad(q)}
                     style={{
-                      flex: '1 1 140px',
-                      minWidth: 140,
-                      padding: '12px 16px',
+                      flex: isMobile ? 'unset' : '1 1 140px',
+                      minWidth: isMobile ? 0 : 140,
+                      padding: isMobile ? '12px 12px' : '12px 16px',
+                      minHeight: isMobile ? 64 : 'auto',
                       background: active ? meta.bg : 'transparent',
                       border: 'none',
-                      borderBottom: active ? `3px solid ${meta.fg}` : '3px solid transparent',
-                      borderRight: `1px solid ${BORDER}`,
+                      borderBottom: active ? `3px solid ${meta.fg}` : `3px solid ${isMobile ? BORDER : 'transparent'}`,
+                      borderRight: isMobile ? (qi % 2 === 0 ? `1px solid ${BORDER}` : 'none') : `1px solid ${BORDER}`,
                       cursor: 'pointer',
                       textAlign: 'left',
                       transition: 'all 0.15s',
                     }}
                   >
-                    <div style={{ fontSize: 13, fontWeight: 800, color: active ? meta.fg : MID, marginBottom: 2 }}>
+                    <div style={{ fontSize: isMobile ? 13 : 13, fontWeight: 800, color: active ? meta.fg : MID, marginBottom: 2 }}>
                       {meta.lbl} <span style={{ fontWeight: 500, color: SOFT, fontVariantNumeric: 'tabular-nums' }}>· {list.length}</span>
                     </div>
-                    <div style={{ fontSize: 10.5, color: active ? MID : SOFT, lineHeight: 1.35 }}>{meta.desc}</div>
+                    <div style={{ fontSize: isMobile ? 10.5 : 10.5, color: active ? MID : SOFT, lineHeight: 1.35 }}>{meta.desc}</div>
                   </button>
                 )
               })}
@@ -327,9 +331,9 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                           padding: '10px 12px', borderLeft: `3px solid ${meta.fg}`, background: '#FAFAFA',
                           borderRadius: 6, display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center',
                         }}>
-                          <span style={{ color: TXT, fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.nome}</span>
+                          <span style={{ color: TXT, fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={x.nome}>{x.nome}</span>
                           <span style={{ color: SOFT, fontSize: 11, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                            {x.qtaVenduta}pz · €{x.margine.toFixed(2)}/pz
+                            {Number(x.qtaVenduta || 0).toLocaleString('it-IT')}pz · € {Number(x.margine || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz
                           </span>
                         </div>
                       ))}

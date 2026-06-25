@@ -103,44 +103,48 @@ export default function DailyBriefCard({ orgId }) {
   }
 
   const k = brief.kpi_snapshot || {}
+  // minHeight uniformi su label/value/sub per allineare le KPI box affiancate
+  // anche se hanno hint su 1 vs 2 righe.
   const kpiBox = (label, value, hint) => (
-    <div style={{ background: '#FAFAF6', borderRadius: 8, padding: '10px 12px' }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: TXT, marginTop: 4 }}>{value}</div>
-      {hint && <div style={{ fontSize: 10.5, color: SOFT, marginTop: 2 }}>{hint}</div>}
+    <div style={{ background: '#FAFAF6', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, textTransform: 'uppercase', letterSpacing: '0.07em', minHeight: 24, lineHeight: 1.2 }}>{label}</div>
+      <div style={{ fontSize: 16, fontWeight: 800, color: TXT, marginTop: 4, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+      {hint
+        ? <div style={{ fontSize: 10.5, color: SOFT, marginTop: 2, minHeight: 26, lineHeight: 1.35, overflow: 'hidden' }}>{hint}</div>
+        : <div style={{ minHeight: 26, marginTop: 2 }}/>}
     </div>
   )
 
   return (
     <div style={{
       background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14,
-      padding: '20px 22px', marginBottom: 18,
+      padding: '18px 18px', marginBottom: 16,
       boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.05)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 10 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
           <span style={{
-            width: 28, height: 28, borderRadius: 8,
+            width: 28, height: 28, borderRadius: 8, flexShrink: 0,
             background: `linear-gradient(135deg, ${BRAND} 0%, #4A0612 100%)`,
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             color: '#FFF',
           }}>
             <Icon name="sun" size={14} />
           </span>
-          <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: BRAND, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {brief.tipo === 'settimanale' ? 'Brief della settimana' : 'Brief del mattino'}
             </div>
-            <div style={{ fontSize: 11, color: SOFT, marginTop: 2 }}>{new Date(brief.data + 'T00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+            <div style={{ fontSize: 11, color: SOFT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{new Date(brief.data + 'T00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
           </div>
         </div>
-        <button onClick={dismiss} title="Chiudi (resta nello storico)"
-          style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 4, display: 'inline-flex' }}>
+        <button onClick={dismiss} title="Chiudi (resta nello storico)" aria-label="Chiudi brief"
+          style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 8, display: 'inline-flex', flexShrink: 0, minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="x" size={16} />
         </button>
       </div>
 
-      <div style={{ fontSize: 14.5, lineHeight: 1.65, color: TXT }}>
+      <div style={{ fontSize: 14, lineHeight: 1.6, color: TXT }}>
         {renderBriefBullets(brief.contenuto)}
       </div>
 
@@ -149,19 +153,19 @@ export default function DailyBriefCard({ orgId }) {
           style={{
             background: 'transparent', border: `1px solid ${BORDER}`,
             color: TXT, fontSize: 12, fontWeight: 700,
-            padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
+            padding: '8px 14px', minHeight: 40, borderRadius: 8, cursor: 'pointer',
           }}>
           {expanded ? '— Nascondi dettagli' : '+ Dettagli KPI'}
         </button>
       </div>
 
       {expanded && (
-        <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+        <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
           {k.ricaviIeri > 0 && kpiBox('Ricavi ieri', `€ ${Number(k.ricaviIeri).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`)}
           {k.ricaviSettCorr > 0 && kpiBox('Settimana in corso', `€ ${Number(k.ricaviSettCorr).toLocaleString('it-IT', { maximumFractionDigits: 0 })}`,
             k.ricaviSettPrec > 0 ? `${(((k.ricaviSettCorr - k.ricaviSettPrec) / k.ricaviSettPrec) * 100).toFixed(1)}% vs prec.` : null)}
           {k.foodCostMedio != null && kpiBox('Food cost', `${k.foodCostMedio.toFixed(1)}%`, 'media 7gg')}
-          {k.topProdotto && kpiBox('Bestseller', k.topProdotto.nome, `${k.topProdotto.qta} pz`)}
+          {k.topProdotto && kpiBox('Bestseller', k.topProdotto.nome, `${Number(k.topProdotto.qta || 0).toLocaleString('it-IT')} pz`)}
           {k.mpSottoSoglia?.length > 0 && kpiBox('MP sotto soglia', `${k.mpSottoSoglia.length}`, k.mpSottoSoglia.slice(0, 2).map(m => m.nome).join(', '))}
           {k.fattureScadute?.length > 0 && kpiBox('Fatture scadute', `${k.fattureScadute.length}`, 'attenzione')}
         </div>

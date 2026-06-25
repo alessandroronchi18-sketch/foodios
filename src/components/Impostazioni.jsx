@@ -96,7 +96,7 @@ function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify
       const { error } = await supabase.from('organizations').update({ nome: nomeMod.trim() }).eq('id', orgId)
       if (error) throw error
       await auth.refreshOrg?.()
-      notify('✓ Nome attività aggiornato')
+      notify('Nome attività aggiornato')
     } catch (e) {
       notify(e.message || 'Errore', false)
     } finally { setSaving(false) }
@@ -366,7 +366,7 @@ function ReportMensiliSection({ orgId, notify }) {
       data_value: { emailReport: val },
     }, { onConflict: 'organization_id,sede_id,data_key' })
     if (error) { setEnabled(!val); notify(error.message, false); return }
-    notify(val ? '✓ Riceverai i report mensili' : '✓ Email report disattivata')
+    notify(val ? 'Riceverai i report mensili' : 'Email report disattivata')
   }
 
   return (
@@ -562,6 +562,7 @@ function PacchettiAIPanel({ auth, notify }) {
 }
 
 function ReseSection({ notify }) {
+  const isMobile = useIsMobile()
   const [rese, setRese] = useState(() => getAllRese())
   const [filtro, setFiltro] = useState('')
 
@@ -570,16 +571,16 @@ function ReseSection({ notify }) {
     setResaIngrediente(k, v)
     try { localStorage.setItem(SK_RESE, JSON.stringify(getStoreRese())) } catch {}
     setRese(getAllRese())
-    notify('✓ Resa aggiornata')
+    notify('Resa aggiornata')
   }
   function reset(k) {
     setResaIngrediente(k, 1.0)
     try { localStorage.setItem(SK_RESE, JSON.stringify(getStoreRese())) } catch {}
     setRese(getAllRese())
-    notify('✓ Resa ripristinata al 100%')
+    notify('Resa ripristinata al 100%')
   }
 
-  const inp = { width:'100%', height:40, padding:'0 12px', border:`1px solid ${T.borderStr}`, borderRadius:R.md, fontSize:13, color:T.text, background:T.bgCard, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
+  const inp = { width:'100%', height:40, padding:'0 12px', border:`1px solid ${T.borderStr}`, borderRadius:R.md, fontSize: isMobile ? 16 : 13, color:T.text, background:T.bgCard, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
   const items = Object.entries(rese)
     .filter(([k]) => !filtro || k.includes(filtro.toLowerCase()))
     .sort(([a],[b]) => a.localeCompare(b))
@@ -609,10 +610,10 @@ function ReseSection({ notify }) {
                   {isCustom ? 'personalizzata' : 'default'}
                 </div>
               </div>
-              <input type="number" min="1" max="100" defaultValue={pct}
+              <input type="number" min="1" max="100" defaultValue={pct} inputMode="numeric"
                 onBlur={e=>save(k, e.target.value)}
                 onKeyDown={e=>e.key==='Enter'&&save(k, e.target.value)}
-                style={{ width:56, padding:'5px 8px', borderRadius:6, border:`1px solid ${T.borderStr}`, fontSize:12, textAlign:'right', fontWeight:700, color:T.text, fontFamily:'inherit', background:T.bgCard }}/>
+                style={{ width: isMobile ? 64 : 56, padding:'7px 8px', borderRadius:6, border:`1px solid ${T.borderStr}`, fontSize: isMobile ? 16 : 12, textAlign:'right', fontWeight:700, color:T.text, fontFamily:'inherit', background:T.bgCard }}/>
               <span style={{ fontSize:11, color:T.textSoft }}>%</span>
               {isCustom && (
                 <button onClick={()=>reset(k)} title="Ripristina default"
@@ -646,17 +647,19 @@ function ChangelogSection({ onChangelogOpen }) {
 // ─── Building blocks ─────────────────────────────────────────────────────────
 
 function SectionCard({ title, description, action, children }) {
+  const isMobile = useIsMobile()
   return (
     <div style={{
-      background: T.bgCard, borderRadius: R.xl, padding: '24px 28px',
+      background: T.bgCard, borderRadius: R.xl,
+      padding: isMobile ? '18px 16px' : '24px 28px',
       border: `1px solid ${T.border}`, boxShadow: S.sm, marginBottom: 16,
     }}>
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16, marginBottom: description ? 6 : 16 }}>
-        <h3 style={{ margin:0, fontSize:16, fontWeight:700, color:T.text, letterSpacing:'-0.01em' }}>{title}</h3>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom: description ? 6 : 16, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        <h3 style={{ margin:0, fontSize: isMobile ? 15 : 16, fontWeight:700, color:T.text, letterSpacing:'-0.01em' }}>{title}</h3>
         {action && <div style={{ flexShrink:0 }}>{action}</div>}
       </div>
       {description && (
-        <p style={{ margin:'0 0 18px', fontSize:13, color:T.textSoft, lineHeight:1.55 }}>{description}</p>
+        <p style={{ margin:'0 0 16px', fontSize:13, color:T.textSoft, lineHeight:1.55 }}>{description}</p>
       )}
       {children}
     </div>
@@ -916,11 +919,13 @@ export default function Impostazioni(props) {
                 <button key={it.id} onClick={() => pickItem(it.id)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10,
-                    width: '100%', padding: '8px 12px', marginBottom: 2,
+                    width: '100%', padding: isMobile ? '12px 14px' : '8px 12px',
+                    minHeight: isMobile ? 44 : 36,
+                    marginBottom: 2,
                     background: active ? T.brandLight : 'transparent',
                     border: 'none', borderRadius: R.md, cursor: 'pointer',
                     color: active ? T.brand : T.text,
-                    fontSize: 13, fontWeight: active ? 700 : 500, textAlign: 'left',
+                    fontSize: isMobile ? 14 : 13, fontWeight: active ? 700 : 500, textAlign: 'left',
                     fontFamily: 'inherit',
                     transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
                   }}
@@ -928,6 +933,7 @@ export default function Impostazioni(props) {
                   onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}>
                   <Icon name={it.icon} size={15} color={active ? T.brand : T.textSoft}/>
                   <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.label}</span>
+                  {isMobile && <Icon name="chevR" size={14} color={T.textFaint}/>}
                 </button>
               )
             })}

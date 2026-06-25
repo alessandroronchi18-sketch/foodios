@@ -14,6 +14,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import Icon from '../components/Icon'
+import useIsMobile from '../lib/useIsMobile'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -81,6 +82,7 @@ const STEPS = [
 ]
 
 export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
+  const isMobile = useIsMobile()
   const [step, setStep] = useState(0)
   const [ctx, setCtx] = useState({})
   const [history, setHistory] = useState([])  // [{ role: 'bot'|'user', text }]
@@ -194,8 +196,8 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
   const isLast = step >= STEPS.length
 
   return (
-    <div style={{ minHeight: '100vh', background: '#FAF7F2', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 12px' }}>
-      <div style={{ width: '100%', maxWidth: 560, background: CARD, borderRadius: 18, boxShadow: '0 10px 40px rgba(15,23,42,0.10)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+    <div style={{ minHeight: '100vh', background: '#FAF7F2', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: isMobile ? '12px 8px' : '24px 12px' }}>
+      <div style={{ width: '100%', maxWidth: 560, background: CARD, borderRadius: isMobile ? 14 : 18, boxShadow: '0 10px 40px rgba(15,23,42,0.10)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: isMobile ? 'calc(100vh - 24px)' : '90vh' }}>
         {/* Header */}
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 12, background: `linear-gradient(135deg, ${BRAND}, #4A0612)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#FFF' }}>
@@ -244,10 +246,10 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
         {!saving && !isLast && current && (
           <div style={{ padding: 16, borderTop: `1px solid ${BORDER}` }}>
             {current.options ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
                 {current.options.map(opt => (
                   <button key={opt.value} onClick={() => answer(opt.value, opt.label)}
-                    style={{ padding: '12px 14px', background: '#FFF', border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: TXT, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}
+                    style={{ padding: '14px 16px', minHeight: 48, background: '#FFF', border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 14, fontWeight: 600, color: TXT, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s', fontFamily: 'inherit' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = BRAND; e.currentTarget.style.color = BRAND }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TXT }}>
                     {opt.label}
@@ -263,11 +265,11 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
                   onKeyDown={e => { if (e.key === 'Enter' && input.trim()) answer(input) }}
                   placeholder={current.placeholder || ''}
                   aria-label={current.placeholder || 'Risposta'}
-                  style={{ flex: 1, padding: '12px 14px', borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: 16, color: TXT, fontFamily: 'inherit', outline: 'none' }}
+                  style={{ flex: 1, minWidth: 0, padding: '12px 14px', minHeight: 48, borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: 16, color: TXT, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
                   autoFocus
                 />
                 <button onClick={() => answer(input)} disabled={!input.trim()}
-                  style={{ background: input.trim() ? BRAND : '#CBD5E1', color: '#FFF', border: 'none', padding: '12px 18px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: input.trim() ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  style={{ background: input.trim() ? BRAND : '#CBD5E1', color: '#FFF', border: 'none', padding: '12px 18px', minHeight: 48, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: input.trim() ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   Invia <Icon name="chevR" size={12}/>
                 </button>
               </div>

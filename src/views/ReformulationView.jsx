@@ -162,7 +162,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
               Ricetta
             </div>
             <select value={ricSel} onChange={e => setRicSel(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 14, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+              style={{ width: '100%', padding: isMobile ? '12px 12px' : '10px 12px', minHeight: isMobile ? 46 : 'auto', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 16, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box', background: '#FFF' }}>
               <option value="">— Scegli ricetta —</option>
               {ricetteArr.map(r => <option key={r.nome} value={r.nome}>{r.nome}</option>)}
             </select>
@@ -173,24 +173,28 @@ Restituisci 3 varianti come da schema, italiano umano.`
             </div>
             <input type="number" value={fcTarget} onChange={e => setFcTarget(e.target.value)}
               placeholder="es. 26"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 14, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              style={{ width: '100%', padding: isMobile ? '12px 12px' : '10px 12px', minHeight: isMobile ? 46 : 'auto', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 16, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box' }} />
           </div>
           <button onClick={genera} disabled={!ricCurrent || !fcTarget || loading}
-            style={{ background: !ricCurrent || !fcTarget ? '#CBD5E1' : BRAND, color: '#FFF', border: 'none', padding: '11px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: ricCurrent && fcTarget ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-            <Icon name="sparkles" size={13}/> {loading ? 'Analizzo…' : 'Genera varianti'}
+            style={{ background: !ricCurrent || !fcTarget ? '#CBD5E1' : BRAND, color: '#FFF', border: 'none', padding: isMobile ? '14px 18px' : '11px 18px', minHeight: isMobile ? 48 : 'auto', borderRadius: 10, fontSize: isMobile ? 14 : 13, fontWeight: 700, cursor: ricCurrent && fcTarget ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+            <Icon name="sparkles" size={14}/> {loading ? 'Analizzo…' : 'Genera varianti'}
           </button>
         </div>
 
         {fcAttuale && (
-          <div style={{ marginTop: 14, padding: '10px 12px', background: '#F1F5F9', borderRadius: 8, fontSize: 12.5, color: MID }}>
-            <strong>Stato attuale:</strong> {ricCurrent.nome} · FC € {fcAttuale.fcPezzo.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz ({fcAttuale.fcPct.toFixed(1)}%) · Prezzo € {fcAttuale.prezzo.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div style={{ marginTop: 14, padding: '12px 14px', background: '#F1F5F9', borderRadius: 8, fontSize: isMobile ? 12 : 12.5, color: MID, lineHeight: 1.6 }}>
+            <strong style={{ display: 'block', marginBottom: isMobile ? 4 : 0 }}>Stato attuale:</strong>
+            <span style={{ display: isMobile ? 'block' : 'inline' }}>
+              <span style={{ display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}>{ricCurrent.nome}</span>
+              {' · '}FC € {Number(fcAttuale.fcPezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/pz ({fcAttuale.fcPct.toFixed(1)}%) · Prezzo € {Number(fcAttuale.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
         )}
       </div>
 
       {error && (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#991B1B', fontSize: 13 }}>
-          ⚠️ {error}
+        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#991B1B', fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <Icon name="warning" size={16}/> <span style={{ flex: 1 }}>{error}</span>
         </div>
       )}
 
@@ -215,10 +219,11 @@ Restituisci 3 varianti come da schema, italiano umano.`
               </div>
               {Array.isArray(v.azioni) && v.azioni.length > 0 && (
                 <div style={{ fontSize: 11.5, color: SOFT }}>
-                  Azioni: {v.azioni.map((a, j) => (
-                    <div key={j} style={{ marginTop: 4, padding: '4px 8px', background: '#F1F5F9', borderRadius: 6 }}>
-                      {a.ingrediente_attuale && <>{a.ingrediente_attuale} → <strong>{a.ingrediente_nuovo}</strong>{a.delta_grammi != null && ` (${a.delta_grammi > 0 ? '+' : ''}${a.delta_grammi}g)`}</>}
-                      {a.prezzo_attuale != null && <>Prezzo €{a.prezzo_attuale} → <strong>€{a.prezzo_nuovo}</strong></>}
+                  <div style={{ marginBottom: 4, fontWeight: 700, color: MID }}>Azioni</div>
+                  {v.azioni.map((a, j) => (
+                    <div key={j} style={{ marginTop: 4, padding: '6px 10px', background: '#F1F5F9', borderRadius: 6, lineHeight: 1.5, wordBreak: 'break-word' }}>
+                      {a.ingrediente_attuale && <>{a.ingrediente_attuale} → <strong>{a.ingrediente_nuovo}</strong>{a.delta_grammi != null && ` (${a.delta_grammi > 0 ? '+' : ''}${Number(a.delta_grammi).toLocaleString('it-IT')}g)`}</>}
+                      {a.prezzo_attuale != null && <>Prezzo € {Number(a.prezzo_attuale).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} → <strong>€ {Number(a.prezzo_nuovo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></>}
                     </div>
                   ))}
                 </div>
@@ -228,8 +233,8 @@ Restituisci 3 varianti come da schema, italiano umano.`
         </div>
       )}
 
-      <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
-        ⚠️ Le varianti sono stime AI. Validale sempre con un test pratico prima di applicarle al ricettario.
+      <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <Icon name="warning" size={12}/> <span>Le varianti sono stime. Validale con un test pratico prima di applicarle al ricettario.</span>
       </div>
     </div>
   )

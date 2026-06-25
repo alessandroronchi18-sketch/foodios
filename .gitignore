@@ -16,3 +16,6 @@ tests/.seed-state.json
 
 # Coverage report (rigenerato locally via `npm run test:coverage`)
 coverage/
+
+# Worktrees creati per gli agenti Claude Code (mai committare)
+.claude/worktrees/

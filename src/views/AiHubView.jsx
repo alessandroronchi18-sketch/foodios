@@ -236,7 +236,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
             <ChainBadge size={12}/> Intelligence layer · {totFeatures} funzioni live
           </div>
 
-          <h1 style={{ margin: '20px 0 12px', fontSize: isMobile ? 32 : 52, fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.02 }}>
+          <h1 style={{ margin: '20px 0 12px', fontSize: isMobile ? 30 : 52, fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.05 }}>
             FoodOS<br/>
             <span style={{
               background: 'linear-gradient(120deg, #FFD86B 0%, #FBD7C9 45%, #E89B43 75%, #FFD86B 100%)',
@@ -247,8 +247,8 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
               Atelier AI
             </span>
           </h1>
-          <p style={{ margin: 0, maxWidth: 680, fontSize: 15, lineHeight: 1.65, color: 'rgba(255,255,255,0.80)' }}>
-            Il laboratorio dove l\'intelligenza artificiale lavora per te: previsioni, ottimizzazioni, automazioni, chat strategica.
+          <p style={{ margin: 0, maxWidth: 680, fontSize: isMobile ? 14 : 15, lineHeight: 1.65, color: 'rgba(255,255,255,0.80)' }}>
+            Il laboratorio dove l’intelligenza artificiale lavora per te: previsioni, ottimizzazioni, automazioni, chat strategica.
             Tutte le funzioni in un solo posto, gratuite con il tuo piano.
           </p>
 
@@ -263,12 +263,12 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
           {/* CTA */}
           <div style={{ marginTop: 30, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button onClick={() => onFeatureClick('ai-brain')}
-              style={{ background: '#FFF', color: BRAND, border: 'none', padding: '13px 24px', borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
-                boxShadow: '0 8px 22px rgba(0,0,0,0.30)' }}>
+              style={{ background: '#FFF', color: BRAND, border: 'none', padding: isMobile ? '14px 22px' : '13px 24px', minHeight: 48, borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
+                boxShadow: '0 8px 22px rgba(0,0,0,0.30)', flex: isMobile ? '1 1 auto' : 'unset', justifyContent: 'center' }}>
               <Icon name="sparkles" size={14}/> Parla con FoodOS Brain
             </button>
             <button onClick={() => setView?.('home')}
-              style={{ background: 'rgba(255,255,255,0.08)', color: '#FFF', border: '1px solid rgba(255,255,255,0.28)', padding: '13px 22px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+              style={{ background: 'rgba(255,255,255,0.08)', color: '#FFF', border: '1px solid rgba(255,255,255,0.28)', padding: isMobile ? '14px 20px' : '13px 22px', minHeight: 48, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', flex: isMobile ? '1 1 auto' : 'unset', justifyContent: 'center', display: 'inline-flex', alignItems: 'center' }}>
               Vedi il Brief di oggi →
             </button>
           </div>

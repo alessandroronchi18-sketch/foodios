@@ -180,7 +180,7 @@ REGOLE:
           { n: 'Memoria', l: 'Conversazioni persistenti' },
         ]}
       />
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '260px 1fr', gap: 16, height: isMobile ? 'auto' : 'calc(100vh - 280px)' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '260px 1fr', gap: 16, height: isMobile ? 'auto' : 'calc(100vh - 280px)', minHeight: isMobile ? '60vh' : undefined }}>
       {/* Sidebar conversazioni */}
       {!isMobile && (
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -220,11 +220,11 @@ REGOLE:
             <div style={{ textAlign: 'center', color: SOFT, fontSize: 13, padding: '40px 16px', lineHeight: 1.6 }}>
               <Icon name="lightbulb" size={28} color={SOFT}/>
               <div style={{ marginTop: 10, color: TXT, fontWeight: 600, fontSize: 14 }}>Chiedimi qualsiasi cosa sulla tua attività</div>
-              <div style={{ marginTop: 8, fontSize: 12 }}>
+              <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.8 }}>
                 Esempi:<br/>
-                <em>"Perché il margine è sceso?"</em><br/>
-                <em>"Cosa devo fare per arrivare a 5.000€ di margine a luglio?"</em><br/>
-                <em>"Scrivi un riassunto del mese per il mio commercialista"</em>
+                <em>“Perché il margine è sceso?”</em><br/>
+                <em>“Cosa devo fare per arrivare a 5.000 € di margine a luglio?”</em><br/>
+                <em>“Scrivi un riassunto del mese per il commercialista”</em>
               </div>
             </div>
           )}
@@ -255,10 +255,10 @@ REGOLE:
           <input value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); manda() } }}
             placeholder="Scrivi qui la tua domanda…"
-            style={{ flex: 1, padding: '11px 14px', borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 14, color: TXT, fontFamily: 'inherit', outline: 'none' }}/>
-          <button onClick={manda} disabled={!input.trim() || loading}
-            style={{ background: input.trim() && !loading ? BRAND : '#CBD5E1', color: '#FFF', border: 'none', padding: '11px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: input.trim() && !loading ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="sparkles" size={13}/> Invia
+            style={{ flex: 1, padding: isMobile ? '13px 14px' : '11px 14px', minHeight: isMobile ? 46 : 'auto', borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 14, color: TXT, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}/>
+          <button aria-label="Invia messaggio" onClick={manda} disabled={!input.trim() || loading}
+            style={{ background: input.trim() && !loading ? BRAND : '#CBD5E1', color: '#FFF', border: 'none', padding: isMobile ? '13px 16px' : '11px 18px', minHeight: isMobile ? 46 : 'auto', borderRadius: 10, fontSize: isMobile ? 14 : 13, fontWeight: 700, cursor: input.trim() && !loading ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <Icon name="sparkles" size={14}/> {!isMobile && 'Invia'}
           </button>
         </div>
       </div>

@@ -272,16 +272,16 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>{LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong></p>
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Quantità scartata (pz)</div>
-              <input type="number" min="0" step="1" value={scartoForm.qty}
+              <input type="number" inputMode="decimal" min="0" step="1" value={scartoForm.qty}
                 onChange={e => setScartoForm(f => ({ ...f, qty: parseFloat(e.target.value) || 0 }))}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 14, boxSizing: 'border-box' }}/>
+                style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
             </div>
             <div style={{ marginBottom: 18 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Motivo (opzionale)</div>
               <input value={scartoForm.note}
                 onChange={e => setScartoForm(f => ({ ...f, note: e.target.value }))}
                 placeholder="es. caduti per terra, scaduti, dati a omaggio"
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, boxSizing: 'border-box' }}/>
+                style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setScartoForm(null)} style={{ padding: '10px 18px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Annulla</button>
@@ -892,13 +892,13 @@ export default function MagazzinoView({
         )
       })()}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}`, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}`, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         {[['giacenze', 'Materie prime'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['carica', 'Carica merce'], ['log', 'Log rifornimenti']].filter(([id]) => !(isDipendente && id === 'prezzi')).map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer',
+            style={{ padding: '12px 16px', minHeight: 44, border: 'none', background: 'transparent', cursor: 'pointer',
               fontSize: 13, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
               borderBottom: tab === id ? `2px solid ${T.brand}` : '2px solid transparent',
-              marginBottom: -1, whiteSpace: 'nowrap', transition: `color ${M.durFast} ${M.ease}` }}>
+              marginBottom: -1, whiteSpace: 'nowrap', transition: `color ${M.durFast} ${M.ease}`, flexShrink: 0 }}>
             {lbl}
           </button>
         ))}
@@ -918,13 +918,13 @@ export default function MagazzinoView({
                 { lbl: 'Soglia alert (g)', val: newIngSoglia, set: setNewIngSoglia, ph: 'es. 500', type: 'number' }].map(({ lbl, val, set, ph, type }) => (
                 <div key={lbl}>
                   <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{lbl}</div>
-                  <input type={type || 'text'} value={val} onChange={e => set(e.target.value)} placeholder={ph}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text }}/>
+                  <input type={type || 'text'} inputMode={type === 'number' ? 'decimal' : undefined} value={val} onChange={e => set(e.target.value)} placeholder={ph}
+                    style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={handleAddIngrediente} disabled={saving} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvataggio…' : 'Aggiungi'}</button>
-                <button aria-label="Chiudi" onClick={() => setShowAddIng(false)} style={{ padding: '8px 12px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>✕</button>
+                <button onClick={handleAddIngrediente} disabled={saving} style={{ flex: 1, padding: '10px 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvataggio…' : 'Aggiungi'}</button>
+                <button aria-label="Chiudi" onClick={() => setShowAddIng(false)} style={{ padding: '10px 14px', minHeight: 44, minWidth: 44, background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>✕</button>
               </div>
             </div>
           )}
@@ -1068,7 +1068,7 @@ export default function MagazzinoView({
             if (onImportPrezziOCR) onImportPrezziOCR(nuoviCosti)
             notify(`${validi.length} prezzi aggiornati`)
           }}/>
-          <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: 18, padding: '28px', boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: 18, padding: isMobile ? '18px' : '28px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
               {[['carico', 'plus', 'Carico merce', 'Rifornimento in entrata'], ['scarico', 'trash', 'Scarico / Rettifica', 'Rimuovi quantità']].map(([m, ic, lbl, sub]) => (
                 <button key={m} onClick={() => setFormMode(m)}
@@ -1091,19 +1091,19 @@ export default function MagazzinoView({
                     if (qtyEl) qtyEl.focus()
                   })}
                   placeholder="es. burro"
-                  list="ing-list" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text }}/>
+                  list="ing-list" style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
                   Quantità (g) — {formMode === 'scarico' ? 'da rimuovere' : 'in arrivo'}
                 </div>
-                <input id="mag-qty-input" type="number" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000" min="0"
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: 13, color: C.text }}/>
+                <input id="mag-qty-input" type="number" inputMode="decimal" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000" min="0"
+                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Note (opzionale)</div>
                 <input type="text" value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="es. Metro - bolla 1234"
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text }}/>
+                  style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <datalist id="ing-list">{tuttiIngNomi.map(k => <option key={k} value={k}/>)}</datalist>
               <button onClick={handleCarica} disabled={!formIng || !formQty || saving}

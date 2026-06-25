@@ -1,6 +1,6 @@
 // VenditeB2BView — vendite all'ingrosso a clienti business (canale separato dal retail).
 import React, { useEffect, useMemo, useState } from 'react'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { isRicettaValida, getR, buildIngCosti, calcolaFC } from '../lib/foodcost'
 import { todayLocal } from '../lib/dateLocal'
@@ -14,6 +14,7 @@ import { useConfirm } from '../components/ConfirmModal'
 import { C, PageHeader, KPI } from './_shared'
 
 const eur = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const eur0 = v => `€ ${Math.round(Number(v) || 0).toLocaleString('it-IT')}`
 const STATI = {
   bozza:       { lbl: 'Bozza',       bg: '#F1F5F9', fg: '#475569' },
   consegnata:  { lbl: 'Da fatturare', bg: C.amberLight, fg: C.amber },
@@ -23,6 +24,7 @@ const STATI = {
 
 export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const [tab, setTab] = useState('vendite')
   const [clienti, setClienti] = useState([])
@@ -129,7 +131,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     try {
       const cliente = clienti.find(c => c.id === vForm.cliente_id)
       const res = await salvaVenditaB2B({ orgId, sedeId, clienteId: vForm.cliente_id || null, clienteNome: cliente?.nome, data: vForm.data, righe: vForm.righe, note: vForm.note, id: vForm.id || null })
-      notify?.(`✓ Vendita B2B ${vForm.id ? 'aggiornata' : 'salvata'} · ${eur(res.totale)}`)
+      notify?.(`Vendita B2B ${vForm.id ? 'aggiornata' : 'salvata'} · ${eur(res.totale)}`)
       // Le scorte insufficienti NON bloccano la vendita, ma vanno comunicate in
       // modo persistente (un toast sparisce): banner dismissibile in cima.
       setStockWarn(res.warnings?.length ? res.warnings : [])
@@ -143,7 +145,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
   const salvaC = async () => {
     if (saving) return
     setSaving(true)
-    try { await salvaClienteB2B(orgId, cForm); notify?.('✓ Cliente salvato'); setCForm(null); ricarica() }
+    try { await salvaClienteB2B(orgId, cForm); notify?.('Cliente salvato'); setCForm(null); ricarica() }
     catch (e) { notify?.(e.message, false) }
     setSaving(false)
   }
@@ -155,7 +157,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     try {
       const res = await setPagamentoVenditaB2B(v.id, !v.pagata, todayLocal())
       if (res?.degraded) { notify?.('Applica la migration pagamenti B2B per tracciare gli incassi.', false); return }
-      notify?.(v.pagata ? 'Segnata come da incassare' : '✓ Incasso registrato')
+      notify?.(v.pagata ? 'Segnata come da incassare' : 'Incasso registrato')
       ricarica()
     } catch (e) { notify?.(e.message, false) }
   }
@@ -169,11 +171,11 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
     <div style={{ maxWidth: 1100 }}>
       <PageHeader subtitle="Vendite all'ingrosso a clienti business (bar, ristoranti) — canale separato dal banco" />
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 18 }}>
-        <KPI icon={<Icon name="briefcase" size={18} />} label="Ricavo B2B (mese)" value={eur(ricavoMese)} color={C.green} highlight />
-        <KPI icon={<Icon name="trendUp" size={18} />} label="Margine (mese)" value={eur(margineMese)} sub={ricavoMese > 0 ? `${(margineMese / ricavoMese * 100).toFixed(0)}% sul ricavo` : ''} color={C.green} />
-        <KPI icon={<Icon name="receipt" size={18} />} label="Da fatturare" value={daFatturare.length} sub={totDaFatturare > 0 ? eur(totDaFatturare) : ''} color={daFatturare.length ? C.amber : C.textSoft} />
-        <KPI icon={<Icon name="card" size={18} />} label="Da incassare" value={eur(totInsoluto)} sub={nInsoluti > 0 ? `${nInsoluti} ${nInsoluti === 1 ? 'vendita' : 'vendite'}` : 'tutto incassato'} color={totInsoluto > 0 ? C.red : C.green} />
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 18 }}>
+        <KPI icon={<Icon name="briefcase" size={18} />} label="Ricavo B2B (mese)" value={eur0(ricavoMese)} color={C.green} highlight sub={ricavoMese > 0 ? 'incassato finora' : 'nessuna vendita questo mese'} />
+        <KPI icon={<Icon name="trendUp" size={18} />} label="Margine (mese)" value={eur0(margineMese)} sub={ricavoMese > 0 ? `${(margineMese / ricavoMese * 100).toFixed(0)}% sul ricavo` : '—'} color={C.green} />
+        <KPI icon={<Icon name="receipt" size={18} />} label="Da fatturare" value={daFatturare.length.toLocaleString('it-IT')} sub={totDaFatturare > 0 ? eur0(totDaFatturare) : 'nessuna vendita aperta'} color={daFatturare.length ? C.amber : C.textSoft} />
+        <KPI icon={<Icon name="card" size={18} />} label="Da incassare" value={eur0(totInsoluto)} sub={nInsoluti > 0 ? `${nInsoluti} ${nInsoluti === 1 ? 'vendita' : 'vendite'}` : 'tutto incassato'} color={totInsoluto > 0 ? C.red : C.green} />
       </div>
 
       {stockWarn.length > 0 && (
@@ -193,7 +195,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 2, marginBottom: 18, background: T.bgSubtle, borderRadius: R.lg, padding: 3, width: 'fit-content', border: `1px solid ${T.borderSoft}` }}>
+      <div style={{ display: 'flex', gap: 2, marginBottom: 18, background: T.bgSubtle, borderRadius: R.lg, padding: 3, width: isMobile ? '100%' : 'fit-content', border: `1px solid ${T.borderSoft}`, overflowX: 'auto' }}>
         {tabBtn('vendite', <><Icon name="money" size={14} /> Vendite</>)}{tabBtn('analisi', <><Icon name="barChart" size={14} /> Analisi</>)}{tabBtn('clienti', <><Icon name="building" size={14} /> Clienti</>)}
       </div>
 
@@ -230,15 +232,31 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
             <div style={{ padding: '12px 18px', borderBottom: `1px solid ${C.border}`, fontSize: 14, fontWeight: 700, color: C.text }}>Prodotti più venduti all'ingrosso</div>
             {rankProdotti.length === 0 ? <div style={{ padding: 28, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Nessun prodotto venduto.</div> : (
-              <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: isMobile ? 12 : 8 }}>
                 {rankProdotti.slice(0, 12).map((p, i) => {
                   const max = rankProdotti[0].ricavo || 1
+                  // Mobile: layout 2 righe per riga (nome + ricavo sopra, barra + pz sotto)
+                  // così il nome ha spazio e nessun overflow.
+                  if (isMobile) {
+                    return (
+                      <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: i === 0 ? 700 : 600, color: C.text }}>{p.nome}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{eur0(p.ricavo)}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ flex: 1, height: 8, background: T.bgSubtle, borderRadius: 5, overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, p.ricavo / max * 100)}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} /></span>
+                          <span style={{ fontSize: 11, color: C.textSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{p.qta.toLocaleString('it-IT')} pz</span>
+                        </div>
+                      </div>
+                    )
+                  }
                   return (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span style={{ flex: '0 0 38%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: i === 0 ? 700 : 500, color: C.text }}>{p.nome}</span>
                       <span style={{ flex: 1, height: 16, background: T.bgSubtle, borderRadius: 5, overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, p.ricavo / max * 100)}%`, background: i === 0 ? C.green : 'rgba(31,122,72,0.5)' }} /></span>
-                      <span style={{ flex: '0 0 50px', textAlign: 'right', fontSize: 11.5, color: C.textSoft, fontVariantNumeric: 'tabular-nums' }}>{p.qta} pz</span>
-                      <span style={{ flex: '0 0 70px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, fontVariantNumeric: 'tabular-nums' }}>{eur(p.ricavo)}</span>
+                      <span style={{ flex: '0 0 60px', textAlign: 'right', fontSize: 11.5, color: C.textSoft, fontVariantNumeric: 'tabular-nums' }}>{p.qta.toLocaleString('it-IT')} pz</span>
+                      <span style={{ flex: '0 0 90px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: C.text, fontVariantNumeric: 'tabular-nums' }}>{eur(p.ricavo)}</span>
                     </div>
                   )
                 })}
@@ -251,7 +269,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
       {loading ? <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div> : tab === 'vendite' ? (
         <>
           {!vForm && (
-            <button onClick={apriVendita} style={{ padding: '11px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={15} /> Nuova vendita B2B</button>
+            <button onClick={apriVendita} style={{ padding: '12px 20px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16, display: isMobile ? 'flex' : 'inline-flex', width: isMobile ? '100%' : 'auto', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="plus" size={15} /> Nuova vendita B2B</button>
           )}
           {vForm && (
             <div style={{ background: T.brandLight, border: `1px solid ${C.red}30`, borderRadius: 16, padding: '20px 22px', marginBottom: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
@@ -284,11 +302,13 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
               })}
               </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button onClick={() => setVForm(f => ({ ...f, righe: [...f.righe, { prodotto: '', qta: '', prezzo: '' }] }))} style={{ padding: '8px 14px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 8, fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>+ Riga</button>
-                <input value={vForm.note} onChange={e => setVForm(f => ({ ...f, note: e.target.value }))} placeholder="Note (opz.)" style={{ ...inp, flex: 1, minWidth: 120 }} />
-                <button onClick={() => setVForm(null)} style={{ padding: '9px 16px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, color: C.textSoft, cursor: 'pointer' }}>Annulla</button>
-                <button onClick={salvaV} disabled={saving} style={{ padding: '9px 18px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="save" size={14} /> {saving ? '…' : 'Salva vendita'}</button>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, marginTop: 8, alignItems: isMobile ? 'stretch' : 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => setVForm(f => ({ ...f, righe: [...f.righe, { prodotto: '', qta: '', prezzo: '' }] }))} style={{ padding: '10px 14px', minHeight: isMobile ? 44 : 'auto', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 8, fontSize: 13, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>+ Riga</button>
+                <input value={vForm.note} onChange={e => setVForm(f => ({ ...f, note: e.target.value }))} placeholder="Note (opz.)" style={{ ...inp, flex: isMobile ? '0 0 auto' : 1, minWidth: 120, width: isMobile ? '100%' : 'auto' }} />
+                <div style={{ display: 'flex', gap: 8, marginLeft: isMobile ? 0 : 'auto' }}>
+                  <button onClick={() => setVForm(null)} style={{ flex: isMobile ? 1 : 'unset', padding: '11px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.textSoft, cursor: 'pointer' }}>Annulla</button>
+                  <button onClick={salvaV} disabled={saving} style={{ flex: isMobile ? 2 : 'unset', padding: '11px 18px', minHeight: isMobile ? 44 : 'auto', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="save" size={14} /> {saving ? '…' : 'Salva vendita'}</button>
+                </div>
               </div>
               {sedeId ? <div style={{ fontSize: 10, color: C.textSoft, marginTop: 8 }}>Lo stock dei prodotti finiti verrà scaricato dalla sede attiva.</div>
                       : <div style={{ fontSize: 10, color: C.amber, marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} /> Nessuna sede attiva: la vendita viene registrata ma lo stock non sarà scaricato.</div>}
@@ -316,30 +336,41 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                     )}
                     {venditeExt.map((v, i) => {
                       const st = STATI[v.stato] || STATI.consegnata
+                      const btnAct = { padding: isMobile ? '9px 12px' : '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: isMobile ? 12 : 11, fontWeight: 700, color: C.textMid, cursor: 'pointer', minHeight: isMobile ? 40 : 'auto', whiteSpace: 'nowrap' }
+                      // Audit mobile: su mobile costruisco una card a blocchi
+                      // (cliente | totale grande | stato | azioni in riga piena)
+                      // per evitare la singola colonna disordinata.
                       return (
-                        <div key={v.id} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: isMobile ? 8 : 12, padding: '12px 16px', borderBottom: i < venditeExt.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
-                            <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>
-                              {new Date(v.data + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })} · {(v.righe || []).length} prodotti · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0)} pz · margine {eur(v.margine)}
+                        <div key={v.id} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 12, padding: '14px 16px', borderBottom: i < venditeExt.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                          <div style={{ minWidth: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.clienti_b2b?.nome || 'Cliente eliminato'}</div>
+                              <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>
+                                {new Date(v.data + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })} · {(v.righe || []).length} prodotti · {(v.righe || []).reduce((s, r) => s + (Number(r.qta) || 0), 0)} pz · margine {eur(v.margine)}
+                              </div>
                             </div>
+                            {isMobile && (
+                              <span style={{ fontSize: 16, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>{eur0(v.totale)}</span>
+                            )}
                           </div>
-                          <div style={{ justifySelf: isMobile ? 'start' : 'center', display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'flex-start' : 'center', gap: 4 }}>
+                          <div style={{ justifySelf: isMobile ? 'start' : 'center', display: 'flex', flexDirection: isMobile ? 'row' : 'column', alignItems: 'center', gap: isMobile ? 6 : 4, flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: st.bg, color: st.fg, whiteSpace: 'nowrap' }}>{st.lbl}</span>
                             {v.stato !== 'annullata' && (
                               <button onClick={() => togglePagata(v)} title={v.pagata ? 'Segna da incassare' : 'Segna incassata'}
-                                style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', background: v.pagata ? C.greenLight : '#FEE2E2', color: v.pagata ? C.green : C.red }}>
+                                style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', background: v.pagata ? C.greenLight : '#FEE2E2', color: v.pagata ? C.green : C.red }}>
                                 {v.pagata ? 'incassato' : 'da incassare'}
                               </button>
                             )}
                           </div>
-                          <span style={{ fontSize: 15, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums', textAlign: isMobile ? 'left' : 'right' }}>{eur(v.totale)}</span>
-                          <div style={{ display: 'flex', gap: 6, justifyContent: isMobile ? 'flex-start' : 'flex-end', flexWrap: 'wrap' }}>
+                          {!isMobile && (
+                            <span style={{ fontSize: 15, fontWeight: 800, color: C.green, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{eur(v.totale)}</span>
+                          )}
+                          <div style={{ display: 'flex', gap: 6, justifyContent: isMobile ? 'stretch' : 'flex-end', flexWrap: 'wrap' }}>
                             {v.stato !== 'annullata' && (
-                              <button onClick={() => modificaVendita(v)} title="Modifica vendita" style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Modifica</button>
+                              <button onClick={() => modificaVendita(v)} title="Modifica vendita" style={{ ...btnAct, flex: isMobile ? 1 : 'unset' }}>Modifica</button>
                             )}
-                            <button onClick={() => toggleFattura(v)} title={v.stato === 'fatturata' ? 'Segna da fatturare' : 'Segna fatturata'} style={{ padding: '6px 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                              {v.stato === 'fatturata' ? '↩ Riapri' : '✓ Fattura'}
+                            <button onClick={() => toggleFattura(v)} title={v.stato === 'fatturata' ? 'Segna da fatturare' : 'Segna fatturata'} style={{ ...btnAct, flex: isMobile ? 1 : 'unset' }}>
+                              {v.stato === 'fatturata' ? 'Riapri' : 'Fattura'}
                             </button>
                             <button aria-label="Elimina vendita" onClick={async () => {
                               const ok = await confirmDialog({
@@ -349,7 +380,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                               })
                               if (!ok) return
                               try { await eliminaVenditaB2B(v.id); ricarica() } catch (e) { notify?.(e.message, false) }
-                            }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
+                            }} style={{ padding: isMobile ? '9px 12px' : '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: isMobile ? 14 : 12, color: C.red, cursor: 'pointer', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto' }}>×</button>
                           </div>
                         </div>
                       )
@@ -363,7 +394,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
       ) : tab === 'clienti' ? (
         <>
           {!cForm && (
-            <button onClick={() => apriCliente(null)} style={{ padding: '11px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="plus" size={15} /> Nuovo cliente</button>
+            <button onClick={() => apriCliente(null)} style={{ padding: '12px 20px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', marginBottom: 16, display: isMobile ? 'flex' : 'inline-flex', width: isMobile ? '100%' : 'auto', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="plus" size={15} /> Nuovo cliente</button>
           )}
           {cForm && (
             <div style={{ background: T.brandLight, border: `1px solid ${C.red}30`, borderRadius: 16, padding: '20px 22px', marginBottom: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
@@ -382,9 +413,9 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
-                <button onClick={() => setCForm(null)} style={{ padding: '9px 16px', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, color: C.textSoft, cursor: 'pointer' }}>Annulla</button>
-                <button onClick={salvaC} disabled={saving} style={{ padding: '9px 18px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="save" size={14} /> {saving ? '…' : 'Salva cliente'}</button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: isMobile ? 'stretch' : 'flex-end' }}>
+                <button onClick={() => setCForm(null)} style={{ flex: isMobile ? 1 : 'unset', padding: '11px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.textSoft, cursor: 'pointer' }}>Annulla</button>
+                <button onClick={salvaC} disabled={saving} style={{ flex: isMobile ? 2 : 'unset', padding: '11px 18px', minHeight: isMobile ? 44 : 'auto', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="save" size={14} /> {saving ? '…' : 'Salva cliente'}</button>
               </div>
             </div>
           )}
@@ -393,12 +424,12 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
           ) : (
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
               {clienti.map((c, i) => (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: i < clienti.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, padding: '12px 16px', borderBottom: i < clienti.length - 1 ? `1px solid ${C.border}` : 'none' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{c.nome}</div>
-                    <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{[c.partita_iva && `P.IVA ${c.partita_iva}`, c.citta, c.telefono].filter(Boolean).join(' · ') || '—'}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.nome}</div>
+                    <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[c.partita_iva && `P.IVA ${c.partita_iva}`, c.citta, c.telefono].filter(Boolean).join(' · ') || '—'}</div>
                   </div>
-                  <button onClick={() => apriCliente(c)} style={{ padding: '6px 12px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Modifica</button>
+                  <button onClick={() => apriCliente(c)} style={{ padding: isMobile ? '9px 12px' : '6px 12px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: isMobile ? 12 : 11, fontWeight: 700, color: C.textMid, cursor: 'pointer', minHeight: isMobile ? 40 : 'auto', whiteSpace: 'nowrap' }}>Modifica</button>
                   <button aria-label="Elimina cliente" onClick={async () => {
                     const ok = await confirmDialog({
                       title: `Eliminare cliente "${c.nome}"?`,
@@ -407,7 +438,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                     })
                     if (!ok) return
                     try { await eliminaClienteB2B(c.id); ricarica() } catch (e) { notify?.(e.message, false) }
-                  }} style={{ padding: '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: 12, color: C.red, cursor: 'pointer' }}>✕</button>
+                  }} style={{ padding: isMobile ? '9px 12px' : '6px 9px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.white, fontSize: isMobile ? 14 : 12, color: C.red, cursor: 'pointer', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto' }}>×</button>
                 </div>
               ))}
             </div>

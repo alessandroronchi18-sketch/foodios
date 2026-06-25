@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import { color as T, tnum } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { KPI, SH, PageHeader, Tip, C } from '../views/_shared'
 import Icon from './Icon'
 
@@ -132,6 +132,7 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
 
 export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, ingCosti, calcolaFC, getR }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [filtroRic, setFiltroRic] = useState("")
   const [modeView, setModeView] = useState("produrre") // "produrre" | "trend"
 
@@ -311,7 +312,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
       <PageHeader subtitle="Quanto produrre, prodotto per prodotto. Previsione Holt sullo storico, pesata per stagionalità settimanale e confrontata con il venduto reale." />
 
       {/* ── BANDA DIAGNOSI ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14, marginBottom: 28 }}>
         <KPI
           label="Produz. prossima sett."
           value={nf(prodNextWeek)}

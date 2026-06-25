@@ -732,22 +732,22 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
       </div>
 
       {editCosti && (
-        <div style={{ ...cardP, padding: 18, marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 14, alignItems: 'end' }}>
+        <div style={{ ...cardP, padding: isMobile ? 14 : 18, marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, alignItems: 'end' }}>
           {[['affitto', 'Affitto / mese'], ['utenze', 'Utenze / mese'], ['altro', 'Altri costi fissi'], ['personale', 'Costo personale / mese']].map(([k, lbl]) => (
             <div key={k}>
               <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textSoft, marginBottom: 6 }}>{lbl}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${T.border}`, borderRadius: 8, padding: '8px 10px', background: T.bgCard }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', minHeight: 44, background: T.bgCard }}>
                 <span style={{ color: T.textSoft, fontSize: 13 }}>€</span>
                 <input type="number" inputMode="decimal" value={costi[k] || ''} onChange={e => setCosti(c => ({ ...c, [k]: e.target.value }))}
-                  placeholder="0" style={{ border: 'none', outline: 'none', width: '100%', fontSize: 14, fontWeight: 700, color: T.text, ...TNUM }} />
+                  placeholder="0" style={{ border: 'none', outline: 'none', width: '100%', fontSize: isMobile ? 16 : 14, fontWeight: 700, color: T.text, background: 'transparent', ...TNUM }} />
               </div>
             </div>
           ))}
           <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto', display: 'flex', gap: 8 }}>
             <button onClick={() => salvaCosti({ affitto: +costi.affitto || 0, utenze: +costi.utenze || 0, altro: +costi.altro || 0, personale: +costi.personale || 0 })} disabled={savingCosti}
-              style={{ padding: '9px 16px', borderRadius: R.md, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{savingCosti ? 'Salvo…' : 'Salva'}</button>
+              style={{ flex: 1, padding: '11px 16px', minHeight: 44, borderRadius: R.md, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{savingCosti ? 'Salvo…' : 'Salva'}</button>
             <button onClick={() => { setEditCosti(false); sload(SK_PL_COSTI, orgId, sedeId).then(d => d && setCosti({ affitto: +d.affitto || 0, utenze: +d.utenze || 0, altro: +d.altro || 0, personale: +d.personale || 0 })).catch(() => {}) }}
-              style={{ padding: '9px 14px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.textMid, cursor: 'pointer' }}>Annulla</button>
+              style={{ padding: '11px 16px', minHeight: 44, borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.textMid, cursor: 'pointer' }}>Annulla</button>
           </div>
         </div>
       )}
@@ -823,10 +823,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
             {(() => {
               const Row = ({ label, val, pctv, bold, neg, strong, sub }) => (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: strong ? '12px 0' : '8px 0', borderTop: strong ? `2px solid ${T.text}` : 'none' }}>
-                  <span style={{ fontSize: strong ? 14 : 13, fontWeight: strong || bold ? 800 : 500, color: strong ? T.text : T.textMid }}>{label}{sub && <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 500 }}> · {sub}</span>}</span>
-                  <span style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                  <span style={{ fontSize: strong ? 14 : 13, fontWeight: strong || bold ? 800 : 500, color: strong ? T.text : T.textMid, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}{sub && <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 500 }}> · {sub}</span>}</span>
+                  <span style={{ display: 'flex', alignItems: 'baseline', gap: isMobile ? 8 : 12, flexShrink: 0 }}>
                     {pctv != null && <span style={{ fontSize: 11.5, color: T.textSoft, ...TNUM, minWidth: 46, textAlign: 'right' }}>{pct(pctv)}</span>}
-                    <span style={{ fontSize: strong ? 20 : 14, fontWeight: strong || bold ? 800 : 600, color: strong ? (val >= 0 ? T.green : T.brand) : (neg ? T.brand : T.text), ...TNUM, minWidth: 100, textAlign: 'right' }}>
+                    <span style={{ fontSize: strong ? (isMobile ? 18 : 20) : 14, fontWeight: strong || bold ? 800 : 600, color: strong ? (val >= 0 ? T.green : T.brand) : (neg ? T.brand : T.text), ...TNUM, minWidth: isMobile ? 80 : 100, textAlign: 'right' }}>
                       {neg && val !== 0 ? '−' : ''}{fmt0(Math.abs(val))}
                     </span>
                   </span>
@@ -981,15 +981,16 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
           <div key={i} className="fos-tile" style={{ background: hi ? T.brand : T.bgCard,
             border: `1px solid ${hi ? T.brandDark : T.border}`, borderRadius: 16,
             padding: '14px 16px',
+            display: 'flex', flexDirection: 'column',
             boxShadow: hi ? '0 4px 14px rgba(110,14,26,0.22)' : SHADOW_PREMIUM }}>
             <Tip text={tip} width={240}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'help',
-                color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6,
+                color: hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginBottom: 6, minHeight: 28, lineHeight: 1.25,
                 borderBottom: `1px dashed ${hi ? 'rgba(255,255,255,0.28)' : 'rgba(155,120,115,0.4)'}` }}>{lbl}</div>
             </Tip>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
-              color: hi ? T.textOnDark : color || T.text, lineHeight: 1.15, ...TNUM }}>{val}</div>
-            <div style={{ fontSize: 11, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5 }}>{sub}</div>
+              color: hi ? T.textOnDark : color || T.text, lineHeight: 1.15, minHeight: 24, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...TNUM }}>{val}</div>
+            <div style={{ fontSize: 11, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5, minHeight: 18, lineHeight: 1.4 }}>{sub}</div>
           </div>
         ))}
       </div>

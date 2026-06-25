@@ -147,8 +147,8 @@ export default function PinLoginPad({ onBack, onSuccess }) {
                 outline: 'none', textAlign: 'center',
               }}
             />
-            <div style={{ marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.50)' }}>
-              È il nome attività che ti ha dato il titolare (es. "mara-dei-boschi")
+            <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.45 }}>
+              È il nome breve dell'attività che ti ha dato il titolare (solo lettere, numeri o trattini).
             </div>
             <button
               disabled={!orgSlug}
@@ -207,11 +207,12 @@ export default function PinLoginPad({ onBack, onSuccess }) {
             }}>
               {[1,2,3,4,5,6,7,8,9].map(d => (
                 <button key={d}
+                  aria-label={`Cifra ${d}`}
                   onClick={() => pressDigit(d)}
                   disabled={submitting}
                   style={{
-                    aspectRatio: '1',
-                    fontSize: 26, fontWeight: 700,
+                    aspectRatio: '1', minHeight: 56,
+                    fontSize: 28, fontWeight: 700,
                     background: 'rgba(255,255,255,0.10)',
                     color: '#FFF', border: '1px solid rgba(255,255,255,0.14)',
                     borderRadius: 14, cursor: submitting ? 'wait' : 'pointer',
@@ -223,34 +224,48 @@ export default function PinLoginPad({ onBack, onSuccess }) {
                 >{d}</button>
               ))}
               <button onClick={pressBack} disabled={submitting}
+                aria-label="Cancella ultima cifra"
                 style={{
-                  aspectRatio: '1',
-                  fontSize: 14, fontWeight: 700,
-                  background: 'transparent', color: 'rgba(255,255,255,0.65)',
+                  aspectRatio: '1', minHeight: 56,
+                  background: 'transparent', color: 'rgba(255,255,255,0.75)',
                   border: '1px solid rgba(255,255,255,0.14)',
                   borderRadius: 14, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                }}>⌫</button>
+                  touchAction: 'manipulation',
+                }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 5H9l-7 7 7 7h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/>
+                  <line x1="18" y1="9" x2="12" y2="15"/>
+                  <line x1="12" y1="9" x2="18" y2="15"/>
+                </svg>
+              </button>
               <button onClick={() => pressDigit(0)} disabled={submitting}
+                aria-label="Cifra 0"
                 style={{
-                  aspectRatio: '1',
-                  fontSize: 26, fontWeight: 700,
+                  aspectRatio: '1', minHeight: 56,
+                  fontSize: 28, fontWeight: 700,
                   background: 'rgba(255,255,255,0.10)',
                   color: '#FFF', border: '1px solid rgba(255,255,255,0.14)',
                   borderRadius: 14, cursor: submitting ? 'wait' : 'pointer',
+                  touchAction: 'manipulation',
                 }}>0</button>
               <button onClick={pressSubmit} disabled={submitting || pin.length < PIN_LEN_MIN}
+                aria-label="Conferma PIN"
                 style={{
-                  aspectRatio: '1',
-                  fontSize: 16, fontWeight: 800,
+                  aspectRatio: '1', minHeight: 56,
                   background: pin.length >= PIN_LEN_MIN ? '#16A34A' : 'rgba(255,255,255,0.10)',
                   color: pin.length >= PIN_LEN_MIN ? '#FFF' : 'rgba(255,255,255,0.40)',
                   border: 'none',
                   borderRadius: 14,
                   cursor: pin.length >= PIN_LEN_MIN && !submitting ? 'pointer' : 'not-allowed',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  touchAction: 'manipulation',
                 }}>
-                {submitting ? '...' : '✓'}
+                {submitting ? '…' : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                )}
               </button>
             </div>
 
@@ -258,10 +273,11 @@ export default function PinLoginPad({ onBack, onSuccess }) {
             <button onClick={onBack}
               style={{
                 marginTop: 28, background: 'transparent', border: 'none',
-                color: 'rgba(255,255,255,0.55)', fontSize: 12, cursor: 'pointer',
+                color: 'rgba(255,255,255,0.65)', fontSize: 13, cursor: 'pointer',
+                padding: '10px 16px', minHeight: 40,
                 textDecoration: 'underline',
               }}>
-              Accedi con email e password →
+              Accedi con email e password
             </button>
           </>
         )}

@@ -269,15 +269,16 @@ ${azioniStr}
           )}
 
           {/* Input area */}
-          <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+          <div style={{display:"flex",gap:8,alignItems:"flex-end",flexDirection: isMobile ? "column" : "row"}}>
             {messages.length > 0 && (
               <button onClick={()=>setMessages([])}
-                style={{padding:"10px 14px",borderRadius:9,border:`1px solid ${C.border}`,background:C.white,
-                  fontSize:11,fontWeight:600,color:C.textSoft,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
+                style={{padding: isMobile ? "11px 14px" : "10px 14px",minHeight: isMobile ? 42 : 'auto',borderRadius:9,border:`1px solid ${C.border}`,background:C.white,
+                  fontSize: isMobile ? 12 : 11,fontWeight:600,color:C.textSoft,cursor:"pointer",flexShrink:0,whiteSpace:"nowrap",
+                  width: isMobile ? '100%' : 'auto', order: isMobile ? 2 : 0}}>
                 ↺ Nuova chat
               </button>
             )}
-            <div style={{flex:1,position:"relative"}}>
+            <div style={{flex:1,position:"relative", width: isMobile ? '100%' : 'auto', order: isMobile ? 1 : 0}}>
               <textarea
                 ref={inputRef}
                 value={input}
@@ -285,18 +286,18 @@ ${azioniStr}
                 onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }}
                 placeholder="Scrivi una domanda…"
                 rows={2}
-                style={{width:"100%",padding:"12px 48px 12px 14px",borderRadius:10,
+                style={{width:"100%",padding: isMobile ? "14px 52px 14px 14px" : "12px 48px 12px 14px",borderRadius:10,
                   border:`2px solid ${input.trim()?C.red:C.border}`,
-                  fontSize:12,lineHeight:1.5,color:C.text,background:C.white,
+                  fontSize: isMobile ? 16 : 12,lineHeight:1.5,color:C.text,background:C.white,
                   resize:"none",outline:"none",boxSizing:"border-box",
                   transition:"border-color 0.2s",fontFamily:"inherit"}}
               />
-              <button onClick={()=>sendMessage()}
+              <button aria-label="Invia messaggio" onClick={()=>sendMessage()}
                 disabled={!input.trim()||loading}
-                style={{position:"absolute",right:10,bottom:10,
-                  width:32,height:32,borderRadius:8,border:"none",
+                style={{position:"absolute",right: isMobile ? 12 : 10,bottom: isMobile ? 12 : 10,
+                  width: isMobile ? 40 : 32,height: isMobile ? 40 : 32,borderRadius:8,border:"none",
                   background:input.trim()&&!loading?C.red:"#E8DDD8",
-                  color:C.white,fontSize:16,cursor:input.trim()&&!loading?"pointer":"default",
+                  color:C.white,fontSize: isMobile ? 18 : 16,cursor:input.trim()&&!loading?"pointer":"default",
                   display:"flex",alignItems:"center",justifyContent:"center",
                   transition:"background 0.15s"}}>
                 ↑
@@ -319,26 +320,26 @@ ${azioniStr}
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft}}>Aperte / In corso · {aperte.length}</div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {aperte.map(a=>(
-                  <div key={a.id} className="fos-tile" style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 20px",display:"flex",gap:14,alignItems:"flex-start",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:12,fontWeight:800,color:C.text,marginBottom:4}}>{a.label}</div>
-                      <div style={{fontSize:11,color:C.textMid,lineHeight:1.6}}>{a.azione}</div>
-                      <div style={{fontSize:9,color:C.textSoft,marginTop:5}}>{new Date(a.createdAt).toLocaleDateString("it-IT")}</div>
+                  <div key={a.id} className="fos-tile" style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding: isMobile ? "14px 16px" : "16px 20px",display:"flex",gap:14,alignItems:"flex-start",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",flexDirection: isMobile ? "column" : "row"}}>
+                    <div style={{flex:1, width: isMobile ? '100%' : 'auto', minWidth: 0}}>
+                      <div style={{fontSize: isMobile ? 13 : 12,fontWeight:800,color:C.text,marginBottom:4}}>{a.label}</div>
+                      <div style={{fontSize: isMobile ? 12 : 11,color:C.textMid,lineHeight:1.6}}>{a.azione}</div>
+                      <div style={{fontSize:10,color:C.textSoft,marginTop:6}}>{new Date(a.createdAt).toLocaleDateString("it-IT")}</div>
                     </div>
-                    <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                    <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent: isMobile ? "flex-start" : "flex-end", width: isMobile ? '100%' : 'auto'}}>
                       {["aperta","in_corso","chiusa"].map(s=>(
                         <button key={s} onClick={()=>onUpdate(a.id,{stato:s})}
                           style={{padding: isMobile ? "10px 14px" : "6px 12px",borderRadius:8,
                             minHeight: isMobile ? 40 : 32, minWidth: isMobile ? 60 : 'auto',
+                            flex: isMobile ? '1 1 auto' : 'unset',
                             border:`1px solid ${a.stato===s?C.red:C.border}`,
                             background:a.stato===s?C.redLight:C.white,color:a.stato===s?C.red:C.textSoft,
                             fontSize: isMobile ? 12 : 11, fontWeight:700,cursor:"pointer"}}>
                           {s==="aperta"?"Aperta":s==="in_corso"?"In corso":"✓ Chiudi"}
                         </button>
                       ))}
-                      <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding: isMobile ? "10px 12px" : "6px 10px",borderRadius:8,
-                        minHeight: isMobile ? 40 : 32, minWidth: isMobile ? 40 : 32,
-                        border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize: isMobile ? 14 : 11,cursor:"pointer"}}>✕</button>
+                      <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding: 0, width: isMobile ? 40 : 32, height: isMobile ? 40 : 32, borderRadius:8,
+                        border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize: isMobile ? 14 : 11,cursor:"pointer",display:'inline-flex',alignItems:'center',justifyContent:'center'}}>✕</button>
                     </div>
                   </div>
                 ))}
@@ -348,11 +349,11 @@ ${azioniStr}
           {chiuse.length>0&&(
             <>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft,marginTop:8}}>Completate · {chiuse.length}</div>
-              <div style={{display:"flex",flexDirection:"column",gap:5,opacity:0.55}}>
+              <div style={{display:"flex",flexDirection:"column",gap: isMobile ? 6 : 5,opacity:0.55}}>
                 {chiuse.map(a=>(
-                  <div key={a.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div style={{fontSize:11,fontWeight:600,color:C.text}}>✓ {a.label}</div>
-                    <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding:"3px 8px",borderRadius:5,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:9,cursor:"pointer"}}>✕</button>
+                  <div key={a.id} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:8,padding: isMobile ? "10px 14px" : "10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                    <div style={{fontSize: isMobile ? 12 : 11,fontWeight:600,color:C.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1, minWidth: 0}}>✓ {a.label}</div>
+                    <button aria-label="Elimina azione" onClick={()=>onDelete(a.id)} style={{padding: 0, width: isMobile ? 36 : 28, height: isMobile ? 36 : 28, borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize: isMobile ? 13 : 11,cursor:"pointer",display:'inline-flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>✕</button>
                   </div>
                 ))}
               </div>

@@ -40,22 +40,26 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
     doc.setTextColor(0);
     y += 8;
 
-    const nomiRic = ricette.map(r=>r.nome);
-    const totCols = nomiRic.length;
-    const labW = 38;
+    // Layout PDF: righe = ricette, colonne = allergeni (coerente con UI).
+    const totCols = ALLERGENI.length;
+    const labW = 56; // larghezza colonna nome ricetta
     const availW = pw - startX - labW - 8;
     const cW = Math.min(colW, availW / Math.max(1, totCols));
 
+    // Header riga: nomi allergeni (verticali corti o abbreviati)
     doc.setFontSize(6); doc.setFont(undefined,'bold');
-    nomiRic.forEach((n,i)=>{
-      doc.text(n.substring(0,12), startX + labW + i*cW + cW/2, y, {align:'center', maxWidth:cW-1});
+    doc.text('Ricetta', startX + 1, y);
+    ALLERGENI.forEach((a,i)=>{
+      const label = a.label.length > 10 ? a.label.substring(0,9)+'.' : a.label;
+      doc.text(label, startX + labW + i*cW + cW/2, y, {align:'center', maxWidth:cW-1});
     });
     y += 5;
 
-    ALLERGENI.forEach(a => {
+    ricette.forEach((r,ri) => {
       doc.setFontSize(7); doc.setFont(undefined,'normal');
-      doc.text(`${a.label}`, startX, y+rowH*0.6);
-      ricette.forEach((r,i)=>{
+      const nome = r.nome.length > 18 ? r.nome.substring(0,17)+'…' : r.nome;
+      doc.text(nome, startX, y+rowH*0.6, {maxWidth: labW-2});
+      ALLERGENI.forEach((a,i)=>{
         const has = algMap[r.nome]?.has(a.id);
         if(has){
           doc.setFillColor(220,50,50);
@@ -68,6 +72,11 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
         }
       });
       y += rowH;
+      // Pagina nuova se serve
+      if (y > doc.internal.pageSize.getHeight() - 14) {
+        doc.addPage();
+        y = 14;
+      }
     });
 
     y += 6;
@@ -96,35 +105,38 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
         </div>
       ) : (
         <>
-          {/* Tabella allergeni × ricette */}
+          {/* Tabella ricette × allergeni — righe = ricette, colonne = allergeni.
+              Audit 2026-06-24: scambiati gli assi perche' le ricette sono molte
+              piu' degli allergeni (14 standard UE) e crescono nel tempo, mentre
+              gli allergeni sono fissi. Vertical scroll naturale sulle ricette,
+              prima colonna sticky col nome ricetta per non perdere il contesto
+              scrollando orizzontalmente sui 14 allergeni. */}
           <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",marginBottom:24}}>
-            <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:Math.max(600, 220 + ALLERGENI.length * 56)}}>
               <thead>
                 <tr style={{background:"#F8F4F2"}}>
-                  <th style={{padding:"12px 16px",textAlign:"left",fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,minWidth:160,position:"sticky",left:0,background:"#F8F4F2"}}>Allergene</th>
-                  {ricette.map(r=>(
-                    <th key={r.nome} style={{padding:"8px 4px",textAlign:"center",fontSize:9,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,minWidth:80,maxWidth:100,wordBreak:"break-word"}}>
-                      {r.nome.length>14?r.nome.substring(0,13)+"…":r.nome}
+                  <th style={{padding:"12px 16px",textAlign:"left",fontSize:10,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,minWidth:200,position:"sticky",left:0,background:"#F8F4F2",zIndex:2}}>Ricetta</th>
+                  {ALLERGENI.map(a=>(
+                    <th key={a.id} title={a.label} style={{padding:"10px 4px",textAlign:"center",fontSize:9.5,fontWeight:700,color:C.text,borderBottom:`1px solid ${C.border}`,minWidth:52,maxWidth:72,lineHeight:1.2,whiteSpace:"normal",wordBreak:"break-word",verticalAlign:"middle"}}>
+                      {a.label.length>10?a.label.substring(0,9)+"…":a.label}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {ALLERGENI.map((a,ai)=>(
-                  <tr key={a.id} style={{background:ai%2===0?C.white:"#FDFAF8",borderBottom:`1px solid ${C.border}`}}>
-                    <td style={{padding:"10px 16px",fontWeight:600,fontSize:12,color:C.text,position:"sticky",left:0,background:ai%2===0?C.white:"#FDFAF8",display:"flex",alignItems:"center",gap:8,minWidth:160}}>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:700,color:C.text}}>{a.label}</div>
-                      </div>
+                {ricette.map((r,ri)=>(
+                  <tr key={r.nome} style={{background:ri%2===0?C.white:"#FDFAF8",borderBottom:`1px solid ${C.border}`}}>
+                    <td style={{padding:"10px 16px",fontWeight:600,fontSize:12,color:C.text,position:"sticky",left:0,background:ri%2===0?C.white:"#FDFAF8",minWidth:200,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",zIndex:1}} title={r.nome}>
+                      {r.nome}
                     </td>
-                    {ricette.map(r=>{
+                    {ALLERGENI.map(a=>{
                       const has=algMap[r.nome]?.has(a.id);
                       return (
-                        <td key={r.nome} style={{padding:"10px 4px",textAlign:"center"}}>
+                        <td key={a.id} style={{padding:"10px 4px",textAlign:"center"}}>
                           {has ? (
-                            <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:26,height:26,borderRadius:6,background:`${ALLERGENE_COLORS[a.id]}20`,border:`1.5px solid ${ALLERGENE_COLORS[a.id]}`,color:ALLERGENE_COLORS[a.id],fontSize:13,fontWeight:900}}>✓</span>
+                            <span aria-label={`Contiene ${a.label}`} title={`Contiene ${a.label}`} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:26,height:26,borderRadius:6,background:`${ALLERGENE_COLORS[a.id]}20`,border:`1.5px solid ${ALLERGENE_COLORS[a.id]}`,color:ALLERGENE_COLORS[a.id],fontSize:13,fontWeight:900}}>✓</span>
                           ) : (
-                            <span style={{display:"inline-block",width:26,height:26,borderRadius:6,border:`1px solid #E8E0DC`,background:"#FAFAFA"}}/>
+                            <span aria-label={`Senza ${a.label}`} style={{display:"inline-block",width:26,height:26,borderRadius:6,border:`1px solid #E8E0DC`,background:"#FAFAFA"}}/>
                           )}
                         </td>
                       );

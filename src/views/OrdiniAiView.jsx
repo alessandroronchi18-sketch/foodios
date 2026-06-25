@@ -188,13 +188,13 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
       ) : (
         <>
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
-            <div style={{ background: '#FAFAF6', padding: '12px 18px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ background: '#FAFAF6', padding: isMobile ? '12px 14px' : '12px 18px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 10, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: TXT }}>
-                {suggerimenti.length} ingredient{suggerimenti.length === 1 ? 'e' : 'i'} da ordinare
+                {Number(suggerimenti.length).toLocaleString('it-IT')} ingredient{suggerimenti.length === 1 ? 'e' : 'i'} da ordinare
               </div>
               <button onClick={copia}
-                style={{ marginLeft: 'auto', background: BRAND, color: '#FFF', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <Icon name="copy" size={12}/> Copia testo ordine
+                style={{ marginLeft: isMobile ? '0' : 'auto', background: BRAND, color: '#FFF', border: 'none', padding: isMobile ? '12px 14px' : '8px 14px', minHeight: isMobile ? 44 : 'auto', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                <Icon name="copy" size={13}/> Copia testo ordine
               </button>
             </div>
             <div style={{ overflowX: 'auto' }}>
@@ -212,18 +212,18 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
                 <tbody>
                   {suggerimenti.map(s => (
                     <tr key={s.nome} style={{ borderTop: `1px solid ${BORDER}` }}>
-                      <td style={{ padding: '11px 14px', fontSize: 13, color: TXT, fontWeight: 600 }}>
-                        {s.urgenza === 'alta' && <span style={{ color: BRAND, marginRight: 6 }}>●</span>}
-                        {s.nome}
+                      <td style={{ padding: '11px 14px', fontSize: 13, color: TXT, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {s.urgenza === 'alta' && <span style={{ color: BRAND, marginRight: 6 }} aria-label="Urgenza alta">●</span>}
+                        <span title={s.nome}>{s.nome}</span>
                       </td>
-                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: MID, fontVariantNumeric: 'tabular-nums' }}>{Math.round(s.giacenza)}g</td>
-                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums' }}>{Math.round(s.soglia)}g</td>
-                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums' }}>{Math.round(s.cons)}g</td>
-                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: s.giorniRimasti != null && s.giorniRimasti <= 3 ? BRAND : MID, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                        {s.giorniRimasti != null ? s.giorniRimasti : '—'}
+                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: MID, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.giacenza).toLocaleString('it-IT')}g</td>
+                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.soglia).toLocaleString('it-IT')}g</td>
+                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.cons).toLocaleString('it-IT')}g</td>
+                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: s.giorniRimasti != null && s.giorniRimasti <= 3 ? BRAND : MID, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                        {s.giorniRimasti != null ? Number(s.giorniRimasti).toLocaleString('it-IT') : '—'}
                       </td>
-                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 13, color: TXT, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
-                        {s.qtaSuggerita >= 1000 ? `${(s.qtaSuggerita / 1000).toFixed(1)} kg` : `${s.qtaSuggerita}g`}
+                      <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 13, color: TXT, fontWeight: 800, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                        {s.qtaSuggerita >= 1000 ? `${(s.qtaSuggerita / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` : `${Number(s.qtaSuggerita).toLocaleString('it-IT')} g`}
                       </td>
                     </tr>
                   ))}

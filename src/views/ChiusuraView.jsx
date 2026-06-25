@@ -213,7 +213,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     setVenduto(Array.from(map.values()))
     setManualRows([{ nome: '', qta: '', prezzo: '' }])  // resetta per nuovo batch
     setSalvato(false); setError(null)
-    notify?.(`✓ ${nuoveRighe.length} prodott${nuoveRighe.length === 1 ? 'o aggiunto' : 'i aggiunti'} alla cassa`)
+    notify?.(`${nuoveRighe.length} prodott${nuoveRighe.length === 1 ? 'o aggiunto' : 'i aggiunti'} alla cassa`)
   }
 
   const readFile64 = f => new Promise(res => {
@@ -358,7 +358,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       },
       onComplete: ({ nuoveChiusure, results, saved, skipped }) => {
         setChiusure(nuoveChiusure); setBatchResults(results); setBatchProg(null); setLoading(false)
-        notify(`✓ ${saved} chiusure salvate${skipped > 0 ? ` · ${skipped} saltate` : ''}`)
+        notify(`${saved} chiusure salvate${skipped > 0 ? ` · ${skipped} saltate` : ''}`)
       },
       onError: (err) => { setBatchProg(null); setLoading(false); notify(`Errore batch: ${err.message}`, false) },
     })
@@ -551,7 +551,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       }
     }
     setSalvando(false)
-    notify(`✓ Chiusura del ${new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT')} salvata nello storico`)
+    notify(`Chiusura del ${new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT')} salvata nello storico`)
 
     // Alert su drift anomalo: >=20% su almeno una categoria con produzione >50g.
     // L'utente lo vede subito senza dover scrollare. Solo segnaletico, non blocca.
@@ -607,7 +607,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       return
     }
     setChiusure(nuove)
-    notify(`✓ ${righe.length} giorni importati da ${importPiattaforma}`)
+    notify(`${righe.length} giorni importati da ${importPiattaforma}`)
     setImportModal(null); setImportPreview(null)
   }
 
@@ -637,7 +637,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       return
     }
     setChiusure(nuove)
-    notify(`✓ ${importPreview.righe.length} giorni importati da ${importSistema}`)
+    notify(`${importPreview.righe.length} giorni importati da ${importSistema}`)
     setImportModal(null); setImportPreview(null)
   }
 
@@ -679,11 +679,11 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       <PageHeader
         subtitle="Chiudi la giornata — foto scontrino, import delivery o manuale"
         action={
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => { setImportModal('delivery'); setImportPreview(null) }}
-              style={{ padding: '8px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Delivery</button>
+              style={{ padding: isMobile ? '10px 14px' : '8px 14px', minHeight: isMobile ? 40 : 'auto', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Importa delivery</button>
             <button onClick={() => { setImportModal('cassa'); setImportPreview(null) }}
-              style={{ padding: '8px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Sistema cassa</button>
+              style={{ padding: isMobile ? '10px 14px' : '8px 14px', minHeight: isMobile ? 40 : 'auto', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Sistema cassa</button>
           </div>
         }
       />
@@ -696,14 +696,14 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Piattaforma</div>
               <select value={importPiattaforma} onChange={e => { setImportPiattaforma(e.target.value); setImportPreview(null) }}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text }}>
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, minHeight: 44 }}>
                 <option value="deliveroo">Deliveroo (CSV)</option>
                 <option value="justeat">JustEat (CSV)</option>
                 <option value="glovo">Glovo / Foodinho (Excel)</option>
                 <option value="generico">Formato generico (CSV)</option>
               </select>
             </div>
-            <label style={{ display: 'block', padding: '12px', background: '#F8F4F2', border: `1px dashed ${C.borderStr}`, borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.textMid, marginBottom: 14 }}>
+            <label style={{ display: 'block', padding: '14px', minHeight: 48, background: '#F8F4F2', border: `1px dashed ${C.borderStr}`, borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.textMid, marginBottom: 14 }}>
               <Icon name="folder" size={14} style={{ marginRight: 6 }} />{importLoading ? 'Lettura file…' : 'Carica file export'}
               <input ref={importFileRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }} onChange={handleImportDeliveryFile}/>
             </label>
@@ -736,9 +736,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
                   {[['Data', 'data'], ['Importo', 'importo'], ['Commissione (opz.)', 'comm']].map(([label, key]) => (
                     <div key={key}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, marginBottom: 4 }}>{label}</div>
                       <select value={importGenericMapping[key] || ''} onChange={e => setImportGenericMapping(m => ({ ...m, [key]: e.target.value }))}
-                        style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 11 }}>
+                        style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 11, minHeight: 40 }}>
                         <option value="">—</option>
                         {(importPreview.headers || []).map(h => <option key={h} value={h}>{h}</option>)}
                       </select>
@@ -749,9 +749,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               {importPreview && (
-                <button onClick={handleConfirmDelivery} style={{ flex: 1, padding: '10px', background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
+                <button onClick={handleConfirmDelivery} style={{ flex: 1, padding: '12px', minHeight: 44, background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
               )}
-              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '10px 16px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: 12, cursor: 'pointer' }}>Chiudi</button>
+              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '12px 16px', minHeight: 44, background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: 13, cursor: 'pointer' }}>Chiudi</button>
             </div>
           </div>
         </div>
@@ -811,35 +811,35 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         </div>
       )}
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', boxShadow: SHADOW_PREMIUM }}>
-        <div>
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap', boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ width: isMobile ? '100%' : 'auto' }}>
           <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data chiusura</div>
           {isDipendente ? (
             // Il dipendente può registrare solo la chiusura di OGGI: niente giorni passati.
-            <div style={{ padding: '7px 12px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.bgSubtle, fontSize: 12, fontWeight: 700, color: C.text }}>
+            <div style={{ padding: '9px 14px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.bgSubtle, fontSize: isMobile ? 14 : 12, fontWeight: 700, color: C.text }}>
               Oggi · {new Date(today + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
             </div>
           ) : (
             <input type="date" value={dataFiltro} onChange={e => { setDataFiltro(e.target.value); setVenduto(null); setPreview(null); setImg(null); setSalvato(false) }}
-              style={{ padding: '7px 10px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text }}/>
+              style={{ width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, minHeight: isMobile ? 44 : 'auto' }}/>
           )}
         </div>
-        <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ flex: 1, minWidth: isMobile ? 0 : 220 }}>
           {sessione ? (
             <div style={{ background: C.greenLight, border: `1px solid ${C.green}25`, borderRadius: 8, padding: '8px 14px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={12} />Produzione trovata per questa data</div>
-              <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>{(sessione.prodotti || []).map(p => `${p.stampi}× ${p.nome}`).join(' · ') || '—'}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={12} />Produzione trovata per questa data</div>
+              <div style={{ fontSize: 11, color: C.textMid, marginTop: 2, wordBreak: 'break-word' }}>{(sessione.prodotti || []).map(p => `${(Number(p.stampi)||0).toLocaleString('it-IT')}× ${p.nome}`).join(' · ') || '—'}</div>
             </div>
           ) : (
             <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}25`, borderRadius: 8, padding: '8px 14px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} />Nessuna produzione registrata per questa data</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} />Nessuna produzione registrata per questa data</div>
               <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>Il confronto prodotto/venduto non sarà disponibile, ma i ricavi verranno salvati.</div>
             </div>
           )}
         </div>
         {chiusuraSalvata && (
-          <div style={{ background: '#EEF8EE', border: `1px solid ${C.green}30`, borderRadius: 8, padding: '8px 14px', fontSize: 10, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <Icon name="checkCircle" size={12} />Chiusura già salvata · {fmt(chiusuraSalvata.kpi.totV)} ricavi
+          <div style={{ background: '#EEF8EE', border: `1px solid ${C.green}30`, borderRadius: 8, padding: '8px 14px', fontSize: 11, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+            <Icon name="checkCircle" size={12} />Chiusura già salvata · {fmt0(chiusuraSalvata.kpi.totV)} ricavi
           </div>
         )}
       </div>

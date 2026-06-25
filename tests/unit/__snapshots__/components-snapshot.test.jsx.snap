@@ -282,7 +282,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > Logo default 
 
 exports[`Snapshot markup — componenti puri ad alta riusabilita > SedeContextBanner multisede 1`] = `
 <div
-  style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; font-size: 12px; font-weight: 600; margin-bottom: 16px;"
+  style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; font-size: 12px; font-weight: 600; margin-bottom: 16px; flex-wrap: wrap;"
 >
   <svg
     aria-hidden="true"
@@ -306,9 +306,11 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > SedeContextBa
     />
   </svg>
   <div
-    style="line-height: 1.35; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+    style="line-height: 1.35; min-width: 0; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
   >
-    <div>
+    <div
+      style="overflow: hidden; text-overflow: ellipsis;"
+    >
       Sede attiva: 
       <strong
         style="font-weight: 800;"

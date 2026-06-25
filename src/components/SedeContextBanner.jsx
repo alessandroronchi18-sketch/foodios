@@ -45,10 +45,11 @@ export default function SedeContextBanner({ sedeAttiva, sedi = [], onChange, sco
       color: '#92400E',
       fontSize: 12, fontWeight: 600,
       marginBottom: 16,
+      flexWrap: 'wrap',
     }}>
       <Icon name="pin" size={16} style={{ flexShrink: 0 }} />
-      <div style={{ flex: 1, lineHeight: 1.35 }}>
-        <div>
+      <div style={{ flex: 1, lineHeight: 1.35, minWidth: 0 }}>
+        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
           Sede attiva: <strong style={{ fontWeight: 800 }}>{nome}</strong>
           {citta && <span style={{ fontWeight: 500, opacity: 0.75 }}> · {citta}</span>}
         </div>
@@ -56,9 +57,10 @@ export default function SedeContextBanner({ sedeAttiva, sedi = [], onChange, sco
       </div>
       {onChange && (
         <button onClick={onChange} style={{
-          padding: '4px 10px', background: 'rgba(255,255,255,0.6)',
+          padding: '8px 12px', minHeight: 40, background: 'rgba(255,255,255,0.6)',
           border: '1px solid #FCD34D', borderRadius: 8,
           color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+          whiteSpace: 'nowrap',
         }}>Cambia sede</button>
       )}
     </div>

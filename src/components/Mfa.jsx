@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
+import useIsMobile from '../lib/useIsMobile'
 
-const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
-const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
+// Audit 2026-06-24 UI mobile: fontSize input >=16 evita zoom iOS al focus.
+// minHeight 44 per touch target. Card padding ridotto su mobile.
 
 // Componente "Sicurezza" in Impostazioni: gestisce enroll/verify/unenroll del 2FA TOTP
 // via Supabase Auth MFA. Mostra QR code per Google Authenticator / Authy / 1Password.
 export default function MfaSection({ notify }) {
+  const isMobile = useIsMobile()
+  const card = { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+  const inp  = { width: '100%', padding: '12px 14px', minHeight: 48, border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 16, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
   const [loading, setLoading] = useState(true)
   const [factors, setFactors] = useState([])
   const [enrolling, setEnrolling] = useState(null) // { factorId, qrSvg, secret, uri }
@@ -225,7 +229,7 @@ export default function MfaSection({ notify }) {
                   </div>
                 </div>
                 <button onClick={() => startUnenroll(f)}
-                  style={{ padding: '7px 14px', background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  style={{ padding: '10px 16px', minHeight: 40, background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                   Disattiva
                 </button>
               </div>
@@ -268,6 +272,7 @@ export default function MfaSection({ notify }) {
 // { currentLevel: 'aal1', nextLevel: 'aal2' } — significa che l'utente ha
 // password verificata ma deve ancora completare il 2FA.
 export function MfaChallenge({ onComplete, onCancel }) {
+  const isMobile = useIsMobile()
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
@@ -305,8 +310,8 @@ export function MfaChallenge({ onComplete, onCancel }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <div style={{ maxWidth: 420, width: '100%', background: '#FFF', borderRadius: 16, padding: '36px 32px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }}>
+    <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div style={{ maxWidth: 420, width: '100%', background: '#FFF', borderRadius: 16, padding: isMobile ? '28px 22px' : '36px 32px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }}>
         <div style={{ marginBottom: 16, textAlign: 'center' }}><Icon name="lock" size={48} color="#6E0E1A" /></div>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', margin: '0 0 8px', textAlign: 'center' }}>
           Verifica in due passaggi
@@ -317,14 +322,14 @@ export function MfaChallenge({ onComplete, onCancel }) {
         <input value={code} onChange={e => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setErr(null) }}
           placeholder="123456" inputMode="numeric" autoComplete="one-time-code" autoFocus
           onKeyDown={e => e.key === 'Enter' && verify()}
-          style={{ width: '100%', padding: '14px 18px', border: `1px solid ${err ? '#FCA5A5' : '#E2E8F0'}`, borderRadius: 10, fontSize: 24, letterSpacing: '0.4em', textAlign: 'center', fontFamily: 'monospace', color: '#0F172A', background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }} />
-        {err && <div style={{ color: '#6E0E1A', fontSize: 12, marginTop: 10, textAlign: 'center' }}>{err}</div>}
+          style={{ width: '100%', padding: '14px 18px', minHeight: 56, border: `1px solid ${err ? '#FCA5A5' : '#E2E8F0'}`, borderRadius: 10, fontSize: 24, letterSpacing: '0.4em', textAlign: 'center', fontFamily: 'monospace', color: '#0F172A', background: '#F8FAFC', outline: 'none', boxSizing: 'border-box' }} />
+        {err && <div style={{ color: '#6E0E1A', fontSize: 13, marginTop: 10, textAlign: 'center' }}>{err}</div>}
         <button onClick={verify} disabled={busy || code.length !== 6}
-          style={{ width: '100%', padding: '14px', marginTop: 18, background: code.length === 6 ? '#6E0E1A' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: code.length === 6 ? 'pointer' : 'not-allowed' }}>
+          style={{ width: '100%', padding: '14px', minHeight: 48, marginTop: 18, background: code.length === 6 ? '#6E0E1A' : '#CBD5E1', color: '#FFF', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: code.length === 6 ? 'pointer' : 'not-allowed' }}>
           {busy ? '…' : 'Accedi'}
         </button>
         <button onClick={onCancel}
-          style={{ width: '100%', padding: '12px', marginTop: 10, background: 'transparent', color: '#64748B', border: 'none', fontSize: 12, cursor: 'pointer' }}>
+          style={{ width: '100%', padding: '12px', minHeight: 40, marginTop: 10, background: 'transparent', color: '#64748B', border: 'none', fontSize: 13, cursor: 'pointer' }}>
           Annulla e torna al login
         </button>
       </div>

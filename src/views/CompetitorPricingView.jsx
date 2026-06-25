@@ -198,7 +198,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
           Prodotto da confrontare
         </div>
         <select value={ricSel} onChange={e => { setRicSel(e.target.value); setAiInsight(null) }}
-          style={{ width: '100%', maxWidth: 400, padding: '10px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 14, color: TXT, fontFamily: 'inherit' }}>
+          style={{ width: '100%', maxWidth: isMobile ? '100%' : 400, padding: isMobile ? '12px 12px' : '10px 12px', minHeight: isMobile ? 46 : 'auto', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 16, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box', background: '#FFF' }}>
           <option value="">— Scegli prodotto —</option>
           {ricetteArr.map(r => <option key={r.nome} value={r.nome}>{r.nome}</option>)}
         </select>
@@ -220,16 +220,16 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
 
           {/* Aggiungi competitor */}
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: TXT, marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: TXT, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               Aggiungi un competitor che vende {ricSel}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 120px 120px', gap: 8 }}>
               <input value={newComp.nome} onChange={e => setNewComp(s => ({ ...s, nome: e.target.value }))} placeholder="Nome competitor (es. Pasticceria Rossi)"
-                style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 14, fontFamily: 'inherit' }}/>
+                style={{ padding: isMobile ? '12px 12px' : '10px 12px', minHeight: isMobile ? 46 : 'auto', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 16, fontFamily: 'inherit', boxSizing: 'border-box' }}/>
               <input type="number" step="0.01" value={newComp.prezzo} onChange={e => setNewComp(s => ({ ...s, prezzo: e.target.value }))} placeholder="Prezzo €"
-                style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 14, fontFamily: 'inherit' }}/>
+                style={{ padding: isMobile ? '12px 12px' : '10px 12px', minHeight: isMobile ? 46 : 'auto', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 16, fontFamily: 'inherit', boxSizing: 'border-box' }}/>
               <button onClick={aggiungiCompetitor} disabled={!newComp.nome.trim() || !newComp.prezzo}
-                style={{ background: BRAND, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                style={{ background: !newComp.nome.trim() || !newComp.prezzo ? '#CBD5E1' : BRAND, color: '#FFF', border: 'none', borderRadius: 8, fontSize: isMobile ? 14 : 13, fontWeight: 700, cursor: !newComp.nome.trim() || !newComp.prezzo ? 'not-allowed' : 'pointer', minHeight: isMobile ? 46 : 'auto', padding: isMobile ? '12px 16px' : '0' }}>
                 Aggiungi
               </button>
             </div>
@@ -239,14 +239,14 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
           {compStats && (
             <>
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
-                  <Stat label="Media zona" value={`€ ${Number(compStats.media).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} hint={`${compStats.n} rilevati`}/>
-                  <Stat label="Range min-max" value={`€ ${Number(compStats.min).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - € ${Number(compStats.max).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}/>
+                <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, alignItems: isMobile ? 'start' : 'center', gap: isMobile ? 14 : 16, flexWrap: 'wrap', marginBottom: 14 }}>
+                  <Stat label="Media zona" value={`€ ${Number(compStats.media).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} hint={`${Number(compStats.n).toLocaleString('it-IT')} rilevati`}/>
+                  <Stat label="Range min-max" value={`€ ${Number(compStats.min).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} – € ${Number(compStats.max).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}/>
                   <Stat label="Tuo prezzo" value={`€ ${Number(fcInfo.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     color={fcInfo.prezzo < compStats.media * 0.9 ? AMBER : fcInfo.prezzo > compStats.media * 1.1 ? BRAND : GREEN}/>
                   <button onClick={chiediAi} disabled={aiLoading}
-                    style={{ marginLeft: 'auto', background: BRAND, color: '#FFF', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    <Icon name="sparkles" size={12}/> {aiLoading ? 'Analizzo…' : 'Verdetto AI'}
+                    style={{ marginLeft: isMobile ? '0' : 'auto', gridColumn: isMobile ? '1 / -1' : undefined, background: BRAND, color: '#FFF', border: 'none', padding: isMobile ? '12px 14px' : '8px 14px', minHeight: isMobile ? 44 : 'auto', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center', width: isMobile ? '100%' : 'auto' }}>
+                    <Icon name="sparkles" size={13}/> {aiLoading ? 'Analizzo…' : 'Verdetto AI'}
                   </button>
                 </div>
 
@@ -291,8 +291,8 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                       </div>
                     )}
                     {aiInsight.rischio && (
-                      <div style={{ fontSize: 11.5, color: SOFT, marginTop: 6, fontStyle: 'italic' }}>
-                        ⚠ {aiInsight.rischio}
+                      <div style={{ fontSize: 11.5, color: SOFT, marginTop: 6, fontStyle: 'italic', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                        <Icon name="warning" size={12}/> <span>{aiInsight.rischio}</span>
                       </div>
                     )}
                   </div>
@@ -304,11 +304,11 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
                   Competitor monitorati per "{ricSel}"
                 </div>
                 {compFiltered.map(c => (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 6px', borderTop: `1px solid ${BORDER}` }}>
-                    <span style={{ flex: 1, fontSize: 13, color: TXT }}>{c.competitor_nome}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: TXT, fontVariantNumeric: 'tabular-nums' }}>€ {Number(c.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    <button onClick={() => rimuoviCompetitor(c.id)} style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 4 }}>
-                      <Icon name="x" size={12}/>
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 6px', borderTop: `1px solid ${BORDER}` }}>
+                    <span style={{ flex: 1, fontSize: 13, color: TXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.competitor_nome}>{c.competitor_nome}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: TXT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>€ {Number(c.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <button aria-label={`Rimuovi competitor ${c.competitor_nome}`} onClick={() => rimuoviCompetitor(c.id)} style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 0, width: 40, height: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, flexShrink: 0 }}>
+                      <Icon name="x" size={14}/>
                     </button>
                   </div>
                 ))}

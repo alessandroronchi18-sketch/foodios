@@ -87,6 +87,7 @@ const Icon = ({ name, size = 18, color = 'currentColor', stroke = 1.7 }) => {
     map:       <><path d="M12 2c-4 0-7 3-7 7 0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7z" fill="none"/><circle cx="12" cy="9" r="2.5" fill="none"/></>,
     star:      <polygon points="12 2 14.5 8.5 21 9 16 13.5 17.5 20 12 16.5 6.5 20 8 13.5 3 9 9.5 8.5" />,
     x:         <><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></>,
+    key:       <><circle cx="8" cy="15" r="3" fill="none"/><path d="M10.5 13L21 2.5" fill="none"/><path d="M17 6l3 3" fill="none"/><path d="M14.5 9l3 3" fill="none"/></>,
   }
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -180,7 +181,7 @@ function Input({ id, icon, type = 'text', value, onChange, placeholder, required
         placeholder={placeholder}
         style={{
           flex: 1, border: 'none', outline: 'none', background: 'transparent',
-          fontSize: 15, color: T.ink, fontFamily: SANS, fontWeight: 500,
+          fontSize: 16, color: T.ink, fontFamily: SANS, fontWeight: 500,
           padding: 0, minWidth: 0, width: '100%',
         }}
       />
@@ -363,7 +364,7 @@ function PhoneInput({ prefisso, numero, onPrefisso, onNumero }) {
         placeholder="333 1234567"
         style={{
           flex: 1, minWidth: 0, border: 'none', outline: 'none',
-          background: 'transparent', fontSize: 15, color: T.ink,
+          background: 'transparent', fontSize: 16, color: T.ink,
           fontFamily: SANS, fontWeight: 500, padding: '0 14px 0 0',
         }}
       />
@@ -978,11 +979,11 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
               <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px dashed ${T.border}`, textAlign: 'center' }}>
                 <button type="button" onClick={() => { setMode('pin-login'); clear() }}
                   style={{
-                    background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px 10px',
-                    color: T.textMid, fontFamily: SANS, fontSize: 12, fontWeight: 600,
+                    background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px 14px', minHeight: 40,
+                    color: T.textMid, fontFamily: SANS, fontSize: 13, fontWeight: 600,
                     display: 'inline-flex', alignItems: 'center', gap: 8,
                   }}>
-                  <Icon name="key" size={13} color={T.textMid}/>
+                  <Icon name="key" size={14} color={T.textMid}/>
                   Sono un dipendente — entra col PIN
                 </button>
               </div>
@@ -1031,15 +1032,15 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
           {emailEsistente && (
             <div onClick={() => setEmailEsistente('')} style={{ position: 'fixed', inset: 0, background: 'rgba(15,9,7,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
-              <div onClick={e => e.stopPropagation()} style={{ background: T.paper, borderRadius: 18, padding: '28px 26px', maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', textAlign: 'center' }}>
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: `${T.brand}14`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}><Icon name="mail" size={22} color={T.brand} /></div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: T.brand, marginBottom: 8 }}>Sei già registrato</div>
-                <div style={{ fontSize: 14, color: T.textSoft, lineHeight: 1.55, marginBottom: 20 }}>
-                  L'email <b>{emailEsistente}</b> è già associata a un account. Accedi con la tua password, oppure recuperala se l'hai dimenticata.
+              <div onClick={e => e.stopPropagation()} style={{ background: T.paper, borderRadius: 18, padding: isMobile ? '24px 20px' : '28px 26px', maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', textAlign: 'center' }}>
+                <div style={{ width: 48, height: 48, borderRadius: '50%', background: T.redSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}><Icon name="mail" size={22} color={T.red} /></div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: T.red, marginBottom: 8 }}>Sei già registrato</div>
+                <div style={{ fontSize: 14, color: T.textMid, lineHeight: 1.55, marginBottom: 20, wordBreak: 'break-word' }}>
+                  L'email <b style={{ color: T.ink }}>{emailEsistente}</b> è già associata a un account. Accedi con la tua password, oppure recuperala se l'hai dimenticata.
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <button type="button" onClick={() => { setMode('login'); setLoginEmail(emailEsistente); clear() }} style={{ padding: '12px', background: T.brand, color: '#FFF', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Accedi</button>
-                  <button type="button" onClick={() => { setMode('reset-request'); setResetEmail(emailEsistente); clear() }} style={{ padding: '12px', background: 'transparent', color: T.brand, border: `1px solid ${T.border}`, borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Recupera password</button>
+                  <button type="button" onClick={() => { setMode('login'); setLoginEmail(emailEsistente); clear() }} style={{ padding: '14px', minHeight: 48, background: T.red, color: '#FFF', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>Accedi</button>
+                  <button type="button" onClick={() => { setMode('reset-request'); setResetEmail(emailEsistente); clear() }} style={{ padding: '14px', minHeight: 48, background: 'transparent', color: T.red, border: `1px solid ${T.border}`, borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Recupera password</button>
                 </div>
               </div>
             </div>
@@ -1094,7 +1095,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
                 {regStep === 1 && (
                   <form onSubmit={nextRegStep}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 0 : 12, alignItems: 'start' }}>
                       <Field label="Nome" htmlFor="reg-nome"
                         error={reg.nome && !isNomeValido(reg.nome) ? 'Almeno 3 lettere, niente cifre.' : null}>
                         <Input id="reg-nome" icon="user" required value={reg.nome} onChange={setR('nome')} placeholder="Mario" autoComplete="given-name"/>
@@ -1161,8 +1162,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                     </Field>
 
                     <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                      <button type="button" onClick={() => { setRegStep(1); clear(); setOtpCode(''); setOtpSent(false) }} style={{
-                        padding: '14px 18px',
+                      <button type="button" aria-label="Indietro" onClick={() => { setRegStep(1); clear(); setOtpCode(''); setOtpSent(false) }} style={{
+                        padding: '14px 18px', minHeight: 48,
                         background: 'transparent', color: T.textMid,
                         border: `1.5px solid ${T.border}`, borderRadius: 12,
                         fontSize: 14, fontWeight: 600, cursor: 'pointer',
@@ -1188,14 +1189,14 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                     </Field>
 
                     <Field label="Tipo di attività">
-                      <div role="radiogroup" aria-label="Tipo di attività" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
+                      <div role="radiogroup" aria-label="Tipo di attività" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }}>
                         {TIPI_ATTIVITA.map(t => {
                           const selected = reg.tipo_attivita === t.slug
                           return (
                             <button key={t.slug} type="button"
                               onClick={() => setReg(p => ({ ...p, tipo_attivita: t.slug }))}
                               style={{
-                                padding: '11px 12px',
+                                padding: '11px 12px', minHeight: 44,
                                 background: selected ? T.ink : T.paper,
                                 color: selected ? T.cream : T.textMid,
                                 border: `1.5px solid ${selected ? T.ink : T.border}`,
@@ -1241,8 +1242,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                     </label>
 
                     <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                      <button type="button" onClick={() => { setRegStep(1); clear() }} style={{
-                        padding: '14px 18px',
+                      <button type="button" aria-label="Indietro" onClick={() => { setRegStep(1); clear() }} style={{
+                        padding: '14px 18px', minHeight: 48,
                         background: 'transparent', color: T.textMid,
                         border: `1.5px solid ${T.border}`, borderRadius: 12,
                         fontSize: 14, fontWeight: 600, cursor: 'pointer',

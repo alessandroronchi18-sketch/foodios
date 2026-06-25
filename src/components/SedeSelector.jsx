@@ -50,11 +50,11 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
   // Una sola sede: badge informativo non interattivo
   if (sedi.length === 1) {
     return (
-      <div style={{ margin: P.margin, padding: top ? '3px 10px 3px 5px' : '10px 12px', background: P.bg, border: `1px solid ${P.border}`, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 9 }}>
+      <div style={{ margin: P.margin, padding: top ? '4px 10px 4px 5px' : '10px 12px', minHeight: top ? 36 : undefined, background: P.bg, border: `1px solid ${P.border}`, borderRadius: 10, display: 'flex', alignItems: 'center', gap: 9 }}>
         {iconBox(false)}
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: 9, fontWeight: 600, color: P.label, textTransform: 'uppercase', letterSpacing: '0.06em', lineHeight: 1 }}>Sede</div>
-          <div style={{ fontSize: 12.5, color: P.txt, fontWeight: 600, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+          <div style={{ fontSize: 12.5, color: P.txt, fontWeight: 600, marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: top ? 180 : 'none' }}>
             {sedeAttiva?.nome || sedi[0]?.nome || 'Sede'}
           </div>
         </div>
@@ -70,9 +70,11 @@ export default function SedeSelector({ sedi, sedeAttiva, onSelect, variant = 'si
         onClick={() => setOpen(o => !o)}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
+        aria-label="Cambia sede attiva"
         style={{
           width: top ? 'auto' : '100%', minWidth: top ? 168 : undefined,
-          padding: top ? '3px 10px 3px 5px' : '10px 12px',
+          padding: top ? '4px 10px 4px 5px' : '10px 12px',
+          minHeight: top ? 40 : undefined,
           background: open ? P.bgOpen : hover ? P.bgHover : P.bg,
           border: `1px solid ${open ? P.borderOpen : P.border}`,
           borderRadius: 10, color: P.txt, fontSize: 12.5, cursor: 'pointer',

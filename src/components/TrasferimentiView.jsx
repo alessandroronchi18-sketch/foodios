@@ -6,7 +6,7 @@ import ProductAutocomplete from './ProductAutocomplete'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
 import { color as T, radius as R, motion as M } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { todayLocal } from '../lib/dateLocal'
 import {
   loadTrasferimenti, creaTrasferimento,
@@ -42,6 +42,7 @@ function fmtEuro(v) {
 
 export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null, notify }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
@@ -468,7 +469,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
             Accuratezza mese
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
             <div>
               <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Trasferimenti</div>
               <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginTop: 4, ...tnum }}>{accuratezzaMese.tot}</div>
@@ -578,7 +579,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       )}
 
       {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginTop: 20, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginTop: 20, marginBottom: 20 }}>
         {[
           { label: 'Totale', val: kpi.tot, color: C.text },
           { label: 'In uscita', val: kpi.inUscita, color: C.red },

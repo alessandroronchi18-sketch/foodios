@@ -25,7 +25,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { KPI, SH, PageHeader } from '../views/_shared'
@@ -143,6 +143,7 @@ function normalizzaLegacy(it) {
 
 export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, auth, notify }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const isDip = auth?.isDipendente
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -609,7 +610,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       )}
 
       {/* (1) DIAGNOSI — banda KPI del mese */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
         <KPI icon={<Icon name="trendDown" size={18} />} label="Perdita totale del mese" value={fmt0(diag.totPerso)} highlight
           sub={`${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi`} />
         <KPI icon={<Icon name="receipt" size={18} />} label="Incidenza sul food cost" value={fcMeseStimato > 0 ? fmtp(incidenza) : '—'} color={incColor}

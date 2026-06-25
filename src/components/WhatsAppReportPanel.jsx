@@ -12,6 +12,7 @@ import { useConfirm } from './ConfirmModal'
 import { supabase } from '../lib/supabase'
 import { apiFetch } from '../lib/apiFetch'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
+import useIsMobile from '../lib/useIsMobile'
 
 const PREFISSI = [
   { code: '+39',  label: 'Italia' },
@@ -33,6 +34,7 @@ function splitPhone(full) {
 }
 
 export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
+  const isMobile = useIsMobile()
   const confirmDialog = useConfirm()
   const init = splitPhone(org?.telefono_whatsapp)
   const [prefisso, setPrefisso] = useState(init.prefisso)
@@ -54,7 +56,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
         telefono_whatsapp: full,
       }).eq('id', orgId)
       if (error) throw error
-      notify?.(full ? '✓ Numero salvato — riceverai il report alle 22:00' : '✓ Report WhatsApp disattivato')
+      notify?.(full ? 'Numero salvato, riceverai il report alle 22:00' : 'Report WhatsApp disattivato')
       onRefresh?.()
     } catch (e) { notify?.(e.message, false) }
     finally { setSaving(false) }
@@ -72,7 +74,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
     try {
       const { error } = await supabase.from('organizations').update({ telefono_whatsapp: null }).eq('id', orgId)
       if (error) throw error
-      notify?.('✓ Report disattivato')
+      notify?.('Report disattivato')
       onRefresh?.()
     } catch (e) { notify?.(e.message, false) }
     finally { setSaving(false) }
@@ -82,7 +84,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
     setTesting(true)
     try {
       await apiFetch('/api/whatsapp-test', { method: 'POST' })
-      notify?.('✓ Messaggio di test inviato — controlla WhatsApp')
+      notify?.('Messaggio di test inviato, controlla WhatsApp')
     } catch (e) { notify?.(e.message, false) }
     finally { setTesting(false) }
   }

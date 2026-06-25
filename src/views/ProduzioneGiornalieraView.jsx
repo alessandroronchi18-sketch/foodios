@@ -5,7 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { ssave as _ssave, ssaveBatch as _ssaveBatch } from '../lib/storage'
 import { supabase } from '../lib/supabase'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateProdottoEN } from '../lib/foodcost'
 import { caricoProduzionePF, scartoPF } from '../lib/stockPF'
@@ -60,7 +60,7 @@ function ProdottiChips({ prodotti }) {
   const nascosti = ordinati.length - visibili.length
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-      {visibili.map(p => <span key={p.nome} style={CHIP_PROD}>{p.stampi}× {p.nome}</span>)}
+      {visibili.map(p => <span key={p.nome} style={CHIP_PROD}>{(Number(p.stampi)||0).toLocaleString('it-IT')}× {p.nome}</span>)}
       {!aperto && nascosti > 0 && (
         <span role="button" tabIndex={0} onMouseEnter={() => setAperto(true)} onClick={() => setAperto(true)}
           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAperto(true) } }}
@@ -80,6 +80,7 @@ function ProdottiChips({ prodotti }) {
 
 export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify, sedi = [], sedeAttiva = null, orgId, sedeId, isDipendente = false, LEX = lessico() }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ricette = Object.values(ricettario?.ricette || {}).filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
     .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it')) // lista prodotti in ordine alfabetico
@@ -614,7 +615,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             const semaforo = !hasQta ? 'Inizia ad aggiungere i prodotti di oggi'
               : margPct >= 60 ? 'Margine sano' : margPct >= 40 ? 'Margine da tenere d’occhio' : 'Margine basso — rivedi i prezzi'
             return (
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
                 <KPI icon={<Icon name="package" size={18} />} label="Stampi totali"
                   value={riepilogo.stampiTot.toLocaleString('it-IT')}
                   sub={riepilogo.nProdotti ? `${riepilogo.nProdotti} prodotti in sessione` : 'nessun prodotto'} />
@@ -638,7 +639,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data produzione</div>
                     <input type="date" value={data} onChange={e => setData(e.target.value)}
-                      style={{ padding: '7px 10px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text }}/>
+                      style={{ padding: '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text }}/>
                   </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
@@ -674,7 +675,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                                 </span>
                                 {q > 0 && reg.unita > 0 && (
                                   <span style={{ fontSize: 8, fontWeight: 700, background: '#FEF7F5', color: C.red, padding: '1px 6px', borderRadius: 3 }}>
-                                    {q} × {reg.unita} = {q * reg.unita} pezzi al banco
+                                    {q} × {reg.unita} = {(q * reg.unita).toLocaleString('it-IT')} pezzi al banco
                                   </span>
                                 )}
                                 {cong && <span style={{ fontSize: 8, fontWeight: 700, background: '#E8F4FF', color: '#2980B9', padding: '1px 6px', borderRadius: 3, display: 'inline-flex', alignItems: 'center', gap: 3 }}><Icon name="snow" size={9} /> congelabile</span>}
@@ -711,13 +712,13 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                   <div style={{ flex: '1 1 240px' }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Note sessione</div>
                     <input type="text" value={sessNote} onChange={e => setSessNote(e.target.value)} placeholder="es. produzione weekend, teglia extra…"
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, boxSizing: 'border-box' }}/>
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, boxSizing: 'border-box' }}/>
                   </div>
                   {haPiuSedi && (
                     <div style={{ flex: '1 1 200px' }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Destinazione</div>
                       <select value={destinazioneSedeId || ''} onChange={e => setDestinazioneSedeId(e.target.value || null)}
-                        style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text, background: C.bgCard, boxSizing: 'border-box' }}>
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.bgCard, boxSizing: 'border-box' }}>
                         <option value="">Questa sede ({sedeAttiva?.nome || '—'})</option>
                         {sediAttive.filter(s => s.id !== sedeAttiva?.id).map(s => (
                           <option key={s.id} value={s.id}>Per: {s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>
@@ -749,7 +750,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           </div>
                           {reg.unita > 1 && (
                             <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>
-                              → <b style={{ color: C.red }}>{pezziVetrina} {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</b> al banco
+                              → <b style={{ color: C.red }}>{pezziVetrina.toLocaleString('it-IT')} {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</b> al banco
                               {q !== qv && <span style={{ color: '#92400E', marginLeft: 6 }}>({qv} vendibili oggi, {q - qv} in freezer)</span>}
                             </div>
                           )}
@@ -794,7 +795,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       const pezzi = qv * (reg.unita || 1)
                       return (
                         <span key={ric.nome} style={{ fontSize: 11, padding: '5px 10px', borderRadius: 6, background: C.white, border: `1px solid ${C.red}25`, color: C.text, fontWeight: 700 }}>
-                          {ric.nome} <span style={{ color: C.red }}>+{pezzi}</span> <span style={{ fontWeight: 500, color: C.textSoft }}>{reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</span>
+                          {ric.nome} <span style={{ color: C.red }}>+{pezzi.toLocaleString('it-IT')}</span> <span style={{ fontWeight: 500, color: C.textSoft }}>{reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</span>
                         </span>
                       )
                     })}
@@ -878,7 +879,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 const mtot = tot.ric - tot.fc
                 const mpct = tot.ric > 0 ? (mtot / tot.ric * 100) : 0
                 return (
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 6 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 6 }}>
                     <KPI icon={<Icon name="calendar" size={18} />} label="Sessioni" value={giornaliero.length.toLocaleString('it-IT')} sub={`${tot.stampi.toLocaleString('it-IT')} stampi totali`} />
                     <KPI icon={<Icon name="money" size={18} />} label="Ricavo potenziale" value={fmt0(tot.ric)} color={C.green} sub="somma sessioni" />
                     <KPI icon={<Icon name="receipt" size={18} />} label="Food cost" value={fmt0(tot.fc)} color={C.red} sub={tot.ric > 0 ? `${fmtp(tot.fc / tot.ric * 100)} sul ricavo` : 'materie prime'} />
@@ -887,40 +888,54 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                 )
               })()}
               {giornaliero.map((sess) => (
-                <div key={sess.id} className={editSessId === sess.id ? undefined : 'fos-tile'} style={{ background: C.bgCard, border: `1px solid ${deleteSessConf?.id === sess.id ? C.red : C.border}`, borderRadius: 16, padding: '16px 20px', boxShadow: SHADOW_PREMIUM }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                    <div style={{ flex: 1 }}>
+                <div key={sess.id} className={editSessId === sess.id ? undefined : 'fos-tile'} style={{ background: C.bgCard, border: `1px solid ${deleteSessConf?.id === sess.id ? C.red : C.border}`, borderRadius: 16, padding: isMobile ? '14px 16px' : '16px 20px', boxShadow: SHADOW_PREMIUM }}>
+                  {/* Header sessione: su mobile in colonna (data sopra, KPI grid, bottoni full-width)
+                      → niente più 4 colonnine schiacciate che fanno wrap caotico. */}
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-start', gap: isMobile ? 12 : 8, marginBottom: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: C.text, fontVariantNumeric: 'tabular-nums', minWidth: 86, display: 'inline-block' }}>{new Date(sess.data).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: C.text, fontVariantNumeric: 'tabular-nums' }}>{new Date(sess.data).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                           <span style={{ fontSize: 12, fontWeight: 600, color: C.textSoft, textTransform: 'capitalize' }}>{new Date(sess.data).toLocaleDateString('it-IT', { weekday: 'long' })}</span>
                         </div>
                         {sess.destinazioneSedeNome && (
                           <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FEF3C7', color: '#92400E', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="truck" size={11} />Per: {sess.destinazioneSedeNome}</span>
                         )}
                       </div>
-                      {sess.note && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{sess.note}</div>}
+                      {sess.note && <div style={{ fontSize: 11, color: C.textSoft, marginTop: 4 }}>{sess.note}</div>}
                     </div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      {!isDipendente && (() => {
-                        const stampiSess = (sess.prodotti || []).reduce((x, p) => x + (Number(p.stampi) || 0), 0)
-                        const margSess = (sess.ricavoTot || 0) - (sess.fcTot || 0)
-                        const mPctSess = (sess.ricavoTot || 0) > 0 ? margSess / sess.ricavoTot * 100 : 0
-                        const mcSess = margColor(mPctSess)
-                        return (
-                          <div style={{ display: 'flex', gap: isMobile ? 12 : 18, textAlign: 'right', alignItems: 'flex-start' }}>
-                            {!isMobile && <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Stampi</div><div style={{ fontSize: 14, fontWeight: 800, color: C.text, ...TNUM }}>{stampiSess.toLocaleString('it-IT')}</div></div>}
-                            <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Ricavo pot.</div><div style={{ fontSize: 14, fontWeight: 800, color: C.green, ...TNUM }}>{fmt0(sess.ricavoTot || 0)}</div></div>
-                            <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Food cost</div><div style={{ fontSize: 14, fontWeight: 800, color: C.red, ...TNUM }}>{fmt0(sess.fcTot || 0)}</div></div>
-                            <div><div style={{ fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700 }}>Margine</div><div style={{ fontSize: 14, fontWeight: 800, color: mcSess, ...TNUM }}>{fmt0(margSess)}</div></div>
-                          </div>
-                        )
-                      })()}
-                      <button onClick={() => editSessId === sess.id ? annullaModifica() : apriModificaSessione(sess)}
-                        style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}>{editSessId === sess.id ? <><Icon name="x" size={11} />Chiudi</> : <><Icon name="edit" size={11} />Modifica</>}</button>
-                      <button onClick={() => { setDeleteSessConf(sess); setDeleteSessPin(''); annullaModifica() }}
-                        style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="trash" size={11} />Elimina</button>
-                    </div>
+                    {!isDipendente && (() => {
+                      const stampiSess = (sess.prodotti || []).reduce((x, p) => x + (Number(p.stampi) || 0), 0)
+                      const margSess = (sess.ricavoTot || 0) - (sess.fcTot || 0)
+                      const mPctSess = (sess.ricavoTot || 0) > 0 ? margSess / sess.ricavoTot * 100 : 0
+                      const mcSess = margColor(mPctSess)
+                      const kpiCell = { display: 'flex', flexDirection: 'column', gap: 2, alignItems: isMobile ? 'flex-start' : 'flex-end', minHeight: isMobile ? 36 : 'auto' }
+                      const kpiLabel = { fontSize: 8, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 700, lineHeight: 1.2 }
+                      const kpiVal   = { fontSize: 14, fontWeight: 800, ...TNUM, lineHeight: 1.1 }
+                      return (
+                        <div style={{
+                          display: isMobile ? 'grid' : 'flex',
+                          gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : undefined,
+                          gap: isMobile ? 8 : 18,
+                          textAlign: isMobile ? 'left' : 'right',
+                          alignItems: 'flex-start',
+                        }}>
+                          {/* "Stampi" mostrato su mobile insieme agli altri per coerenza */}
+                          {isMobile && <div style={kpiCell}><div style={kpiLabel}>Stampi</div><div style={{ ...kpiVal, color: C.text }}>{stampiSess.toLocaleString('it-IT')}</div></div>}
+                          {!isMobile && <div style={kpiCell}><div style={kpiLabel}>Stampi</div><div style={{ ...kpiVal, color: C.text }}>{stampiSess.toLocaleString('it-IT')}</div></div>}
+                          <div style={kpiCell}><div style={kpiLabel}>Ricavo pot.</div><div style={{ ...kpiVal, color: C.green }}>{fmt0(sess.ricavoTot || 0)}</div></div>
+                          <div style={kpiCell}><div style={kpiLabel}>Food cost</div><div style={{ ...kpiVal, color: C.red }}>{fmt0(sess.fcTot || 0)}</div></div>
+                          {!isMobile && <div style={kpiCell}><div style={kpiLabel}>Margine</div><div style={{ ...kpiVal, color: mcSess }}>{fmt0(margSess)}</div></div>}
+                          {isMobile && <div style={{ ...kpiCell, gridColumn: 'span 3', alignItems: 'flex-start', borderTop: `1px dashed ${C.border}`, paddingTop: 6 }}><div style={kpiLabel}>Margine</div><div style={{ ...kpiVal, color: mcSess }}>{fmt0(margSess)}</div></div>}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                    <button onClick={() => editSessId === sess.id ? annullaModifica() : apriModificaSessione(sess)}
+                      style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 14px' : '6px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, background: C.white, color: C.textMid, fontSize: isMobile ? 12 : 10, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>{editSessId === sess.id ? <><Icon name="x" size={isMobile ? 13 : 11} />Chiudi</> : <><Icon name="edit" size={isMobile ? 13 : 11} />Modifica</>}</button>
+                    <button onClick={() => { setDeleteSessConf(sess); setDeleteSessPin(''); annullaModifica() }}
+                      style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 14px' : '6px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 6, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: isMobile ? 12 : 10, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}><Icon name="trash" size={isMobile ? 13 : 11} />Elimina</button>
                   </div>
                   {editSessId === sess.id ? (
                     <div style={{ marginTop: 12, padding: '14px 16px', background: '#F8F4F2', border: `1px solid ${C.borderStr}`, borderRadius: 10 }}>
@@ -933,28 +948,28 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft, textAlign: 'center' }}>Vendibili</div>
                       </div>
                       {(sess.prodotti || []).map(p => (
-                        <div key={p.nome} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 64px 64px' : '1fr 90px 90px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
+                        <div key={p.nome} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 70px 70px' : '1fr 90px 90px', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontSize: isMobile ? 12 : 11, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome}</span>
                           <input type="number" min="0" inputMode="decimal" value={editRows[p.nome]?.stampi ?? ''} disabled={editConfirm}
                             onChange={e => setEditRows(m => ({ ...m, [p.nome]: { ...m[p.nome], stampi: e.target.value } }))}
-                            style={{ padding: '7px 8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right' }}/>
+                            style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, textAlign: 'right', minHeight: isMobile ? 40 : 'auto' }}/>
                           <input type="number" min="0" inputMode="decimal" value={editRows[p.nome]?.vendibile ?? ''} disabled={editConfirm}
                             onChange={e => setEditRows(m => ({ ...m, [p.nome]: { ...m[p.nome], vendibile: e.target.value } }))}
-                            style={{ padding: '7px 8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: 12, color: C.text, background: C.white, textAlign: 'right' }}/>
+                            style={{ padding: '8px', borderRadius: 7, border: `1px solid ${C.border}`, fontSize: isMobile ? 16 : 12, color: C.text, background: C.white, textAlign: 'right', minHeight: isMobile ? 40 : 'auto' }}/>
                         </div>
                       ))}
                       {!editConfirm ? (
                         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                          <button onClick={() => setEditConfirm(true)} style={{ flex: 1, padding: '9px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer' }}>Salva modifiche</button>
-                          <button onClick={annullaModifica} style={{ padding: '9px 14px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Annulla</button>
+                          <button onClick={() => setEditConfirm(true)} style={{ flex: 1, padding: '11px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>Salva modifiche</button>
+                          <button onClick={annullaModifica} style={{ padding: '11px 16px', minHeight: 44, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Annulla</button>
                         </div>
                       ) : (
                         <div style={{ marginTop: 12, padding: '12px 14px', background: '#FFF8EE', border: `1px solid ${C.amber}`, borderRadius: 8 }}>
-                          <div style={{ fontSize: 11, fontWeight: 800, color: C.amber, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />Confermi le modifiche?</div>
-                          <div style={{ fontSize: 10, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>Questa azione riallinea il <b>magazzino</b> (ingredienti) e la <b>vetrina</b> (stock prodotti finiti) in base alle nuove quantità. Non è automaticamente reversibile.</div>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={() => salvaModificheSessione(sess)} disabled={savingEdit} style={{ flex: 1, padding: '9px', background: C.amber, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: savingEdit ? 'not-allowed' : 'pointer', opacity: savingEdit ? 0.6 : 1 }}>{savingEdit ? 'Salvataggio…' : 'Sì, conferma e aggiorna'}</button>
-                            <button onClick={() => setEditConfirm(false)} disabled={savingEdit} style={{ padding: '9px 14px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Indietro</button>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />Confermi le modifiche?</div>
+                          <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>Questa azione riallinea il <b>magazzino</b> (ingredienti) e la <b>vetrina</b> (stock prodotti finiti) in base alle nuove quantità. Non è automaticamente reversibile.</div>
+                          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8 }}>
+                            <button onClick={() => salvaModificheSessione(sess)} disabled={savingEdit} style={{ flex: 1, padding: '11px', minHeight: 44, background: C.amber, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: savingEdit ? 'not-allowed' : 'pointer', opacity: savingEdit ? 0.6 : 1 }}>{savingEdit ? 'Salvataggio…' : 'Sì, conferma e aggiorna'}</button>
+                            <button onClick={() => setEditConfirm(false)} disabled={savingEdit} style={{ padding: '11px 16px', minHeight: 44, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Indietro</button>
                           </div>
                         </div>
                       )}
@@ -979,7 +994,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0 12px' }}>
               {(deleteSessConf.prodotti || []).map(p => (
-                <span key={p.nome} style={{ background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 5, padding: '3px 9px', fontSize: 10, fontWeight: 700, color: C.textMid }}>{p.stampi}× {p.nome}</span>
+                <span key={p.nome} style={{ background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 5, padding: '3px 9px', fontSize: 10, fontWeight: 700, color: C.textMid }}>{(Number(p.stampi)||0).toLocaleString('it-IT')}× {p.nome}</span>
               ))}
             </div>
             {deleteSessConf.ingredientiUsati && Object.keys(deleteSessConf.ingredientiUsati).length > 0 ? (
@@ -1002,14 +1017,14 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
             <input autoFocus value={deleteSessPin} onChange={e => setDeleteSessPin(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleDeleteSessione(deleteSessConf) }}
               placeholder="ELIMINA"
-              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 7, border: `2px solid ${deleteSessPin === 'ELIMINA' ? C.red : '#DDD'}`, fontSize: 14, fontWeight: 800, color: C.red, letterSpacing: '0.1em', marginBottom: 16, outline: 'none' }}/>
-            <div style={{ display: 'flex', gap: 10 }}>
+              style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 7, border: `2px solid ${deleteSessPin === 'ELIMINA' ? C.red : '#DDD'}`, fontSize: isMobile ? 16 : 14, fontWeight: 800, color: C.red, letterSpacing: '0.1em', marginBottom: 16, outline: 'none', minHeight: 44 }}/>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10 }}>
               <button onClick={() => handleDeleteSessione(deleteSessConf)}
                 disabled={deleteSessPin !== 'ELIMINA' || deletingSess}
-                style={{ flex: 1, padding: '11px', background: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.red : '#EEE', color: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.white : '#AAA', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: (deleteSessPin === 'ELIMINA' && !deletingSess) ? 'pointer' : 'not-allowed' }}>
+                style={{ flex: 1, padding: '12px', minHeight: 44, background: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.red : '#EEE', color: (deleteSessPin === 'ELIMINA' && !deletingSess) ? C.white : '#AAA', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, cursor: (deleteSessPin === 'ELIMINA' && !deletingSess) ? 'pointer' : 'not-allowed' }}>
                 {deletingSess ? 'Eliminazione…' : 'Elimina e reintegra magazzino'}
               </button>
-              <button onClick={() => { setDeleteSessConf(null); setDeleteSessPin('') }} disabled={deletingSess} style={{ flex: 1, padding: '11px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: deletingSess ? 'not-allowed' : 'pointer', opacity: deletingSess ? 0.6 : 1 }}>Annulla</button>
+              <button onClick={() => { setDeleteSessConf(null); setDeleteSessPin('') }} disabled={deletingSess} style={{ flex: 1, padding: '12px', minHeight: 44, background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: deletingSess ? 'not-allowed' : 'pointer', opacity: deletingSess ? 0.6 : 1 }}>Annulla</button>
             </div>
           </div>
         </div>

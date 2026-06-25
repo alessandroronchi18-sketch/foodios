@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
@@ -35,7 +35,7 @@ function catColor(name) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Banda diagnosi (KPI condivisi) — n° attivi, spesa periodo, top fornitore, categorie
 // ─────────────────────────────────────────────────────────────────────────────
-function BandaDiagnosi({ orgId, sedeId, isMobile, refreshKey }) {
+function BandaDiagnosi({ orgId, sedeId, isMobile, isTablet, refreshKey }) {
   const [stats, setStats] = useState(null)
 
   useEffect(() => {
@@ -67,7 +67,7 @@ function BandaDiagnosi({ orgId, sedeId, isMobile, refreshKey }) {
   const s = stats || { attivi: 0, categorie: 0, spesa: 0, topNome: "—", topTot: 0 }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, marginBottom: isMobile ? 16 : 24 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, marginBottom: isMobile ? 16 : 24 }}>
       <KPI label="Fornitori attivi" value={s.attivi.toLocaleString('it-IT')} icon={<Icon name="truck" size={17} />} />
       <KPI label="Spesa 30gg" value={fmt0(s.spesa)} sub="ordini ricevuti" color={T.brand} highlight icon={<Icon name="money" size={17} />} />
       <KPI label="Top fornitore" value={s.topNome} sub={s.topTot > 0 ? `${fmt0(s.topTot)} · 30gg` : "—"} icon={<Icon name="trophy" size={17} />} />
@@ -838,6 +838,7 @@ function SpesaTab({ orgId, isMobile }) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Fornitori({ orgId, sedeId, sedi = [], notify }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [tab, setTab] = useState("fornitori")
   const [refreshKey, setRefreshKey] = useState(0)
   const bumpRefresh = () => setRefreshKey(k => k + 1)
@@ -848,7 +849,7 @@ export default function Fornitori({ orgId, sedeId, sedi = [], notify }) {
       <PageHeader subtitle="Gestisci l'anagrafica fornitori (con IBAN, termini di pagamento e categoria), registra gli ordini e analizza la spesa nel tempo." />
 
       {/* Banda diagnosi */}
-      <BandaDiagnosi orgId={orgId} sedeId={sedeId} isMobile={isMobile} refreshKey={refreshKey} />
+      <BandaDiagnosi orgId={orgId} sedeId={sedeId} isMobile={isMobile} isTablet={isTablet} refreshKey={refreshKey} />
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 2, marginBottom: isMobile ? 16 : 24, borderBottom: `1px solid ${T.border}`, overflowX: isMobile ? "auto" : "visible" }}>

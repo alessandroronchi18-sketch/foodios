@@ -13,7 +13,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
 import AiPageHero from '../components/AiPageHero'
@@ -46,6 +46,7 @@ const TIPI_EVENTO = [
 export default function CashflowView({ orgId, sedeId, notify }) {
   const notifyFn = notify || ((m) => { try { console.debug('[cashflow]', m) } catch {} })
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const [chiusure, setChiusure] = useState([])
   const [fatture, setFatture] = useState([])
@@ -238,22 +239,22 @@ export default function CashflowView({ orgId, sedeId, notify }) {
       ) : (
         <>
           {/* Setup saldo oggi */}
-          <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <div>
+          <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: isMobile ? 14 : 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 16, flexWrap: 'wrap' }}>
+              <div style={{ flex: isMobile ? '1 1 100%' : 'none' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 4 }}>
                   Saldo cassa+banca oggi
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: 18, fontWeight: 700, color: MID }}>€</span>
-                  <input type="number" value={settings.saldoOggi || ''}
+                  <input type="number" inputMode="decimal" value={settings.saldoOggi || ''}
                     onChange={e => salvaSaldo(e.target.value)}
                     placeholder="0"
-                    style={{ width: 140, padding: '8px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 16, fontWeight: 700, color: TXT, fontFamily: 'inherit' }} />
+                    style={{ width: isMobile ? '100%' : 140, maxWidth: 200, padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 16, fontWeight: 700, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box' }} />
                 </div>
               </div>
               <div style={{ flex: 1, minWidth: 200, fontSize: 12, color: SOFT, lineHeight: 1.5 }}>
-                Inserisci quanto hai oggi su conto corrente + cassa. L'AI proietta il futuro in base a media ricavi (60gg) + scadenze.
+                Inserisci quanto hai oggi su conto corrente + cassa. La proiezione usa la media ricavi degli ultimi 60 giorni e le scadenze in calendario.
               </div>
             </div>
             {(!settings.saldoOggi || Number(settings.saldoOggi) === 0) && (
@@ -273,7 +274,7 @@ export default function CashflowView({ orgId, sedeId, notify }) {
           </div>
 
           {/* KPI scenari */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
             {finaleAtteso && (
               <>
                 <KPI label={`Cassa fra ${orizzonte}gg (atteso)`} value={`€ ${fmt0(finaleAtteso.saldoAtteso)}`} color={finaleAtteso.saldoAtteso >= 0 ? GREEN : BRAND} />
@@ -348,19 +349,19 @@ export default function CashflowView({ orgId, sedeId, notify }) {
             </div>
 
             {showAddEvento && (
-              <div style={{ background: '#FAFAF6', borderRadius: 8, padding: 12, marginBottom: 12, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)', gap: 8, alignItems: 'end' }}>
+              <div style={{ background: '#FAFAF6', borderRadius: 8, padding: 12, marginBottom: 12, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: 8, alignItems: 'end' }}>
                 <select value={newEv.tipo} onChange={e => setNewEv(s => ({ ...s, tipo: e.target.value }))}
-                  style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 12 }}>
+                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 13, background: '#FFF' }}>
                   {TIPI_EVENTO.map(t => <option key={t.id} value={t.id}>{t.lbl}</option>)}
                 </select>
                 <input value={newEv.descrizione} onChange={e => setNewEv(s => ({ ...s, descrizione: e.target.value }))} placeholder="Descrizione"
-                  style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 12, gridColumn: isMobile ? '1 / -1' : 'span 2' }}/>
+                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 13, gridColumn: isMobile ? 'auto' : 'span 2' }}/>
                 <input type="date" value={newEv.data_attesa} onChange={e => setNewEv(s => ({ ...s, data_attesa: e.target.value }))}
-                  style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 12 }}/>
+                  style={{ padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 13 }}/>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input type="number" value={newEv.importo} onChange={e => setNewEv(s => ({ ...s, importo: e.target.value }))} placeholder="€"
-                    style={{ width: '70%', padding: '8px 10px', borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: 12 }}/>
-                  <button onClick={aggiungiEvento} style={{ flex: 1, background: GREEN, color: '#FFF', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>OK</button>
+                  <input type="number" inputMode="decimal" value={newEv.importo} onChange={e => setNewEv(s => ({ ...s, importo: e.target.value }))} placeholder="€"
+                    style={{ width: '70%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 13 }}/>
+                  <button onClick={aggiungiEvento} style={{ flex: 1, minHeight: 44, background: GREEN, color: '#FFF', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>OK</button>
                 </div>
               </div>
             )}
@@ -372,17 +373,17 @@ export default function CashflowView({ orgId, sedeId, notify }) {
             ) : (
               <div>
                 {eventi.slice(0, 12).map(e => (
-                  <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: `1px solid ${BORDER}` }}>
-                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: e.tipo === 'entrata' ? '#F0FDF4' : '#FEF2F2', color: e.tipo === 'entrata' ? GREEN : BRAND, fontWeight: 700 }}>
+                  <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: `1px solid ${BORDER}`, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 999, background: e.tipo === 'entrata' ? '#F0FDF4' : '#FEF2F2', color: e.tipo === 'entrata' ? GREEN : BRAND, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', flexShrink: 0 }}>
                       {e.tipo}
                     </span>
-                    <span style={{ flex: 1, fontSize: 13, color: TXT }}>{e.descrizione}</span>
-                    <span style={{ fontSize: 11, color: SOFT }}>{e.data_attesa}</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: e.tipo === 'entrata' ? GREEN : BRAND }}>
-                      {e.tipo === 'entrata' ? '+' : '-'}€{fmt0(e.importo)}
+                    <span style={{ flex: 1, minWidth: isMobile ? 140 : 200, fontSize: 13, color: TXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.descrizione}</span>
+                    <span style={{ fontSize: 11, color: SOFT, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{e.data_attesa}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: e.tipo === 'entrata' ? GREEN : BRAND, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      {e.tipo === 'entrata' ? '+' : '−'}€ {fmt0(e.importo)}
                     </span>
-                    <button onClick={() => eliminaEvento(e.id)} style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 4 }}>
-                      <Icon name="x" size={13}/>
+                    <button onClick={() => eliminaEvento(e.id)} aria-label={`Elimina evento ${e.descrizione}`} style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 8, minWidth: 40, minHeight: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon name="x" size={14}/>
                     </button>
                   </div>
                 ))}
@@ -397,10 +398,12 @@ export default function CashflowView({ orgId, sedeId, notify }) {
 
 function KPI({ label, value, color, sub }) {
   return (
-    <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 14px' }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 900, color: color || TXT, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      {sub && <div style={{ fontSize: 10.5, color: SOFT, marginTop: 2 }}>{sub}</div>}
+    <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: SOFT, letterSpacing: '0.06em', textTransform: 'uppercase', minHeight: 24, lineHeight: 1.2 }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 900, color: color || TXT, marginTop: 4, fontVariantNumeric: 'tabular-nums', minHeight: 26, lineHeight: 1.1 }}>{value}</div>
+      {sub
+        ? <div style={{ fontSize: 10.5, color: SOFT, marginTop: 2, minHeight: 22, lineHeight: 1.35 }}>{sub}</div>
+        : <div style={{ minHeight: 22, marginTop: 2 }}/>}
     </div>
   )
 }

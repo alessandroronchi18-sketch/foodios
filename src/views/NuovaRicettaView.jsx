@@ -246,12 +246,13 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 12, letterSpacing: "-0.005em", display: "flex", alignItems: "center", gap: 8 }}>
             <Icon name="edit" size={14} /> Modifica ricetta esistente
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 6 }}>
             {ricetteEsistenti.map(n => (
               <button key={n} onClick={() => loadForEdit(n)}
-                style={{ padding: "6px 14px", borderRadius: R.full, border: `1px solid ${editMode === n ? T.brand : T.border}`,
+                style={{ padding: isMobile ? "10px 14px" : "6px 14px", minHeight: isMobile ? 40 : 'auto', borderRadius: R.full, border: `1px solid ${editMode === n ? T.brand : T.border}`,
                   background: editMode === n ? T.brandLight : T.bgCard, color: editMode === n ? T.brand : T.textMid,
-                  fontSize: 12, fontWeight: editMode === n ? 600 : 500, cursor: "pointer", letterSpacing: "-0.005em",
+                  fontSize: isMobile ? 13 : 12, fontWeight: editMode === n ? 600 : 500, cursor: "pointer", letterSpacing: "-0.005em",
+                  maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   transition: `background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}` }}>
                 {n}
               </button>
@@ -263,35 +264,37 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           {/* Delete ricetta */}
           <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
             {deleteConf === null ? (
-              <button onClick={() => setDeleteConf("")} style={{ fontSize: 10, fontWeight: 700, color: C.red, background: "transparent", border: `1px solid ${C.red}22`, borderRadius: 6, padding: "4px 12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <Icon name="trash" size={12} /> Elimina una ricetta…
+              <button onClick={() => setDeleteConf("")} style={{ fontSize: isMobile ? 12 : 10, fontWeight: 700, color: C.red, background: "transparent", border: `1px solid ${C.red}22`, borderRadius: 6, padding: isMobile ? "10px 14px" : "4px 12px", minHeight: isMobile ? 40 : 'auto', cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Icon name="trash" size={13} /> Elimina una ricetta…
               </button>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.text }}>Seleziona la ricetta da eliminare:</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 700, color: C.text }}>Seleziona la ricetta da eliminare:</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 6 }}>
                   {ricetteEsistenti.map(n => (
                     <button key={n} onClick={() => setDeleteConf(n)}
-                      style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${deleteConf === n ? C.red : C.border}`, background: deleteConf === n ? C.redLight : C.white, color: deleteConf === n ? C.red : C.textMid, fontSize: 10, fontWeight: deleteConf === n ? 800 : 500, cursor: "pointer" }}>
+                      style={{ padding: isMobile ? "10px 14px" : "4px 12px", minHeight: isMobile ? 40 : 'auto', borderRadius: 6, border: `1px solid ${deleteConf === n ? C.red : C.border}`, background: deleteConf === n ? C.redLight : C.white, color: deleteConf === n ? C.red : C.textMid, fontSize: isMobile ? 12 : 10, fontWeight: deleteConf === n ? 800 : 500, cursor: "pointer", maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {n}
                     </button>
                   ))}
                 </div>
                 {deleteConf && (
                   <div style={{ background: "#FFF5F5", border: `1px solid ${C.red}30`, borderRadius: 8, padding: "12px 14px" }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}><Icon name="warning" size={13} /> Stai per eliminare <b>{deleteConf}</b> in modo permanente.</div>
-                    <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 8 }}>Scrivi <b>ELIMINA</b> in maiuscolo per confermare:</div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: isMobile ? 12 : 11, fontWeight: 700, color: C.red, marginBottom: 6, display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}><Icon name="warning" size={14} /> <span>Stai per eliminare <b>{deleteConf}</b> in modo permanente.</span></div>
+                    <div style={{ fontSize: isMobile ? 11.5 : 10, color: C.textSoft, marginBottom: 10 }}>Scrivi <b>ELIMINA</b> in maiuscolo per confermare:</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isMobile ? "column" : "row" }}>
                       <input value={deletePin} onChange={e => setDeletePin(e.target.value)} placeholder="ELIMINA"
-                        style={{ flex: 1, minWidth: 120, padding: "7px 10px", borderRadius: 6, border: `1px solid ${deletePin === "ELIMINA" ? C.red : C.borderStr}`, fontSize: 16, fontWeight: 700, color: C.red, letterSpacing: "0.08em" }} />
-                      <button onClick={() => handleDeleteRicetta(deleteConf)}
-                        style={{ padding: "7px 16px", background: deletePin === "ELIMINA" ? C.red : "#EEE", color: deletePin === "ELIMINA" ? C.white : C.textSoft, border: "none", borderRadius: 6, fontSize: 11, fontWeight: 800, cursor: deletePin === "ELIMINA" ? "pointer" : "default" }}>
-                        Elimina
-                      </button>
-                      <button onClick={() => { setDeleteConf(null); setDeletePin(""); }}
-                        style={{ padding: "7px 12px", background: "transparent", color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11, cursor: "pointer" }}>
-                        Annulla
-                      </button>
+                        style={{ flex: 1, minWidth: 120, padding: "10px 12px", borderRadius: 6, border: `1px solid ${deletePin === "ELIMINA" ? C.red : C.borderStr}`, fontSize: 16, fontWeight: 700, color: C.red, letterSpacing: "0.08em", boxSizing: 'border-box' }} />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => handleDeleteRicetta(deleteConf)}
+                          style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? "12px 16px" : "7px 16px", minHeight: isMobile ? 44 : 'auto', background: deletePin === "ELIMINA" ? C.red : "#EEE", color: deletePin === "ELIMINA" ? C.white : C.textSoft, border: "none", borderRadius: 6, fontSize: isMobile ? 13 : 11, fontWeight: 800, cursor: deletePin === "ELIMINA" ? "pointer" : "default" }}>
+                          Elimina
+                        </button>
+                        <button onClick={() => { setDeleteConf(null); setDeletePin(""); }}
+                          style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? "12px 14px" : "7px 12px", minHeight: isMobile ? 44 : 'auto', background: "transparent", color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: isMobile ? 13 : 11, cursor: "pointer" }}>
+                          Annulla
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -302,12 +305,12 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       )}
 
       {/* FOTO OCR */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, padding: "8px 12px", background: C.amberLight, borderRadius: 8, border: `1px solid ${C.amber}40`, flexWrap: "wrap" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", fontSize: 11, color: C.amber, fontWeight: 700 }}>
-          <input type="checkbox" checked={forceOverwrite} onChange={e => setForceOverwrite(e.target.checked)} style={{ width: 16, height: 16, cursor: "pointer" }} />
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? 6 : 10, marginBottom: 8, padding: isMobile ? "10px 12px" : "8px 12px", background: C.amberLight, borderRadius: 8, border: `1px solid ${C.amber}40`, flexWrap: "wrap" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: isMobile ? 12 : 11, color: C.amber, fontWeight: 700, minHeight: isMobile ? 40 : 'auto', lineHeight: 1.35 }}>
+          <input type="checkbox" checked={forceOverwrite} onChange={e => setForceOverwrite(e.target.checked)} style={{ width: 18, height: 18, cursor: "pointer", flexShrink: 0 }} />
           Sovrascrivi ricette già esistenti (per aggiornamenti da foto)
         </label>
-        <span style={{ fontSize: 9, color: C.textSoft }}>Disattivato = le ricette con lo stesso nome vengono saltate</span>
+        <span style={{ fontSize: isMobile ? 10.5 : 9, color: C.textSoft, lineHeight: 1.4 }}>Disattivato = le ricette con lo stesso nome vengono saltate</span>
       </div>
       <FotoOCR mode="ricetta" notify={notify} ricettario={ricettario}
         onResult={res => {
@@ -388,12 +391,12 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   placeholder="es. Torte" list="cat-autocomplete"
                   style={inputBase} />
                 <datalist id="cat-autocomplete">{CATEGORIE.map(c => <option key={c} value={c} />)}</datalist>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 5, marginTop: 8 }}>
                   {CATEGORIE.map(c => {
                     const sel = (form.categoria || "").trim().toLowerCase() === c.toLowerCase();
                     return (
                       <button key={c} type="button" onClick={() => setForm(f => ({ ...f, categoria: c }))}
-                        style={{ padding: "4px 11px", borderRadius: R.full, border: `1px solid ${sel ? C.red : C.border}`, background: sel ? C.redLight : C.white, color: sel ? C.red : C.textMid, fontSize: 11, fontWeight: sel ? 700 : 500, cursor: "pointer" }}>
+                        style={{ padding: isMobile ? "10px 14px" : "4px 11px", minHeight: isMobile ? 40 : 'auto', borderRadius: R.full, border: `1px solid ${sel ? C.red : C.border}`, background: sel ? C.redLight : C.white, color: sel ? C.red : C.textMid, fontSize: isMobile ? 13 : 11, fontWeight: sel ? 700 : 500, cursor: "pointer" }}>
                         {c}
                       </button>
                     );
@@ -470,7 +473,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   <thead>
                     <tr style={{ background: "#F8F4F2" }}>
                       {[["Ingrediente", null], ["g / stampo", "Grammi di ingrediente per uno stampo"], ["Costo €", "Costo dell'ingrediente per uno stampo"], ["", null]].map(([h, tip], i) => (
-                        <th key={i} title={tip || undefined} style={{ padding: "8px 10px", textAlign: i === 0 ? "left" : "right", fontSize: 8, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", ...(tip ? { cursor: "help", textDecoration: "underline dotted", textUnderlineOffset: 3 } : null) }}>{h}</th>
+                        <th key={i} title={tip || undefined} style={{ padding: "8px 10px", textAlign: i === 0 ? "left" : "right", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", ...(tip ? { cursor: "help", textDecoration: "underline dotted", textUnderlineOffset: 3 } : null) }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -480,11 +483,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       const costo = c ? parseFloat((ing.qty1stampo * c.costoG).toFixed(3)) : 0;
                       return (
                         <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : "#FDFAF7" }}>
-                          <td style={{ padding: "7px 10px", fontWeight: 600, color: C.text }}>
-                            <span title={ing.nome} style={{ display: "inline-block", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{ing.nome}</span>
-                            {!c && <span style={{ fontSize: 7, marginLeft: 4, background: C.amberLight, color: C.amber, padding: "1px 4px", borderRadius: 3, fontWeight: 700, whiteSpace: "nowrap" }}>prezzo mancante</span>}
+                          <td style={{ padding: "9px 10px", fontWeight: 600, color: C.text }}>
+                            <span title={ing.nome} style={{ display: "inline-block", maxWidth: isMobile ? 130 : 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{ing.nome}</span>
+                            {!c && <span style={{ fontSize: 9, marginLeft: 6, background: C.amberLight, color: C.amber, padding: "2px 6px", borderRadius: 3, fontWeight: 700, whiteSpace: "nowrap" }}>prezzo mancante</span>}
                           </td>
-                          <td style={{ padding: "4px 10px", textAlign: "right" }}>
+                          <td style={{ padding: "6px 10px", textAlign: "right" }}>
                             <input type="number" min="0" value={ing.qty1stampo}
                               aria-label={`Grammi per stampo di ${ing.nome}`}
                               onChange={e => {
@@ -492,12 +495,12 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                                 n[i] = { ...n[i], qty1stampo: parseFloat(e.target.value) || 0 };
                                 setForm(f => ({ ...f, ingredienti: n }));
                               }}
-                              style={{ width: 76, padding: "5px 7px", borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 16, textAlign: "right", fontWeight: 700, color: C.text, background: C.white }} />
-                            <span style={{ fontSize: 9, color: C.textSoft, marginLeft: 3 }}>g</span>
+                              style={{ width: 80, padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 16, textAlign: "right", fontWeight: 700, color: C.text, background: C.white }} />
+                            <span style={{ fontSize: 10, color: C.textSoft, marginLeft: 4 }}>g</span>
                           </td>
-                          <td style={{ padding: "7px 10px", textAlign: "right", color: costo > 0 ? C.red : C.textSoft, fontWeight: 600, ...TNUM }}>{costo > 0 ? fmt(costo) : "—"}</td>
-                          <td style={{ padding: "7px 6px", textAlign: "right" }}>
-                            <button aria-label="Rimuovi ingrediente" onClick={() => removeIng(i)} style={{ padding: "3px 8px", borderRadius: 4, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, fontSize: 11, cursor: "pointer", display: "inline-flex", alignItems: "center" }}><Icon name="trash" size={12} /></button>
+                          <td style={{ padding: "9px 10px", textAlign: "right", color: costo > 0 ? C.red : C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap' }}>{costo > 0 ? fmt(costo) : "—"}</td>
+                          <td style={{ padding: "6px 6px", textAlign: "right" }}>
+                            <button aria-label="Rimuovi ingrediente" onClick={() => removeIng(i)} style={{ padding: 0, width: 40, height: 40, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, fontSize: 11, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: 'center' }}><Icon name="trash" size={14} /></button>
                           </td>
                         </tr>
                       );
@@ -523,7 +526,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   placeholder="es. 200"
                   style={{ ...inputBase, fontSize: isMobile ? 16 : 14, padding: "9px 11px" }} />
               </div>
-              <button onClick={addIng} style={{ padding: "10px 16px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", height: 42, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <button onClick={addIng} style={{ padding: "10px 16px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontSize: isMobile ? 14 : 12, fontWeight: 700, cursor: "pointer", height: isMobile ? 46 : 42, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: isMobile ? '100%' : 'auto' }}>
                 <Icon name="plus" size={14} /> Aggiungi
               </button>
             </div>
@@ -583,17 +586,17 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </div>
               <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10 }}>La ricetta esistente verrà sostituita con i nuovi ingredienti e dati.</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={doSaveRicetta} disabled={saving} style={{ padding: "9px 18px", background: C.amber, color: C.white, border: "none", borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <Icon name="checkCircle" size={13} /> {saving ? "Salvataggio…" : "Sì, sovrascrivi"}
+                <button onClick={doSaveRicetta} disabled={saving} style={{ padding: isMobile ? "12px 18px" : "9px 18px", minHeight: isMobile ? 44 : 'auto', background: C.amber, color: C.white, border: "none", borderRadius: 8, fontWeight: 800, fontSize: isMobile ? 13 : 12, cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6, flex: isMobile ? '1 1 auto' : 'unset', justifyContent: 'center' }}>
+                  <Icon name="checkCircle" size={14} /> {saving ? "Salvataggio…" : "Sì, sovrascrivi"}
                 </button>
-                <button onClick={() => setOverwriteConf(null)} disabled={saving} style={{ padding: "9px 14px", background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, color: C.textMid, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <Icon name="x" size={12} /> Annulla
+                <button onClick={() => setOverwriteConf(null)} disabled={saving} style={{ padding: isMobile ? "12px 14px" : "9px 14px", minHeight: isMobile ? 44 : 'auto', background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, color: C.textMid, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, justifyContent: 'center' }}>
+                  <Icon name="x" size={13} /> Annulla
                 </button>
               </div>
             </div>
           )}
-          <button onClick={handleSave} disabled={saving} style={{ padding: "14px", background: C.red, color: C.white, border: "none", borderRadius: 10, fontWeight: 900, fontSize: 14, cursor: saving ? "default" : "pointer", opacity: saving ? 0.65 : 1, boxShadow: "0 2px 10px rgba(110,14,26,0.25)", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-            <Icon name="save" size={16} /> {saving ? "Salvataggio…" : (editMode ? `Salva modifiche a ${editMode}` : `Salva ${LEX.nuovaRicetta.toLowerCase()}`)}
+          <button onClick={handleSave} disabled={saving} style={{ padding: isMobile ? "16px" : "14px", minHeight: isMobile ? 52 : 'auto', background: C.red, color: C.white, border: "none", borderRadius: 10, fontWeight: 900, fontSize: isMobile ? 15 : 14, cursor: saving ? "default" : "pointer", opacity: saving ? 0.65 : 1, boxShadow: "0 2px 10px rgba(110,14,26,0.25)", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: isMobile ? '100%' : 'auto' }}>
+            <Icon name="save" size={16} /> <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{saving ? "Salvataggio…" : (editMode ? `Salva modifiche a ${editMode}` : `Salva ${LEX.nuovaRicetta.toLowerCase()}`)}</span>
           </button>
         </div>
 
@@ -666,7 +669,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <div style={{ display: "flex", gap: 3, padding: 3, background: C.bgSubtle, borderRadius: R.md }}>
                   {[25, 28, 30, 33, 35].map(t => (
                     <button key={t} onClick={() => setTargetPct(t)}
-                      style={{ flex: 1, padding: "6px 4px", borderRadius: R.sm, border: "none", cursor: "pointer", fontSize: 12, fontWeight: targetPct === t ? 700 : 500, ...TNUM, background: targetPct === t ? C.bgCard : "transparent", color: targetPct === t ? C.red : C.textSoft, boxShadow: targetPct === t ? "0 1px 2px rgba(15,23,42,0.08)" : "none" }}>{t}%</button>
+                      style={{ flex: 1, padding: isMobile ? "10px 4px" : "6px 4px", minHeight: isMobile ? 40 : 'auto', borderRadius: R.sm, border: "none", cursor: "pointer", fontSize: isMobile ? 13 : 12, fontWeight: targetPct === t ? 700 : 500, ...TNUM, background: targetPct === t ? C.bgCard : "transparent", color: targetPct === t ? C.red : C.textSoft, boxShadow: targetPct === t ? "0 1px 2px rgba(15,23,42,0.08)" : "none" }}>{t}%</button>
                   ))}
                 </div>
               </div>
@@ -690,8 +693,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     </div>
                   )}
                   <button type="button" onClick={() => setForm(f => ({ ...f, prezzo: live.prezzoConsigliato }))}
-                    style={{ marginTop: 10, width: "100%", padding: "9px", background: C.white, color: C.red, border: `1px solid ${C.red}`, borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                    <Icon name="check" size={13} /> Usa questo prezzo
+                    style={{ marginTop: 10, width: "100%", padding: isMobile ? "13px" : "9px", minHeight: isMobile ? 44 : 'auto', background: C.white, color: C.red, border: `1px solid ${C.red}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    <Icon name="check" size={14} /> Usa questo prezzo
                   </button>
                 </>
               ) : (

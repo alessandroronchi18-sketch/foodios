@@ -261,21 +261,30 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <PageHeader subtitle="Quadratura settimanale: l'inventario dice quanto e' uscito (kg), la cassa quanto e' entrato (€). Il drift indica dove guardare." />
 
-      {/* Toolbar settimana */}
+      {/* Toolbar settimana — su mobile: nav prec/oggi/succ in riga, etichetta sopra, export sotto */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
+        display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, marginBottom: 20,
         background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
-        padding: '12px 16px',
+        padding: isMobile ? '12px 12px' : '12px 16px',
+        flexWrap: 'wrap',
       }}>
-        <button onClick={settimanaPrec} style={btnNav}>← Sett. prec.</button>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Settimana</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{fmtRange(lunediIso)}</div>
-        </div>
-        <button onClick={oggi} style={btnNav}>Questa sett.</button>
-        <button onClick={settimanaSucc} style={btnNav}>Sett. succ. →</button>
+        {isMobile && (
+          <div style={{ flex: '1 1 100%', textAlign: 'center', marginBottom: 4 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Settimana</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{fmtRange(lunediIso)}</div>
+          </div>
+        )}
+        <button onClick={settimanaPrec} aria-label="Settimana precedente" style={{ ...btnNav, padding: isMobile ? '10px 12px' : '8px 14px' }}>← {isMobile ? '' : 'Sett. prec.'}</button>
+        {!isMobile && (
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Settimana</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{fmtRange(lunediIso)}</div>
+          </div>
+        )}
+        <button onClick={oggi} style={{ ...btnNav, flex: isMobile ? 1 : 'none' }}>Oggi</button>
+        <button onClick={settimanaSucc} aria-label="Settimana successiva" style={{ ...btnNav, padding: isMobile ? '10px 12px' : '8px 14px' }}>{isMobile ? '' : 'Sett. succ.'} →</button>
         <button onClick={() => esportaCsvSettimana({ lunediIso, kpi, righe, formati, sedeAttiva, isAllSedi, perSede })}
-          style={{ ...btnNav, background: C.text, color: C.white, borderColor: C.text }}
+          style={{ ...btnNav, background: C.text, color: C.white, borderColor: C.text, flex: isMobile ? '1 1 100%' : 'none', justifyContent: 'center' }}
           title="Esporta la settimana in CSV per commercialista/contabilita">
           ⬇ CSV
         </button>
@@ -402,11 +411,13 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                 fontSize: 12.5, color: '#075985', display: 'flex',
                 alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
               }}>
-                <span>🧾 <strong>Vendite B2B</strong> separate dalla cassa retail:
-                  {' '}{nKg(kpi.b2bKg * 1000)} kg → {fmt0(kpi.ricaviB2b)} fatturato
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="receipt" size={13} />
+                  <span><strong>Vendite B2B</strong> separate dalla cassa retail:
+                    {' '}{nKg(kpi.b2bKg * 1000)} kg → {fmt0(kpi.ricaviB2b)} fatturato</span>
                 </span>
                 <span style={{ fontSize: 11, color: '#0C4A6E' }}>
-                  (sottratti dal "venduto retail" per non gonfiare il drift)
+                  (sottratti dal &ldquo;venduto retail&rdquo; per non gonfiare il drift)
                 </span>
               </div>
             )}
@@ -524,6 +535,8 @@ const tdHeadSede = { padding: '8px 12px', textAlign: 'left', fontSize: 10.5, fon
 const tdCellSede = { padding: '8px 12px', fontSize: 12.5, color: C.text }
 
 // ── Tile KPI ──────────────────────────────────────────────────────────────
+// Audit 2026-06-24: minHeight uniformi sui sub-elementi così tile affiancate
+// hanno value/badge allineati anche con label su 1 vs 2 righe.
 function Tile({ icon, label, value, tendVal, muted, color, bg, badge }) {
   return (
     <div style={{
@@ -531,14 +544,15 @@ function Tile({ icon, label, value, tendVal, muted, color, bg, badge }) {
       background: bg || C.bgSubtle,
       borderRadius: 12,
       border: `1px solid ${C.border}`,
+      display: 'flex', flexDirection: 'column',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, minHeight: 28 }}>
         <Icon name={icon} size={14} color={color || C.textSoft} />
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft, lineHeight: 1.25 }}>
           {label}
         </div>
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: color || (muted ? C.textMid : C.text), letterSpacing: '-0.02em', ...TNUM }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color: color || (muted ? C.textMid : C.text), letterSpacing: '-0.02em', minHeight: 28, lineHeight: 1.1, ...TNUM }}>
         {value}
       </div>
       {badge && (
