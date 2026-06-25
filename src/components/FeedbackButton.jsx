@@ -14,9 +14,16 @@ const SENTIMENTS = [
   { key: 'complimento', icon: 'party', label: 'Complimento',  help: 'Mi piace come funziona' },
 ]
 
-export default function FeedbackButton({ viewCorrente }) {
+export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChange, hideFab = false }) {
   const isMobile = useIsMobile()
-  const [open, setOpen] = useState(false)
+  const isControlled = typeof externalOpen === 'boolean'
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = isControlled ? externalOpen : internalOpen
+  const setOpen = (v) => {
+    const next = typeof v === 'function' ? v(open) : v
+    if (!isControlled) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
   const [sentiment, setSentiment] = useState('feedback')
   const [messaggio, setMessaggio] = useState('')
   const [sending, setSending] = useState(false)
@@ -49,52 +56,52 @@ export default function FeedbackButton({ viewCorrente }) {
 
   return (
     <>
-      <div
-        style={{
-          position: 'fixed',
-          // Audit 2026-06-24: FAB più piccolo (40px vs 56px) e posizionato
-          // sopra l'AI FAB senza coprire i contenuti. Tooltip solo on-hover.
-          bottom: isMobile ? 132 : 78,
-          right: isMobile ? 16 : 20,
-          zIndex: 1002,
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-      >
-        <span style={{
-          background: 'rgba(15,23,42,0.92)',
-          color: '#FFF',
-          padding: '4px 8px',
-          borderRadius: 6,
-          fontSize: 11,
-          fontWeight: 600,
-          whiteSpace: 'nowrap',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-          opacity: hover ? 1 : 0,
-          transform: hover ? 'translateX(0)' : 'translateX(8px)',
-          pointerEvents: 'none',
-          transition: 'opacity 0.16s ease, transform 0.16s ease',
-        }}>Feedback</span>
-        <button
-          aria-label="Invia feedback"
-          onClick={() => setOpen(true)}
-          className="ai-fab"
+      {!hideFab && (
+        <div
           style={{
-            width: 40, height: 40,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0810 100%)',
-            color: '#FFF',
-            border: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(110,14,26,0.36)',
-            transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+            position: 'fixed',
+            bottom: isMobile ? 132 : 78,
+            right: isMobile ? 16 : 20,
+            zIndex: 1002,
+            display: 'flex', alignItems: 'center', gap: 8,
           }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px) scale(1.06)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(110,14,26,0.40)' }}
-          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 14px rgba(110,14,26,0.36)' }}
-        ><Icon name="chat" size={16}/></button>
-      </div>
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+        >
+          <span style={{
+            background: 'rgba(15,23,42,0.92)',
+            color: '#FFF',
+            padding: '4px 8px',
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+            opacity: hover ? 1 : 0,
+            transform: hover ? 'translateX(0)' : 'translateX(8px)',
+            pointerEvents: 'none',
+            transition: 'opacity 0.16s ease, transform 0.16s ease',
+          }}>Feedback</span>
+          <button
+            aria-label="Invia feedback"
+            onClick={() => setOpen(true)}
+            className="ai-fab"
+            style={{
+              width: 40, height: 40,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0810 100%)',
+              color: '#FFF',
+              border: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(110,14,26,0.36)',
+              transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px) scale(1.06)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(110,14,26,0.40)' }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 14px rgba(110,14,26,0.36)' }}
+          ><Icon name="chat" size={16}/></button>
+        </div>
+      )}
 
       {open && (
         <div

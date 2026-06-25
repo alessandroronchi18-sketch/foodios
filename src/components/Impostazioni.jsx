@@ -22,10 +22,10 @@ import MfaSection from './Mfa'
 import ImpostazioniSedi from './ImpostazioniSedi'
 import ImpostazioniTv from './ImpostazioniTv'
 import ExportContabilita from './ExportContabilita'
-import BenchmarkOptin from './BenchmarkOptin'
 import WhiteLabel from './WhiteLabel'
 import EsportaDati from './EsportaDati'
 import ReferralPanel from './ReferralPanel'
+import DeleteAccountModal from './DeleteAccountModal'
 
 import { getAllRese, getStoreRese, setResaIngrediente } from '../lib/rese'
 
@@ -218,11 +218,12 @@ function CambioPasswordForm({ notify }) {
 
 // Riga read-only con l'email corrente + badge "Verificata".
 function EmailCorrenteRow({ auth }) {
+  const isMobile = useIsMobile()
   return (
     <FieldRow label="Email attuale">
-      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:T.bgSubtle, borderRadius:R.md, fontSize:13, color:T.text }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:T.bgSubtle, borderRadius:R.md, fontSize: isMobile ? 12 : 13, color:T.text, minWidth: 0 }}>
         <Icon name="mail" size={16} color={T.textSoft}/>
-        <span style={{ flex:1, fontWeight:600, wordBreak:'break-all' }}>{auth?.user?.email || '—'}</span>
+        <span style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth: 0 }} title={auth?.user?.email || ''}>{auth?.user?.email || '—'}</span>
         {auth?.user?.email_confirmed_at && (
           <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700, color:T.green, padding:'2px 8px', borderRadius:999, background:T.greenLight, flexShrink:0 }}>
             <Icon name="check" size={12}/> Verificata
@@ -244,7 +245,38 @@ function AccountSection({ auth, notify }) {
         <CambioPasswordForm notify={notify}/>
       </SectionCard>
       <MfaSection notify={notify}/>
+      <DangerZoneCard auth={auth} notify={notify}/>
     </div>
+  )
+}
+
+// Zona pericolosa: cancellazione account self-service con flusso multi-step
+// (motivo → alternativa → feedback → conferma typing nome). Soft-delete.
+function DangerZoneCard({ auth, notify }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <div style={{
+        background: '#FFF', borderRadius: R.xl, padding: '20px 24px',
+        border: '1px solid #FECACA', boxShadow: S.sm, marginBottom: 16,
+      }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#991B1B', letterSpacing: '-0.01em' }}>
+          Zona pericolosa
+        </h3>
+        <p style={{ margin: '6px 0 14px', fontSize: 13, color: T.textSoft, lineHeight: 1.55 }}>
+          Cancellare l'account è reversibile per 90 giorni: contattaci entro quel termine e ripristiniamo tutto.
+        </p>
+        <button onClick={() => setOpen(true)}
+          style={{
+            padding: '9px 16px', borderRadius: R.md,
+            background: '#FFF', border: '1px solid #FCA5A5',
+            color: '#B91C1C', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}>
+          Cancella account
+        </button>
+      </div>
+      <DeleteAccountModal open={open} onClose={() => setOpen(false)} auth={auth} notify={notify}/>
+    </>
   )
 }
 
@@ -379,9 +411,10 @@ function PrezziImportSection({ onImportPrezzi }) {
         display:'inline-flex', alignItems:'center', gap:10, padding:'12px 20px',
         background:'#FFFBEB', border:'1px dashed #FDE68A', borderRadius:R.md,
         cursor:'pointer', fontSize:13, fontWeight:700, color:'#92400E',
+        whiteSpace:'nowrap',
       }}>
         <Icon name="upload" size={16}/>
-        Carica file (.xlsx / .xls / .csv)
+        Carica file Excel o CSV
         <input type="file" accept=".xlsx,.xls,.csv" multiple style={{ display:'none' }}
           onChange={e => e.target.files.length && onImportPrezzi(e.target.files)}/>
       </label>
@@ -631,11 +664,16 @@ function SectionCard({ title, description, action, children }) {
 }
 
 function FieldRow({ label, hint, children }) {
+  const isMobile = useIsMobile()
   return (
     <div style={{ marginBottom:16 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+      <div style={{ display:'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        justifyContent: isMobile ? 'flex-start' : 'space-between',
+        alignItems: isMobile ? 'flex-start' : 'baseline',
+        gap: isMobile ? 2 : 8, marginBottom:6 }}>
         <label style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</label>
-        {hint && <span style={{ fontSize:11, color:T.textFaint }}>{hint}</span>}
+        {hint && <span style={{ fontSize:11, color:T.textFaint, lineHeight: 1.3 }}>{hint}</span>}
       </div>
       {children}
     </div>
@@ -782,11 +820,6 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, on
           id: 'contabilita', label: 'Export contabilità', icon: 'chart',
           summary: 'Per commercialista',
           render: () => <ExportContabilita orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} notify={notify}/>,
-        },
-        {
-          id: 'benchmark', label: 'Benchmark anonimi', icon: 'chart',
-          summary: 'Confrontati con altri locali del tuo settore',
-          render: () => <BenchmarkOptin orgId={orgId} sedeId={auth?.sedeId} tipoAttivita={tipoAttivita} sedi={sedi || []} notify={notify}/>,
         },
         {
           id: 'changelog', label: 'Changelog', icon: 'book',
@@ -1014,14 +1047,15 @@ export default function Impostazioni(props) {
           <div>
             <button onClick={() => setMobileDetail(false)}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px 8px 10px', marginBottom: 12,
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 14px', marginBottom: 12,
                 background: 'transparent', border: `1px solid ${T.borderStr}`,
                 borderRadius: R.md, color: T.text, fontSize: 13, fontWeight: 600,
                 cursor: 'pointer', fontFamily: 'inherit',
               }}>
-              <Icon name="chevR" size={14} color={T.text}/>
-              <span style={{ transform: 'rotate(180deg)', marginRight: 4 }}>‹</span>
+              <span style={{ display: 'inline-block', transform: 'rotate(180deg)', lineHeight: 0 }}>
+                <Icon name="chevR" size={14} color={T.text}/>
+              </span>
               Tutte le impostazioni
             </button>
             <Breadcrumb groupLabel={activeGroup?.label} itemLabel={activeItem.label}/>

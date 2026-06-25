@@ -267,6 +267,10 @@ export function useAuth() {
   // per evitare scam. La colonna organizations.in_attesa=true blocca l'accesso.
   // Admin e dipendenti (gestiti via flag profile.approvato) sono esclusi dal gate.
   const orgInAttesa    = !isAdmin && !isDipendente && org?.in_attesa === true
+  // Account self-cancellato: soft-deleted dall'utente stesso. Dati ancora
+  // recuperabili per 90 giorni; admin puo' riattivare pulendo deleted_at.
+  // L'admin operativo bypassa il gate per poter ispezionare.
+  const orgCancellata  = !isAdmin && org?.deleted_at != null
 
   return {
     user,
@@ -289,6 +293,7 @@ export function useAuth() {
     isDipendente,
     inAttesa,
     orgInAttesa,
+    orgCancellata,
     orgId: profile?.organization_id || null,
     sedeId: sedeAttiva?.id || null,
   }

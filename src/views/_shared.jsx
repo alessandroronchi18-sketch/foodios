@@ -48,6 +48,10 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
   const accent = color || T.brand
   const chipBg = highlight ? 'rgba(255,255,255,0.14)' : 'rgba(110,14,26,0.10)'
   const chipColor = highlight ? '#fff' : accent
+  // Audit 2026-06-24: minHeight su label/value/sub per allineare verticalmente
+  // i contenuti tra KPI fianco a fianco anche se uno ha label su 1 riga e
+  // l'altro su 2 (es. "Ricette" vs "Food cost medio"). flex column garantisce
+  // che i sub finiscano tutti alla stessa quota.
   return (
     <div className="fos-tile" onClick={onClick} style={{
       position: 'relative', overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
@@ -55,6 +59,7 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
       border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 18,
       padding: '18px 20px',
       boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
+      display: 'flex', flexDirection: 'column', height: '100%',
     }}>
       {/* decoro radiale d'angolo */}
       <div style={{ position: 'absolute', top: -28, right: -28, width: 92, height: 92, borderRadius: '50%',
@@ -65,12 +70,16 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
         </div>
       )}
       <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase',
-        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6 }}>{label}</div>
+        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6,
+        minHeight: 28, lineHeight: 1.25 }}>{label}</div>
       <div style={{ position: 'relative', fontSize: 30, fontWeight: 800, color: highlight ? T.textOnDark : color || T.text,
-        letterSpacing: '-0.035em', lineHeight: 1.05, ...TNUM }}>
+        letterSpacing: '-0.035em', lineHeight: 1.05, minHeight: 32, ...TNUM }}>
         {value}
       </div>
-      {sub && <div style={{ position: 'relative', fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500 }}>{sub}</div>}
+      {sub
+        ? <div style={{ position: 'relative', fontSize: 12, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500, minHeight: 32, lineHeight: 1.35 }}>{sub}</div>
+        : <div style={{ minHeight: 32, marginTop: 7 }}/>
+      }
     </div>
   )
 }

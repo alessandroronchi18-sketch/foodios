@@ -646,7 +646,7 @@ export default function LandingPage({ onLogin, onRegister }) {
     { q: 'Funziona anche per ristoranti e bar, non solo pasticcerie?', a: "Sì. FoodOS è pensato per tutta la ristorazione italiana: ristoranti, bar, pasticcerie, gelaterie, panetterie, pizzerie, gastronomie. Ovunque ci siano ingredienti, ricette e margini da tenere sotto controllo, FoodOS funziona." },
     { q: 'Devo essere bravo con i computer?', a: 'No. Se sai usare WhatsApp, sai usare FoodOS. È pensato per essere usato dal titolare, non dal nipote bravo con la tecnologia. Niente formule, niente Excel da non rompere.' },
     { q: 'Posso importare il mio ricettario esistente?', a: "Sì. Carichi un file Excel o CSV e FoodOS lo converte in automatico. L'AI sa leggere anche foto di ricette scritte a mano sul quaderno e immagini delle etichette per registrare i costi automaticamente." },
-    { q: 'Quanto dura la prova gratuita?', a: 'Tre mesi pieni, gratis. Senza carta di credito. Se dopo i tre mesi non ti convince, scarichi i tuoi dati e basta. Nessun addebito automatico, mai.' },
+    { q: 'Quanto dura la prova gratuita?', a: 'Tre mesi pieni, gratis. Se dopo i tre mesi non ti convince, scarichi i tuoi dati e basta. Nessun addebito automatico, mai.' },
     { q: 'Posso gestire più sedi o brand?', a: "Sì. Il piano Maestro gestisce fino a 2 sedi con 3 utenti, perfetto per chi ha laboratorio + punto vendita o sta crescendo. Il piano Insegna è invece pensato per catene piccole e gruppi: sedi e utenti illimitati, integrazioni real-time con le casse, API e white-label." },
     { q: 'Cosa succede ai miei dati se smetto?', a: 'Sono tuoi. Puoi esportarli in Excel/PDF in qualsiasi momento, anche durante il trial. Non li condividiamo con nessuno e non li usiamo per addestrare AI di terzi.' },
   ]
@@ -767,7 +767,7 @@ export default function LandingPage({ onLogin, onRegister }) {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', fontSize: 13, color: T.textMid }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Icon name="checkCirc" size={16} color={T.green}/> Senza carta di credito
+                  <Icon name="checkCirc" size={16} color={T.green}/> 3 mesi gratuiti
                 </span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <Icon name="checkCirc" size={16} color={T.green}/> Disdici quando vuoi
@@ -1277,7 +1277,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 Un prezzo. <em style={{ fontStyle: 'italic', color: T.red }}>Nessuna sorpresa.</em>
               </h2>
               <p style={{ fontSize: 16, color: T.textMid, lineHeight: 1.6, margin: 0 }}>
-                3 mesi gratis. Senza carta di credito. Senza commissioni nascoste.
+                3 mesi gratis. Senza commissioni nascoste.
               </p>
             </div>
           </Reveal>

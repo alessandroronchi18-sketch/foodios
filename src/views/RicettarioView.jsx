@@ -29,6 +29,11 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
+  // Audit 2026-06-24: card collapsed di default — su mobile e desktop.
+  // L'utente vede solo nome + 1 KPI essenziale; al tap si espande l'header
+  // pieno con KPI inline + bottoni. Riduce "minestrone" visivo richiesto
+  // dal design partner.
+  const [expanded, setExpanded] = useState(false)
   const reg = getR(ric.nome, ric)
   const isSemi = variant === 'semilavorato' || reg.tipo === 'semilavorato'
 
@@ -82,6 +87,59 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const resto = fc - pieRaw.reduce((s, i) => s + i.costoCalc, 0)
   const pieData = [...pieRaw, ...(resto > 0.01 ? [{ nome: 'Altri', costoCalc: parseFloat(resto.toFixed(3)) }] : [])]
 
+  // ─── Card COLLAPSED ───────────────────────────────────────────────
+  // Mostra solo: nome + badge qualità + 1 KPI chiave (Margine % per ricette,
+  // Costo/kg per semilavorati) + chevron. Tap → espande l'header pieno.
+  if (!expanded) {
+    const kpiPrim = isSemi
+      ? { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent }
+      : { lbl: 'Margine', val: fmtp(margPct), c: mc }
+    const kpiSec = isSemi
+      ? { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text }
+      : { lbl: 'Ricavo', val: fmt(ricavo), c: C.text }
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setExpanded(true)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(true) } }}
+        className="fos-tile"
+        style={{
+          background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`,
+          borderRadius: 18, overflow: 'hidden', cursor: 'pointer',
+          boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
+          padding: isMobile ? '14px 16px' : '14px 20px',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+            {isSemi && (
+              <span style={{ padding: '2px 7px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Semilavorato</span>
+            )}
+            {!isSemi && margBadge(margPct)}
+            {mancanti.length > 0 && (
+              <Badge label={`${mancanti.length} stime`} color="amber"/>
+            )}
+          </div>
+          <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {ric.nome}
+          </div>
+          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 3, ...TNUM }}>
+            {kpiSec.lbl}: <span style={{ color: C.textMid, fontWeight: 700 }}>{kpiSec.val}</span>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{kpiPrim.lbl}</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: kpiPrim.c, marginTop: 4, ...TNUM, lineHeight: 1 }}>{kpiPrim.val}</div>
+        </div>
+        <div style={{ flexShrink: 0, color: C.textSoft, lineHeight: 0 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Card EXPANDED (header pieno + dettaglio opzionale) ─────────────
   return (
     <div className={open ? undefined : 'fos-tile'} style={{ background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
       {/* Header */}
@@ -150,9 +208,15 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+          <button onClick={() => { setExpanded(false); setOpen(false); setEditMode(false) }}
+            aria-label="Riduci card"
+            title="Riduci"
+            style={{ height: 34, width: 34, borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', cursor: 'pointer', color: isSemi ? SEMI.accent : C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
           <button onClick={() => setOpen(o => !o)}
             style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer' }}>
-            {open ? '▲ Chiudi' : '▼ Apri'}
+            {open ? '▲ Chiudi dettaglio' : '▼ Dettaglio'}
           </button>
           {!isSemi && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
@@ -400,7 +464,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     <div onContextMenu={e => e.preventDefault()} onDragStart={e => e.preventDefault()}
       style={{ maxWidth: 1200, margin: '0 auto', userSelect: 'none' }}>
       <div style={{ marginBottom: isMobile ? 16 : 24 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', marginBottom: ricette.length > 0 ? 18 : 14 }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', gap: isMobile ? 12 : 14, marginBottom: ricette.length > 0 ? 18 : 14 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.5, fontWeight: 500 }}>
               {ricette.length > 0
@@ -409,9 +473,10 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
             </div>
           </div>
           {onUpload && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px',
+            <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px',
               background: T.brandGradient, borderRadius: R.md, cursor: 'pointer',
-              fontSize: 13, fontWeight: 600, color: '#fff', boxShadow: S.brandSoft }}>
+              fontSize: 13, fontWeight: 600, color: '#fff', boxShadow: S.brandSoft,
+              whiteSpace: 'nowrap', alignSelf: isMobile ? 'stretch' : 'auto' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
               </svg>

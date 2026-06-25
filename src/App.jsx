@@ -22,7 +22,7 @@ import Logo from './components/Logo'
 import { MfaChallenge } from './components/Mfa'
 import AbbonamentoPanel from './components/AbbonamentoPanel'
 import AppBanner from './components/AppBanner'
-import FeedbackButton from './components/FeedbackButton'
+import FloatingActions from './components/FloatingActions'
 import { supabase } from './lib/supabase'
 
 function SplashScreen() {
@@ -260,6 +260,28 @@ export default function App() {
     )
   }
 
+  // Account cancellato dall'utente (soft-delete): l'org e' ripristinabile
+  // entro 90 giorni. Blocchiamo l'accesso e mostriamo come riattivare.
+  if (auth.orgCancellata) {
+    return (
+      <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#FAF7F5', padding:24 }}>
+        <div style={{ maxWidth:480, width:'100%', background:'#FFF', border:'1px solid #FECACA', borderRadius:16, padding:'32px 28px', textAlign:'center', boxShadow:'0 10px 28px rgba(15,23,42,0.06)' }}>
+          <div style={{ fontSize:20, fontWeight:800, color:'#991B1B', marginBottom:12 }}>
+            Questo account è stato cancellato
+          </div>
+          <div style={{ fontSize:14, color:'#6B4C44', lineHeight:1.6, marginBottom:22 }}>
+            Hai cancellato l'account il {auth.org?.deleted_at ? new Date(auth.org.deleted_at).toLocaleDateString('it-IT') : '—'}. I dati sono conservati per <b>90 giorni</b>.
+            <br/><br/>
+            Hai cambiato idea? Scrivici a <a href="mailto:supporto@foodios.it?subject=Recupero%20account" style={{ color:'#6E0E1A', fontWeight:700 }}>supporto@foodios.it</a> e ripristiniamo tutto.
+          </div>
+          <button onClick={() => auth.signOut()} style={{ padding:'10px 20px', background:'transparent', color:'#6B4C44', border:'1px solid #E8DDD8', borderRadius:10, fontSize:13, cursor:'pointer' }}>
+            Esci
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // Titolare nuovo signup in attesa di approvazione admin (audit 2026-06-21).
   if (auth.orgInAttesa) {
     return (
@@ -320,7 +342,7 @@ export default function App() {
         isTrialAttivo={auth.isTrialAttivo}
         onSignOut={auth.signOut}
       />
-      <FeedbackButton />
+      <FloatingActions />
     </>
   )
 }

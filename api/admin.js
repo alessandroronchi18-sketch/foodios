@@ -1272,7 +1272,14 @@ async function azBlocca(supabase, orgId) {
 }
 
 async function azRiattiva(supabase, orgId) {
-  const r = await supabase.from('organizations').update({ attivo: true }).eq('id', orgId)
+  // Riattiva sia il blocco admin (attivo=false) che la self-cancellazione
+  // (deleted_at IS NOT NULL). Audit 2026-06-24: prima azzeravamo solo attivo,
+  // lasciando l'org bloccata dietro al gate orgCancellata se il titolare
+  // aveva fatto self-delete.
+  const r = await supabase.from('organizations').update({
+    attivo: true,
+    deleted_at: null,
+  }).eq('id', orgId)
   if (r.error) throw new Error(r.error.message)
 }
 

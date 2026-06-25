@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { sloadAllSedi } from '../lib/storage'
 import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
 import Icon from './Icon'
+import useIsMobile from '../lib/useIsMobile'
 
 const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
@@ -224,6 +225,7 @@ async function exportCommercialistaXLSX(corrispettivi, fatturePassive, ivaPct, s
 }
 
 export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, notify }) {
+  const isMobile = useIsMobile()
   const today = new Date()
   const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   const [yearMonth, setYearMonth] = useState(defaultMonth)
@@ -283,13 +285,13 @@ export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, noti
           con calcolo IVA basato sull'aliquota indicata. Verifica i totali con il tuo commercialista prima dell'invio fiscale.
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 20, alignItems: 'end' }}>
           <div>
             <label style={lbl}>Mese</label>
             <input type="month" value={yearMonth} onChange={e => setYearMonth(e.target.value)} style={inp} />
           </div>
           <div>
-            <label style={lbl}>Aliquota IVA corrispettivi (%)</label>
+            <label style={lbl}>Aliquota IVA (%)</label>
             <input type="number" min="0" max="22" step="1" value={ivaPct}
               onChange={e => setIvaPct(Math.max(0, Math.min(22, Number(e.target.value) || 0)))} style={inp} />
           </div>

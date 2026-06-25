@@ -184,16 +184,135 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
     isAnomalia: sel <= oggiStr && sel !== oggiStr && (!!prodMap[sel] !== !!cassaMap[sel]),
   } : null
 
-  // ── mobile list of last 30 days ──────────────────────────────────────────
+  // ── mobile list: tutti i giorni del MESE selezionato (anno+mese), dal piu'
+  // recente al piu' vecchio. Audit 2026-06-24 fix bug critico: prima usavamo
+  // "ultimi 30 giorni rolling da oggi", quindi cambiare mese col chevron
+  // aggiornava solo l'header ma non i giorni elencati.
   const mobileList = useMemo(() => {
+    const daysInM = new Date(anno, mese+1, 0).getDate()
     const days = []
-    const d = new Date(oggi)
-    for (let i = 0; i < 30; i++) {
-      days.push(toISO(d))
-      d.setDate(d.getDate()-1)
+    for (let d = daysInM; d >= 1; d--) {
+      days.push(`${anno}-${String(mese+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)
     }
     return days
-  }, [oggi])
+  }, [anno, mese])
+
+  // Render del pannello dettaglio giorno — estratto in funzione cosi'
+  // su mobile possiamo inserirlo INLINE subito sotto la card cliccata
+  // (audit 2026-06-24: prima compariva in fondo alla lista e non si capiva
+  // dove fosse). Su desktop resta in colonna laterale sticky.
+  const renderDetail = (inline) => {
+    if (!sel || !selDetail) return null
+    return (
+      <div style={{
+        width: inline ? '100%' : (isMobile ? '100%' : 288), flexShrink: 0,
+        background: T.bgCard, borderRadius: 16, border: `1px solid ${T.border}`,
+        boxShadow: SHADOW_PREMIUM,
+        padding: 20, position: (inline || isMobile) ? 'static' : 'sticky', top: 24,
+        marginTop: inline ? 4 : (isMobile ? 16 : 0),
+        marginBottom: inline ? 6 : 0,
+        animation: 'fos_calSlideIn 0.16s ease',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 8 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.text, lineHeight: 1.3, textTransform: 'capitalize' }}>
+              {new Date(sel+'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+              {selDetail.isToday && <span style={{ fontSize: 9, fontWeight: 800, color: T.brand, background: T.brandLight, borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em' }}>OGGI</span>}
+              {selDetail.isFuture && <span style={{ fontSize: 9, fontWeight: 700, color: T.textSoft, background: T.bgSubtle, borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em' }}>IN ARRIVO</span>}
+              {selDetail.isAnomalia && (
+                <span style={{ fontSize: 9, fontWeight: 800, color: T.amber, background: T.amberLight, borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <Icon name="warning" size={10} /> ANOMALIA
+                </span>
+              )}
+            </div>
+          </div>
+          <button aria-label="Chiudi dettaglio" onClick={()=>setSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textSoft, padding: 2, lineHeight: 1, display: 'inline-flex' }}>
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+
+        {/* Sezioni produzione / cassa */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          {[
+            { icon: 'package', label: 'Produzione', has: selDetail.haProd, view: 'giornaliero',
+              sub: selDetail.prodD
+                ? `${selDetail.prodD.prodotti?.length || 0} prodotti · ${eur0(selDetail.prodD.ricavoTot || 0)} stim.`
+                : null },
+            { icon: 'receipt', label: 'Cassa', has: selDetail.haCassa, view: 'chiusura',
+              sub: selDetail.cassaD?.kpi?.totV != null
+                ? `${eur2(selDetail.cassaD.kpi.totV)} incasso${selDetail.cassaD.kpi.totMP != null ? ` · margine ${(Number(selDetail.cassaD.kpi.totMP)||0).toFixed(1)}%` : ''}`
+                : null },
+          ].map(({ icon, label, has, sub, view: v }) => {
+            const accent = has ? T.green : selDetail.isFuture ? T.textSoft : T.brand
+            const bg     = has ? T.greenLight : selDetail.isFuture ? T.bgSubtle : T.redLight
+            const bd     = has ? T.green+'33' : selDetail.isFuture ? T.border : T.red+'33'
+            return (
+              <div key={label} style={{
+                display: 'flex', alignItems: 'center', gap: 11, padding: '11px 12px',
+                borderRadius: 12, background: bg, border: `1px solid ${bd}`,
+              }}>
+                <span style={{ display: 'inline-flex', lineHeight: 1 }}><Icon name={icon} size={18} color={accent} /></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5, color: accent }}>
+                    {has ? <Icon name="checkCircle" size={13} /> : selDetail.isFuture ? <Icon name="clock" size={13} /> : <Icon name="xCircle" size={13} />} {label}
+                  </div>
+                  {sub && <div style={{ fontSize: 10.5, color: T.textMid, marginTop: 2, ...tnum }}>{sub}</div>}
+                  {!sub && !has && !selDetail.isFuture && <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>Non registrata</div>}
+                </div>
+                {!has && !selDetail.isFuture && setView && (
+                  <button onClick={()=>setView(v)} style={{
+                    fontSize: 10.5, fontWeight: 700, color: T.brand, background: T.bgCard,
+                    border: `1px solid ${T.brand}`, borderRadius: 8, padding: '5px 9px', cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}>Vai</button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Nota */}
+        <div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="edit" size={12} /> Nota del giorno
+          </div>
+          {noteErr ? (
+            <div style={{ fontSize: 11, color: T.textMid, background: T.bgSubtle, borderRadius: 10, padding: '10px 12px', lineHeight: 1.5 }}>
+              Esegui il SQL per <code>note_giornaliere</code> su Supabase per abilitare le note.
+            </div>
+          ) : (
+            <>
+              <textarea
+                value={notaEdit}
+                onChange={e => setNotaEdit(e.target.value)}
+                placeholder="Aggiungi una nota…"
+                rows={3}
+                style={{
+                  width: '100%', padding: '9px 11px', border: `1px solid ${T.border}`,
+                  borderRadius: 10, fontSize: isMobile ? 16 : 12.5, resize: 'vertical', fontFamily: 'inherit',
+                  color: T.text, background: T.bgSubtle, boxSizing: 'border-box', outline: 'none', lineHeight: 1.5,
+                }}
+              />
+              <button
+                onClick={handleSalvaNota}
+                disabled={savingNota || notaEdit === (note[sel]||'')}
+                style={{
+                  marginTop: 8, width: '100%', padding: '10px 0', minHeight: 40,
+                  background: T.brand, color: '#FFF', border: 'none', borderRadius: 10,
+                  fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                  opacity: (savingNota || notaEdit===(note[sel]||'')) ? 0.45 : 1,
+                  transition: `opacity ${M.durBase} ${M.ease}`,
+                }}>
+                {savingNota ? 'Salvo…' : 'Salva nota'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -267,7 +386,9 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
           </div>
 
           {isMobile ? (
-            /* ── Mobile list view: last 30 days ── */
+            /* ── Mobile list view: tutti i giorni del mese selezionato ──
+                Dettaglio (Produzione/Cassa/Nota) inserito INLINE subito sotto
+                la card cliccata — non in fondo (audit 2026-06-24 fix UX). */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {mobileList.map(k => {
                 const status  = getStatus(k, true)
@@ -280,31 +401,34 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                 const dotColor = STATUS[status]
                 const d = new Date(k+'T12:00')
                 return (
-                  <div key={k} onClick={() => handleDay(k)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
-                      borderRadius: 12, minHeight: 44,
-                      background: isSel ? T.brandLight : T.bgCard,
-                      border: isOggi ? `2px solid ${T.brand}` : isSel ? `2px solid ${T.brand}` : `1px solid ${T.border}`,
-                      cursor: 'pointer', boxSizing: 'border-box',
-                    }}>
-                    <div style={{ width: 9, height: 9, borderRadius: '50%', background: dotColor || T.borderStr, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: isOggi ? 800 : 600, color: isOggi ? T.brand : T.text }}>
-                        {d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
-                        {isOggi && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: T.brand, background: T.brandLight, borderRadius: 4, padding: '1px 5px' }}>OGGI</span>}
+                  <React.Fragment key={k}>
+                    <div onClick={() => handleDay(k)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                        borderRadius: 12, minHeight: 44,
+                        background: isSel ? T.brandLight : T.bgCard,
+                        border: isOggi ? `2px solid ${T.brand}` : isSel ? `2px solid ${T.brand}` : `1px solid ${T.border}`,
+                        cursor: 'pointer', boxSizing: 'border-box',
+                      }}>
+                      <div style={{ width: 9, height: 9, borderRadius: '50%', background: dotColor || T.borderStr, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: isOggi ? 800 : 600, color: isOggi ? T.brand : T.text }}>
+                          {d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          {isOggi && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 800, color: T.brand, background: T.brandLight, borderRadius: 4, padding: '1px 5px' }}>OGGI</span>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+                          {prod   && <Pill bg={T.greenLight} color={T.green}><Icon name="package" size={11} /> Prod.</Pill>}
+                          {cassa  && <Pill bg={T.blueLight} color={T.blue}><Icon name="receipt" size={11} /> Cassa</Pill>}
+                          {hasNota && <Pill bg={T.amberLight} color={T.amber}><Icon name="edit" size={11} /></Pill>}
+                          {status === 'futuro' && <Pill bg={T.bgSubtle} color={T.textSoft}>In arrivo</Pill>}
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
-                        {prod   && <Pill bg={T.greenLight} color={T.green}><Icon name="package" size={11} /> Prod.</Pill>}
-                        {cassa  && <Pill bg={T.blueLight} color={T.blue}><Icon name="receipt" size={11} /> Cassa</Pill>}
-                        {hasNota && <Pill bg={T.amberLight} color={T.amber}><Icon name="edit" size={11} /></Pill>}
-                        {status === 'futuro' && <Pill bg={T.bgSubtle} color={T.textSoft}>In arrivo</Pill>}
-                      </div>
+                      {totale != null && (
+                        <div style={{ fontSize: 13, color: T.textMid, fontWeight: 700, flexShrink: 0, ...tnum }}>{eur0(totale)}</div>
+                      )}
                     </div>
-                    {totale != null && (
-                      <div style={{ fontSize: 13, color: T.textMid, fontWeight: 700, flexShrink: 0, ...tnum }}>{eur0(totale)}</div>
-                    )}
-                  </div>
+                    {isSel && renderDetail(true)}
+                  </React.Fragment>
                 )
               })}
             </div>
@@ -394,115 +518,9 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
           </div>
         </div>
 
-        {/* ── ③ PANNELLO DETTAGLIO GIORNO ──────────────────────────────────── */}
-        {sel && selDetail && (
-          <div style={{
-            width: isMobile ? '100%' : 288, flexShrink: 0,
-            background: T.bgCard, borderRadius: 16, border: `1px solid ${T.border}`,
-            boxShadow: SHADOW_PREMIUM,
-            padding: 20, position: isMobile ? 'static' : 'sticky', top: 24,
-            marginTop: isMobile ? 16 : 0,
-            animation: 'fos_calSlideIn 0.16s ease',
-          }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 8 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: T.text, lineHeight: 1.3, textTransform: 'capitalize' }}>
-                  {new Date(sel+'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                  {selDetail.isToday && <span style={{ fontSize: 9, fontWeight: 800, color: T.brand, background: T.brandLight, borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em' }}>OGGI</span>}
-                  {selDetail.isFuture && <span style={{ fontSize: 9, fontWeight: 700, color: T.textSoft, background: T.bgSubtle, borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em' }}>IN ARRIVO</span>}
-                  {selDetail.isAnomalia && (
-                    <span style={{ fontSize: 9, fontWeight: 800, color: T.amber, background: T.amberLight, borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                      <Icon name="warning" size={10} /> ANOMALIA
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button aria-label="Chiudi dettaglio" onClick={()=>setSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textSoft, padding: 2, lineHeight: 1, display: 'inline-flex' }}>
-                <Icon name="x" size={16} />
-              </button>
-            </div>
-
-            {/* Sezioni produzione / cassa */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-              {[
-                { icon: 'package', label: 'Produzione', has: selDetail.haProd, view: 'giornaliero',
-                  sub: selDetail.prodD
-                    ? `${selDetail.prodD.prodotti?.length || 0} prodotti · ${eur0(selDetail.prodD.ricavoTot || 0)} stim.`
-                    : null },
-                { icon: 'receipt', label: 'Cassa', has: selDetail.haCassa, view: 'chiusura',
-                  sub: selDetail.cassaD?.kpi?.totV != null
-                    ? `${eur2(selDetail.cassaD.kpi.totV)} incasso${selDetail.cassaD.kpi.totMP != null ? ` · margine ${(Number(selDetail.cassaD.kpi.totMP)||0).toFixed(1)}%` : ''}`
-                    : null },
-              ].map(({ icon, label, has, sub, view: v }) => {
-                const accent = has ? T.green : selDetail.isFuture ? T.textSoft : T.brand
-                const bg     = has ? T.greenLight : selDetail.isFuture ? T.bgSubtle : T.redLight
-                const bd     = has ? T.green+'33' : selDetail.isFuture ? T.border : T.red+'33'
-                return (
-                  <div key={label} style={{
-                    display: 'flex', alignItems: 'center', gap: 11, padding: '11px 12px',
-                    borderRadius: 12, background: bg, border: `1px solid ${bd}`,
-                  }}>
-                    <span style={{ display: 'inline-flex', lineHeight: 1 }}><Icon name={icon} size={18} color={accent} /></span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5, color: accent }}>
-                        {has ? <Icon name="checkCircle" size={13} /> : selDetail.isFuture ? <Icon name="clock" size={13} /> : <Icon name="xCircle" size={13} />} {label}
-                      </div>
-                      {sub && <div style={{ fontSize: 10.5, color: T.textMid, marginTop: 2, ...tnum }}>{sub}</div>}
-                      {!sub && !has && !selDetail.isFuture && <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>Non registrata</div>}
-                    </div>
-                    {!has && !selDetail.isFuture && setView && (
-                      <button onClick={()=>setView(v)} style={{
-                        fontSize: 10.5, fontWeight: 700, color: T.brand, background: T.bgCard,
-                        border: `1px solid ${T.brand}`, borderRadius: 8, padding: '5px 9px', cursor: 'pointer', whiteSpace: 'nowrap',
-                      }}>Vai</button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Nota */}
-            <div>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <Icon name="edit" size={12} /> Nota del giorno
-              </div>
-              {noteErr ? (
-                <div style={{ fontSize: 11, color: T.textMid, background: T.bgSubtle, borderRadius: 10, padding: '10px 12px', lineHeight: 1.5 }}>
-                  Esegui il SQL per <code>note_giornaliere</code> su Supabase per abilitare le note.
-                </div>
-              ) : (
-                <>
-                  <textarea
-                    value={notaEdit}
-                    onChange={e => setNotaEdit(e.target.value)}
-                    placeholder="Aggiungi una nota…"
-                    rows={3}
-                    style={{
-                      width: '100%', padding: '9px 11px', border: `1px solid ${T.border}`,
-                      borderRadius: 10, fontSize: isMobile ? 16 : 12.5, resize: 'vertical', fontFamily: 'inherit',
-                      color: T.text, background: T.bgSubtle, boxSizing: 'border-box', outline: 'none', lineHeight: 1.5,
-                    }}
-                  />
-                  <button
-                    onClick={handleSalvaNota}
-                    disabled={savingNota || notaEdit === (note[sel]||'')}
-                    style={{
-                      marginTop: 8, width: '100%', padding: '10px 0', minHeight: 40,
-                      background: T.brand, color: '#FFF', border: 'none', borderRadius: 10,
-                      fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-                      opacity: (savingNota || notaEdit===(note[sel]||'')) ? 0.45 : 1,
-                      transition: `opacity ${M.durBase} ${M.ease}`,
-                    }}>
-                    {savingNota ? 'Salvo…' : 'Salva nota'}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+        {/* ── ③ PANNELLO DETTAGLIO GIORNO (desktop a fianco). Su mobile e'
+              gia' renderizzato inline subito sotto la card cliccata. ────── */}
+        {!isMobile && renderDetail(false)}
 
       </div>
 
@@ -532,9 +550,10 @@ function Kpi({ icon, label, value, sub, color, highlight, bar, barColor }) {
         </span>
       </div>
       <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
-        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6, lineHeight: 1.3 }}>{label}</div>
+        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6, lineHeight: 1.3,
+        minHeight: 28 }}>{label}</div>
       <div style={{ position: 'relative', fontSize: 26, fontWeight: 800, color: highlight ? T.textOnDark : accent,
-        letterSpacing: '-0.03em', lineHeight: 1.05, ...tnum }}>
+        letterSpacing: '-0.03em', lineHeight: 1.05, minHeight: 30, ...tnum }}>
         {value}
       </div>
       {bar != null && (
@@ -542,7 +561,10 @@ function Kpi({ icon, label, value, sub, color, highlight, bar, barColor }) {
           <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, bar))}%`, background: barColor || accent, borderRadius: 3, transition: `width ${M.durSlow} ${M.ease}` }} />
         </div>
       )}
-      {sub && <div style={{ position: 'relative', fontSize: 11.5, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500 }}>{sub}</div>}
+      {sub
+        ? <div style={{ position: 'relative', fontSize: 11.5, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500, minHeight: 32, lineHeight: 1.4 }}>{sub}</div>
+        : <div style={{ minHeight: 32, marginTop: 7 }}/>
+      }
     </div>
   )
 }

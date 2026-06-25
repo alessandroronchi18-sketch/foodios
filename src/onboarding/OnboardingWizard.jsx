@@ -282,24 +282,25 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               In <strong style={{ color: '#0E1726', fontWeight: 600 }}>2 minuti</strong> sei operativo.<br/>
               Hai <strong style={{ color: '#0E1726', fontWeight: 600 }}>3 mesi gratuiti</strong> per esplorare.
             </p>
-            {/* 4 feature key icon, allineate in grid 2x2 — icone tutte alla stessa coord X */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto auto',
-              justifyContent: 'center', alignItems: 'center',
-              columnGap: 28, rowGap: 12,
-              padding: '16px 20px', background: '#FFF',
+            {/* 4 feature key icon, allineate in grid 2x2 — icone alla stessa X, testo wrappa se serve */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',
+              alignItems: 'start',
+              columnGap: 12, rowGap: 12,
+              padding: '16px 14px', background: '#FFF',
               border: '1px solid #E5E9EF', borderRadius: 12,
               marginBottom: 28, maxWidth: 360, marginLeft: 'auto', marginRight: 'auto',
-              boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }}>
+              boxShadow: '0 1px 2px rgba(15,23,42,0.04)', boxSizing: 'border-box' }}>
               {[
                 ['barChart', 'Food cost real-time'],
                 ['camera',   'OCR scontrini'],
                 ['store',    'Multi-sede'],
-                ['package',  'Magazzino & sprechi'],
+                ['package',  'Magazzino e sprechi'],
               ].map(([ico, txt]) => (
                 <div key={txt} style={{ display: 'flex', alignItems: 'center', gap: 8,
-                  fontSize: 13, color: '#475264', fontWeight: 500, justifyContent: 'flex-start' }}>
+                  fontSize: 12.5, color: '#475264', fontWeight: 500, justifyContent: 'flex-start',
+                  minWidth: 0 }}>
                   <Icon name={ico} size={16} color={BRAND} />
-                  <span style={{ whiteSpace: 'nowrap' }}>{txt}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{txt}</span>
                 </div>
               ))}
             </div>

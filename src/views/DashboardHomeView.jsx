@@ -101,14 +101,14 @@ function StockPFWidget({ isMobile, setView, viewAggregato, orgId, sedeId, LEX })
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (inArrivo > 0 ? '1.7fr 1fr' : '1fr'), gap: isMobile ? 12 : 16, marginBottom: isMobile ? 18 : 24 }}>
       <div className="fos-tile" onClick={() => setView('magazzino')}
         style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '18px 18px' : '22px 26px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 30px rgba(15,23,42,0.05)', cursor: 'pointer' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasStock ? 16 : 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ico d={ICO.store} size={17} /></span>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasStock ? 16 : 8, gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+            <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Ico d={ICO.store} size={17} /></span>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
               Stock vetrina<span style={{ color: T.textFaint }}> · {viewAggregato ? 'tutte le sedi' : 'sede attiva'}</span>
             </div>
           </div>
-          <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 600 }}>{inStock.length} prodotti</span>
+          <span style={{ fontSize: 11, color: T.textSoft, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>{n0(inStock.length)} pz</span>
         </div>
         {hasStock ? (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '170px 1fr', gap: isMobile ? 14 : 28, alignItems: 'center' }}>

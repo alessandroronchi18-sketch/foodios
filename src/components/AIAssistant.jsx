@@ -81,9 +81,16 @@ function SendIcon({ size = 16 }) {
   )
 }
 
-export default function AIAssistant() {
+export default function AIAssistant({ externalOpen, onOpenChange, hideFab = false }) {
   const isMobile = useIsMobile()
-  const [open, setOpen] = useState(false)
+  const isControlled = typeof externalOpen === 'boolean'
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = isControlled ? externalOpen : internalOpen
+  const setOpen = (v) => {
+    const next = typeof v === 'function' ? v(open) : v
+    if (!isControlled) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
   const [fabHover, setFabHover] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([
@@ -292,7 +299,7 @@ export default function AIAssistant() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Chiedi qualcosa su FoodOS…"
+              placeholder="Scrivi un messaggio…"
               rows={1}
               style={{
                 flex: 1,
@@ -335,52 +342,55 @@ export default function AIAssistant() {
         </div>
       )}
 
-      {/* Floating button + tooltip (audit 2026-06-22: layout identico al FeedbackButton) */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: fabBottom,
-          right: fabRight,
-          zIndex: 1001,
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}
-        onMouseEnter={() => setFabHover(true)}
-        onMouseLeave={() => setFabHover(false)}
-      >
-        {!open && (
-          <span style={{
-            background: 'rgba(15,23,42,0.92)',
-            color: '#FFF',
-            padding: '4px 8px',
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
-            opacity: fabHover ? 1 : 0,
-            transform: fabHover ? 'translateX(0)' : 'translateX(8px)',
-            pointerEvents: 'none',
-            transition: 'opacity 0.16s ease, transform 0.16s ease',
-          }}>Assistente</span>
-        )}
-        <button
-          className="ai-fab"
-          onClick={() => setOpen(o => !o)}
-          aria-label={open ? 'Chiudi assistente' : 'Apri assistente AI'}
+      {/* Floating button + tooltip (audit 2026-06-22: layout identico al FeedbackButton)
+          Nascondibile via prop hideFab quando il FAB e' gestito da FloatingActions. */}
+      {!hideFab && (
+        <div
           style={{
-            width: 40, height: 40,
-            borderRadius: '50%',
-            background: `linear-gradient(135deg, ${COLORS.brand} 0%, ${COLORS.brandDark} 100%)`,
-            border: 'none',
-            cursor: 'pointer',
-            color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(110,14,26,0.36)',
+            position: 'fixed',
+            bottom: fabBottom,
+            right: fabRight,
+            zIndex: 1001,
+            display: 'flex', alignItems: 'center', gap: 10,
           }}
+          onMouseEnter={() => setFabHover(true)}
+          onMouseLeave={() => setFabHover(false)}
         >
-          {open ? <CloseIcon size={16} /> : <ChatIcon size={18} />}
-        </button>
-      </div>
+          {!open && (
+            <span style={{
+              background: 'rgba(15,23,42,0.92)',
+              color: '#FFF',
+              padding: '4px 8px',
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.18)',
+              opacity: fabHover ? 1 : 0,
+              transform: fabHover ? 'translateX(0)' : 'translateX(8px)',
+              pointerEvents: 'none',
+              transition: 'opacity 0.16s ease, transform 0.16s ease',
+            }}>Assistente</span>
+          )}
+          <button
+            className="ai-fab"
+            onClick={() => setOpen(o => !o)}
+            aria-label={open ? 'Chiudi assistente' : 'Apri assistente AI'}
+            style={{
+              width: 40, height: 40,
+              borderRadius: '50%',
+              background: `linear-gradient(135deg, ${COLORS.brand} 0%, ${COLORS.brandDark} 100%)`,
+              border: 'none',
+              cursor: 'pointer',
+              color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(110,14,26,0.36)',
+            }}
+          >
+            {open ? <CloseIcon size={16} /> : <ChatIcon size={18} />}
+          </button>
+        </div>
+      )}
     </>
   )
 }

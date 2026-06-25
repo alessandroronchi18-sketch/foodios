@@ -283,7 +283,7 @@ ${azioniStr}
                 value={input}
                 onChange={e=>setInput(e.target.value)}
                 onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();} }}
-                placeholder="Chiedi qualcosa... (Invio per inviare, Shift+Invio per andare a capo)"
+                placeholder="Scrivi una domanda…"
                 rows={2}
                 style={{width:"100%",padding:"12px 48px 12px 14px",borderRadius:10,
                   border:`2px solid ${input.trim()?C.red:C.border}`,
@@ -303,11 +303,6 @@ ${azioniStr}
               </button>
             </div>
           </div>
-          {messages.length === 0 && (
-            <div style={{fontSize:10,color:C.textSoft,textAlign:"center"}}>
-              L'AI ha accesso a ricettario, P&L, produzioni, chiusure e magazzino · I dati non lasciano il browser
-            </div>
-          )}
         </div>
       )}
 

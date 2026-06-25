@@ -462,10 +462,10 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-start', gap: isMobile ? 12 : 8 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: TXT, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {sede.nome}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{sede.nome}</span>
                   {sede.is_default && <span style={{ fontSize: 10, background: '#FEF3C7', color: '#92400E', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>DEFAULT</span>}
                   {sede.attiva === false && <span style={{ fontSize: 10, background: '#F1F5F9', color: '#94A3B8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>INATTIVA</span>}
                   {sede.is_sede_produzione && (
@@ -475,30 +475,30 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
                   )}
                 </div>
                 {(sede.indirizzo || sede.citta) && (
-                  <div style={{ fontSize: 12, color: SOFT, marginTop: 3 }}>
+                  <div style={{ fontSize: 12, color: SOFT, marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={[sede.indirizzo, sede.citta].filter(Boolean).join(', ')}>
                     {[sede.indirizzo, sede.citta].filter(Boolean).join(', ')}
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
                 <button onClick={() => { setEditing(sede.id); setEditForm({ nome: sede.nome, indirizzo: sede.indirizzo || '', citta: sede.citta || '', is_sede_produzione: !!sede.is_sede_produzione, metodo_produzione: sede.metodo_produzione || 'stampi' }) }}
-                  style={{ padding: '5px 10px', background: '#F8FAFC', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: 11, cursor: 'pointer', color: MID }}>
+                  style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#F8FAFC', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: isMobile ? 12 : 11, cursor: 'pointer', color: MID, fontWeight: 600 }}>
                   Modifica
                 </button>
                 {!sede.is_default && sede.attiva !== false && (
                   <button onClick={() => handleSetDefault(sede.id)}
-                    style={{ padding: '5px 10px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, fontSize: 11, cursor: 'pointer', color: '#92400E' }}>
+                    style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, fontSize: isMobile ? 12 : 11, cursor: 'pointer', color: '#92400E', fontWeight: 600 }}>
                     Default
                   </button>
                 )}
                 {sede.attiva !== false ? (
                   <button onClick={() => handleDisattiva(sede.id)}
-                    style={{ padding: '5px 10px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: 11, cursor: 'pointer', color: R }}>
+                    style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#FFF5F5', border: '1px solid #FCA5A5', borderRadius: 8, fontSize: isMobile ? 12 : 11, cursor: 'pointer', color: R, fontWeight: 600 }}>
                     Disattiva
                   </button>
                 ) : (
                   <button onClick={() => handleRiattiva(sede.id)}
-                    style={{ padding: '5px 10px', background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 8, fontSize: 11, cursor: 'pointer', color: '#166534' }}>
+                    style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 8, fontSize: isMobile ? 12 : 11, cursor: 'pointer', color: '#166534', fontWeight: 600 }}>
                     Riattiva
                   </button>
                 )}

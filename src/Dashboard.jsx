@@ -42,8 +42,6 @@ const ImpostazioniTv = lazyWithReload(() => import('./components/ImpostazioniTv'
 const ExportContabilita = lazyWithReload(() => import('./components/ExportContabilita'))
 import { WL_KEY } from './components/WhiteLabel';
 const WhiteLabel = lazyWithReload(() => import('./components/WhiteLabel'))
-import { BenchmarkBadge } from './components/BenchmarkOptin';
-const BenchmarkOptin = lazyWithReload(() => import('./components/BenchmarkOptin'))
 import MfaSection from './components/Mfa'
 const EventiView = lazyWithReload(() => import('./components/Eventi'))
 const ConfrontoSedi = lazyWithReload(() => import('./components/ConfrontoSedi'))
@@ -822,7 +820,6 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
     ["sedi", "store", "Sedi"],
     ["tv", "tv", "TV"],
     ["contabilita", "barChart", "Contabilità"],
-    ["benchmark", "trendUp", "Benchmark"],
     ["personalizzazione", "palette", "Personalizzazione"],
     ["dati", "save", "Dati"],
   ];
@@ -1061,11 +1058,6 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
       {/* ── TAB: Contabilità ── */}
       {tab === "contabilita" && (
         <ExportContabilita orgId={orgId} sedi={sedi || []} nomeAttivita={nomeAttivita} notify={notify} />
-      )}
-
-      {/* ── TAB: Benchmark anonimi ── */}
-      {tab === "benchmark" && (
-        <BenchmarkOptin orgId={orgId} sedeId={auth?.sedeId} tipoAttivita={tipoAttivita} sedi={sedi || []} notify={notify} />
       )}
 
       {/* ── TAB: Personalizzazione (piano Chain) ── */}
@@ -2988,7 +2980,7 @@ export default function Dashboard({
       </div>
 
       {/* AI Assistant — floating button su tutte le pagine (lazy → Suspense) */}
-      <React.Suspense fallback={null}><AIAssistant /></React.Suspense>
+      {/* AIAssistant è ora renderizzato da <FloatingActions /> in App.jsx — vedi audit 2026-06-24 unifica FAB. */}
     </div>
     </ErrorBoundary>
   );
