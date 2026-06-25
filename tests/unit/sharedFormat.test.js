@@ -7,10 +7,10 @@ import { describe, it, expect } from 'vitest'
 import { fmt, fmt0, fmtp, margColor } from '../../src/views/_shared.jsx'
 import { color as T } from '../../src/lib/theme.js'
 
-// In it-IT il separatore migliaia è '.' e il decimale è ','. Lo verifichiamo
-// in modo robusto invece di hardcodare la stringa, così il test non è fragile
-// rispetto a eventuali spazi non-breaking introdotti da Intl.
-const SEP = (1234.5).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+// In it-IT il separatore migliaia è '.' e il decimale è ','. Forziamo
+// useGrouping:'always' per essere consistenti con fmt/fmt0 (vedi _shared.jsx
+// che usa Intl.NumberFormat per garantire il separatore su tutti i runtime).
+const SEP = (1234.5).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' })
 
 describe('fmt (€ con 2 decimali, separatore migliaia IT)', () => {
   it('formatta un numero con 2 decimali', () => {
@@ -43,7 +43,7 @@ describe('fmt0 (€ arrotondato all\'unità)', () => {
   // browser sì). Per non rendere il test fragile confrontiamo con lo stesso
   // metodo usato dalla funzione, verificando arrotondamento e guard — non il
   // separatore esatto.
-  const expectInt = n => `${Math.round(n).toLocaleString('it-IT')} €`
+  const expectInt = n => `${Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' })} €`
 
   it('arrotonda all\'intero più vicino', () => {
     expect(fmt0(1234.4)).toBe(expectInt(1234))

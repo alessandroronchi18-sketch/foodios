@@ -37,23 +37,76 @@ export const margColor = pct => pct >= 60 ? C.green : pct >= 40 ? C.amber : C.re
 // Guard su NaN/undefined: chiusure batch/import possono avere kpi parziali
 // (es. kpi:{} senza totV) → senza guard si mostrava "€ NaN".
 // Separatore migliaia IT (1.234,56) ovunque, così gli importi grandi sono leggibili.
-export const fmt = v => { const n = Number(v); return `${(Number.isFinite(n) ? n : 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` }
+//
+// CRITICAL FIX 2026-06-25: in alcuni runtime (Node senza ICU full, Safari iOS
+// in private browsing) `toLocaleString('it-IT')` SENZA opzioni esplicite
+// ritorna "9628" senza separatore migliaia. Forziamo `useGrouping: 'always'`
+// + `maximumFractionDigits: 0/2` esplicito su tutti i 3 helper per garantire
+// l'output IT-style su qualsiasi runtime.
+const NF_IT_2DEC = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' })
+const NF_IT_0DEC = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: 'always' })
+
+export const fmt = v => { const n = Number(v); return `${NF_IT_2DEC.format(Number.isFinite(n) ? n : 0)} €` }
 export const fmtp = v => { const n = Number(v); return `${(Number.isFinite(n) ? n : 0).toFixed(1)}%` }
-// Valuta arrotondata all'unità con separatore migliaia (es. € 1.234). Per box/KPI.
-export const fmt0 = v => { const n = Number(v); return `${Math.round(Number.isFinite(n) ? n : 0).toLocaleString('it-IT')} €` }
+// Valuta arrotondata all'unità con separatore migliaia (es. 1.234 €). Per box/KPI.
+export const fmt0 = v => { const n = Number(v); return `${NF_IT_0DEC.format(Math.round(Number.isFinite(n) ? n : 0))} €` }
+
+// CSS futuristic-clean per tile/KPI shared. Iniettato una volta (idempotente
+// se il browser carica piu' volte _shared — il selettore di style id evita
+// duplicati).
+// — fos-kpi-tile: hover lift drammatico + ombra brand colorata
+// — accent strip animato superiore opzionale (className fos-kpi-accent)
+// — sheen sweep al primo render (sottile riflesso che scorre, una volta sola)
+// Tutto pause su prefers-reduced-motion.
+if (typeof document !== 'undefined' && !document.getElementById('fos-kpi-css')) {
+  const s = document.createElement('style')
+  s.id = 'fos-kpi-css'
+  s.textContent = `
+    @keyframes _fos_kpiAccent {
+      0%, 100% { background-position: 0% 50%; }
+      50%      { background-position: 100% 50%; }
+    }
+    @keyframes _fos_kpiSheen {
+      0%   { transform: translateX(-110%) skewX(-18deg); opacity: 0; }
+      40%  { opacity: 0.55; }
+      100% { transform: translateX(220%)  skewX(-18deg); opacity: 0; }
+    }
+    .fos-kpi-tile {
+      transition: transform 0.22s cubic-bezier(.32,.72,0,1), box-shadow 0.22s ease, border-color 0.22s ease;
+    }
+    .fos-kpi-tile:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 18px 40px rgba(110,14,26,0.14), 0 2px 8px rgba(110,14,26,0.08);
+      border-color: rgba(110,14,26,0.20);
+    }
+    .fos-kpi-tile.fos-kpi-highlight:hover {
+      box-shadow: 0 22px 50px rgba(110,14,26,0.42), inset 0 1px 0 rgba(255,255,255,0.22);
+    }
+    .fos-kpi-accent {
+      animation: _fos_kpiAccent 6s ease-in-out infinite;
+    }
+    .fos-kpi-sheen {
+      animation: _fos_kpiSheen 1.6s cubic-bezier(.32,.72,0,1) 0.2s 1 forwards;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fos-kpi-tile { transition: none; }
+      .fos-kpi-tile:hover { transform: none; }
+      .fos-kpi-accent, .fos-kpi-sheen { animation: none !important; }
+    }
+  `
+  document.head.appendChild(s)
+}
 
 // KPI card grande premium (usata da Magazzino, Chiusura, Produzione, ecc.)
 // Look coerente con la Dashboard home: decoro radiale, chip icona, accento colore.
+// Audit 2026-06-25: aggiunto accent strip animato superiore + sheen sweep iniziale
+// + hover lift piu' drammatico con shadow brand. Futuristico ma professionale.
 export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
   const accent = color || T.brand
   const chipBg = highlight ? 'rgba(255,255,255,0.14)' : 'rgba(110,14,26,0.10)'
   const chipColor = highlight ? '#fff' : accent
-  // Audit 2026-06-24: minHeight su label/value/sub per allineare verticalmente
-  // i contenuti tra KPI fianco a fianco anche se uno ha label su 1 riga e
-  // l'altro su 2 (es. "Ricette" vs "Food cost medio"). flex column garantisce
-  // che i sub finiscano tutti alla stessa quota.
   return (
-    <div className="fos-tile" onClick={onClick} style={{
+    <div className={`fos-tile fos-kpi-tile${highlight ? ' fos-kpi-highlight' : ''}`} onClick={onClick} style={{
       position: 'relative', overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
       background: highlight ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
       border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 18,
@@ -61,12 +114,31 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
       boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
       display: 'flex', flexDirection: 'column', height: '100%',
     }}>
+      {/* Accent strip animato superiore (2px) — gradient brand→corallo→brand
+          in loop 6s. Crea "vivo / connesso" senza essere invadente. */}
+      <div className="fos-kpi-accent" aria-hidden="true" style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: highlight
+          ? 'linear-gradient(90deg, rgba(255,180,140,0.0), rgba(255,180,140,0.85) 50%, rgba(255,180,140,0.0))'
+          : `linear-gradient(90deg, transparent, ${accent} 50%, transparent)`,
+        backgroundSize: '200% 100%',
+        pointerEvents: 'none',
+      }}/>
+      {/* Sheen sweep iniziale — diagonal light pass una volta sola al mount */}
+      <div className="fos-kpi-sheen" aria-hidden="true" style={{
+        position: 'absolute', top: -20, bottom: -20, width: 80, pointerEvents: 'none',
+        background: highlight
+          ? 'linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent)'
+          : 'linear-gradient(90deg, transparent, rgba(110,14,26,0.08), transparent)',
+        filter: 'blur(8px)',
+      }}/>
       {/* decoro radiale d'angolo */}
       <div style={{ position: 'absolute', top: -28, right: -28, width: 92, height: 92, borderRadius: '50%',
         background: highlight ? 'rgba(255,255,255,0.07)' : `${accent}14`, opacity: 0.6, pointerEvents: 'none' }}/>
       {icon && (
         <div style={{ position: 'relative', marginBottom: 12 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 11, background: chipBg, color: chipColor, fontSize: 17 }}>{icon}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 11, background: chipBg, color: chipColor, fontSize: 17,
+            boxShadow: highlight ? 'inset 0 1px 0 rgba(255,255,255,0.14)' : `0 4px 12px ${accent}28` }}>{icon}</span>
         </div>
       )}
       <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase',
