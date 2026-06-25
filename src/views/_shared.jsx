@@ -71,6 +71,10 @@ if (typeof document !== 'undefined' && !document.getElementById('fos-kpi-css')) 
       40%  { opacity: 0.55; }
       100% { transform: translateX(220%)  skewX(-18deg); opacity: 0; }
     }
+    @keyframes _fos_shBarPulse {
+      0%, 100% { background-position: 50% 0%;   box-shadow: 0 0 12px rgba(232,75,58,0.45), inset 0 1px 0 rgba(255,255,255,0.18); }
+      50%      { background-position: 50% 100%; box-shadow: 0 0 18px rgba(232,75,58,0.65), inset 0 1px 0 rgba(255,255,255,0.22); }
+    }
     .fos-kpi-tile {
       transition: transform 0.22s cubic-bezier(.32,.72,0,1), box-shadow 0.22s ease, border-color 0.22s ease;
     }
@@ -88,10 +92,63 @@ if (typeof document !== 'undefined' && !document.getElementById('fos-kpi-css')) 
     .fos-kpi-sheen {
       animation: _fos_kpiSheen 1.6s cubic-bezier(.32,.72,0,1) 0.2s 1 forwards;
     }
+    /* Section header bar — pulsa brand→corallo→brand 3s in loop */
+    .fos-sh-bar {
+      animation: _fos_shBarPulse 3s ease-in-out infinite;
+    }
+    /* Tile generiche (.fos-tile usata in 26 punti del codice): hover lift
+       potenziato + ombra brand-tinted per coerenza con KPI futuristic.
+       ::before aggiunge accent strip top 2px gradient brand (statico, non
+       animato per non distrarre quando la pagina ha tante tile). */
+    .fos-tile {
+      position: relative;
+    }
+    .fos-tile::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 14%; right: 14%;
+      height: 2px;
+      border-radius: 0 0 2px 2px;
+      background: linear-gradient(90deg, transparent, rgba(110,14,26,0.85) 30%, rgba(232,75,58,1) 50%, rgba(110,14,26,0.85) 70%, transparent);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .fos-tile:hover {
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 20px 44px rgba(110,14,26,0.12), 0 2px 8px rgba(110,14,26,0.06) !important;
+      border-color: rgba(110,14,26,0.15) !important;
+    }
+    .fos-tile:hover::before {
+      left: 6%; right: 6%;
+      transition: left 0.22s ease, right 0.22s ease;
+    }
+    /* Page container futuristic-clean: per le card grandi non-KPI (Conto
+       economico, Costi extra-food, Tabella riepilogativa, ecc.).
+       Aggiungere className="fos-card-glow" al div per ottenere accent strip
+       top + hover lift. */
+    .fos-card-glow {
+      position: relative;
+      transition: transform 0.22s cubic-bezier(.32,.72,0,1), box-shadow 0.22s ease, border-color 0.22s ease;
+    }
+    .fos-card-glow::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 12%; right: 12%;
+      height: 2px;
+      border-radius: 0 0 2px 2px;
+      background: linear-gradient(90deg, transparent, #6E0E1A 30%, #E84B3A 50%, #6E0E1A 70%, transparent);
+      background-size: 200% 100%;
+      animation: _fos_kpiAccent 7s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .fos-card-glow:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 18px 40px rgba(110,14,26,0.10) !important;
+      border-color: rgba(110,14,26,0.15) !important;
+    }
     @media (prefers-reduced-motion: reduce) {
-      .fos-kpi-tile { transition: none; }
-      .fos-kpi-tile:hover { transform: none; }
-      .fos-kpi-accent, .fos-kpi-sheen { animation: none !important; }
+      .fos-kpi-tile, .fos-tile, .fos-card-glow { transition: none; }
+      .fos-kpi-tile:hover, .fos-tile:hover, .fos-card-glow:hover { transform: none; }
+      .fos-kpi-accent, .fos-kpi-sheen, .fos-sh-bar, .fos-card-glow::before { animation: none !important; }
     }
   `
   document.head.appendChild(s)
@@ -329,14 +386,21 @@ export function SortTH({ k, children, right, active, dir, onToggle, tip }) {
   )
 }
 
-// Section header con barra brand
+// Section header con barra brand. Audit 2026-06-25: barra ora gradient
+// brand→corallo→brand con pulse + glow brand sottile. Propaga automaticamente
+// a tutte le view che usano SH (PLView, Eventi, SpreciOmaggi, ecc.).
 export function SH({ children, sub }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14, marginTop: 32 }}>
-      <div style={{ width: 3, height: 16, background: T.brand, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14, marginTop: 32 }}>
+      <div className="fos-sh-bar" aria-hidden="true" style={{
+        width: 4, height: 20, borderRadius: 3, flexShrink: 0, alignSelf: 'center',
+        background: 'linear-gradient(180deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)',
+        backgroundSize: '100% 200%',
+        boxShadow: '0 0 12px rgba(232,75,58,0.45), inset 0 1px 0 rgba(255,255,255,0.18)',
+      }}/>
       <div>
-        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: T.text, letterSpacing: '-0.015em' }}>{children}</h2>
-        {sub && <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2, letterSpacing: '-0.005em' }}>{sub}</div>}
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.015em' }}>{children}</h2>
+        {sub && <div style={{ fontSize: 12, color: T.textSoft, marginTop: 3, letterSpacing: '-0.005em', lineHeight: 1.55 }}>{sub}</div>}
       </div>
     </div>
   )

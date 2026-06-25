@@ -36,7 +36,7 @@ function BarreRicavo({ rows, euro, pct }) {
   return (
     <>
       <SH sub="Verde = margine lordo che resta in cassa · Rosso = costo ingredienti · Passa il mouse sulla barra per il dettaglio">Dove va ogni euro di ricavo — per stampo</SH>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28,
+      <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28,
         boxShadow: SHADOW_PREMIUM, position: 'relative' }}
         onMouseLeave={() => setTooltip(null)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -173,7 +173,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
   return (
     <>
       <SH sub="Aggregato su tutti i prodotti — clicca le intestazioni per ordinare">Ingredienti per Impatto sul Food Cost</SH>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM, position: 'relative' }}>
+      <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM, position: 'relative' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
             <tr style={{ background: '#F8F4F2' }}>
@@ -288,7 +288,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
         )}
       </div>
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+      <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28, position: 'relative', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
         {hasChanges && (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 24, padding: '16px 20px', background: '#F8F4F2', borderRadius: 10, border: `1px solid ${C.border}` }}>
             {[
@@ -391,7 +391,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
       {/* Audit 2026-06-25: overflowX:auto sul container + minWidth tabella per
           consentire lo scroll orizzontale su mobile/tablet senza tagliare i
           numeri; numeri tabular-nums e allineati a destra; riga TOTALE 800. */}
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM }}>
+      <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, position: 'relative', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 760 }}>
             <thead>
@@ -457,7 +457,7 @@ function SensTable({ rows, euro, pct }) {
   return (
     <>
       <SH sub="Cosa succede se i costi materie prime salgono">Sensitivity: Impatto Aumento Costi</SH>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM }}>
+      <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, position: 'relative', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 580 }}>
             <thead>
