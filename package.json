@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/bump-sw-cache.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src/ --quiet",

@@ -46,6 +46,28 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
         refreshing = true
         window.location.reload()
       })
+
+      // Polling periodico per intercettare nuovi deploy senza dover aspettare
+      // che il browser decida di ricontrollare il SW da solo (Safari iOS lo fa
+      // al massimo ogni 24h → utenti restavano incollati alla cache vecchia
+      // per un giorno intero dopo deploy con UI nuova).
+      //
+      // Ogni 15 minuti chiediamo al SW di re-fetchare /sw.js dal CDN: se l'hash
+      // CACHE_VERSION e' cambiato (auto-bumpato in build via
+      // scripts/bump-sw-cache.mjs), il browser scarica il nuovo SW, parte
+      // l'evento updatefound + statechange + controllerchange → reload.
+      const SW_POLL_MS = 15 * 60 * 1000
+      setInterval(() => {
+        reg.update().catch(() => { /* silent, riproveremo */ })
+      }, SW_POLL_MS)
+
+      // Update anche al rientro in foreground (Safari sospende il setInterval
+      // quando la PWA non e' visibile — al ritorno verifichiamo subito).
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          reg.update().catch(() => {})
+        }
+      })
     } catch (err) {
       // Fail-soft: la PWA degrada a app web normale.
       console.warn('[pwa] SW registration failed', err?.message)
