@@ -112,6 +112,10 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
   const [addingSecondaSede, setAddingSecondaSede] = useState(false)
   const [sedeSaving, setSedeSaving] = useState(false)
   const [sedeError, setSedeError] = useState(null)
+  // STEP 3a: metodo di produzione (salvato sulla sede principale).
+  // null = non scelto, mostra pannello scelta; 'stampi' o 'inventario' = scelto, mostra "altre sedi".
+  const [metodoProduzione, setMetodoProduzione] = useState(null)
+  const [metodoSaving, setMetodoSaving] = useState(false)
 
   // ESC chiude il wizard (skip silenzioso) — ma non se l'utente sta scrivendo
   // in un input (digitare ESC mentre compili "Nome sede" non deve far saltare
@@ -178,7 +182,35 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
     }
   }
 
-  // ─── STEP 3: seconda sede ──
+  // ─── STEP 3a: scelta metodo produzione sulla sede principale ──
+  async function handleSceltaMetodo(metodo) {
+    if (!orgId || metodoSaving) return
+    setMetodoSaving(true)
+    try {
+      // Risolvi la sede principale (creata dal trigger di registrazione).
+      const { data: sediRow } = await supabase
+        .from('sedi')
+        .select('id')
+        .eq('organization_id', orgId)
+        .order('created_at')
+        .limit(1)
+        .maybeSingle()
+      if (sediRow?.id) {
+        await supabase.from('sedi').update({
+          is_sede_produzione: true,
+          metodo_produzione: metodo,
+        }).eq('id', sediRow.id)
+      }
+      setMetodoProduzione(metodo)
+    } catch {
+      // Fail-soft: l'utente puo' cambiare il metodo da Impostazioni > Sedi.
+      setMetodoProduzione(metodo)
+    } finally {
+      setMetodoSaving(false)
+    }
+  }
+
+  // ─── STEP 3b: seconda sede ──
   async function handleAggiungiSecondaSede() {
     if (!secondaSede.nome.trim() || !orgId) return
     setSedeSaving(true)
@@ -509,8 +541,79 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
           </div>
         )}
 
-        {/* ═══════════════ STEP 3: Multi-sede ═══════════════ */}
-        {step === 3 && (
+        {/* ═══════════════ STEP 3a: Scelta metodo produzione ═══════════════ */}
+        {step === 3 && metodoProduzione === null && (
+          <div>
+            <div style={{ marginBottom: 12, color: BRAND }}><Icon name="package" size={50}/></div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
+              margin: '0 0 10px', letterSpacing: '-0.025em' }}>
+              Come registri la produzione?
+            </h1>
+            <p style={{ color: '#475264', fontSize: 14, lineHeight: 1.6, marginBottom: 24, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>
+              Scegli il metodo che corrisponde al tuo modo di lavorare. Lo puoi cambiare in qualsiasi momento da Impostazioni → Sedi.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14, maxWidth: 520, margin: '0 auto' }}>
+              {/* OPZIONE 1: Stampi / unità — pasticceria classica */}
+              <button onClick={() => handleSceltaMetodo('stampi')} disabled={metodoSaving}
+                style={{
+                  textAlign: 'left', padding: '20px 22px',
+                  background: '#FFF', border: '2px solid #E5E9EF', borderRadius: 14,
+                  cursor: metodoSaving ? 'wait' : 'pointer', display: 'flex', gap: 14, alignItems: 'flex-start',
+                  transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.12s',
+                  fontFamily: 'inherit', opacity: metodoSaving ? 0.6 : 1,
+                }}
+                onMouseEnter={e => { if (!metodoSaving) { e.currentTarget.style.borderColor = BRAND; e.currentTarget.style.boxShadow = '0 6px 18px rgba(110,14,26,0.10)' } }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E9EF'; e.currentTarget.style.boxShadow = 'none' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(110,14,26,0.10)', color: BRAND, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name="gift" size={22}/>
+                </div>
+                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#0E1726', marginBottom: 6, letterSpacing: '-0.01em' }}>
+                    Stampi e unità
+                  </div>
+                  <div style={{ fontSize: 13, color: '#475264', lineHeight: 1.55, marginBottom: 8 }}>
+                    Per chi produce <strong>per ricetta</strong>: torte, biscotti, croissant, paste. Ogni giorno registri quanti stampi/pezzi hai prodotto.
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#8B95A7', lineHeight: 1.5 }}>
+                    Indicato per: pasticceria classica, panificio, biscottificio, bar con prodotti finiti.
+                  </div>
+                </div>
+              </button>
+              {/* OPZIONE 2: Inventario gusti — gelateria/laboratorio */}
+              <button onClick={() => handleSceltaMetodo('inventario')} disabled={metodoSaving}
+                style={{
+                  textAlign: 'left', padding: '20px 22px',
+                  background: '#FFF', border: '2px solid #E5E9EF', borderRadius: 14,
+                  cursor: metodoSaving ? 'wait' : 'pointer', display: 'flex', gap: 14, alignItems: 'flex-start',
+                  transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.12s',
+                  fontFamily: 'inherit', opacity: metodoSaving ? 0.6 : 1,
+                }}
+                onMouseEnter={e => { if (!metodoSaving) { e.currentTarget.style.borderColor = '#8E44AD'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(142,68,173,0.10)' } }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E9EF'; e.currentTarget.style.boxShadow = 'none' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(142,68,173,0.12)', color: '#8E44AD', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name="layers" size={22}/>
+                </div>
+                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#0E1726', marginBottom: 6, letterSpacing: '-0.01em' }}>
+                    Inventario gusti
+                  </div>
+                  <div style={{ fontSize: 13, color: '#475264', lineHeight: 1.55, marginBottom: 8 }}>
+                    Per chi produce <strong>gusti</strong> ma vende <strong>formati</strong>: gelato in cono/coppetta/vaschetta, yogurt sfuso. Inserisci grammi prodotti e grammi rimasti — il venduto si calcola da solo.
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#8B95A7', lineHeight: 1.5 }}>
+                    Indicato per: gelateria, yogurteria, gastronomia con vaschette, laboratorio.
+                  </div>
+                </div>
+              </button>
+            </div>
+            <div style={{ marginTop: 20, fontSize: 12, color: '#8B95A7', maxWidth: 480, margin: '20px auto 0' }}>
+              Non sei sicuro? Inizia con <strong style={{ color: '#475264' }}>Stampi e unità</strong>: è il flusso più semplice. Puoi sempre passare all'altro metodo dopo.
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════ STEP 3b: Multi-sede ═══════════════ */}
+        {step === 3 && metodoProduzione !== null && (
           <div>
             <div style={{ marginBottom: 12, color: BRAND }}><Icon name="store" size={50}/></div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0E1726',
