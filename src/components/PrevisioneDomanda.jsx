@@ -343,13 +343,13 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
       </div>
 
       {/* Tab */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid rgba(0,0,0,0.07)' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid rgba(0,0,0,0.07)', overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
         {[["produrre", "Cosa produrre"], ["trend", "Trend e stagionalità"]].map(([id, lbl]) => (
           <button key={id} onClick={() => setModeView(id)}
-            style={{ padding: '8px 16px', border: 'none', background: 'transparent', cursor: 'pointer',
-              fontSize: 12, fontWeight: 700, color: modeView === id ? C.red : C.textSoft,
+            style={{ padding: '10px 16px', minHeight: isMobile ? 44 : 40, border: 'none', background: 'transparent', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, color: modeView === id ? C.red : C.textSoft,
               borderBottom: modeView === id ? `2px solid ${C.red}` : '2px solid transparent',
-              marginBottom: -2, transition: 'all 0.12s' }}>
+              marginBottom: -2, whiteSpace: 'nowrap', transition: 'all 0.12s' }}>
             {lbl}
           </button>
         ))}

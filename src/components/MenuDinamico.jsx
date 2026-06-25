@@ -54,7 +54,7 @@ function popolaritaDalVenduto(chiusure, giorni = 60) {
 }
 
 /* ─── EDITOR ─────────────────────────────────────────────────────────── */
-function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems, isMobile, LEX }) {
+function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems, isMobile, isTablet = false, LEX }) {
   const [search, setSearch] = useState("")
 
   const ricette = Object.values(ricettario?.ricette||{}).filter(r => {
@@ -119,7 +119,7 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
         </button>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
+      <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(3, 1fr)" : "repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
         {filtrate.map(r => {
           const sel = inMenu.has(r.nome)
           const reg = getR(r.nome, r)
@@ -159,7 +159,7 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
 }
 
 /* ─── BCG MATRIX ─────────────────────────────────────────────────────── */
-function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile }) {
+function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
   if (!menuItems.length) return (
     <div style={{
       display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
@@ -646,10 +646,12 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
 
           <SH sub={`Seleziona ${LEX.ricette === 'pizze' || LEX.ricette === 'gusti' || LEX.ricette === 'piatti' || LEX.ricette === 'formati' ? `i ${LEX.ricette}` : `le ${LEX.ricette}`}, analizza i quadranti BCG ed esporta il menù.`}>Menù del giorno</SH>
 
-          {/* Tabs */}
+          {/* Tabs — overflowX:auto su mobile per non far wrappare le label. */}
           <div style={{
             display:"flex", gap:2, marginBottom:22,
             borderBottom:`1px solid ${T.border}`,
+            overflowX: isMobile ? 'auto' : 'visible',
+            WebkitOverflowScrolling: 'touch',
           }}>
             {TABS.map(([id,lbl])=>{
               const active = tab===id
@@ -661,6 +663,7 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
                     color: active ? T.text : T.textSoft,
                     borderBottom: active ? `2px solid ${T.brand}` : "2px solid transparent",
                     marginBottom:-1, letterSpacing:"-0.005em",
+                    whiteSpace:"nowrap", minHeight: isMobile ? 44 : 40,
                     transition:`color ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}`,
                   }}>
                   {lbl}
@@ -669,8 +672,8 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
             })}
           </div>
 
-          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems} isMobile={isMobile} LEX={LEX}/>}
-          {tab === "bcg"       && <BCGMatrix     menuItems={menuItems} popVenduto={popVenduto} hasStorico={hasStorico} isMobile={isMobile}/>}
+          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems} isMobile={isMobile} isTablet={isTablet} LEX={LEX}/>}
+          {tab === "bcg"       && <BCGMatrix     menuItems={menuItems} popVenduto={popVenduto} hasStorico={hasStorico} isMobile={isMobile} isTablet={isTablet}/>}
           {tab === "anteprima" && <MenuPreview   menuItems={menuItems} setMenuItems={setMenuItems} nomeAttivita={nomeAttivita} isMobile={isMobile}/>}
         </>
       )}

@@ -243,7 +243,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
                 maxLength={1000}
                 rows={5}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: R.md,
-                  border: `1px solid ${T.border}`, fontSize: 14, fontFamily: 'inherit', resize: 'vertical',
+                  border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 14, fontFamily: 'inherit', resize: 'vertical',
                   color: T.text, outline: 'none', boxSizing: 'border-box' }}/>
               <div style={{ fontSize: 11, color: T.textFaint, textAlign: 'right', marginTop: 4 }}>
                 {feedback.length}/1000
@@ -276,7 +276,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
                 autoComplete="off"
                 style={{ width: '100%', padding: '10px 12px', borderRadius: R.md,
                   border: `1.5px solid ${confermaOk ? '#86EFAC' : T.border}`,
-                  fontSize: 14, fontFamily: 'inherit', color: T.text, outline: 'none', boxSizing: 'border-box',
+                  fontSize: isMobile ? 16 : 14, fontFamily: 'inherit', color: T.text, outline: 'none', boxSizing: 'border-box',
                   background: confermaOk ? '#F0FDF4' : '#FFF' }}/>
             </div>
           )}
@@ -287,13 +287,13 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
           display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, justifyContent: 'space-between' }}>
           {step > 1 ? (
             <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={submitting}
-              style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`,
+              style={{ padding: '10px 16px', minHeight: isMobile ? 44 : 40, borderRadius: R.md, border: `1px solid ${T.border}`,
                 background: '#FFF', color: T.textSoft, fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>
               ← Indietro
             </button>
           ) : (
             <button onClick={chiudi} disabled={submitting}
-              style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`,
+              style={{ padding: '10px 16px', minHeight: isMobile ? 44 : 40, borderRadius: R.md, border: `1px solid ${T.border}`,
                 background: '#FFF', color: T.textSoft, fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}>
               Annulla
             </button>

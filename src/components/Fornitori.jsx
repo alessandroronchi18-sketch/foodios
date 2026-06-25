@@ -79,7 +79,7 @@ function BandaDiagnosi({ orgId, sedeId, isMobile, isTablet, refreshKey }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TAB 1 — Anagrafica fornitori
 // ─────────────────────────────────────────────────────────────────────────────
-function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, onMutate }) {
+function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = false, onMutate }) {
   const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
@@ -225,7 +225,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, onMutate }) 
   }
 
   return (
-    <div style={{ display: isMobile ? "block" : "grid", gridTemplateColumns: isMobile ? undefined : "minmax(320px, 0.9fr) 1.4fr", gap: 24, alignItems: 'start' }}>
+    <div style={{ display: (isMobile || isTablet) ? "block" : "grid", gridTemplateColumns: (isMobile || isTablet) ? undefined : "minmax(320px, 0.9fr) 1.4fr", gap: 24, alignItems: 'start' }}>
       {/* Form */}
       {formVisible && (
         <div style={{
@@ -856,7 +856,7 @@ export default function Fornitori({ orgId, sedeId, sedi = [], notify }) {
         {TABS.map(([id, lbl, ico]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{
-              padding: "10px 16px", border: "none", background: "transparent", cursor: "pointer",
+              padding: "10px 16px", minHeight: isMobile ? 44 : 40, border: "none", background: "transparent", cursor: "pointer",
               fontSize: 13, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
               borderBottom: tab === id ? `2px solid ${T.brand}` : "2px solid transparent",
               marginBottom: -1, letterSpacing: "-0.005em", whiteSpace: "nowrap",
@@ -870,7 +870,7 @@ export default function Fornitori({ orgId, sedeId, sedi = [], notify }) {
         ))}
       </div>
 
-      {tab === "fornitori" && <FornitoriTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} onMutate={bumpRefresh} />}
+      {tab === "fornitori" && <FornitoriTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet} onMutate={bumpRefresh} />}
       {tab === "ordini" && <OrdiniTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} onMutate={bumpRefresh} />}
       {tab === "spesa" && <SpesaTab orgId={orgId} isMobile={isMobile} />}
     </div>

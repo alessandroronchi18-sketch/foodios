@@ -940,10 +940,10 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
         Consulta un tecnico HACCP certificato per la conformità normativa effettiva.
       </div>
 
-      <div style={{ display:'flex', gap:2, marginBottom: isMobile?16:20, borderBottom:`1px solid ${T.border}`, overflowX:'auto' }}>
+      <div style={{ display:'flex', gap:2, marginBottom: isMobile?16:20, borderBottom:`1px solid ${T.border}`, overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
         {TABS.map(([id, lbl, icon]) => (
           <button key={id} onClick={() => setTab(id)}
-            style={{ padding:'10px 16px', border:'none', background:'transparent', cursor:'pointer',
+            style={{ padding:'10px 16px', minHeight: isMobile?44:40, border:'none', background:'transparent', cursor:'pointer',
               fontSize:13, fontWeight: tab===id?700:500, color: tab===id?T.brand:T.textSoft,
               borderBottom: tab===id?`2px solid ${T.brand}`:'2px solid transparent',
               marginBottom:-1, letterSpacing:'-0.005em', whiteSpace:'nowrap',

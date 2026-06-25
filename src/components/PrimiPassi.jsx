@@ -18,6 +18,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { color as T } from '../lib/theme'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 
 const SK_PRIMI_PASSI = 'primi-passi-v1'
@@ -75,6 +76,8 @@ const TASKS = [
 ]
 
 export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giornaliero, chiusure, onNavigate }) {
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [state, setState] = useState({ dismissed: false, completati: {} })
   // Audit 2026-06-24: default collassato. L'utente atterra sulla home
   // e vede solo l'header con progress bar — cliccando si espande.
@@ -154,11 +157,13 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
     >
       <button onClick={() => setOpen(o => !o)}
         aria-expanded={open}
+        aria-label={allDone ? 'Primi passi completati' : `Primi passi: ${completati} di ${totale} completati`}
         style={{
           width: '100%', textAlign: 'left',
           background: 'transparent', border: 'none', cursor: 'pointer',
-          padding: '14px 18px',
-          display: 'flex', alignItems: 'center', gap: 14,
+          padding: isMobile ? '16px 16px' : '14px 18px',
+          minHeight: isMobile ? 64 : isTablet ? 60 : 'auto',
+          display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 14,
         }}>
         <div style={{
           width: 40, height: 40, borderRadius: 12, flexShrink: 0,
@@ -198,16 +203,18 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
       </button>
 
       {open && (
-        <div style={{ padding: '4px 18px 16px', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ padding: isMobile ? '4px 14px 14px' : '4px 18px 16px', borderTop: `1px solid ${BORDER}` }}>
           {checks.map(t => (
             <div key={t.id}
               style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '10px 0', borderBottom: `1px solid #F8FAFC`,
+                display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12,
+                padding: isMobile ? '12px 0' : '10px 0',
+                minHeight: isMobile ? 56 : isTablet ? 52 : 48,
+                borderBottom: `1px solid #F8FAFC`,
               }}
             >
               <div style={{
-                width: 22, height: 22, borderRadius: '50%',
+                width: isMobile ? 24 : 22, height: isMobile ? 24 : 22, borderRadius: '50%',
                 background: t.done ? GREEN : 'transparent',
                 border: `2px solid ${t.done ? GREEN : '#CBD5E1'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -215,19 +222,24 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
               }}>{t.done ? <Icon name="check" size={13} color="#FFF"/> : null}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  fontSize: 13, fontWeight: 600,
+                  fontSize: isMobile ? 14 : 13, fontWeight: 600,
                   color: t.done ? SOFT : TXT,
                   textDecoration: t.done ? 'line-through' : 'none',
+                  lineHeight: 1.35,
                 }}>{t.label}</div>
-                <div style={{ fontSize: 11.5, color: SOFT, marginTop: 2 }}>{t.hint}</div>
+                <div style={{ fontSize: isMobile ? 12 : 11.5, color: SOFT, marginTop: 2, lineHeight: 1.4 }}>{t.hint}</div>
               </div>
               {!t.done && onNavigate && (
                 <button onClick={() => onNavigate(t.view)}
+                  aria-label={`Apri ${t.label}`}
                   style={{
                     background: '#F8FAFC', color: BRAND,
                     border: `1px solid ${BORDER}`, borderRadius: 8,
-                    padding: '6px 12px', fontSize: 12, fontWeight: 700,
-                    cursor: 'pointer', whiteSpace: 'nowrap',
+                    padding: isMobile ? '10px 16px' : isTablet ? '9px 14px' : '6px 12px',
+                    minHeight: isMobile ? 40 : isTablet ? 44 : 'auto',
+                    minWidth: isMobile ? 56 : 'auto',
+                    fontSize: isMobile ? 13 : 12, fontWeight: 700,
+                    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                   }}>
                   Vai
                 </button>
@@ -236,15 +248,16 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
           ))}
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            paddingTop: 12, marginTop: 4,
+            paddingTop: 12, marginTop: 4, gap: 8, flexWrap: 'wrap',
           }}>
-            <div style={{ fontSize: 11, color: SOFT }}>
+            <div style={{ fontSize: isMobile ? 12 : 11, color: SOFT }}>
               {allDone ? 'Sparisce automaticamente.' : 'Nascondi questo widget'}
             </div>
             <button onClick={dismiss}
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
-                color: SOFT, fontSize: 11, fontWeight: 600, padding: 0,
+                color: SOFT, fontSize: isMobile ? 12 : 11, fontWeight: 600,
+                padding: isMobile ? '8px 6px' : 0, minHeight: isMobile ? 36 : 'auto',
               }}>
               Non mostrare più
             </button>

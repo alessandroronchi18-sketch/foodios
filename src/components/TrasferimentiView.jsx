@@ -210,7 +210,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           .eq('id', created.id)
       }
 
-      notify?.(autoInvia ? '✓ Trasferimento inviato' : '✓ Bozza salvata')
+      notify?.(autoInvia ? 'Trasferimento inviato' : 'Bozza salvata')
       setForm(f => ({ ...f, prodotto: '', quantita: '', valore_unit: '', note: '' }))
       setShowForm(false)
       await carica()
@@ -225,7 +225,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             orgId, sedeDa: form.sede_da, prodotto: form.prodotto, qtyGrammi: qtyMpGrammi,
             errore_rollback: rbErr?.message,
           })
-          notify?.('⚠ ATTENZIONE: rollback magazzino fallito. Verifica manualmente la giacenza di "' + form.prodotto + '"', false)
+          notify?.('ATTENZIONE: rollback magazzino fallito. Verifica manualmente la giacenza di "' + form.prodotto + '"', false)
         }
       }
       notify?.('Errore: ' + e.message, false)
@@ -251,7 +251,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         // RPC con tipo='semilavorato' non scala stock ma aggiorna stato.
         await inviaTrasferimento(t.id)
       }
-      notify?.('✓ Invio registrato')
+      notify?.('Invio registrato')
       await carica()
     } catch (e) {
       notify?.('Errore invio: ' + e.message, false)
@@ -287,7 +287,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       } else {
         await riceviTrasferimento(t.id, { quantitaRicevuta: qty, scartoNote: note?.trim() || null })
       }
-      notify?.('✓ Ricezione registrata')
+      notify?.('Ricezione registrata')
       setRiceviModal(null)
       await carica()
     } catch (e) {
@@ -311,7 +311,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       } else {
         await annullaTrasferimento(t.id)
       }
-      notify?.('✓ Trasferimento annullato')
+      notify?.('Trasferimento annullato')
       await carica()
     } catch (e) {
       notify?.('Errore annullamento: ' + e.message, false)
@@ -332,7 +332,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     try {
       const { error } = await supabase.from('trasferimenti').delete().eq('id', t.id).eq('organization_id', orgId)
       if (error) throw error
-      notify?.('✓ Eliminato')
+      notify?.('Eliminato')
       await carica()
     } catch (e) {
       notify?.('Errore: ' + e.message, false)
@@ -448,11 +448,11 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
     )
   }
 
-  const inp = { width: '100%', padding: isMobile ? '12px 14px' : '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, background: C.bgCard, boxSizing: 'border-box' }
-  const lbl = { fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }
+  const inp = { width: '100%', padding: isMobile ? '12px 14px' : isTablet ? '10px 13px' : '8px 12px', minHeight: isMobile ? 44 : isTablet ? 44 : 'auto', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : isTablet ? 16 : 13, color: C.text, background: C.bgCard, boxSizing: 'border-box' }
+  const lbl = { fontSize: isMobile ? 11 : 9.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: isMobile ? 6 : 4 }
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1100, padding: isMobile ? '0 4px 80px' : 0 }}>
       <div style={{ marginBottom: 6 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>Operazioni multi-sede</div>
         <p style={{ margin: 0, fontSize: 13, color: C.textSoft }}>
@@ -469,37 +469,43 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 10 }}>
             Accuratezza mese
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Trasferimenti</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginTop: 4, ...tnum }}>{accuratezzaMese.tot}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Ricevuti puntuali</div>
-              <div style={{
-                fontSize: 22, fontWeight: 900, marginTop: 4, ...tnum,
-                color: accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '#D97706' : C.red,
-              }}>
-                {accuratezzaMese.accuracyPct != null ? `${accuratezzaMese.accuracyPct.toFixed(0)}%` : '—'}
-              </div>
-              <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2, ...tnum }}>
-                {accuratezzaMese.ricevutiOk}/{accuratezzaMese.ricevuti} senza scarto
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Scarto totale</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: accuratezzaMese.scartoQty > 0 ? C.red : C.text, marginTop: 4, ...tnum }}>
-                {accuratezzaMese.scartoQty > 0 ? accuratezzaMese.scartoQty.toLocaleString('it-IT', { maximumFractionDigits: 1 }) : '0'}
-              </div>
-              <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>unità varie</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Valore sprecato</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: accuratezzaMese.scartoValore > 0 ? C.red : C.text, marginTop: 4, ...tnum }}>
-                {accuratezzaMese.scartoValore > 0 ? fmtEuro(accuratezzaMese.scartoValore) : '€ 0'}
-              </div>
-              <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>perso in scarti</div>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12 }}>
+            {(() => {
+              const kpiCell = { minHeight: isMobile ? 92 : isTablet ? 100 : 96, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }
+              const labelStyle = { fontSize: isMobile ? 10.5 : 10, color: C.textSoft, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', minHeight: 14 }
+              const valStyle = (color) => ({ fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 800, color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })
+              const subStyle = { fontSize: isMobile ? 11.5 : 10.5, color: C.textSoft, marginTop: 2 }
+              return (
+                <>
+                  <div style={kpiCell}>
+                    <div style={labelStyle}>Trasferimenti</div>
+                    <div style={valStyle(C.text)}>{Number(accuratezzaMese.tot || 0).toLocaleString('it-IT')}</div>
+                    <div style={subStyle}>nel mese corrente</div>
+                  </div>
+                  <div style={kpiCell}>
+                    <div style={labelStyle}>Ricevuti puntuali</div>
+                    <div style={valStyle(accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '#D97706' : C.red)}>
+                      {accuratezzaMese.accuracyPct != null ? `${accuratezzaMese.accuracyPct.toFixed(0)}%` : '—'}
+                    </div>
+                    <div style={{ ...subStyle, ...tnum }}>{accuratezzaMese.ricevutiOk}/{accuratezzaMese.ricevuti} senza scarto</div>
+                  </div>
+                  <div style={kpiCell}>
+                    <div style={labelStyle}>Scarto totale</div>
+                    <div style={valStyle(accuratezzaMese.scartoQty > 0 ? C.red : C.text)}>
+                      {accuratezzaMese.scartoQty > 0 ? accuratezzaMese.scartoQty.toLocaleString('it-IT', { maximumFractionDigits: 1 }) : '0'}
+                    </div>
+                    <div style={subStyle}>unità varie</div>
+                  </div>
+                  <div style={kpiCell}>
+                    <div style={labelStyle}>Valore sprecato</div>
+                    <div style={valStyle(accuratezzaMese.scartoValore > 0 ? C.red : C.text)}>
+                      {accuratezzaMese.scartoValore > 0 ? `€ ${Math.round(accuratezzaMese.scartoValore).toLocaleString('it-IT')}` : '€ 0'}
+                    </div>
+                    <div style={subStyle}>perso in scarti</div>
+                  </div>
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
@@ -556,8 +562,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <div style={{ fontSize: 11, color: C.textSoft }}>In arrivo da <strong>{sediMap[t.sede_da]?.nome || '—'}</strong> · {fmtData(t.data)}</div>
                 </div>
                 <button onClick={() => apriRicevi(t)} disabled={busyId === t.id}
-                  style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
-                  ✓ Conferma ricezione
+                  style={{ padding: isMobile ? '10px 16px' : '6px 14px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: isMobile ? 13 : 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="check" size={13} /> Conferma ricezione
                 </button>
               </div>
             ))}
@@ -569,7 +575,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <div style={{ fontSize: 11, color: C.textSoft }}>Bozza verso <strong>{sediMap[t.sede_a]?.nome || '—'}</strong> · pronta da inviare</div>
                 </div>
                 <button onClick={() => azInvia(t)} disabled={busyId === t.id}
-                  style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  style={{ padding: isMobile ? '10px 16px' : '6px 14px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: isMobile ? 13 : 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   <Icon name="truck" size={13} /> Invia ora
                 </button>
               </div>
@@ -579,16 +585,23 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       )}
 
       {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginTop: 20, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 12, marginTop: 20, marginBottom: 20 }}>
         {[
           { label: 'Totale', val: kpi.tot, color: C.text },
           { label: 'In uscita', val: kpi.inUscita, color: C.red },
           { label: 'In entrata', val: kpi.inEntrata, color: C.green },
           { label: 'Da ricevere', val: kpi.daRicevere, color: C.amber, highlight: kpi.daRicevere > 0 },
         ].map(k => (
-          <div key={k.label} style={{ background: k.highlight ? '#FEF3C7' : C.bgCard, border: `1px solid ${k.highlight ? C.amber : C.border}`, borderRadius: 12, padding: '14px 18px' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{k.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: k.color, marginTop: 4, ...tnum }}>{k.val}</div>
+          <div key={k.label} style={{
+            background: k.highlight ? '#FEF3C7' : C.bgCard,
+            border: `1px solid ${k.highlight ? C.amber : C.border}`,
+            borderRadius: 12,
+            padding: isMobile ? '14px 16px' : '14px 18px',
+            minHeight: isMobile ? 84 : isTablet ? 92 : 88,
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          }}>
+            <div style={{ fontSize: isMobile ? 10.5 : 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{k.label}</div>
+            <div style={{ fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 800, color: k.color, marginTop: 4, lineHeight: 1.05, letterSpacing: '-0.02em', ...tnum }}>{Number(k.val || 0).toLocaleString('it-IT')}</div>
           </div>
         ))}
       </div>
@@ -596,17 +609,18 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         <button onClick={() => setShowForm(s => !s)}
-          style={{ padding: '8px 16px', background: showForm ? C.bgCard : C.red, color: showForm ? C.textMid : C.white,
-            border: showForm ? `1px solid ${C.border}` : 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {showForm ? <>✕ Annulla</> : <><Icon name="plus" size={14} /> Nuovo trasferimento</>}
+          style={{ padding: isMobile ? '11px 18px' : '8px 16px', minHeight: isMobile ? 44 : 'auto',
+            background: showForm ? C.bgCard : C.red, color: showForm ? C.textMid : C.white,
+            border: showForm ? `1px solid ${C.border}` : 'none', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 14 : 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {showForm ? <><Icon name="x" size={14} /> Annulla</> : <><Icon name="plus" size={14} /> Nuovo trasferimento</>}
         </button>
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[['attiva','pin','Sede attiva'], ['tutte','building','Tutte le sedi']].map(([id, ic, lbl2]) => (
             <button key={id} onClick={() => setScope(id)}
-              style={{ padding: '6px 12px', borderRadius: 999, border: `1px solid ${C.border}`,
+              style={{ padding: isMobile ? '9px 14px' : '6px 12px', minHeight: isMobile ? 40 : isTablet ? 44 : 'auto', borderRadius: 999, border: `1px solid ${C.border}`,
                 background: scope === id ? C.text : C.bgCard, color: scope === id ? C.white : C.textMid,
-                fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                fontSize: isMobile ? 13 : 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
               <Icon name={ic} size={13} /> {lbl2}</button>
           ))}
         </div>
@@ -645,7 +659,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 {sediAttive.map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
               </select>
             </div>
-            <div style={{ textAlign: 'center', fontSize: 20, color: C.textSoft, paddingBottom: isMobile ? 0 : 6 }}>→</div>
+            {!isMobile && <div style={{ textAlign: 'center', fontSize: 20, color: C.textSoft, paddingBottom: 6 }} aria-hidden="true">→</div>}
             <div>
               <div style={lbl}>A</div>
               <select value={form.sede_a} onChange={e => setForm(f => ({ ...f, sede_a: e.target.value }))} style={inp}>
@@ -654,7 +668,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               </select>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr' : '2fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <div style={lbl}>{form.tipo === 'materia_prima' ? 'Ingrediente *' : 'Prodotto *'}</div>
               <ProductAutocomplete
@@ -695,11 +709,11 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={() => salvaBozza(true)} disabled={saving}
-              style={{ padding: '10px 20px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              style={{ padding: isMobile ? '12px 20px' : '10px 20px', minHeight: isMobile ? 44 : 'auto', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: isMobile ? 14 : 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, flex: isMobile ? '1 1 auto' : '0 0 auto', justifyContent: 'center' }}>
               {saving ? '…' : <><Icon name="truck" size={14} /> Invia subito</>}
             </button>
             <button onClick={() => salvaBozza(false)} disabled={saving}
-              style={{ padding: '10px 20px', background: C.bgCard, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              style={{ padding: isMobile ? '12px 20px' : '10px 20px', minHeight: isMobile ? 44 : 'auto', background: C.bgCard, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 14 : 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, flex: isMobile ? '1 1 auto' : '0 0 auto', justifyContent: 'center' }}>
               <Icon name="save" size={14} /> Salva bozza
             </button>
             <button onClick={() => {
@@ -709,7 +723,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               const nome = prompt('Nome template (es. "Lab → Via Roma mattutino"):', `${form.prodotto.slice(0, 20)}`)
               if (nome) salvaTemplate(nome)
             }} disabled={saving}
-              style={{ padding: '10px 16px', background: 'transparent', color: '#0369A1', border: '1px solid #BAE6FD', borderRadius: 8, fontWeight: 700, fontSize: 12.5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
+              style={{ padding: isMobile ? '11px 16px' : '10px 16px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', color: '#0369A1', border: '1px solid #BAE6FD', borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 13 : 12.5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: isMobile ? 0 : 'auto', flex: isMobile ? '1 1 100%' : '0 0 auto', justifyContent: 'center' }}
               title="Salva queste impostazioni come template ricorrente">
               <Icon name="save" size={13} /> Salva come template
             </button>
@@ -744,14 +758,14 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
               <input value={riceviModal.note} onChange={e => setRiceviModal(m => ({ ...m, note: e.target.value }))}
                 style={inp} placeholder="es. 2 pezzi danneggiati"/>
             </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button onClick={() => setRiceviModal(null)}
-                style={{ padding: '10px 18px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                style={{ padding: isMobile ? '12px 20px' : '10px 18px', minHeight: isMobile ? 44 : 'auto', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: isMobile ? 14 : 13, cursor: 'pointer' }}>
                 Annulla
               </button>
               <button onClick={confermaRicezione} disabled={busyId === riceviModal.t.id}
-                style={{ padding: '10px 18px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>
-                ✓ Conferma ricezione
+                style={{ padding: isMobile ? '12px 20px' : '10px 18px', minHeight: isMobile ? 44 : 'auto', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: isMobile ? 14 : 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="check" size={14} /> Conferma ricezione
               </button>
             </div>
           </div>
@@ -795,7 +809,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Filtri:</span>
           <select value={filtroStato} onChange={e => setFiltroStato(e.target.value)}
-            style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12 }}>
+            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: isMobile ? 16 : 12 }}>
             <option value="all">Tutti gli stati</option>
             <option value="bozza">Bozza</option>
             <option value="inviato">Inviato</option>
@@ -803,14 +817,14 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             <option value="annullato">Annullato</option>
           </select>
           <select value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}
-            style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12 }}>
+            style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: isMobile ? 16 : 12 }}>
             <option value="all">Tutti i tipi</option>
             {TIPI.map(t => <option key={t.id} value={t.id}>{t.lbl}</option>)}
           </select>
           {(filtroStato !== 'all' || filtroTipo !== 'all') && (
             <button onClick={() => { setFiltroStato('all'); setFiltroTipo('all') }}
-              style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-              ✕ Rimuovi filtri
+              style={{ padding: isMobile ? '8px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <Icon name="x" size={11} /> Rimuovi filtri
             </button>
           )}
           <span style={{ marginLeft: 'auto', fontSize: 11, color: C.textSoft }}>
@@ -859,40 +873,40 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                       </span>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {t.stato === 'bozza' && (
                       <>
-                        <button onClick={() => azInvia(t)} disabled={busy} title="Invia"
-                          style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <button onClick={() => azInvia(t)} disabled={busy} title="Invia" aria-label="Invia trasferimento"
+                          style={{ padding: isMobile ? '9px 14px' : '5px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Icon name="truck" size={12} /> Invia
                         </button>
-                        <button onClick={() => azElimina(t)} disabled={busy} title="Elimina bozza"
-                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="trash" size={13} /></button>
+                        <button onClick={() => azElimina(t)} disabled={busy} title="Elimina bozza" aria-label="Elimina bozza"
+                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
                       </>
                     )}
                     {t.stato === 'inviato' && (
                       <>
-                        <button onClick={() => apriRicevi(t)} disabled={busy} title="Conferma ricezione"
-                          style={{ padding: '5px 12px', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                          ✓ Ricevuto
+                        <button onClick={() => apriRicevi(t)} disabled={busy} title="Conferma ricezione" aria-label="Conferma ricezione"
+                          style={{ padding: isMobile ? '9px 14px' : '5px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Icon name="check" size={12} /> Ricevuto
                         </button>
-                        <button onClick={() => azAnnulla(t)} disabled={busy} title="Annulla (rollback stock)"
-                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="xCircle" size={13} /></button>
+                        <button onClick={() => azAnnulla(t)} disabled={busy} title="Annulla (rollback stock)" aria-label="Annulla trasferimento"
+                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.amber}`, background: '#FEF3C7', color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="xCircle" size={13} /></button>
                       </>
                     )}
                     {(t.stato === 'ricevuto' || t.stato === 'completato') && (
                       <>
-                        <span style={{ fontSize: 11, color: C.textSoft }}>{t.data_ricezione ? fmtData(t.data_ricezione) : ''}</span>
+                        <span style={{ fontSize: 11, color: C.textSoft, alignSelf: 'center' }}>{t.data_ricezione ? fmtData(t.data_ricezione) : ''}</span>
                         <button onClick={() => ripetiTrasferimento(t)}
                           title="Pre-compila lo stesso trasferimento con la data di oggi"
-                          style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.textMid, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           <Icon name="copy" size={12} /> Ripeti
                         </button>
                       </>
                     )}
                     {t.stato === 'annullato' && (
-                      <button onClick={() => azElimina(t)} title="Elimina"
-                        style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="trash" size={13} /></button>
+                      <button onClick={() => azElimina(t)} title="Elimina" aria-label="Elimina trasferimento"
+                        style={{ padding: isMobile ? '9px 12px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
                     )}
                   </div>
                 </div>

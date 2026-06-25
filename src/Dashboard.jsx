@@ -33,7 +33,7 @@ import Logo from './components/Logo'
 const Integrazioni = lazyWithReload(() => import('./components/Integrazioni'))
 import { parseDeliveroo, parseJustEat, parseGlovo, parseGenericCSV, applyGenericMapping, mergeInChiusure } from './lib/importDelivery'
 import { parseFile as parseCassaFile, mergeInChiusureCassa } from './lib/importCassa'
-import useIsMobile from './lib/useIsMobile'
+import useIsMobile, { useIsTablet } from './lib/useIsMobile'
 import { useOnlineStatus } from './lib/useOnlineStatus'
 import { useNotifiche } from './lib/useNotifiche'
 import { color as T, radius as R, shadow as S, motion as M, layout as L, z as Z, keyframes as KF, typo, tnum as TNUM } from './lib/theme'
@@ -781,7 +781,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
       notify("Errore nel salvataggio impostazione email", false);
       return;
     }
-    notify(val ? "✓ Riceverai i report mensili via email" : "✓ Email report mensili disattivata");
+    notify(val ? "Riceverai i report mensili via email" : "Email report mensili disattivata");
   };
 
   const handleSalvaNome = async () => {
@@ -798,7 +798,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
         .eq("id", orgId);
       if (error) throw error;
       await auth.refreshOrg?.();
-      notify("✓ Nome attività aggiornato");
+      notify("Nome attività aggiornato");
     } catch (e) {
       console.error("Errore salvataggio nome:", e);
       notify("Errore nel salvataggio: " + (e.message || "Riprova"), false);
@@ -833,14 +833,14 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
     const nuoveRese = getStoreRese();
     try { localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese)); } catch {}
     setReseState(getAllRese());
-    notify("✓ Resa aggiornata");
+    notify("Resa aggiornata");
   };
   const resetRese = (nomeNorm) => {
     setResaIngrediente(nomeNorm, 1.0);
     const nuoveRese = getStoreRese();
     try { localStorage.setItem(SK_RESE, JSON.stringify(nuoveRese)); } catch {}
     setReseState(getAllRese());
-    notify("✓ Resa ripristinata al 100%");
+    notify("Resa ripristinata al 100%");
   };
 
   return (
@@ -1196,6 +1196,7 @@ export default function Dashboard({
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita]);
 
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const isOnline = useOnlineStatus();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
@@ -1882,7 +1883,7 @@ export default function Dashboard({
     try { await ssave(SK_PROD,np); }
     catch(e){ notify(`Errore salvataggio: ${e.message||'rete'}`,false); return; }
     setProd(np);
-    notify("✓ Dati salvati");
+    notify("Dati salvati");
   },[produzione,notify]);
 
   const handleDel=useCallback(async k=>{
@@ -2078,21 +2079,24 @@ export default function Dashboard({
           );
         };
         const initial = (auth?.user?.email||"?").slice(0,1).toUpperCase();
+        // Etichette sezioni accorciate su tablet (la full label ruba spazio).
+        const TABLET_SEC_LABEL = { oggi:'Oggi', ricette:'Ricette', acquisti:'Magazzino', numeri:'Numeri', azienda:'Azienda', ai:'AI' };
         return (
         <div style={{position:"fixed",top:0,left:0,right:0,height:52,zIndex:45,
           background:"linear-gradient(100deg, #16121C 0%, #1E0B11 55%, #2C0E14 100%)",
           borderBottom:"1px solid rgba(0,0,0,0.4)",boxShadow:"0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 18px rgba(0,0,0,0.18)",
-          display:"flex",alignItems:"center",gap:14,padding:"0 16px"}}>
+          display:"flex",alignItems:"center",gap:isTablet?8:14,padding:isTablet?"0 10px":"0 16px"}}>
           {/* Linea accento brand in cima (firma premium) */}
           <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)"}}/>
-          {/* Logo + nome (sx) */}
-          <button onClick={()=>go(isDip?"home-dipendente":"home")} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
+          {/* Logo + nome (sx). Su tablet nascondiamo il nome app per recuperare spazio
+              alle sezioni di navigazione. */}
+          <button onClick={()=>go(isDip?"home-dipendente":"home")} aria-label={`Home ${appName}`} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
             {customLogo ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/> : <Logo size={26} style={{borderRadius:6}}/>}
-            <span style={{fontSize:15,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",whiteSpace:"nowrap"}}>{appName}</span>
+            {!isTablet && <span style={{fontSize:15,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",whiteSpace:"nowrap"}}>{appName}</span>}
           </button>
 
           {/* Sezioni con mega-menu su hover (centrate) */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:2,flex:1,minWidth:0,overflow:"visible"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:isTablet?0:2,flex:1,minWidth:0,overflow:"visible"}}>
             {NAV.map(sec=>{
               const open = hoverSec===sec.id;
               const secActive = activeSec===sec.id;
@@ -2100,17 +2104,18 @@ export default function Dashboard({
               // una sotto-feature non e' accessibile per l'utente corrente.
               // Per un utente Chain (vede tutto) → niente badge sulla sezione.
               const secHasLocked = sec.items.some(it => !canAccessView(it.id, piano, auth?.user?.email))
+              const secLabel = isTablet ? (TABLET_SEC_LABEL[sec.id] || sec.label) : sec.label;
               return (
                 <div key={sec.id} style={{position:"relative",height:"100%",display:"flex",alignItems:"center"}} onMouseEnter={()=>setHoverSec(sec.id)} onMouseLeave={()=>setHoverSec(null)}>
                   <button
                     onClick={()=>{ if(sec.headerView){ go(sec.headerView) } }}
-                    style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",borderRadius:8,border:"none",cursor:sec.headerView?"pointer":"default",whiteSpace:"nowrap",
+                    style={{display:"flex",alignItems:"center",gap:isTablet?4:6,padding:isTablet?"8px 8px":"8px 12px",borderRadius:8,border:"none",cursor:sec.headerView?"pointer":"default",whiteSpace:"nowrap",
                     background:open?"rgba(255,255,255,0.14)":secActive?"rgba(255,255,255,0.08)":(sec.id==="ai"?"linear-gradient(120deg, rgba(232,75,58,0.18), rgba(255,216,107,0.10))":"transparent"),
-                    color:secActive||open?"#fff":"rgba(255,255,255,0.80)",fontSize:12.5,fontWeight:secActive?700:(sec.id==="ai"?700:500),fontFamily:"inherit",
+                    color:secActive||open?"#fff":"rgba(255,255,255,0.80)",fontSize:isTablet?11.5:12.5,fontWeight:secActive?700:(sec.id==="ai"?700:500),fontFamily:"inherit",
                     boxShadow:secActive?"inset 0 -2px 0 #E84B3A":"none",
                     transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}>
                     {sec.id==="ai" && secHasLocked && <ChainBadge size={12}/>}
-                    {sec.label}
+                    {secLabel}
                     {sec.badge>0&&<span style={{background:"#E84B3A",color:"#fff",borderRadius:9,fontSize:9,fontWeight:700,padding:"1px 6px"}}>{sec.badge}</span>}
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.6,transform:open?"rotate(180deg)":"none",transition:`transform ${M.durFast} ${M.ease}`}}><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
@@ -2128,9 +2133,12 @@ export default function Dashboard({
             })}
           </div>
 
-          {/* Ricerca sezioni */}
+          {/* Ricerca sezioni. Su tablet la nascondiamo per dare aria al menu — l'utente
+              ha il bottone Cmd+K accanto al profilo per la ricerca globale. */}
+          {!isTablet && (
           <div style={{position:"relative",flexShrink:0}}>
             <input value={sidebarSearch} onChange={e=>setSidebarSearch(e.target.value)} placeholder="Cerca…"
+              aria-label="Cerca nel menu"
               onKeyDown={e=>{ if(e.key==="Enter"&&searchHits.length){ e.preventDefault(); go(searchHits[0].id); } if(e.key==="Escape") setSidebarSearch(''); }}
               style={{width:150,padding:"8px 12px 8px 32px",borderRadius:8,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:12,outline:"none",fontFamily:"inherit"}}/>
             <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"rgba(255,255,255,0.5)",display:"flex",pointerEvents:"none"}}>
@@ -2145,6 +2153,7 @@ export default function Dashboard({
               </div>
             )}
           </div>
+          )}
 
           {/* Campanella notifiche (con badge non letti) — scopribile a colpo d'occhio */}
           <button onClick={()=>setShowNotifiche(true)} aria-label="Notifiche" title="Notifiche"
@@ -2649,8 +2658,10 @@ export default function Dashboard({
                   return (
                     <button key={item.id}
                       onClick={()=>{ if (isMore) setSidebarOpen(true); else setView(item.id); }}
+                      aria-label={isMore ? "Apri menu altre sezioni" : item.label}
+                      aria-current={active ? "page" : undefined}
                       style={{flex:1,border:"none",background:"transparent",cursor:"pointer",
-                        padding:"9px 4px 10px",display:"flex",flexDirection:"column",
+                        padding:"9px 4px 10px",minHeight:56,display:"flex",flexDirection:"column",
                         alignItems:"center",justifyContent:"center",gap:3,position:"relative",
                         color:active?T.brand:T.textMid,
                         transition:`color ${M.durFast} ${M.ease}`}}>
@@ -2739,7 +2750,7 @@ export default function Dashboard({
           const group = VIEW_GROUPS[view] || "";
           return (
             <div style={{maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box",
-              padding:"20px 32px 0",display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14}}>
+              padding:isTablet?"18px 20px 0":"20px 32px 0",display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14}}>
               <div style={{minWidth:0}}>
                 <div style={{fontSize:9.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:8,marginBottom:3,lineHeight:1}}>
                   <span style={{maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.brand,fontWeight:700,letterSpacing:"0.07em"}}>{nomeAttivita||"FoodOS"}</span>
@@ -2825,7 +2836,7 @@ export default function Dashboard({
         {/* Inner content padding. Suspense globale: copre tutte le view lazy
             (44 component lazy-loaded via React.lazy). Fallback minimale per
             evitare flash bianco — l'utente vede un loader breve. */}
-        <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 88px":"16px 32px 28px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
+        <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 88px":isTablet?"16px 20px 28px":"16px 32px 28px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         <React.Suspense fallback={
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 20px',color:T.textSoft,fontSize:13,gap:10}}>
             <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${T.border}`,borderTopColor:T.brand,animation:'fos_spin 0.6s linear infinite'}}/>

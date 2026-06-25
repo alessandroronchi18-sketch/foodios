@@ -112,6 +112,11 @@ export default function AICard({
       background: C.bgCard, border: `1px solid ${C.border}`,
       borderRadius: 14, padding: compact ? 16 : '20px 22px',
       boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
+      // Audit 2026-06-24: minHeight uniforme per allineare card AI in griglia
+      // (idle/loading/ok/error hanno body di altezze diverse → senza minHeight
+      // la riga oscilla visivamente quando rigeneri).
+      minHeight: compact ? 160 : 200,
+      display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: state === 'idle' ? 14 : 16 }}>
@@ -144,8 +149,8 @@ export default function AICard({
           </div>
           {onRetry && (
             <button onClick={onRetry} style={{
-              marginTop: 10, padding: '6px 14px', borderRadius: 6, border: `1px solid ${C.red}`,
-              background: '#FFF', color: C.red, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              marginTop: 10, padding: '8px 14px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.red}`,
+              background: '#FFF', color: C.red, fontSize: 13, fontWeight: 700, cursor: 'pointer',
             }}>Riprova</button>
           )}
         </div>
@@ -164,8 +169,11 @@ export default function AICard({
           {onCta && (
             <button onClick={onCta} style={{
               padding: '10px 18px', borderRadius: 8, border: 'none',
-              background: C.brand, color: '#FFF', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: C.brand, color: '#FFF', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 40,
+              // Audit 2026-06-24: wrap label se il bottone CTA è in card stretta
+              // su mobile — meglio andare a capo che troncare.
+              maxWidth: '100%', whiteSpace: 'normal', lineHeight: 1.25, textAlign: 'left',
             }}>
               <Icon name="sparkles" size={14} /> {ctaLabel}
             </button>
@@ -180,9 +188,9 @@ export default function AICard({
             <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
               {copyable && (
                 <button onClick={doCopy} style={{
-                  padding: '6px 12px', borderRadius: 6, border: `1px solid ${C.border}`,
+                  padding: '8px 12px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.border}`,
                   background: copyOk ? '#DCFCE7' : '#FFF', color: copyOk ? C.green : C.text,
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'inline-flex',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex',
                   alignItems: 'center', gap: 6,
                 }}>
                   <Icon name={copyOk ? 'check' : 'copy'} size={12} />
@@ -191,14 +199,14 @@ export default function AICard({
               )}
               {onClear && (
                 <button onClick={onClear} style={{
-                  padding: '6px 12px', borderRadius: 6, border: `1px solid ${C.border}`,
-                  background: '#FFF', color: C.textSoft, fontSize: 11, cursor: 'pointer',
+                  padding: '8px 12px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.border}`,
+                  background: '#FFF', color: C.textSoft, fontSize: 12, cursor: 'pointer',
                 }}>Cancella</button>
               )}
               {onRetry && (
                 <button onClick={onRetry} style={{
-                  padding: '6px 12px', borderRadius: 6, border: `1px solid ${C.border}`,
-                  background: '#FFF', color: C.textSoft, fontSize: 11, cursor: 'pointer',
+                  padding: '8px 12px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.border}`,
+                  background: '#FFF', color: C.textSoft, fontSize: 12, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                 }}>
                   <Icon name="refresh" size={12} /> Rigenera

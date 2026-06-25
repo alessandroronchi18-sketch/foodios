@@ -145,12 +145,17 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
   }
 
   // Audit 2026-06-24: FAB più piccolo + posizionato più in basso, non invasivo.
+  // Sotto 600px il pannello chat occupa l'intera viewport (full-bleed) per non
+  // costringere l'utente a digitare in una colonnina stretta.
+  const isSmallPhone = typeof window !== 'undefined' && window.innerWidth < 600
   const fabBottom = isMobile ? 78 : 20
   const fabRight = isMobile ? 16 : 20
-  const panelWidth = isMobile ? 'calc(100vw - 24px)' : 380
-  const panelHeight = isMobile ? 'calc(100vh - 160px)' : 540
-  const panelBottom = isMobile ? 92 : 92
-  const panelRight = isMobile ? 12 : 24
+  const panelWidth = isSmallPhone ? '100vw' : isMobile ? 'calc(100vw - 24px)' : 380
+  const panelHeight = isSmallPhone ? '100dvh' : isMobile ? 'calc(100vh - 160px)' : 540
+  const panelBottom = isSmallPhone ? 0 : isMobile ? 92 : 92
+  const panelRight = isSmallPhone ? 0 : isMobile ? 12 : 24
+  const panelMaxHeight = isSmallPhone ? '100dvh' : 640
+  const panelBorderRadius = isSmallPhone ? 0 : 18
 
   return (
     <>
@@ -181,11 +186,11 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
             bottom: panelBottom,
             right: panelRight,
             width: panelWidth,
-            maxWidth: 420,
+            maxWidth: isSmallPhone ? '100vw' : 420,
             height: panelHeight,
-            maxHeight: 640,
+            maxHeight: panelMaxHeight,
             background: COLORS.bg,
-            borderRadius: 18,
+            borderRadius: panelBorderRadius,
             boxShadow: '0 24px 60px rgba(15,23,42,0.22), 0 4px 16px rgba(15,23,42,0.08)',
             display: 'flex',
             flexDirection: 'column',
@@ -307,7 +312,8 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
                 border: `1px solid ${COLORS.border}`,
                 borderRadius: 12,
                 padding: '10px 12px',
-                fontSize: 13,
+                // 16px su mobile per evitare zoom iOS in focus textarea.
+                fontSize: isMobile ? 16 : 13,
                 lineHeight: 1.4,
                 fontFamily: 'inherit',
                 outline: 'none',
@@ -326,7 +332,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
               disabled={!input.trim() || loading}
               aria-label="Invia"
               style={{
-                width: 40, height: 40, borderRadius: 12,
+                width: isMobile ? 44 : 40, height: isMobile ? 44 : 40, borderRadius: 12,
                 background: (!input.trim() || loading) ? COLORS.textSoft : COLORS.brand,
                 border: 'none',
                 color: '#fff',

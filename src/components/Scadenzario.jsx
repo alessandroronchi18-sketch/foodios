@@ -244,7 +244,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       await ssave(SK_AZIENDA_PAG, next, orgId, null)
       setAzienda(next)
       setEditAzienda(false)
-      notify('✓ Dati di pagamento azienda salvati')
+      notify('Dati di pagamento azienda salvati')
     } catch (e) {
       notify('Errore salvataggio: ' + (e?.message || 'rete'), false)
     }
@@ -279,7 +279,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       if (error) throw error
       setEditForn(null)
       await loadFornitori()
-      notify('✓ Anagrafica fornitore aggiornata')
+      notify('Anagrafica fornitore aggiornata')
     } catch (e) {
       notify('Errore: ' + (e?.message || 'salvataggio fallito') + ' — verifica la migration scadenzario', false)
     }
@@ -327,7 +327,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       }
     }
     if (imported > 0) {
-      notify(`✓ ${imported} fatture importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
+      notify(`${imported} fatture importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
     } else if (scartati > 0) {
       notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
@@ -355,7 +355,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       }
     }
     if (imported > 0) {
-      notify(`✓ ${imported} fatture XML importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
+      notify(`${imported} fatture XML importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
     } else if (scartati > 0) {
       notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
@@ -382,7 +382,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       }
     }
     if (imported > 0) {
-      notify(`✓ ${imported} fatture FatturaSMART importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
+      notify(`${imported} fatture FatturaSMART importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
     } else if (scartati > 0) {
       notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
@@ -417,8 +417,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       setFatture(prev => prev.map(x => x.id === id ? { ...x, ...applied } : x))
       setPagandoId(null); setPagImporto('')
       notify(saldata || applied.stato === 'pagata'
-        ? '✓ Fattura saldata'
-        : `✓ Acconto registrato (${fmtEuro(importoInput)}) · residuo ${fmtEuro(totale - nuovoPagato)}`)
+        ? 'Fattura saldata'
+        : `Acconto registrato (${fmtEuro(importoInput)}) · residuo ${fmtEuro(totale - nuovoPagato)}`)
     } catch (e) {
       notify('Errore: ' + (e?.message || 'aggiornamento fallito'), false)
     }
@@ -450,7 +450,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       a.download = `bonifico_sepa_${exec}.xml`
       document.body.appendChild(a); a.click(); a.remove()
       URL.revokeObjectURL(url)
-      notify(`✓ Bonifico SEPA pronto: ${included.length} pagamenti · ${fmtEuro(totale)}${skipped.length ? ` · ${skipped.length} saltati (IBAN mancante)` : ''} — caricalo nell’home banking`)
+      notify(`Bonifico SEPA pronto: ${included.length} pagamenti · ${fmtEuro(totale)}${skipped.length ? ` · ${skipped.length} saltati (IBAN mancante)` : ''} — caricalo nell'home banking`)
     } catch (e) {
       notify('Bonifico non generato: ' + (e?.message || 'errore') + (e?.skipped?.length ? ` (${e.skipped.length} senza IBAN)` : ''), false)
     }
@@ -461,7 +461,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const txt = bonificoText({ beneficiario: f.fornitore, iban: f.iban, importo: Math.abs(f.residuo || f.totale || 0), causale: causaleFattura(f) })
     try {
       await navigator.clipboard.writeText(txt)
-      notify('✓ Dati bonifico copiati')
+      notify('Dati bonifico copiati')
     } catch {
       notify('Copia non riuscita — IBAN: ' + (normalizeIban(f.iban) || 'n/d'), false)
     }
@@ -484,7 +484,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       if (error) throw error
       setFatture(prev => prev.filter(f => f.id !== id))
       setEliminandoId(null)
-      notify('✓ Fattura eliminata')
+      notify('Fattura eliminata')
     } catch (e) {
       notify('Errore: ' + (e?.message || 'eliminazione fallita'), false)
     }
@@ -505,7 +505,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       setFatture([])
       setBulkOpen(false)
       setBulkConfirm('')
-      notify(`✓ Eliminate ${n} ${n === 1 ? 'fattura' : 'fatture'}`)
+      notify(`Eliminate ${n} ${n === 1 ? 'fattura' : 'fatture'}`)
     } catch (e) {
       notify('Errore eliminazione: ' + (e?.message || 'riprova'), false)
     } finally {
@@ -752,7 +752,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <button onClick={() => segnaComePagata(f.id)}
             style={{ padding: isMobile ? '8px 14px' : '4px 9px', minHeight: isMobile ? 40 : 'auto', background: T.green, color: T.white, border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
           <button aria-label="Annulla pagamento" onClick={() => { setPagandoId(null); setPagImporto('') }}
-            style={{ padding: isMobile ? '8px 12px' : '4px 7px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', background: 'transparent', color: T.textSoft, border: 'none', fontSize: 14, cursor: 'pointer' }}>✕</button>
+            style={{ padding: isMobile ? '8px 12px' : '4px 7px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', background: 'transparent', color: T.textSoft, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={isMobile ? 14 : 12} /></button>
         </div>
       )
     }
@@ -768,22 +768,23 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </span>
         ) : (
           <button onClick={() => { setPagandoId(f.id); setEliminandoId(null); setPagImporto(''); setPagMetodo('bonifico'); setDataPag(new Date().toISOString().slice(0,10)) }}
-            style={{ padding: compact ? '4px 9px' : '5px 10px', background: '#F0FDF4', color: T.green, border: `1px solid ${T.green}`, borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            ✓ {f.pagato > 0 ? 'Salda/acconto' : 'Segna pagata'}
+            style={{ padding: isMobile ? '8px 12px' : (compact ? '4px 9px' : '5px 10px'), minHeight: isMobile ? 40 : 'auto', background: '#F0FDF4', color: T.green, border: `1px solid ${T.green}`, borderRadius: 8, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <Icon name="check" size={11} /> {f.pagato > 0 ? 'Salda/acconto' : 'Segna pagata'}
           </button>
         )}
         {f.stato !== 'pagata' && f.ibanValido && (
           <button onClick={() => copiaBonifico(f)} title="Copia dati bonifico (IBAN, importo, causale)"
-            style={{ padding: '5px 8px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            aria-label="Copia dati bonifico"
+            style={{ padding: isMobile ? '8px 12px' : '5px 8px', minHeight: isMobile ? 40 : 'auto', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
             € Bonifico
           </button>
         )}
         <button onClick={() => chiediElimina(f.id)}
           aria-label="Elimina fattura" title="Elimina"
-          style={{ padding: '5px 7px', background: 'transparent', color: T.textSoft, border: 'none', cursor: 'pointer', borderRadius: 8, display: 'inline-flex', alignItems: 'center' }}
+          style={{ padding: isMobile ? '8px 10px' : '5px 7px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', background: 'transparent', color: T.textSoft, border: 'none', cursor: 'pointer', borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = T.brand }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textSoft }}>
-          <svg width={compact ? 12 : 14} height={compact ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width={isMobile ? 16 : compact ? 12 : 14} height={isMobile ? 16 : compact ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
             <path d="M10 11v6M14 11v6"/>
@@ -1120,7 +1121,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                             <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                               {isPagata ? (
                                 <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#DCFCE7', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                  ✓ Pagata
+                                  Pagata
                                 </span>
                               ) : f.urgenza === 'scaduta' ? (
                                 <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 10, background: '#FEE2E2', color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -1324,25 +1325,28 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <button key={k.label} type="button" onClick={k.onClick}
             style={{
               ...card,
-              padding: isMobile ? '14px 16px 14px 18px' : '16px 20px 16px 22px',
+              padding: isMobile ? '14px 16px 14px 18px' : isTablet ? '15px 18px 15px 20px' : '16px 20px 16px 22px',
               textAlign: 'left',
               cursor: 'pointer',
               font: 'inherit',
               position: 'relative',
+              minHeight: isMobile ? 108 : isTablet ? 116 : 124,
+              display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
               borderLeft: `4px solid ${k.accent}`,
               boxShadow: k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
               transition: `box-shadow ${M.durBase} ${M.ease}, transform ${M.durBase} ${M.ease}`,
             }}
             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(15,23,42,0.08), 0 16px 36px rgba(15,23,42,0.08)'; e.currentTarget.style.transform = 'translateY(-3px)' }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'; e.currentTarget.style.transform = 'translateY(0)' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            <div style={{ fontSize: isMobile ? 10.5 : 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8, minHeight: 14 }}>
               {k.label}
             </div>
             <div title={k.exact} style={{
-              fontSize: 24, fontWeight: 700, color: k.color, lineHeight: 1.05,
+              fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 700, color: k.color, lineHeight: 1.05,
               marginBottom: 6, letterSpacing: '-0.025em', ...tnum,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{k.val}</div>
-            <div style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em' }}>{k.sub}</div>
+            <div style={{ fontSize: isMobile ? 12.5 : 12, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.35 }}>{k.sub}</div>
           </button>
         ))}
       </div>
