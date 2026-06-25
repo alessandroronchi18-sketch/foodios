@@ -207,27 +207,29 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           ))}
         </div>
 
-        {/* Actions — su mobile su riga dedicata, bottoni flex 1 per riempire spazio */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
+        {/* Actions — su mobile su riga dedicata, bottoni grid 2 colonne uniformi
+            con il bottone "Riduci card" full-width sopra come barra principale. */}
+        <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, gap: 6, alignItems: 'stretch', flexShrink: 0, flexWrap: 'wrap', flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
           <button onClick={() => { setExpanded(false); setOpen(false); setEditMode(false) }}
             aria-label="Riduci card"
             title="Riduci"
-            style={{ height: 34, width: 34, borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', cursor: 'pointer', color: isSemi ? SEMI.accent : C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ height: isMobile ? 40 : 34, ...(isMobile ? { gridColumn: '1 / -1' } : { width: 34 }), borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', cursor: 'pointer', color: isSemi ? SEMI.accent : C.textMid, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, fontWeight: 700 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+            {isMobile && <span>Riduci</span>}
           </button>
           <button onClick={() => setOpen(o => !o)}
-            style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer' }}>
-            {open ? '▲ Chiudi dettaglio' : '▼ Dettaglio'}
+            style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+            {open ? '▲ Chiudi' : '▼ Dettaglio'}
           </button>
           {!isSemi && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
-              style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Prezzo
             </button>
           )}
           {onEdit && (
             <button onClick={() => onEdit(ric.nome)}
-              style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Modifica
             </button>
           )}
@@ -242,7 +244,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             } finally { setExportingPdf(false) }
           }}
             disabled={exportingPdf}
-            style={{ height: 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: exportingPdf ? 'not-allowed' : 'pointer', opacity: exportingPdf ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, ...(isMobile && isSemi ? { gridColumn: '1 / -1' } : {}) }}>
             <Icon name="fileText" size={13} /> {exportingPdf ? '…' : 'PDF'}
           </button>
         </div>
@@ -275,7 +277,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 
       {/* Dettaglio aperto */}
       {open && (
-        <div style={{ padding: '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 0.9fr', gap: 28 }}>
+        <div style={{ padding: isMobile ? '16px 14px 20px' : '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 0.9fr', gap: isMobile ? 18 : 28, boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="receipt" size={14} /> Distinta costi</div>
             <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', overflowX: 'auto' }}>
@@ -514,10 +516,10 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
           style={{ padding: '10px 32px 10px 12px', minHeight: isMobile || isTablet ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: R.md,
             fontSize: isMobile || isTablet ? 16 : 13, color: T.text, background: T.bgCard, cursor: 'pointer', fontFamily: 'inherit', outline: 'none' }}>
-          <option value="margine_desc">Margine ↓ (alto → basso)</option>
-          <option value="margine_asc">Margine ↑ (basso → alto)</option>
-          <option value="fc_asc">Food cost ↑ (basso → alto)</option>
-          <option value="fc_desc">Food cost ↓ (alto → basso)</option>
+          <option value="margine_desc">Margine ↓</option>
+          <option value="margine_asc">Margine ↑</option>
+          <option value="fc_asc">Food cost ↑</option>
+          <option value="fc_desc">Food cost ↓</option>
           <option value="nome_az">Nome A → Z</option>
           <option value="nome_za">Nome Z → A</option>
         </select>

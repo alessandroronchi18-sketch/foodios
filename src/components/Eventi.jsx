@@ -398,7 +398,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
       })()}
 
       {editing != null && draft && (
-        <div style={{ ...card, border: `1px solid ${T.brand}`, background: '#FEF7F5', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 10px 28px rgba(110,14,26,0.08)' }}>
+        <div style={{ ...card, padding: isMobile ? '14px 14px' : '18px 20px', border: `1px solid ${T.brand}`, background: '#FEF7F5', boxShadow: '0 1px 2px rgba(110,14,26,0.05), 0 10px 28px rgba(110,14,26,0.08)', boxSizing: 'border-box', width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{draft._new ? <Icon name="plus" size={16} /> : <Icon name="edit" size={16} />}</span>
             <div style={{ fontWeight: 700, fontSize: 15, color: T.text, letterSpacing: '-0.01em' }}>

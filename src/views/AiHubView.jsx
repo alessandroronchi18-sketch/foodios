@@ -61,9 +61,8 @@ const CLUSTERS = [
       { id: 'menu-eng',     view: 'menu-engineering', title: 'Menu engineering',
         body: 'Matrice Kasavana-Smith automatica: Star / Plowhorse / Puzzle / Dog con consigli AI per ognuno.',
         cta: 'Apri Menu engineering', status: 'LIVE' },
-      { id: 'competitor',   view: 'competitor-pricing', title: 'Pricing vs competitor',
-        body: 'Confronta i tuoi prezzi con i competitor in zona. Verdetto AI: sottoprezzato / in linea / sovrapprezzato.',
-        cta: 'Apri Pricing', status: 'LIVE' },
+      // Audit 2026-06-25: nascoste dal hub su richiesta utente (congelate).
+      // { id: 'competitor', view: 'competitor-pricing', title: 'Pricing vs competitor', ... },
     ],
   },
   {
@@ -94,9 +93,8 @@ const CLUSTERS = [
     accent: '#A21CAF',
     icon: 'lightbulb',
     features: [
-      { id: 'reformulation', view: 'reformulation', title: 'Ottimizza ricetta',
-        body: 'Imposta un food cost target. L\'AI propone 3 varianti (sostituzioni, rese, pricing) con impatto stimato.',
-        cta: 'Ottimizza', status: 'LIVE' },
+      // Audit 2026-06-25: cluster Creativo vuoto, nascoste su richiesta utente.
+      // { id: 'reformulation', view: 'reformulation', title: 'Ottimizza ricetta', ... },
     ],
   },
 ]
@@ -112,15 +110,13 @@ const CHAIN_CLUSTER = {
     { id: 'ai-brain',     view: 'ai-brain',     title: 'FoodOS Brain',
       body: 'Chat conversazionale dedicata. Chiedi qualsiasi cosa sui tuoi dati: ricavi, margini, scadenze, andamenti.',
       cta: 'Apri la chat', status: 'LIVE', chain: true },
-    { id: 'ricette-ai',   view: 'ricette-ai',   title: 'Inventa ricetta AI',
-      body: 'L\'AI crea 3 ricette nuove originali con nome, plating, ingredienti precisi e food cost calcolato.',
-      cta: 'Crea ricetta', status: 'LIVE', chain: true },
+    // Audit 2026-06-25: 'Inventa ricetta AI' nascosta su richiesta utente.
+    // { id: 'ricette-ai', view: 'ricette-ai', title: 'Inventa ricetta AI', ... },
     { id: 'whatsapp',     view: 'whatsapp',     title: 'WhatsApp Bot',
       body: 'Gestisci FoodOS direttamente da WhatsApp: chiedi KPI, registra sprechi, ricevi alert giornalieri.',
       cta: 'Configura', status: 'BETA', chain: true },
-    { id: 'marketplace',  view: 'marketplace',  title: 'Marketplace fornitori',
-      body: 'Fornitori HORECA italiani verificati con rating community. AI matching prodotto + contatto diretto.',
-      cta: 'Esplora', status: 'BETA', chain: true },
+    // Audit 2026-06-25: 'Marketplace fornitori' nascosta su richiesta utente.
+    // { id: 'marketplace', view: 'marketplace', title: 'Marketplace fornitori', ... },
     { id: 'documentary',  view: 'documentary',  title: 'Documentary AI',
       body: 'Ogni trimestre l\'AI scrive un riassunto narrativo del tuo trimestre. Pronto da condividere col team.',
       cta: 'Apri archivio', status: 'LIVE', chain: true },

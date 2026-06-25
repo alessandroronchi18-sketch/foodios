@@ -269,15 +269,19 @@ export default function PinLoginPad({ onBack, onSuccess }) {
               </button>
             </div>
 
-            {/* Torna al login normale */}
+            {/* Torna al login normale — bottone più evidente (audit 2026-06-25:
+                utente diceva "non posso tornare indietro" → underline su nero era poco visibile). */}
             <button onClick={onBack}
               style={{
-                marginTop: 28, background: 'transparent', border: 'none',
-                color: 'rgba(255,255,255,0.65)', fontSize: 13, cursor: 'pointer',
-                padding: '10px 16px', minHeight: 40,
-                textDecoration: 'underline',
+                marginTop: 28, background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                color: '#FFFFFF', fontSize: 14, cursor: 'pointer', fontWeight: 600,
+                padding: '12px 22px', minHeight: 44,
+                borderRadius: 10,
+                display: 'inline-flex', alignItems: 'center', gap: 8,
               }}>
-              Accedi con email e password
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              Torna al login con email
             </button>
           </>
         )}
