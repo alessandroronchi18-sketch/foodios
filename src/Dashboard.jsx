@@ -1552,7 +1552,7 @@ export default function Dashboard({
   // Audit 2026-06-25: pop-up "Novità in FoodOS X.Y.Z" disabilitato per richiesta
   // utente — appariva ad ogni release nuova. Resta accessibile manualmente da
   // Impostazioni → Dati → Changelog. Marchiamo come "vista" la versione corrente
-  // cosi' se in futuro vogliamo riabilitare il pop-up parte pulito.
+  // così se in futuro vogliamo riabilitare il pop-up parte pulito.
   useEffect(()=>{
     if(!ready) return;
     try {
@@ -2807,7 +2807,7 @@ export default function Dashboard({
                 borderTop:`1px solid ${C.borderSoft}`,
                 paddingBottom:"env(safe-area-inset-bottom, 0px)",
                 // Audit 2026-06-25: quando il drawer e' aperto, sparisce la bottom-nav
-                // (le sue voci sono gia' nel drawer → ripetizione). Translate down
+                // (le sue voci sono già nel drawer → ripetizione). Translate down
                 // per non occupare layout space e per non lasciare hit-area orfane.
                 transform: sidebarOpen ? "translateY(105%)" : "translateY(0)",
                 pointerEvents: sidebarOpen ? "none" : "auto",

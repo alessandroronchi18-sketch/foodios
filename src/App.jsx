@@ -154,13 +154,13 @@ export default function App() {
   async function completaOnboarding() {
     if (auth.orgId) {
       try { localStorage.setItem(`onboarding_seen_${auth.orgId}`, '1') } catch {}
-      // Persisti su DB cosi' il flag sopravvive cambio device/browser/privata.
+      // Persisti su DB così il flag sopravvive cambio device/browser/privata.
       try {
         await supabase.from('organizations')
           .update({ onboarding_completato_at: new Date().toISOString() })
           .eq('id', auth.orgId)
         await auth.refreshOrg?.()
-      } catch { /* fail-soft: localStorage gia' setato sopra */ }
+      } catch { /* fail-soft: localStorage già setato sopra */ }
     }
     setOnboardingVisto(true)
   }
