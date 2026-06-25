@@ -44,6 +44,14 @@ export function useAuth() {
         if (session?.user) setUser(session.user)
         return
       }
+      // INITIAL_SESSION: emesso dall'SDK Supabase appena auth è inizializzata.
+      // Source-of-truth per il primo bootstrap è getSession() qui sopra.
+      // Supabase emette INITIAL_SESSION con session=null PRIMA che il refresh
+      // del token completi → l'UI flashava LandingPage per un secondo prima di
+      // tornare a Dashboard quando getSession risolveva la vera sessione.
+      // Ignorare INITIAL_SESSION qui elimina il flash; getSession gestisce
+      // l'init e poi gli eventi successivi (SIGNED_IN/OUT) prendono il sopravvento.
+      if (event === 'INITIAL_SESSION') return
       // SIGNED_IN puo' essere triggerato anche dal recupero della sessione
       // quando la tab torna in foreground dopo essere stata sospesa (browser
       // background). In quel caso il profilo e' GIÀ caricato e ri-chiamare

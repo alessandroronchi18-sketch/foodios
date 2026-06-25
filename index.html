@@ -127,10 +127,168 @@
           min-height: 44px;
         }
       }
+
+      /* ───────────────────────────────────────────────────────────────
+         BOOT SPLASH — pre-React, identico visivamente a <SplashScreen/>
+         Renderizzato dal browser PRIMA che il JS bundle parta. Garantisce
+         che il caricamento sia sempre il design corrente anche con bundle
+         JS cachato vecchio (Service Worker SWR). Si rimuove auto quando
+         React popola #root (MutationObserver inline a fondo body).
+      */
+      #boot-splash {
+        position: fixed; inset: 0; z-index: 2147483600;
+        display: flex; align-items: center; justify-content: center;
+        flex-direction: column; gap: 22px;
+        background: radial-gradient(ellipse at 50% 35%, #1A0A0E 0%, #0B0407 55%, #050203 100%);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      }
+      #boot-splash::before, #boot-splash::after {
+        content: ''; position: absolute; left: 50%;
+        filter: blur(40px); pointer-events: none;
+      }
+      #boot-splash::before {
+        top: 20%;
+        width: min(720px, 90vw); height: min(720px, 90vw);
+        margin-left: calc(min(720px, 90vw) / -2);
+        background: radial-gradient(circle, rgba(232,75,58,0.45) 0%, rgba(110,14,26,0) 65%);
+        animation: _bs_aurora 14s ease-in-out infinite;
+      }
+      #boot-splash::after {
+        top: 40%;
+        width: min(560px, 80vw); height: min(560px, 80vw);
+        margin-left: calc(min(560px, 80vw) / -2);
+        background: radial-gradient(circle, rgba(255,179,80,0.32) 0%, rgba(110,14,26,0) 65%);
+        filter: blur(48px);
+        animation: _bs_aurora2 18s ease-in-out infinite;
+      }
+      @keyframes _bs_aurora {
+        0%   { transform: translate(-20%, -10%) rotate(0deg);   opacity: 0.55 }
+        50%  { transform: translate(15%, 10%)  rotate(180deg);  opacity: 0.85 }
+        100% { transform: translate(-20%, -10%) rotate(360deg); opacity: 0.55 }
+      }
+      @keyframes _bs_aurora2 {
+        0%   { transform: translate(20%, 15%)   rotate(0deg);    opacity: 0.4 }
+        50%  { transform: translate(-15%, -10%) rotate(-180deg); opacity: 0.7 }
+        100% { transform: translate(20%, 15%)   rotate(-360deg); opacity: 0.4 }
+      }
+      .bs-brick { position: relative; width: 64px; height: 64px; z-index: 1; }
+      @media (max-width: 480px) { .bs-brick { width: 48px; height: 48px } }
+      @media (min-width: 481px) and (max-width: 899px) { .bs-brick { width: 56px; height: 56px } }
+      .bs-halo {
+        position: absolute; inset: -14px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(232,75,58,0.55) 0%, rgba(110,14,26,0) 70%);
+        filter: blur(10px); pointer-events: none;
+        animation: _bs_halo 2.4s ease-in-out infinite;
+      }
+      @keyframes _bs_halo {
+        0%, 100% { opacity: 0.55; transform: scale(1) }
+        50%      { opacity: 0.95; transform: scale(1.08) }
+      }
+      .bs-ring {
+        position: absolute; inset: -3px; border-radius: 16px;
+        background: conic-gradient(from 0deg, #E84B3A 0deg, #FFB350 90deg, #6E0E1A 180deg, #FF7B5A 270deg, #E84B3A 360deg);
+        filter: blur(0.5px); opacity: 0.9; pointer-events: none;
+        -webkit-mask: radial-gradient(circle, transparent calc(50% - 1px), black 50%);
+        mask:        radial-gradient(circle, transparent calc(50% - 1px), black 50%);
+        animation: _bs_ring 4.5s linear infinite;
+      }
+      @keyframes _bs_ring { to { transform: rotate(360deg) } }
+      .bs-logo {
+        position: relative; z-index: 1; width: 100%; height: 100%;
+        border-radius: 14px; display: block;
+        box-shadow: 0 18px 48px rgba(110,14,26,0.7), inset 0 1px 0 rgba(255,255,255,0.08);
+      }
+      .bs-text { z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+      .bs-wordmark {
+        font-size: 26px; font-weight: 800; letter-spacing: -0.025em; line-height: 1;
+        background-image: linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.65) 100%);
+        background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      }
+      @media (max-width: 480px) { .bs-wordmark { font-size: 22px } }
+      .bs-tagline {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 12px; color: rgba(255,255,255,0.55); font-weight: 600;
+        letter-spacing: 0.14em; text-transform: uppercase;
+      }
+      .bs-dot { display: inline-block; animation: _bs_dots 1.2s ease-in-out infinite; }
+      .bs-dot:nth-of-type(2) { animation-delay: 0.15s }
+      .bs-dot:nth-of-type(3) { animation-delay: 0.30s }
+      @keyframes _bs_dots {
+        0%, 80%, 100% { opacity: 0.25; transform: translateY(0) }
+        40%           { opacity: 1;    transform: translateY(-3px) }
+      }
+      .bs-bar {
+        position: relative; width: min(220px, 60vw); height: 2px;
+        background: rgba(255,255,255,0.06); border-radius: 2px;
+        overflow: hidden; margin-top: 4px; z-index: 1;
+      }
+      .bs-bar::after {
+        content: ''; position: absolute; inset: 0; width: 60%;
+        background: linear-gradient(90deg, transparent 0%, #FFB350 50%, transparent 100%);
+        animation: _bs_bar 1.6s cubic-bezier(.65,.05,.36,1) infinite;
+      }
+      @keyframes _bs_bar {
+        0%   { transform: translateX(-110%) }
+        100% { transform: translateX(110%) }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash, #boot-splash::before, #boot-splash::after,
+        .bs-halo, .bs-ring, .bs-bar::after, .bs-dot { animation: none !important }
+      }
+      /* Fade out quando React monta. */
+      html.app-mounted #boot-splash {
+        opacity: 0; pointer-events: none;
+        transition: opacity 220ms ease;
+      }
     </style>
   </head>
   <body>
+    <div id="boot-splash" aria-hidden="true">
+      <div class="bs-brick">
+        <span class="bs-halo"></span>
+        <span class="bs-ring"></span>
+        <svg class="bs-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FoodOS">
+          <path fill="#6E0E1A" d="M 14 0 L 50 0 C 58 0 64 6 64 14 L 64 50 C 64 58 58 64 50 64 L 14 64 C 6 64 0 58 0 50 L 0 14 C 0 6 6 0 14 0 Z"/>
+          <path fill="#FFFFFF" d="M 19 14 L 49 14 L 49 23 L 29 23 L 29 29 L 44 29 L 44 37 L 29 37 L 29 50 L 19 50 Z"/>
+        </svg>
+      </div>
+      <div class="bs-text">
+        <div class="bs-wordmark">FoodOS</div>
+        <div class="bs-tagline">
+          <span>Caricamento</span>
+          <span class="bs-dot">·</span>
+          <span class="bs-dot">·</span>
+          <span class="bs-dot">·</span>
+        </div>
+      </div>
+      <div class="bs-bar"></div>
+    </div>
     <div id="root"></div>
+    <script>
+      // Boot splash removal: appena React popola #root, marka html.app-mounted
+      // (fade-out CSS), poi rimuove il nodo dopo la transition. Fail-safe a 6s
+      // se per qualche motivo React non monta (evita splash permanente).
+      (function() {
+        var root = document.getElementById('root');
+        var splash = document.getElementById('boot-splash');
+        if (!root || !splash) return;
+        var removed = false;
+        function remove() {
+          if (removed) return; removed = true;
+          document.documentElement.classList.add('app-mounted');
+          setTimeout(function () { try { splash.parentNode && splash.parentNode.removeChild(splash); } catch(e){} }, 260);
+        }
+        if (root.children.length > 0) { remove(); return; }
+        var obs = new MutationObserver(function () {
+          if (root.children.length > 0) { obs.disconnect(); remove(); }
+        });
+        obs.observe(root, { childList: true });
+        // Fail-safe: se React tarda > 6s, togliamo lo splash comunque per non bloccare la UI.
+        setTimeout(function () { obs.disconnect(); remove(); }, 6000);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
