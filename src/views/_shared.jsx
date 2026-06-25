@@ -52,7 +52,7 @@ export const fmtp = v => { const n = Number(v); return `${(Number.isFinite(n) ? 
 export const fmt0 = v => { const n = Number(v); return `${NF_IT_0DEC.format(Math.round(Number.isFinite(n) ? n : 0))} €` }
 
 // CSS futuristic-clean per tile/KPI shared. Iniettato una volta (idempotente
-// se il browser carica piu' volte _shared — il selettore di style id evita
+// se il browser carica più volte _shared — il selettore di style id evita
 // duplicati).
 // — fos-kpi-tile: hover lift drammatico + ombra brand colorata
 // — accent strip animato superiore opzionale (className fos-kpi-accent)
@@ -100,7 +100,7 @@ if (typeof document !== 'undefined' && !document.getElementById('fos-kpi-css')) 
 // KPI card grande premium (usata da Magazzino, Chiusura, Produzione, ecc.)
 // Look coerente con la Dashboard home: decoro radiale, chip icona, accento colore.
 // Audit 2026-06-25: aggiunto accent strip animato superiore + sheen sweep iniziale
-// + hover lift piu' drammatico con shadow brand. Futuristico ma professionale.
+// + hover lift più drammatico con shadow brand. Futuristico ma professionale.
 export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
   const accent = color || T.brand
   const chipBg = highlight ? 'rgba(255,255,255,0.14)' : 'rgba(110,14,26,0.10)'
