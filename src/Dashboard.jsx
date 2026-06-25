@@ -2283,17 +2283,20 @@ export default function Dashboard({
                 setView(id); if (isMobile) setSidebarOpen(false)
               }}
               aria-current={active ? "page" : undefined}
-              style={{width:"calc(100% - 16px)",padding:"10px 14px 10px 26px",margin:"0 8px 2px",
-                borderRadius:10,
+              className={active ? "fos-nav-active-glow" : undefined}
+              style={{width:"calc(100% - 16px)",padding:"10px 14px 10px 26px",margin:"0 8px 4px",
+                borderRadius:12,
                 border:"none",cursor:"pointer",textAlign:"left",
-                background:active?brandGrad:"transparent",
-                color:active?"#FFFFFF":"rgba(255,255,255,0.70)",
-                fontWeight:active?600:400,fontSize:13,
+                background:active
+                  ? "linear-gradient(135deg, rgba(110,14,26,0.95) 0%, rgba(232,75,58,0.55) 100%)"
+                  : "transparent",
+                color:active?"#FFFFFF":"rgba(255,255,255,0.72)",
+                fontWeight:active?700:500,fontSize:13,
                 letterSpacing:"-0.005em",
                 display:"flex",alignItems:"center",gap:11,
-                position:"relative",
-                boxShadow:active?"0 4px 12px rgba(110,14,26,0.34), inset 0 1px 0 rgba(255,255,255,0.12)":"none",
-                transition:`background ${M.durBase} ${M.ease}, color ${M.durBase} ${M.ease}, box-shadow ${M.durBase} ${M.ease}`}}
+                position:"relative",overflow:"hidden",
+                transform: active ? "scale(1.015)" : "scale(1)",
+                transition:`background 0.22s ease, color 0.22s ease, transform 0.22s cubic-bezier(.32,.72,0,1)`}}
               onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.06)";e.currentTarget.style.color="#FFFFFF";}}}
               onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.70)";}}}
             >
@@ -2387,15 +2390,43 @@ export default function Dashboard({
               100% { background-position: 0% 50%; }
             }
             @keyframes _fos_onlinePulse {
-              0%, 100% { box-shadow: 0 0 0 0 rgba(14,159,110,0.55), 0 0 6px rgba(14,159,110,0.7); }
-              50%      { box-shadow: 0 0 0 5px rgba(14,159,110,0),    0 0 8px rgba(14,159,110,0.4); }
+              0%, 100% { box-shadow: 0 0 0 0 rgba(14,159,110,0.65), 0 0 8px rgba(14,159,110,0.85); }
+              50%      { box-shadow: 0 0 0 7px rgba(14,159,110,0),    0 0 14px rgba(14,159,110,0.45); }
             }
             @keyframes _fos_drawerIn {
               from { opacity: 0; transform: translateX(-12px); }
               to   { opacity: 1; transform: translateX(0); }
             }
+            /* WOW level: glow infinitamente pulsante sulla voce attiva (corona neon brand). */
+            @keyframes _fos_navActiveGlow {
+              0%, 100% { box-shadow: inset 3px 0 0 0 #E84B3A, 0 0 16px rgba(232,75,58,0.45), 0 0 32px rgba(232,75,58,0.18); }
+              50%      { box-shadow: inset 3px 0 0 0 #FF7B5A, 0 0 22px rgba(232,75,58,0.62), 0 0 48px rgba(232,75,58,0.28); }
+            }
+            /* Aurora drift: shimmer di luce diagonale che attraversa l'header logo. */
+            @keyframes _fos_aurora {
+              0%   { transform: translateX(-100%) skewX(-12deg); }
+              100% { transform: translateX(220%)  skewX(-12deg); }
+            }
+            /* Gradient angolare lento sul brand brick (Apple/Arc style). */
+            @keyframes _fos_brandRotate {
+              0%   { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            /* Float sui sub-decoro (alone radial) — quasi-impercettibile. */
+            @keyframes _fos_ambientDrift {
+              0%, 100% { transform: translate(0, 0); }
+              33%      { transform: translate(6px, -4px); }
+              66%      { transform: translate(-4px, 6px); }
+            }
+            /* Counter notifiche: ping più drammatico per attirare l'occhio. */
+            @keyframes _fos_badgePing {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(232,75,58,0.6),  0 0 10px rgba(232,75,58,0.7); }
+              50%      { box-shadow: 0 0 0 8px rgba(232,75,58,0),  0 0 18px rgba(232,75,58,0.35); }
+            }
             @media (prefers-reduced-motion: reduce) {
-              .fos-drawer-accent, .fos-online-dot, .fos-drawer-shell { animation: none !important; }
+              .fos-drawer-accent, .fos-online-dot, .fos-drawer-shell,
+              .fos-nav-active-glow, .fos-aurora, .fos-brand-rotate,
+              .fos-ambient-drift, .fos-badge-ping { animation: none !important; }
             }
           `}</style>
 
@@ -2432,15 +2463,22 @@ export default function Dashboard({
             backgroundSize:"auto, auto, 24px 24px, auto",
           }}>
 
-            {/* Accent strip animato: brand → corallo → brand in loop lento.
-                Visualmente segnala "vivo / premium" senza essere invadente.
-                Pausato da prefers-reduced-motion. */}
+            {/* Accent strip WOW: 5px, palette estesa con viola/oro/corallo,
+                loop più rapido (4s), bordi morbidi con blur in basso. Crea
+                un "horizon line" premium che subito comunica "tech alto". */}
             <div className="fos-drawer-accent" aria-hidden="true"
-              style={{height:3, flexShrink:0,
-                background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 25%, #FF7B5A 50%, #E84B3A 75%, #6E0E1A 100%)",
-                backgroundSize:"200% 100%",
-                animation:"_fos_drawerAccent 8s ease-in-out infinite",
-              }}/>
+              style={{height:5, flexShrink:0, position:"relative",
+                background:"linear-gradient(90deg, #6E0E1A 0%, #B91C1C 15%, #E84B3A 35%, #FFB350 50%, #FF7B5A 65%, #E84B3A 80%, #6E0E1A 100%)",
+                backgroundSize:"260% 100%",
+                animation:"_fos_drawerAccent 4s ease-in-out infinite",
+                boxShadow:"0 6px 16px -2px rgba(232,75,58,0.45)",
+              }}>
+              {/* Halo sotto il banner — diffonde il bagliore nello spazio nero */}
+              <div aria-hidden="true" style={{position:"absolute", left:0, right:0, top:"100%",
+                height:24, pointerEvents:"none",
+                background:"linear-gradient(180deg, rgba(232,75,58,0.30) 0%, transparent 100%)",
+                filter:"blur(2px)"}}/>
+            </div>
 
             {/* Logo header: solo su mobile (su desktop logo+nome sono nella fascia
                 superiore globale, così la sidebar ha più spazio per il menu).
@@ -2452,24 +2490,44 @@ export default function Dashboard({
               style={{padding:"18px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.05)",
                 background:"transparent",border:"none",width:"100%",textAlign:"left",cursor:"pointer",display:"block",
                 minHeight:44}}>
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                {/* Brand brick 44x44 con alone luminoso. Su tap → home. */}
-                <div style={{position:"relative", flexShrink:0}}>
-                  <div aria-hidden="true" style={{position:"absolute", inset:-6, borderRadius:16,
-                    background:"radial-gradient(circle, rgba(232,75,58,0.35) 0%, rgba(110,14,26,0) 70%)",
-                    filter:"blur(4px)", pointerEvents:"none"}}/>
+              <div style={{display:"flex",alignItems:"center",gap:12,position:"relative",overflow:"hidden"}}>
+                {/* Aurora shimmer: striscia di luce diagonale che attraversa
+                    l'header ogni 6s. Effetto "alive" tipo Apple/Arc. */}
+                <div className="fos-aurora" aria-hidden="true" style={{
+                  position:"absolute", top:-20, bottom:-20, width:80, pointerEvents:"none",
+                  background:"linear-gradient(90deg, transparent 0%, rgba(255,123,90,0.18) 50%, transparent 100%)",
+                  filter:"blur(8px)",
+                  animation:"_fos_aurora 6s linear infinite",
+                }}/>
+                {/* Brand brick 48x48 con alone luminoso pulsante + ring conico animato.
+                    Su tap → home. */}
+                <div style={{position:"relative", flexShrink:0, width:48, height:48}}>
+                  {/* Alone radial drift */}
+                  <div className="fos-ambient-drift" aria-hidden="true" style={{position:"absolute", inset:-8, borderRadius:20,
+                    background:"radial-gradient(circle, rgba(232,75,58,0.55) 0%, rgba(110,14,26,0) 70%)",
+                    filter:"blur(6px)", pointerEvents:"none",
+                    animation:"_fos_ambientDrift 7s ease-in-out infinite"}}/>
+                  {/* Ring conico animato (sembra un cerchio gradient che ruota) */}
+                  <div className="fos-brand-rotate" aria-hidden="true" style={{position:"absolute", inset:-2, borderRadius:14,
+                    background:"conic-gradient(from 0deg, #E84B3A 0deg, #FFB350 90deg, #6E0E1A 180deg, #FF7B5A 270deg, #E84B3A 360deg)",
+                    filter:"blur(0.5px)", opacity:0.85, pointerEvents:"none",
+                    animation:"_fos_brandRotate 8s linear infinite",
+                    WebkitMask:"radial-gradient(circle, transparent 22px, black 23px)",
+                    mask:"radial-gradient(circle, transparent 22px, black 23px)"}}/>
                   {customLogo
                     ? <img src={customLogo} alt={appName}
-                        style={{position:"relative", height:44, width:44, maxWidth:60, objectFit:"contain", borderRadius:12,
-                          boxShadow:"0 10px 26px rgba(110,14,26,0.55), inset 0 1px 0 rgba(255,255,255,0.14)"}}/>
-                    : <Logo size={44}
-                        style={{position:"relative", borderRadius:12,
-                          boxShadow:"0 10px 26px rgba(110,14,26,0.55), inset 0 1px 0 rgba(255,255,255,0.14)"}}/>}
+                        style={{position:"relative", zIndex:1, height:48, width:48, maxWidth:60, objectFit:"contain", borderRadius:12,
+                          boxShadow:"0 12px 32px rgba(110,14,26,0.65), inset 0 1px 0 rgba(255,255,255,0.18)"}}/>
+                    : <Logo size={48}
+                        style={{position:"relative", zIndex:1, borderRadius:12,
+                          boxShadow:"0 12px 32px rgba(110,14,26,0.65), inset 0 1px 0 rgba(255,255,255,0.18)"}}/>}
                 </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:17,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.02em",lineHeight:1.1}}>{appName}</div>
-                  <div style={{fontSize:11.5,color:"rgba(255,255,255,0.55)",fontWeight:500,marginTop:3,
-                    whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"-0.005em"}}>
+                <div style={{flex:1,minWidth:0,position:"relative",zIndex:1}}>
+                  <div style={{fontSize:18,fontWeight:800,color:"#FFFFFF",letterSpacing:"-0.025em",lineHeight:1.1,
+                    backgroundImage:"linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.75) 100%)",
+                    backgroundClip:"text", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent"}}>{appName}</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.55)",fontWeight:600,marginTop:4,
+                    whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",letterSpacing:"0.06em",textTransform:"uppercase"}}>
                     {nomeAttivita || "La mia attività"}
                   </div>
                 </div>
