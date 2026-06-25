@@ -86,6 +86,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
   const [periodo, setPeriodo] = useState('settimana')
   const [costiMap, setCostiMap] = useState({})  // sedeId -> totale mensile costi azienda
   const [trend8w, setTrend8w] = useState([])    // [{lunIso, ricavi}] x 8 settimane gruppo
+  const [trendHoveredIdx, setTrendHoveredIdx] = useState(null)  // pallino sparkline cliccato/hover
   // ── Grafici interattivi (R96) ─────────────────────────────────────────────
   const [chartType, setChartType] = useState('bar')   // bar | line | pie
   const [chartMetric, setChartMetric] = useState('ricaviCur')  // KPI selezionata
@@ -533,15 +534,18 @@ export default function ConfrontoSedi({ orgId, sedi }) {
         </div>
       ) : (
         <>
-          {/* HERO CONSOLIDATO GRUPPO + verdict narrativo */}
+          {/* HERO CONSOLIDATO GRUPPO + verdict narrativo. Audit 2026-06-25:
+              sfondo bordeaux non esaltava i valori rossi negativi (margine -721
+              su rosso scuro = mimetizzato). Passato a dark slate professionale,
+              valori negativi spiccano in #FF6B6B chiaro. */}
           {consolidato && consolidato.sediConData >= 2 && (
             <div style={{
-              background: 'linear-gradient(135deg, #1C0A0A 0%, #4A0612 60%, #6E0E1A 100%)',
+              background: 'linear-gradient(135deg, #0B1020 0%, #14182B 55%, #1C2236 100%)',
               borderRadius: 18, padding: isMobile ? 18 : 26, marginBottom: 16,
-              boxShadow: '0 14px 40px rgba(110,14,26,0.32)',
+              boxShadow: '0 14px 40px rgba(15,23,42,0.32)',
               color: '#FFF', position: 'relative', overflow: 'hidden',
             }}>
-              <div style={{ position: 'absolute', top: -60, right: -30, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(232,75,58,0.30) 0%, transparent 70%)', pointerEvents: 'none' }}/>
+              <div style={{ position: 'absolute', top: -60, right: -30, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(110,14,26,0.22) 0%, transparent 70%)', pointerEvents: 'none' }}/>
               <div style={{ position: 'relative' }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
                   Vista gruppo · {consolidato.sediConData} {consolidato.sediConData === 1 ? 'sede' : 'sedi'} attive
@@ -552,38 +556,34 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   gap: isMobile ? 12 : 18,
                 }}>
                   <div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Ricavi {periodoLabel}</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, ...tnum }}>{fmt0(consolidato.ricCur)}</div>
-                    {consolidato.deltaRicPct != null && (
-                      <div style={{ fontSize: 11, marginTop: 4, color: consolidato.deltaRicPct >= 0 ? '#86EFAC' : '#FCA5A5', fontWeight: 700, ...tnum }}>
-                        {consolidato.deltaRicPct >= 0 ? '+' : ''}{consolidato.deltaRicPct.toFixed(0)}% vs prec.
-                      </div>
-                    )}
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Ricavi {periodoLabel}</div>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.ricCur)}</div>
+                    <div style={{ fontSize: 11, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? '#86EFAC' : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
+                      {consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '—'}
+                    </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Margine netto</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.margNetto >= 0 ? '#FFF' : '#FCA5A5', ...tnum }}>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Margine netto</div>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.margNetto >= 0 ? '#FFF' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
                       {fmt0(consolidato.margNetto)}
                     </div>
-                    {consolidato.margineNettoPct != null && (
-                      <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, ...tnum }}>
-                        {consolidato.margineNettoPct.toFixed(1)}% dei ricavi
-                      </div>
-                    )}
+                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, minHeight: 16, ...tnum }}>
+                      {consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '—'}
+                    </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Food cost medio</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? '#86EFAC' : consolidato.foodCostMedio < 38 ? '#FCD34D' : '#FCA5A5', ...tnum }}>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Food cost medio</div>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? '#86EFAC' : consolidato.foodCostMedio < 38 ? '#FCD34D' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
                       {consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '—'}
                     </div>
-                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.55)' }}>
+                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
                       target &lt; 33%
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Costi azienda</div>
-                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, ...tnum }}>{fmt0(consolidato.costiPeriodo || 0)}</div>
-                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.55)' }}>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Costi azienda</div>
+                    <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.costiPeriodo || 0)}</div>
+                    <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
                       personalizzati
                     </div>
                   </div>
@@ -606,15 +606,36 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                   const dArea = d + ` L${pts[pts.length - 1][0].toFixed(1)},${H - pad} L${pts[0][0].toFixed(1)},${H - pad} Z`
                   return (
                     <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
-                        Trend ricavi · ultime 8 settimane
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>
+                          Trend ricavi · ultime 8 settimane
+                        </div>
+                        {trendHoveredIdx != null && trend8w[trendHoveredIdx] && (
+                          <div style={{ fontSize: 11, color: '#FBD7C9', fontWeight: 700, ...tnum }}>
+                            {trend8w[trendHoveredIdx].label || `W${trendHoveredIdx + 1}`}: {fmt0(trend8w[trendHoveredIdx].ricavi)}
+                          </div>
+                        )}
                       </div>
-                      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ maxWidth: '100%', height: 'auto' }}>
+                      <svg width={W} height={H + 6} viewBox={`0 0 ${W} ${H + 6}`} style={{ maxWidth: '100%', height: 'auto', display: 'block' }}>
                         <path d={dArea} fill="rgba(232,75,58,0.18)" />
                         <path d={d} stroke="#FBD7C9" strokeWidth="2" fill="none" strokeLinejoin="round" strokeLinecap="round" />
-                        {pts.map((p, i) => (
-                          <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 3.5 : 2} fill={i === pts.length - 1 ? '#FFF' : '#FBD7C9'} />
-                        ))}
+                        {pts.map((p, i) => {
+                          const isHovered = trendHoveredIdx === i
+                          const isLast = i === pts.length - 1
+                          return (
+                            <g key={i}>
+                              {/* Hit-area invisibile più grande per tap touch-friendly */}
+                              <circle cx={p[0]} cy={p[1]} r={14} fill="transparent" style={{ cursor: 'pointer' }}
+                                onMouseEnter={() => setTrendHoveredIdx(i)}
+                                onMouseLeave={() => setTrendHoveredIdx(idx => idx === i ? null : idx)}
+                                onClick={() => setTrendHoveredIdx(idx => idx === i ? null : i)}/>
+                              <circle cx={p[0]} cy={p[1]} r={isHovered ? 5 : isLast ? 3.5 : 2.5}
+                                fill={isHovered ? '#FFF' : isLast ? '#FFF' : '#FBD7C9'}
+                                stroke={isHovered ? '#FBD7C9' : 'none'} strokeWidth={isHovered ? 2 : 0}
+                                style={{ pointerEvents: 'none', transition: 'r 0.15s' }}/>
+                            </g>
+                          )
+                        })}
                       </svg>
                     </div>
                   )

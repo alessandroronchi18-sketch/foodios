@@ -18,8 +18,10 @@ const C = {
   border: T.border, borderStr: T.borderStr,
 }
 
-function fmt(n) { const v = Number(n); return n==null||!Number.isFinite(v)?"—":`€${v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}` }
-function fmt0(n) { const v = Number(n); return `€${Math.round(Number.isFinite(v)?v:0).toLocaleString('it-IT')}` }
+// Formato monetario IT: separatore migliaia "." e € SEMPRE DOPO la cifra (regola design partner).
+// fmt → 2 decimali (dettagli tabella), fmt0 → arrotondato all'unità (KPI grandi).
+function fmt(n) { const v = Number(n); return n==null||!Number.isFinite(v)?"—":`${v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €` }
+function fmt0(n) { const v = Number(n); return `${Math.round(Number.isFinite(v)?v:0).toLocaleString('it-IT')} €` }
 // fmtH: numeric Postgres + utenti che digitano stringhe in input → coercion + guard.
 function fmtH(h) { const v = Number(h); return `${(Number.isFinite(v)?v:0).toFixed(1)}h` }
 // Nome completo (nome + cognome) per disambiguare gli omonimi senza ambiguità.
@@ -517,6 +519,9 @@ function TurniTab({ orgId, notify, isMobile }) {
   const [turni, setTurni] = useState([])
   const [dipendenti, setDipendenti] = useState([])
   const [organigramma, setOrganigramma] = useState({ reparti: [] })
+  // Modal mobile: tap su un turno apre un foglio con nome, orari, ore, note, azioni.
+  // Su desktop il turno si apre direttamente nel form di modifica come prima.
+  const [shiftPreview, setShiftPreview] = useState(null)
   // Consuntivo ore effettive per turno: { [turnoId]: oreEffettive }. Salvato in
   // user_data (no migration): se non c'è valore, vale l'orario pianificato.
   const [consuntivo, setConsuntivo] = useState({})
@@ -846,11 +851,22 @@ function TurniTab({ orgId, notify, isMobile }) {
       })() : (() => {
         const colorById = {}; dipendenti.forEach((d) => { colorById[d.id] = repartoDi(d.id).color })
         const tutte = weekDays.flatMap(d => covByDay[d].shifts)
-        let aMin = 6 * 60, aMax = 20 * 60
-        if (tutte.length) { aMin = Math.floor(Math.min(...tutte.map(s => s.ini)) / 60) * 60; aMax = Math.ceil(Math.max(...tutte.map(s => s.fin)) / 60) * 60 }
+        // Audit 2026-06-24: range orario fisso 06:00–23:00 (apertura tipica pasticceria/bar)
+        // così i turni serali (cene, eventi) sono visibili senza dover scrollare.
+        // Se ci sono turni ancora più estremi (notte, alba prestissimo) il range si allarga.
+        let aMin = 6 * 60, aMax = 23 * 60
+        if (tutte.length) {
+          aMin = Math.min(aMin, Math.floor(Math.min(...tutte.map(s => s.ini)) / 60) * 60)
+          aMax = Math.max(aMax, Math.ceil(Math.max(...tutte.map(s => s.fin)) / 60) * 60)
+        }
         const span = Math.max(120, aMax - aMin)
-        const ticks = []; for (let m = aMin; m <= aMax; m += (span > 11 * 60 ? 180 : 120)) ticks.push(m)
-        const labelW = isMobile ? 76 : 150
+        // Tick ogni ora su desktop (sufficientemente largo), ogni 2h su mobile per non affollare.
+        const tickStep = isMobile ? 120 : 60
+        const ticks = []; for (let m = aMin; m <= aMax; m += tickStep) ticks.push(m)
+        const labelW = isMobile ? 86 : 150
+        // Su mobile, il container delle barre va in scroll orizzontale: 60px per ora
+        // così tutte le 17h (06-23) ci stanno con scroll fluido.
+        const inner = isMobile ? Math.max(560, (span / 60) * 60) : null
         const pos = m => `${((m - aMin) / span) * 100}%`
         const usati = dipendenti.filter(d => turni.some(t => t.dipendente_id === d.id))
         // Legenda per REPARTO (più pulita di un colore per persona): mostra solo
@@ -858,6 +874,14 @@ function TurniTab({ orgId, notify, isMobile }) {
         const repartiInTurno = []
         const seen = new Set()
         for (const d of usati) { const r = repartoDi(d.id); if (!seen.has(r.nome)) { seen.add(r.nome); repartiInTurno.push(r) } }
+        // Etichetta numero persone in turno: stesso valore per tutto il giorno se min===max
+        // ("3 persone"), range altrimenti ("1–7 persone"). Più chiaro di "1-7 in turno".
+        const labelPersone = (cov, hasShifts) => {
+          if (!hasShifts) return 'riposo'
+          const n = cov.min === cov.max ? cov.max : `${cov.min}–${cov.max}`
+          const lbl = (cov.min === 1 && cov.max === 1) ? 'persona' : 'persone'
+          return `${n} ${lbl}`
+        }
         return (
           <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", overflow:"hidden" }}>
             {repartiInTurno.length > 0 && (
@@ -869,27 +893,32 @@ function TurniTab({ orgId, notify, isMobile }) {
                 ))}
               </div>
             )}
-            {/* Asse orario */}
-            <div style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr` }}>
+            {/* Wrap interno: su mobile la parte "barre" scrolla orizzontalmente per
+                vedere fino alle 23, mentre la colonna giorno (labelW) resta fissa. */}
+            <div style={{ display:'grid', gridTemplateColumns: `${labelW}px 1fr` }}>
               <div/>
-              <div style={{ position:"relative", height:22, borderBottom:`1px solid ${C.border}` }}>
-                {ticks.map(m => <span key={m} style={{ position:"absolute", left:pos(m), transform:"translateX(-50%)", top:5, fontSize:9, color:C.textSoft, fontVariantNumeric:"tabular-nums" }}>{_hm(m)}</span>)}
+              <div style={{ overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
+                {/* Asse orario */}
+                <div style={{ position:"relative", height:22, borderBottom:`1px solid ${C.border}`, minWidth: inner || undefined }}>
+                  {ticks.map(m => <span key={m} style={{ position:"absolute", left:pos(m), transform:"translateX(-50%)", top:5, fontSize:10, color:C.textSoft, fontVariantNumeric:"tabular-nums", whiteSpace:'nowrap' }}>{_hm(m)}</span>)}
+                </div>
               </div>
             </div>
             {/* Una riga per giorno: turni come barre sull'orario, in corsie quando si sovrappongono */}
             {weekDays.map((dIso, i) => {
               const cov = covByDay[dIso]
-              const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "—"), data:t.data, note:t.note, ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine), ore:t.ore })).filter(s => s.fin > s.ini)
+              const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "—"), data:t.data, note:t.note, ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine), ore:t.ore, ora_inizio:t.ora_inizio, ora_fine:t.ora_fine })).filter(s => s.fin > s.ini)
               const { placed, nLanes } = packLanes(dayShifts)
-              const rowH = nLanes * 30 + 8
+              // Riga "riposo" più compatta (altezza minore) per non sprecare spazio.
+              const rowH = dayShifts.length === 0 ? 36 : (nLanes * 30 + 8)
               const dd = new Date(dIso + "T12:00:00")
               const oggi = dIso === new Date().toISOString().slice(0, 10)
               return (
                 <div key={dIso} style={{ display:"grid", gridTemplateColumns:`${labelW}px 1fr`, borderTop:`2px solid ${C.borderStr}`, background: oggi ? "#FFFCF7" : "transparent" }}>
-                  <div style={{ padding:"8px 10px", borderRight:`1px solid ${C.border}` }}>
-                    <div style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{GIORNI[(dd.getDay()+6)%7]} {dd.getDate()}</div>
-                    <div style={{ fontSize:9, color: C.textSoft, marginTop:1 }}>
-                      {dayShifts.length ? `${cov.min === cov.max ? cov.max : `${cov.min}–${cov.max}`} in turno` : "riposo"}
+                  <div style={{ padding: isMobile ? "10px 10px" : "8px 10px", borderRight:`1px solid ${C.border}` }}>
+                    <div style={{ fontSize: isMobile ? 13 : 12, fontWeight:800, color: oggi ? C.red : C.text }}>{GIORNI[(dd.getDay()+6)%7]} {dd.getDate()}</div>
+                    <div style={{ fontSize: isMobile ? 10 : 9, color: C.textSoft, marginTop:2, lineHeight:1.3 }}>
+                      {labelPersone(cov, dayShifts.length > 0)}
                     </div>
                     {/* Copertura per reparto: evidenzia i buchi (es. 0 in produzione) */}
                     {!isMobile && repartiAttivi.length > 0 && dayShifts.length > 0 && (() => {
@@ -911,24 +940,34 @@ function TurniTab({ orgId, notify, isMobile }) {
                     })()}
                     {!isMobile && <button onClick={() => apriNuovoTurno(dIso)} style={{ marginTop:6, fontSize:10, fontWeight:700, color:C.red, background:"transparent", border:`1px dashed ${C.red}40`, borderRadius:6, padding:"3px 8px", cursor:"pointer" }}>+ turno</button>}
                   </div>
-                  <div style={{ position:"relative", height:rowH }}>
-                    {ticks.map(m => <div key={m} style={{ position:"absolute", left:pos(m), top:0, bottom:0, width:1, background:"#F2ECE8" }}/>)}
-                    {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:10, color:"#CBD5E1" }}>—</div>}
-                    {placed.map(s => {
-                      const col = colorById[s.dipId] || C.red
-                      const selez = editId === s.id
-                      const eff = consuntivo[s.id] // ore effettive consuntivate
-                      const straord = eff != null ? +(eff - (s.ore || 0)).toFixed(2) : null
-                      return (
-                        <div key={s.id} onClick={() => apriModificaTurno(s)} role="button" tabIndex={0}
-                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); apriModificaTurno(s) } }}
-                          title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (pianificato ${fmtH(s.ore || 0)}${eff != null ? ` · effettivo ${fmtH(eff)}${straord ? ` · ${straord > 0 ? 'straord +' : ''}${straord}h` : ''}` : ''}) — clicca per modificare`}
-                          style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height:26, background:col, border:"none", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding:"0 6px", overflow:"hidden", cursor:"pointer", boxShadow: selez ? "inset 0 0 0 2px rgba(255,255,255,0.95)" : "none" }}>
-                          <span style={{ fontSize:10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>{etichettaNome(s.nome)} · {_hm(s.ini)}–{_hm(s.fin)}</span>
-                          {eff != null && <span title="Ore consuntivate" style={{ fontSize:8, fontWeight:800, background:straord > 0 ? "#F59E0B" : "rgba(255,255,255,0.3)", color:"#fff", borderRadius:4, padding:"0 3px", flexShrink:0 }}>{straord > 0 ? `+${straord}h` : "✓"}</span>}
-                        </div>
-                      )
-                    })}
+                  <div style={{ overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
+                    <div style={{ position:"relative", height: rowH, minWidth: inner || undefined }}>
+                      {ticks.map(m => <div key={m} style={{ position:"absolute", left:pos(m), top:0, bottom:0, width:1, background:"#F2ECE8" }}/>)}
+                      {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:11, color:"#CBD5E1", fontStyle:'italic' }}>—</div>}
+                      {placed.map(s => {
+                        const col = colorById[s.dipId] || C.red
+                        const selez = editId === s.id
+                        const eff = consuntivo[s.id] // ore effettive consuntivate
+                        const straord = eff != null ? +(eff - (s.ore || 0)).toFixed(2) : null
+                        // Su mobile: tap apre una preview a fondo schermo con dettagli completi.
+                        // Su desktop: come prima, apre direttamente il form di modifica.
+                        const onTap = () => { if (isMobile) setShiftPreview(s); else apriModificaTurno(s) }
+                        return (
+                          <div key={s.id} onClick={onTap} role="button" tabIndex={0}
+                            aria-label={`Turno ${s.nome} dalle ${_hm(s.ini)} alle ${_hm(s.fin)}`}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTap() } }}
+                            title={`${s.nome}: ${_hm(s.ini)}–${_hm(s.fin)} (pianificato ${fmtH(s.ore || 0)}${eff != null ? ` · effettivo ${fmtH(eff)}${straord ? ` · ${straord > 0 ? 'straord +' : ''}${straord}h` : ''}` : ''})`}
+                            style={{ position:"absolute", left:pos(s.ini), width:`calc(${((s.fin - s.ini) / span) * 100}% - 4px)`, top: s.lane * 30 + 5, height: 26, minHeight: isMobile ? 40 : 26, background:col, border:"none", borderRadius:6, color:"#fff", display:"flex", alignItems:"center", gap:4, padding: isMobile ? "0 8px" : "0 6px", overflow:"hidden", cursor:"pointer", boxShadow: selez ? "inset 0 0 0 2px rgba(255,255,255,0.95)" : "none" }}>
+                            {/* Mobile: solo NOME (più leggibile, niente troncamento di "06:00…").
+                                Desktop: nome + orari come prima. */}
+                            <span style={{ fontSize: isMobile ? 11 : 10, fontWeight:700, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
+                              {isMobile ? etichettaNome(s.nome) : `${etichettaNome(s.nome)} · ${_hm(s.ini)}–${_hm(s.fin)}`}
+                            </span>
+                            {eff != null && <span title="Ore consuntivate" style={{ fontSize: 9, fontWeight:800, background:straord > 0 ? "#F59E0B" : "rgba(255,255,255,0.3)", color:"#fff", borderRadius:4, padding:"0 4px", flexShrink:0 }}>{straord > 0 ? `+${straord}h` : "✓"}</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
               )
@@ -936,6 +975,53 @@ function TurniTab({ orgId, notify, isMobile }) {
           </div>
         )
       })()}
+
+      {/* Modal preview turno (mobile): nome + orari + ore + note + azioni modifica/elimina. */}
+      {shiftPreview && isMobile && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.5)', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:1100 }}
+             onClick={() => setShiftPreview(null)}>
+          <div onClick={e => e.stopPropagation()} role="dialog" aria-label="Dettagli turno"
+               style={{ background:C.bgCard, width:'100%', maxWidth:520, borderTopLeftRadius:20, borderTopRightRadius:20, padding:'20px 20px 28px', boxShadow:'0 -10px 30px rgba(0,0,0,0.25)' }}>
+            <div style={{ width:42, height:4, background:'#E2E8F0', borderRadius:2, margin:'0 auto 16px' }}/>
+            <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:16 }}>
+              <span style={{ width:14, height:14, borderRadius:4, background: repartoDi(shiftPreview.dipId).color || C.red, marginTop:5, flexShrink:0, border:'1px solid rgba(0,0,0,0.15)' }}/>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:17, fontWeight:800, color:C.text, lineHeight:1.25 }}>{etichettaNome(shiftPreview.nome)}</div>
+                <div style={{ fontSize:12, color:C.textSoft, marginTop:2 }}>{repartoDi(shiftPreview.dipId).nome}</div>
+              </div>
+              <button onClick={() => setShiftPreview(null)} aria-label="Chiudi"
+                      style={{ background:'transparent', border:'none', fontSize:22, color:C.textSoft, cursor:'pointer', padding:'0 4px', lineHeight:1 }}>✕</button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+              <div style={{ background:C.bg, borderRadius:12, padding:'10px 12px' }}>
+                <div style={{ fontSize:10, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing:'0.07em' }}>Orario</div>
+                <div style={{ fontSize:16, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>{_hm(shiftPreview.ini)}–{_hm(shiftPreview.fin)}</div>
+              </div>
+              <div style={{ background:C.bg, borderRadius:12, padding:'10px 12px' }}>
+                <div style={{ fontSize:10, fontWeight:700, color:C.textSoft, textTransform:'uppercase', letterSpacing:'0.07em' }}>Ore</div>
+                <div style={{ fontSize:16, fontWeight:800, color:C.text, marginTop:4, ...tnum }}>
+                  {fmtH(shiftPreview.ore || 0)}
+                  {consuntivo[shiftPreview.id] != null && <span style={{ fontSize:11, color:C.amber, fontWeight:700, marginLeft:6 }}>eff. {fmtH(consuntivo[shiftPreview.id])}</span>}
+                </div>
+              </div>
+            </div>
+            {shiftPreview.note && (
+              <div style={{ fontSize:12, color:C.textMid, lineHeight:1.5, padding:'10px 12px', background:C.bg, borderRadius:10, marginBottom:16 }}>{shiftPreview.note}</div>
+            )}
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => { const s = shiftPreview; setShiftPreview(null); apriModificaTurno(s) }}
+                      style={{ flex:1, padding:'14px', background:C.red, color:C.white, border:'none', borderRadius:10, fontWeight:800, fontSize:15, cursor:'pointer' }}>
+                Modifica
+              </button>
+              <button onClick={() => { const id = shiftPreview.id; setShiftPreview(null); eliminaTurno(id) }}
+                      aria-label="Elimina turno"
+                      style={{ padding:'14px 16px', minWidth:54, background:C.white, color:C.red, border:`1px solid ${C.red}`, borderRadius:10, fontWeight:800, fontSize:15, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+                <Icon name="trash" size={17}/>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isMobile && !showForm && (
         <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:C.white, borderTop:`1px solid ${C.border}`, zIndex:100 }}>
@@ -1076,43 +1162,57 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
             </div>
           </div>
 
-          {/* KPI strip */}
-          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(160px,1fr))", gap: isMobile ? 8 : 12, marginBottom: 16 }}>
+          {/* KPI strip — minHeight uniformi su label/value/sub per allineare 6 card a coppie su mobile.
+              Card con label lungo ("Ore pian. vs lavorate") non sfora più rispetto a "Fatturato / ora". */}
+          <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(170px,1fr))", gap: isMobile ? 8 : 12, marginBottom: 16 }}>
             {[
-              { lbl:"Costo effettivo", val:fmt(totCosto), c:C.red, sub:`${fmtH(totOre)} lavorate` },
-              { lbl:"Fatturato / ora", val: ricavi>0?fmt(fatturatoPerOra):"—", c: fatturatoPerOra>=costoMedioOra*2.5?C.green:C.text, sub:"produttività del lavoro" },
+              { lbl:"Costo effettivo", val:fmt0(totCosto), c:C.red, sub:`${fmtH(totOre)} lavorate` },
+              { lbl:"Fatturato / ora", val: ricavi>0?fmt0(fatturatoPerOra):"—", c: fatturatoPerOra>=costoMedioOra*2.5?C.green:C.text, sub:"produttività del lavoro" },
               { lbl:"Costo medio orario", val:fmt(costoMedioOra), c:C.text, sub:"per ora lavorata" },
-              { lbl:"Ore piani. vs lavorate", val: fmtH(oreEffettive), c: Math.abs(deltaOre)<2?C.green:deltaOre>0?C.amber:C.text, sub: `pianificate ${fmtH(totOre)}${Math.abs(deltaOre)>=0.5?` · ${deltaOre>0?'+':''}${fmtH(deltaOre)}`:''}` },
-              { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${scostPct.toFixed(0)}% (straordinari?)`:`${scostPct.toFixed(0)}% sotto teorico` },
+              { lbl:"Ore pian. vs lavorate", val: fmtH(oreEffettive), c: Math.abs(deltaOre)<2?C.green:deltaOre>0?C.amber:C.text, sub: `pianificate ${fmtH(totOre)}${Math.abs(deltaOre)>=0.5?` · ${deltaOre>0?'+':''}${fmtH(deltaOre)}`:''}` },
+              { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt0(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${scostPct.toFixed(0)}% (straordinari?)`:`${scostPct.toFixed(0)}% sotto teorico` },
               { lbl:"Proiezione annua", val:fmt0(costoFissoMese*12), c:C.amber, sub:"costo fisso × 12" },
             ].map(({lbl,val,c,sub})=>(
-              <div key={lbl} className="fos-tile" style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "14px 16px" : "16px 18px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
-                <div style={{ fontSize:9, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>{lbl}</div>
-                <div style={{ fontSize: isMobile ? 16 : 20, fontWeight:900, color:c, ...tnum }}>{val}</div>
-                {sub && <div style={{ fontSize:9, color:C.textSoft, marginTop:3 }}>{sub}</div>}
+              <div key={lbl} className="fos-tile" style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "14px 14px" : "16px 18px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)", display:'flex', flexDirection:'column' }}>
+                <div style={{ fontSize:10, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8, minHeight: 28, lineHeight: 1.25 }}>{lbl}</div>
+                <div style={{ fontSize: isMobile ? 20 : 24, fontWeight:800, color:c, letterSpacing:'-0.02em', lineHeight: 1.05, minHeight: isMobile ? 24 : 28, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', ...tnum }}>{val}</div>
+                <div style={{ fontSize: 11, color:C.textSoft, marginTop: 6, minHeight: 28, lineHeight: 1.35, fontWeight: 500 }}>{sub || ''}</div>
               </div>
             ))}
           </div>
 
-          {/* Per dipendente: barra costo + €/h effettivo + % sul totale */}
+          {/* Per dipendente: layout grid pulito.
+              Mobile: 2 righe — riga 1 nome (sx) + costo totale (dx); riga 2 ore·€/h (sx) + % (dx); bar progress sotto.
+              Desktop: tutto su una riga con allineamento a destra dei numeri. */}
           {dipRows.length > 0 && (
-            <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding:"16px 20px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
+            <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "16px 16px" : "16px 20px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
               <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14, letterSpacing:'-0.01em' }}>Ripartizione per dipendente</div>
               {dipRows.map(([nome,d])=>{
                 const oraEff = d.ore>0 ? d.costo/d.ore : 0
                 const quota = totCosto>0 ? d.costo/totCosto*100 : 0
                 return (
-                  <div key={nome} style={{ marginBottom:12 }}>
-                    <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:10, marginBottom:4 }}>
-                      <span style={{ fontSize:12, fontWeight:700, color:C.text }}>{nome}</span>
-                      <span style={{ display:"flex", gap:14, alignItems:"baseline" }}>
-                        <span style={{ fontSize:10, color:C.textSoft }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
-                        <span style={{ fontSize:12, fontWeight:800, color:C.red, ...tnum, minWidth:64, textAlign:"right" }}>{fmt(d.costo)}</span>
-                        <span style={{ fontSize:10, color:C.textSoft, minWidth:34, textAlign:"right" }}>{quota.toFixed(0)}%</span>
-                      </span>
-                    </div>
-                    <div style={{ height:7, background:"#F0EAE6", borderRadius:5, overflow:"hidden" }}>
-                      <div style={{ width:`${d.costo/maxCostoDip*100}%`, height:"100%", background:C.red, borderRadius:5 }}/>
+                  <div key={nome} style={{ marginBottom: 14 }}>
+                    {isMobile ? (
+                      <>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', minHeight: 18 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{nome}</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: C.red, ...tnum, whiteSpace: 'nowrap' }}>{fmt0(d.costo)}</span>
+                        </div>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', marginTop: 2, marginBottom: 6 }}>
+                          <span style={{ fontSize: 11, color: C.textSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
+                          <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600, ...tnum }}>{quota.toFixed(0)}%</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto auto auto', gap: 14, alignItems:'baseline', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
+                        <span style={{ fontSize: 11, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(d.ore)} · {fmt(oraEff)}/h</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: C.red, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(d.costo)}</span>
+                        <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{quota.toFixed(0)}%</span>
+                      </div>
+                    )}
+                    <div style={{ height: 6, background: '#F0EAE6', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.max(0, Math.min(100, d.costo/maxCostoDip*100))}%`, height: '100%', background: C.red, borderRadius: 999, transition: 'width 0.2s ease' }}/>
                     </div>
                   </div>
                 )
@@ -1120,24 +1220,36 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
             </div>
           )}
 
-          {/* Costo per reparto (da organigramma) */}
+          {/* Costo per reparto (da organigramma) — stesso pattern grid pulito. */}
           {repRows.length > 0 && (organigramma?.reparti||[]).length > 0 && (
-            <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding:"16px 20px", marginTop:16, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
+            <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "16px 16px" : "16px 20px", marginTop:16, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
               <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14, letterSpacing:'-0.01em' }}>Costo per reparto</div>
               {repRows.map(([nome,r])=>{
                 const quota = totCosto>0 ? r.costo/totCosto*100 : 0
+                const colore = nome==="Senza reparto" ? C.textSoft : C.red
                 return (
-                  <div key={nome} style={{ marginBottom:12 }}>
-                    <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:10, marginBottom:4 }}>
-                      <span style={{ fontSize:12, fontWeight:700, color: nome==="Senza reparto"?C.textSoft:C.text }}>{nome}</span>
-                      <span style={{ display:"flex", gap:14, alignItems:"baseline" }}>
-                        <span style={{ fontSize:10, color:C.textSoft }}>{fmtH(r.ore)}</span>
-                        <span style={{ fontSize:12, fontWeight:800, color:C.red, ...tnum, minWidth:64, textAlign:"right" }}>{fmt(r.costo)}</span>
-                        <span style={{ fontSize:10, color:C.textSoft, minWidth:34, textAlign:"right" }}>{quota.toFixed(0)}%</span>
-                      </span>
-                    </div>
-                    <div style={{ height:7, background:"#F0EAE6", borderRadius:5, overflow:"hidden" }}>
-                      <div style={{ width:`${r.costo/maxCostoRep*100}%`, height:"100%", background: nome==="Senza reparto"?C.textSoft:C.red, borderRadius:5 }}/>
+                  <div key={nome} style={{ marginBottom: 14 }}>
+                    {isMobile ? (
+                      <>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', minHeight: 18 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: nome==="Senza reparto" ? C.textSoft : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{nome}</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: colore, ...tnum, whiteSpace: 'nowrap' }}>{fmt0(r.costo)}</span>
+                        </div>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap: 8, alignItems: 'baseline', marginTop: 2, marginBottom: 6 }}>
+                          <span style={{ fontSize: 11, color: C.textSoft }}>{fmtH(r.ore)}</span>
+                          <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600, ...tnum }}>{quota.toFixed(0)}%</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto auto auto', gap: 14, alignItems:'baseline', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: nome==="Senza reparto" ? C.textSoft : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
+                        <span style={{ fontSize: 11, color: C.textSoft, whiteSpace: 'nowrap' }}>{fmtH(r.ore)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: colore, ...tnum, minWidth: 96, textAlign: 'right' }}>{fmt(r.costo)}</span>
+                        <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600, ...tnum, minWidth: 42, textAlign: 'right' }}>{quota.toFixed(0)}%</span>
+                      </div>
+                    )}
+                    <div style={{ height: 6, background: '#F0EAE6', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.max(0, Math.min(100, r.costo/maxCostoRep*100))}%`, height: '100%', background: colore, borderRadius: 999, transition: 'width 0.2s ease' }}/>
                     </div>
                   </div>
                 )
@@ -1211,31 +1323,43 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
       <p style={{ margin: '0 0 14px', fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 620 }}>
         Costo del lavoro, turni e organigramma — diagnosi del mese in corso (<span style={{ textTransform: 'capitalize' }}>{meseLbl}</span>).
       </p>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : (isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)'), gap: 10, marginBottom: (d.nonAssegnati > 0 || d.repartiScoperti.length > 0) ? 12 : 0 }}>
+      {/* Audit 2026-06-24: minHeight uniformi su label/value/sub per allineare verticalmente
+          le KPI card tra loro anche su mobile (label corta vs label lunga). */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : (isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)'), gap: isMobile ? 8 : 10, marginBottom: (d.nonAssegnati > 0 || d.repartiScoperti.length > 0) ? 12 : 0 }}>
         {kpis.map((k, i) => (
           <div key={i} className="fos-tile" style={{
             background: k.hi ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
             border: `1px solid ${k.hi ? '#4A0612' : T.border}`,
-            borderRadius: 16, padding: isMobile ? '13px 14px' : '16px 18px',
+            borderRadius: 16, padding: isMobile ? '14px 14px' : '16px 18px',
             boxShadow: k.hi ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
+            display: 'flex', flexDirection: 'column',
           }}>
-            <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase',
-              color: k.hi ? 'rgba(255,255,255,0.72)' : T.textSoft, marginBottom: 7 }}>{k.lbl}</div>
-            <div style={{ fontSize: isMobile ? 18 : 23, fontWeight: 800, letterSpacing: '-0.02em',
-              color: k.hi ? T.textOnDark : k.color, lineHeight: 1.05, ...tnum }}>{k.val}</div>
-            {k.sub && <div style={{ fontSize: 10, color: k.hi ? 'rgba(255,255,255,0.65)' : T.textSoft, marginTop: 5 }}>{k.sub}</div>}
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: k.hi ? 'rgba(255,255,255,0.78)' : T.textSoft, marginBottom: 8,
+              minHeight: 28, lineHeight: 1.25 }}>{k.lbl}</div>
+            <div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, letterSpacing: '-0.025em',
+              color: k.hi ? T.textOnDark : k.color, lineHeight: 1.05, minHeight: isMobile ? 26 : 30,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...tnum }}>{k.val}</div>
+            <div style={{ fontSize: 11, color: k.hi ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 6,
+              minHeight: 28, lineHeight: 1.35, fontWeight: 500 }}>{k.sub || ''}</div>
           </div>
         ))}
       </div>
       {(d.nonAssegnati > 0 || d.repartiScoperti.length > 0) && (
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 12, padding: '10px 14px' }}>
-          <span style={{ color: '#C2410C', display: 'inline-flex' }}><Icon name="warning" size={16} /></span>
-          <span style={{ fontSize: 12, color: '#9A3412', fontWeight: 600 }}>
-            {d.nonAssegnati > 0 && `${d.nonAssegnati} ${d.nonAssegnati === 1 ? 'dipendente senza reparto' : 'dipendenti senza reparto'}`}
-            {d.nonAssegnati > 0 && d.repartiScoperti.length > 0 && ' · '}
-            {d.repartiScoperti.length > 0 && `reparti senza nessuno: ${d.repartiScoperti.join(', ')}`}
-            <span style={{ fontWeight: 500, color: '#B45309' }}> — sistemali nella scheda Organigramma.</span>
-          </span>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 12, padding: isMobile ? '12px 14px' : '10px 14px' }}>
+          <span style={{ color: '#C2410C', display: 'inline-flex', flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={16} /></span>
+          <div style={{ fontSize: 12, color: '#9A3412', fontWeight: 600, lineHeight: 1.5, flex: 1, minWidth: 0 }}>
+            {/* Audit 2026-06-24: 2 righe brevi (problema → azione) invece di un'unica
+                riga lunga col separatore "·" che andava a capo male su mobile. */}
+            {(d.nonAssegnati > 0 || d.repartiScoperti.length > 0) && (
+              <div>
+                {d.nonAssegnati > 0 && <>{d.nonAssegnati} {d.nonAssegnati === 1 ? 'dipendente senza reparto' : 'dipendenti senza reparto'}</>}
+                {d.nonAssegnati > 0 && d.repartiScoperti.length > 0 && <>{isMobile ? <br/> : ' · '}</>}
+                {d.repartiScoperti.length > 0 && <>{d.repartiScoperti.length === 1 ? 'Reparto vuoto' : 'Reparti vuoti'}: {d.repartiScoperti.join(', ')}</>}
+              </div>
+            )}
+            <div style={{ fontWeight: 500, color: '#B45309', marginTop: 2 }}>Sistemali nella scheda Organigramma.</div>
+          </div>
         </div>
       )}
     </div>

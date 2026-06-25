@@ -73,7 +73,7 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
         color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6,
         minHeight: 28, lineHeight: 1.25 }}>{label}</div>
       <div style={{ position: 'relative', fontSize: 30, fontWeight: 800, color: highlight ? T.textOnDark : color || T.text,
-        letterSpacing: '-0.035em', lineHeight: 1.05, minHeight: 32, ...TNUM }}>
+        letterSpacing: '-0.035em', lineHeight: 1.05, minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...TNUM }}>
         {value}
       </div>
       {sub
