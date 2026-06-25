@@ -17,7 +17,7 @@ import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // sono tutti già lazy.
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
 import { callAi as _callAi, parseAiJson as _parseAiJson } from './lib/aiClient'
-import { SkeletonText, SkeletonGrid } from './components/Skeleton'
+import SplashScreen from './components/SplashScreen'
 import { mergeArr as _mergeArr, mergeMag as _mergeMag } from './lib/multiSediMerge'
 import { analizzaFotoAI } from './lib/analizzaFotoAI'
 import { supabase } from './lib/supabase'
@@ -1926,21 +1926,9 @@ export default function Dashboard({
   const currentMese=produzione[view];
   const ingCostiMain = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
 
-  if(!ready) return (
-    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <div style={{maxWidth:420,width:"100%"}}>
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-          <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg, #6E0E1A, #4A0612)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:800,fontSize:18,fontFamily:"'Fraunces',serif"}}>F</div>
-          <div>
-            <div style={{fontSize:18,fontWeight:700,color:C.text,letterSpacing:"-0.02em"}}>FoodOS</div>
-            <div style={{fontSize:12,color:C.textSoft,marginTop:2}}>Caricamento dati…</div>
-          </div>
-        </div>
-        <SkeletonText lines={3}/>
-        <div style={{marginTop:16}}><SkeletonGrid count={4} cols={2}/></div>
-      </div>
-    </div>
-  );
+  // Caricamento dati Dashboard: stesso linguaggio futuristic dello SplashScreen
+  // (boot-splash → SplashScreen → questo → Dashboard è una sola immagine continua).
+  if(!ready) return <SplashScreen subtitle="Preparazione dati" />;
 
   return (
     <ErrorBoundary>
