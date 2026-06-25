@@ -12,6 +12,7 @@ import { color as T } from '../lib/theme'
 import Icon from './Icon'
 import ChainBadge from './ChainBadge'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 const BRAND      = T.brand   || '#6E0E1A'
 const TXT        = T.text    || '#0E1726'
@@ -35,6 +36,8 @@ export default function UpgradeModal({
   onClose,
   onCta,
 }) {
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const planMeta = usePlanPricing()
   // Alias retro-compat: 'enterprise' = 'chain' in plan_pricing.
   const dynKey = requiredPlan === 'enterprise' ? 'chain' : requiredPlan
@@ -76,10 +79,11 @@ export default function UpgradeModal({
       <div onClick={e => e.stopPropagation()}
         style={{
           position: 'relative',
-          maxWidth: 480, width: '100%',
+          maxWidth: isMobile ? '100%' : isTablet ? '90vw' : 480,
+          width: '100%',
+          maxHeight: '90vh', overflowY: 'auto',
           background: CARD,
           borderRadius: 20,
-          overflow: 'hidden',
           boxShadow: '0 30px 80px rgba(0,0,0,0.40), 0 8px 24px rgba(110,14,26,0.20)',
           animation: '_upg_pop 0.22s cubic-bezier(.32,.72,0,1)',
         }}>
@@ -103,10 +107,12 @@ export default function UpgradeModal({
           <button onClick={onClose}
             aria-label="Chiudi"
             style={{
-              position: 'absolute', top: 14, right: 14,
+              position: 'absolute', top: 12, right: 12,
               background: 'rgba(255,255,255,0.12)',
               border: '1px solid rgba(255,255,255,0.20)',
-              color: '#FFF', width: 28, height: 28, borderRadius: 8,
+              color: '#FFF',
+              width: isMobile ? 40 : 32, height: isMobile ? 40 : 32,
+              borderRadius: 10,
               cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               padding: 0,
             }}>
@@ -188,16 +194,16 @@ export default function UpgradeModal({
           </div>
 
           {/* CTA */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexDirection: isMobile ? 'column-reverse' : 'row' }}>
             <button onClick={onClose}
               style={{
-                flex: '0 0 auto',
-                padding: '11px 18px',
+                flex: isMobile ? '1 1 100%' : '0 0 auto',
+                padding: '11px 18px', minHeight: isTablet ? 44 : 40,
                 background: 'transparent',
                 border: `1px solid ${BORDER}`,
                 borderRadius: 10,
                 color: MID,
-                fontSize: 13, fontWeight: 700,
+                fontSize: isMobile ? 14 : 13, fontWeight: 700,
                 cursor: 'pointer',
               }}>
               Più tardi
@@ -205,12 +211,12 @@ export default function UpgradeModal({
             <button onClick={() => { onCta?.(); onClose?.() }}
               style={{
                 flex: 1,
-                padding: '11px 18px',
+                padding: '11px 18px', minHeight: isTablet ? 44 : 40,
                 background: `linear-gradient(135deg, ${BRAND} 0%, #4A0612 100%)`,
                 border: 'none',
                 borderRadius: 10,
                 color: '#FFF',
-                fontSize: 13, fontWeight: 800,
+                fontSize: isMobile ? 14 : 13, fontWeight: 800,
                 cursor: 'pointer',
                 boxShadow: '0 8px 20px rgba(110,14,26,0.30)',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,

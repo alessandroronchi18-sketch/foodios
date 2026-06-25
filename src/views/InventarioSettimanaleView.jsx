@@ -20,7 +20,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { C, TNUM, PageHeader } from './_shared'
 import { ssave } from '../lib/storage'
@@ -77,6 +77,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     }
   }, [isAllSedi, sediProduttive, sediFiltro])
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [lunediIso, setLunediIso] = useState(() => lunediDellaSettimana())
   const [righe, setRighe] = useState([])
   const [loading, setLoading] = useState(true)
@@ -469,7 +470,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             return (
               <button key={k} onClick={() => setVista(k)}
                 style={{
-                  padding: '8px 16px', minHeight: 38, fontSize: 12.5, fontWeight: 700,
+                  padding: isTablet ? '10px 18px' : '8px 16px', minHeight: isTablet ? 44 : 40, fontSize: 12.5, fontWeight: 700,
                   border: 'none', borderRadius: 8, cursor: 'pointer',
                   background: sel ? C.bgCard : 'transparent',
                   color: sel ? C.text : C.textMid,
@@ -1471,9 +1472,9 @@ const btnSecondary = {
 }
 const lblForm = { display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.textSoft, marginBottom: 6 }
 const inpForm = {
-  width: '100%', padding: '10px 12px', minHeight: 42,
+  width: '100%', padding: '10px 12px', minHeight: 44,
   border: `1px solid ${T.border}`, borderRadius: 8,
-  fontSize: 14, color: T.text, outline: 'none', background: '#FFFFFF',
+  fontSize: 16, color: T.text, outline: 'none', background: '#FFFFFF',
 }
 
 // ── Header tabella ordinabile (click = toggle sort) ───────────────────────

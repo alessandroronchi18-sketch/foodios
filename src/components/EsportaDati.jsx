@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { sload } from '../lib/storage'
 import { color as T } from '../lib/theme'
 import Icon from './Icon'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 const R = T.brand
 const TXT = T.text
@@ -66,6 +67,8 @@ function supabaseErrMsg(error) {
 }
 
 export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [loading, setLoading] = useState(null)
   const [toast, setToast] = useState(null)
   const [importPreview, setImportPreview] = useState(null)
@@ -272,18 +275,29 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
     }
   }
 
-  const card = { background: '#FFF', borderRadius: 12, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+  const card = { background: '#FFF', borderRadius: 12, padding: isMobile ? '16px 16px' : '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+  const touchH = isTablet ? 44 : isMobile ? 42 : 36
   const secBtn = (col = '#FFF', bg = R) => ({
     display: 'inline-flex', alignItems: 'center', gap: 6,
-    padding: '9px 16px', background: bg, color: col, border: 'none',
-    borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+    padding: '9px 16px', minHeight: touchH,
+    background: bg, color: col, border: 'none',
+    borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer',
     opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s',
   })
 
   return (
     <div style={{ maxWidth: 640 }}>
       {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 10, background: toast.ok ? '#22C55E' : R, color: '#FFF', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', maxWidth: 360 }}>
+        <div style={{
+          position: 'fixed',
+          top: isMobile ? 12 : 20,
+          left: isMobile ? 12 : undefined,
+          right: isMobile ? 12 : 20,
+          zIndex: 9999, padding: '10px 18px', borderRadius: 10,
+          background: toast.ok ? '#22C55E' : R, color: '#FFF',
+          fontSize: 13, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          maxWidth: isMobile ? 'none' : 360,
+        }}>
           {toast.msg}
         </div>
       )}
@@ -308,7 +322,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
         <div style={{ fontSize: 12, color: SOFT, marginBottom: 14, lineHeight: 1.6 }}>
           Esporta ogni sezione in formato Excel per analisi o archivio.
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, flexWrap: 'wrap', gap: 8 }}>
           {[
             ['ricettario', 'book', 'Ricettario'],
             ['produzione', 'factory', 'Produzione 90gg'],
@@ -316,7 +330,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
             ['fatture', 'fileText', 'Fatture'],
           ].map(([tipo, ico, label]) => (
             <button key={tipo} onClick={() => esportaExcel(tipo)} disabled={!!loading}
-              style={{ ...secBtn(R, '#FFF3F3'), border: `1px solid #FCA5A5`, color: R }}>
+              style={{ ...secBtn(R, '#FFF3F3'), border: `1px solid #FCA5A5`, color: R, justifyContent: 'center' }}>
               {loading === 'excel-' + tipo ? '…' : <><Icon name={ico} size={14} /> {label}</>}
             </button>
           ))}
@@ -351,17 +365,17 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
             {!importConfirm ? (
               <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF0EE', borderRadius: 8, border: '1px solid #FCA5A5', fontSize: 12, color: '#7F1D1D' }}>
                 <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="warning" size={14} /> Attenzione</strong> — Questo sovrascriverà i dati attuali. Continuare?
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button onClick={() => setImportConfirm(true)} style={{ padding: '7px 16px', background: R, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <button onClick={() => setImportConfirm(true)} style={{ padding: '7px 16px', minHeight: touchH, background: R, color: '#FFF', border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', flex: isMobile ? '1 1 auto' : '0 0 auto' }}>
                     Sì, ripristina
                   </button>
-                  <button onClick={() => { setImportFile(null); setImportPreview(null) }} style={{ padding: '7px 12px', background: 'transparent', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: 12, color: SOFT, cursor: 'pointer' }}>
+                  <button onClick={() => { setImportFile(null); setImportPreview(null) }} style={{ padding: '7px 12px', minHeight: touchH, background: 'transparent', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, color: SOFT, cursor: 'pointer', flex: isMobile ? '1 1 auto' : '0 0 auto' }}>
                     Annulla
                   </button>
                 </div>
               </div>
             ) : (
-              <button onClick={eseguiImport} disabled={importing} style={{ marginTop: 12, padding: '9px 20px', background: R, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              <button onClick={eseguiImport} disabled={importing} style={{ marginTop: 12, padding: '9px 20px', minHeight: touchH, background: R, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', width: isMobile ? '100%' : 'auto' }}>
                 {importing ? 'Ripristino in corso…' : 'Conferma ripristino'}
               </button>
             )}

@@ -44,28 +44,30 @@ function SplashScreen() {
 }
 
 function TrialScadutoPage({ org, onSignOut }) {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
   return (
     <div style={{
       minHeight: '100vh',
       background: '#F8FAFC',
-      padding: '40px 20px',
+      padding: isMobile ? '24px 14px' : '40px 20px',
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
       <div style={{ maxWidth: 880, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <Logo size={56} style={{ display: 'inline-block', borderRadius: 14, boxShadow: '0 10px 30px rgba(110,14,26,0.30)', marginBottom: 16 }} />
-          <h1 style={{ color: '#1C0A0A', margin: '0 0 8px', fontSize: 26, letterSpacing: '-0.02em' }}>
+        <div style={{ textAlign: 'center', marginBottom: isMobile ? 22 : 32 }}>
+          <Logo size={isMobile ? 48 : 56} style={{ display: 'inline-block', borderRadius: 14, boxShadow: '0 10px 30px rgba(110,14,26,0.30)', marginBottom: 16 }} />
+          <h1 style={{ color: '#1C0A0A', margin: '0 0 8px', fontSize: isMobile ? 22 : 26, letterSpacing: '-0.02em' }}>
             Prova gratuita terminata
           </h1>
-          <p style={{ color: '#6B4C44', lineHeight: 1.6, fontSize: 14, margin: 0 }}>
+          <p style={{ color: '#6B4C44', lineHeight: 1.6, fontSize: 14, margin: 0, padding: '0 4px' }}>
             Attiva un abbonamento per continuare ad accedere ai tuoi dati e alle analisi di {org?.nome || 'la tua attività'}.
           </p>
         </div>
         <AbbonamentoPanel org={org} isInline />
         <div style={{ textAlign: 'center', marginTop: 24 }}>
           <button onClick={onSignOut} style={{
-            padding: '10px 20px', background: 'transparent', color: '#6B4C44',
-            border: '1px solid #E8DDD8', borderRadius: 10, fontSize: 13, cursor: 'pointer',
+            padding: '12px 20px', minHeight: 44,
+            background: 'transparent', color: '#6B4C44',
+            border: '1px solid #E8DDD8', borderRadius: 10, fontSize: 14, cursor: 'pointer',
             fontFamily: 'inherit',
           }}>Esci dall'account</button>
         </div>

@@ -4,7 +4,7 @@ import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
 import { loadXLSX } from '../lib/xlsx'
 import { exportScadenzario } from '../lib/exportPDF'
 import { getExportCtx, gateExport } from '../lib/exportGuard'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload, ssave } from '../lib/storage'
 import { generateSepaXml, ibanIsValid, normalizeIban, causaleFattura, bonificoText } from '../lib/sepa'
 import Icon from './Icon'
@@ -160,6 +160,7 @@ const FILTRI = [
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [fatture, setFatture]             = useState([])
   const [loading, setLoading]             = useState(true)
   const [importLoading, setImportLoading] = useState(false)
@@ -716,11 +717,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 11, color: T.brand, fontWeight: 700 }}>Sicuro?</span>
           <button onClick={() => eliminaFattura(f.id)}
-            style={{ padding: '4px 10px', background: T.brand, color: T.white, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ padding: isMobile ? '8px 14px' : '4px 10px', minHeight: isMobile ? 40 : 'auto', background: T.brand, color: T.white, border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 11, fontWeight: 700, cursor: 'pointer' }}>
             Sì, elimina
           </button>
           <button onClick={() => setEliminandoId(null)}
-            style={{ padding: '4px 9px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+            style={{ padding: isMobile ? '8px 14px' : '4px 9px', minHeight: isMobile ? 40 : 'auto', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 13 : 11, fontWeight: 600, cursor: 'pointer' }}>
             Annulla
           </button>
         </div>
@@ -733,14 +734,14 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       return (
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
           <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
-            style={{ padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: T.text }} />
+            style={{ padding: '6px 8px', minHeight: isMobile ? 40 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 11, color: T.text }} />
           <input type="number" inputMode="decimal" value={pagImporto} onChange={e => setPagImporto(e.target.value)}
             placeholder={`€ ${Number(residuoTot || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             title="Vuoto = salda l'intero residuo. Importo minore = acconto."
-            style={{ width: 86, padding: '4px 8px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: T.text }} />
+            style={{ width: isMobile ? 110 : 86, padding: '6px 8px', minHeight: isMobile ? 40 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 11, color: T.text }} />
           <select value={pagMetodo} onChange={e => setPagMetodo(e.target.value)}
             title="Metodo di pagamento"
-            style={{ padding: '4px 6px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 11, color: T.text, background: T.bgCard }}>
+            style={{ padding: '6px 6px', minHeight: isMobile ? 40 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 11, color: T.text, background: T.bgCard }}>
             <option value="bonifico">Bonifico</option>
             <option value="contanti">Contanti</option>
             <option value="riba">RiBa</option>
@@ -749,9 +750,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <option value="altro">Altro</option>
           </select>
           <button onClick={() => segnaComePagata(f.id)}
-            style={{ padding: '4px 9px', background: T.green, color: T.white, border: 'none', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
-          <button onClick={() => { setPagandoId(null); setPagImporto('') }}
-            style={{ padding: '4px 7px', background: 'transparent', color: T.textSoft, border: 'none', fontSize: 12, cursor: 'pointer' }}>✕</button>
+            style={{ padding: isMobile ? '8px 14px' : '4px 9px', minHeight: isMobile ? 40 : 'auto', background: T.green, color: T.white, border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
+          <button aria-label="Annulla pagamento" onClick={() => { setPagandoId(null); setPagImporto('') }}
+            style={{ padding: isMobile ? '8px 12px' : '4px 7px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', background: 'transparent', color: T.textSoft, border: 'none', fontSize: 14, cursor: 'pointer' }}>✕</button>
         </div>
       )
     }
@@ -1142,12 +1143,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               {isEdit && (
                 <div style={{ marginTop: 10, padding: 12, background: T.bgSubtle, borderRadius: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <input placeholder="IBAN fornitore" value={editFornData.iban} onChange={e => setEditFornData(d => ({ ...d, iban: e.target.value }))}
-                    style={{ padding: '7px 10px', border: `1px solid ${editFornData.iban && !ibanIsValid(editFornData.iban) ? T.brand : T.border}`, borderRadius: 8, fontSize: 12, flex: '1 1 220px', minWidth: 200, ...tnum }} />
-                  <input type="number" placeholder="Termini (gg)" value={editFornData.termini} onChange={e => setEditFornData(d => ({ ...d, termini: e.target.value }))}
+                    style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${editFornData.iban && !ibanIsValid(editFornData.iban) ? T.brand : T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, flex: '1 1 220px', minWidth: 200, ...tnum }} />
+                  <input type="number" inputMode="numeric" placeholder="Termini (gg)" value={editFornData.termini} onChange={e => setEditFornData(d => ({ ...d, termini: e.target.value }))}
                     title="Giorni di pagamento (per derivare la scadenza quando non è nell'XML)"
-                    style={{ padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, width: 110 }} />
+                    style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, width: isMobile ? '100%' : 110 }} />
                   <input placeholder="Categoria (opz.)" value={editFornData.categoria} onChange={e => setEditFornData(d => ({ ...d, categoria: e.target.value }))}
-                    style={{ padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, flex: '1 1 140px', minWidth: 120 }} />
+                    style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, flex: '1 1 140px', minWidth: 120 }} />
                   <button onClick={() => salvaFornitore(g.nome, { iban: editFornData.iban, termini_pagamento: Number(editFornData.termini) || 30, categoria: editFornData.categoria })}
                     style={{ ...primaryBtn, padding: '7px 14px' }}>Salva</button>
                   <button onClick={() => setEditForn(null)} style={{ ...ghostBtn, padding: '7px 12px' }}>Annulla</button>
@@ -1216,7 +1217,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               </div>
               <input value={bulkConfirm} onChange={e => setBulkConfirm(e.target.value)} placeholder="ELIMINA" autoFocus
                 onKeyDown={e => { if (e.key === 'Enter' && bulkConfirm.trim().toUpperCase() === 'ELIMINA') eliminaTutte() }}
-                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${bulkConfirm && bulkConfirm.trim().toUpperCase() !== 'ELIMINA' ? '#F3C7C2' : T.border}`, borderRadius: 9, fontSize: 14, boxSizing: 'border-box', letterSpacing: '0.06em', textTransform: 'uppercase', outline: 'none' }} />
+                style={{ width: '100%', padding: '11px 12px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${bulkConfirm && bulkConfirm.trim().toUpperCase() !== 'ELIMINA' ? '#F3C7C2' : T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 14, boxSizing: 'border-box', letterSpacing: '0.06em', textTransform: 'uppercase', outline: 'none' }} />
             </div>
             <div style={{ padding: '14px 22px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button onClick={() => { setBulkOpen(false); setBulkConfirm('') }} disabled={bulkDeleting} style={ghostBtn}>Annulla</button>
@@ -1282,7 +1283,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       {/* Summary bar — 3 KPI azionabili */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+        gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(3, 1fr)' : 'repeat(3, 1fr)',
         gap: isMobile ? 10 : 14,
         marginBottom: isMobile ? 16 : 22,
       }}>
@@ -1367,11 +1368,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         ) : (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
             <input placeholder="Intestatario conto (azienda)" value={azienda.nome} onChange={e => setAzienda(a => ({ ...a, nome: e.target.value }))}
-              style={{ padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, minWidth: 180, flex: '1 1 180px' }} />
+              style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, minWidth: 180, flex: '1 1 180px' }} />
             <input placeholder="IBAN azienda" value={azienda.iban} onChange={e => setAzienda(a => ({ ...a, iban: e.target.value }))}
-              style={{ padding: '7px 10px', border: `1px solid ${azienda.iban && !ibanIsValid(azienda.iban) ? T.brand : T.border}`, borderRadius: 8, fontSize: 12, minWidth: 220, flex: '1 1 220px', ...tnum }} />
+              style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${azienda.iban && !ibanIsValid(azienda.iban) ? T.brand : T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, minWidth: 220, flex: '1 1 220px', ...tnum }} />
             <input placeholder="BIC (opz.)" value={azienda.bic} onChange={e => setAzienda(a => ({ ...a, bic: e.target.value }))}
-              style={{ padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 12, width: 110 }} />
+              style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, width: isMobile ? '100%' : 110 }} />
             <button onClick={() => salvaAzienda(azienda)} disabled={!ibanIsValid(azienda.iban)} style={{ ...primaryBtn, padding: '7px 14px', opacity: !ibanIsValid(azienda.iban) ? 0.5 : 1 }}>Salva</button>
             <button onClick={() => { setEditAzienda(false); loadAzienda() }} style={{ ...ghostBtn, padding: '7px 12px' }}>Annulla</button>
           </div>
@@ -1401,7 +1402,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
         <div style={{ position: 'relative', flex: 1, minWidth: 180, maxWidth: 320 }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca fornitore o numero…"
-            style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: 9, border: `1px solid ${T.border}`, fontSize: 13, color: T.text, boxSizing: 'border-box' }} />
+            style={{ width: '100%', padding: isMobile ? '11px 12px 11px 32px' : '8px 12px 8px 32px', borderRadius: 9, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text, boxSizing: 'border-box' }} />
           <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textSoft, display: 'flex', pointerEvents: 'none' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </span>

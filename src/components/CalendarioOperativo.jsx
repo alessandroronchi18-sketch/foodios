@@ -205,11 +205,11 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
     if (!sel || !selDetail) return null
     return (
       <div style={{
-        width: inline ? '100%' : (isMobile ? '100%' : 288), flexShrink: 0,
+        width: inline ? '100%' : (isMobile || isTablet ? '100%' : 288), flexShrink: 0,
         background: T.bgCard, borderRadius: 16, border: `1px solid ${T.border}`,
         boxShadow: SHADOW_PREMIUM,
-        padding: 20, position: (inline || isMobile) ? 'static' : 'sticky', top: 24,
-        marginTop: inline ? 4 : (isMobile ? 16 : 0),
+        padding: 20, position: (inline || isMobile || isTablet) ? 'static' : 'sticky', top: 24,
+        marginTop: inline ? 4 : (isMobile || isTablet ? 16 : 0),
         marginBottom: inline ? 6 : 0,
         animation: 'fos_calSlideIn 0.16s ease',
       }}>
@@ -291,7 +291,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                 rows={3}
                 style={{
                   width: '100%', padding: '9px 11px', border: `1px solid ${T.border}`,
-                  borderRadius: 10, fontSize: isMobile ? 16 : 12.5, resize: 'vertical', fontFamily: 'inherit',
+                  borderRadius: 10, fontSize: isMobile || isTablet ? 16 : 12.5, resize: 'vertical', fontFamily: 'inherit',
                   color: T.text, background: T.bgSubtle, boxSizing: 'border-box', outline: 'none', lineHeight: 1.5,
                 }}
               />
@@ -342,7 +342,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
         </div>
       )}
 
-      <div style={{ display: isMobile ? 'block' : 'flex', gap: 24, alignItems: 'flex-start' }}>
+      <div style={{ display: isMobile ? 'block' : 'flex', gap: isTablet ? 14 : 24, alignItems: 'flex-start', flexDirection: isTablet ? 'column' : 'row' }}>
 
         {/* ── ② GRIGLIA CALENDARIO ───────────────────────────────────────── */}
         <div style={{
@@ -367,7 +367,8 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {!isMeseCorrente && (
                 <button onClick={goOggi} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 11px',
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: isMobile ? '8px 12px' : '6px 11px', minHeight: isMobile ? 40 : isTablet ? 44 : 32,
                   borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
                   fontSize: 12, fontWeight: 600, color: T.textMid, cursor: 'pointer', boxShadow: S.sm,
                 }}>
@@ -375,10 +376,10 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
                 </button>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: R.lg, padding: 3 }}>
-                <button onClick={prev} style={NAV_BTN} aria-label="Mese precedente">
+                <button onClick={prev} style={{ ...NAV_BTN, width: isMobile ? 40 : isTablet ? 44 : 32, height: isMobile ? 40 : isTablet ? 44 : 32 }} aria-label="Mese precedente">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                 </button>
-                <button onClick={next} style={NAV_BTN} aria-label="Mese successivo">
+                <button onClick={next} style={{ ...NAV_BTN, width: isMobile ? 40 : isTablet ? 44 : 32, height: isMobile ? 40 : isTablet ? 44 : 32 }} aria-label="Mese successivo">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
               </div>

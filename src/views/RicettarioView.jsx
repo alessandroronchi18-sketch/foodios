@@ -2,7 +2,7 @@
 // TortaCard è il card espandibile usato sia dal Ricettario che dai Semilavorati.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, REGOLE,
@@ -253,13 +253,13 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Modifica prezzo / {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}:</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <label style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>N°</label>
-            <input type="number" min="1" max="100" value={editUnita} onChange={e => setEditUnita(e.target.value)}
-              style={{ width: 64, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
+            <input type="number" inputMode="numeric" min="1" max="100" value={editUnita} onChange={e => setEditUnita(e.target.value)}
+              style={{ width: isMobile ? 80 : 64, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <label style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>€ / {reg.tipo === 'fetta' ? 'fetta' : 'pezzo'}</label>
-            <input type="number" min="0" step="0.1" value={editPrezzo} onChange={e => setEditPrezzo(e.target.value)}
-              style={{ width: 72, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
+            <input type="number" inputMode="decimal" min="0" step="0.1" value={editPrezzo} onChange={e => setEditPrezzo(e.target.value)}
+              style={{ width: isMobile ? 90 : 72, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: C.white, borderRadius: 7, border: `1px solid ${C.border}` }}>
             <span style={{ fontSize: 10, color: C.textSoft }}>Ricavo stimato:</span>
@@ -277,8 +277,8 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         <div style={{ padding: '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 0.9fr', gap: 28 }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="receipt" size={14} /> Distinta costi</div>
-            <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+            <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: isMobile ? 460 : 'auto' }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {[
@@ -424,6 +424,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 // ─── RicettarioView ──────────────────────────────────────────────────────────
 export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, LEX = lessico() }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ricette = useMemo(() => Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato'), [ricettario])
@@ -487,7 +488,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         </div>
 
         {ricette.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap: isMobile ? 10 : 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 10 : 16 }}>
             <KPI label={LEX.ricette} value={ricette.length} icon={<Icon name="gift" size={18} />} color={T.text} sub={`${Object.keys(ricettario?.ricette || {}).length} voci totali`} />
             <KPI label="Food cost medio" value={`${(fcMedio * 100).toFixed(1)}%`} icon={<Icon name="barChart" size={18} />}
               color={fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand}
@@ -500,13 +501,13 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isMobile ? 16 : 20, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Cerca ${LEX.ricetta}…`}
-            style={{ width: '100%', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: R.md,
-              fontSize: 13, color: T.text, background: T.bgCard, outline: 'none', fontFamily: 'inherit',
+            style={{ width: '100%', padding: '10px 12px', minHeight: isMobile || isTablet ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: R.md,
+              fontSize: isMobile || isTablet ? 16 : 13, color: T.text, background: T.bgCard, outline: 'none', fontFamily: 'inherit',
               boxSizing: 'border-box', boxShadow: S.xs }}/>
         </div>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-          style={{ padding: '10px 32px 10px 12px', border: `1px solid ${T.border}`, borderRadius: R.md,
-            fontSize: 13, color: T.text, background: T.bgCard, cursor: 'pointer', fontFamily: 'inherit', outline: 'none' }}>
+          style={{ padding: '10px 32px 10px 12px', minHeight: isMobile || isTablet ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: R.md,
+            fontSize: isMobile || isTablet ? 16 : 13, color: T.text, background: T.bgCard, cursor: 'pointer', fontFamily: 'inherit', outline: 'none' }}>
           <option value="margine">Margine ↓</option>
           <option value="fc">Food cost ↑</option>
           <option value="nome">Nome A-Z</option>

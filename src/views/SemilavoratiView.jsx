@@ -156,7 +156,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
 
 function tabBtn(active, isMobile) {
   return {
-    padding: '8px 12px', borderRadius: R.md, border: `1px solid ${active ? T.brand : T.border}`,
+    padding: '10px 12px', minHeight: 40, borderRadius: R.md, border: `1px solid ${active ? T.brand : T.border}`,
     background: active ? T.brandLight : 'transparent', fontSize: 12, fontWeight: 600,
     color: active ? T.brand : T.textMid, cursor: 'pointer', letterSpacing: '-0.005em',
     display: 'inline-flex', alignItems: 'center', gap: 5, flex: isMobile ? 1 : 'none', justifyContent: 'center',
@@ -165,7 +165,7 @@ function tabBtn(active, isMobile) {
 }
 function iconBtn(danger) {
   return {
-    width: 36, height: 36, padding: 0, borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
+    width: 40, height: 40, padding: 0, borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
     color: danger ? T.textSoft : T.textMid, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
     transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}`,
   }
@@ -383,7 +383,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                     )}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <input value={deletePin} onChange={e => setDeletePin(e.target.value)} placeholder="ELIMINA"
-                        style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 13 }} />
+                        style={{ flex: 1, minWidth: 120, padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13 }} />
                       <button onClick={() => handleDelete(sm.nome)}
                         style={{ padding: '8px 14px', background: C.red, color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Conferma</button>
                       <button onClick={() => { setDeleteConf(null); setDeletePin('') }}

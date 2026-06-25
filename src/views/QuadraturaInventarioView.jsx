@@ -687,9 +687,10 @@ function PanelSofferenza({ sofferenza, zeroVenduto }) {
 
 // ── Stili condivisi ───────────────────────────────────────────────────────
 const btnNav = {
-  padding: '8px 14px', minHeight: 40, background: 'transparent',
+  padding: '10px 14px', minHeight: 44, background: 'transparent',
   border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer',
-  fontSize: 12, color: C.textMid, display: 'inline-flex', alignItems: 'center',
+  fontSize: 13, color: C.textMid, display: 'inline-flex', alignItems: 'center',
+  justifyContent: 'center',
 }
 const panelStyle = {
   background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,

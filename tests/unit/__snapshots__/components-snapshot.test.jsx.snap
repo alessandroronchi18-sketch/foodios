@@ -466,7 +466,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
       
   </style>
   <div
-    style="position: relative; max-width: 480px; width: 100%; background: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.40), 0 8px 24px rgba(110,14,26,0.20); animation: _upg_pop 0.22s cubic-bezier(.32,.72,0,1);"
+    style="position: relative; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; background: #FFFFFF; border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.40), 0 8px 24px rgba(110,14,26,0.20); animation: _upg_pop 0.22s cubic-bezier(.32,.72,0,1);"
   >
     <div
       style="position: relative; padding: 24px 24px 20px; background: linear-gradient(135deg, #0B0408 0%, #1C0A0A 30%, #4A0612 70%, #6E0E1A 100%); animation: _upg_grad 8s ease-in-out infinite; color: #FFF; overflow: hidden;"
@@ -479,7 +479,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
       />
       <button
         aria-label="Chiudi"
-        style="position: absolute; top: 14px; right: 14px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.20); color: #FFF; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0px;"
+        style="position: absolute; top: 12px; right: 12px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.20); color: #FFF; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0px;"
       >
         <svg
           fill="none"
@@ -766,15 +766,15 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
         nella tua dashboard.
       </div>
       <div
-        style="display: flex; gap: 8px;"
+        style="display: flex; gap: 8px; flex-direction: row;"
       >
         <button
-          style="padding: 11px 18px; background: transparent; border: 1px solid #E5E9EF; border-radius: 10px; color: #475264; font-size: 13px; font-weight: 700; cursor: pointer; flex-grow: 0; flex-shrink: 0; flex-basis: auto;"
+          style="padding: 11px 18px; min-height: 40px; background: transparent; border: 1px solid #E5E9EF; border-radius: 10px; color: #475264; font-size: 13px; font-weight: 700; cursor: pointer; flex-grow: 0; flex-shrink: 0; flex-basis: auto;"
         >
           Più tardi
         </button>
         <button
-          style="padding: 11px 18px; background: linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%); border: none none; border-radius: 10px; color: #FFF; font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 20px rgba(110,14,26,0.30); display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+          style="padding: 11px 18px; min-height: 40px; background: linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%); border: none none; border-radius: 10px; color: #FFF; font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 20px rgba(110,14,26,0.30); display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
         >
           Confronta i piani
           <svg
@@ -828,7 +828,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
       
   </style>
   <div
-    style="position: relative; max-width: 480px; width: 100%; background: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.40), 0 8px 24px rgba(110,14,26,0.20); animation: _upg_pop 0.22s cubic-bezier(.32,.72,0,1);"
+    style="position: relative; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; background: #FFFFFF; border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.40), 0 8px 24px rgba(110,14,26,0.20); animation: _upg_pop 0.22s cubic-bezier(.32,.72,0,1);"
   >
     <div
       style="position: relative; padding: 24px 24px 20px; background: linear-gradient(135deg, #0B0408 0%, #1C0A0A 30%, #4A0612 70%, #6E0E1A 100%); animation: _upg_grad 8s ease-in-out infinite; color: #FFF; overflow: hidden;"
@@ -841,7 +841,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
       />
       <button
         aria-label="Chiudi"
-        style="position: absolute; top: 14px; right: 14px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.20); color: #FFF; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0px;"
+        style="position: absolute; top: 12px; right: 12px; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.20); color: #FFF; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0px;"
       >
         <svg
           fill="none"
@@ -1128,15 +1128,15 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
         nella tua dashboard.
       </div>
       <div
-        style="display: flex; gap: 8px;"
+        style="display: flex; gap: 8px; flex-direction: row;"
       >
         <button
-          style="padding: 11px 18px; background: transparent; border: 1px solid #E5E9EF; border-radius: 10px; color: #475264; font-size: 13px; font-weight: 700; cursor: pointer; flex-grow: 0; flex-shrink: 0; flex-basis: auto;"
+          style="padding: 11px 18px; min-height: 40px; background: transparent; border: 1px solid #E5E9EF; border-radius: 10px; color: #475264; font-size: 13px; font-weight: 700; cursor: pointer; flex-grow: 0; flex-shrink: 0; flex-basis: auto;"
         >
           Più tardi
         </button>
         <button
-          style="padding: 11px 18px; background: linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%); border: none none; border-radius: 10px; color: #FFF; font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 20px rgba(110,14,26,0.30); display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+          style="padding: 11px 18px; min-height: 40px; background: linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%); border: none none; border-radius: 10px; color: #FFF; font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 20px rgba(110,14,26,0.30); display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
         >
           Confronta i piani
           <svg

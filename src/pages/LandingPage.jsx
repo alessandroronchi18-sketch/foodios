@@ -685,7 +685,8 @@ export default function LandingPage({ onLogin, onRegister }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6, flexShrink: 0 }}>
             <button onClick={onLogin} style={{
-              padding: isMobile ? '6px 10px' : '8px 16px',
+              padding: isMobile ? '10px 12px' : '8px 16px',
+              minHeight: isMobile ? 40 : undefined,
               background: 'none', border: 'none',
               fontSize: isMobile ? 13 : 14, fontWeight: 500, color: T.textMid, cursor: 'pointer',
               fontFamily: SANS, borderRadius: 999, whiteSpace: 'nowrap',
@@ -932,7 +933,7 @@ export default function LandingPage({ onLogin, onRegister }) {
           <Reveal delay={200}>
             <div style={{ textAlign: 'center', marginTop: 28 }}>
               <p style={{ fontSize: 14, color: T.textMid, marginBottom: 14 }}>
-                Preferisci provare subito? <strong style={{ color: T.ink }}>3 mesi gratis, niente carta.</strong>
+                Preferisci provare subito? <strong style={{ color: T.ink }}>3 mesi di prova, disdici quando vuoi.</strong>
               </p>
               <button
                 onClick={onRegister}
@@ -1507,7 +1508,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               <em style={{ fontStyle: 'italic', color: T.amber }}>Non l'istinto.</em>
             </h2>
             <p style={{ fontSize: 18, color: 'rgba(244,236,227,0.65)', lineHeight: 1.6, margin: '0 auto 40px', maxWidth: 540 }}>
-              3 mesi gratis, senza carta. Dopo, 89€/mese — o niente. Decidi tu, basandoti sui tuoi numeri.
+              3 mesi di prova, poi €{fmtPrezzo(prezzi.pro)}/mese. Disdici quando vuoi: decidi tu, guardando i tuoi numeri.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <Button variant="primary" size="lg" onClick={onRegister}>
@@ -1524,7 +1525,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               </button>
             </div>
             <div style={{ marginTop: 28, fontSize: 12, color: 'rgba(244,236,227,0.4)' }}>
-              ✓ Senza carta · ✓ Senza vincoli · ✓ In italiano
+              ✓ Setup in 10 minuti · ✓ Disdici quando vuoi · ✓ In italiano
             </div>
           </Reveal>
         </div>

@@ -588,8 +588,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <KPI icon={<Icon name="trophy" size={18} />} label="Top"        value={topP?topP[0].replace("TORTA DI ",""):"—"} sub={topP?`${n0(topP[1])} stampi`:""} color={C.amber}/>
               </div>
               <SH sub={`Stampi totali per ${vista==="giornaliero"?"giorno":vista} · top 5 prodotti + altri`}>Produzione per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                <ResponsiveContainer width="100%" height={280}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                <ResponsiveContainer width="100%" height={isMobile?220:280}>
                   <BarChart data={dataProdTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
@@ -605,8 +605,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </ResponsiveContainer>
               </div>
               <SH sub={`Ogni colonna è il ricavo stimato del periodo: in verde il margine, in rosso il food cost · per ${vista==="giornaliero"?"giorno":vista}`}>Andamento Economico (stimato)</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:24,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                <ResponsiveContainer width="100%" height={250}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:24,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                <ResponsiveContainer width="100%" height={isMobile?200:250}>
                   <BarChart data={dataKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="32%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
@@ -686,8 +686,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               </div>
 
               <SH sub={`Top 5 prodotti per ricavo + altri · per ${vista==="giornaliero"?"giorno":vista}`}>Ricavi Reali per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                <ResponsiveContainer width="100%" height={260}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                <ResponsiveContainer width="100%" height={isMobile?210:260}>
                   <BarChart data={dataVendTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
@@ -702,7 +702,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               </div>
 
               <SH sub="Sell-through medio per periodo">Andamento Sell-Through %</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 {/* Zoom asse Y: parti da 0/25/50 per leggere meglio le differenze */}
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
                   <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft}}>Zoom asse Y</span>
@@ -729,8 +729,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               </div>
 
               <SH sub="Ogni colonna è il ricavo del periodo: in verde quanto ti resta (margine), in rosso quanto sono costati gli ingredienti venduti">Conto Economico Reale</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:20,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                <ResponsiveContainer width="100%" height={250}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:20,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                <ResponsiveContainer width="100%" height={isMobile?200:250}>
                   <BarChart data={dataVendKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="32%">
                     <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                     <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
@@ -933,7 +933,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </div>
 
                 {/* Chart + Top prodotti */}
-                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 280px",gap:14,marginBottom:14}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile||isTablet?"1fr":"1fr 280px",gap:14,marginBottom:14}}>
                   {/* Trend ricavi */}
                   <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"16px 20px",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                     <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:12}}>Ricavi & margine giornalieri</div>
@@ -1144,8 +1144,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             return (
               <>
                 <SH sub="Per periodo: quanto previsto dalla produzione (blu) vs incassato davvero (verde)">Ricavo · Stimato vs Reale</SH>
-                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                  <ResponsiveContainer width="100%" height={260}>
+                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                  <ResponsiveContainer width="100%" height={isMobile?220:260}>
                     <BarChart data={dataConf} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                       <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
@@ -1158,8 +1158,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   </ResponsiveContainer>
                 </div>
                 <SH sub="Per periodo: margine previsto (blu) vs margine reale dagli scontrini (verde)">Margine · Stimato vs Reale</SH>
-                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",marginBottom:20,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                  <ResponsiveContainer width="100%" height={220}>
+                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:20,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                  <ResponsiveContainer width="100%" height={isMobile?180:220}>
                     <BarChart data={dataConf2} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
                       <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>

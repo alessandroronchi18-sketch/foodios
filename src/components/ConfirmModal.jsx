@@ -18,6 +18,7 @@
 
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import { color as T, z as Z } from '../lib/theme'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 const ConfirmCtx = createContext(null)
 
@@ -77,6 +78,8 @@ export function useConfirm() {
 }
 
 function Overlay({ title, message, confirmLabel, cancelLabel, destructive, onConfirm, onCancel }) {
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   // Esc = cancel, Enter = confirm (focus su confirm button).
   React.useEffect(() => {
     function onKey(e) {
@@ -89,6 +92,7 @@ function Overlay({ title, message, confirmLabel, cancelLabel, destructive, onCon
 
   const accent = destructive ? (T.brand || '#6E0E1A') : (T.green || '#16A34A')
   const accentBg = destructive ? '#FEF2F2' : '#F0FDF4'
+  const touchTarget = isTablet ? 44 : 40
   return (
     <div
       role="dialog" aria-modal="true" aria-labelledby="confirm-title"
@@ -106,9 +110,10 @@ function Overlay({ title, message, confirmLabel, cancelLabel, destructive, onCon
         onClick={e => e.stopPropagation()}
         style={{
           background: '#FFF', borderRadius: 14,
-          maxWidth: 440, width: '100%',
+          maxWidth: isMobile ? '100%' : isTablet ? '90vw' : 440,
+          width: '100%',
+          maxHeight: '90vh', overflowY: 'auto',
           boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-          overflow: 'hidden',
           fontFamily: "'Inter', system-ui, sans-serif",
         }}
       >
@@ -126,16 +131,18 @@ function Overlay({ title, message, confirmLabel, cancelLabel, destructive, onCon
           </div>
         )}
         <div style={{
-          padding: '12px 20px 18px', display: 'flex', gap: 10, justifyContent: 'flex-end',
+          padding: '12px 20px 18px', display: 'flex', gap: 10,
+          justifyContent: isMobile ? 'stretch' : 'flex-end',
+          flexDirection: isMobile ? 'column-reverse' : 'row',
           flexWrap: 'wrap',
         }}>
           <button
             onClick={onCancel}
             style={{
-              padding: '9px 18px', minWidth: 100, minHeight: 40,
+              padding: '9px 18px', minWidth: isMobile ? '100%' : 100, minHeight: touchTarget,
               borderRadius: 8, border: `1px solid #E5E7EB`,
               background: '#FFF', color: '#475569',
-              fontWeight: 700, fontSize: 13, cursor: 'pointer',
+              fontWeight: 700, fontSize: isMobile ? 14 : 13, cursor: 'pointer',
             }}
           >
             {cancelLabel}
@@ -144,10 +151,10 @@ function Overlay({ title, message, confirmLabel, cancelLabel, destructive, onCon
             autoFocus
             onClick={onConfirm}
             style={{
-              padding: '9px 18px', minWidth: 100, minHeight: 40,
+              padding: '9px 18px', minWidth: isMobile ? '100%' : 100, minHeight: touchTarget,
               borderRadius: 8, border: 'none',
               background: accent, color: '#FFF',
-              fontWeight: 800, fontSize: 13, cursor: 'pointer',
+              fontWeight: 800, fontSize: isMobile ? 14 : 13, cursor: 'pointer',
             }}
           >
             {confirmLabel}

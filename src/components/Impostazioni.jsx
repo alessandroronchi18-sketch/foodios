@@ -428,6 +428,7 @@ function PrezziImportSection({ onImportPrezzi }) {
 // Audit 2026-06-21: pacchetti foto/AI extra. Cliente compra calls in più
 // via Stripe Checkout one-shot. Lista i pack acquistati + saldo residuo.
 function PacchettiAIPanel({ auth, notify }) {
+  const isMobile = useIsMobile()
   const [packs, setPacks] = useState([])
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -483,34 +484,36 @@ function PacchettiAIPanel({ auth, notify }) {
       </p>
 
       {/* Saldo residuo */}
-      <div style={{ padding: 16, background: totaleResidue > 0 ? '#F0FDF4' : '#F8FAFC', borderRadius: 12, marginBottom: 18, border: `1px solid ${totaleResidue > 0 ? '#86EFAC' : '#E2E8F0'}` }}>
+      <div style={{ padding: 16, background: totaleResidue > 0 ? '#F0FDF4' : '#F8FAFC', borderRadius: 12, marginBottom: 18, border: `1px solid ${totaleResidue > 0 ? '#86EFAC' : '#E2E8F0'}`, minHeight: 90, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{ fontSize: 11, color: totaleResidue > 0 ? '#065F46' : '#64748B', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Saldo foto AI</div>
-        <div style={{ fontSize: 32, fontWeight: 900, color: totaleResidue > 0 ? '#16A34A' : '#94A3B8', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
-          {totaleResidue} foto
+        <div style={{ fontSize: isMobile ? 28 : 32, fontWeight: 900, color: totaleResidue > 0 ? '#16A34A' : '#94A3B8', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
+          {(totaleResidue || 0).toLocaleString('it-IT')} <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: totaleResidue > 0 ? '#065F46' : '#94A3B8' }}>foto</span>
         </div>
       </div>
 
       {/* Catalogo */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
         {PACKS_CATALOG.map(p => (
           <div key={p.id} style={{
             padding: 16, borderRadius: 12,
             background: p.best ? '#FEF2F2' : '#FFF',
             border: `2px solid ${p.best ? '#6E0E1A' : '#E2E8F0'}`,
             position: 'relative',
+            display: 'flex', flexDirection: 'column',
+            minHeight: 140,
           }}>
             {p.best && (
               <div style={{ position: 'absolute', top: -10, right: 12, background: '#6E0E1A', color: '#FFF', padding: '2px 10px', borderRadius: 99, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
                 CONSIGLIATO
               </div>
             )}
-            <div style={{ fontSize: 28, fontWeight: 900, color: '#1C0A0A' }}>{p.prezzo}</div>
-            <div style={{ fontSize: 13, color: '#1C0A0A', fontWeight: 700, marginTop: 4 }}>{p.calls} foto AI</div>
+            <div style={{ fontSize: isMobile ? 26 : 28, fontWeight: 900, color: '#1C0A0A', fontVariantNumeric: 'tabular-nums' }}>{p.prezzo}</div>
+            <div style={{ fontSize: 13, color: '#1C0A0A', fontWeight: 700, marginTop: 4 }}>{p.calls.toLocaleString('it-IT')} foto AI</div>
             <div style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>{p.per_call} a foto</div>
             <button onClick={() => compra(p.id)} disabled={busy}
               style={{
-                marginTop: 14, width: '100%',
-                padding: '10px 14px', borderRadius: 8,
+                marginTop: 'auto', paddingTop: 0, width: '100%',
+                padding: '11px 14px', minHeight: 44, borderRadius: 8,
                 background: p.best ? '#6E0E1A' : '#FFF',
                 color: p.best ? '#FFF' : '#6E0E1A',
                 border: `1px solid #6E0E1A`,
@@ -537,15 +540,20 @@ function PacchettiAIPanel({ auth, notify }) {
                 <div key={p.id} style={{
                   padding: '10px 14px', borderRadius: 8,
                   background: '#F8FAFC', border: '1px solid #E2E8F0',
-                  display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center', fontSize: 12,
+                  display: isMobile ? 'flex' : 'grid',
+                  flexDirection: isMobile ? 'column' : undefined,
+                  gridTemplateColumns: isMobile ? undefined : '1fr auto auto',
+                  gap: isMobile ? 4 : 10,
+                  alignItems: isMobile ? 'flex-start' : 'center',
+                  fontSize: 12,
                   opacity: scaduto || esaurito ? 0.55 : 1,
                 }}>
                   <div>
-                    <strong>{p.calls_included} foto</strong>
+                    <strong>{(p.calls_included || 0).toLocaleString('it-IT')} foto</strong>
                     <span style={{ color: '#64748B', marginLeft: 8 }}>€{(p.amount_paid_cents / 100).toFixed(2)}</span>
                   </div>
                   <div style={{ color: esaurito ? '#DC2626' : '#16A34A', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                    {esaurito ? 'esaurito' : `${p.calls_remaining}/${p.calls_included} disp.`}
+                    {esaurito ? 'esaurito' : `${(p.calls_remaining || 0).toLocaleString('it-IT')} / ${(p.calls_included || 0).toLocaleString('it-IT')} disp.`}
                   </div>
                   <div style={{ color: '#94A3B8', fontSize: 11 }}>
                     {new Date(p.acquistato_il).toLocaleDateString('it-IT')}

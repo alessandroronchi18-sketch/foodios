@@ -67,8 +67,10 @@ export default function AppBanner() {
         }}
         style={{
           background: 'transparent', border: 'none', cursor: 'pointer',
-          color: c.fg, fontSize: 18, lineHeight: 1, padding: '0 4px',
-          opacity: 0.7,
+          color: c.fg, fontSize: 20, lineHeight: 1,
+          minWidth: 40, minHeight: 40,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          padding: '0 8px', opacity: 0.7, flexShrink: 0,
         }}
       >×</button>
     </div>

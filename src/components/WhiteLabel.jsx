@@ -3,14 +3,19 @@ import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 export const WL_KEY = 'pasticceria-white-label-v1'
 
 const PIANI_CHAIN = new Set(['enterprise', 'chain'])
 
-const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
-const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
+function mkCard(isMobile) {
+  return { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+}
+function mkInp(isMobile) {
+  return { width: '100%', padding: '12px 14px', minHeight: isMobile ? 44 : 42, border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 16, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
+}
 
 const MAX_LOGO_BYTES = 500_000 // 500 KB inline base64 in JSON
 
@@ -26,6 +31,11 @@ function fileToBase64(file) {
 function isHexColor(v) { return /^#[0-9A-Fa-f]{6}$/.test(v || '') }
 
 export default function WhiteLabel({ orgId, piano, notify }) {
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
+  const card = mkCard(isMobile)
+  const inp = mkInp(isMobile)
+  const touchH = isTablet ? 44 : isMobile ? 44 : 40
   const confirmDialog = useConfirm()
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -84,11 +94,11 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button onClick={upgradeChain}
-          style={{ padding: '10px 22px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          style={{ padding: '10px 22px', minHeight: touchH, background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
           Passa al piano Chain
         </button>
         <a href="mailto:support@foodios.it?subject=Personalizzazione%20FoodOS"
-          style={{ padding: '10px 18px', background: '#FFF', color: '#6E0E1A', border: '1px solid #6E0E1A', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-block' }}>
+          style={{ padding: '10px 18px', minHeight: touchH, background: '#FFF', color: '#6E0E1A', border: '1px solid #6E0E1A', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
           Parla con noi prima
         </a>
       </div>
@@ -170,13 +180,13 @@ export default function WhiteLabel({ orgId, piano, notify }) {
 
         <div style={{ marginBottom: 16 }}>
           <label style={lbl}>Colore primario</label>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <input type="color" value={isHexColor(colorePrimario) ? colorePrimario : '#6E0E1A'}
               onChange={e => setColorePrimario(e.target.value)}
-              style={{ width: 56, height: 40, border: '1px solid #E2E8F0', borderRadius: 8, cursor: 'pointer', padding: 0 }} />
+              style={{ width: isMobile ? 56 : 56, height: isMobile ? 44 : 40, border: '1px solid #E2E8F0', borderRadius: 8, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
             <input value={colorePrimario} onChange={e => setColorePrimario(e.target.value)} maxLength={7}
-              placeholder="#6E0E1A" style={{ ...inp, fontFamily: 'monospace', maxWidth: 140 }} />
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: isHexColor(colorePrimario) ? colorePrimario : '#6E0E1A', border: '1px solid #E2E8F0' }} />
+              placeholder="#6E0E1A" style={{ ...inp, fontFamily: 'monospace', maxWidth: 160, flex: '1 1 auto' }} />
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: isHexColor(colorePrimario) ? colorePrimario : '#6E0E1A', border: '1px solid #E2E8F0', flexShrink: 0 }} />
           </div>
         </div>
 
@@ -198,13 +208,13 @@ export default function WhiteLabel({ orgId, piano, notify }) {
           </label>
         </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button onClick={salva} disabled={saving}
-            style={{ padding: '10px 22px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.5 : 1 }}>
+            style={{ padding: '10px 22px', minHeight: touchH, background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.5 : 1, flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
             {saving ? '…' : 'Salva personalizzazione'}
           </button>
           <button onClick={reset} disabled={saving}
-            style={{ padding: '10px 18px', background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ padding: '10px 18px', minHeight: touchH, background: 'transparent', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
             Ripristina default
           </button>
         </div>
@@ -213,19 +223,19 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       <div style={card}>
         <div style={{ fontWeight: 700, fontSize: 14, color: '#0F172A', marginBottom: 12 }}>Anteprima</div>
         <div style={{ background: '#FAFAFA', borderRadius: 12, padding: 18, border: '1px solid #E2E8F0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             {logoData ? (
-              <img src={logoData} alt="logo" style={{ height: 36, maxWidth: 80, objectFit: 'contain' }} />
+              <img src={logoData} alt="logo" style={{ height: 36, maxWidth: 80, objectFit: 'contain', flexShrink: 0 }} />
             ) : (
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: colorePrimario, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 800 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: colorePrimario, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 800, flexShrink: 0 }}>
                 {(nomeApp || 'F').slice(0, 1).toUpperCase()}
               </div>
             )}
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A' }}>{nomeApp || 'FoodOS'}</div>
+            <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nomeApp || 'FoodOS'}</div>
               <div style={{ fontSize: 11, color: '#64748B' }}>Sidebar e topbar useranno questo brand.</div>
             </div>
-            <button style={{ marginLeft: 'auto', padding: '8px 16px', background: colorePrimario, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+            <button style={{ marginLeft: isMobile ? 0 : 'auto', padding: '8px 16px', minHeight: touchH, background: colorePrimario, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
               Bottone primario
             </button>
           </div>

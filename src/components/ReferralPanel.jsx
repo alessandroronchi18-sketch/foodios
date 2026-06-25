@@ -10,6 +10,7 @@
 import React, { useEffect, useState } from 'react'
 import Icon from './Icon'
 import { apiFetch } from '../lib/apiFetch'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 const APP_NAME = 'FoodOS'
 
@@ -22,14 +23,20 @@ const LIVELLI = [
   { soglia: 25, premio: 'Piano Chain gratis 1 anno', icon: 'trophy' },
 ]
 
-const STYLE = {
-  card: { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 },
-  label: { fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' },
-  btn: { padding: '8px 14px', background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
-  btnGhost: { padding: '8px 14px', background: 'transparent', color: '#6E0E1A', border: '1px solid #6E0E1A', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
+function getStyle(isMobile, isTablet) {
+  const minH = isTablet ? 44 : 40
+  return {
+    card: { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 },
+    label: { fontSize: 11, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' },
+    btn: { padding: '8px 14px', minHeight: minH, background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
+    btnGhost: { padding: '8px 14px', minHeight: minH, background: 'transparent', color: '#6E0E1A', border: '1px solid #6E0E1A', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 },
+  }
 }
 
 export default function ReferralPanel({ auth }) {
+  const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
+  const STYLE = getStyle(isMobile, isTablet)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [errore, setErrore] = useState('')
@@ -154,14 +161,17 @@ export default function ReferralPanel({ auth }) {
           <label style={STYLE.label}>Il tuo codice invito</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <div style={{
-              display: 'inline-flex', alignItems: 'center',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               background: '#FEF2F2', border: '2px solid #FECACA', borderRadius: 10,
-              padding: '10px 18px', fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 22, fontWeight: 900,
+              padding: '10px 18px',
+              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+              fontSize: isMobile ? 18 : 22, fontWeight: 900,
               color: '#6E0E1A', letterSpacing: '0.12em',
+              flex: isMobile ? '1 1 100%' : '0 0 auto',
             }}>
               {data.codice}
             </div>
-            <button style={STYLE.btn} onClick={() => copy(data.codice, 'code')}>
+            <button style={{ ...STYLE.btn, flex: isMobile ? '1 1 100%' : '0 0 auto', justifyContent: 'center', display: 'inline-flex', alignItems: 'center' }} onClick={() => copy(data.codice, 'code')}>
               {copied === 'code' ? '✓ Copiato!' : 'Copia codice'}
             </button>
           </div>
@@ -174,30 +184,30 @@ export default function ReferralPanel({ auth }) {
             <div style={{
               padding: '8px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0',
               borderRadius: 8, fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-              wordBreak: 'break-all', flex: 1, minWidth: 0,
+              wordBreak: 'break-all', flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto',
             }}>{data.url}</div>
-            <button style={STYLE.btnGhost} onClick={() => copy(data.url, 'url')}>
+            <button style={{ ...STYLE.btnGhost, width: isMobile ? '100%' : 'auto', justifyContent: 'center', display: 'inline-flex', alignItems: 'center' }} onClick={() => copy(data.url, 'url')}>
               {copied === 'url' ? '✓ Copiato!' : 'Copia link'}
             </button>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button style={{ ...STYLE.btn, background: '#25D366', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={shareWhatsApp}><Icon name="chat" size={14} />WhatsApp</button>
-            <button style={{ ...STYLE.btn, background: '#1D4ED8', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={shareEmail}><Icon name="mail" size={14} />Email</button>
-            <button style={{ ...STYLE.btnGhost, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={shareNative}><Icon name="upload" size={14} />Condividi…</button>
-            <button style={{ ...STYLE.btnGhost }} onClick={() => copy(messaggioInvito(), 'msg')}>
-              {copied === 'msg' ? '✓ Copiato!' : 'Copia messaggio pronto'}
+          <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, gap: 8, flexWrap: 'wrap' }}>
+            <button style={{ ...STYLE.btn, background: '#25D366', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={shareWhatsApp}><Icon name="chat" size={14} />WhatsApp</button>
+            <button style={{ ...STYLE.btn, background: '#1D4ED8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={shareEmail}><Icon name="mail" size={14} />Email</button>
+            <button style={{ ...STYLE.btnGhost, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={shareNative}><Icon name="upload" size={14} />Condividi</button>
+            <button style={{ ...STYLE.btnGhost, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => copy(messaggioInvito(), 'msg')}>
+              {copied === 'msg' ? '✓ Copiato!' : 'Copia messaggio'}
             </button>
           </div>
         </div>
 
         {/* KPI */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
-          <div style={{ textAlign: 'center', padding: '16px 12px', background: '#FEF2F2', borderRadius: 10 }}>
-            <div style={{ fontSize: 30, fontWeight: 900, color: '#6E0E1A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{utilizzi}</div>
+          <div style={{ textAlign: 'center', padding: '16px 12px', background: '#FEF2F2', borderRadius: 10, minHeight: 92, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ fontSize: isMobile ? 28 : 30, fontWeight: 900, color: '#6E0E1A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(utilizzi || 0).toLocaleString('it-IT')}</div>
             <div style={{ fontSize: 11, color: '#9C7B76', fontWeight: 600, marginTop: 6 }}>amici invitati</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '16px 12px', background: '#F0FDF4', borderRadius: 10 }}>
-            <div style={{ fontSize: 30, fontWeight: 900, color: '#16A34A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{data.mesi_guadagnati || 0}</div>
+          <div style={{ textAlign: 'center', padding: '16px 12px', background: '#F0FDF4', borderRadius: 10, minHeight: 92, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ fontSize: isMobile ? 28 : 30, fontWeight: 900, color: '#16A34A', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{(data.mesi_guadagnati || 0).toLocaleString('it-IT')}</div>
             <div style={{ fontSize: 11, color: '#4B6860', fontWeight: 600, marginTop: 6 }}>mesi guadagnati</div>
           </div>
         </div>
@@ -270,10 +280,11 @@ export default function ReferralPanel({ auth }) {
             placeholder="Es. PAST7HQK4N"
             maxLength={12}
             style={{
-              flex: 1, minWidth: 180, padding: '10px 14px',
+              flex: 1, minWidth: isMobile ? '100%' : 180,
+              padding: '12px 14px', minHeight: isTablet ? 44 : 42,
               borderRadius: 8, border: '1px solid #E2E8F0',
               fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-              fontSize: 14, fontWeight: 700, letterSpacing: '0.08em',
+              fontSize: 16, fontWeight: 700, letterSpacing: '0.08em',
               color: '#1C0A0A', background: '#F8FAFC', outline: 'none', boxSizing: 'border-box',
             }}
             onKeyDown={e => { if (e.key === 'Enter') applicaCodice() }}
