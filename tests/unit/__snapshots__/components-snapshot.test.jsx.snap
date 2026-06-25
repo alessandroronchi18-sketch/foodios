@@ -581,7 +581,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
           </span>
         </div>
         <h2
-          style="margin: 14px 0px 6px; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; word-break: break-word; overflow-wrap: anywhere;"
+          style="margin: 14px 0px 6px; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; overflow-wrap: break-word; hyphens: auto;"
         >
           Sblocca 
           Questa funzione
@@ -761,7 +761,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
             </svg>
           </span>
         </span>
-        nella tua dashboard. Prova 30 giorni senza carta di credito.
+        nella tua dashboard.
       </div>
       <div
         style="display: flex; gap: 8px;"
@@ -943,7 +943,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
           </span>
         </div>
         <h2
-          style="margin: 14px 0px 6px; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; word-break: break-word; overflow-wrap: anywhere;"
+          style="margin: 14px 0px 6px; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; overflow-wrap: break-word; hyphens: auto;"
         >
           Sblocca 
           Questa funzione
@@ -1123,7 +1123,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > UpgradeModal 
             </svg>
           </span>
         </span>
-        nella tua dashboard. Prova 30 giorni senza carta di credito.
+        nella tua dashboard.
       </div>
       <div
         style="display: flex; gap: 8px;"
