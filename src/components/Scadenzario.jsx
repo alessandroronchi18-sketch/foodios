@@ -693,15 +693,20 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
   // ── UI helpers ────────────────────────────────────────────────────────────────
   const card = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }
+  // Touch target: 40 desktop, 44 tablet/mobile (pattern FoodOS)
+  const minTouch = isMobile ? 44 : (isTablet ? 44 : 40)
   const pill = (active) => ({
-    padding: '7px 14px', borderRadius: 9999, border: `1px solid ${active ? T.text : T.border}`, cursor: 'pointer',
-    fontSize: 12, fontWeight: active ? 600 : 500, letterSpacing: '-0.005em',
+    padding: isMobile ? '9px 16px' : '7px 14px',
+    minHeight: minTouch,
+    borderRadius: 9999, border: `1px solid ${active ? T.text : T.border}`, cursor: 'pointer',
+    fontSize: isMobile ? 13 : 12, fontWeight: active ? 600 : 500, letterSpacing: '-0.005em',
     background: active ? T.text : T.bgCard,
     color: active ? T.textOnDark : T.textMid,
+    display: 'inline-flex', alignItems: 'center',
     transition: `background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
   })
-  const primaryBtn = { padding: '10px 16px', background: T.brandGradient, color: T.textOnDark, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, letterSpacing: '-0.005em', boxShadow: S.brandSoft }
-  const ghostBtn = { padding: '8px 16px', background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, cursor: 'pointer', color: T.textMid, letterSpacing: '-0.005em', display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.xs }
+  const primaryBtn = { padding: isMobile ? '11px 18px' : '10px 16px', minHeight: minTouch, background: T.brandGradient, color: T.textOnDark, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, letterSpacing: '-0.005em', boxShadow: S.brandSoft, boxSizing: 'border-box' }
+  const ghostBtn = { padding: isMobile ? '10px 16px' : '8px 16px', minHeight: minTouch, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, fontSize: 13, fontWeight: 500, cursor: 'pointer', color: T.textMid, letterSpacing: '-0.005em', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: S.xs, boxSizing: 'border-box' }
 
   if (!orgId) return (
     <div style={{ padding: 40, textAlign: 'center', color: T.textSoft }}>Caricamento in corso...</div>
@@ -712,16 +717,20 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const isPag = pagandoId === f.id
     const isDel = eliminandoId === f.id
 
+    const tinyBtnH = isMobile ? minTouch : (compact ? 30 : 34)
+    const fieldFs = isMobile ? 16 : 12
+    const fieldPad = isMobile ? '10px 12px' : '7px 10px'
+
     if (isDel) {
       return (
-        <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: T.brand, fontWeight: 700 }}>Sicuro?</span>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: T.brand, fontWeight: 700, whiteSpace: 'nowrap' }}>Sicuro?</span>
           <button onClick={() => eliminaFattura(f.id)}
-            style={{ padding: isMobile ? '8px 14px' : '4px 10px', minHeight: isMobile ? 40 : 'auto', background: T.brand, color: T.white, border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 11, fontWeight: 700, cursor: 'pointer' }}>
+            style={{ padding: isMobile ? '10px 14px' : '6px 12px', minHeight: tinyBtnH, background: T.brand, color: T.white, border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer' }}>
             Sì, elimina
           </button>
           <button onClick={() => setEliminandoId(null)}
-            style={{ padding: isMobile ? '8px 14px' : '4px 9px', minHeight: isMobile ? 40 : 'auto', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 13 : 11, fontWeight: 600, cursor: 'pointer' }}>
+            style={{ padding: isMobile ? '10px 14px' : '6px 11px', minHeight: tinyBtnH, background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 600, cursor: 'pointer' }}>
             Annulla
           </button>
         </div>
@@ -732,27 +741,45 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       const totale = Math.abs(Number(f.totale) || 0)
       const residuoTot = Math.max(0, totale - (Number(f.importo_pagato) || 0))
       return (
-        <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
-            style={{ padding: '6px 8px', minHeight: isMobile ? 40 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 11, color: T.text }} />
-          <input type="number" inputMode="decimal" value={pagImporto} onChange={e => setPagImporto(e.target.value)}
-            placeholder={`${Number(residuoTot || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
-            title="Vuoto = salda l'intero residuo. Importo minore = acconto."
-            style={{ width: isMobile ? 110 : 86, padding: '6px 8px', minHeight: isMobile ? 40 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 11, color: T.text }} />
-          <select value={pagMetodo} onChange={e => setPagMetodo(e.target.value)}
-            title="Metodo di pagamento"
-            style={{ padding: '6px 6px', minHeight: isMobile ? 40 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 11, color: T.text, background: T.bgCard }}>
-            <option value="bonifico">Bonifico</option>
-            <option value="contanti">Contanti</option>
-            <option value="riba">RiBa</option>
-            <option value="rid">RID/SDD</option>
-            <option value="carta">Carta</option>
-            <option value="altro">Altro</option>
-          </select>
-          <button onClick={() => segnaComePagata(f.id)}
-            style={{ padding: isMobile ? '8px 14px' : '4px 9px', minHeight: isMobile ? 40 : 'auto', background: T.green, color: T.white, border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
-          <button aria-label="Annulla pagamento" onClick={() => { setPagandoId(null); setPagImporto('') }}
-            style={{ padding: isMobile ? '8px 12px' : '4px 7px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', background: 'transparent', color: T.textSoft, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={isMobile ? 14 : 12} /></button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'auto auto auto', gap: 8 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Data
+              <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)} aria-label="Data pagamento"
+                style={{ padding: fieldPad, minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: fieldFs, color: T.text, boxSizing: 'border-box', width: '100%' }} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Importo
+              <input type="number" inputMode="decimal" value={pagImporto} onChange={e => setPagImporto(e.target.value)}
+                placeholder={`${Number(residuoTot || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
+                title="Vuoto = salda l'intero residuo. Importo minore = acconto."
+                aria-label="Importo pagato"
+                style={{ padding: fieldPad, minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: fieldFs, color: T.text, boxSizing: 'border-box', width: '100%' }} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', gridColumn: isMobile ? '1 / -1' : 'auto' }}>
+              Metodo
+              <select value={pagMetodo} onChange={e => setPagMetodo(e.target.value)}
+                aria-label="Metodo di pagamento"
+                style={{ padding: fieldPad, minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: fieldFs, color: T.text, background: T.bgCard, boxSizing: 'border-box', width: '100%' }}>
+                <option value="bonifico">Bonifico</option>
+                <option value="contanti">Contanti</option>
+                <option value="riba">RiBa</option>
+                <option value="rid">RID/SDD</option>
+                <option value="carta">Carta</option>
+                <option value="altro">Altro</option>
+              </select>
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button aria-label="Annulla pagamento" onClick={() => { setPagandoId(null); setPagImporto('') }}
+              style={{ padding: '8px 14px', minHeight: minTouch, background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: isMobile ? 1 : '0 0 auto' }}>
+              Annulla
+            </button>
+            <button onClick={() => segnaComePagata(f.id)} aria-label="Conferma pagamento"
+              style={{ padding: '8px 16px', minHeight: minTouch, background: T.green, color: T.white, border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, flex: isMobile ? 1 : '0 0 auto' }}>
+              <Icon name="check" size={13} /> Conferma
+            </button>
+          </div>
         </div>
       )
     }
@@ -760,31 +787,32 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     return (
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         {f.stato === 'pagata' ? (
-          <span style={{ fontSize: 11, color: T.green, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <span style={{ fontSize: 11, color: T.green, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
             {f.data_pagamento ? fmtDate(f.data_pagamento) : 'Pagata'}
           </span>
         ) : (
           <button onClick={() => { setPagandoId(f.id); setEliminandoId(null); setPagImporto(''); setPagMetodo('bonifico'); setDataPag(new Date().toISOString().slice(0,10)) }}
-            style={{ padding: isMobile ? '8px 12px' : (compact ? '4px 9px' : '5px 10px'), minHeight: isMobile ? 40 : 'auto', background: '#F0FDF4', color: T.green, border: `1px solid ${T.green}`, borderRadius: 8, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <Icon name="check" size={11} /> {f.pagato > 0 ? 'Salda/acconto' : 'Segna pagata'}
+            aria-label={f.pagato > 0 ? 'Salda o registra acconto' : 'Segna come pagata'}
+            style={{ padding: isMobile ? '9px 14px' : (compact ? '6px 11px' : '7px 12px'), minHeight: tinyBtnH, background: '#F0FDF4', color: T.green, border: `1px solid ${T.green}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="check" size={12} /> {f.pagato > 0 ? 'Salda/acconto' : 'Segna pagata'}
           </button>
         )}
         {f.stato !== 'pagata' && f.ibanValido && (
           <button onClick={() => copiaBonifico(f)} title="Copia dati bonifico (IBAN, importo, causale)"
             aria-label="Copia dati bonifico"
-            style={{ padding: isMobile ? '8px 12px' : '5px 8px', minHeight: isMobile ? 40 : 'auto', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: isMobile ? 12 : 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            € Bonifico
+            style={{ padding: isMobile ? '9px 14px' : '7px 11px', minHeight: tinyBtnH, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="copy" size={12} /> Bonifico
           </button>
         )}
         <button onClick={() => chiediElimina(f.id)}
-          aria-label="Elimina fattura" title="Elimina"
-          style={{ padding: isMobile ? '8px 10px' : '5px 7px', minHeight: isMobile ? 40 : 'auto', minWidth: isMobile ? 40 : 'auto', background: 'transparent', color: T.textSoft, border: 'none', cursor: 'pointer', borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+          aria-label="Elimina fattura" title="Elimina fattura"
+          style={{ padding: isMobile ? '9px 12px' : '7px 9px', minHeight: tinyBtnH, minWidth: minTouch, background: 'transparent', color: T.textSoft, border: 'none', cursor: 'pointer', borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = T.brand }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textSoft }}>
-          <svg width={isMobile ? 16 : compact ? 12 : 14} height={isMobile ? 16 : compact ? 12 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width={isMobile ? 16 : 14} height={isMobile ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
             <path d="M10 11v6M14 11v6"/>
@@ -798,8 +826,32 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   // ─── Tabella desktop row ─────────────────────────────────────────────────────
   function RigaTabella({ f, cfg, i, last }) {
     const isDel = eliminandoId === f.id
+    const isPag = pagandoId === f.id
     const isScaduta = f.urgenza === 'scaduta'
-    const baseBg = isDel ? '#FEF2F2' : (i % 2 === 0 ? T.bgCard : '#FAFAFA')
+    const baseBg = isDel ? '#FEF2F2' : (isPag ? '#F0FDF4' : (i % 2 === 0 ? T.bgCard : '#FAFAFA'))
+
+    // Inline edit (pagamento) → rendiamo una riga "full-width" con span colonne,
+    // così il form pulito non resta compresso nella cella azioni.
+    if (isPag) {
+      return (
+        <>
+          <tr style={{ borderBottom: `none`, background: baseBg, boxShadow: isScaduta ? `inset 3px 0 0 0 ${T.brand}` : 'none' }}>
+            <td style={{ padding: '8px 12px 6px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: baseBg, zIndex: 1 }}>
+              <span title={f.fornitore}>{f.fornitore}</span>
+            </td>
+            <td colSpan={5} style={{ padding: '8px 12px 6px', color: T.textSoft, fontSize: 11.5 }}>
+              {f.numero_rif || '—'} · {fmtDate(f.data_fattura)} · scade {fmtDate(f.dueIso)} · totale <span style={{ color: T.text, fontWeight: 700, ...tnum }}>{fmtEuro(f.totale)}</span>
+            </td>
+            <td style={{ padding: '8px 12px 6px' }} />
+          </tr>
+          <tr style={{ borderBottom: last ? 'none' : `1px solid ${T.border}`, background: baseBg }}>
+            <td colSpan={7} style={{ padding: '6px 14px 14px' }}>
+              <ActionsCell f={f} compact />
+            </td>
+          </tr>
+        </>
+      )
+    }
 
     return (
       <tr style={{
@@ -807,21 +859,21 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         background: baseBg,
         boxShadow: isScaduta ? `inset 3px 0 0 0 ${T.brand}` : 'none',
       }}>
-        <td style={{ padding: '8px 12px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <td style={{ padding: '10px 12px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: baseBg, zIndex: 1 }}>
           <span title={f.fornitore}>{f.fornitore}</span>
         </td>
-        <td style={{ padding: '8px 12px', color: T.textMid, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>
-          {f.numero_rif || '—'}
+        <td style={{ padding: '10px 12px', color: T.textMid, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
+          <span title={f.numero_rif || ''}>{f.numero_rif || '—'}</span>
         </td>
-        <td style={{ padding: '8px 12px', color: T.textMid, whiteSpace: 'nowrap' }}>
+        <td style={{ padding: '10px 12px', color: T.textMid, whiteSpace: 'nowrap', ...tnum }}>
           {fmtDate(f.data_fattura)}
         </td>
-        <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+        <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
           {f.stato === 'pagata' ? (
             <span style={{ color: T.textSoft }}>—</span>
           ) : f.dueIso ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <span style={{ color: T.text, fontWeight: 500 }}>{fmtDate(f.dueIso)}</span>
+              <span style={{ color: T.text, fontWeight: 500, ...tnum }}>{fmtDate(f.dueIso)}</span>
               <span style={{ fontSize: 10, color: isScaduta ? T.brand : T.textSoft, fontWeight: isScaduta ? 600 : 500 }}>
                 {relDayLabel(f.dueDays)}
               </span>
@@ -831,17 +883,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           )}
         </td>
         <td style={{
-          padding: '8px 12px', textAlign: 'right',
+          padding: '10px 12px', textAlign: 'right',
           fontWeight: isScaduta ? 800 : 700,
           color: isScaduta ? T.brand : T.text,
-          letterSpacing: '-0.015em', whiteSpace: 'nowrap',
+          letterSpacing: '-0.015em', whiteSpace: 'nowrap', ...tnum,
         }}>
           {fmtEuro(f.totale)}
         </td>
-        <td style={{ padding: '8px 12px' }}>
+        <td style={{ padding: '10px 12px' }}>
           <span style={{
             background: cfg.pillBg, color: cfg.pillFg,
-            padding: '3px 9px', borderRadius: 8, fontSize: 10, fontWeight: 700,
+            padding: '4px 10px', borderRadius: 9, fontSize: 10, fontWeight: 700,
             letterSpacing: '0.04em', whiteSpace: 'nowrap',
           }}>{cfg.label}</span>
         </td>
@@ -863,21 +915,22 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         background: T.bgCard,
         border: `1px solid ${isDel ? '#FCA5A5' : (isScaduta ? '#FCA5A5' : T.border)}`,
         borderLeft: `4px solid ${cfg.accent}`,
-        borderRadius: 10,
-        padding: '11px 13px',
-        marginBottom: 8,
+        borderRadius: 12,
+        padding: '12px 14px',
+        marginBottom: 10,
+        boxShadow: isScaduta ? '0 1px 2px rgba(110,14,26,0.06)' : '0 1px 2px rgba(15,23,42,0.03)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: T.text, flex: 1, minWidth: 0, wordBreak: 'break-word', letterSpacing: '-0.005em' }}>
+          <div title={f.fornitore} style={{ fontWeight: 700, fontSize: 14, color: T.text, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.005em' }}>
             {f.fornitore}
           </div>
           <span style={{
             background: cfg.pillBg, color: cfg.pillFg,
-            padding: '2px 8px', borderRadius: 8, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.04em', whiteSpace: 'nowrap',
+            padding: '3px 9px', borderRadius: 9, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.04em', whiteSpace: 'nowrap', flexShrink: 0,
           }}>{cfg.label}</span>
         </div>
-        <div style={{ fontSize: 11, color: T.textSoft, marginBottom: 8, ...tnum }}>
+        <div title={`${f.numero_rif || ''} · ${fmtDate(f.data_fattura)}`} style={{ fontSize: 11.5, color: T.textSoft, marginBottom: 10, ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {f.numero_rif || '—'} · fattura {fmtDate(f.data_fattura)}
           {f.stato !== 'pagata' && f.dueIso && (
             <>
@@ -888,9 +941,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             </>
           )}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div style={{
-            fontSize: 17, fontWeight: isScaduta ? 800 : 700,
+            fontSize: 18, fontWeight: isScaduta ? 800 : 700,
             color: isScaduta ? T.brand : T.text,
             letterSpacing: '-0.02em', ...tnum,
           }}>
@@ -899,13 +952,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           {!isDel && !isPag && <ActionsCell f={f} />}
         </div>
         {isPag && (
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 12, padding: 12, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10 }}>
             <ActionsCell f={f} />
           </div>
         )}
         {isDel && (
-          <div style={{ marginTop: 10, padding: '10px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8 }}>
-            <div style={{ fontSize: 12, color: T.brand, fontWeight: 600, marginBottom: 8 }}>
+          <div style={{ marginTop: 12, padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10 }}>
+            <div style={{ fontSize: 12.5, color: T.brand, fontWeight: 600, marginBottom: 10 }}>
               Sei sicuro? L'azione non è reversibile.
             </div>
             <ActionsCell f={f} />
@@ -934,29 +987,29 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       }}>
         {/* Header gruppo */}
         <div style={{
-          padding: isMobile ? '12px 14px' : '12px 18px',
+          padding: isMobile ? '14px 14px' : '14px 20px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 12, flexWrap: 'wrap',
           borderBottom: `1px solid ${T.border}`,
           background: isUrgent ? '#FEF2F2' : T.bgCard,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <span style={{
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+            <span aria-label={`${items.length} fatture`} style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              width: 24, height: 24, borderRadius: 8, background: cfg.pillBg, color: cfg.pillFg,
-              fontSize: 11, fontWeight: 700,
-            }}>{items.length}</span>
+              minWidth: 28, height: 28, padding: '0 8px', borderRadius: 9, background: cfg.pillBg, color: cfg.pillFg,
+              fontSize: 12, fontWeight: 800, ...tnum,
+            }}>{items.length.toLocaleString('it-IT')}</span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>
                 {cfg.header}
               </div>
-              <div style={{ fontSize: 11, color: T.textSoft, letterSpacing: '-0.005em' }}>
+              <div style={{ fontSize: 11.5, color: T.textSoft, letterSpacing: '-0.005em', marginTop: 1 }}>
                 {cfg.sub}
               </div>
             </div>
           </div>
           <div style={{
-            fontSize: 14, fontWeight: 700,
+            fontSize: isMobile ? 15 : 16, fontWeight: 800,
             color: isUrgent ? T.brand : T.text,
             letterSpacing: '-0.015em', ...tnum, whiteSpace: 'nowrap',
           }}>
@@ -977,19 +1030,23 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   {view.map(f => <CardMobile key={f.id} f={f} cfg={cfg} />)}
                 </div>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, ...tnum }}>
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                  <table style={{ width: '100%', minWidth: 880, borderCollapse: 'collapse', fontSize: 12.5, ...tnum }}>
                     <thead>
                       <tr style={{ background: '#FAFAF8' }}>
                         {[
                           'Fornitore', 'Numero', 'Data fatt.', 'Scadenza', 'Totale', 'Stato', 'Azioni',
                         ].map((l, idx) => (
                           <th key={l} style={{
-                            padding: '8px 12px',
+                            padding: '10px 12px',
                             textAlign: idx === 4 ? 'right' : 'left',
-                            fontSize: 10, fontWeight: 600,
+                            fontSize: 10, fontWeight: 700,
                             color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em',
                             borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap',
+                            position: idx === 0 ? 'sticky' : 'static',
+                            left: idx === 0 ? 0 : 'auto',
+                            background: '#FAFAF8',
+                            zIndex: idx === 0 ? 2 : 1,
                           }}>{l}</th>
                         ))}
                       </tr>
@@ -1007,16 +1064,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                   padding: '14px 16px', textAlign: 'center',
                   borderTop: `1px solid ${T.border}`, background: '#FAFAF6',
                 }}>
-                  <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 8 }}>
-                    Mostrate <strong>{view.length}</strong> di <strong>{items.length}</strong> fatture.
+                  <div style={{ fontSize: 12.5, color: T.textSoft, marginBottom: 10, ...tnum }}>
+                    Mostrate <strong>{view.length.toLocaleString('it-IT')}</strong> di <strong>{items.length.toLocaleString('it-IT')}</strong> fatture.
                   </div>
                   <button onClick={() => setShownAll(true)}
+                    aria-label={`Mostra tutte le ${items.length} fatture`}
                     style={{
-                      padding: '8px 20px', borderRadius: 8,
+                      padding: '10px 22px', minHeight: minTouch, borderRadius: 9,
                       border: `1px solid ${T.border}`, background: T.bgCard,
-                      fontSize: 12, fontWeight: 700, color: T.text, cursor: 'pointer',
+                      fontSize: 13, fontWeight: 700, color: T.text, cursor: 'pointer',
                     }}>
-                    Mostra tutte ({items.length})
+                    Mostra tutte ({items.length.toLocaleString('it-IT')})
                   </button>
                 </div>
               )}
@@ -1037,12 +1095,12 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const totGlob = rollupFornitori.reduce((s, g) => s + g.totale, 0)
     return (
       <div style={{ ...card, overflow: 'hidden', marginBottom: 14 }}>
-        <div style={{ padding: isMobile ? '12px 14px' : '12px 18px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Dovuto per fornitore</div>
-            <div style={{ fontSize: 11, color: T.textSoft }}>{rollupFornitori.length} fornitori · netto note di credito · spunta per il bonifico</div>
+        <div style={{ padding: isMobile ? '14px 16px' : '14px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Dovuto per fornitore</div>
+            <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 2 }}>{rollupFornitori.length.toLocaleString('it-IT')} fornitori · netto note di credito · spunta per il bonifico</div>
           </div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: T.text, ...tnum }}>{fmtEuro(totGlob)}</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: T.text, ...tnum, whiteSpace: 'nowrap' }}>{fmtEuro(totGlob)}</div>
         </div>
         {rollupFornitori.map(g => {
           const isEdit = editForn === g.nome_norm
@@ -1052,29 +1110,33 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           const isExpanded = expandedForn.has(g.nome_norm)
           const tutteFatture = tutteFatturePerFornitore[g.nome_norm] || []
           return (
-            <div key={g.nome_norm} style={{ borderBottom: `1px solid ${T.border}`, padding: isMobile ? '11px 14px' : '12px 18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div key={g.nome_norm} style={{ borderBottom: `1px solid ${T.border}`, padding: isMobile ? '12px 14px' : '14px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12, flexWrap: 'wrap' }}>
                 <input type="checkbox" checked={sel} disabled={!selectable} onChange={() => toggleSelez(g.nome_norm)}
                   title={selectable ? 'Includi nel bonifico SEPA' : 'IBAN mancante: impostalo col tasto impostazioni per poter pagare'}
-                  style={{ width: 17, height: 17, cursor: selectable ? 'pointer' : 'not-allowed', accentColor: T.brand, flexShrink: 0 }}
+                  aria-label={`Seleziona ${g.nome} per bonifico SEPA`}
+                  style={{ width: 18, height: 18, cursor: selectable ? 'pointer' : 'not-allowed', accentColor: T.brand, flexShrink: 0 }}
                   onClick={e => e.stopPropagation()} />
                 <div style={{ minWidth: 0, flex: 1, cursor: 'pointer' }}
                   onClick={() => toggleExpandForn(g.nome_norm)}
                   title="Mostra tutte le fatture di questo fornitore">
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 10, color: T.textSoft, transition: 'transform .15s ease', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
-                    {g.nome}
+                  <div style={{ fontWeight: 700, fontSize: isMobile ? 14 : 13.5, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span aria-hidden="true" style={{ fontSize: 10, color: T.textSoft, transition: 'transform .15s ease', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}>▶</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.nome}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: T.textSoft, ...tnum, marginLeft: 16 }}>
+                  <div title={ibanN ? `IBAN ${ibanN}` : 'IBAN mancante'} style={{ fontSize: 11.5, color: T.textSoft, ...tnum, marginLeft: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {g.nFatt} fatt.{g.nNC > 0 ? ` · ${g.nNC} NC` : ''}{g.termini != null ? ` · ${g.termini}gg` : ''}
-                    {' · '}{ibanN ? `${ibanN.slice(0, 2)}…${ibanN.slice(-4)}` : <span style={{ color: T.brand }}>no IBAN</span>}
+                    {' · '}{ibanN ? `${ibanN.slice(0, 2)}…${ibanN.slice(-4)}` : <span style={{ color: T.brand, fontWeight: 600 }}>no IBAN</span>}
                     {tutteFatture.length > g.n && <span style={{ marginLeft: 6, color: T.textSoft }}>· +{tutteFatture.length - g.n} pagate</span>}
                   </div>
                 </div>
-                {g.scaduto > 0 && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '3px 8px', borderRadius: 8, whiteSpace: 'nowrap' }}>scaduto {fmtEuro0(g.scaduto)}</span>}
-                <div style={{ fontSize: 15, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 92, textAlign: 'right' }}>{fmtEuro(g.totale)}</div>
-                <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, categoria: g.categoria || '' }) } }}
-                  title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: '5px 9px' }}><Icon name="gear" size={14} /></button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: isMobile ? 28 : 0 }}>
+                  {g.scaduto > 0 && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '4px 9px', borderRadius: 9, whiteSpace: 'nowrap', ...tnum }}>scaduto {fmtEuro0(g.scaduto)}</span>}
+                  <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 96, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtEuro(g.totale)}</div>
+                  <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, categoria: g.categoria || '' }) } }}
+                    aria-label="Modifica anagrafica fornitore"
+                    title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: isMobile ? '8px 10px' : '6px 11px', minHeight: minTouch, minWidth: minTouch }}><Icon name="gear" size={14} /></button>
+                </div>
               </div>
 
               {/* Dropdown fatture (pagate + non pagate) */}
@@ -1142,17 +1204,22 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 </div>
               )}
               {isEdit && (
-                <div style={{ marginTop: 10, padding: 12, background: T.bgSubtle, borderRadius: 10, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ marginTop: 12, padding: 14, background: T.bgSubtle, borderRadius: 12, display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, flexWrap: 'wrap', alignItems: isMobile ? 'stretch' : 'center' }}>
                   <input placeholder="IBAN fornitore" value={editFornData.iban} onChange={e => setEditFornData(d => ({ ...d, iban: e.target.value }))}
-                    style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${editFornData.iban && !ibanIsValid(editFornData.iban) ? T.brand : T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, flex: '1 1 220px', minWidth: 200, ...tnum }} />
+                    aria-label="IBAN fornitore"
+                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${editFornData.iban && !ibanIsValid(editFornData.iban) ? T.brand : T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, flex: isMobile ? '1 1 100%' : '1 1 240px', minWidth: 0, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', ...tnum }} />
                   <input type="number" inputMode="numeric" placeholder="Termini (gg)" value={editFornData.termini} onChange={e => setEditFornData(d => ({ ...d, termini: e.target.value }))}
                     title="Giorni di pagamento (per derivare la scadenza quando non è nell'XML)"
-                    style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, width: isMobile ? '100%' : 110 }} />
+                    aria-label="Termini di pagamento in giorni"
+                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, width: isMobile ? '100%' : 120, boxSizing: 'border-box' }} />
                   <input placeholder="Categoria (opz.)" value={editFornData.categoria} onChange={e => setEditFornData(d => ({ ...d, categoria: e.target.value }))}
-                    style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, flex: '1 1 140px', minWidth: 120 }} />
-                  <button onClick={() => salvaFornitore(g.nome, { iban: editFornData.iban, termini_pagamento: Number(editFornData.termini) || 30, categoria: editFornData.categoria })}
-                    style={{ ...primaryBtn, padding: '7px 14px' }}>Salva</button>
-                  <button onClick={() => setEditForn(null)} style={{ ...ghostBtn, padding: '7px 12px' }}>Annulla</button>
+                    aria-label="Categoria fornitore"
+                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, flex: isMobile ? '1 1 100%' : '1 1 160px', minWidth: 0, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box' }} />
+                  <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto' }}>
+                    <button onClick={() => salvaFornitore(g.nome, { iban: editFornData.iban, termini_pagamento: Number(editFornData.termini) || 30, categoria: editFornData.categoria })}
+                      style={{ ...primaryBtn, flex: isMobile ? 1 : '0 0 auto' }}>Salva</button>
+                    <button onClick={() => setEditForn(null)} style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Annulla</button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1165,21 +1232,24 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   // ─── Vista: cassa in uscita (forward) ────────────────────────────────────────
   function CassaView() {
     return (
-      <div style={{ ...card, padding: isMobile ? 16 : 20, marginBottom: 14 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: '-0.01em', marginBottom: 3 }}>Cassa in uscita — prossime settimane</div>
-        <div style={{ fontSize: 11.5, color: T.textSoft, marginBottom: 16 }}>Quanto esce e quando (netto note di credito). A destra il saldo cumulato.</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ ...card, padding: isMobile ? 16 : 22, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Cassa in uscita — prossime settimane</div>
+          {!isMobile && <div style={{ fontSize: 11, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Settimana · Importo · Cumulato</div>}
+        </div>
+        <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 18 }}>Quanto esce e quando (netto note di credito). A destra il saldo cumulato.</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {cashflow.map((b, i) => {
             const pct = Math.min(100, (Math.abs(b.tot) / b.max) * 100)
             const col = b.scaduto ? T.brand : (b.tot < 0 ? T.green : '#F97316')
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-                <div style={{ width: isMobile ? 74 : 88, fontSize: 11.5, color: b.scaduto ? T.brand : T.textMid, fontWeight: b.scaduto ? 700 : 500, flexShrink: 0 }}>{b.label}</div>
-                <div style={{ flex: 1, height: 22, background: T.bgSubtle, borderRadius: 6, position: 'relative', overflow: 'hidden' }}>
-                  {b.tot !== 0 && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: col, borderRadius: 6, minWidth: b.n ? 6 : 0, transition: 'width 0.3s' }} />}
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 14 }}>
+                <div style={{ width: isMobile ? 78 : 96, fontSize: 12, color: b.scaduto ? T.brand : T.textMid, fontWeight: b.scaduto ? 700 : 500, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.label}</div>
+                <div style={{ flex: 1, height: 24, background: T.bgSubtle, borderRadius: 7, position: 'relative', overflow: 'hidden' }}>
+                  {b.tot !== 0 && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: col, borderRadius: 7, minWidth: b.n ? 6 : 0, transition: 'width 0.3s' }} />}
                 </div>
-                <div style={{ width: isMobile ? 78 : 96, textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: b.tot < 0 ? T.green : T.text, ...tnum, flexShrink: 0 }}>{b.n ? fmtEuro0(b.tot) : '—'}</div>
-                {!isMobile && <div style={{ width: 90, textAlign: 'right', fontSize: 11, color: T.textSoft, ...tnum, flexShrink: 0 }} title="Saldo cumulato">{fmtEuro0(b.cum)}</div>}
+                <div style={{ width: isMobile ? 84 : 104, textAlign: 'right', fontSize: 13, fontWeight: 700, color: b.tot < 0 ? T.green : T.text, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }}>{b.n ? fmtEuro0(b.tot) : '—'}</div>
+                {!isMobile && <div style={{ width: 96, textAlign: 'right', fontSize: 11.5, color: T.textSoft, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }} title="Saldo cumulato">{fmtEuro0(b.cum)}</div>}
               </div>
             )
           })}
@@ -1188,13 +1258,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     )
   }
 
+  // Lascia spazio in fondo per la SEPA bar quando ci sono selezioni
+  const padBottom = selez.size > 0 ? (isMobile ? 200 : 96) : (isMobile ? 80 : 0)
+
   // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div style={{ maxWidth: 1180, padding: isMobile ? 12 : 0, paddingBottom: isMobile ? 80 : 0 }}>
+    <div style={{ maxWidth: 1180, padding: isMobile ? 12 : 0, paddingBottom: padBottom }}>
       {/* Toast */}
       {toast && (
-        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 999, background: toast.ok ? T.green : T.brand, color: T.white, padding: '10px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
-          {toast.msg}
+        <div role="status" aria-live="polite" style={{ position: 'fixed', top: 16, right: 16, left: isMobile ? 16 : 'auto', maxWidth: isMobile ? 'auto' : 420, zIndex: 999, background: toast.ok ? T.green : T.brand, color: T.white, padding: '12px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: '0 10px 30px rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', gap: 10, lineHeight: 1.35 }}>
+          <Icon name={toast.ok ? 'check' : 'warning'} size={16} />
+          <span style={{ flex: 1, minWidth: 0 }}>{toast.msg}</span>
         </div>
       )}
 
@@ -1220,14 +1294,15 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 onKeyDown={e => { if (e.key === 'Enter' && bulkConfirm.trim().toUpperCase() === 'ELIMINA') eliminaTutte() }}
                 style={{ width: '100%', padding: '11px 12px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${bulkConfirm && bulkConfirm.trim().toUpperCase() !== 'ELIMINA' ? '#F3C7C2' : T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 14, boxSizing: 'border-box', letterSpacing: '0.06em', textTransform: 'uppercase', outline: 'none' }} />
             </div>
-            <div style={{ padding: '14px 22px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setBulkOpen(false); setBulkConfirm('') }} disabled={bulkDeleting} style={ghostBtn}>Annulla</button>
+            <div style={{ padding: '14px 22px', borderTop: `1px solid ${T.border}`, display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+              <button onClick={() => { setBulkOpen(false); setBulkConfirm('') }} disabled={bulkDeleting} style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Annulla</button>
               <button onClick={eliminaTutte}
                 disabled={bulkConfirm.trim().toUpperCase() !== 'ELIMINA' || bulkDeleting}
-                style={{ padding: '10px 16px', borderRadius: R.md, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 700,
+                aria-label={`Elimina ${fatture.length} fatture`}
+                style={{ padding: '11px 18px', minHeight: minTouch, borderRadius: R.md, border: 'none', background: T.brand, color: '#fff', fontSize: 13, fontWeight: 700, flex: isMobile ? 1 : '0 0 auto',
                   cursor: (bulkConfirm.trim().toUpperCase() === 'ELIMINA' && !bulkDeleting) ? 'pointer' : 'not-allowed',
                   opacity: (bulkConfirm.trim().toUpperCase() === 'ELIMINA' && !bulkDeleting) ? 1 : 0.5 }}>
-                {bulkDeleting ? 'Eliminazione…' : `Elimina ${fatture.length} ${fatture.length === 1 ? 'fattura' : 'fatture'}`}
+                {bulkDeleting ? 'Eliminazione…' : `Elimina ${fatture.length.toLocaleString('it-IT')} ${fatture.length === 1 ? 'fattura' : 'fatture'}`}
               </button>
             </div>
           </div>
@@ -1235,25 +1310,28 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', ...tnum }}>
-            {fatture.length} {fatture.length === 1 ? 'fattura' : 'fatture'} totali · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} fatturato registrato
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', marginBottom: 20, gap: 14 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: isMobile ? 14 : 13, color: T.textSoft, letterSpacing: '-0.005em', ...tnum }}>
+            {fatture.length.toLocaleString('it-IT')} {fatture.length === 1 ? 'fattura' : 'fatture'} totali · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} fatturato registrato
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
           {fatture.length > 0 && (
             <>
-              <button onClick={exportExcel} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}>↓ Esporta Excel</button>
+              <button onClick={exportExcel} aria-label="Esporta in Excel" style={{ ...ghostBtn, flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
+                <Icon name="download" size={13} /> Esporta Excel
+              </button>
               <button onClick={async () => {
                 const list = gruppiVisibili.flatMap(k => gruppi[k] || []);
                 if (!(await gateExport('scadenzario', { n_items: list.length }, window.__foodos_notify))) return;
                 const c = getExportCtx();
                 exportScadenzario(list, c.nomeAttivita, c.email);
-              }} style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto' }}><Icon name="fileText" size={13} /> Esporta PDF</button>
+              }} aria-label="Esporta in PDF" style={{ ...ghostBtn, flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}><Icon name="fileText" size={13} /> Esporta PDF</button>
               <button onClick={() => { setBulkConfirm(''); setBulkOpen(true) }}
                 title="Elimina tutte le fatture caricate"
-                style={{ ...ghostBtn, flex: isMobile ? '1 1 45%' : '0 0 auto', color: T.brand, borderColor: '#F3C7C2' }}
+                aria-label="Elimina tutte le fatture"
+                style={{ ...ghostBtn, flex: isMobile ? '1 1 100%' : '0 0 auto', color: T.brand, borderColor: '#F3C7C2' }}
                 onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2' }}
                 onMouseLeave={e => { e.currentTarget.style.background = T.bgCard }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 2 }}>
@@ -1263,17 +1341,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               </button>
             </>
           )}
-          <label style={{ ...ghostBtn, cursor: 'pointer' }}>
+          <label style={{ ...ghostBtn, cursor: 'pointer', flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
             <Icon name="fileText" size={14} /> XML SDI
             <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
               onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportXML(files) }} />
           </label>
-          <label style={{ ...ghostBtn, cursor: 'pointer' }}>
+          <label style={{ ...ghostBtn, cursor: 'pointer', flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
             <Icon name="barChart" size={14} /> FatturaSMART
             <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
               onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportSMART(files) }} />
           </label>
-          <label style={primaryBtn}>
+          <label style={{ ...primaryBtn, cursor: 'pointer', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
             {importLoading ? <><Icon name="hourglass" size={14} /> Importazione…</> : <><Icon name="folder" size={14} /> Importa .xlsx</>}
             <input type="file" accept=".xlsx,.xls" multiple style={{ display: 'none' }}
               onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
@@ -1323,69 +1401,72 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           },
         ].map(k => (
           <button key={k.label} type="button" onClick={k.onClick}
+            aria-label={`${k.label}: ${k.exact}. ${k.sub}`}
             style={{
               ...card,
-              padding: isMobile ? '14px 16px 14px 18px' : isTablet ? '15px 18px 15px 20px' : '16px 20px 16px 22px',
+              padding: isMobile ? '16px 18px 16px 20px' : isTablet ? '16px 20px 16px 22px' : '18px 22px 18px 24px',
               textAlign: 'left',
               cursor: 'pointer',
               font: 'inherit',
               position: 'relative',
-              minHeight: isMobile ? 108 : isTablet ? 116 : 124,
-              display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+              minHeight: isMobile ? 124 : isTablet ? 130 : 138,
+              display: 'flex', flexDirection: 'column',
               borderLeft: `4px solid ${k.accent}`,
               boxShadow: k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
               transition: `box-shadow ${M.durBase} ${M.ease}, transform ${M.durBase} ${M.ease}`,
             }}
             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(15,23,42,0.08), 0 16px 36px rgba(15,23,42,0.08)'; e.currentTarget.style.transform = 'translateY(-3px)' }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = k.urgent ? '0 1px 2px rgba(110,14,26,0.08), 0 10px 28px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'; e.currentTarget.style.transform = 'translateY(0)' }}>
-            <div style={{ fontSize: isMobile ? 10.5 : 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8, minHeight: 14 }}>
+            <div style={{ fontSize: isMobile ? 11 : 10, fontWeight: 600, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', minHeight: 28, display: 'flex', alignItems: 'flex-start', lineHeight: 1.3 }}>
               {k.label}
             </div>
             <div title={k.exact} style={{
               fontSize: isMobile ? 26 : isTablet ? 28 : 30, fontWeight: 700, color: k.color, lineHeight: 1.05,
-              marginBottom: 6, letterSpacing: '-0.025em', ...tnum,
+              letterSpacing: '-0.025em', ...tnum,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              minHeight: isMobile ? 32 : 36, display: 'flex', alignItems: 'center',
             }}>{k.val}</div>
-            <div style={{ fontSize: isMobile ? 12.5 : 12, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.35 }}>{k.sub}</div>
+            <div style={{ fontSize: isMobile ? 12.5 : 12, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.35, minHeight: 34, marginTop: 6, display: 'flex', alignItems: 'flex-end' }}>{k.sub}</div>
           </button>
         ))}
       </div>
 
       {/* Conto pagamenti azienda (debtor del bonifico SEPA) */}
-      <div style={{ ...card, padding: isMobile ? '10px 12px' : '10px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: T.textMid, fontWeight: 600 }}>
-          <span style={{ width: 28, height: 28, borderRadius: 8, background: ibanIsValid(azienda.iban) ? '#EFF6FF' : T.bgSubtle, color: ibanIsValid(azienda.iban) ? '#1D4ED8' : T.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      <div style={{ ...card, padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 14, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12, color: T.textMid, fontWeight: 600, flexShrink: 0 }}>
+          <span aria-hidden="true" style={{ width: 32, height: 32, borderRadius: 9, background: ibanIsValid(azienda.iban) ? '#EFF6FF' : T.bgSubtle, color: ibanIsValid(azienda.iban) ? '#1D4ED8' : T.textSoft, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
           </span>
           Conto pagamenti
         </span>
         {!editAzienda ? (
           <>
-            <span style={{ fontSize: 12.5, color: ibanIsValid(azienda.iban) ? T.text : T.textSoft, ...tnum }}>
+            <span title={ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : ''} style={{ fontSize: 12.5, color: ibanIsValid(azienda.iban) ? T.text : T.textSoft, ...tnum, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : 'IBAN azienda non impostato — serve per generare i bonifici SEPA'}
             </span>
-            <div style={{ flex: 1 }} />
-            <button onClick={() => setEditAzienda(true)} style={{ ...ghostBtn, padding: '6px 12px' }}>
+            <button onClick={() => setEditAzienda(true)} aria-label={ibanIsValid(azienda.iban) ? 'Modifica conto pagamenti' : 'Imposta IBAN'} style={{ ...ghostBtn, padding: isMobile ? '10px 16px' : '7px 14px', flexShrink: 0 }}>
               {ibanIsValid(azienda.iban) ? 'Modifica' : 'Imposta IBAN'}
             </button>
           </>
         ) : (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, flexWrap: 'wrap', alignItems: isMobile ? 'stretch' : 'center', flex: 1, width: '100%' }}>
             <input placeholder="Intestatario conto (azienda)" value={azienda.nome} onChange={e => setAzienda(a => ({ ...a, nome: e.target.value }))}
-              style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, minWidth: 180, flex: '1 1 180px' }} />
+              style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, minWidth: 0, flex: isMobile ? '1 1 100%' : '1 1 200px', width: isMobile ? '100%' : 'auto', boxSizing: 'border-box' }} />
             <input placeholder="IBAN azienda" value={azienda.iban} onChange={e => setAzienda(a => ({ ...a, iban: e.target.value }))}
-              style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${azienda.iban && !ibanIsValid(azienda.iban) ? T.brand : T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, minWidth: 220, flex: '1 1 220px', ...tnum }} />
+              style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${azienda.iban && !ibanIsValid(azienda.iban) ? T.brand : T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, minWidth: 0, flex: isMobile ? '1 1 100%' : '1 1 240px', width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', ...tnum }} />
             <input placeholder="BIC (opz.)" value={azienda.bic} onChange={e => setAzienda(a => ({ ...a, bic: e.target.value }))}
-              style={{ padding: '9px 10px', minHeight: isMobile ? 44 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 12, width: isMobile ? '100%' : 110 }} />
-            <button onClick={() => salvaAzienda(azienda)} disabled={!ibanIsValid(azienda.iban)} style={{ ...primaryBtn, padding: '7px 14px', opacity: !ibanIsValid(azienda.iban) ? 0.5 : 1 }}>Salva</button>
-            <button onClick={() => { setEditAzienda(false); loadAzienda() }} style={{ ...ghostBtn, padding: '7px 12px' }}>Annulla</button>
+              style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, width: isMobile ? '100%' : 130, boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
+              <button onClick={() => salvaAzienda(azienda)} disabled={!ibanIsValid(azienda.iban)} style={{ ...primaryBtn, flex: isMobile ? 1 : '0 0 auto', opacity: !ibanIsValid(azienda.iban) ? 0.5 : 1 }}>Salva</button>
+              <button onClick={() => { setEditAzienda(false); loadAzienda() }} style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Annulla</button>
+            </div>
           </div>
         )}
       </div>
 
       {/* Toggle vista + ricerca */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div style={{ display: 'inline-flex', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10, padding: 3, gap: 2 }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'flex', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10, padding: 3, gap: 2, width: isMobile ? '100%' : 'auto' }}>
           {[
             { id: 'scadenza', label: 'Per scadenza', icon: 'calendar' },
             { id: 'fornitore', label: 'Per fornitore', icon: 'factory' },
@@ -1394,22 +1475,26 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             const active = vista === v.id
             return (
               <button key={v.id} onClick={() => setVista(v.id)}
-                style={{ padding: isMobile ? '7px 10px' : '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                  fontSize: 12, fontWeight: active ? 700 : 500, letterSpacing: '-0.005em',
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                aria-pressed={active}
+                aria-label={`Vista ${v.label}`}
+                style={{ padding: isMobile ? '9px 8px' : '8px 14px', minHeight: minTouch, borderRadius: 8, border: 'none', cursor: 'pointer',
+                  fontSize: isMobile ? 12 : 12, fontWeight: active ? 700 : 500, letterSpacing: '-0.005em',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  flex: isMobile ? 1 : '0 0 auto',
                   background: active ? T.bgCard : 'transparent', color: active ? T.text : T.textMid,
                   boxShadow: active ? '0 1px 3px rgba(15,23,42,0.10)' : 'none', transition: 'all 0.14s' }}>
-                <Icon name={v.icon} size={14} /> {v.label}
+                <Icon name={v.icon} size={14} /> <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.label}</span>
               </button>
             )
           })}
         </div>
-        <div style={{ position: 'relative', flex: 1, minWidth: 180, maxWidth: 320 }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca fornitore o numero…"
-            style={{ width: '100%', padding: isMobile ? '11px 12px 11px 32px' : '8px 12px 8px 32px', borderRadius: 9, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text, boxSizing: 'border-box' }} />
-          <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textSoft, display: 'flex', pointerEvents: 'none' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </span>
+        <div style={{ position: 'relative', flex: 1, minWidth: 0, maxWidth: isMobile ? '100%' : 320, width: isMobile ? '100%' : 'auto' }}>
+          <label htmlFor="scad-search" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: T.textSoft, display: 'flex', pointerEvents: 'none' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </label>
+          <input id="scad-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca fornitore o numero…"
+            aria-label="Cerca fornitore o numero"
+            style={{ width: '100%', padding: isMobile ? '11px 12px 11px 36px' : '10px 14px 10px 36px', minHeight: minTouch, borderRadius: 9, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text, boxSizing: 'border-box', outline: 'none' }} />
         </div>
       </div>
 
@@ -1422,19 +1507,20 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
       {/* Filtri rapidi — solo nella vista per scadenza */}
       {vista === 'scadenza' && (<>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div role="tablist" aria-label="Filtra fatture" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {FILTRI.map(f => {
             const active = filtro === f.id
             const count = f.gruppi.reduce((s, k) => s + (gruppi[k]?.length || 0), 0)
             return (
-              <button key={f.id} onClick={() => setFiltro(f.id)} style={pill(active)}>
+              <button key={f.id} role="tab" aria-selected={active} onClick={() => setFiltro(f.id)} style={pill(active)}>
                 {f.label}
                 {fatture.length > 0 && (
                   <span style={{
-                    marginLeft: 7, fontSize: 11, fontWeight: 600,
+                    marginLeft: 8, fontSize: 11, fontWeight: 700,
                     color: active ? 'rgba(255,255,255,0.7)' : T.textSoft,
-                  }}>{count}</span>
+                    ...tnum,
+                  }}>{count.toLocaleString('it-IT')}</span>
                 )}
               </button>
             )
@@ -1442,8 +1528,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
         <div style={{ flex: 1 }} />
         {totaliFiltrati.n > 0 && (
-          <div style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em', ...tnum }}>
-            <strong style={{ color: T.text }}>{totaliFiltrati.n}</strong> {totaliFiltrati.n === 1 ? 'fattura' : 'fatture'} · <strong style={{ color: T.text }}>{fmtEuro(totaliFiltrati.tot)}</strong>
+          <div style={{ fontSize: 12.5, color: T.textSoft, letterSpacing: '-0.005em', ...tnum, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+            <strong style={{ color: T.text }}>{totaliFiltrati.n.toLocaleString('it-IT')}</strong> {totaliFiltrati.n === 1 ? 'fattura' : 'fatture'} · <strong style={{ color: T.text }}>{fmtEuro(totaliFiltrati.tot)}</strong>
           </div>
         )}
       </div>
@@ -1453,19 +1539,23 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         <div style={{ padding: 60, textAlign: 'center', color: T.textSoft, fontSize: 13 }}>Caricamento…</div>
       ) : fatture.length === 0 ? (
         <div style={{ ...card, textAlign: 'center', padding: isMobile ? '40px 20px' : '60px 40px' }}>
-          <div style={{ width: 64, height: 64, borderRadius: R.lg, background: T.bgSubtle, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: T.textSoft, marginBottom: 16 }}>
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <div aria-hidden="true" style={{ width: 72, height: 72, borderRadius: R.lg, background: T.bgSubtle, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: T.textSoft, marginBottom: 18 }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
           </div>
-          <div style={{ fontWeight: 600, fontSize: 18, color: T.text, marginBottom: 8, letterSpacing: '-0.015em' }}>Nessuna fattura</div>
-          <div style={{ fontSize: 13, color: T.textSoft, marginBottom: 24, maxWidth: 400, margin: '0 auto 24px', lineHeight: 1.5 }}>
-            Importa l'export Excel di FatturaSMART (o un file XML SDI) per iniziare a tenere traccia delle scadenze.
+          <div style={{ fontWeight: 700, fontSize: 19, color: T.text, marginBottom: 8, letterSpacing: '-0.015em' }}>Nessuna fattura</div>
+          <div style={{ fontSize: 13.5, color: T.textSoft, marginBottom: 24, maxWidth: 420, margin: '0 auto 24px', lineHeight: 1.55 }}>
+            Importa l'export Excel di FatturaSMART o un file XML SDI per iniziare a tenere traccia delle scadenze.
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <label style={primaryBtn}>
+            <label style={{ ...primaryBtn, cursor: 'pointer' }}>
               <Icon name="folder" size={14} /> Importa .xlsx
               <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
+            </label>
+            <label style={{ ...ghostBtn, cursor: 'pointer' }}>
+              <Icon name="fileText" size={14} /> XML SDI
+              <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportXML(files) }} />
             </label>
           </div>
         </div>
@@ -1491,16 +1581,19 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         const selItems = fattureExt.filter(f => f.stato !== 'pagata' && f.ibanValido && f.residuo > 0 && selez.has(normNome(f.fornitore)))
         const tot = selItems.reduce((s, f) => s + Math.abs(f.residuo), 0)
         return (
-          <div style={{ position: 'fixed', left: 0, right: 0, bottom: isMobile ? 64 : 0, zIndex: 900, background: T.bgCard, borderTop: `1px solid ${T.border}`, boxShadow: '0 -6px 24px rgba(15,23,42,0.14)', padding: isMobile ? '12px 14px' : '14px 28px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13, color: T.text, fontWeight: 600, ...tnum }}>
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: isMobile ? 64 : 0, zIndex: 900, background: T.bgCard, borderTop: `1px solid ${T.border}`, boxShadow: '0 -6px 24px rgba(15,23,42,0.14)', padding: isMobile ? '12px 14px' : '14px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
+            <div style={{ fontSize: isMobile ? 13 : 13, color: T.text, fontWeight: 600, ...tnum, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {selez.size} fornitor{selez.size === 1 ? 'e' : 'i'} · {selItems.length} fatture pagabili · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
             </div>
-            <div style={{ flex: 1 }} />
-            <button onClick={() => setSelez(new Set())} style={ghostBtn}>Deseleziona</button>
-            <button onClick={() => generaBonificoSEPA(selItems)} disabled={!selItems.length}
-              style={{ ...primaryBtn, opacity: selItems.length ? 1 : 0.5 }}>
-              <Icon name="download" size={14} /> Genera bonifico SEPA
-            </button>
+            {!isMobile && <div style={{ flex: 1 }} />}
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
+              <button onClick={() => setSelez(new Set())} aria-label="Deseleziona tutti" style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Deseleziona</button>
+              <button onClick={() => generaBonificoSEPA(selItems)} disabled={!selItems.length}
+                aria-label="Genera bonifico SEPA"
+                style={{ ...primaryBtn, flex: isMobile ? 1 : '0 0 auto', opacity: selItems.length ? 1 : 0.5 }}>
+                <Icon name="download" size={14} /> Genera bonifico SEPA
+              </button>
+            </div>
           </div>
         )
       })()}

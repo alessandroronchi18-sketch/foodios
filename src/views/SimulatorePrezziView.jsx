@@ -6,16 +6,26 @@
 
 import React, { useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { buildIngCosti, calcolaFCDettaglio, getR, isRicettaValida } from '../lib/foodcost'
 import { exportSimulatorePrezzi } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { lessico } from '../lib/lessico'
-import { KPI, SH, PageHeader, Tip, useSortable, SortTH } from './_shared'
+import { KPI, SH, PageHeader, Tip, useSortable, SortTH, TNUM, fmt, fmt0, fmtp } from './_shared'
 import Icon from '../components/Icon'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
-const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
+
+// CSS slider thumb 24px (touch friendly) + accent. Iniettato una sola volta.
+const SLIDER_CSS = `
+.fos-sim-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; background: transparent; cursor: pointer; padding: 0; }
+.fos-sim-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: #E5E9EF; }
+.fos-sim-slider::-moz-range-track { height: 6px; border-radius: 999px; background: #E5E9EF; }
+.fos-sim-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 2px solid currentColor; margin-top: -9px; box-shadow: 0 2px 6px rgba(15,23,42,0.18); cursor: pointer; }
+.fos-sim-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 2px solid currentColor; box-shadow: 0 2px 6px rgba(15,23,42,0.18); cursor: pointer; }
+.fos-sim-slider:focus { outline: none; }
+.fos-sim-slider:focus::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(110,14,26,0.18), 0 2px 6px rgba(15,23,42,0.18); }
+`
 
 export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita }) {
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
@@ -35,14 +45,18 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const [expanded, setExpanded] = useState(null)       // ricetta col breakdown aperto
   const target = targetPct / 100
 
-  // ── Formatters ────────────────────────────────────────────────────────────────
-  const euro  = v => `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
-  const euro0 = v => { const n = Math.round(Number(v) || 0); return `${n < 0 ? '−' : ''}${Math.abs(n).toLocaleString('it-IT')} €` }
-  const pct   = v => `${Number(v || 0).toFixed(1)}%`
+  // Touch target minimo (tablet 44, mobile 40, desktop 36)
+  const TT = isTablet ? 44 : isMobile ? 40 : 36
 
   // Colore semaforo food cost rispetto al target
   const fcColor = (fcPct) => fcPct <= targetPct ? T.green : fcPct <= targetPct + 10 ? T.amber : T.brand
-  const fcLabel = (fcPct) => fcPct <= targetPct ? 'Sano' : fcPct <= targetPct + 10 ? 'Da tenere d’occhio' : 'Critico'
+
+  // Formatter delta in euro con segno (€ DOPO la cifra, separatore IT)
+  const eurSigned = v => {
+    const n = Math.round(Number(v) || 0)
+    const sign = n > 0 ? '+' : n < 0 ? '−' : ''
+    return `${sign}${Math.abs(n).toLocaleString('it-IT')} €`
+  }
 
   // ── Storico stampi → media per sessione + frequenza ──────────────────────────
   const hasStorico = (giornaliero || []).length > 0
@@ -163,8 +177,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
     }
     if (occhio.length) out.push(`${occhio.length} ${occhio.length === 1 ? `${LEX.prodotto} è` : `${LEX.prodotti} sono`} sopra il target del ${targetPct}% ma sotto soglia critica: piccolo ritocco prezzo e rientri.`)
     if (vulner.length) out.push(`${vulner.length} ${vulner.length === 1 ? `${LEX.prodotto} va` : `${LEX.prodotti} vanno`} in sofferenza con +20% materie prime: blocca i prezzi col fornitore o adegua il listino.`)
-    if (diag.impattoMese > 1) out.push(`Portando a target i prodotti sopra soglia recuperi circa ${euro0(diag.impattoMese)}/mese di margine.`)
-    if (!critici.length && !occhio.length && !vulner.length && rows.length) out.push(`Listino in salute: food cost medio ${pct(diag.fcMedio)}, sotto controllo. Monitora ogni trimestre.`)
+    if (diag.impattoMese > 1) out.push(`Portando a target i prodotti sopra soglia recuperi circa ${fmt0(diag.impattoMese)}/mese di margine.`)
+    if (!critici.length && !occhio.length && !vulner.length && rows.length) out.push(`Listino in salute: food cost medio ${fmtp(diag.fcMedio)}, sotto controllo. Monitora ogni trimestre.`)
     return out
   }, [rows, targetPct, diag, LEX])
 
@@ -186,17 +200,29 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   }
 
   const exportBtn = (
-    <button onClick={handleExportPdf}
-      style={{ padding: '10px 16px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
-        fontSize: 13, fontWeight: 500, color: T.textMid, cursor: 'pointer', letterSpacing: '-0.005em',
-        display: 'inline-flex', alignItems: 'center', gap: 6, boxShadow: S.sm }}>
+    <button
+      onClick={handleExportPdf}
+      aria-label="Esporta il report food cost in PDF"
+      style={{
+        padding: '10px 16px', minHeight: TT, borderRadius: R.md, border: `1px solid ${T.border}`,
+        background: T.bgCard, fontSize: 13, fontWeight: 500, color: T.textMid, cursor: 'pointer',
+        letterSpacing: '-0.005em', display: 'inline-flex', alignItems: 'center', gap: 6,
+        boxShadow: S.sm, boxSizing: 'border-box',
+      }}>
       <Icon name="fileText" size={14} />Esporta PDF
     </button>
   )
 
+  function cardStyle() {
+    return {
+      background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16,
+      boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box', width: '100%',
+    }
+  }
+
   if (!rows.length) {
     return (
-      <div style={{ maxWidth: 1200 }}>
+      <div style={{ maxWidth: 1200, width: '100%', boxSizing: 'border-box' }}>
         <PageHeader subtitle="Quanto ti costano i prodotti, quanto margini e a che prezzo venderli." action={exportBtn} />
         <div style={{ ...cardStyle(), textAlign: 'center', padding: '60px 40px', color: T.textSoft, fontSize: 14 }}>
           Nessun prodotto vendibile nel ricettario. Aggiungi ricette con prezzo e ingredienti per vedere il food cost.
@@ -205,50 +231,109 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
     )
   }
 
-  function cardStyle() { return { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM } }
-
   const cellNum = { padding: '11px 14px', textAlign: 'right', ...TNUM, whiteSpace: 'nowrap' }
 
   return (
-    <div style={{ maxWidth: 1200 }}>
+    <div style={{ maxWidth: 1200, width: '100%', boxSizing: 'border-box' }}>
+      <style>{SLIDER_CSS}</style>
+
       <PageHeader
-        subtitle={`Quanto ti costano i prodotti, quanto margini e a che prezzo venderli${hasStorico ? ` · ${totSess} sessioni di storico` : ''}`}
+        subtitle={`Quanto ti costano i prodotti, quanto margini e a che prezzo venderli${hasStorico ? ` · ${totSess.toLocaleString('it-IT')} sessioni di storico` : ''}`}
         action={exportBtn}
       />
 
-      {/* Target food cost */}
-      <div style={{ ...cardStyle(), padding: isMobile ? '14px' : '12px 18px', marginBottom: 18, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14, flexWrap: 'wrap' }}>
+      {/* Target food cost — selector */}
+      <div style={{
+        ...cardStyle(),
+        padding: isMobile ? 14 : '14px 18px',
+        marginBottom: 18,
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center',
+        gap: isMobile ? 12 : 16,
+      }}>
         <Tip text="Il food cost obiettivo: la quota del prezzo di vendita che vuoi sia coperta dalle materie prime. In pasticceria/gelateria di solito 25–35%.">
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: T.textMid, cursor: 'help', borderBottom: '1px dashed', borderColor: T.borderStr, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            fontSize: 13, fontWeight: 600, color: T.textMid, cursor: 'help',
+            borderBottom: '1px dashed', borderColor: T.borderStr,
+            display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+          }}>
             <Icon name="target" size={14} />Food cost obiettivo
           </span>
         </Tip>
-        <div style={{ display: 'flex', gap: 3, padding: 3, background: T.bgSubtle, borderRadius: R.md, width: isMobile ? '100%' : 'auto' }}>
-          {[25, 28, 30, 33, 35].map(t => (
-            <button key={t} onClick={() => setTargetPct(t)}
-              style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 4px' : '6px 12px', minHeight: isMobile ? 40 : 'auto', borderRadius: R.sm, border: 'none', cursor: 'pointer', fontSize: isMobile ? 13 : 12.5,
-                fontWeight: targetPct === t ? 700 : 500, ...TNUM,
-                background: targetPct === t ? T.bgCard : 'transparent', color: targetPct === t ? T.brand : T.textSoft,
-                boxShadow: targetPct === t ? S.sm : 'none' }}>{t}%</button>
-          ))}
+
+        <div role="radiogroup" aria-label="Food cost obiettivo" style={{
+          display: 'flex', gap: 3, padding: 3, background: T.bgSubtle,
+          borderRadius: R.md, width: isMobile ? '100%' : 'auto',
+          boxSizing: 'border-box',
+        }}>
+          {[25, 28, 30, 33, 35].map(t => {
+            const active = targetPct === t
+            return (
+              <button
+                key={t}
+                role="radio"
+                aria-checked={active}
+                aria-label={`Food cost obiettivo ${t} percento`}
+                onClick={() => setTargetPct(t)}
+                style={{
+                  flex: isMobile ? 1 : 'unset',
+                  padding: isMobile ? '0 8px' : '0 14px',
+                  minHeight: TT,
+                  borderRadius: R.sm,
+                  border: 'none', cursor: 'pointer',
+                  fontSize: isMobile ? 16 : 13,
+                  fontWeight: active ? 700 : 500,
+                  ...TNUM,
+                  background: active ? T.bgCard : 'transparent',
+                  color: active ? T.brand : T.textSoft,
+                  boxShadow: active ? S.sm : 'none',
+                  boxSizing: 'border-box',
+                }}>
+                {t}%
+              </button>
+            )
+          })}
         </div>
-        <span style={{ fontSize: 11.5, color: T.textSoft, lineHeight: 1.4 }}>verde ≤ {targetPct}% · ambra ≤ {targetPct + 10}% · rosso oltre</span>
+
+        {/* Legenda semaforo — chip leggibili, non si rompono su mobile */}
+        <div style={{
+          display: 'flex', gap: isMobile ? 8 : 10, flexWrap: 'wrap',
+          fontSize: 11.5, color: T.textSoft, ...TNUM,
+        }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: T.green }} />
+            ≤ {targetPct}%
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: T.amber }} />
+            ≤ {targetPct + 10}%
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: T.brand }} />
+            oltre
+          </span>
+        </div>
       </div>
 
       {/* ① DIAGNOSI */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
-        <KPI icon={<Icon name="receipt" size={17} />} label="Food cost medio" value={pct(diag.fcMedio)} color={fcColor(diag.fcMedio)}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
+        gap: isMobile ? 10 : 16, marginBottom: 14,
+      }}>
+        <KPI icon={<Icon name="receipt" size={17} />} label="Food cost medio" value={fmtp(diag.fcMedio)} color={fcColor(diag.fcMedio)}
           sub={`obiettivo ${targetPct}%`} />
-        <KPI icon={<Icon name="trendUp" size={17} />} label="Margine medio" value={pct(diag.margMedio)} color={T.green} sub="sul ricavo" />
-        <KPI icon={<Icon name="warning" size={17} />} label="Prodotti critici" value={String(diag.critici)} color={diag.critici ? T.brand : T.green}
-          sub={`su ${rows.length} · oltre ${targetPct + 10}%`} />
-        <KPI icon={<Icon name="money" size={17} />} label="Recuperabile / mese" value={euro0(diag.impattoMese)} highlight
+        <KPI icon={<Icon name="trendUp" size={17} />} label="Margine medio" value={fmtp(diag.margMedio)} color={T.green} sub="sul ricavo" />
+        <KPI icon={<Icon name="warning" size={17} />} label="Prodotti critici" value={diag.critici.toLocaleString('it-IT')} color={diag.critici ? T.brand : T.green}
+          sub={`su ${rows.length.toLocaleString('it-IT')} · oltre ${targetPct + 10}%`} />
+        <KPI icon={<Icon name="money" size={17} />} label="Recuperabile / mese" value={fmt0(diag.impattoMese)} highlight
           sub={hasStorico ? 'portando i critici a target' : 'serve storico produzione'} />
       </div>
 
       {/* ② SALUTE DEL LISTINO */}
       <div style={{ ...cardStyle(), padding: isMobile ? 14 : 18, marginBottom: 26 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: T.text, marginBottom: 12 }}>Salute del listino</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 12 }}>Salute del listino</div>
         {(() => {
           const tot = diag.sani + diag.occhio + diag.critici || 1
           const segs = [
@@ -258,16 +343,18 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
           ]
           return (
             <>
-              <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', background: T.bgSubtle }}>
+              <div role="img" aria-label={`Salute listino: ${diag.sani} sani, ${diag.occhio} da tenere d'occhio, ${diag.critici} critici`} style={{
+                display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', background: T.bgSubtle,
+              }}>
                 {segs.map((s, i) => s.n > 0 && (
-                  <div key={i} title={`${s.lbl}: ${s.n}`} style={{ width: `${s.n / tot * 100}%`, background: s.c, transition: 'width 0.3s' }} />
+                  <div key={i} title={`${s.lbl}: ${s.n.toLocaleString('it-IT')}`} style={{ width: `${s.n / tot * 100}%`, background: s.c, transition: 'width 0.3s' }} />
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 18, marginTop: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: isMobile ? 14 : 22, marginTop: 12, flexWrap: 'wrap' }}>
                 {segs.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: T.textMid }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 3, background: s.c }} />
-                    <b style={{ color: T.text, ...TNUM }}>{s.n}</b> {s.lbl}
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: T.textMid }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: s.c, flexShrink: 0 }} />
+                    <b style={{ color: T.text, ...TNUM }}>{s.n.toLocaleString('it-IT')}</b> {s.lbl}
                   </div>
                 ))}
               </div>
@@ -277,10 +364,10 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       </div>
 
       {/* ③ TABELLA PRODOTTI */}
-      <SH sub="Clicca una riga per vedere com'è composto il costo. Il prezzo consigliato porta il food cost al target.">I tuoi prodotti</SH>
+      <SH sub="Tocca una riga per vedere come è composto il costo. Il prezzo consigliato porta il food cost al target.">I tuoi prodotti</SH>
       <div style={{ ...cardStyle(), overflow: 'hidden', marginBottom: 28 }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: isMobile ? 720 : 'unset', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
@@ -289,7 +376,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                 <SortTH k="fcPct" active={sortKey === 'fcPct'} dir={sortDir} onToggle={toggleSort} right tip="Food cost in % del ricavo. Più basso è meglio.">Food cost %</SortTH>
                 <SortTH k="margPct" active={sortKey === 'margPct'} dir={sortDir} onToggle={toggleSort} right tip="Margine in % del ricavo">Margine %</SortTH>
                 <SortTH k="prezzoConsigliato" active={sortKey === 'prezzoConsigliato'} dir={sortDir} onToggle={toggleSort} right tip={`Prezzo per pezzo che porta il food cost al ${targetPct}%`}>Prezzo consigliato</SortTH>
-                <th style={{ width: 28 }} />
+                <th style={{ width: 32 }} aria-hidden="true" />
               </tr>
             </thead>
             <tbody>
@@ -300,55 +387,85 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                 return (
                   <React.Fragment key={r.nome}>
                     <tr onClick={() => setExpanded(open ? null : r.nome)}
-                      style={{ cursor: 'pointer', borderTop: i ? `1px solid ${T.borderSoft}` : 'none', background: open ? T.bgSubtle : 'transparent' }}>
-                      <td style={{ padding: '11px 14px', fontWeight: 700, color: T.text, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      aria-expanded={open}
+                      style={{
+                        cursor: 'pointer',
+                        borderTop: i ? `1px solid ${T.borderSoft}` : 'none',
+                        background: open ? T.bgSubtle : 'transparent',
+                      }}>
+                      <td style={{
+                        padding: '12px 14px', fontWeight: 700, color: T.text,
+                        maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
                         <span title={r.nome}>{r.nome}</span>
-                        {r.mancanti.length > 0 && <Tip text={`Ingredienti senza prezzo: ${r.mancanti.map(m => m.nome).join(', ')}. Il food cost è sottostimato.`}><span style={{ marginLeft: 6, color: T.amber, cursor: 'help', display: 'inline-flex', verticalAlign: 'middle' }}><Icon name="warning" size={13} /></span></Tip>}
+                        {r.mancanti.length > 0 && (
+                          <Tip text={`Ingredienti senza prezzo: ${r.mancanti.map(m => m.nome).join(', ')}. Il food cost è sottostimato.`}>
+                            <span aria-label="Prezzi ingredienti mancanti" style={{ marginLeft: 6, color: T.amber, cursor: 'help', display: 'inline-flex', verticalAlign: 'middle' }}>
+                              <Icon name="warning" size={13} />
+                            </span>
+                          </Tip>
+                        )}
                       </td>
-                      <td style={{ ...cellNum, color: T.textMid }}>{euro(r.reg.prezzo)}</td>
-                      <td style={{ ...cellNum, color: T.text, fontWeight: 600 }}>{euro(r.fc)}</td>
+                      <td style={{ ...cellNum, color: T.textMid }}>{fmt(r.reg.prezzo)}</td>
+                      <td style={{ ...cellNum, color: T.text, fontWeight: 600 }}>{fmt(r.fc)}</td>
                       <td style={cellNum}>
                         {naf ? <span style={{ color: T.textSoft }}>—</span> : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'flex-end' }}>
-                            <span style={{ width: 42, height: 6, borderRadius: 3, background: T.bgSubtle, overflow: 'hidden', display: 'inline-block' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                            <span aria-hidden="true" style={{ width: 48, height: 6, borderRadius: 3, background: T.bgSubtle, overflow: 'hidden', display: 'inline-block' }}>
                               <span style={{ display: 'block', height: '100%', width: `${Math.min(100, r.fcPct)}%`, background: col }} />
                             </span>
-                            <b style={{ color: col, minWidth: 44, display: 'inline-block' }}>{pct(r.fcPct)}</b>
+                            <b style={{ color: col, minWidth: 48, display: 'inline-block', textAlign: 'right' }}>{fmtp(r.fcPct)}</b>
                           </span>
                         )}
                       </td>
-                      <td style={{ ...cellNum, color: T.textMid }}>{naf ? '—' : pct(r.margPct)}</td>
+                      <td style={{ ...cellNum, color: T.textMid }}>{naf ? '—' : fmtp(r.margPct)}</td>
                       <td style={cellNum}>
-                        <div style={{ display: 'inline-flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-end' : 'baseline', gap: isMobile ? 2 : 6 }}>
-                          <span style={{ fontWeight: 700, color: T.text }}>{euro(r.prezzoConsigliato)}</span>
-                          {r.deltaPrezzo > 0.01
-                            ? <span style={{ fontSize: 11, fontWeight: 700, color: T.brand }}>+{euro(r.deltaPrezzo)}</span>
-                            : <span style={{ fontSize: 11, color: T.green }} aria-label="in linea">✓</span>}
+                        <div style={{
+                          display: 'inline-flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-end',
+                          gap: 2,
+                        }}>
+                          <span style={{ fontWeight: 700, color: T.text }}>{fmt(r.prezzoConsigliato)}</span>
+                          {r.deltaPrezzo > 0.01 ? (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: T.brand, ...TNUM }}>+{fmt(r.deltaPrezzo)}</span>
+                          ) : (
+                            <span aria-label="Prezzo in linea con il target" style={{ fontSize: 11, color: T.green, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              <Icon name="check" size={11} />in linea
+                            </span>
+                          )}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'center', color: T.textSoft }}>{open ? '▾' : '▸'}</td>
+                      <td style={{ textAlign: 'center', color: T.textSoft, padding: '0 8px' }} aria-hidden="true">
+                        {open ? '▾' : '▸'}
+                      </td>
                     </tr>
                     {open && (
                       <tr style={{ background: T.bgSubtle }}>
-                        <td colSpan={7} style={{ padding: '6px 14px 16px' }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 8px' }}>
-                            Composizione del costo · {r.reg.unita} {r.reg.tipo === 'fetta' ? 'fette' : 'pz'}/stampo
+                        <td colSpan={7} style={{ padding: '8px 14px 18px' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 10px' }}>
+                            Composizione del costo · {r.reg.unita.toLocaleString('it-IT')} {r.reg.tipo === 'fetta' ? 'fette' : 'pz'}/stampo
                           </div>
                           {r.righe.length === 0 ? (
-                            <div style={{ fontSize: 12, color: T.textSoft }}>Nessun ingrediente con quantità nel ricettario.</div>
+                            <div style={{ fontSize: 12.5, color: T.textSoft }}>Nessun ingrediente con quantità nel ricettario.</div>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                               {r.righe.map((ing, j) => {
                                 const pctCosto = r.fc > 0 ? (ing.costo / r.fc * 100) : 0
                                 return (
-                                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
-                                    <span style={{ flex: '0 0 38%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: ing.mancante ? T.amber : T.text, fontWeight: j === 0 ? 700 : 500 }}>
+                                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
+                                    <span style={{
+                                      flex: isMobile ? '0 0 44%' : '0 0 38%',
+                                      minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                      color: ing.mancante ? T.amber : T.text,
+                                      fontWeight: j === 0 ? 700 : 500,
+                                    }} title={ing.nome}>
                                       {ing.nome}{ing.isSemilavorato ? ' (semilav.)' : ''}{ing.mancante ? ' · prezzo mancante' : ''}
                                     </span>
-                                    <span style={{ flex: 1, height: 7, background: T.bgCard, borderRadius: 4, overflow: 'hidden' }}>
+                                    <span aria-hidden="true" style={{ flex: 1, height: 7, background: T.bgCard, borderRadius: 4, overflow: 'hidden' }}>
                                       <span style={{ display: 'block', height: '100%', width: `${Math.min(100, pctCosto)}%`, background: j === 0 ? T.brand : 'rgba(110,14,26,0.45)' }} />
                                     </span>
-                                    <span style={{ flex: '0 0 64px', textAlign: 'right', ...TNUM, color: T.text, fontWeight: 600 }}>{euro(ing.costo)}</span>
+                                    <span style={{ flex: '0 0 72px', textAlign: 'right', ...TNUM, color: T.text, fontWeight: 600 }}>{fmt(ing.costo)}</span>
                                     <span style={{ flex: '0 0 48px', textAlign: 'right', ...TNUM, color: T.textSoft }}>{pctCosto.toFixed(0)}%</span>
                                   </div>
                                 )
@@ -371,15 +488,21 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
         <>
           <SH sub={hasStorico ? 'Quanto pesa ogni ingrediente sul food cost totale, stimato sulla produzione mensile.' : 'Quanto pesa ogni ingrediente sul food cost del listino (attiva lo storico per pesarlo sulla produzione reale).'}>Ingredienti che pesano di più</SH>
           <div style={{ ...cardStyle(), padding: isMobile ? 14 : 18, marginBottom: 28 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 10 : 9 }}>
               {topIngredienti.lista.map((ing, i) => (
                 <div key={ing.nome} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
-                  <span style={{ flex: isMobile ? '0 0 38%' : '0 0 34%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: isMobile ? 12 : 12.5, fontWeight: i === 0 ? 700 : 500, color: T.text }} title={ing.nome}>{ing.nome}</span>
-                  <span style={{ flex: 1, height: 18, background: T.bgSubtle, borderRadius: 6, overflow: 'hidden' }}>
+                  <span style={{
+                    flex: isMobile ? '0 0 42%' : '0 0 34%',
+                    minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    fontSize: 13, fontWeight: i === 0 ? 700 : 500, color: T.text,
+                  }} title={ing.nome}>{ing.nome}</span>
+                  <span aria-hidden="true" style={{ flex: 1, height: 18, background: T.bgSubtle, borderRadius: 6, overflow: 'hidden' }}>
                     <span style={{ display: 'block', height: '100%', width: `${Math.min(100, ing.pct)}%`, background: i === 0 ? T.brand : 'rgba(110,14,26,0.5)', transition: 'width 0.3s' }} />
                   </span>
-                  <span style={{ flex: '0 0 52px', textAlign: 'right', fontSize: isMobile ? 12 : 12.5, fontWeight: 700, color: T.text, ...TNUM }}>{ing.pct.toFixed(1)}%</span>
-                  {hasStorico && !isMobile && <span style={{ flex: '0 0 78px', textAlign: 'right', fontSize: 11.5, color: T.textSoft, ...TNUM }}>{euro0(ing.val)}/mese</span>}
+                  <span style={{ flex: '0 0 56px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: T.text, ...TNUM }}>{ing.pct.toFixed(1)}%</span>
+                  {hasStorico && !isMobile && (
+                    <span style={{ flex: '0 0 96px', textAlign: 'right', fontSize: 12, color: T.textSoft, ...TNUM }}>{fmt0(ing.val)}/mese</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -390,45 +513,86 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       {/* ⑤ SIMULATORE WHAT-IF */}
       <SH sub="Sposta le leve e vedi l'impatto su margine e proiezione. Non cambia i prezzi reali finché non li applichi tu.">Simulatore what-if</SH>
       <div style={{ ...cardStyle(), padding: isMobile ? 16 : 22, marginBottom: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 22 }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+          gap: isMobile ? 18 : 28,
+        }}>
           {/* Leva prezzi */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>Aumenta tutti i prezzi</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <input type="range" min="-10" max="30" step="1" value={prezzoPct} onChange={e => setPrezzoPct(Number(e.target.value))}
-                style={{ flex: 1, accentColor: T.brand }} />
-              <span style={{ minWidth: 54, textAlign: 'right', fontSize: 18, fontWeight: 800, color: prezzoPct > 0 ? T.green : prezzoPct < 0 ? T.brand : T.text, ...TNUM }}>
-                {prezzoPct > 0 ? '+' : ''}{prezzoPct}%
-              </span>
-            </div>
-          </div>
+          <SimSlider
+            label="Aumenta tutti i prezzi"
+            value={prezzoPct}
+            min={-10} max={30}
+            valueColor={prezzoPct > 0 ? T.green : prezzoPct < 0 ? T.brand : T.text}
+            accentColor={T.brand}
+            suffix="%"
+            showSign
+            onChange={setPrezzoPct}
+          />
           {/* Leva materie prime */}
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>Se le materie prime aumentano</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <input type="range" min="0" max="40" step="1" value={mpPct} onChange={e => setMpPct(Number(e.target.value))}
-                style={{ flex: 1, accentColor: T.amber }} />
-              <span style={{ minWidth: 54, textAlign: 'right', fontSize: 18, fontWeight: 800, color: mpPct > 0 ? T.amber : T.text, ...TNUM }}>
-                +{mpPct}%
-              </span>
-            </div>
-          </div>
+          <SimSlider
+            label="Se le materie prime aumentano"
+            value={mpPct}
+            min={0} max={40}
+            valueColor={mpPct > 0 ? T.amber : T.text}
+            accentColor={T.amber}
+            suffix="%"
+            showSign
+            onChange={setMpPct}
+          />
         </div>
 
         {/* Orizzonte + reset */}
-        <div style={{ display: 'flex', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 8 : 12, marginTop: 18, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11.5, color: T.textSoft }}>Proiezione su</span>
-          <div style={{ display: 'flex', gap: 2, padding: 3, background: T.bgSubtle, borderRadius: R.md, width: isMobile ? '100%' : 'auto' }}>
-            {[7, 14, 30, 60, 90].map(g => (
-              <button key={g} onClick={() => setOrizzonteGiorni(g)}
-                style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? '10px 6px' : '5px 10px', minHeight: isMobile ? 40 : 'auto', borderRadius: R.sm, border: 'none', ...TNUM,
-                  background: orizzonteGiorni === g ? T.bgCard : 'transparent', color: orizzonteGiorni === g ? T.text : T.textSoft,
-                  fontSize: isMobile ? 13 : 12, fontWeight: orizzonteGiorni === g ? 600 : 500, cursor: 'pointer', boxShadow: orizzonteGiorni === g ? S.sm : 'none' }}>{g}g</button>
-            ))}
+        <div style={{
+          display: 'flex',
+          alignItems: isMobile ? 'stretch' : 'center',
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? 10 : 12,
+          marginTop: 22,
+          flexWrap: 'wrap',
+        }}>
+          <span style={{ fontSize: 12.5, color: T.textSoft, fontWeight: 500 }}>Proiezione su</span>
+          <div role="radiogroup" aria-label="Orizzonte proiezione in giorni" style={{
+            display: 'flex', gap: 2, padding: 3, background: T.bgSubtle,
+            borderRadius: R.md, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box',
+          }}>
+            {[7, 14, 30, 60, 90].map(g => {
+              const active = orizzonteGiorni === g
+              return (
+                <button
+                  key={g}
+                  role="radio"
+                  aria-checked={active}
+                  aria-label={`Proiezione su ${g} giorni`}
+                  onClick={() => setOrizzonteGiorni(g)}
+                  style={{
+                    flex: isMobile ? 1 : 'unset',
+                    padding: isMobile ? '0 8px' : '0 12px',
+                    minHeight: TT,
+                    borderRadius: R.sm, border: 'none',
+                    ...TNUM,
+                    background: active ? T.bgCard : 'transparent',
+                    color: active ? T.text : T.textSoft,
+                    fontSize: isMobile ? 16 : 13,
+                    fontWeight: active ? 700 : 500,
+                    cursor: 'pointer',
+                    boxShadow: active ? S.sm : 'none',
+                    boxSizing: 'border-box',
+                  }}>{g}g</button>
+              )
+            })}
           </div>
           {hasChanges && (
-            <button onClick={() => { setPrezzoPct(0); setMpPct(0) }}
-              style={{ padding: isMobile ? '11px 14px' : '7px 12px', minHeight: isMobile ? 42 : 'auto', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12.5, fontWeight: 500, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+            <button
+              onClick={() => { setPrezzoPct(0); setMpPct(0) }}
+              aria-label="Azzera le leve del simulatore"
+              style={{
+                padding: '0 14px', minHeight: TT, borderRadius: R.md,
+                border: `1px solid ${T.border}`, background: T.bgCard,
+                fontSize: 13, fontWeight: 500, color: T.textMid, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
+                boxSizing: 'border-box',
+              }}>
               <Icon name="refresh" size={13} />Azzera leve
             </button>
           )}
@@ -436,16 +600,37 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
 
         {/* Risultati simulazione */}
         {hasChanges && (
-          <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${T.borderSoft}`, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 16 }}>
-            <SimStat label="Margine / stampo ora" val={euro0(sim.totBaseMarg)} c={T.textMid} />
-            <SimStat label="Margine / stampo scenario" val={euro0(sim.totScenMarg)} c={sim.totScenMarg >= sim.totBaseMarg ? T.green : T.brand}
-              delta={`${sim.totScenMarg >= sim.totBaseMarg ? '+' : ''}${euro0(sim.totScenMarg - sim.totBaseMarg)}`} />
-            {hasStorico && <SimStat label={`Differenza margine ${orizzonteGiorni}g`} val={`${sim.totProiDiff > 0 ? '+' : ''}${euro0(sim.totProiDiff)}`} c={sim.totProiDiff >= 0 ? T.green : T.brand} />}
+          <div style={{
+            marginTop: 20, paddingTop: 18,
+            borderTop: `1px solid ${T.borderSoft}`,
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)',
+            gap: 16,
+          }}>
+            <SimStat label="Margine / stampo ora" val={fmt0(sim.totBaseMarg)} c={T.textMid} />
+            <SimStat
+              label="Margine / stampo scenario"
+              val={fmt0(sim.totScenMarg)}
+              c={sim.totScenMarg >= sim.totBaseMarg ? T.green : T.brand}
+              delta={eurSigned(sim.totScenMarg - sim.totBaseMarg)}
+            />
+            {hasStorico && (
+              <SimStat
+                label={`Differenza margine ${orizzonteGiorni}g`}
+                val={eurSigned(sim.totProiDiff)}
+                c={sim.totProiDiff >= 0 ? T.green : T.brand}
+              />
+            )}
           </div>
         )}
         {mpPct > 0 && sim.sofferenti.length > 0 && (
-          <div style={{ marginTop: 14, padding: '10px 14px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 10, fontSize: 12, color: '#92400E' }}>
-            <b>{sim.sofferenti.length}</b> {sim.sofferenti.length === 1 ? 'prodotto va' : 'prodotti vanno'} in sofferenza con +{mpPct}% materie prime: {sim.sofferenti.slice(0, 4).map(r => r.nome).join(', ')}{sim.sofferenti.length > 4 ? '…' : ''}
+          <div role="alert" style={{
+            marginTop: 14, padding: '12px 14px',
+            background: T.amberLight, border: `1px solid ${T.amber}33`,
+            borderRadius: R.md, fontSize: 12.5, color: '#92400E',
+            lineHeight: 1.5, boxSizing: 'border-box',
+          }}>
+            <b>{sim.sofferenti.length.toLocaleString('it-IT')}</b> {sim.sofferenti.length === 1 ? 'prodotto va' : 'prodotti vanno'} in sofferenza con +{mpPct}% materie prime: {sim.sofferenti.slice(0, 4).map(r => r.nome).join(', ')}{sim.sofferenti.length > 4 ? '…' : ''}
           </div>
         )}
       </div>
@@ -453,13 +638,22 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       {/* ⑥ RACCOMANDAZIONI */}
       {raccomandazioni.length > 0 && (
         <>
-          <SH sub="Generate dall'analisi del listino e dello storico">Cosa farei al tuo posto</SH>
-          <div style={{ ...cardStyle(), padding: '18px 22px', marginBottom: 8 }}>
+          <SH sub="Dall'analisi del listino e dello storico produzione">Cosa farei al tuo posto</SH>
+          <div style={{ ...cardStyle(), padding: isMobile ? '16px 18px' : '18px 22px', marginBottom: 8 }}>
             <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
               {raccomandazioni.map((r, i) => (
-                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '8px 0', borderBottom: i < raccomandazioni.length - 1 ? `1px dashed ${T.borderSoft}` : 'none' }}>
-                  <span style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, flexShrink: 0, marginTop: 1 }}>›</span>
-                  <span style={{ fontSize: 12.5, color: T.text, lineHeight: 1.55 }}>{r}</span>
+                <li key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 12,
+                  padding: '10px 0',
+                  borderBottom: i < raccomandazioni.length - 1 ? `1px dashed ${T.borderSoft}` : 'none',
+                }}>
+                  <span aria-hidden="true" style={{
+                    width: 22, height: 22, borderRadius: 6,
+                    background: 'rgba(110,14,26,0.10)', color: T.brand,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 800, flexShrink: 0, marginTop: 1,
+                  }}>›</span>
+                  <span style={{ fontSize: 13, color: T.text, lineHeight: 1.55 }}>{r}</span>
                 </li>
               ))}
             </ul>
@@ -470,13 +664,62 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   )
 }
 
-// Statistica del simulatore
-function SimStat({ label, val, c, delta }) {
+// Slider del simulatore con thumb touch-friendly 24px.
+function SimSlider({ label, value, min, max, valueColor, accentColor, suffix = '%', showSign, onChange }) {
+  const display = `${showSign && value > 0 ? '+' : ''}${value}${suffix}`
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: T.textSoft, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: c, letterSpacing: '-0.02em', ...TNUM }}>{val}</div>
-      {delta && <div style={{ fontSize: 12, fontWeight: 600, color: c, marginTop: 2, ...TNUM }}>{delta} vs ora</div>}
+      <div style={{
+        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+        gap: 12, marginBottom: 10,
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{label}</div>
+        <div style={{
+          fontSize: 22, fontWeight: 800, ...TNUM,
+          color: valueColor, letterSpacing: '-0.02em', lineHeight: 1,
+        }}>{display}</div>
+      </div>
+      <input
+        type="range"
+        className="fos-sim-slider"
+        min={min} max={max} step={1}
+        value={value}
+        aria-label={label}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        onChange={e => onChange(Number(e.target.value))}
+        style={{ color: accentColor }}
+      />
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        marginTop: 4, fontSize: 11, color: T.textSoft, ...TNUM,
+      }}>
+        <span>{min > 0 ? '+' : ''}{min}{suffix}</span>
+        <span>+{max}{suffix}</span>
+      </div>
+    </div>
+  )
+}
+
+// Statistica del simulatore — minHeight uniformi label/value/sub
+function SimStat({ label, val, c, delta }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.08em', color: T.textSoft, marginBottom: 6,
+        minHeight: 28, lineHeight: 1.3,
+      }}>{label}</div>
+      <div style={{
+        fontSize: 24, fontWeight: 800, color: c,
+        letterSpacing: '-0.02em', ...TNUM,
+        minHeight: 30, lineHeight: 1.1,
+      }}>{val}</div>
+      <div style={{
+        fontSize: 12, fontWeight: 600, color: c, marginTop: 4,
+        ...TNUM, minHeight: 18,
+      }}>{delta ? `${delta} vs ora` : ''}</div>
     </div>
   )
 }

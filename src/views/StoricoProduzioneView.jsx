@@ -1,12 +1,28 @@
 // StoricoProduzioneView — Storico produzioni con grafici. Estratta da Dashboard.jsx.
 import React, { useState, useMemo } from 'react'
-import { BarChart, Bar, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
-import { buildIngCosti, calcolaFC, calcolaFCStorico, getR } from '../lib/foodcost'
+import { buildIngCosti, calcolaFCStorico, getR } from '../lib/foodcost'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
-import { C, KPI, SH, margColor, margBadge, fmt, fmtp, ChartTip, Tip } from './_shared'
+import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip } from './_shared'
+
+// Audit UI 2026-06-24:
+// - assi grafici: fontSize 11, color #64748B, grid stroke #E5E9EF dashed
+// - bar radius [6,6,0,0] in cima allo stack
+// - € DOPO la cifra ovunque ("1.234 €")
+// - numeri ≥ 1000 con separatore migliaia IT
+// - layout colonna su mobile dove i flex accavallano (diagnosi, filtri, KPI strip)
+// - sort header keyboard accessibili + touch target ≥ 40px
+// - tabelle larghe scrollabili con minWidth + sticky prima colonna
+// - input date font ≥ 16px su mobile per evitare zoom iOS
+const AXIS_TICK    = { fill:'#64748B', fontSize:11 }
+const GRID_STROKE  = '#E5E9EF'
+const BAR_RADIUS_TOP = [6,6,0,0]
+// Formattatori asse Y: importo in IT, € dopo la cifra.
+const yEUR = v => `${Number(v||0).toLocaleString('it-IT')} €`
+const yPCT = v => `${v}%`
 
 // Nomi mese italiani per fmtKey (vista="mese"). L'index 0 è vuoto perché
 // k.slice(5) restituisce mesi 01-12 e parseInt('01') = 1.
@@ -466,13 +482,13 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   );
 
   return (
-    <div style={{maxWidth: 1200}}>
+    <div style={{maxWidth: 1200, boxSizing:'border-box', width:'100%'}}>
       {/* Tab principali — centrali, larghe e ben visibili */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
-        <div style={{display:"flex",gap:4,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:14,padding:4,width:"100%",maxWidth:540}}>
+        <div style={{display:"flex",gap:4,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:14,padding:4,width:"100%",maxWidth:540,boxSizing:'border-box'}}>
           {[["produzione","package","Produzione"],["vendite","money","Vendite"],["confronto","refresh","Confronto"]].map(([id,ic,lbl])=>(
-            <button key={id} onClick={()=>setTab(id)}
-              style={{flex:1,padding:isMobile?"11px 8px":"13px 16px",borderRadius:10,border:"none",cursor:"pointer",
+            <button key={id} onClick={()=>setTab(id)} aria-pressed={tab===id} aria-label={`Tab ${lbl}`}
+              style={{flex:1,padding:isMobile?"11px 8px":"13px 16px",minHeight:44,borderRadius:10,border:"none",cursor:"pointer",
                 fontWeight:700,fontSize:isMobile?12:14,background:tab===id?C.red:"transparent",
                 color:tab===id?C.white:C.textMid,boxShadow:tab===id?"0 2px 10px rgba(110,14,26,0.28)":"none",
                 transition:"all 0.15s",whiteSpace:"nowrap",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
@@ -485,8 +501,8 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
         <div style={{display:"flex",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:3,gap:2,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
           {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
-            <button key={id} onClick={()=>setVista(id)}
-              style={{padding:"7px 18px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:11.5,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
+            <button key={id} onClick={()=>setVista(id)} aria-pressed={vista===id}
+              style={{padding:"9px 18px",minHeight:40,borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
               {lbl}
             </button>
           ))}
@@ -494,21 +510,26 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       </div>
 
       {/* ─── FILTRI DATA ─── */}
-      <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap",alignItems:"center",
-        padding:isMobile?"12px 14px":"12px 16px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
-        <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textSoft}}>Periodo:</span>
-        <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} aria-label="Data inizio"
-          style={{padding:"8px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:12,color:C.text,background:C.white,flex:isMobile?1:'none',minWidth:isMobile?120:'auto'}}/>
-        <span style={{fontSize:10,color:C.textSoft}}>→</span>
-        <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} aria-label="Data fine"
-          style={{padding:"8px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:12,color:C.text,background:C.white,flex:isMobile?1:'none',minWidth:isMobile?120:'auto'}}/>
-        {(dateFrom||dateTo)&&<>
-          <button onClick={()=>{setDateFrom("");setDateTo("");}}
-            style={{padding:"8px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:11,fontWeight:600,cursor:"pointer"}}>✕ Reset</button>
-          <span style={{fontSize:10,color:C.amber,fontWeight:600,marginLeft:4,display:"inline-flex",alignItems:"center",gap:4}}>
+      <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap",
+        padding:isMobile?"12px 14px":"12px 16px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04)",
+        flexDirection:isMobile?'column':'row',alignItems:isMobile?'stretch':'center',boxSizing:'border-box',width:'100%'}}>
+        <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textSoft,alignSelf:isMobile?'flex-start':'auto'}}>Periodo</span>
+        <div style={{display:'flex',gap:8,alignItems:'center',flex:1,flexWrap:'wrap',width:isMobile?'100%':'auto'}}>
+          <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} aria-label="Data inizio"
+            style={{padding:"10px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:13,color:C.text,background:C.white,flex:1,minWidth:isMobile?'45%':140,boxSizing:'border-box'}}/>
+          <span style={{fontSize:12,color:C.textSoft,fontWeight:600}} aria-hidden="true">→</span>
+          <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} aria-label="Data fine"
+            style={{padding:"10px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:13,color:C.text,background:C.white,flex:1,minWidth:isMobile?'45%':140,boxSizing:'border-box'}}/>
+        </div>
+        {(dateFrom||dateTo)&&<div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',width:isMobile?'100%':'auto'}}>
+          <button onClick={()=>{setDateFrom("");setDateTo("");}} aria-label="Azzera filtro periodo"
+            style={{padding:"8px 14px",minHeight:40,borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:12,fontWeight:600,cursor:"pointer",display:'inline-flex',alignItems:'center',gap:6}}>
+            <Icon name="x" size={12}/>Reset
+          </button>
+          <span style={{fontSize:11,color:C.amber,fontWeight:600,display:"inline-flex",alignItems:"center",gap:4,whiteSpace:'nowrap'}}>
             <Icon name="search" size={11} />{[dateFrom&&`Da ${dateFrom}`,dateTo&&`a ${dateTo}`].filter(Boolean).join(" ")}
           </span>
-        </>}
+        </div>}
       </div>
 
       {/* ─── BANDA DIAGNOSI (sempre visibile, sul periodo selezionato) ─── */}
@@ -523,19 +544,19 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           : 'tutto lo storico disponibile';
         const Cell = ({ icon, label, value, color, sub, delta, tip }) => (
           <div style={{flex:1,minWidth:isMobile?'45%':140,padding:isMobile?'12px 12px':'14px 16px',
-            display:'flex',flexDirection:'column',gap:5,
+            display:'flex',flexDirection:'column',gap:5,boxSizing:'border-box',
             borderRight:isMobile?'none':`1px solid rgba(255,255,255,0.10)`}}>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <div style={{display:'flex',alignItems:'center',gap:6,minHeight:20}}>
               <span style={{display:'inline-flex',color:'rgba(255,255,255,0.55)'}}><Icon name={icon} size={14} /></span>
-              <span style={{fontSize:9.5,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(255,255,255,0.6)'}}>
+              <span style={{fontSize:10,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(255,255,255,0.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
                 {tip ? <Tip text={tip}><span style={{cursor:'help',borderBottom:'1px dotted rgba(255,255,255,0.35)'}}>{label}</span></Tip> : label}
               </span>
             </div>
-            <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap',minHeight:isMobile?24:28}}>
               <span style={{fontSize:isMobile?19:22,fontWeight:900,color:color||C.white,letterSpacing:'-0.02em',fontVariantNumeric:'tabular-nums'}}>{value}</span>
               {delta}
             </div>
-            {sub && <div style={{fontSize:9.5,color:'rgba(255,255,255,0.5)',lineHeight:1.4}}>{sub}</div>}
+            <div style={{fontSize:10,color:'rgba(255,255,255,0.55)',lineHeight:1.4,minHeight:16}}>{sub||''}</div>
           </div>
         );
         return (
@@ -591,15 +612,15 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={isMobile?220:280}>
                   <BarChart data={dataProdTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
-                    <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false} allowDecimals={false} label={{ value:'stampi', angle:-90, position:'insideLeft', fill:C.textSoft, fontSize:9, dy:20 }}/>
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
+                    <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
+                    <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} width={isMobile?38:46} label={{ value:'stampi', angle:-90, position:'insideLeft', fill:'#64748B', fontSize:11, dy:24 }}/>
                     <Tooltip content={<ProdTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                    <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
+                    <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
                     {seriesProd.map((n,i)=>(
                       <Bar key={n} dataKey={n} stackId="a"
                         fill={n==="Altri"?ALTRI_COLOR:STACK_COLORS[i%STACK_COLORS.length]}
-                        radius={i===seriesProd.length-1?[4,4,0,0]:[0,0,0,0]}/>
+                        radius={i===seriesProd.length-1?BAR_RADIUS_TOP:[0,0,0,0]}/>
                     ))}
                   </BarChart>
                 </ResponsiveContainer>
@@ -608,14 +629,14 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:24,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={isMobile?200:250}>
                   <BarChart data={dataKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="32%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
-                    <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
+                    <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
+                    <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                     <Tooltip content={<EcoProdTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                    <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
+                    <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
                     {/* Barra = ricavo stimato: margine (verde) sopra il food cost (rosso) */}
                     <Bar dataKey="FoodCost" stackId="e" name="Food cost" fill={C.red} barSize={isMobile?26:42}/>
-                    <Bar dataKey="Margine"  stackId="e" name="Margine" fill={C.green} radius={[4,4,0,0]} barSize={isMobile?26:42}/>
+                    <Bar dataKey="Margine"  stackId="e" name="Margine" fill={C.green} radius={BAR_RADIUS_TOP} barSize={isMobile?26:42}/>
                   </BarChart>
                 </ResponsiveContainer>
                 <div style={{fontSize:11,color:C.textSoft,marginTop:10,lineHeight:1.5,textAlign:"center"}}>
@@ -623,14 +644,19 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 </div>
               </div>
               <SH sub="Dettaglio per periodo">Riepilogo Periodi</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                <div style={{overflowX:'auto'}}>
+                <table style={{width:"100%",minWidth:720,borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
-                      {COLS_RIEP.map((c)=>(
-                        <th key={c.key} onClick={()=>clickSort(c.key)} title="Ordina"
-                          style={{padding:"10px 12px",textAlign:c.align==='left'?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:sortBy===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}}>
-                          {c.label}<span style={{opacity:sortBy===c.key?1:0.25}}> {sortBy===c.key?(sortDir==='asc'?'▲':'▼'):'↕'}</span>
+                      {COLS_RIEP.map((c,idx)=>(
+                        <th key={c.key} role="button" tabIndex={0}
+                          onClick={()=>clickSort(c.key)}
+                          onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();clickSort(c.key);}}}
+                          title="Ordina" aria-sort={sortBy===c.key?(sortDir==='asc'?'ascending':'descending'):'none'}
+                          style={{padding:"12px 12px",textAlign:c.align==='left'?"left":"right",fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:sortBy===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap",
+                            ...(idx===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>
+                          {c.label}<span style={{opacity:sortBy===c.key?1:0.25,marginLeft:4}}>{sortBy===c.key?(sortDir==='asc'?'▲':'▼'):'↕'}</span>
                         </th>
                       ))}
                     </tr>
@@ -638,27 +664,29 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                   <tbody>
                     {sortedPeriodi.map((p,i)=>{
                       const top=Object.entries(p.byRicetta).sort((a,b)=>b[1]-a[1])[0];
+                      const rowBg = i%2===0?C.white:"#FDFAF7";
                       return (
-                        <tr key={p.key} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
-                          <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>
+                        <tr key={p.key} style={{borderBottom:`1px solid ${C.border}`,background:rowBg}}>
+                          <td style={{padding:"10px 12px",fontWeight:700,color:C.text,whiteSpace:'nowrap',position:'sticky',left:0,background:rowBg,zIndex:1}}>
                             <div>{p.label}</div>
                             {/* Barra intuitiva: ricavo del periodo rapportato al migliore */}
                             <div title={`Ricavo ${eur0(p.ricavoTot)} · ${Math.round(p.ricavoTot/maxRicPeriodo*100)}% del periodo migliore`} style={{marginTop:4,height:5,width:96,maxWidth:"100%",background:"#F0EAE6",borderRadius:3,overflow:"hidden"}}>
                               <div style={{height:5,width:`${Math.max(2,p.ricavoTot/maxRicPeriodo*100)}%`,background:C.green,borderRadius:3}}/>
                             </div>
                           </td>
-                          <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid}}>{p.sessioni.length}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid,fontVariantNumeric:'tabular-nums'}}>{p.sessioni.length}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",fontWeight:600,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{n0(p.stampiTot)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.green,fontWeight:600,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(p.ricavoTot)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",color:C.red,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(p.fcTot)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(p.margPct),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(p.margine)}</td>
                           <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(p.margPct)}</td>
-                          <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontSize:10}}>{top?`${top[0].replace("TORTA DI ","")} (${top[1]})`:"-"}</td>
+                          <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontSize:10,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:180}}>{top?`${top[0].replace("TORTA DI ","")} (${top[1]})`:"—"}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             </>
           )}
@@ -669,10 +697,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
       {tab==="vendite"&&(
         <>
           {!hasVend&&(
-            <div style={{textAlign:"center",padding:"48px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+            <div style={{textAlign:"center",padding:isMobile?"32px 20px":"48px 32px",background:C.bgCard,borderRadius:16,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
               <div style={{marginBottom:12,color:C.textSoft}}><Icon name="receipt" size={32} /></div>
               <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Nessuna chiusura registrata</div>
-              <div style={{fontSize:12,color:C.textSoft}}>Carica gli scontrini di fine giornata dalla sezione <b>Chiusura</b> per vedere i dati di vendita reali qui.</div>
+              <div style={{fontSize:12,color:C.textSoft,lineHeight:1.55,maxWidth:420,margin:'0 auto'}}>Carica gli scontrini di fine giornata dalla sezione <b>Chiusura</b> per vedere i dati di vendita reali qui.</div>
             </div>
           )}
           {hasVend&&(
@@ -682,20 +710,20 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <KPI icon={<Icon name="trendUp" size={18} />} label="Margine"       value={eur0(totMV)}  color={margColor(totRV>0?(totMV/totRV*100):0)} sub={fmtp(totRV>0?(totMV/totRV*100):0)}/>
                 <KPI icon={<Icon name="receipt" size={18} />} label="Food cost"     value={eur0(totFV)}  color={C.red}/>
                 <KPI icon={<Icon name="target" size={18} />} label="Sell-through"  value={fmtp(avgST)} color={avgST>=85?C.green:avgST>=65?C.amber:C.red}/>
-                <KPI icon={<Icon name="trash" size={18} />} label="Spreco"        value={eur0(totSV)}  color={totSV>20?C.red:C.amber}/>
+                <KPI icon={<Icon name="trash" size={18} />} label="Spreco"        value={eur0(totSV)}  sub={totRV>0?`${(totSV/totRV*100).toFixed(1)}% dei ricavi`:undefined} color={totRV>0&&totSV/totRV>0.05?C.red:C.amber}/>
               </div>
 
               <SH sub={`Top 5 prodotti per ricavo + altri · per ${vista==="giornaliero"?"giorno":vista}`}>Ricavi Reali per {vista==="giornaliero"?"Giorno":vista==="settimana"?"Settimana":"Mese"}</SH>
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={isMobile?210:260}>
                   <BarChart data={dataVendTop} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="28%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
-                    <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
+                    <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
+                    <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                     <Tooltip content={<VendTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                    <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
+                    <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
                     {seriesVend.map((n,i)=>(
-                      <Bar key={n} dataKey={n} stackId="a" fill={n==="Altri"?ALTRI_COLOR:STACK_COLORS[i%STACK_COLORS.length]} radius={i===seriesVend.length-1?[4,4,0,0]:[0,0,0,0]}/>
+                      <Bar key={n} dataKey={n} stackId="a" fill={n==="Altri"?ALTRI_COLOR:STACK_COLORS[i%STACK_COLORS.length]} radius={i===seriesVend.length-1?BAR_RADIUS_TOP:[0,0,0,0]}/>
                     ))}
                   </BarChart>
                 </ResponsiveContainer>
@@ -707,19 +735,19 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
                   <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:C.textSoft}}>Zoom asse Y</span>
                   {[[0,"0–100%"],[25,"25–100%"],[50,"50–100%"]].map(([v,lbl])=>(
-                    <button key={v} onClick={()=>setStZoom(v)}
-                      style={{padding:"4px 10px",borderRadius:999,border:`1px solid ${stZoom===v?C.red:C.border}`,background:stZoom===v?C.redLight:C.white,color:stZoom===v?C.red:C.textMid,fontSize:10,fontWeight:stZoom===v?800:600,cursor:"pointer"}}>{lbl}</button>
+                    <button key={v} onClick={()=>setStZoom(v)} aria-label={`Zoom asse Y ${lbl}`} aria-pressed={stZoom===v}
+                      style={{padding:"6px 12px",minHeight:32,borderRadius:999,border:`1px solid ${stZoom===v?C.red:C.border}`,background:stZoom===v?C.redLight:C.white,color:stZoom===v?C.red:C.textMid,fontSize:11,fontWeight:stZoom===v?800:600,cursor:"pointer"}}>{lbl}</button>
                   ))}
                 </div>
-                <ResponsiveContainer width="100%" height={180}>
+                <ResponsiveContainer width="100%" height={isMobile?200:240}>
                   <BarChart data={dataST} margin={{top:4,right:16,left:0,bottom:0}} barCategoryGap="40%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
-                    <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis domain={[stZoom,100]} allowDataOverflow tickFormatter={v=>`${v}%`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
-                    <Tooltip formatter={(v)=>[`${v.toFixed(1)}%`,"Sell-Through"]}/>
-                    <ReferenceLine y={85} stroke={C.green} strokeDasharray="4 4" label={{value:"85%",fill:C.green,fontSize:9}}/>
-                    <ReferenceLine y={65} stroke={C.amber} strokeDasharray="4 4" label={{value:"65%",fill:C.amber,fontSize:9}}/>
-                    <Bar dataKey="Sell-Through" fill={C.red} radius={[4,4,0,0]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
+                    <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
+                    <YAxis domain={[stZoom,100]} allowDataOverflow tickFormatter={yPCT} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?38:46}/>
+                    <Tooltip content={<ChartTip/>} formatter={(v)=>[`${Number(v).toFixed(1)}%`,"Sell-through"]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
+                    <ReferenceLine y={85} stroke={C.green} strokeDasharray="4 4" label={{value:"85%",fill:C.green,fontSize:11}}/>
+                    <ReferenceLine y={65} stroke={C.amber} strokeDasharray="4 4" label={{value:"65%",fill:C.amber,fontSize:11}}/>
+                    <Bar dataKey="Sell-Through" fill={C.red} radius={BAR_RADIUS_TOP}>
                       {dataST.map((d,i)=>(
                         <Cell key={i} fill={d["Sell-Through"]>=85?C.green:d["Sell-Through"]>=65?C.amber:C.red}/>
                       ))}
@@ -732,14 +760,14 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:20,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                 <ResponsiveContainer width="100%" height={isMobile?200:250}>
                   <BarChart data={dataVendKPI} margin={{top:8,right:16,left:0,bottom:0}} barCategoryGap="32%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
-                    <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                    <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
+                    <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
+                    <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                     <Tooltip content={<ContoTooltip/>} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                    <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
+                    <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
                     {/* Barra = ricavo: margine (verde) sopra il food cost (rosso) */}
                     <Bar dataKey="FoodCost" stackId="ce" name="Food cost (ingredienti)" fill={C.red} barSize={isMobile?26:42}/>
-                    <Bar dataKey="Margine"  stackId="ce" name="Margine (ti resta)" fill={C.green} radius={[4,4,0,0]} barSize={isMobile?26:42}/>
+                    <Bar dataKey="Margine"  stackId="ce" name="Margine (ti resta)" fill={C.green} radius={BAR_RADIUS_TOP} barSize={isMobile?26:42}/>
                   </BarChart>
                 </ResponsiveContainer>
                 <div style={{fontSize:11,color:C.textSoft,marginTop:10,lineHeight:1.5,textAlign:"center"}}>
@@ -824,7 +852,6 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             const n = giorni.length;
             const euro = v => v==null?"—":`${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
             const pct  = v => v==null?"—":`${Number(v).toFixed(1)}%`;
-            const fmt2 = v => v>=1000?`€${(v/1000).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})}k`:`€${Math.round(v).toLocaleString('it-IT')}`;
 
             // Aggregati totali
             const totRicavi  = giorni.reduce((s,g)=>s+(g.kpi?.totV||g.venduto?.reduce((ss,p)=>ss+(p.totale||0),0)||0),0);
@@ -939,13 +966,13 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <div style={{fontSize:11,fontWeight:800,color:C.text,marginBottom:12}}>Ricavi & margine giornalieri</div>
                     <ResponsiveContainer width="100%" height={160}>
                       <BarChart data={chartData} margin={{top:4,right:8,left:0,bottom:0}} barSize={n<=14?14:n<=20?10:6}>
-                        <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false}/>
-                        <XAxis dataKey="data" tick={{fontSize:8,fill:C.textSoft}} tickLine={false} axisLine={false} interval={n<=10?0:Math.floor(n/8)}/>
-                        <YAxis tick={{fontSize:8,fill:C.textSoft}} tickLine={false} axisLine={false} tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} width={38}/>
-                        <Tooltip formatter={(v,name)=>[`${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`,name]} contentStyle={{fontSize:10,borderRadius:8,border:`1px solid ${C.border}`}}/>
-                        <Bar dataKey="Ricavi"  fill={C.red}  opacity={0.85} radius={[3,3,0,0]}/>
-                        <Bar dataKey="Margine" fill={C.green} opacity={0.7} radius={[3,3,0,0]}/>
-                        <Bar dataKey="Spreco"  fill={C.amber} opacity={0.6} radius={[3,3,0,0]}/>
+                        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
+                        <XAxis dataKey="data" tick={AXIS_TICK} tickLine={false} axisLine={false} interval={n<=10?0:Math.floor(n/8)}/>
+                        <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={yEUR} width={isMobile?52:60}/>
+                        <Tooltip content={<ChartTip/>} formatter={(v,name)=>[`${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`,name]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
+                        <Bar dataKey="Ricavi"  fill={C.red}  opacity={0.85} radius={BAR_RADIUS_TOP}/>
+                        <Bar dataKey="Margine" fill={C.green} opacity={0.7} radius={BAR_RADIUS_TOP}/>
+                        <Bar dataKey="Spreco"  fill={C.amber} opacity={0.6} radius={BAR_RADIUS_TOP}/>
                       </BarChart>
                     </ResponsiveContainer>
                     <div style={{display:"flex",gap:14,marginTop:6,fontSize:9,color:C.textSoft}}>
@@ -1003,40 +1030,48 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                     <div style={{fontSize:15,fontWeight:900,color:C.text}}>{euro(totSpreco.toFixed(2))}</div>
                     <div style={{fontSize:10,color:C.textSoft,marginTop:2}}>{pct(totRicavi>0?(totSpreco/totRicavi*100):0)} dei ricavi</div>
                     <div style={{fontSize:10,color:C.red,fontWeight:700,marginTop:4,display:"flex",alignItems:"center",gap:4}}>
-                      {totRicavi>0&&totSpreco/totRicavi>0.05?<><Icon name="warning" size={11} />sopra soglia (5%)</> : totSpreco===0?"✓ nessuno spreco rilevato":"✓ sotto controllo"}
+                      {totRicavi>0&&totSpreco/totRicavi>0.05
+                        ? <><Icon name="warning" size={11} /><span>sopra soglia (5%)</span></>
+                        : <><Icon name="check" size={11} /><span>{totSpreco===0?"nessuno spreco rilevato":"sotto controllo"}</span></>}
                     </div>
                   </div>
                 </div>
 
                 {/* Tabella prodotti cross-giornata */}
                 {topProd.length > 0 && (
-                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",marginBottom:14}}>
-                    <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,fontSize:11,fontWeight:800,color:C.text}}>
+                  <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)",marginBottom:14}}>
+                    <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:800,color:C.text}}>
                       Dettaglio prodotti — totale periodo
                     </div>
-                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                    <div style={{overflowX:'auto'}}>
+                    <table style={{width:"100%",minWidth:640,borderCollapse:"collapse",fontSize:11}}>
                       <thead>
                         <tr style={{background:"#F8F4F2"}}>
                           {[LEX.Prodotto,"Pz venduti","Ricavo tot.","Ricavo/gg","Spreco FC","% su totale"].map((h,i)=>(
-                            <th key={h} style={{padding:"8px 12px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,
-                              letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,
-                              borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                            <th key={h} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize:10,fontWeight:700,
+                              letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,whiteSpace:'nowrap',
+                              borderBottom:`1px solid ${C.border}`,
+                              ...(i===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.entries(byProd).sort((a,b)=>b[1].rv-a[1].rv).map(([nome,d],i)=>(
-                          <tr key={nome} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?"#FFFAF8":"#FFF"}}>
-                            <td style={{padding:"9px 12px",fontWeight:700,color:C.text,fontSize:11}}>{nome}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:C.textMid}}>{d.qta}</td>
+                        {Object.entries(byProd).sort((a,b)=>b[1].rv-a[1].rv).map(([nome,d],i)=>{
+                          const rowBg = i%2===0?"#FFFAF8":"#FFF";
+                          return (
+                          <tr key={nome} style={{borderBottom:`1px solid ${C.border}`,background:rowBg}}>
+                            <td style={{padding:"9px 12px",fontWeight:700,color:C.text,fontSize:11,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:220,position:'sticky',left:0,background:rowBg,zIndex:1}}>{nome}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:C.textMid,fontVariantNumeric:'tabular-nums'}}>{d.qta}</td>
                             <td style={{padding:"9px 12px",textAlign:"right",fontWeight:800,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{euro(d.rv.toFixed(2))}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:C.textMid}}>{euro((d.rv/n).toFixed(2))}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:d.spreco>0?C.amber:C.textSoft}}>{d.spreco>0?euro(d.spreco.toFixed(2)):"—"}</td>
-                            <td style={{padding:"9px 12px",textAlign:"right",color:C.textSoft}}>{totRicavi>0?pct(d.rv/totRicavi*100):"—"}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:C.textMid,fontVariantNumeric:'tabular-nums'}}>{euro((d.rv/n).toFixed(2))}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:d.spreco>0?C.amber:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{d.spreco>0?euro(d.spreco.toFixed(2)):"—"}</td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{totRicavi>0?pct(d.rv/totRicavi*100):"—"}</td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1049,8 +1084,9 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
               {/* Tabella chiusure */}
               <SH sub="Ogni giornata chiusa con scontrino">Storico Chiusure</SH>
-              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                <div style={{overflowX:'auto'}}>
+                <table style={{width:"100%",minWidth:760,borderCollapse:"collapse",fontSize:11}}>
                   <thead>
                     <tr style={{background:"#F8F4F2"}}>
                       {(() => {
@@ -1064,10 +1100,15 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                           { h:'Sell-T. medio', key:'avgST' },
                           { h:'Spreco', key:'totS' },
                         ];
-                        return COLS.map((c)=>(
-                          <th key={c.key} onClick={()=>setChiSort(s=>s.key===c.key?{key:c.key,dir:s.dir==='asc'?'desc':'asc'}:{key:c.key,dir:c.key==='data'?'desc':'desc'})} title="Ordina"
-                            style={{padding:"10px 12px",textAlign:c.align==='left'?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:chiSort.key===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}}>
-                            {c.h}<span style={{opacity:chiSort.key===c.key?1:0.25}}> {chiSort.key===c.key?(chiSort.dir==='asc'?'▲':'▼'):'↕'}</span>
+                        return COLS.map((c,idx)=>(
+                          <th key={c.key} role="button" tabIndex={0}
+                            onClick={()=>setChiSort(s=>s.key===c.key?{key:c.key,dir:s.dir==='asc'?'desc':'asc'}:{key:c.key,dir:c.key==='data'?'desc':'desc'})}
+                            onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.currentTarget.click();}}}
+                            title="Ordina"
+                            aria-sort={chiSort.key===c.key?(chiSort.dir==='asc'?'ascending':'descending'):'none'}
+                            style={{padding:"12px 12px",textAlign:c.align==='left'?"left":"right",fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:chiSort.key===c.key?C.red:C.textSoft,borderBottom:`1px solid ${C.border}`,cursor:"pointer",userSelect:"none",whiteSpace:"nowrap",
+                              ...(idx===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>
+                            {c.h}<span style={{opacity:chiSort.key===c.key?1:0.25,marginLeft:4}}>{chiSort.key===c.key?(chiSort.dir==='asc'?'▲':'▼'):'↕'}</span>
                           </th>
                         ));
                       })()}
@@ -1078,22 +1119,26 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                       const getVal = (ch,k)=> k==='data'?ch.data : k==='prodotti'?(ch.confronto||[]).length : (ch.kpi?.[k]||0);
                       const dir = chiSort.dir==='asc'?1:-1;
                       return [...(chiusure||[])].sort((a,b)=>{ const va=getVal(a,chiSort.key),vb=getVal(b,chiSort.key); return (chiSort.key==='data'?String(va).localeCompare(String(vb)):(va-vb))*dir; });
-                    })().map((ch,i)=>(
-                      <tr key={ch.id} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
-                        <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>{new Date(ch.data+"T12:00").toLocaleDateString("it-IT",{weekday:"short",day:"2-digit",month:"short"})}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid}}>{(ch.confronto||[]).length}</td>
+                    })().map((ch,i)=>{
+                      const rowBg = i%2===0?C.white:"#FDFAF7";
+                      return (
+                      <tr key={ch.id} style={{borderBottom:`1px solid ${C.border}`,background:rowBg}}>
+                        <td style={{padding:"10px 12px",fontWeight:700,color:C.text,whiteSpace:'nowrap',position:'sticky',left:0,background:rowBg,zIndex:1}}>{new Date(ch.data+"T12:00").toLocaleDateString("it-IT",{weekday:"short",day:"2-digit",month:"short"})}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",color:C.textMid,fontVariantNumeric:'tabular-nums'}}>{(ch.confronto||[]).length}</td>
                         <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green,fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(ch.kpi.totV)}</td>
-                        <td style={{padding:"10px 12px",textAlign:"right",color:C.red}}>{eur0(ch.kpi.totFC)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",color:C.red,fontVariantNumeric:'tabular-nums'}}>{eur0(ch.kpi.totFC)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:margColor(ch.kpi.totMP),fontVariantNumeric:"tabular-nums",fontFeatureSettings:"'tnum'"}}>{eur0(ch.kpi.totM)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>{margBadge(ch.kpi.totMP)}</td>
                         <td style={{padding:"10px 12px",textAlign:"right"}}>
-                          <span style={{fontWeight:700,color:ch.kpi.avgST>=85?C.green:ch.kpi.avgST>=65?C.amber:C.red}}>{fmtp(ch.kpi.avgST)}</span>
+                          <span style={{fontWeight:700,color:ch.kpi.avgST>=85?C.green:ch.kpi.avgST>=65?C.amber:C.red,fontVariantNumeric:'tabular-nums'}}>{fmtp(ch.kpi.avgST)}</span>
                         </td>
-                        <td style={{padding:"10px 12px",textAlign:"right",color:ch.kpi.totS>5?C.red:C.textSoft,fontWeight:ch.kpi.totS>5?700:400}}>{eur0(ch.kpi.totS)}</td>
+                        <td style={{padding:"10px 12px",textAlign:"right",color:ch.kpi.totS>5?C.red:C.textSoft,fontWeight:ch.kpi.totS>5?700:400,fontVariantNumeric:'tabular-nums'}}>{eur0(ch.kpi.totS)}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
+                </div>
               </div>
             </>
           )}
@@ -1147,13 +1192,13 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:12,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                   <ResponsiveContainer width="100%" height={isMobile?220:260}>
                     <BarChart data={dataConf} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
-                      <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                      <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
+                      <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
+                      <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                       <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                      <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                      <Bar dataKey="Ricavo stimato" name="Stimato" fill="#8497B0" radius={[4,4,0,0]} maxBarSize={46}/>
-                      <Bar dataKey="Ricavo reale"   name="Reale"   fill={C.green}  radius={[4,4,0,0]} maxBarSize={46}/>
+                      <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
+                      <Bar dataKey="Ricavo stimato" name="Stimato" fill="#8497B0" radius={BAR_RADIUS_TOP} maxBarSize={46}/>
+                      <Bar dataKey="Ricavo reale"   name="Reale"   fill={C.green}  radius={BAR_RADIUS_TOP} maxBarSize={46}/>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1161,24 +1206,26 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                 <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:isMobile?"14px":"20px",marginBottom:20,boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
                   <ResponsiveContainer width="100%" height={isMobile?180:220}>
                     <BarChart data={dataConf2} margin={{top:8,right:16,left:0,bottom:0}} barGap={6} barCategoryGap="30%">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" vertical={false}/>
-                      <XAxis dataKey="label" tick={{fill:C.textMid,fontSize:10}} axisLine={false} tickLine={false}/>
-                      <YAxis tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} tick={{fill:C.textSoft,fontSize:9}} axisLine={false} tickLine={false}/>
+                      <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false}/>
+                      <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false}/>
+                      <YAxis tickFormatter={yEUR} tick={AXIS_TICK} axisLine={false} tickLine={false} width={isMobile?52:64}/>
                       <Tooltip content={<ChartTip/>} formatter={(v,n)=>[fmt(v),n]} cursor={{fill:'rgba(110,14,26,0.04)'}}/>
-                      <Legend wrapperStyle={{fontSize:10,paddingTop:12}}/>
-                      <Bar dataKey="Margine stimato" name="Stimato" fill="#8497B0" radius={[4,4,0,0]} maxBarSize={46}/>
-                      <Bar dataKey="Margine reale"   name="Reale"   fill={C.green}  radius={[4,4,0,0]} maxBarSize={46}/>
+                      <Legend wrapperStyle={{fontSize:11,paddingTop:12}}/>
+                      <Bar dataKey="Margine stimato" name="Stimato" fill="#8497B0" radius={BAR_RADIUS_TOP} maxBarSize={46}/>
+                      <Bar dataKey="Margine reale"   name="Reale"   fill={C.green}  radius={BAR_RADIUS_TOP} maxBarSize={46}/>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
                 {/* Tabella confronto periodi */}
                 <SH sub="Per ogni periodo con entrambi i dati">Dettaglio Confronto</SH>
-                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",overflowX:"auto",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,overflow:"hidden",boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)"}}>
+                  <div style={{overflowX:'auto'}}>
+                  <table style={{width:"100%",minWidth:760,borderCollapse:"collapse",fontSize:11}}>
                     <thead>
                       <tr style={{background:"#F8F4F2"}}>
                         {["Periodo","Ric. stimato","Ric. reale","Diff €","Margine stim.","Margine reale","Sell-T. medio","Spreco"].map((h,i)=>(
-                          <th key={i} style={{padding:"10px 12px",textAlign:i===0?"left":"right",fontSize:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                          <th key={i} style={{padding:"12px 12px",textAlign:i===0?"left":"right",fontSize:10,fontWeight:700,letterSpacing:"0.05em",textTransform:"uppercase",color:C.textSoft,borderBottom:`1px solid ${C.border}`,whiteSpace:'nowrap',
+                            ...(i===0?{position:'sticky',left:0,background:'#F8F4F2',zIndex:1}:null)}}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1187,21 +1234,23 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         const pp=periodiProd.find(p=>p.key===k);
                         const pv=periodiVend.find(p=>p.key===k);
                         const diff=(pv?.rvTot||0)-(pp?.ricavoTot||0);
+                        const rowBg = i%2===0?C.white:"#FDFAF7";
                         return (
-                          <tr key={k} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
-                            <td style={{padding:"10px 12px",fontWeight:700,color:C.text}}>{fmtKey(k)}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft}}>{pp?fmt(pp.ricavoTot):"—"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green}}>{pv?fmt(pv.rvTot):"—"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:diff>=0?C.green:C.red}}>{pp&&pv?(diff>=0?"+":"")+fmt(diff):"—"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft}}>{pp?fmt(pp.margine):"—"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:pv?margColor(pv.margTot>0&&pv.rvTot>0?(pv.margTot/pv.rvTot*100):0):C.textSoft}}>{pv?fmt(pv.margTot):"—"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right"}}>{pv?<span style={{fontWeight:700,color:pv.avgST>=85?C.green:pv.avgST>=65?C.amber:C.red}}>{fmtp(pv.avgST)}</span>:"—"}</td>
-                            <td style={{padding:"10px 12px",textAlign:"right",color:pv?.sproTot>5?C.red:C.textSoft}}>{pv?fmt(pv.sproTot):"—"}</td>
+                          <tr key={k} style={{borderBottom:`1px solid ${C.border}`,background:rowBg}}>
+                            <td style={{padding:"10px 12px",fontWeight:700,color:C.text,whiteSpace:'nowrap',position:'sticky',left:0,background:rowBg,zIndex:1}}>{fmtKey(k)}</td>
+                            <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pp?fmt(pp.ricavoTot):"—"}</td>
+                            <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:C.green,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.rvTot):"—"}</td>
+                            <td style={{padding:"10px 12px",textAlign:"right",fontWeight:700,color:diff>=0?C.green:C.red,fontVariantNumeric:'tabular-nums'}}>{pp&&pv?(diff>=0?"+":"")+fmt(diff):"—"}</td>
+                            <td style={{padding:"10px 12px",textAlign:"right",color:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pp?fmt(pp.margine):"—"}</td>
+                            <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:pv?margColor(pv.margTot>0&&pv.rvTot>0?(pv.margTot/pv.rvTot*100):0):C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.margTot):"—"}</td>
+                            <td style={{padding:"10px 12px",textAlign:"right"}}>{pv?<span style={{fontWeight:700,color:pv.avgST>=85?C.green:pv.avgST>=65?C.amber:C.red,fontVariantNumeric:'tabular-nums'}}>{fmtp(pv.avgST)}</span>:"—"}</td>
+                            <td style={{padding:"10px 12px",textAlign:"right",color:pv?.sproTot>5?C.red:C.textSoft,fontVariantNumeric:'tabular-nums'}}>{pv?fmt(pv.sproTot):"—"}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </>
             );

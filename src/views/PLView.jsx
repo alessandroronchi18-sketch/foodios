@@ -20,7 +20,7 @@ import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
   C, TNUM, margColor, margBadge, Badge, Tip, PageHeader, SH, TD, TH,
-  useSortable, SortTH, fmt0, KPI,
+  useSortable, SortTH, fmt, fmt0, KPI, ChartTip,
 } from './_shared'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
@@ -388,9 +388,12 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
   return (
     <>
       <SH sub="Clicca le intestazioni per ordinare ▼▲">Tabella Riepilogativa P&L</SH>
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden', overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM }}>
+      {/* Audit 2026-06-25: overflowX:auto sul container + minWidth tabella per
+          consentire lo scroll orizzontale su mobile/tablet senza tagliare i
+          numeri; numeri tabular-nums e allineati a destra; riga TOTALE 800. */}
+      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 700 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 760 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 <SortTH k="nome" active={sortKey === 'nome'} dir={sortDir} onToggle={toggleSort}>Prodotto</SortTH>
@@ -425,12 +428,12 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
             </tbody>
             <tfoot>
               <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-                <td colSpan={3} style={{ padding: '12px 14px', fontWeight: 900, fontSize: 12, color: C.text }}>TOTALE / MEDIA</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: C.green, ...TNUM }}>{fmt0(totRicavo)}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: C.red, ...TNUM }}>{euro(totFC)}</td>
+                <td colSpan={3} style={{ padding: '12px 14px', fontWeight: 800, fontSize: 12, color: C.text }}>TOTALE / MEDIA</td>
+                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.green, ...TNUM }}>{fmt0(totRicavo)}</td>
+                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: C.red, ...TNUM }}>{euro(totFC)}</td>
                 <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: fcAvg < 30 ? C.green : fcAvg < 40 ? C.amber : C.red }}>{pct(fcAvg)}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, fontSize: 13, color: margColor(avgMarg), ...TNUM }}>{fmt0(totMargine)}</td>
-                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 900, color: margColor(avgMarg) }}>{pct(avgMarg)}</td>
+                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, fontSize: 13, color: margColor(avgMarg), ...TNUM }}>{fmt0(totMargine)}</td>
+                <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: margColor(avgMarg) }}>{pct(avgMarg)}</td>
                 <td colSpan={3}/>
               </tr>
             </tfoot>
@@ -515,7 +518,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
     }).catch(() => { /* tabella non ancora migrata: ignora */ })
   }, [orgId, sedeId])
 
-  const euro = v => `${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`
+  // Audit 2026-06-25: euro/pct delegano agli helper condivisi (`fmt`/`fmtp`)
+  // così IT thousands separator + simbolo € dopo cifra restano coerenti
+  // ovunque (KPI, tabelle, conto economico, banda costi extra-food).
+  const euro = v => fmt(v)
   const pct = v => `${Number(v).toFixed(1)}%`
   const cardP = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
@@ -548,6 +554,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
 
   // ═══ P&L MENSILE REALE (ricavi+food cost dalle chiusure, personale+costi fissi input) ═══
   const [mese, setMese] = useState(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })
+  // Audit 2026-06-25: il filtro temporale è ora un date range picker (dal/al).
+  // Default = primo del mese corrente → oggi. `mese` resta come "mese di
+  // riferimento" per le label, derivato dalla data finale del range.
+  const today = new Date()
+  const _ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const [dateFrom, setDateFrom] = useState(() => _ymd(new Date(today.getFullYear(), today.getMonth(), 1)))
+  const [dateTo, setDateTo] = useState(() => _ymd(today))
   const [costi, setCosti] = useState({ affitto: 0, utenze: 0, altro: 0, personale: 0 })
   const [editCosti, setEditCosti] = useState(false)
   const [savingCosti, setSavingCosti] = useState(false)
@@ -584,10 +597,15 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
     return arr
   }, [chiusure, mese])
 
-  const aggMese = (ym) => {
+  // Audit 2026-06-25: aggregazione su un range data->data (inclusivi).
+  // Sostituisce aggMese(ym) mantenendo la stessa shape {ricavi, foodcost, giorni}.
+  const aggRange = (from, to) => {
     let ricavi = 0, foodcost = 0, giorni = 0
+    if (!from || !to) return { ricavi, foodcost, giorni }
     for (const c of (chiusure || [])) {
-      if (!c?.data || c.data.slice(0, 7) !== ym) continue
+      if (!c?.data) continue
+      const d = c.data.slice(0, 10)
+      if (d < from || d > to) continue
       ricavi += Number(c.kpi?.totV) || 0
       foodcost += Number(c.kpi?.totFC) || 0
       giorni++
@@ -595,11 +613,32 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
     return { ricavi, foodcost, giorni }
   }
   const meseLabel = (ym) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }) }
-  const mesePrec = (ym) => { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 2, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
+  // Range etichetta: "1 giu — 24 giu 2026" (compatta per UI).
+  const rangeLabel = (from, to) => {
+    if (!from || !to) return ''
+    const f = new Date(from + 'T00:00:00')
+    const t = new Date(to + 'T00:00:00')
+    const fmtD = (d, withYear) => d.toLocaleDateString('it-IT', withYear
+      ? { day: 'numeric', month: 'short', year: 'numeric' }
+      : { day: 'numeric', month: 'short' })
+    if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) return ''
+    return `${fmtD(f, f.getFullYear() !== t.getFullYear())} — ${fmtD(t, true)}`
+  }
+  // Range del periodo precedente di pari durata, per confronto vs mese prec.
+  const prevRange = (from, to) => {
+    if (!from || !to) return { from, to }
+    const f = new Date(from + 'T00:00:00')
+    const t = new Date(to + 'T00:00:00')
+    const ms = t - f
+    const pt = new Date(f.getTime() - 86400000) // giorno prima di "from"
+    const pf = new Date(pt.getTime() - ms)
+    return { from: _ymd(pf), to: _ymd(pt) }
+  }
 
   const plMese = useMemo(() => {
-    const cur = aggMese(mese)
-    const prev = aggMese(mesePrec(mese))
+    const cur = aggRange(dateFrom, dateTo)
+    const pr = prevRange(dateFrom, dateTo)
+    const prev = aggRange(pr.from, pr.to)
     const costiFissi = (+costi.affitto || 0) + (+costi.utenze || 0) + (+costi.altro || 0)
     const personale = +costi.personale || 0
     const margineLordo = cur.ricavi - cur.foodcost
@@ -611,7 +650,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
     const breakeven = mcPct > 0 ? (personale + costiFissi) / mcPct : 0
     const utilePrev = (prev.ricavi - prev.foodcost) - personale - costiFissi
     return { cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct, margOpPct, breakeven, utilePrev }
-  }, [chiusure, mese, costi])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- aggRange/prevRange sono pure closures stabili sui props (chiusure) già in deps
+  }, [chiusure, dateFrom, dateTo, costi])
 
   // Top ingredienti per costo (aggregato, riusato per PDF export)
   const topIngredienti = useMemo(() => {
@@ -717,13 +757,34 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
       />
 
       {/* ═══ P&L MENSILE REALE ═══ */}
-      <SH sub="Ricavi e food cost reali dalle chiusure di cassa, meno costo del personale e costi fissi. = utile vero del mese.">Conto economico · {meseLabel(mese)}</SH>
+      <SH sub="Ricavi e food cost reali dalle chiusure di cassa, meno costo del personale e costi fissi. = utile vero del periodo.">Conto economico · {rangeLabel(dateFrom, dateTo)}</SH>
 
+      {/* Audit 2026-06-25: dropdown mese → date range picker (dal/al).
+          Default = primo del mese corrente → oggi. Input type=date nativi
+          per restare consistenti con il resto della dashboard. */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={mese} onChange={e => setMese(e.target.value)}
-          style={{ padding: '8px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 600 }}>
-          {mesiDisponibili.map(m => <option key={m} value={m}>{meseLabel(m)}</option>)}
-        </select>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: T.textMid, fontWeight: 600 }}>
+            Dal
+            <input
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={e => setDateFrom(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.text, fontWeight: 600, minHeight: 40, fontVariantNumeric: 'tabular-nums' }}
+            />
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: T.textMid, fontWeight: 600 }}>
+            Al
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={e => setDateTo(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.text, fontWeight: 600, minHeight: 40, fontVariantNumeric: 'tabular-nums' }}
+            />
+          </label>
+        </div>
         <div style={{ flex: 1 }} />
         <button onClick={() => setEditCosti(v => !v)}
           style={{ padding: '8px 14px', borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 12.5, fontWeight: 600, color: T.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -754,14 +815,14 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
 
       {plMese.cur.giorni === 0 ? (
         <div style={{ ...cardP, padding: 32, textAlign: 'center', color: T.textSoft, fontSize: 13, marginBottom: 28 }}>
-          Nessuna chiusura di cassa registrata per {meseLabel(mese)}. Registra le chiusure (sezione Cassa) per vedere il conto economico del mese.
+          Nessuna chiusura di cassa registrata nel periodo selezionato ({rangeLabel(dateFrom, dateTo)}). Registra le chiusure (sezione Cassa) per vedere il conto economico.
         </div>
       ) : (
         <>
           {/* KPI diagnosi */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
-            <KPI icon={<Icon name="barChart" size={18} />} label="Ricavi del mese" value={fmt0(plMese.cur.ricavi)} sub={`${plMese.cur.giorni} giorni${plMese.prev.ricavi ? ` · ${plMese.cur.ricavi >= plMese.prev.ricavi ? '+' : ''}${fmt0(plMese.cur.ricavi - plMese.prev.ricavi)} vs mese prec.` : ''}`} />
-            <KPI icon={<Icon name="bulb" size={18} />} label="Utile del mese" value={fmt0(plMese.utile)} highlight={plMese.utile >= 0} color={plMese.utile >= 0 ? undefined : T.brand}
+            <KPI icon={<Icon name="barChart" size={18} />} label="Ricavi del periodo" value={fmt0(plMese.cur.ricavi)} sub={`${plMese.cur.giorni} giorni${plMese.prev.ricavi ? ` · ${plMese.cur.ricavi >= plMese.prev.ricavi ? '+' : ''}${fmt0(plMese.cur.ricavi - plMese.prev.ricavi)} vs periodo prec.` : ''}`} />
+            <KPI icon={<Icon name="bulb" size={18} />} label="Utile del periodo" value={fmt0(plMese.utile)} highlight={plMese.utile >= 0} color={plMese.utile >= 0 ? undefined : T.brand}
               sub={`margine operativo ${pct(plMese.margOpPct)}`} />
             <KPI icon={<Icon name="receipt" size={18} />} label="Food cost" value={pct(plMese.fcPct)} color={plMese.fcPct <= 30 ? T.green : plMese.fcPct <= 40 ? T.amber : T.brand} sub={fmt0(plMese.cur.foodcost)} />
             <KPI icon={<Icon name="users" size={18} />} label="Costo lavoro" value={pct(plMese.lavPct)} color={plMese.lavPct <= targetLavoro ? T.green : plMese.lavPct <= targetLavoro + 10 ? T.amber : T.brand} sub={`target ${targetLavoro}% · ${fmt0(plMese.personale)}`} />
@@ -770,13 +831,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
           {/* AI explain + Export PDF */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
             <AiExplainButton
-              label={`P&L ${meseLabel(mese)}`}
+              label={`P&L ${rangeLabel(dateFrom, dateTo)}`}
               value={`Utile ${fmt0(plMese.utile)} · FC ${pct(plMese.fcPct)}`}
               context={{
-                periodo: meseLabel(mese),
+                periodo: rangeLabel(dateFrom, dateTo),
                 giorni: plMese.cur.giorni,
                 ricavi: plMese.cur.ricavi,
-                ricavi_mese_prec: plMese.prev?.ricavi,
+                ricavi_periodo_prec: plMese.prev?.ricavi,
                 foodcost_eur: plMese.cur.foodcost,
                 foodcost_pct: plMese.fcPct,
                 costo_lavoro_eur: plMese.personale,
@@ -787,11 +848,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
               }}
             />
             <ExportPdfButton
-              fileName={`pl-${meseLabel(mese).replace(/\s+/g, '-').toLowerCase()}.pdf`}
+              fileName={`pl-${(dateFrom || '').replace(/-/g, '')}-${(dateTo || '').replace(/-/g, '')}.pdf`}
               getReport={() => ({
-                title: 'Conto economico mensile',
-                subtitle: `Periodo: ${meseLabel(mese)}`,
-                periodo: plMese.prev?.ricavi > 0 ? `vs ${meseLabel(mese)} (variazione ${pct(((plMese.cur.ricavi - plMese.prev.ricavi) / plMese.prev.ricavi) * 100)})` : undefined,
+                title: 'Conto economico',
+                subtitle: `Periodo: ${rangeLabel(dateFrom, dateTo)}`,
+                periodo: plMese.prev?.ricavi > 0 ? `vs periodo prec. (variazione ${pct(((plMese.cur.ricavi - plMese.prev.ricavi) / plMese.prev.ricavi) * 100)})` : undefined,
                 kpi: [
                   { label: 'Ricavi', value: `${fmt0(plMese.cur.ricavi)} €`, sub: `${plMese.cur.giorni} giorni` },
                   { label: 'Food cost', value: pct(plMese.fcPct), sub: `${fmt0(plMese.cur.foodcost)} €` },
@@ -839,7 +900,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
                   <Row label="Margine lordo" val={plMese.margineLordo} pctv={plMese.cur.ricavi > 0 ? plMese.margineLordo / plMese.cur.ricavi * 100 : 0} bold />
                   <Row label="Costo del personale" val={plMese.personale} pctv={plMese.lavPct} neg />
                   <Row label="Costi fissi (affitto, utenze, altro)" val={plMese.costiFissi} pctv={plMese.cur.ricavi > 0 ? plMese.costiFissi / plMese.cur.ricavi * 100 : 0} neg />
-                  <Row label={plMese.utile >= 0 ? 'UTILE DEL MESE' : 'PERDITA DEL MESE'} val={plMese.utile} pctv={plMese.margOpPct} strong />
+                  <Row label={plMese.utile >= 0 ? 'UTILE DEL PERIODO' : 'PERDITA DEL PERIODO'} val={plMese.utile} pctv={plMese.margOpPct} strong />
                   <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
                     Break-even: servono <b style={{ color: T.text }}>{fmt0(plMese.breakeven)}</b> di ricavi/mese per coprire personale e costi fissi
                     {(plMese.personale + plMese.costiFissi) === 0 && ' · imposta i costi fissi e il personale per un calcolo completo'}.
@@ -852,14 +913,15 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
       )}
 
       {rows.length > 0 && (<>
+      {/* Audit 2026-06-25: temporaneamente disabilitata.
       <SH sub="Redditività teorica di ogni ricetta ai prezzi di listino — utile per le decisioni su prezzi e ricette.">Analisi del listino (teorica)</SH>
-      {/* Chiarisce il "quando": il P&L è teorico per-stampo, NON un periodo. */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
         <span style={{ lineHeight: 1, marginTop: 1, color: C.textMid }}><Icon name="bulb" size={16} /></span>
         <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55 }}>
           <b style={{ color: C.text }}>Numeri teorici, non riferiti a un periodo.</b> Mostrano ricavo, food cost e margine <b>per un singolo stampo di ciascun prodotto</b>, ai <b>prezzi di listino attuali</b> — servono a capire la redditività delle ricette. Per ricavi e margini <b>reali nel tempo</b> (giorno · settimana · mese) apri la sezione <b>Storico</b>.
         </div>
       </div>
+      */}
 
       {/* ESTRATTO CONTO ECONOMICO — colpo d'occhio: Ricavi − Food cost = Margine */}
       {(() => {
@@ -968,8 +1030,14 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
         </div>
       )}
 
-      {/* KPI STRIP */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(3,1fr)' : 'repeat(6,1fr)', gap: 10, marginBottom: 36 }}>
+      {/* KPI STRIP
+          Audit 2026-06-25: grid responsive (mobile 1col 480px ≤ tablet 2col ≤
+          1024 3col ≤ desktop 6col), tile con width:100% + boxSizing:border-box
+          per evitare overflow su tablet stretti, minHeight uniformi
+          (label 28 / value 32 / sub 16-28). Numeri sempre € dopo cifra via fmt0. */}
+      <div style={{ display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : isTablet ? 'repeat(3,minmax(0,1fr))' : 'repeat(6,minmax(0,1fr))',
+        gap: 12, marginBottom: 36 }}>
         {[
           { lbl: 'Prodotti', val: rows.length, sub: 'nel listino', hi: true, tip: 'Numero di prodotti finiti nel listino (esclusi semilavorati e ricette interne).' },
           { lbl: 'Ricavo/stampo', val: fmt0(totRicavo), sub: 'somma tutti i prodotti', color: T.green, tip: 'Somma del ricavo teorico di uno stampo di ciascun prodotto, ai prezzi di listino.' },
@@ -978,7 +1046,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
           { lbl: 'Miglior margine', val: best.short, sub: pct(best.margPct), color: T.green, tip: 'Il prodotto con il margine percentuale più alto del listino.' },
           { lbl: 'Da ottimizzare', val: worst.short, sub: pct(worst.margPct), color: T.brand, tip: 'Il prodotto con il margine percentuale più basso: rivedi prezzo o ricetta.' },
         ].map(({ lbl, val, sub, hi, color, tip }, i) => (
-          <div key={i} className="fos-tile" style={{ background: hi ? T.brand : T.bgCard,
+          <div key={i} className="fos-tile" style={{
+            width: '100%', boxSizing: 'border-box', minWidth: 0,
+            background: hi ? T.brand : T.bgCard,
             border: `1px solid ${hi ? T.brandDark : T.border}`, borderRadius: 16,
             padding: '14px 16px',
             display: 'flex', flexDirection: 'column',
@@ -989,8 +1059,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
                 borderBottom: `1px dashed ${hi ? 'rgba(255,255,255,0.28)' : 'rgba(155,120,115,0.4)'}` }}>{lbl}</div>
             </Tip>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em',
-              color: hi ? T.textOnDark : color || T.text, lineHeight: 1.15, minHeight: 24, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...TNUM }}>{val}</div>
-            <div style={{ fontSize: 11, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5, minHeight: 18, lineHeight: 1.4 }}>{sub}</div>
+              color: hi ? T.textOnDark : color || T.text, lineHeight: 1.15, minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...TNUM }}>{val}</div>
+            <div style={{ fontSize: 11, color: hi ? 'rgba(255,255,255,0.62)' : T.textSoft, marginTop: 5, minHeight: 16, maxHeight: 28, overflow: 'hidden', lineHeight: 1.4 }}>{sub}</div>
           </div>
         ))}
       </div>
@@ -1037,14 +1107,23 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
         </div>
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '20px', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: C.text, marginBottom: 4 }}>Ricavo vs Margine per stampo</div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={[...rows].sort((a, b) => b.ricavo - a.ricavo)} layout="vertical" margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" horizontal={false}/>
-              <XAxis type="number" tickFormatter={v => `€${Math.round(v).toLocaleString('it-IT')}`} tick={{ fill: C.textSoft, fontSize: 9 }} axisLine={false} tickLine={false}/>
-              <YAxis type="category" dataKey="short" width={80} tick={{ fill: C.textMid, fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false}/>
-              <Tooltip formatter={(v, n) => [`${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`, n]} contentStyle={{ borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 11 }}/>
-              <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} radius={[0, 3, 3, 0]}/>
-              <Bar dataKey="margine" name="Margine" radius={[0, 3, 3, 0]}>
+          {/* Audit 2026-06-25 Recharts style guide: ResponsiveContainer 100%
+              + height responsive (mobile 220 / desktop 280), CartesianGrid
+              #E5E9EF dashed senza linee verticali, Bar radius [6,6,0,0] e
+              stroke brand #6E0E1A, ChartTip condiviso, etichette assi 11/64748B,
+              margin responsive. */}
+          <ResponsiveContainer width="100%" height={isMobile ? 220 : 280}>
+            <BarChart
+              data={[...rows].sort((a, b) => b.ricavo - a.ricavo)}
+              layout="vertical"
+              margin={isMobile ? { top: 8, right: 16, left: 8, bottom: 32 } : { top: 12, right: 24, left: 12, bottom: 40 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E9EF" vertical={false} />
+              <XAxis type="number" tickFormatter={v => `${Math.round(v).toLocaleString('it-IT')} €`} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false}/>
+              <YAxis type="category" dataKey="short" width={80} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false}/>
+              <Tooltip content={<ChartTip />} />
+              <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} stroke="#6E0E1A" strokeOpacity={0.15} radius={[6, 6, 0, 0]}/>
+              <Bar dataKey="margine" name="Margine" stroke="#6E0E1A" strokeOpacity={0.25} radius={[6, 6, 0, 0]}>
                 {[...rows].sort((a, b) => b.ricavo - a.ricavo).map((r, i) => (
                   <Cell key={i} fill={margColor(r.margPct)} fillOpacity={0.85}/>
                 ))}
@@ -1095,6 +1174,7 @@ function CostiNettoBanda({ costiAziendali, totMargine, euro, isMobile }) {
   const noConfig = (costiAziendali || []).length === 0
   return (
     <div style={{
+      width: '100%', boxSizing: 'border-box',
       background: T.bgCard, border: `1px solid ${T.border}`,
       borderRadius: 16, padding: isMobile ? 16 : 20, marginBottom: 28,
       boxShadow: SHADOW_PREMIUM,
@@ -1110,7 +1190,9 @@ function CostiNettoBanda({ costiAziendali, totMargine, euro, isMobile }) {
           </div>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 10 }}>
+      {/* Audit 2026-06-25: grid responsive con minmax(0,1fr) per evitare che i
+          box trasbordino quando i numeri sono lunghi (es. "1.234.567,89 €"). */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(4,minmax(0,1fr))', gap: 12 }}>
         <BoxKpi label="Costi mensili" value={euro(totCostiMensili)} color={T.brand} small />
         <BoxKpi label="Costi annui" value={euro(totCostiAnnui)} color={T.textMid} small />
         <BoxKpi label="Margine lordo (rif.)" value={euro(totMargine)} color={T.textSoft} small />
@@ -1131,15 +1213,20 @@ function CostiNettoBanda({ costiAziendali, totMargine, euro, isMobile }) {
 }
 
 function BoxKpi({ label, value, color, highlight, small }) {
+  // Audit 2026-06-25: width:100% + boxSizing:border-box + minWidth:0 evita
+  // overflow nei grid stretti; minHeight uniformi (label 28, value 32) per
+  // allineare i box anche se le etichette vanno su 2 righe.
   return (
     <div style={{
+      width: '100%', boxSizing: 'border-box', minWidth: 0,
       padding: small ? '10px 12px' : '14px 16px',
       background: highlight ? '#FEF9EB' : T.bgSubtle,
       border: highlight ? '1px solid #FDE68A' : `1px solid ${T.border}`,
       borderRadius: 10,
+      display: 'flex', flexDirection: 'column',
     }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: small ? 17 : 20, fontWeight: 800, color, ...TNUM, letterSpacing: '-0.02em' }}>{value}</div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, minHeight: 28, lineHeight: 1.3 }}>{label}</div>
+      <div style={{ fontSize: small ? 17 : 20, fontWeight: 800, color, ...TNUM, letterSpacing: '-0.02em', minHeight: 32, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
     </div>
   )
 }

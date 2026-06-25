@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react'
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, BarChart, Bar } from 'recharts'
 import { color as T, tnum } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { KPI, SH, PageHeader, Tip, C } from '../views/_shared'
+import { KPI, SH, PageHeader, Tip, ChartTip, C } from '../views/_shared'
 import Icon from './Icon'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
+const GRID_STROKE = '#E5E9EF'
+const AXIS_COLOR = '#64748B'
 
 // ── Algoritmo previsione (Holt, smoothing esponenziale doppio) ───────────────
 // NON MODIFICARE la firma: riusata da RicettaProduzione e dai calcoli globali.
@@ -61,7 +63,7 @@ const meseSucc = m => {
 }
 
 // ── Card "Cosa produrre" per singola ricetta ────────────────────────────────
-function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, getR, prossimiGiorni, isMobile }) {
+function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, getR, prossimiGiorni, isMobile, isTablet }) {
   const values = serieMese.map(s => s.stampi)
   const { prev, confidence, trend } = previsione(values)
   const media = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0
@@ -89,38 +91,71 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
   const trendIcon = trend === 'up' ? 'trendUp' : trend === 'down' ? 'trendDown' : 'barChart'
   const trendTxt = trend === 'up' ? 'in crescita' : trend === 'down' ? 'in calo' : 'stabile'
 
+  // Grid responsive per i prossimi giorni: 2 col mobile, 3 col tablet, full desktop.
+  const giorniCols = isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(3,1fr)' : `repeat(${giorniPrev.length},1fr)`
+
   return (
-    <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: isMobile ? '16px' : '18px 22px', marginBottom: 14, boxShadow: SHADOW_PREMIUM }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 15, color: C.text, letterSpacing: '-0.01em', marginBottom: 3 }}>{ric.nome}</div>
+    <div style={{
+      background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16,
+      padding: isMobile ? 14 : '18px 22px', marginBottom: 14,
+      boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box', width: '100%',
+    }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'flex-start',
+        justifyContent: 'space-between',
+        gap: isMobile ? 10 : 12,
+        marginBottom: 14,
+      }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div
+            title={ric.nome}
+            style={{
+              fontWeight: 800, fontSize: 15, color: C.text, letterSpacing: '-0.01em',
+              marginBottom: 4,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}
+          >
+            {ric.nome}
+          </div>
           <div style={{ fontSize: 11, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <Icon name={trendIcon} size={12} color={trendColor} />
             <span style={{ color: trendColor, fontWeight: 700 }}>{trendTxt}</span>
-            <span>· media {nf1(media)} · previsione {nf1(prev)} stampi/mese</span>
+            <span style={{ ...tnum }}>· media {nf1(media)} · previsione {nf1(prev)} stampi/mese</span>
           </div>
         </div>
         <Tip text={st == null ? 'Nessuna vendita registrata nelle chiusure per questo prodotto.' : `Venduto ${nf(st.venduto)} su ${nf(st.prodotto)} pezzi prodotti nel periodo.`} width={240}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 999, background: stBg, cursor: 'help' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '6px 12px', borderRadius: 999, background: stBg, cursor: 'help',
+            alignSelf: isMobile ? 'flex-start' : 'auto',
+            minHeight: 36,
+          }}>
             <Icon name={stIcon} size={14} color={stColor} />
-            <div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 900, color: stColor, ...tnum, lineHeight: 1 }}>{st == null ? '—' : `${nf(st.pct)}%`}</div>
-              <div style={{ fontSize: 8.5, fontWeight: 700, color: stColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>{stMsg}</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: stColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2, whiteSpace: 'nowrap' }}>{stMsg}</div>
             </div>
           </div>
         </Tip>
       </div>
 
       {/* Prossimi giorni: quanti stampi produrre */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : `repeat(${giorniPrev.length},1fr)`, gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: giorniCols, gap: 8 }}>
         {giorniPrev.map((g, i) => (
-          <div key={i} style={{ background: C.bgSubtle, border: `1px solid ${C.borderSoft}`, borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{g.label}</div>
-            <div style={{ fontSize: 19, fontWeight: 900, color: C.text, ...tnum, marginTop: 4, lineHeight: 1 }}>
+          <div key={i} style={{
+            background: C.bgSubtle, border: `1px solid ${C.borderSoft}`, borderRadius: 12,
+            padding: '10px 8px', textAlign: 'center', boxSizing: 'border-box',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
+            minHeight: 92,
+          }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', minHeight: 14 }}>{g.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: C.text, ...tnum, marginTop: 4, lineHeight: 1, minHeight: 22 }}>
               ≈ {nf(g.stima)}
             </div>
-            <div style={{ fontSize: 9, color: C.textSoft, marginTop: 2 }}>stampi</div>
-            <div style={{ fontSize: 9, color: C.textSoft, ...tnum, marginTop: 3 }}>
+            <div style={{ fontSize: 9.5, color: C.textSoft, marginTop: 2 }}>stampi</div>
+            <div style={{ fontSize: 9.5, color: C.textSoft, ...tnum, marginTop: 3 }}>
               {nf(g.lo)}–{nf(g.hi)}
             </div>
           </div>
@@ -270,9 +305,9 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
   // ── Empty states ───────────────────────────────────────────────────────────
   if (!ricettario || !Object.keys(ricettario.ricette || {}).length) {
     return (
-      <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1040, margin: '0 auto', boxSizing: 'border-box', width: '100%' }}>
         <PageHeader subtitle="Previsione della domanda e quantità da produrre, basate sullo storico di produzione e vendita." />
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '48px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '48px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box' }}>
           <Icon name="bulb" size={28} color={C.textSoft} />
           <div style={{ color: C.textMid, fontSize: 14, fontWeight: 700, marginTop: 12 }}>Carica il ricettario per iniziare</div>
           <div style={{ color: C.textSoft, fontSize: 12, marginTop: 6 }}>Servono almeno 2 mesi di produzione registrata per ottenere previsioni.</div>
@@ -283,9 +318,9 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
 
   if ((giornaliero || []).length === 0 || serieTotale.length < 2) {
     return (
-      <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1040, margin: '0 auto', boxSizing: 'border-box', width: '100%' }}>
         <PageHeader subtitle="Previsione della domanda e quantità da produrre, basate sullo storico di produzione e vendita." />
-        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '48px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM }}>
+        <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '48px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box' }}>
           <Icon name="calendar" size={28} color={C.textSoft} />
           <div style={{ color: C.textMid, fontSize: 14, fontWeight: 700, marginTop: 12 }}>Storico insufficiente</div>
           <div style={{ color: C.textSoft, fontSize: 12, marginTop: 6 }}>
@@ -307,12 +342,30 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
     return idx
   })()
 
+  // Altezza grafici responsive
+  const CHART_H = isMobile ? 220 : 280
+  // Touch target tab: 44 su mobile/tablet, 40 desktop
+  const TAB_MIN_H = (isMobile || isTablet) ? 44 : 40
+
+  // Dati grafico stagionalità per BarChart
+  const stagionaleData = DAYS_FULL.map((d, i) => ({
+    label: isMobile ? DAYS_IT[i] : d.slice(0, 3),
+    full: d,
+    stampi: Math.round(stagionale[i] * 10) / 10,
+    isPeak: i === dowPicco,
+  }))
+
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1040, margin: '0 auto', boxSizing: 'border-box', width: '100%' }}>
       <PageHeader subtitle="Quanto produrre, prodotto per prodotto. Previsione Holt sullo storico, pesata per stagionalità settimanale e confrontata con il venduto reale." />
 
       {/* ── BANDA DIAGNOSI ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14, marginBottom: 28 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
+        gap: isMobile ? 10 : 14,
+        marginBottom: 28,
+      }}>
         <KPI
           label="Produz. prossima sett."
           value={nf(prodNextWeek)}
@@ -342,17 +395,41 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
         />
       </div>
 
-      {/* Tab */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid rgba(0,0,0,0.07)', overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
-        {[["produrre", "Cosa produrre"], ["trend", "Trend e stagionalità"]].map(([id, lbl]) => (
-          <button key={id} onClick={() => setModeView(id)}
-            style={{ padding: '10px 16px', minHeight: isMobile ? 44 : 40, border: 'none', background: 'transparent', cursor: 'pointer',
-              fontSize: 13, fontWeight: 700, color: modeView === id ? C.red : C.textSoft,
-              borderBottom: modeView === id ? `2px solid ${C.red}` : '2px solid transparent',
-              marginBottom: -2, whiteSpace: 'nowrap', transition: 'all 0.12s' }}>
-            {lbl}
-          </button>
-        ))}
+      {/* Tab — scrollabili su mobile, touch target ≥ 44 */}
+      <div
+        role="tablist"
+        aria-label="Vista previsione domanda"
+        style={{
+          display: 'flex', gap: 4, marginBottom: 20,
+          borderBottom: '2px solid rgba(0,0,0,0.07)',
+          overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+        }}
+      >
+        {[["produrre", "Cosa produrre"], ["trend", "Trend e stagionalità"]].map(([id, lbl]) => {
+          const active = modeView === id
+          return (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={active}
+              aria-label={lbl}
+              onClick={() => setModeView(id)}
+              style={{
+                padding: '10px 16px',
+                minHeight: TAB_MIN_H,
+                border: 'none', background: 'transparent', cursor: 'pointer',
+                fontSize: 13, fontWeight: 700,
+                color: active ? C.red : C.textSoft,
+                borderBottom: active ? `2px solid ${C.red}` : '2px solid transparent',
+                marginBottom: -2, whiteSpace: 'nowrap', transition: 'color 0.12s, border-color 0.12s',
+                flexShrink: 0,
+              }}
+            >
+              {lbl}
+            </button>
+          )
+        })}
       </div>
 
       {/* ── COSA PRODURRE ───────────────────────────────────────────────────── */}
@@ -362,16 +439,48 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
             Quanti stampi produrre
           </SH>
 
-          <div style={{ position: 'relative', marginBottom: 16 }}>
+          <div style={{ position: 'relative', marginBottom: 16, width: '100%' }}>
             <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
               <Icon name="search" size={15} color={C.textSoft} />
             </span>
-            <input value={filtroRic} onChange={e => setFiltroRic(e.target.value)} placeholder="Filtra prodotto…"
-              style={{ width: '100%', padding: '10px 14px 10px 36px', borderRadius: 10, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box', background: C.bgCard }} />
+            <input
+              value={filtroRic}
+              onChange={e => setFiltroRic(e.target.value)}
+              placeholder="Filtra prodotto…"
+              aria-label="Filtra prodotto"
+              style={{
+                width: '100%',
+                padding: '12px 14px 12px 36px',
+                minHeight: isMobile ? 44 : 40,
+                borderRadius: 10,
+                border: `1px solid ${C.borderStr}`,
+                fontSize: isMobile ? 16 : 14,
+                color: C.text,
+                boxSizing: 'border-box',
+                background: C.bgCard,
+                outline: 'none',
+              }}
+            />
+            {filtroRic && (
+              <button
+                type="button"
+                aria-label="Pulisci filtro"
+                onClick={() => setFiltroRic("")}
+                style={{
+                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  width: 32, height: 32, borderRadius: 8,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  color: C.textSoft,
+                }}
+              >
+                <Icon name="x" size={14} />
+              </button>
+            )}
           </div>
 
           {filtrate.length === 0 ? (
-            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '40px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '40px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box' }}>
               <Icon name="clock" size={24} color={C.textSoft} />
               <div style={{ color: C.textSoft, fontSize: 13, marginTop: 10 }}>
                 {filtroRic ? 'Nessun prodotto corrisponde al filtro.' : 'Nessun prodotto con almeno 2 mesi di storico di produzione.'}
@@ -383,7 +492,8 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
                 serieMese={serieMeseByNome[ric.nome] || []}
                 sellThrough={sellThroughByNome[ric.nome] ?? null}
                 stagionale={stagionale} totStag={totStag}
-                getR={getR} prossimiGiorni={prossimiGiorni} isMobile={isMobile} />
+                getR={getR} prossimiGiorni={prossimiGiorni}
+                isMobile={isMobile} isTablet={isTablet} />
             ))
           )}
         </div>
@@ -395,56 +505,84 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
           <SH sub={`Smoothing esponenziale doppio (Holt) sulla serie storica. Previsione ${nextMeseLabel}: ≈ ${nf(totForecast.prev)} stampi (${Math.round(totForecast.confidence * 100)}% confidenza).`}>
             Trend produzione totale mensile
           </SH>
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: isMobile ? '16px 8px 16px 0' : '22px 24px', marginBottom: 28, boxShadow: SHADOW_PREMIUM }}>
-            <div style={{ height: 220 }}>
+          <div style={{
+            background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16,
+            padding: isMobile ? '16px 8px 16px 0' : '22px 24px',
+            marginBottom: 28, boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box', width: '100%',
+          }}>
+            <div style={{ width: '100%', height: CHART_H }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={[...serieTotale, { mese: 'prev', label: nextMeseLabel, stampi: Math.round(totForecast.prev), prev: true }]} margin={{ top: 8, right: 12, left: isMobile ? -12 : 0, bottom: 4 }}>
+                <AreaChart
+                  data={[...serieTotale, { mese: 'prev', label: nextMeseLabel, stampi: Math.round(totForecast.prev), prev: true }]}
+                  margin={{ top: 8, right: 12, left: isMobile ? -12 : 0, bottom: 4 }}
+                >
                   <defs>
                     <linearGradient id="prevGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={T.brand} stopOpacity={0.22} />
                       <stop offset="100%" stopColor={T.brand} stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F0EDE8" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: C.textSoft }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: C.textSoft }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT')} />
-                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10, border: `1px solid ${C.border}` }}
-                    formatter={(v, _n, p) => [`${Number(v).toLocaleString('it-IT')} stampi`, p.payload.prev ? 'Previsione' : 'Produzione']} />
-                  <Area type="monotone" dataKey="stampi" stroke={T.brand} strokeWidth={2.5} fill="url(#prevGrad)"
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT')} />
+                  <Tooltip content={<ChartTip />} cursor={{ stroke: GRID_STROKE, strokeWidth: 1 }} />
+                  <Area
+                    type="monotone"
+                    dataKey="stampi"
+                    name="Produzione"
+                    stroke={T.brand}
+                    strokeWidth={2.5}
+                    fill="url(#prevGrad)"
                     dot={(p) => p.payload.prev
                       ? <circle key={p.key} cx={p.cx} cy={p.cy} r={5} fill={C.amber} stroke={C.white} strokeWidth={2} />
-                      : <circle key={p.key} cx={p.cx} cy={p.cy} r={3.5} fill={T.brand} />} />
+                      : <circle key={p.key} cx={p.cx} cy={p.cy} r={3.5} fill={T.brand} />}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div style={{ marginTop: 8, fontSize: 11, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ marginTop: 10, fontSize: 11, color: C.textSoft, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Icon name="dot" size={9} color={C.amber} />
-              Punto arancione = previsione {nextMeseLabel} su {serieTotale.length} mesi di storico.
+              <span>Punto arancione = previsione {nextMeseLabel} su {nf(serieTotale.length)} mesi di storico.</span>
             </div>
           </div>
 
           <SH sub="Media stampi prodotti per giorno della settimana, su tutto lo storico. Pianifica le quantità giornaliere di conseguenza.">
             Stagionalità per giorno della settimana
           </SH>
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: isMobile ? '18px 16px' : '24px', boxShadow: SHADOW_PREMIUM }}>
-            {DAYS_FULL.map((d, i) => {
-              const v = stagionale[i]
-              const pct = maxStag > 0 ? v / maxStag * 100 : 0
-              const isPeak = i === dowPicco && v > 0
-              return (
-                <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: i === 6 ? 0 : 12 }}>
-                  <div style={{ width: isMobile ? 38 : 90, fontSize: 12, fontWeight: 700, color: isPeak ? C.red : C.textMid }}>{isMobile ? DAYS_IT[i] : d}</div>
-                  <div style={{ flex: 1, height: 20, background: C.bgSubtle, borderRadius: 8, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: isPeak ? C.red : `${T.brand}99`, borderRadius: 8, transition: 'width 0.4s' }} />
-                  </div>
-                  <div style={{ width: 80, fontSize: 12, fontWeight: 700, color: C.text, textAlign: 'right', ...tnum }}>{nf1(v)} <span style={{ fontWeight: 500, color: C.textSoft, fontSize: 10 }}>stampi</span></div>
-                </div>
-              )
-            })}
+          <div style={{
+            background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16,
+            padding: isMobile ? '16px 8px 16px 0' : '22px 24px',
+            boxShadow: SHADOW_PREMIUM, boxSizing: 'border-box', width: '100%',
+          }}>
+            <div style={{ width: '100%', height: CHART_H }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stagionaleData} margin={{ top: 8, right: 12, left: isMobile ? -12 : 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: AXIS_COLOR }} axisLine={false} tickLine={false} width={42} tickFormatter={v => v.toLocaleString('it-IT')} />
+                  <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
+                  <Bar
+                    dataKey="stampi"
+                    name="Media stampi"
+                    radius={[6, 6, 0, 0]}
+                    fill={`${T.brand}99`}
+                    isAnimationActive={false}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
             {totStag > 0 && dowPicco >= 0 && (
-              <div style={{ marginTop: 18, padding: '12px 14px', background: C.bgSubtle, borderRadius: 10, fontSize: 12, color: C.textMid, lineHeight: 1.6, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <div style={{
+                marginTop: 14, padding: '12px 14px', background: C.bgSubtle, borderRadius: 10,
+                fontSize: 12, color: C.textMid, lineHeight: 1.6,
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+              }}>
                 <Icon name="bulb" size={14} color={C.amber} style={{ marginTop: 2, flexShrink: 0 }} />
-                <span>Picco di produzione il <b>{DAYS_FULL[dowPicco]}</b>{dowMin >= 0 && dowMin !== dowPicco ? <>, giorno più scarico il <b>{DAYS_FULL[dowMin]}</b></> : null}. Concentra preparazione e personale sui giorni a indice più alto.</span>
+                <span>
+                  Picco di produzione il <b>{DAYS_FULL[dowPicco]}</b>
+                  {dowMin >= 0 && dowMin !== dowPicco ? <>, giorno più scarico il <b>{DAYS_FULL[dowMin]}</b></> : null}.
+                  Concentra preparazione e personale sui giorni a indice più alto.
+                </span>
               </div>
             )}
           </div>
@@ -452,9 +590,15 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
       )}
 
       {/* Disclaimer */}
-      <div style={{ marginTop: 28, padding: '12px 16px', background: C.amberLight, borderRadius: 12, fontSize: 11, color: C.amber, lineHeight: 1.7, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      <div style={{
+        marginTop: 28, padding: '12px 16px',
+        background: C.amberLight, borderRadius: 12,
+        fontSize: 11, color: C.amber, lineHeight: 1.7,
+        display: 'flex', alignItems: 'flex-start', gap: 8,
+        boxSizing: 'border-box',
+      }}>
         <Icon name="warning" size={13} color={C.amber} style={{ marginTop: 2, flexShrink: 0 }} />
-        <span>Le previsioni si basano sullo storico di produzione e vendita inserito in FoodOS: più dati = più accuratezza. Fattori esterni (meteo, festività, eventi locali) non sono considerati dall'algoritmo. Sono una guida, non una regola.</span>
+        <span>Le previsioni si basano sullo storico di produzione e vendita: più dati, più accuratezza. Fattori esterni (meteo, festività, eventi locali) non sono considerati dall'algoritmo. Sono una guida, non una regola.</span>
       </div>
     </div>
   )

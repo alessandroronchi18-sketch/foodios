@@ -16,7 +16,7 @@ const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'"
 
 const card = { background: T.bgCard, borderRadius: 16, padding: '18px 20px', border: `1px solid ${T.border}`, boxShadow: SHADOW_PREMIUM, marginBottom: 16 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }
-const inp  = { width: '100%', height: 40, padding: '0 12px', border: `1px solid ${T.borderStr}`, borderRadius: R.md, fontSize: 13, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
+const inp  = { width: '100%', minHeight: 44, padding: '0 12px', border: `1px solid ${T.borderStr}`, borderRadius: R.md, fontSize: 16, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', minWidth: 0 }
 const btn = (bg, fg) => ({ height: 36, padding: '0 14px', background: bg, color: fg, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em', whiteSpace: 'nowrap', transition: 'background 120ms ease, opacity 120ms ease', fontFamily: 'inherit' })
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36) }
@@ -424,13 +424,13 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               placeholder="Indicazioni, allergie, orari…" style={inp} />
           </div>
 
-          <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ ...lbl, marginBottom: 0 }}>Prodotti dell'evento</div>
-            <button onClick={aggiungiRiga} style={btn(T.text, '#FFF')}>+ Aggiungi riga</button>
+          <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Prodotti dell'evento</div>
+            <button onClick={aggiungiRiga} style={{ ...btn(T.text, '#FFF'), minHeight: 40, whiteSpace: 'nowrap' }}>+ Aggiungi riga</button>
           </div>
-          <div style={{ fontSize: 12, color: T.textMid, marginBottom: 10, lineHeight: 1.45 }}>
+          <div style={{ fontSize: 12.5, color: T.textMid, marginBottom: 12, lineHeight: 1.55 }}>
             Per ogni prodotto specifica <b>quanti pezzi produrre</b> e <b>a che prezzo li vendi</b> al cliente.
-            Il margine si calcola automaticamente in base al food cost della ricetta.
+            <br/>Il margine si calcola automaticamente in base al food cost della ricetta.
           </div>
 
           {/* Intestazioni colonna — solo desktop */}
