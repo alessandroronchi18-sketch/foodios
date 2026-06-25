@@ -10,7 +10,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
@@ -28,6 +28,7 @@ const AMBER = T.amber || '#D97706'
 export default function CompetitorPricingView({ orgId, sedeId, ricettario, notify }) {
   const notifyFn = notify || ((m) => console.debug('[competitor]', m))
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const ricetteArr = useMemo(
     () => (ricettario?.ricette ? Object.values(ricettario.ricette) : []),
     [ricettario]
@@ -179,7 +180,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
   }
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Pricing strategy"
         title="Tuoi prezzi"
@@ -223,7 +224,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
             <div style={{ fontSize: 13, fontWeight: 700, color: TXT, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               Aggiungi un competitor che vende {ricSel}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 120px 120px', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 110px 110px' : '2fr 120px 120px', gap: 8 }}>
               <input value={newComp.nome} onChange={e => setNewComp(s => ({ ...s, nome: e.target.value }))} placeholder="Nome competitor (es. Pasticceria Rossi)"
                 style={{ padding: isMobile ? '12px 12px' : '10px 12px', minHeight: isMobile ? 46 : 'auto', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 16, fontFamily: 'inherit', boxSizing: 'border-box' }}/>
               <input type="number" step="0.01" value={newComp.prezzo} onChange={e => setNewComp(s => ({ ...s, prezzo: e.target.value }))} placeholder="Prezzo €"

@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
 import { C, TNUM, PageHeader } from './_shared'
@@ -20,6 +20,7 @@ const fmt2 = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractio
 
 export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const [voci, setVoci] = useState([])
   const [loading, setLoading] = useState(true)
@@ -89,7 +90,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
       <PageHeader subtitle="Costi extra-food: consumabili, manutenzione, ammortamenti, utenze. Confluiscono nel P&L mensile normalizzati alla periodicità scelta." />
 
       {/* KPI riepilogativi */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: 12, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(3, 1fr)' : 'repeat(3, 1fr)', gap: 12, marginBottom: 18 }}>
         <KpiBox label="Costo mensile totale" value={fmt0(totMese)} color={T.brand} />
         <KpiBox label="Costo annuo stimato" value={fmt0(totAnno)} color={C.textMid} />
         <KpiBox label="N° voci attive" value={voci.length} color={C.textSoft} />

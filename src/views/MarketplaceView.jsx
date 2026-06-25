@@ -10,7 +10,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 
@@ -34,6 +34,7 @@ const CATEGORIE = [
 
 export default function MarketplaceView() {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [cat, setCat] = useState('tutti')
@@ -69,7 +70,7 @@ export default function MarketplaceView() {
   }, [listings, cat, search])
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Marketplace fornitori"
         title="Trova nuovi"
@@ -110,7 +111,7 @@ export default function MarketplaceView() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(auto-fill, minmax(260px, 1fr))' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
           {filtered.map(l => (
             <div key={l.id} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase' }}>

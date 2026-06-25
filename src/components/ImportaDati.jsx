@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
 import Icon from './Icon'
@@ -162,6 +162,7 @@ export default function ImportaDatiView({
   notify,
 }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [expanded, setExpanded] = useState(null) // id tipo aperto in dettaglio
   const [importingId, setImportingId] = useState(null) // id tipo in caricamento → spinner
   const [esiti, setEsiti] = useState({}) // id tipo → { ok:boolean, msg:string } | null
@@ -175,7 +176,7 @@ export default function ImportaDatiView({
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <style>{`@keyframes impspin{to{transform:rotate(360deg)}}`}</style>
 
       {/* Header */}
@@ -222,7 +223,7 @@ export default function ImportaDatiView({
         letterSpacing: '0.08em', marginBottom: 12,
       }}>Cosa vuoi importare</div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
         {TIPI_IMPORT.map(tipo => {
           const isOpen = expanded === tipo.id
           const handler = handlers[tipo.propHandler]

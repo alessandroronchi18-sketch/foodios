@@ -12,7 +12,7 @@ import { useConfirm } from './ConfirmModal'
 import { supabase } from '../lib/supabase'
 import { apiFetch } from '../lib/apiFetch'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 const PREFISSI = [
   { code: '+39',  label: 'Italia' },
@@ -35,6 +35,7 @@ function splitPhone(full) {
 
 export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const init = splitPhone(org?.telefono_whatsapp)
   const [prefisso, setPrefisso] = useState(init.prefisso)
@@ -89,8 +90,9 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
     finally { setTesting(false) }
   }
 
-  const card = { background:T.bgCard, borderRadius:R.xl, padding:'24px 28px', border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 }
-  const inp = { width:'100%', height:40, padding:'0 12px', border:`1px solid ${T.borderStr}`, borderRadius:R.md, fontSize:13, color:T.text, background:T.bgCard, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
+  const card = { background:T.bgCard, borderRadius:R.xl, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px', border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 }
+  const inp = { width:'100%', height: isMobile || isTablet ? 44 : 40, padding:'0 12px', border:`1px solid ${T.borderStr}`, borderRadius:R.md, fontSize: isMobile || isTablet ? 16 : 13, color:T.text, background:T.bgCard, outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
+  const btnH = isMobile || isTablet ? 44 : 40
 
   const isAttivo = !!org?.telefono_whatsapp
 
@@ -118,7 +120,7 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
       </div>
       <div style={{ display:'flex', gap:8, marginBottom:12, position:'relative' }}>
         <button type="button" onClick={() => setOpen(o=>!o)}
-          style={{ height:40, padding:'0 12px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, fontSize:14, fontWeight:600, color:T.text, cursor:'pointer', display:'flex', alignItems:'center', gap:8, minWidth:96 }}>
+          style={{ height: btnH, padding:'0 12px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, fontSize:14, fontWeight:600, color:T.text, cursor:'pointer', display:'flex', alignItems:'center', gap:8, minWidth:96 }}>
           <span>{prefisso}</span>
         </button>
         <input style={{ ...inp, flex:1 }} type="tel" inputMode="numeric" maxLength={15}
@@ -147,16 +149,16 @@ export default function WhatsAppReportPanel({ org, orgId, notify, onRefresh }) {
 
       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
         <button onClick={salva} disabled={saving}
-          style={{ height:40, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:'#FFF', fontSize:13, fontWeight:800, cursor: saving?'not-allowed':'pointer' }}>
+          style={{ height: btnH, padding:'0 18px', borderRadius:R.md, border:'none', background:T.brand, color:'#FFF', fontSize:13, fontWeight:800, cursor: saving?'not-allowed':'pointer' }}>
           {saving ? '…' : 'Salva numero'}
         </button>
         <button onClick={inviaTest} disabled={testing || !isAttivo}
-          style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:13, fontWeight:700, cursor: (testing||!isAttivo)?'not-allowed':'pointer', opacity: !isAttivo ? 0.5 : 1 }}>
+          style={{ height: btnH, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:13, fontWeight:700, cursor: (testing||!isAttivo)?'not-allowed':'pointer', opacity: !isAttivo ? 0.5 : 1 }}>
           {testing ? 'Invio…' : <><Icon name="upload" size={14} style={{ marginRight:6 }} />Invia messaggio di test</>}
         </button>
         {isAttivo && (
           <button onClick={disattiva} disabled={saving}
-            style={{ height:40, padding:'0 14px', borderRadius:R.md, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textMid, fontSize:12, cursor:'pointer' }}>
+            style={{ height: btnH, padding:'0 14px', borderRadius:R.md, border:`1px solid ${T.borderSoft}`, background:'transparent', color:T.textMid, fontSize:12, cursor:'pointer' }}>
             Disattiva report
           </button>
         )}

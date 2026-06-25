@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 import { useConfirm } from '../components/ConfirmModal'
@@ -26,6 +26,7 @@ const WA_NUMBER = '+39 351 234 5678'
 
 export default function WhatsAppView({ orgId, user }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const [links, setLinks] = useState([])
   const [phone, setPhone] = useState('')
@@ -82,7 +83,7 @@ export default function WhatsAppView({ orgId, user }) {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · WhatsApp Bot"
         title="FoodOS"

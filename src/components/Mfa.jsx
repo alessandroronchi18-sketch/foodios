@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
 // Audit 2026-06-24 UI mobile: fontSize input >=16 evita zoom iOS al focus.
@@ -11,7 +11,8 @@ const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: '
 // via Supabase Auth MFA. Mostra QR code per Google Authenticator / Authy / 1Password.
 export default function MfaSection({ notify }) {
   const isMobile = useIsMobile()
-  const card = { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+  const isTablet = useIsTablet()
+  const card = { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
   const inp  = { width: '100%', padding: '12px 14px', minHeight: 48, border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 16, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }
   const [loading, setLoading] = useState(true)
   const [factors, setFactors] = useState([])
@@ -273,6 +274,7 @@ export default function MfaSection({ notify }) {
 // password verificata ma deve ancora completare il 2FA.
 export function MfaChallenge({ onComplete, onCancel }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
@@ -311,7 +313,7 @@ export function MfaChallenge({ onComplete, onCancel }) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <div style={{ maxWidth: 420, width: '100%', background: '#FFF', borderRadius: 16, padding: isMobile ? '28px 22px' : '36px 32px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }}>
+      <div style={{ maxWidth: 420, width: '100%', background: '#FFF', borderRadius: 16, padding: isMobile ? '28px 22px' : isTablet ? '30px 26px' : '36px 32px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }}>
         <div style={{ marginBottom: 16, textAlign: 'center' }}><Icon name="lock" size={48} color="#6E0E1A" /></div>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', margin: '0 0 8px', textAlign: 'center' }}>
           Verifica in due passaggi

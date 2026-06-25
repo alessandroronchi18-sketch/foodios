@@ -15,7 +15,7 @@
 import React, { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
@@ -31,6 +31,7 @@ const GREEN = T.green || '#16A34A'
 
 export default function ReformulationView({ ricettario, orgId }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const ricetteArr = useMemo(
     () => (ricettario?.ricette ? Object.values(ricettario.ricette) : []),
     [ricettario]
@@ -142,7 +143,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
   }
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Reformulation engine"
         title="Ottimizza ricetta"
@@ -155,8 +156,8 @@ Restituisci 3 varianti come da schema, italiano umano.`
         ]}
       />
 
-      <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : 22, marginBottom: 18 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 140px', gap: 12, alignItems: 'end' }}>
+      <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : isTablet ? 18 : 22, marginBottom: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr 1fr 140px' : '2fr 1fr 140px', gap: 12, alignItems: 'end' }}>
           <div>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>
               Ricetta
@@ -199,7 +200,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
       )}
 
       {varianti && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'repeat(3, 1fr)', gap: 14 }}>
           {varianti.map((v, i) => (
             <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>

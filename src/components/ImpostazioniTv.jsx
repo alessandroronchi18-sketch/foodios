@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { sload, ssave } from '../lib/storage'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 const TV_KEY = 'pasticceria-tv-token-v1'
 
@@ -28,6 +28,7 @@ async function sha256Hex(s) {
 
 export default function ImpostazioniTv({ orgId, sedi, notify }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -93,7 +94,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
   // Audit mobile 2026-06-24: input + bottoni in colonna su mobile per evitare
   // overflow del link lungo; touch target 44px; font input >=16px per non
   // triggerare lo zoom auto di Safari iOS.
-  const cardResp = { ...card, padding: isMobile ? '18px 16px' : '24px 28px' }
+  const cardResp = { ...card, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px' }
   const inputBase = {
     width: '100%', boxSizing: 'border-box',
     padding: '12px 14px', border: '1px solid #E2E8F0', borderRadius: 8,

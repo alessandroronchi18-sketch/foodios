@@ -9,7 +9,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 
@@ -33,6 +33,7 @@ function emojiMeteo(weatherCode) {
 
 export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [forecasts, setForecasts] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -71,7 +72,7 @@ export default function ForecastView({ orgId, sedeId, sedeAttiva, setView }) {
   }, [forecasts])
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Forecast vendite"
         title="Previsione vendite"

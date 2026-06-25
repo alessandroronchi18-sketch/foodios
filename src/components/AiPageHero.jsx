@@ -17,7 +17,7 @@
 
 import React from 'react'
 import ChainBadge from './ChainBadge'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 export default function AiPageHero({
   eyebrow,
@@ -31,12 +31,13 @@ export default function AiPageHero({
   children,               // CTA opzionali sotto stats
 }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const padding = compact
-    ? (isMobile ? '22px 20px' : '32px 36px')
-    : (isMobile ? '28px 22px' : '46px 42px')
+    ? (isMobile ? '22px 20px' : isTablet ? '26px 26px' : '32px 36px')
+    : (isMobile ? '28px 22px' : isTablet ? '34px 28px' : '46px 42px')
   const titleSize = compact
-    ? (isMobile ? 24 : 36)
-    : (isMobile ? 30 : 46)
+    ? (isMobile ? 24 : isTablet ? 30 : 36)
+    : (isMobile ? 30 : isTablet ? 38 : 46)
 
   return (
     <div style={{
@@ -154,7 +155,7 @@ export default function AiPageHero({
         {/* Stats */}
         {stats.length > 0 && (
           <div style={{
-            display: 'flex', gap: isMobile ? 14 : 28,
+            display: 'flex', gap: isMobile ? 14 : isTablet ? 20 : 28,
             marginTop: 22, flexWrap: 'wrap',
           }}>
             {stats.map((s, i) => (

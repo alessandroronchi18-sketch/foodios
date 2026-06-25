@@ -12,7 +12,7 @@
 import React, { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
@@ -46,6 +46,7 @@ const MOOD = [
 
 export default function RecipeInventorView({ orgId, user, nomeAttivita }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [tipo, setTipo] = useState('torta')
   const [mood, setMood] = useState('tradizionale')
   const [ingredienti, setIngredienti] = useState('')
@@ -137,7 +138,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
   }
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Recipe Inventor"
         title="Il tuo pastry chef"
@@ -151,7 +152,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
         ]}
       />
 
-      <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : 22, marginBottom: 18 }}>
+      <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : isTablet ? 18 : 22, marginBottom: 18 }}>
         <div style={{ marginBottom: 14 }}>
           <Label>Tipo di prodotto</Label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -214,7 +215,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
       )}
 
       {ricette && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'repeat(3, 1fr)', gap: 14 }}>
           {ricette.map((r, i) => (
             <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>

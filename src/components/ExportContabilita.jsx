@@ -3,11 +3,9 @@ import { supabase } from '../lib/supabase'
 import { sloadAllSedi } from '../lib/storage'
 import { loadXLSX } from '../lib/xlsx' // loader unico multi-CDN, no SRI
 import Icon from './Icon'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
-const card = { background: '#FFF', borderRadius: 12, padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
-const inp  = { width: '100%', padding: '10px 14px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
 
 const SK_CHIUS = 'pasticceria-chiusure-v1'
 const IVA_DEFAULT_PCT = 10 // alimenti d'asporto: 10% — modificabile in UI
@@ -226,6 +224,9 @@ async function exportCommercialistaXLSX(corrispettivi, fatturePassive, ivaPct, s
 
 export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, notify }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
+  const card = { background: '#FFF', borderRadius: 12, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', marginBottom: 20 }
+  const inp  = { width: '100%', padding: isMobile || isTablet ? '12px 14px' : '10px 14px', minHeight: isMobile || isTablet ? 44 : 40, border: '1px solid #E2E8F0', borderRadius: 8, fontSize: isMobile || isTablet ? 16 : 13, color: '#0F172A', background: '#FAFAFA', outline: 'none', boxSizing: 'border-box' }
   const today = new Date()
   const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   const [yearMonth, setYearMonth] = useState(defaultMonth)
@@ -264,7 +265,8 @@ export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, noti
   }
 
   const btn = (active, color) => ({
-    padding: '12px 18px',
+    padding: isMobile || isTablet ? '14px 18px' : '12px 18px',
+    minHeight: isMobile || isTablet ? 44 : 40,
     background: active ? '#94A3B8' : color,
     color: '#FFF',
     border: 'none',

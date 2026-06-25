@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { apiFetch } from '../lib/apiFetch'
 import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 // Audit 2026-06-21: 3-tier Bottega/Maestro/Insegna con ROI claim.
 // Fallback statico — viene sovrascritto dalla query plan_pricing al mount
@@ -81,6 +81,7 @@ const PIANI_DEFAULT = [
 
 export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [loading, setLoading] = useState(null) // 'pro' | 'chain' | 'portal' | null
   const [billingMsg, setBillingMsg] = useState(null)
   // Audit 2026-06-24: source of truth unificata via usePlanPricing.
@@ -157,7 +158,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
   })[stato] || null
 
   const Wrapper = isInline ? React.Fragment : 'div'
-  const wrapperProps = isInline ? {} : { style: { background:T.bgCard, borderRadius:R.xl, padding: isMobile ? '18px 16px' : '24px 28px', border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 } }
+  const wrapperProps = isInline ? {} : { style: { background:T.bgCard, borderRadius:R.xl, padding: isMobile ? '18px 16px' : isTablet ? '20px 22px' : '24px 28px', border:`1px solid ${T.border}`, boxShadow:S.sm, marginBottom:20 } }
 
   return (
     <Wrapper {...wrapperProps}>
@@ -176,7 +177,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
         flexDirection: isMobile ? 'column' : 'row',
         alignItems: isMobile ? 'stretch' : 'center',
         justifyContent:'space-between',
-        gap: isMobile ? 12 : 12, padding: isMobile ? '14px 14px' : '16px 18px', background:T.bgSubtle,
+        gap: 12, padding: isMobile ? '14px 14px' : isTablet ? '14px 16px' : '16px 18px', background:T.bgSubtle,
         borderRadius:R.lg, marginBottom:20,
       }}>
         <div>
@@ -211,7 +212,9 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
 
       {/* Piani */}
       <div style={{
-        display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:16,
+        display:'grid',
+        gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+        gap: isTablet ? 14 : 16,
       }}>
         {PIANI.map(p => {
           const isCurrent = isPagante && (
@@ -222,7 +225,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
             <div key={p.id} style={{
               background:T.bgCard,
               border: p.highlight ? `2px solid ${T.brand}` : `1px solid ${T.border}`,
-              borderRadius:R.xl, padding: isMobile ? '18px 16px' : '20px 22px',
+              borderRadius:R.xl, padding: isMobile ? '18px 16px' : isTablet ? '18px 18px' : '20px 22px',
               position:'relative',
             }}>
               {p.highlight && (

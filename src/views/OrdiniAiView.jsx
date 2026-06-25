@@ -13,7 +13,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { sload } from '../lib/storage'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 
@@ -29,6 +29,7 @@ const AMBER = T.amber || '#D97706'
 export default function OrdiniAiView({ orgId, sedeId, notify }) {
   const notifyFn = notify || ((m) => console.debug('[ordini-ai]', m))
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [magazzino, setMagazzino] = useState({})
   const [chiusure, setChiusure] = useState([])
   const [ricettario, setRicettario] = useState([])
@@ -164,7 +165,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
   }
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Procurement"
         title="Ordini AI"

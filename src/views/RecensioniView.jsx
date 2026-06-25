@@ -9,7 +9,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
@@ -29,6 +29,7 @@ const TONI = [
 
 export default function RecensioniView({ nomeAttivita }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [recensione, setRecensione] = useState('')
   const [autore, setAutore] = useState('')
   const [stelle, setStelle] = useState(5)
@@ -117,7 +118,7 @@ Genera le 3 risposte come da istruzioni.`
   }
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 980, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Reputazione & Marketing"
         title="Rispondi"
@@ -131,7 +132,7 @@ Genera le 3 risposte come da istruzioni.`
       />
 
       {/* INPUT */}
-      <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : 22, marginBottom: 18 }}>
+      <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: isMobile ? 16 : isTablet ? 18 : 22, marginBottom: 18 }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>
@@ -182,7 +183,7 @@ Genera le 3 risposte come da istruzioni.`
 
       {/* RISPOSTE */}
       {risposte && (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'repeat(3, 1fr)', gap: 12 }}>
           {TONI.map(t => {
             const txt = risposte[t.id] || ''
             return (

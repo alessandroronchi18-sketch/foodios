@@ -3,7 +3,7 @@ import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 const R = '#6E0E1A'
 const TXT = '#1C0A0A'
@@ -145,9 +145,10 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
 
 export default function ImpostazioniSedi({ orgId, onSediChange }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
-  // Su mobile font input >=16px per evitare lo zoom automatico iOS.
-  const inpR = { ...inp, fontSize: isMobile ? 16 : 13 }
+  // Su mobile/tablet font input >=16px per evitare lo zoom automatico iOS.
+  const inpR = { ...inp, fontSize: isMobile || isTablet ? 16 : 13, minHeight: isMobile || isTablet ? 44 : 'auto' }
   const [sedi, setSedi] = useState([])
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -348,7 +349,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
   }
 
   return (
-    <div style={{ maxWidth: 560, padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 560, padding: isMobile ? 12 : isTablet ? 14 : 0 }}>
       {toast && (
         <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 10, background: toast.ok ? '#22C55E' : R, color: '#FFF', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
           {toast.msg}

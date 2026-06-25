@@ -10,7 +10,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload } from '../lib/storage'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
@@ -25,6 +25,7 @@ const BORDER = T.border || '#E5E9EF'
 
 export default function BrainView({ orgId, sedeId, user, nomeAttivita }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [conversazioni, setConversazioni] = useState([])
   const [activeId, setActiveId] = useState(null)
   const [messages, setMessages] = useState([])
@@ -167,7 +168,7 @@ REGOLE:
   }
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Chat conversazionale"
         title="FoodOS Brain"
@@ -180,7 +181,7 @@ REGOLE:
           { n: 'Memoria', l: 'Conversazioni persistenti' },
         ]}
       />
-    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '260px 1fr', gap: 16, height: isMobile ? 'auto' : 'calc(100vh - 280px)', minHeight: isMobile ? '60vh' : undefined }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? '210px 1fr' : '260px 1fr', gap: isTablet ? 12 : 16, height: isMobile ? 'auto' : 'calc(100vh - 280px)', minHeight: isMobile ? '60vh' : undefined }}>
       {/* Sidebar conversazioni */}
       {!isMobile && (
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -255,9 +256,9 @@ REGOLE:
           <input value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); manda() } }}
             placeholder="Scrivi qui la tua domanda…"
-            style={{ flex: 1, padding: isMobile ? '13px 14px' : '11px 14px', minHeight: isMobile ? 46 : 'auto', borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: isMobile ? 16 : 14, color: TXT, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}/>
+            style={{ flex: 1, padding: isMobile || isTablet ? '13px 14px' : '11px 14px', minHeight: isMobile || isTablet ? 46 : 'auto', borderRadius: 10, border: `1px solid ${BORDER}`, fontSize: isMobile || isTablet ? 16 : 14, color: TXT, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}/>
           <button aria-label="Invia messaggio" onClick={manda} disabled={!input.trim() || loading}
-            style={{ background: input.trim() && !loading ? BRAND : '#CBD5E1', color: '#FFF', border: 'none', padding: isMobile ? '13px 16px' : '11px 18px', minHeight: isMobile ? 46 : 'auto', borderRadius: 10, fontSize: isMobile ? 14 : 13, fontWeight: 700, cursor: input.trim() && !loading ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            style={{ background: input.trim() && !loading ? BRAND : '#CBD5E1', color: '#FFF', border: 'none', padding: isMobile || isTablet ? '13px 16px' : '11px 18px', minHeight: isMobile || isTablet ? 46 : 'auto', borderRadius: 10, fontSize: isMobile || isTablet ? 14 : 13, fontWeight: 700, cursor: input.trim() && !loading ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <Icon name="sparkles" size={14}/> {!isMobile && 'Invia'}
           </button>
         </div>

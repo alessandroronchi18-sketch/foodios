@@ -9,7 +9,7 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
 
@@ -22,6 +22,7 @@ const BORDER = T.border || '#E5E9EF'
 
 export default function DocumentaryView({ orgId, nomeAttivita }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [snapshots, setSnapshots] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
@@ -46,7 +47,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
   }, [orgId])
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Documentary"
         title="La tua storia,"

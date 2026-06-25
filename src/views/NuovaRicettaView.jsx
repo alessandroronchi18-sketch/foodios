@@ -9,7 +9,7 @@
 // e stesso formato dati salvato nel ricettario (nome, sheetName:"manuale", numStampi,
 // totImpasto1, foodCost1, ingredienti, note, unita, prezzo, tipo, congelabile, allergeni).
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, mergeAllergeni } from '../lib/allergeni'
@@ -46,6 +46,7 @@ const inputBase = { width: '100%', padding: '10px 12px', borderRadius: 8, border
 
 export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed, LEX = lessico() }) {
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario]);
   const tuttiIng = useMemo(() => {
     const s = new Set();
@@ -368,7 +369,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         />
       )}
 
-      <div ref={formRef} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: 24 }}>
+      <div ref={formRef} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr" : "1fr 340px", gap: isTablet ? 18 : 24 }}>
         {/* ── Form (sinistra) ──────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 

@@ -15,7 +15,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { sload } from '../lib/storage'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
@@ -49,6 +49,7 @@ function classifica(popolarita, margine, mediaPop, mediaMarg) {
 
 export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAttiva }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [chiusure, setChiusure] = useState([])
   const [periodo, setPeriodo] = useState(30)  // ultimi 30 giorni
   const [loading, setLoading] = useState(true)
@@ -155,7 +156,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
   }, [classified, isMobile, mediaPop, mediaMarg])
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Menu engineering"
         title="Stars, Dogs,"
@@ -325,7 +326,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                     <div style={{ fontSize: 11, color: SOFT, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, fontWeight: 700 }}>
                       Top {Math.min(list.length, 15)} {meta.lbl.toLowerCase()}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(auto-fill, minmax(220px, 1fr))' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
                       {list.slice(0, 15).map(x => (
                         <div key={x.nome} style={{
                           padding: '10px 12px', borderLeft: `3px solid ${meta.fg}`, background: '#FAFAFA',

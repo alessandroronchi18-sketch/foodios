@@ -8,7 +8,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { color as T } from '../lib/theme'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import ChainBadge from '../components/ChainBadge'
 import UpgradeModal from '../components/UpgradeModal'
@@ -135,6 +135,7 @@ const STATUS_STYLE = {
 
 export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmail }) {
   const isMobile = useIsMobile()
+  const isTablet = useIsTablet()
   const [upgrade, setUpgrade] = useState(null)
 
   // Handler centralizzato: se feature lockata apre modal, altrimenti naviga.
@@ -154,7 +155,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
   const totFeatures = CLUSTERS.reduce((s, c) => s + c.features.length, 0) + CHAIN_CLUSTER.features.length
 
   return (
-    <div style={{ maxWidth: 1240, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
+    <div style={{ maxWidth: 1240, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <style>{`
         @keyframes _ai_grad {
           0%, 100% { background-position: 0% 50%; }
@@ -203,7 +204,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
 
       {/* ───── HERO ───── */}
       <div style={{
-        position: 'relative', borderRadius: 24, padding: isMobile ? '32px 22px' : '52px 48px',
+        position: 'relative', borderRadius: 24, padding: isMobile ? '32px 22px' : isTablet ? '38px 28px' : '52px 48px',
         marginBottom: isMobile ? 24 : 32, overflow: 'hidden',
         background: 'linear-gradient(135deg, #0B0408 0%, #1C0A0A 24%, #2E0814 50%, #4A0612 78%, #6E0E1A 100%)',
         backgroundSize: '300% 300%',
@@ -236,7 +237,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
             <ChainBadge size={12}/> Intelligence layer · {totFeatures} funzioni live
           </div>
 
-          <h1 style={{ margin: '20px 0 12px', fontSize: isMobile ? 30 : 52, fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.05 }}>
+          <h1 style={{ margin: '20px 0 12px', fontSize: isMobile ? 30 : isTablet ? 38 : 52, fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.05 }}>
             FoodOS<br/>
             <span style={{
               background: 'linear-gradient(120deg, #FFD86B 0%, #FBD7C9 45%, #E89B43 75%, #FFD86B 100%)',
@@ -277,7 +278,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
 
       {/* ───── CLUSTER NON-CHAIN ───── */}
       {CLUSTERS.map((cluster, idx) => (
-        <ClusterSection key={cluster.id} cluster={cluster} idx={idx} onFeatureClick={onFeatureClick} isMobile={isMobile} piano={piano} userEmail={userEmail}/>
+        <ClusterSection key={cluster.id} cluster={cluster} idx={idx} onFeatureClick={onFeatureClick} isMobile={isMobile} isTablet={isTablet} piano={piano} userEmail={userEmail}/>
       ))}
 
       {/* ───── CHAIN CLUSTER (dedicato, in fondo) ───── */}
@@ -299,7 +300,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
           <div style={{ position: 'absolute', top: -60, right: -40, width: 240, height: 240, borderRadius: '50%',
             background: 'radial-gradient(circle, rgba(255,216,107,0.18) 0%, transparent 70%)', pointerEvents: 'none' }}/>
           <div style={{ position: 'relative', display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(auto-fit, minmax(240px, 1fr))' : 'repeat(auto-fit, minmax(280px, 1fr))',
             gap: 14 }}>
             {CHAIN_CLUSTER.features.map((f, i) => {
               const locked = !canAccessView(f.view, piano, userEmail)
@@ -369,13 +370,13 @@ function ClusterIntro({ idx, cluster, isChain }) {
   )
 }
 
-function ClusterSection({ cluster, idx, onFeatureClick, isMobile, piano, userEmail }) {
+function ClusterSection({ cluster, idx, onFeatureClick, isMobile, isTablet, piano, userEmail }) {
   return (
     <section style={{ marginBottom: isMobile ? 28 : 40 }}>
       <ClusterIntro idx={idx} cluster={cluster}/>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(290px, 1fr))',
+        gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(auto-fit, minmax(240px, 1fr))' : 'repeat(auto-fit, minmax(290px, 1fr))',
         gap: 14,
         marginTop: 16,
       }}>

@@ -1,7 +1,7 @@
 // AzioniView — AI Assistant chat + tracking azioni. Estratta da Dashboard.jsx.
 import React, { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import useIsMobile from '../lib/useIsMobile'
+import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { callAi } from '../lib/aiClient'
@@ -27,6 +27,7 @@ const BENCH_FC = {
 
 export default function AzioniView({ actions, onUpdate, onDelete, ricettario, giornaliero, chiusure, magazzino, nomeAttivita, tipoAttivita }) {
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
   const [messages, setMessages] = useState([]);
   const [input, setInput]       = useState("");
   const [loading, setLoading]   = useState(false);
@@ -209,7 +210,7 @@ ${azioniStr}
           {messages.length===0&&(
             <div>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:C.textSoft,marginBottom:10}}>Domande rapide</div>
-              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:8}}>
+              <div style={{display:"grid",gridTemplateColumns: isMobile ? "1fr" : isTablet ? "repeat(2,1fr)" : "repeat(3,1fr)",gap:8}}>
                 {QUICK_PROMPTS.map(({icon,label,q})=>(
                   <button key={label} onClick={()=>sendMessage(q)} className="fos-tile"
                     style={{padding:"14px 16px",borderRadius:16,border:`1px solid ${C.border}`,background:C.bgCard,

@@ -717,7 +717,8 @@ function useIsNarrowScreen(maxWidth = 720) {
 }
 
 function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione, onSalvaNote }) {
-  const isNarrow = useIsNarrowScreen(720)
+  // 900px copre anche iPad portrait (768) e landscape (1024).
+  const isNarrow = useIsNarrowScreen(900)
   const stato = statoCliente(cliente)
   const giorni = giorniRimanenti(cliente)
 
