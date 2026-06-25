@@ -280,8 +280,13 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         <div style={{ padding: isMobile ? '16px 14px 20px' : '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 0.9fr', gap: isMobile ? 18 : 28, boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="receipt" size={14} /> Distinta costi</div>
-            <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden', overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: isMobile ? 460 : 'auto' }}>
+            {/* Container tabella: overflowX auto + scroll hint a destra (sfumatura)
+                per segnalare visivamente che ci sono altre colonne da scrollare.
+                minWidth 560 cosi le 5 colonne (Ingr/g/€-g/Costo/%FC) non si
+                comprimono troppo su mobile 375px. */}
+            <div style={{ position: 'relative', border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: isMobile ? 560 : 'auto' }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {[
@@ -328,6 +333,13 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                   </tr>
                 </tfoot>
               </table>
+              </div>
+              {/* Scroll hint: sfumatura bianco→trasparente sul lato destro per
+                  indicare visivamente che si puo' scrollare la tabella. Solo mobile. */}
+              {isMobile && (
+                <div aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 28, pointerEvents: 'none',
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 100%)' }}/>
+              )}
             </div>
           </div>
 
