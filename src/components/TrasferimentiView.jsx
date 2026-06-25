@@ -37,7 +37,7 @@ function fmtQty(q, u) {
   return `${Number(q || 0).toLocaleString('it-IT', { maximumFractionDigits: 3 })} ${u || ''}`
 }
 function fmtEuro(v) {
-  return `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
 export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null, notify }) {
@@ -499,7 +499,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <div style={kpiCell}>
                     <div style={labelStyle}>Valore sprecato</div>
                     <div style={valStyle(accuratezzaMese.scartoValore > 0 ? C.red : C.text)}>
-                      {accuratezzaMese.scartoValore > 0 ? `€ ${Math.round(accuratezzaMese.scartoValore).toLocaleString('it-IT')}` : '€ 0'}
+                      {accuratezzaMese.scartoValore > 0 ? `${Math.round(accuratezzaMese.scartoValore).toLocaleString('it-IT')} €` : '€ 0'}
                     </div>
                     <div style={subStyle}>perso in scarti</div>
                   </div>

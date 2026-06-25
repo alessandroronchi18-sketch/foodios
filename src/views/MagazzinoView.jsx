@@ -447,7 +447,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                       ) : (
                         <span onClick={() => startEdit(row)} title="Clicca per modificare"
                           style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 5, display: 'inline-block' }}>
-                          {row.prezzoKg > 0 ? `€ ${row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+                          {row.prezzoKg > 0 ? `${row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—'}
                         </span>
                       )}
                     </td>

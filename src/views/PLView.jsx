@@ -230,7 +230,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                     </div>
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, color: C.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-                    {ing.costoG > 0 ? `€ ${ing.costoG.toFixed(4)}` : '—'}
+                    {ing.costoG > 0 ? `${ing.costoG.toFixed(4)} €` : '—'}
                   </td>
                 </tr>
               )
@@ -515,7 +515,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
     }).catch(() => { /* tabella non ancora migrata: ignora */ })
   }, [orgId, sedeId])
 
-  const euro = v => `€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+  const euro = v => `${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`
   const pct = v => `${Number(v).toFixed(1)}%`
   const cardP = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
@@ -793,10 +793,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
                 subtitle: `Periodo: ${meseLabel(mese)}`,
                 periodo: plMese.prev?.ricavi > 0 ? `vs ${meseLabel(mese)} (variazione ${pct(((plMese.cur.ricavi - plMese.prev.ricavi) / plMese.prev.ricavi) * 100)})` : undefined,
                 kpi: [
-                  { label: 'Ricavi', value: `€ ${fmt0(plMese.cur.ricavi)}`, sub: `${plMese.cur.giorni} giorni` },
-                  { label: 'Food cost', value: pct(plMese.fcPct), sub: `€ ${fmt0(plMese.cur.foodcost)}` },
-                  { label: 'Costo lavoro', value: pct(plMese.lavPct), sub: `€ ${fmt0(plMese.personale)}` },
-                  { label: 'Utile', value: `€ ${fmt0(plMese.utile)}`, sub: `margine op. ${pct(plMese.margOpPct)}` },
+                  { label: 'Ricavi', value: `${fmt0(plMese.cur.ricavi)} €`, sub: `${plMese.cur.giorni} giorni` },
+                  { label: 'Food cost', value: pct(plMese.fcPct), sub: `${fmt0(plMese.cur.foodcost)} €` },
+                  { label: 'Costo lavoro', value: pct(plMese.lavPct), sub: `${fmt0(plMese.personale)} €` },
+                  { label: 'Utile', value: `${fmt0(plMese.utile)} €`, sub: `margine op. ${pct(plMese.margOpPct)}` },
                 ],
                 sections: [
                   {
@@ -1042,7 +1042,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
               <CartesianGrid strokeDasharray="3 3" stroke="#F0E8E4" horizontal={false}/>
               <XAxis type="number" tickFormatter={v => `€${Math.round(v).toLocaleString('it-IT')}`} tick={{ fill: C.textSoft, fontSize: 9 }} axisLine={false} tickLine={false}/>
               <YAxis type="category" dataKey="short" width={80} tick={{ fill: C.textMid, fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false}/>
-              <Tooltip formatter={(v, n) => [`€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`, n]} contentStyle={{ borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 11 }}/>
+              <Tooltip formatter={(v, n) => [`${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`, n]} contentStyle={{ borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 11 }}/>
               <Bar dataKey="ricavo" name="Ricavo" fill={C.green} fillOpacity={0.2} radius={[0, 3, 3, 0]}/>
               <Bar dataKey="margine" name="Margine" radius={[0, 3, 3, 0]}>
                 {[...rows].sort((a, b) => b.ricavo - a.ricavo).map((r, i) => (

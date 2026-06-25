@@ -27,7 +27,7 @@ const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'"
 
 // Formattazione monetaria a 3 decimali (i costi di confezionamento sono centesimi
 // di euro: cono cialda 0,06 €, fazzoletto 0,01 € → servono i millesimi). Separatore IT.
-const fmt3 = n => `€ ${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`
+const fmt3 = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} €`
 
 // fontSize 16 su mobile per evitare zoom automatico iOS (regola permanente CLAUDE.md).
 const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: R.md, border: `1px solid ${T.borderStr}`, fontSize: 16, color: T.text, boxSizing: 'border-box', fontFamily: 'inherit', background: T.bgCard }

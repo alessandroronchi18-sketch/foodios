@@ -277,10 +277,10 @@ export default function CashflowView({ orgId, sedeId, notify }) {
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
             {finaleAtteso && (
               <>
-                <KPI label={`Cassa fra ${orizzonte}gg (atteso)`} value={`€ ${fmt0(finaleAtteso.saldoAtteso)}`} color={finaleAtteso.saldoAtteso >= 0 ? GREEN : BRAND} />
-                <KPI label="Scenario ottimistico (+20% ricavi)" value={`€ ${fmt0(finaleAtteso.saldoOttim)}`} color={GREEN} />
-                <KPI label="Scenario pessimistico (-30% ricavi)" value={`€ ${fmt0(finaleAtteso.saldoPess)}`} color={finaleAtteso.saldoPess >= 0 ? MID : BRAND} />
-                <KPI label="Ricavo medio giornaliero" value={`€ ${fmt0(mediaGiornaliera)}`} color={MID} sub={`base storico 60gg`} />
+                <KPI label={`Cassa fra ${orizzonte}gg (atteso)`} value={`${fmt0(finaleAtteso.saldoAtteso)} €`} color={finaleAtteso.saldoAtteso >= 0 ? GREEN : BRAND} />
+                <KPI label="Scenario ottimistico (+20% ricavi)" value={`${fmt0(finaleAtteso.saldoOttim)} €`} color={GREEN} />
+                <KPI label="Scenario pessimistico (-30% ricavi)" value={`${fmt0(finaleAtteso.saldoPess)} €`} color={finaleAtteso.saldoPess >= 0 ? MID : BRAND} />
+                <KPI label="Ricavo medio giornaliero" value={`${fmt0(mediaGiornaliera)} €`} color={MID} sub={`base storico 60gg`} />
               </>
             )}
           </div>

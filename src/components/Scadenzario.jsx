@@ -135,10 +135,10 @@ const URGENZA_CFG = {
 }
 
 const fmtEuro = v =>
-  `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 // Euro arrotondato all'unità (per i box/KPI grandi)
 const fmtEuro0 = v =>
-  `€ ${Math.round(Number(v || 0)).toLocaleString('it-IT')}`
+  `${Math.round(Number(v || 0)).toLocaleString('it-IT')} €`
 const fmtDate = d =>
   d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
@@ -736,7 +736,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
             style={{ padding: '6px 8px', minHeight: isMobile ? 40 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 11, color: T.text }} />
           <input type="number" inputMode="decimal" value={pagImporto} onChange={e => setPagImporto(e.target.value)}
-            placeholder={`€ ${Number(residuoTot || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            placeholder={`${Number(residuoTot || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
             title="Vuoto = salda l'intero residuo. Importo minore = acconto."
             style={{ width: isMobile ? 110 : 86, padding: '6px 8px', minHeight: isMobile ? 40 : 'auto', border: `1px solid ${T.border}`, borderRadius: 8, fontSize: isMobile ? 16 : 11, color: T.text }} />
           <select value={pagMetodo} onChange={e => setPagMetodo(e.target.value)}

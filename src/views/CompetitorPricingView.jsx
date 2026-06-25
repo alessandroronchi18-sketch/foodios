@@ -113,7 +113,7 @@ export default function CompetitorPricingView({ orgId, sedeId, ricettario, notif
     setAiLoading(true); setAiInsight(null)
 
     // Numeri italiani (memory feedback-numeri-italiani)
-    const _e = n => `€ ${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const _e = n => `${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
     const fcPct = (fcInfo.fcPezzo / fcInfo.prezzo * 100)
     const targetFC = 30  // benchmark pasticceria sana
     const yourMargPct = 100 - fcPct
@@ -241,9 +241,9 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
             <>
               <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
                 <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, alignItems: isMobile ? 'start' : 'center', gap: isMobile ? 14 : 16, flexWrap: 'wrap', marginBottom: 14 }}>
-                  <Stat label="Media zona" value={`€ ${Number(compStats.media).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} hint={`${Number(compStats.n).toLocaleString('it-IT')} rilevati`}/>
-                  <Stat label="Range min-max" value={`€ ${Number(compStats.min).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} – € ${Number(compStats.max).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}/>
-                  <Stat label="Tuo prezzo" value={`€ ${Number(fcInfo.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  <Stat label="Media zona" value={`${Number(compStats.media).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} hint={`${Number(compStats.n).toLocaleString('it-IT')} rilevati`}/>
+                  <Stat label="Range min-max" value={`${Number(compStats.min).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € – ${Number(compStats.max).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}/>
+                  <Stat label="Tuo prezzo" value={`${Number(fcInfo.prezzo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`}
                     color={fcInfo.prezzo < compStats.media * 0.9 ? AMBER : fcInfo.prezzo > compStats.media * 1.1 ? BRAND : GREEN}/>
                   <button onClick={chiediAi} disabled={aiLoading}
                     style={{ marginLeft: isMobile ? '0' : 'auto', gridColumn: isMobile ? '1 / -1' : undefined, background: BRAND, color: '#FFF', border: 'none', padding: isMobile ? '12px 14px' : '8px 14px', minHeight: isMobile ? 44 : 'auto', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center', width: isMobile ? '100%' : 'auto' }}>

@@ -41,8 +41,8 @@ function buildGrid(anno, mese) {
   return cells
 }
 
-const eur0 = v => `€ ${Math.round(Number(v) || 0).toLocaleString('it-IT')}`
-const eur2 = v => `€ ${(Number(v) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const eur0 = v => `${Math.round(Number(v) || 0).toLocaleString('it-IT')} €`
+const eur2 = v => `${(Number(v) || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 
 export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sedeId, setView, notify, isMobile, isDipendente = false }) {
   const isTablet  = useIsTablet()
@@ -131,9 +131,13 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
   const goOggi = () => { setSel(null); setAnno(oggi.getFullYear()); setMese(oggi.getMonth()) }
   const isMeseCorrente = anno === oggi.getFullYear() && mese === oggi.getMonth()
 
+  // Toggle: ri-cliccare lo stesso giorno chiude il dettaglio.
   const handleDay = useCallback((dateStr) => {
-    setSel(dateStr)
-    setNotaEdit(note[dateStr] || '')
+    setSel(prev => {
+      if (prev === dateStr) return null
+      setNotaEdit(note[dateStr] || '')
+      return dateStr
+    })
   }, [note])
 
   // ── save note ─────────────────────────────────────────────────────────────
@@ -184,14 +188,13 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
     isAnomalia: sel <= oggiStr && sel !== oggiStr && (!!prodMap[sel] !== !!cassaMap[sel]),
   } : null
 
-  // ── mobile list: tutti i giorni del MESE selezionato (anno+mese), dal piu'
-  // recente al piu' vecchio. Audit 2026-06-24 fix bug critico: prima usavamo
-  // "ultimi 30 giorni rolling da oggi", quindi cambiare mese col chevron
-  // aggiornava solo l'header ma non i giorni elencati.
+  // ── mobile list: tutti i giorni del MESE selezionato (anno+mese), in ordine
+  // CRESCENTE 1→N. Audit 2026-06-25: l'utente legge il calendario come si fosse
+  // su carta (dal 1 in poi), non in ordine inverso "ultimo giorno prima".
   const mobileList = useMemo(() => {
     const daysInM = new Date(anno, mese+1, 0).getDate()
     const days = []
-    for (let d = daysInM; d >= 1; d--) {
+    for (let d = 1; d <= daysInM; d++) {
       days.push(`${anno}-${String(mese+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)
     }
     return days

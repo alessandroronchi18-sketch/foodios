@@ -37,10 +37,10 @@ export const margColor = pct => pct >= 60 ? C.green : pct >= 40 ? C.amber : C.re
 // Guard su NaN/undefined: chiusure batch/import possono avere kpi parziali
 // (es. kpi:{} senza totV) → senza guard si mostrava "€ NaN".
 // Separatore migliaia IT (1.234,56) ovunque, così gli importi grandi sono leggibili.
-export const fmt = v => { const n = Number(v); return `€ ${(Number.isFinite(n) ? n : 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
+export const fmt = v => { const n = Number(v); return `${(Number.isFinite(n) ? n : 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` }
 export const fmtp = v => { const n = Number(v); return `${(Number.isFinite(n) ? n : 0).toFixed(1)}%` }
 // Valuta arrotondata all'unità con separatore migliaia (es. € 1.234). Per box/KPI.
-export const fmt0 = v => { const n = Number(v); return `€ ${Math.round(Number.isFinite(n) ? n : 0).toLocaleString('it-IT')}` }
+export const fmt0 = v => { const n = Number(v); return `${Math.round(Number.isFinite(n) ? n : 0).toLocaleString('it-IT')} €` }
 
 // KPI card grande premium (usata da Magazzino, Chiusura, Produzione, ecc.)
 // Look coerente con la Dashboard home: decoro radiale, chip icona, accento colore.

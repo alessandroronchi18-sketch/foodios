@@ -20,7 +20,7 @@ const inp  = { width: '100%', height: 40, padding: '0 12px', border: `1px solid 
 const btn = (bg, fg) => ({ height: 36, padding: '0 14px', background: bg, color: fg, border: 'none', borderRadius: R.md, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em', whiteSpace: 'nowrap', transition: 'background 120ms ease, opacity 120ms ease', fontFamily: 'inherit' })
 
 function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36) }
-function fmtEur(n) { return `€ ${Number(n || 0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}` }
+function fmtEur(n) { return `${Number(n || 0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €` }
 function fmtDate(d) {
   if (!d) return '—'
   try { return new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) }

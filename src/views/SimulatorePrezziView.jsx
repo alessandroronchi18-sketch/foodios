@@ -36,8 +36,8 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const target = targetPct / 100
 
   // ── Formatters ────────────────────────────────────────────────────────────────
-  const euro  = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  const euro0 = v => { const n = Math.round(Number(v) || 0); return `${n < 0 ? '−' : ''}€ ${Math.abs(n).toLocaleString('it-IT')}` }
+  const euro  = v => `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+  const euro0 = v => { const n = Math.round(Number(v) || 0); return `${n < 0 ? '−' : ''}${Math.abs(n).toLocaleString('it-IT')} €` }
   const pct   = v => `${Number(v || 0).toFixed(1)}%`
 
   // Colore semaforo food cost rispetto al target

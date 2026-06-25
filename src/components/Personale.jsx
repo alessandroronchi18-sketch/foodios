@@ -1735,7 +1735,7 @@ function CalcoloLordoNetto({ lordo, netto, setForm }) {
     if (netto && !lordo) return calcolaStipendio({ netto, mensilita: 13 })
     return calcolaStipendio({ lordo, netto, mensilita: 13 })
   }, [lordo, netto])
-  const fmt = (n) => `€ ${Math.round(Number(n) || 0).toLocaleString('it-IT')}`
+  const fmt = (n) => `${Math.round(Number(n) || 0).toLocaleString('it-IT')} €`
   return (
     <div style={{ marginTop: 6, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8 }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: '#1E3A8A', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>

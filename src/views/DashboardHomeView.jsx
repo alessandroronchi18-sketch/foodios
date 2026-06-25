@@ -16,8 +16,8 @@ import PrimiPassi from '../components/PrimiPassi'
 import { C, TNUM } from './_shared'
 import Icon from '../components/Icon'
 
-const fmt = v => `€ ${Number(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const fmt0 = v => `€ ${Math.round(Number(v) || 0).toLocaleString('it-IT')}`
+const fmt = v => `${Number(v).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+const fmt0 = v => `${Math.round(Number(v) || 0).toLocaleString('it-IT')} €`
 const n0 = v => Number(v || 0).toLocaleString('it-IT', { maximumFractionDigits: 0 })
 
 // Stile hover-lift condiviso (iniettato una volta).

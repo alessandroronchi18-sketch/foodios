@@ -9,8 +9,8 @@ import { KPI, SH, PageHeader, Tip, C, useSortable, SortTH } from '../views/_shar
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
-function fmt(n) { return n == null ? "—" : `€ ${Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` }
-function fmt0(n) { const x = Number(n); return `€ ${Math.round(Number.isFinite(x) ? x : 0).toLocaleString('it-IT')}` }
+function fmt(n) { return n == null ? "—" : `${Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` }
+function fmt0(n) { const x = Number(n); return `${Math.round(Number.isFinite(x) ? x : 0).toLocaleString('it-IT')} €` }
 function fmtDate(s) { if (!s) return "—"; const d = new Date(s); return d.toLocaleDateString("it-IT") }
 
 // Maschera IBAN: mostra prefisso paese + 2 cifre e ultime 4. Es: IT60…3456

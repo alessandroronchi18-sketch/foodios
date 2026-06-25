@@ -15,8 +15,8 @@ import {
   importoMensile, totaleMensile, aggregaPerCategoria,
 } from '../lib/costiAziendali'
 
-const fmt0 = v => `€ ${Math.round(Number(v) || 0).toLocaleString('it-IT')}`
-const fmt2 = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const fmt0 = v => `${Math.round(Number(v) || 0).toLocaleString('it-IT')} €`
+const fmt2 = v => `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 
 export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   const isMobile = useIsMobile()

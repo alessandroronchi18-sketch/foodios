@@ -62,7 +62,7 @@ export default function ReformulationView({ ricettario, orgId }) {
     setLoading(true); setError(null); setVarianti(null)
 
     // Numeri italiani (memory feedback-numeri-italiani)
-    const _e = n => `€ ${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const _e = n => `${Number(n||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
     const deltaTarget = fcAttuale.fcPct - fcTarget
     const fcEurTarget = fcAttuale.prezzo * fcTarget / 100
 
@@ -210,7 +210,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
                 <div style={{ fontSize: 14, fontWeight: 800, color: TXT, marginTop: 4 }}>{v.titolo}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
-                <Stat label="Delta FC" value={`${v.delta_fc_eur > 0 ? '+' : ''}€ ${Number(v.delta_fc_eur || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
+                <Stat label="Delta FC" value={`${v.delta_fc_eur > 0 ? '+' : ''}${Number(v.delta_fc_eur || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
                 <Stat label="FC stimato" value={`${(v.fc_risultante_pct || 0).toFixed(1)}%`} />
                 <Stat label="Rischio gusto" value={v.rischio_gusto || '—'} color={v.rischio_gusto === 'basso' ? GREEN : v.rischio_gusto === 'alto' ? BRAND : MID} />
                 <Stat label="Impatto vendite" value={`${(v.impatto_vendite_pct || 0).toFixed(0)}%`} color={v.impatto_vendite_pct < -5 ? BRAND : MID} />

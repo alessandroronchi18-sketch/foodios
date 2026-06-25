@@ -124,7 +124,7 @@ function setPdfMetadata(doc, opts = {}) {
 }
 
 function fmt(v) {
-  return `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 }
 
 // ─── 1. Ricetta PDF ───────────────────────────────────────────────────────────

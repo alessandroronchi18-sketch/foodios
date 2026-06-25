@@ -13,7 +13,7 @@
 
 import React, { useState } from 'react'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
-import Icon from '../lib/icons'
+import Icon from './Icon'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 

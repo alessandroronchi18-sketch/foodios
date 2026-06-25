@@ -14,26 +14,26 @@ const SEP = (1234.5).toLocaleString('it-IT', { minimumFractionDigits: 2, maximum
 
 describe('fmt (€ con 2 decimali, separatore migliaia IT)', () => {
   it('formatta un numero con 2 decimali', () => {
-    expect(fmt(1234.5)).toBe(`€ ${SEP}`)
+    expect(fmt(1234.5)).toBe(`${SEP} €`)
   })
-  it('zero → € 0,00', () => {
-    expect(fmt(0)).toBe('€ 0,00')
+  it('zero → 0,00 €', () => {
+    expect(fmt(0)).toBe('0,00 €')
   })
   it('arrotonda al secondo decimale', () => {
-    expect(fmt(1.005)).toMatch(/^€ 1,0[01]$/) // floating point: 1,00 o 1,01
-    expect(fmt(2.567)).toBe('€ 2,57')
+    expect(fmt(1.005)).toMatch(/^1,0[01] €$/) // floating point: 1,00 o 1,01
+    expect(fmt(2.567)).toBe('2,57 €')
   })
   it('guard NaN/undefined/null/stringa non numerica → € 0,00', () => {
-    expect(fmt(NaN)).toBe('€ 0,00')
-    expect(fmt(undefined)).toBe('€ 0,00')
-    expect(fmt(null)).toBe('€ 0,00')
-    expect(fmt('abc')).toBe('€ 0,00')
+    expect(fmt(NaN)).toBe('0,00 €')
+    expect(fmt(undefined)).toBe('0,00 €')
+    expect(fmt(null)).toBe('0,00 €')
+    expect(fmt('abc')).toBe('0,00 €')
   })
   it('accetta stringhe numeriche', () => {
-    expect(fmt('1234.5')).toBe(`€ ${SEP}`)
+    expect(fmt('1234.5')).toBe(`${SEP} €`)
   })
   it('gestisce i negativi', () => {
-    expect(fmt(-5)).toBe('€ -5,00')
+    expect(fmt(-5)).toBe('-5,00 €')
   })
 })
 
@@ -43,7 +43,7 @@ describe('fmt0 (€ arrotondato all\'unità)', () => {
   // browser sì). Per non rendere il test fragile confrontiamo con lo stesso
   // metodo usato dalla funzione, verificando arrotondamento e guard — non il
   // separatore esatto.
-  const expectInt = n => `€ ${Math.round(n).toLocaleString('it-IT')}`
+  const expectInt = n => `${Math.round(n).toLocaleString('it-IT')} €`
 
   it('arrotonda all\'intero più vicino', () => {
     expect(fmt0(1234.4)).toBe(expectInt(1234))
@@ -51,12 +51,12 @@ describe('fmt0 (€ arrotondato all\'unità)', () => {
   })
   it('niente decimali in output', () => {
     expect(fmt0(99.99)).not.toMatch(/,/)
-    expect(fmt0(99.99)).toBe('€ 100')
+    expect(fmt0(99.99)).toBe('100 €')
   })
   it('guard NaN → € 0', () => {
-    expect(fmt0(NaN)).toBe('€ 0')
-    expect(fmt0(undefined)).toBe('€ 0')
-    expect(fmt0('x')).toBe('€ 0')
+    expect(fmt0(NaN)).toBe('0 €')
+    expect(fmt0(undefined)).toBe('0 €')
+    expect(fmt0('x')).toBe('0 €')
   })
   it('numeri grandi: stesso output di Math.round + toLocaleString IT', () => {
     expect(fmt0(1000000)).toBe(expectInt(1000000))

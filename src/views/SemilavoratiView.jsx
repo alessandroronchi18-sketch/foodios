@@ -18,8 +18,8 @@ import { C, KPI, SH, PageHeader, Tip, Badge, TNUM, useSortable, SortTH } from '.
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const SHADOW_HOVER = '0 1px 2px rgba(15,23,42,0.06), 0 18px 40px rgba(15,23,42,0.10)'
 
-const fmtKg  = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const fmtBatch = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const fmtKg  = v => `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+const fmtBatch = v => `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 const fmtPeso = g => g >= 1000 ? `${(g / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString('it-IT')} g`
 
 // ─── Card premium di un singolo semilavorato ─────────────────────────────────

@@ -13,8 +13,8 @@ import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
 import { C, PageHeader, KPI } from './_shared'
 
-const eur = v => `€ ${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-const eur0 = v => `€ ${Math.round(Number(v) || 0).toLocaleString('it-IT')}`
+const eur = v => `${Number(v || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+const eur0 = v => `${Math.round(Number(v) || 0).toLocaleString('it-IT')} €`
 const STATI = {
   bozza:       { lbl: 'Bozza',       bg: '#F1F5F9', fg: '#475569' },
   consegnata:  { lbl: 'Da fatturare', bg: C.amberLight, fg: C.amber },

@@ -487,10 +487,10 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 subtitle: `${sediAttive.length} sedi attive`,
                 periodo: `Periodo: ${periodo === 'mese' ? 'mese corrente' : 'settimana corrente'} vs ${periodo} precedente`,
                 kpi: consolidato ? [
-                  { label: 'Ricavi gruppo', value: `€ ${fmt0(consolidato.ricCur)}`, sub: consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '' },
-                  { label: 'Margine netto', value: `€ ${fmt0(consolidato.margNetto)}`, sub: consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '' },
+                  { label: 'Ricavi gruppo', value: `${fmt0(consolidato.ricCur)} €`, sub: consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '' },
+                  { label: 'Margine netto', value: `${fmt0(consolidato.margNetto)} €`, sub: consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '' },
                   { label: 'Food cost medio', value: consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '—', sub: 'target < 33%' },
-                  { label: 'Costi azienda', value: `€ ${fmt0(consolidato.costiPeriodo || 0)}` },
+                  { label: 'Costi azienda', value: `${fmt0(consolidato.costiPeriodo || 0)} €` },
                 ] : [],
                 sections: [
                   {

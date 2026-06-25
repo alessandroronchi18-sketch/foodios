@@ -202,10 +202,10 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const avgST=periodiVend.length>0?periodiVend.reduce((s,p)=>s+p.avgST,0)/periodiVend.length:0;
 
   // Formattazione box grandi: arrotonda all'unità + separatore migliaia IT (1.000).
-  const eur0 = n => `€ ${Math.round(Number(n)||0).toLocaleString('it-IT')}`;
+  const eur0 = n => `${Math.round(Number(n)||0).toLocaleString('it-IT')} €`;
   const n0   = n => `${Math.round(Number(n)||0).toLocaleString('it-IT')}`;
   // Tabelle: € con separatore migliaia IT + 2 decimali (es. € 1.234,56).
-  const eurIT = v => `€ ${Number(v||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const eurIT = v => `${Number(v||0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
   // ── DIAGNOSI: KPI di salute sul periodo selezionato + confronto col precedente ──
   // I numeri "reali" vengono dalle chiusure (periodiVend); se non ci sono chiusure
@@ -822,7 +822,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           {(chiusure||[]).length > 0 && (() => {
             const giorni = [...(chiusure||[])].sort((a,b)=>a.data.localeCompare(b.data));
             const n = giorni.length;
-            const euro = v => v==null?"—":`€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+            const euro = v => v==null?"—":`${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
             const pct  = v => v==null?"—":`${Number(v).toFixed(1)}%`;
             const fmt2 = v => v>=1000?`€${(v/1000).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1})}k`:`€${Math.round(v).toLocaleString('it-IT')}`;
 
@@ -942,7 +942,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
                         <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false}/>
                         <XAxis dataKey="data" tick={{fontSize:8,fill:C.textSoft}} tickLine={false} axisLine={false} interval={n<=10?0:Math.floor(n/8)}/>
                         <YAxis tick={{fontSize:8,fill:C.textSoft}} tickLine={false} axisLine={false} tickFormatter={v=>`€${Number(v).toLocaleString('it-IT')}`} width={38}/>
-                        <Tooltip formatter={(v,name)=>[`€ ${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,name]} contentStyle={{fontSize:10,borderRadius:8,border:`1px solid ${C.border}`}}/>
+                        <Tooltip formatter={(v,name)=>[`${Number(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €`,name]} contentStyle={{fontSize:10,borderRadius:8,border:`1px solid ${C.border}`}}/>
                         <Bar dataKey="Ricavi"  fill={C.red}  opacity={0.85} radius={[3,3,0,0]}/>
                         <Bar dataKey="Margine" fill={C.green} opacity={0.7} radius={[3,3,0,0]}/>
                         <Bar dataKey="Spreco"  fill={C.amber} opacity={0.6} radius={[3,3,0,0]}/>
