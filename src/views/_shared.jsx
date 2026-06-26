@@ -302,10 +302,13 @@ export function Tip({ text, children, width = 220 }) {
           background: '#1C0A0A',
           color: 'rgba(255,255,255,0.92)',
           fontSize: 11, fontWeight: 500, lineHeight: 1.55,
-          padding: '8px 12px', borderRadius: 8,
+          padding: '10px 14px', borderRadius: 8,
           width, pointerEvents: 'none',
           boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
           whiteSpace: 'normal',
+          textAlign: 'left',
+          letterSpacing: 'normal',
+          textTransform: 'none',
         }}>
           {text}
           <span style={{

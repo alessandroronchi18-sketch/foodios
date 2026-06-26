@@ -373,15 +373,22 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                   ))}
                 </tbody>
                 <tfoot>
-                  {/* TOTALE: padding e fontSize IDENTICI alle celle "Costo" sopra
-                      (9px 12px, 11px) → "2,40 €" del totale è esattamente nello
-                      stesso x dei valori "1,32 €", "0,36 €" etc. Solo fontWeight
-                      e background per evidenziarlo. */}
-                  <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-                    <td colSpan={3} style={{ padding: '9px 12px', fontWeight: 800, fontSize: 11, color: C.text, letterSpacing: '0.05em' }}>TOTALE</td>
-                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: 11, color: C.red, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(fc)}</td>
-                    <td/>
-                  </tr>
+                  {/* TOTALE: padding e fontSize IDENTICI alle celle sopra
+                      → tutti i totali (g, costo, %FC) perfettamente incolonnati
+                      con i valori delle righe ingredienti. */}
+                  {(() => {
+                    const totG   = ingList.reduce((s, x) => s + (Number(x.qty1stampo) || 0), 0)
+                    const totPct = ingList.reduce((s, x) => s + (Number(x.pct) || 0), 0)
+                    return (
+                      <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
+                        <td style={{ padding: '9px 12px', fontWeight: 800, fontSize: 11, color: C.text, letterSpacing: '0.05em' }}>TOTALE</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: 11, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totG)}</td>
+                        <td/>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: 11, color: C.red, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(fc)}</td>
+                        <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: 11, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{Math.round(totPct)}%</td>
+                      </tr>
+                    )
+                  })()}
                 </tfoot>
               </table>
               </div>
