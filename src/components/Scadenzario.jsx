@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseFatturaXML, parseFatturaSMART } from '../lib/parseFatturaXML'
 import { loadXLSX } from '../lib/xlsx'
@@ -187,6 +187,16 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [azienda, setAzienda]             = useState({ nome: '', iban: '', bic: '' })
   const [editAzienda, setEditAzienda]     = useState(false)
   const [sepaConfirm, setSepaConfirm]     = useState(null) // {items, totale} | null
+  const [actionsOpen, setActionsOpen]     = useState(false)
+  const actionsRef = useRef(null)
+  useEffect(() => {
+    if (!actionsOpen) return
+    const onDoc = (e) => { if (actionsRef.current && !actionsRef.current.contains(e.target)) setActionsOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setActionsOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [actionsOpen])
   // Selezione fatture per il bonifico massivo
   const [selez, setSelez]                 = useState(() => new Set())
   // Pagamento: stato esteso (acconto + metodo) per il popup "segna pagata"
@@ -1114,11 +1124,24 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           return (
             <div key={g.nome_norm} style={{ borderBottom: `1px solid ${T.border}`, padding: isMobile ? '12px 14px' : '14px 18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 12, flexWrap: 'wrap' }}>
-                <input type="checkbox" checked={sel} disabled={!selectable} onChange={() => toggleSelez(g.nome_norm)}
-                  title={selectable ? 'Includi nel bonifico SEPA' : 'IBAN mancante: impostalo col tasto impostazioni per poter pagare'}
-                  aria-label={`Seleziona ${g.nome} per bonifico SEPA`}
-                  style={{ width: 18, height: 18, cursor: selectable ? 'pointer' : 'not-allowed', accentColor: T.brand, flexShrink: 0 }}
-                  onClick={e => e.stopPropagation()} />
+                {/* Checkbox SEPA: se IBAN fornitore manca, NON disabilitiamo a
+                    livello browser (era cursor:not-allowed = simbolo di divieto,
+                    user frustrato). Invece: click apre subito l'edit fornitore
+                    con IBAN focused + toast spiegazione. */}
+                <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                  <input type="checkbox" checked={sel} onChange={(e) => {
+                    if (!selectable) {
+                      e.preventDefault()
+                      setEditForn(g.nome_norm)
+                      notify(`Aggiungi l'IBAN a ${g.nome} per includerlo nel bonifico SEPA.`, false)
+                      return
+                    }
+                    toggleSelez(g.nome_norm)
+                  }}
+                    title={selectable ? 'Includi nel bonifico SEPA' : `IBAN mancante: clicca per aggiungerlo a ${g.nome}`}
+                    aria-label={`Seleziona ${g.nome} per bonifico SEPA`}
+                    style={{ width: 18, height: 18, cursor: 'pointer', accentColor: T.brand, opacity: selectable ? 1 : 0.6 }} />
+                </span>
                 <div style={{ minWidth: 0, flex: 1, cursor: 'pointer' }}
                   onClick={() => toggleExpandForn(g.nome_norm)}
                   title="Mostra tutte le fatture di questo fornitore">
@@ -1318,46 +1341,90 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             {fatture.length.toLocaleString('it-IT')} {fatture.length === 1 ? 'fattura' : 'fatture'} totali · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} fatturato registrato
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', width: isMobile ? '100%' : 'auto' }}>
-          {fatture.length > 0 && (
-            <>
-              <button onClick={exportExcel} aria-label="Esporta in Excel" style={{ ...ghostBtn, flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
-                <Icon name="download" size={13} /> Esporta Excel
-              </button>
-              <button onClick={async () => {
-                const list = gruppiVisibili.flatMap(k => gruppi[k] || []);
-                if (!(await gateExport('scadenzario', { n_items: list.length }, window.__foodos_notify))) return;
-                const c = getExportCtx();
-                exportScadenzario(list, c.nomeAttivita, c.email);
-              }} aria-label="Esporta in PDF" style={{ ...ghostBtn, flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}><Icon name="fileText" size={13} /> Esporta PDF</button>
-              <button onClick={() => { setBulkConfirm(''); setBulkOpen(true) }}
-                title="Elimina tutte le fatture caricate"
-                aria-label="Elimina tutte le fatture"
-                style={{ ...ghostBtn, flex: isMobile ? '1 1 100%' : '0 0 auto', color: T.brand, borderColor: '#F3C7C2' }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2' }}
-                onMouseLeave={e => { e.currentTarget.style.background = T.bgCard }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 2 }}>
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                </svg>
-                Elimina tutte
-              </button>
-            </>
-          )}
-          <label style={{ ...ghostBtn, cursor: 'pointer', flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
-            <Icon name="fileText" size={14} /> XML SDI
-            <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
-              onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportXML(files) }} />
-          </label>
-          <label style={{ ...ghostBtn, cursor: 'pointer', flex: isMobile ? '1 1 calc(50% - 4px)' : '0 0 auto' }}>
-            <Icon name="barChart" size={14} /> FatturaSMART
-            <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
-              onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportSMART(files) }} />
-          </label>
-          <label style={{ ...primaryBtn, cursor: 'pointer', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
+        {/* Toolbar consolidato: 1 CTA primario "Importa .xlsx" + 1 dropdown
+            "Altre azioni" con TUTTI gli altri (Import XML SDI, FatturaSMART,
+            Export Excel/PDF, Elimina tutte). Sostituisce 6 bottoni inline. */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', width: isMobile ? '100%' : 'auto', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+          <label style={{ ...primaryBtn, cursor: 'pointer', flex: isMobile ? 1 : '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
             {importLoading ? <><Icon name="hourglass" size={14} /> Importazione…</> : <><Icon name="folder" size={14} /> Importa .xlsx</>}
             <input type="file" accept=".xlsx,.xls" multiple style={{ display: 'none' }}
               onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImportExcel(files) }} />
           </label>
+          <div ref={actionsRef} style={{ position: 'relative', flex: isMobile ? '0 0 auto' : '0 0 auto' }}>
+            <button onClick={() => setActionsOpen(o => !o)}
+              aria-label="Altre azioni" aria-expanded={actionsOpen}
+              style={{ ...ghostBtn, padding: isMobile ? '10px 14px' : '8px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' }}>
+              Altre azioni
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: actionsOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            {actionsOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                minWidth: 240,
+                background: 'linear-gradient(180deg, #FFFFFF 0%, #FBF6F2 100%)',
+                border: `1px solid ${T.border}`, borderRadius: 12,
+                boxShadow: '0 18px 48px rgba(15,23,42,0.22), 0 0 0 1px rgba(255,255,255,0.6) inset',
+                padding: 6, zIndex: 100, overflow: 'hidden',
+                animation: '_fos_scadenzario_drop 180ms cubic-bezier(.32,.72,0,1)',
+              }}>
+                <style>{`@keyframes _fos_scadenzario_drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+                <div aria-hidden="true" style={{ height: 2, margin: '-6px -6px 6px', background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)', opacity: 0.7 }}/>
+                {/* IMPORT alternativi */}
+                <div style={{ fontSize: 9, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '6px 10px 4px' }}>Importa da altro</div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                  <Icon name="fileText" size={14} color={T.textSoft} /> XML SDI
+                  <input type="file" accept=".xml,.p7m" multiple style={{ display: 'none' }}
+                    onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); handleImportXML(files) } }} />
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                  <Icon name="barChart" size={14} color={T.textSoft} /> FatturaSMART
+                  <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }}
+                    onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) { setActionsOpen(false); handleImportSMART(files) } }} />
+                </label>
+                {fatture.length > 0 && (
+                  <>
+                    <div style={{ height: 1, background: T.border, margin: '6px 4px' }}/>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '6px 10px 4px' }}>Esporta</div>
+                    <button onClick={() => { setActionsOpen(false); exportExcel() }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                      <Icon name="download" size={14} color={T.textSoft} /> Esporta Excel
+                    </button>
+                    <button onClick={async () => {
+                      setActionsOpen(false);
+                      const list = gruppiVisibili.flatMap(k => gruppi[k] || []);
+                      if (!(await gateExport('scadenzario', { n_items: list.length }, window.__foodos_notify))) return;
+                      const c = getExportCtx();
+                      exportScadenzario(list, c.nomeAttivita, c.email);
+                    }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.text, cursor: 'pointer', fontWeight: 500, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#F4EEEA' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                      <Icon name="fileText" size={14} color={T.textSoft} /> Esporta PDF
+                    </button>
+                    <div style={{ height: 1, background: T.border, margin: '6px 4px' }}/>
+                    <button onClick={() => { setActionsOpen(false); setBulkConfirm(''); setBulkOpen(true) }}
+                      title="Elimina tutte le fatture caricate"
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, color: T.brand, cursor: 'pointer', fontWeight: 600, width: '100%', textAlign: 'left', background: 'transparent', border: 'none', fontFamily: 'inherit' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                      </svg>
+                      Elimina tutte le fatture
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
