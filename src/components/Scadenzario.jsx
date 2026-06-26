@@ -186,6 +186,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   // Dati pagamento azienda (debtor del bonifico SEPA)
   const [azienda, setAzienda]             = useState({ nome: '', iban: '', bic: '' })
   const [editAzienda, setEditAzienda]     = useState(false)
+  const [sepaConfirm, setSepaConfirm]     = useState(null) // {items, totale} | null
   // Selezione fatture per il bonifico massivo
   const [selez, setSelez]                 = useState(() => new Set())
   // Pagamento: stato esteso (acconto + metodo) per il popup "segna pagata"
@@ -1601,7 +1602,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             {!isMobile && <div style={{ flex: 1 }} />}
             <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
               <button onClick={() => setSelez(new Set())} aria-label="Deseleziona tutti" style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Deseleziona</button>
-              <button onClick={() => generaBonificoSEPA(selItems)} disabled={!selItems.length}
+              <button onClick={() => {
+                if (!ibanIsValid(azienda.iban)) { setEditAzienda(true); notify('Inserisci prima l\'IBAN azienda per generare il bonifico.', false); return }
+                const tot = selItems.reduce((s, f) => s + Math.abs(f.residuo || f.totale || 0), 0)
+                setSepaConfirm({ items: selItems, totale: tot })
+              }} disabled={!selItems.length}
                 aria-label="Genera bonifico SEPA"
                 style={{ ...primaryBtn, flex: isMobile ? 1 : '0 0 auto', opacity: selItems.length ? 1 : 0.5 }}>
                 <Icon name="download" size={14} /> Genera bonifico SEPA
@@ -1610,6 +1615,50 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </div>
         )
       })()}
+
+      {/* Modale conferma generazione SEPA — chiarisce che il file scaricato
+          va caricato nell'home banking, NON viene inviato automaticamente. */}
+      {sepaConfirm && (
+        <div onClick={() => setSepaConfirm(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: T.bgCard, borderRadius: 16, padding: '24px 26px', maxWidth: 520, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,0.32)', position: 'relative', overflow: 'hidden' }}>
+            <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)' }}/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+              <span style={{ width: 40, height: 40, borderRadius: 10, background: '#EFF6FF', color: '#1D4ED8', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="download" size={20} />
+              </span>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: T.text, letterSpacing: '-0.01em' }}>Generazione bonifico SEPA</div>
+                <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{sepaConfirm.items.length} {sepaConfirm.items.length === 1 ? 'pagamento' : 'pagamenti'} · <b style={{ color: T.brand }}>{fmtEuro(sepaConfirm.totale)}</b></div>
+              </div>
+            </div>
+            <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
+              Sto per scaricare il file <b>bonifico_sepa_*.xml</b>. <b>Foodos non invia il bonifico</b>: il file devi caricarlo tu nell'home banking della tua banca.
+            </div>
+            <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 18, fontSize: 12.5, color: T.textMid, lineHeight: 1.6 }}>
+              <div style={{ fontWeight: 700, color: T.text, marginBottom: 6 }}>Cosa fare con il file:</div>
+              <ol style={{ margin: 0, paddingLeft: 18 }}>
+                <li>Apri l'home banking della tua banca</li>
+                <li>Cerca la sezione <b>"Bonifico multiplo"</b> o <b>"SEPA / bonifico massivo"</b></li>
+                <li>Carica il file <code style={{ background: '#FFF', padding: '1px 5px', borderRadius: 4, border: `1px solid ${T.border}`, fontSize: 11 }}>.xml</code> appena scaricato</li>
+                <li>Verifica gli importi, conferma con OTP/firma digitale</li>
+                <li>Torna su Foodos e marca le fatture come "Pagata"</li>
+              </ol>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button onClick={() => setSepaConfirm(null)}
+                style={{ ...ghostBtn, padding: '10px 18px' }}>
+                Annulla
+              </button>
+              <button onClick={() => { const items = sepaConfirm.items; setSepaConfirm(null); generaBonificoSEPA(items) }}
+                style={{ ...primaryBtn, padding: '10px 22px', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="download" size={14} /> Scarica il file XML
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
