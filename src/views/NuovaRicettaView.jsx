@@ -267,8 +267,21 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             />
           </div>
           {editMode && (
-            <div style={{ marginTop: 12, fontSize: 12, color: T.amber, display: "flex", alignItems: "center", gap: 6, padding: '8px 12px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8 }}>
-              <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 700, marginLeft: 4 }}>{editMode}</b> — salva per sovrascrivere.
+            <div style={{ marginTop: 12, fontSize: 12, color: T.amber, display: "flex", alignItems: "center", justifyContent: 'space-between', gap: 10, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 700, marginLeft: 4 }}>{editMode}</b> — salva per sovrascrivere.
+              </div>
+              <button type="button" onClick={() => { setEditMode(null); setForm(empty); }}
+                style={{
+                  padding: '7px 14px', minHeight: isMobile ? 36 : 'auto',
+                  background: '#FFF', color: T.brand,
+                  border: `1px solid ${T.brand}40`, borderRadius: 7,
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
+                <Icon name="plus" size={12} /> Nuova ricetta
+              </button>
             </div>
           )}
         </div>
