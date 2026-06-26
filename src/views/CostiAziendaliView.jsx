@@ -33,6 +33,16 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   // specifiche della sede attiva). Multi-sede: utile distinguere costi
   // sede-specifici (affitto, utenze) dai costi azienda (commercialista, sw).
   const [scope, setScope] = useState('all')
+  // Banner "voce concentrata" dismissibile: una volta chiuso, non riappare
+  // (per org). Flag in localStorage. try/catch per Safari private mode.
+  const dismissKey = `foodios-cost-concentrato-dismissed-${orgId || '_'}`
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
+    try { return localStorage.getItem(dismissKey) === '1' } catch { return false }
+  })
+  const dismissBanner = () => {
+    setBannerDismissed(true)
+    try { localStorage.setItem(dismissKey, '1') } catch {}
+  }
 
   async function reload() {
     setLoading(true)
@@ -235,18 +245,21 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
       </div>
 
       {/* Banner "voce concentrata" - alert intelligente per il proprietario:
-          se una singola voce pesa >=20% del totale, vale la pena negoziare. */}
-      {voceConcentrata && (
+          se una singola voce pesa >=20% del totale, vale la pena negoziare.
+          Chiudibile con la X: una volta dismesso resta nascosto per sempre
+          (flag in localStorage per org). */}
+      {voceConcentrata && !bannerDismissed && (
         <div style={{
           marginBottom: 16, padding: '12px 16px',
           background: 'linear-gradient(180deg, #FFFBEB 0%, #FEF3C7 100%)',
           border: '1px solid #FCD34D', borderRadius: 12,
           display: 'flex', alignItems: 'flex-start', gap: 12,
+          position: 'relative',
         }}>
           <span style={{ flexShrink: 0, color: '#B45309', marginTop: 2 }}>
             <Icon name="warning" size={20} />
           </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, paddingRight: 28 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#78350F', marginBottom: 3 }}>
               Voce concentrata: <b>{voceConcentrata.voce}</b> pesa il {voceConcentrata.pct.toFixed(0)}% di tutti i costi
             </div>
@@ -254,6 +267,23 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
               {fmt0(voceConcentrata.mensile)}/mese - vale la pena chiamare il fornitore e provare a negoziare o cercare alternative: anche un -10% qui significa {fmt0(voceConcentrata.mensile * 0.10 * 12)}/anno di risparmio.
             </div>
           </div>
+          <button onClick={dismissBanner}
+            aria-label="Non mostrare piu questo avviso"
+            title="Non mostrare piu questo avviso"
+            style={{
+              position: 'absolute', top: 8, right: 8,
+              width: 28, height: 28, borderRadius: 6,
+              border: 'none', background: 'transparent',
+              color: '#92400E', cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(180,83,9,0.10)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
       )}
 
