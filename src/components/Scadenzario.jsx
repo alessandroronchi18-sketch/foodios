@@ -1445,9 +1445,21 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <span title={ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : ''} style={{ fontSize: 12.5, color: ibanIsValid(azienda.iban) ? T.text : T.textSoft, ...tnum, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : 'IBAN azienda non impostato - serve per generare i bonifici SEPA'}
             </span>
-            <button onClick={() => setEditAzienda(true)} aria-label={ibanIsValid(azienda.iban) ? 'Modifica conto pagamenti' : 'Imposta IBAN'} style={{ ...ghostBtn, padding: isMobile ? '10px 16px' : '7px 14px', flexShrink: 0 }}>
-              {ibanIsValid(azienda.iban) ? 'Modifica' : 'Imposta IBAN'}
-            </button>
+            {/* CTA: se IBAN mancante, bottone primario (rosso) ben visibile.
+                Se gia impostato, ghost button discreto per modifica. */}
+            {ibanIsValid(azienda.iban) ? (
+              <button onClick={() => setEditAzienda(true)} aria-label="Modifica conto pagamenti" style={{ ...ghostBtn, padding: isMobile ? '10px 16px' : '7px 14px', flexShrink: 0 }}>
+                Modifica
+              </button>
+            ) : (
+              <button onClick={() => setEditAzienda(true)} aria-label="Imposta IBAN azienda"
+                style={{ ...primaryBtn, padding: isMobile ? '10px 16px' : '8px 16px', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 7, boxShadow: '0 2px 8px rgba(110,14,26,0.25)' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                </svg>
+                Imposta IBAN ora →
+              </button>
+            )}
           </>
         ) : (
           <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, flexWrap: 'wrap', alignItems: isMobile ? 'stretch' : 'center', flex: 1, width: '100%' }}>
