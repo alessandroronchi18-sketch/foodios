@@ -827,14 +827,14 @@ export default function MagazzinoView({
             sub={`${righe.filter(r => r.valore > 0).length} ingredienti valorizzati`}/>
           <KPI icon={<Icon name="alert" size={18} />} label="Critici" value={critici.length}
             color={critici.length > 0 ? C.red : C.green}
-            sub={critici.length > 0 ? 'apri il riordino' : 'tutto ok'}
+            sub={critici.length > 0 ? 'clicca per vedere cosa ordinare' : 'tutto ok'}
             onClick={critici.length > 0 ? () => {
               const el = document.getElementById('riordino-urgente')
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
             } : undefined}/>
           <KPI icon={<Icon name="warning" size={18} />} label="In esaurimento" value={attenzione.length}
             color={attenzione.length > 0 ? C.amber : C.green}
-            sub={attenzione.length > 0 ? 'apri il riordino' : 'ok'}
+            sub={attenzione.length > 0 ? 'clicca per vedere quali' : 'ok'}
             onClick={attenzione.length > 0 ? () => {
               const el = document.getElementById('riordino-urgente')
               if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
