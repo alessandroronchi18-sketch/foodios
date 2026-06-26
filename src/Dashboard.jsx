@@ -2897,7 +2897,11 @@ export default function Dashboard({
           const label = VIEW_LABELS[view] || (typeof view==="string"?view:"");
           const group = VIEW_GROUPS[view] || "";
           return (
-            <div style={{maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box",
+            // maxWidth allineato con il content area degli inner view (1200) così
+            // SedeSelector sul lato destro si incolonna con i bottoni action della
+            // view (es. "Aggiorna ricettario gusti"). Padding 32 = stessa rientranza
+            // di fos-page → l'utente vede una colonna destra perfettamente verticale.
+            <div style={{maxWidth:1200,width:"100%",margin:"0 auto",boxSizing:"border-box",
               padding:isTablet?"18px 20px 0":"22px 32px 4px",display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14}}>
               <style>{`
                 @keyframes _fos_kicker_bar {
@@ -2928,12 +2932,15 @@ export default function Dashboard({
                     <span style={{color:T.textSoft,letterSpacing:"0.14em",fontWeight:600}}>{group}</span>
                   </>}
                 </div>
-                {/* Titolo: gradient bordeaux → quasi-nero, peso 800, tight letter-spacing */}
+                {/* Titolo: gradient bordeaux → quasi-nero, peso 800, uppercase con
+                    letter-spacing ampio per leggibilità (l'uppercase stretto sembra
+                    rumoroso, qui letter-spacing 0.02em apre i caratteri). */}
                 <h1 className="fos-title-h1" style={{
                   margin:0,
-                  fontSize: isTablet ? 26 : 30,
+                  fontSize: isTablet ? 24 : 28,
                   fontWeight:800,
-                  letterSpacing:"-0.035em",
+                  letterSpacing:"0.02em",
+                  textTransform:"uppercase",
                   lineHeight:1.05,
                   backgroundImage:'linear-gradient(135deg, #1C0A0A 0%, #6E0E1A 60%, #1C0A0A 100%)',
                   backgroundClip:'text', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
