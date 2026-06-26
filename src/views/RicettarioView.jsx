@@ -669,7 +669,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
               <KPI label={LEX.ricette} value={ric} icon={<Icon name="gift" size={18} />} color={T.text} sub={subRicette} />
               <KPI label="Food cost medio" value={`${(fcMedio * 100).toFixed(1)}%`} icon={<Icon name="barChart" size={18} />}
                 color={fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand}
-                sub={fcMedio < 0.30 ? 'sotto controllo' : fcMedio < 0.35 ? 'da monitorare' : 'alto — rivedere'} />
+                sub="media non pesata sulle ricette" />
               <KPI label="Semilavorati" value={semi} icon={<Icon name="gift" size={18} />} color="#8E44AD" sub="basi e impasti interni" />
             </div>
           )
