@@ -1224,6 +1224,45 @@ export default function Dashboard({
     try { sessionStorage.setItem(`foodios_view_${orgId||'_'}`, view); } catch {}
   }, [view, orgId]);
 
+  // ─── HISTORY API per back button ────────────────────────────────────────
+  // Bug 26/06: l'utente in ricettario → modifica ricetta → "nuova-ricetta",
+  // poi click su back del browser USCIVA dal tool perché i cambi di `view`
+  // non erano tracciati nell'history API. Fix: pushState ad ogni cambio view
+  // + popstate listener che ripristina lo state precedente. Refs evitano i
+  // loop (lo state cambia per popstate non deve ri-pushare).
+  const _navIsPopstateRef = useRef(false);
+  useEffect(() => {
+    if (_navIsPopstateRef.current) {
+      _navIsPopstateRef.current = false;
+      return;
+    }
+    // Salta il primissimo render (replaceState invece di pushState così non
+    // creiamo storia "fantasma" prima dell'interazione utente).
+    try {
+      const cur = window.history.state;
+      if (!cur || cur.foodios_view !== view) {
+        if (cur && typeof cur.foodios_view === 'string') {
+          // C'è già un foodios_view in history → l'utente sta navigando → push.
+          window.history.pushState({ foodios_view: view }, '', window.location.pathname);
+        } else {
+          // Primo cambio o state senza foodios_view → replace per non gonfiare.
+          window.history.replaceState({ foodios_view: view }, '', window.location.pathname);
+        }
+      }
+    } catch { /* history API non disponibile, skip */ }
+  }, [view]);
+  useEffect(() => {
+    const onPop = (e) => {
+      const v = e.state && typeof e.state.foodios_view === 'string' ? e.state.foodios_view : null;
+      if (v && v !== view) {
+        _navIsPopstateRef.current = true;
+        setView(v);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [view]);
+
   // Analytics: traccia apertura view (RPC track_view_open, best-effort).
   // Dedup interno a 5s (vedi src/lib/usageTracking.js) per evitare doppi log
   // su re-render. Usato dall'admin per capire quali feature sono più usate.
