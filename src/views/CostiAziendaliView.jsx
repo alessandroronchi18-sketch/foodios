@@ -29,21 +29,40 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(null) // null = nessun form, oggetto = edit/create
   const [filterCategoria, setFilterCategoria] = useState('')
+  // Scope: 'all' (tutte le voci dell'azienda) | 'sede' (voci globali +
+  // specifiche della sede attiva). Multi-sede: utile distinguere costi
+  // sede-specifici (affitto, utenze) dai costi azienda (commercialista, sw).
+  const [scope, setScope] = useState('all')
 
   async function reload() {
     setLoading(true)
-    const arr = await caricaCostiAziendali(orgId, null)  // tutte
+    const arr = await caricaCostiAziendali(orgId, null)  // sempre carico tutto
     setVoci(arr)
     setLoading(false)
   }
   useEffect(() => { if (orgId) reload() }, [orgId])
 
-  const totMese = totaleMensile(voci)
+  // Filtraggio per scope: tutte vs sede attiva (include sempre quelle globali).
+  // Multi-sede only: se l'azienda ha una sola sede il toggle non ha senso.
+  const hasMultiSede = (sedi || []).length > 1
+  const vociScopeFiltrate = useMemo(() => {
+    if (scope === 'all' || !sedeId) return voci
+    return voci.filter(v => v.sede_id === null || v.sede_id === sedeId)
+  }, [voci, scope, sedeId])
+  const sedeAttivaNome = useMemo(() => {
+    const s = (sedi || []).find(x => x.id === sedeId)
+    return s?.nome || ''
+  }, [sedi, sedeId])
+
+  // KPI calcolati sul SCOPE attivo: se "sede attiva" mostro totali della sede,
+  // se "tutta l'azienda" mostro totale azienda. Così i numeri restano coerenti
+  // col toggle.
+  const totMese = totaleMensile(vociScopeFiltrate)
   const totAnno = totMese * 12
-  const perCategoria = aggregaPerCategoria(voci)
+  const perCategoria = aggregaPerCategoria(vociScopeFiltrate)
   const vociFiltrate = filterCategoria
-    ? voci.filter(v => v.categoria === filterCategoria)
-    : voci
+    ? vociScopeFiltrate.filter(v => v.categoria === filterCategoria)
+    : vociScopeFiltrate
 
   // Per la card "categoria principale" del KPI.
   const topCategoria = useMemo(() => {
@@ -103,6 +122,68 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <PageHeader subtitle="Costi extra-food: consumabili, manutenzione, ammortamenti, utenze. Confluiscono nel P&L mensile normalizzati alla periodicità scelta." />
+
+      {/* Toggle SCOPE futuristic-clean: visibile solo se multi-sede.
+          "Tutta l'azienda" mostra TUTTI i costi (azienda-level + sede-specifici).
+          "Sede attiva: NOME" filtra a costi globali + quelli della sede corrente.
+          Stile: glass card + accent bar conic-gradient brand + pill toggle. */}
+      {hasMultiSede && (
+        <div style={{
+          marginBottom: 20, padding: '14px 16px',
+          background: 'linear-gradient(180deg, #FFFFFF 0%, #FBF6F2 100%)',
+          border: `1px solid ${C.border}`, borderRadius: 14,
+          boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.05), inset 0 1px 0 rgba(255,255,255,0.6)',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <style>{`
+            @keyframes _fos_scope_accent {
+              0%, 100% { background-position: 0% 50%; }
+              50%      { background-position: 100% 50%; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .fos-scope-accent { animation: none !important; }
+            }
+          `}</style>
+          <div aria-hidden="true" className="fos-scope-accent" style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+            background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+            backgroundSize: '200% 100%',
+            animation: '_fos_scope_accent 6s ease-in-out infinite',
+          }}/>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 4 }}>Ambito visualizzazione</div>
+              <div style={{ fontSize: 13, color: C.textMid, lineHeight: 1.4 }}>
+                {scope === 'all'
+                  ? <>Stai vedendo <b style={{ color: C.text }}>tutti i costi dell'azienda</b> (globali + di tutte le sedi).</>
+                  : <>Stai vedendo i costi della sede <b style={{ color: C.text }}>{sedeAttivaNome}</b> (specifici di sede + globali azienda).</>}
+              </div>
+            </div>
+            <div style={{ display: 'inline-flex', padding: 4, background: C.bgSubtle || '#F4EEEA', borderRadius: 10, flexShrink: 0 }}>
+              {[
+                { id: 'all', label: 'Tutta l\'azienda' },
+                { id: 'sede', label: `Sede: ${sedeAttivaNome || '-'}` },
+              ].map(opt => {
+                const active = scope === opt.id
+                return (
+                  <button key={opt.id} onClick={() => setScope(opt.id)}
+                    style={{
+                      padding: '8px 16px', minHeight: isMobile ? 40 : 'auto',
+                      borderRadius: 8, border: 'none', cursor: 'pointer',
+                      background: active ? '#FFFFFF' : 'transparent',
+                      color: active ? T.brand : C.textMid,
+                      fontSize: 12.5, fontWeight: active ? 800 : 600,
+                      letterSpacing: '0.01em',
+                      boxShadow: active ? '0 1px 3px rgba(15,23,42,0.10), 0 0 0 1px rgba(110,14,26,0.08)' : 'none',
+                      transition: 'background 140ms ease, color 140ms ease',
+                      fontFamily: 'inherit', whiteSpace: 'nowrap',
+                    }}>{opt.label}</button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI riepilogativi */}
       <div style={{ display: 'grid', gridTemplateColumns: kpiCols, gap: 12, marginBottom: 20 }}>
@@ -359,10 +440,20 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
             background: '#F1F5F9', padding: '2px 7px', borderRadius: 6,
             fontWeight: 600, color: C.textMid, whiteSpace: 'nowrap',
           }}>{periodLabel}</span>
-          <span style={{
-            color: C.textSoft, whiteSpace: 'nowrap',
-            overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
-          }} title={sedeLabel}>· {sedeLabel}</span>
+          {/* Scope badge: emoji + colore distintivo. Verde =azienda, brand = sede. */}
+          {v.sede_id ? (
+            <span style={{
+              background: 'rgba(110,14,26,0.08)', color: T.brand, padding: '2px 8px', borderRadius: 6,
+              fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.01em',
+              border: '1px solid rgba(110,14,26,0.18)',
+            }} title={`Costo specifico per ${sedeLabel}`}>📍 {sedeLabel}</span>
+          ) : (
+            <span style={{
+              background: 'rgba(22,163,74,0.08)', color: '#15803D', padding: '2px 8px', borderRadius: 6,
+              fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.01em',
+              border: '1px solid rgba(22,163,74,0.18)',
+            }} title="Costo a livello azienda (vale per ogni sede)">🏢 Azienda</span>
+          )}
         </div>
       </div>
 
@@ -690,20 +781,26 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
           </div>
         </div>
 
-        {/* Sede */}
+        {/* Sede / Vale per: copy esplicito per chiarire che NULL = tutta l'azienda
+            (es. commercialista, software) vs sede X (es. affitto, utenze di quella). */}
         <div style={{ marginBottom: 14 }}>
-          <label style={lblStyle}>Sede (opzionale)</label>
+          <label style={lblStyle}>Questo costo vale per</label>
           <div style={{ position: 'relative' }}>
             <select value={form.sede_id || ''} onChange={e => update('sede_id', e.target.value || null)} style={selectStyle}>
-              <option value="">Tutte le sedi</option>
+              <option value="">🏢 Tutta l'azienda (vale per ogni sede)</option>
               {(sedi || []).filter(s => s.attiva !== false).map(s => (
-                <option key={s.id} value={s.id}>{s.nome}</option>
+                <option key={s.id} value={s.id}>📍 Solo sede: {s.nome}</option>
               ))}
             </select>
             <span aria-hidden style={{
               position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
               pointerEvents: 'none', color: C.textSoft, fontSize: 10,
             }}>▼</span>
+          </div>
+          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 6, lineHeight: 1.4 }}>
+            {!form.sede_id
+              ? <>💡 Esempi: commercialista, software, marketing centrale, stipendi titolare.</>
+              : <>💡 Esempi: affitto, luce, gas, addetti di quella sede specifica.</>}
           </div>
         </div>
 
