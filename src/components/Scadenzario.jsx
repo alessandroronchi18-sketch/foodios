@@ -187,6 +187,8 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [azienda, setAzienda]             = useState({ nome: '', iban: '', bic: '' })
   const [editAzienda, setEditAzienda]     = useState(false)
   const [sepaConfirm, setSepaConfirm]     = useState(null) // {items, totale} | null
+  const [ibanAlert, setIbanAlert]         = useState(null) // {tipo:'azienda'|'fornitore', fornitore} | null
+  const [selFatt, setSelFatt]             = useState(() => new Set()) // singole fatture selezionate (vista Per scadenza)
   const [actionsOpen, setActionsOpen]     = useState(false)
   const actionsRef = useRef(null)
   useEffect(() => {
@@ -253,6 +255,17 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
   async function salvaAzienda(next) {
     try {
+      // Sanity check: l'IBAN azienda NON deve coincidere con quello di
+      // nessun fornitore (altrimenti staresti pagando te stesso o c'e'
+      // un errore di battitura). Blocco salvataggio + alert.
+      const ibanAz = normalizeIban(next?.iban || '')
+      if (ibanIsValid(ibanAz)) {
+        const collision = fornitori.find(f => normalizeIban(f.iban || '') === ibanAz)
+        if (collision) {
+          setIbanAlert({ tipo: 'azienda', fornitore: collision.nome })
+          return
+        }
+      }
       await ssave(SK_AZIENDA_PAG, next, orgId, null)
       setAzienda(next)
       setEditAzienda(false)
@@ -277,8 +290,16 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const key = normNome(nome)
     try {
       const esistente = fornitori.find(f => normNome(f.nome) === key)
+      const newIban = patch.iban !== undefined ? (normalizeIban(patch.iban) || null) : (esistente?.iban || null)
+      // Sanity check: l'IBAN del fornitore NON deve coincidere con l'IBAN
+      // dell'azienda (altrimenti staresti pagando te stesso, errore comune
+      // di copia-incolla durante l'import anagrafica).
+      if (newIban && ibanIsValid(newIban) && ibanIsValid(azienda.iban) && newIban === normalizeIban(azienda.iban)) {
+        setIbanAlert({ tipo: 'fornitore', fornitore: nome })
+        return
+      }
       const fields = {
-        iban: patch.iban !== undefined ? (normalizeIban(patch.iban) || null) : (esistente?.iban || null),
+        iban: newIban,
         termini_pagamento: patch.termini_pagamento !== undefined ? patch.termini_pagamento : (esistente?.termini_pagamento ?? 30),
         categoria: patch.categoria !== undefined ? (patch.categoria || null) : (esistente?.categoria || null),
       }
@@ -865,14 +886,30 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       )
     }
 
+    const isSel = selFatt.has(f.id)
+    const isPagabile = f.stato !== 'pagata' && f.ibanValido && f.residuo > 0
     return (
       <tr style={{
         borderBottom: last ? 'none' : `1px solid ${T.border}`,
-        background: baseBg,
+        background: isSel ? '#FFF8F7' : baseBg,
         boxShadow: isScaduta ? `inset 3px 0 0 0 ${T.brand}` : 'none',
       }}>
-        <td style={{ padding: '10px 12px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: baseBg, zIndex: 1 }}>
-          <span title={f.fornitore}>{f.fornitore}</span>
+        <td style={{ padding: '10px 12px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: isSel ? '#FFF8F7' : baseBg, zIndex: 1 }}>
+          {/* Checkbox SEPA per singola fattura (vista Per scadenza) */}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, width: '100%' }}>
+            <input type="checkbox" checked={isSel} onChange={(e) => {
+              if (!isPagabile) {
+                e.preventDefault()
+                if (f.stato === 'pagata') { notify('Questa fattura è già marcata come pagata.', false); return }
+                if (!f.ibanValido) { notify(`Aggiungi l'IBAN a ${f.fornitore} per includerla nel bonifico SEPA.`, false); setEditForn(normNome(f.fornitore)); return }
+                notify('Fattura senza residuo da pagare.', false); return
+              }
+              setSelFatt(prev => { const n = new Set(prev); if (n.has(f.id)) n.delete(f.id); else n.add(f.id); return n })
+            }}
+              title={isPagabile ? 'Includi nel bonifico SEPA' : (f.stato === 'pagata' ? 'Gia pagata' : !f.ibanValido ? 'IBAN fornitore mancante - clicca per aggiungerlo' : 'Residuo nullo')}
+              style={{ width: 16, height: 16, cursor: 'pointer', accentColor: T.brand, opacity: isPagabile ? 1 : 0.45, flexShrink: 0 }} />
+            <span title={f.fornitore} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{f.fornitore}</span>
+          </span>
         </td>
         <td style={{ padding: '10px 12px', color: T.textMid, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
           <span title={f.numero_rif || ''}>{f.numero_rif || '-'}</span>
@@ -1657,18 +1694,27 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       )}
       </>)}
 
-      {/* Barra azione bonifico SEPA (fornitori selezionati dal rollup) */}
-      {selez.size > 0 && (() => {
-        const selItems = fattureExt.filter(f => f.stato !== 'pagata' && f.ibanValido && f.residuo > 0 && selez.has(normNome(f.fornitore)))
+      {/* Barra azione bonifico SEPA (unisce selezione per fornitore + singole fatture) */}
+      {(selez.size > 0 || selFatt.size > 0) && (() => {
+        // selez = fornitori (vista Per fornitore) -> includi tutte le fatture
+        //         pagabili di quei fornitori.
+        // selFatt = singole fatture (vista Per scadenza) -> includi solo
+        //           quelle specifiche, se pagabili.
+        const byFornitore = fattureExt.filter(f => f.stato !== 'pagata' && f.ibanValido && f.residuo > 0 && selez.has(normNome(f.fornitore)))
+        const bySingolaFt = fattureExt.filter(f => f.stato !== 'pagata' && f.ibanValido && f.residuo > 0 && selFatt.has(f.id))
+        // Dedup per id
+        const seen = new Set()
+        const selItems = [...byFornitore, ...bySingolaFt].filter(f => seen.has(f.id) ? false : (seen.add(f.id), true))
         const tot = selItems.reduce((s, f) => s + Math.abs(f.residuo), 0)
+        const numFornitori = new Set(selItems.map(f => normNome(f.fornitore))).size
         return (
           <div style={{ position: 'fixed', left: 0, right: 0, bottom: isMobile ? 64 : 0, zIndex: 900, background: T.bgCard, borderTop: `1px solid ${T.border}`, boxShadow: '0 -6px 24px rgba(15,23,42,0.14)', padding: isMobile ? '12px 14px' : '14px 28px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 14 }}>
             <div style={{ fontSize: isMobile ? 13 : 13, color: T.text, fontWeight: 600, ...tnum, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {selez.size} fornitor{selez.size === 1 ? 'e' : 'i'} · {selItems.length} fatture pagabili · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
+              {selItems.length} fattur{selItems.length === 1 ? 'a' : 'e'} pagabil{selItems.length === 1 ? 'e' : 'i'} · {numFornitori} fornitor{numFornitori === 1 ? 'e' : 'i'} · <span style={{ color: T.brand, fontWeight: 800 }}>{fmtEuro(tot)}</span>
             </div>
             {!isMobile && <div style={{ flex: 1 }} />}
             <div style={{ display: 'flex', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
-              <button onClick={() => setSelez(new Set())} aria-label="Deseleziona tutti" style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Deseleziona</button>
+              <button onClick={() => { setSelez(new Set()); setSelFatt(new Set()) }} aria-label="Deseleziona tutti" style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Deseleziona</button>
               <button onClick={() => {
                 if (!ibanIsValid(azienda.iban)) { setEditAzienda(true); notify('Inserisci prima l\'IBAN azienda per generare il bonifico.', false); return }
                 const tot = selItems.reduce((s, f) => s + Math.abs(f.residuo || f.totale || 0), 0)
@@ -1682,6 +1728,36 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </div>
         )
       })()}
+
+      {/* Modale ALLARME IBAN duplicato — azienda == fornitore */}
+      {ibanAlert && (
+        <div onClick={() => setIbanAlert(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: T.bgCard, borderRadius: 16, padding: '26px 28px', maxWidth: 480, width: '100%', boxShadow: '0 24px 60px rgba(204,0,0,0.28)', position: 'relative', overflow: 'hidden' }}>
+            <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: T.brand }}/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <span style={{ width: 44, height: 44, borderRadius: 12, background: '#FEE2E2', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="warning" size={24} />
+              </span>
+              <div style={{ fontSize: 17, fontWeight: 900, color: T.brand, letterSpacing: '-0.01em' }}>Attenzione: IBAN identico</div>
+            </div>
+            <div style={{ fontSize: 13.5, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
+              {ibanAlert.tipo === 'azienda'
+                ? <>L'IBAN che stai impostando per <b>la tua azienda</b> è esattamente uguale a quello del fornitore <b>{ibanAlert.fornitore}</b>. Sarebbe come pagare te stesso. Probabile errore di copia-incolla.</>
+                : <>L'IBAN che stai impostando per il fornitore <b>{ibanAlert.fornitore}</b> è esattamente uguale all'IBAN della tua azienda. Sarebbe come pagare te stesso. Probabile errore di copia-incolla.</>}
+            </div>
+            <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '11px 14px', fontSize: 12.5, color: T.textMid, lineHeight: 1.55, marginBottom: 18 }}>
+              <b style={{ color: T.text }}>Cosa fare:</b> ricontrolla l'IBAN su una fattura cartacea / PEC del fornitore e inseriscilo correttamente. Se davvero usi lo stesso conto (raro), forza il salvataggio - ma sappi che il bonifico SEPA fallirà perché la banca rifiuta debtor == creditor.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setIbanAlert(null)} style={{ ...primaryBtn, padding: '10px 24px' }}>
+                Ho capito, correggo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modale conferma generazione SEPA — chiarisce che il file scaricato
           va caricato nell'home banking, NON viene inviato automaticamente. */}
@@ -1700,18 +1776,27 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <div style={{ fontSize: 12, color: T.textSoft, marginTop: 2 }}>{sepaConfirm.items.length} {sepaConfirm.items.length === 1 ? 'pagamento' : 'pagamenti'} · <b style={{ color: T.brand }}>{fmtEuro(sepaConfirm.totale)}</b></div>
               </div>
             </div>
-            <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
-              Sto per scaricare il file <b>bonifico_sepa_*.xml</b>. <b>Foodos non invia il bonifico</b>: il file devi caricarlo tu nell'home banking della tua banca.
+            <div style={{ fontSize: 13.5, color: T.text, lineHeight: 1.6, marginBottom: 14 }}>
+              Sto per scaricare un file <b>bonifico_sepa_*.xml</b>. È un foglio bancario: tu lo dai alla tua banca e la banca paga i fornitori per te.
+              <br /><br />
+              <b style={{ color: T.brand }}>Foodos non invia soldi</b>: prepara solo il file. Sei tu che dici alla tua banca di pagare.
             </div>
-            <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 18, fontSize: 12.5, color: T.textMid, lineHeight: 1.6 }}>
-              <div style={{ fontWeight: 700, color: T.text, marginBottom: 6 }}>Cosa fare con il file:</div>
-              <ol style={{ margin: 0, paddingLeft: 18 }}>
-                <li>Apri l'home banking della tua banca</li>
-                <li>Cerca la sezione <b>"Bonifico multiplo"</b> o <b>"SEPA / bonifico massivo"</b></li>
-                <li>Carica il file <code style={{ background: '#FFF', padding: '1px 5px', borderRadius: 4, border: `1px solid ${T.border}`, fontSize: 11 }}>.xml</code> appena scaricato</li>
-                <li>Verifica gli importi, conferma con OTP/firma digitale</li>
-                <li>Torna su Foodos e marca le fatture come "Pagata"</li>
+            <div style={{ background: T.bgSubtle || '#F8FAFC', border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12.5, color: T.textMid, lineHeight: 1.65 }}>
+              <div style={{ fontWeight: 700, color: T.text, marginBottom: 6 }}>Come fare passo passo:</div>
+              <ol style={{ margin: 0, paddingLeft: 20 }}>
+                <li>Clicca "Scarica" qui sotto - il file finisce nei tuoi <b>Download</b></li>
+                <li><b>NON aprirlo con Word/Excel</b> (li mostra male). Lascialo dov'è.</li>
+                <li>Vai sul sito della tua banca (home banking), fai login</li>
+                <li>Cerca <b>"Bonifico multiplo"</b>, <b>"SEPA"</b> o <b>"Bonifico massivo"</b></li>
+                <li>Carica il file <code style={{ background: '#FFF', padding: '1px 5px', borderRadius: 4, border: `1px solid ${T.border}`, fontSize: 11 }}>.xml</code> appena scaricato (trascina o "Sfoglia")</li>
+                <li>La banca elenca tutti i pagamenti: verifica gli importi</li>
+                <li>Conferma con il <b>codice OTP / firma digitale</b> richiesto dalla banca</li>
+                <li>Torna in Foodos e clicca <b>"Segna pagata"</b> sulle fatture</li>
               </ol>
+            </div>
+            <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '10px 14px', marginBottom: 18, fontSize: 11.5, color: '#78350F', lineHeight: 1.55, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <Icon name="warning" size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>Se non sai quale sezione cercare nella tua banca, prova "Bonifici" → "Carica file" oppure chiama l'assistenza banca: dì che vuoi caricare un <b>file SEPA pain.001</b> per bonifici multipli.</span>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button onClick={() => setSepaConfirm(null)}
