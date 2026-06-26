@@ -2138,34 +2138,19 @@ export default function Dashboard({
           {/* Logo + nome (sx). Su tablet nascondiamo il nome app per recuperare spazio
               alle sezioni di navigazione. */}
           <button onClick={()=>go(isDip?"home-dipendente":"home")} aria-label={`Home ${appName}`} style={{display:"flex",alignItems:"center",gap:10,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
-            {/* Brand brick con conic-ring rotante (echo splash). Molto visibile. */}
-            <span style={{position:"relative", width:30, height:30, flexShrink:0, display:"inline-flex", alignItems:"center", justifyContent:"center"}}>
-              <span aria-hidden="true" style={{
-                position:"absolute", inset:-2, borderRadius:9,
-                background:"conic-gradient(from 0deg, #E84B3A 0deg, #FFB350 90deg, #6E0E1A 180deg, #FF7B5A 270deg, #E84B3A 360deg)",
-                opacity:0.95, filter:"blur(0.5px)",
-                animation:"_fos_brand_rotate 8s linear infinite",
-                WebkitMask:"radial-gradient(circle, transparent 14px, black 15px)",
-                mask:"radial-gradient(circle, transparent 14px, black 15px)",
-              }}/>
-              {customLogo
-                ? <img src={customLogo} alt={appName} style={{position:"relative", zIndex:1, height:26,maxWidth:46,objectFit:'contain',borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.55)"}}/>
-                : <Logo size={26} style={{position:"relative", zIndex:1, borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.55), inset 0 1px 0 rgba(255,255,255,0.16)"}}/>
-              }
-            </span>
+            {/* Brand brick STATICO (no rotating ring, richiesta utente). Subtle
+                halo brand al posto del ring per mantenere identità futuristic. */}
+            {customLogo
+              ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.55)"}}/>
+              : <Logo size={26} style={{borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.55), inset 0 1px 0 rgba(255,255,255,0.16)"}}/>
+            }
             {!isTablet && <span style={{
-              fontSize:15, fontWeight:800,
+              fontSize:13.5, fontWeight:800,
               letterSpacing:"0.02em", textTransform:"uppercase", whiteSpace:"nowrap",
               backgroundImage:"linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.6) 100%)",
               backgroundClip:"text", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
             }}>{appName}</span>}
           </button>
-          <style>{`
-            @keyframes _fos_brand_rotate { to { transform: rotate(360deg) } }
-            @media (prefers-reduced-motion: reduce) {
-              [style*="_fos_brand_rotate"] { animation: none !important; }
-            }
-          `}</style>
 
           {/* Sezioni con mega-menu su hover (centrate) */}
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:isTablet?0:2,flex:1,minWidth:0,overflow:"visible"}}>
@@ -2184,7 +2169,7 @@ export default function Dashboard({
                     style={{position:"relative",display:"flex",alignItems:"center",gap:isTablet?4:6,padding:isTablet?"8px 10px":"8px 14px",borderRadius:8,border:"none",cursor:sec.headerView?"pointer":"default",whiteSpace:"nowrap",
                     background:open?"rgba(255,255,255,0.14)":secActive?"rgba(255,255,255,0.08)":(sec.id==="ai"?"linear-gradient(120deg, rgba(232,75,58,0.22), rgba(255,216,107,0.12))":"transparent"),
                     color:secActive||open?"#fff":"rgba(255,255,255,0.82)",
-                    fontSize:isTablet?10.5:11.5, fontWeight:secActive?800:(sec.id==="ai"?800:700),
+                    fontSize:isTablet?9.5:10.5, fontWeight:secActive?800:(sec.id==="ai"?800:700),
                     letterSpacing:"0.10em", textTransform:"uppercase",
                     fontFamily:"inherit",
                     transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}>
@@ -2203,30 +2188,34 @@ export default function Dashboard({
                   {/* Bridge trasparente (paddingTop) tra bottone ed elenco: così
                       spostandosi sull'elenco il menu NON si chiude. */}
                   {open&&(
-                    <div style={{position:"absolute",top:"100%",left:0,paddingTop:6,zIndex:60}}>
+                    <div style={{position:"absolute",top:"100%",left:0,paddingTop:8,zIndex:60}}>
                       <div style={{
-                        minWidth:220,
-                        background:"linear-gradient(180deg, #FFFFFF 0%, #FBF6F2 100%)",
+                        minWidth:240,
+                        background:"linear-gradient(180deg, rgba(255,255,255,0.99) 0%, rgba(251,246,242,0.99) 100%)",
+                        backdropFilter:"saturate(150%) blur(8px)",
+                        WebkitBackdropFilter:"saturate(150%) blur(8px)",
                         border:`1px solid ${C.border}`,
                         borderRadius:14,
-                        boxShadow:"0 18px 48px rgba(15,23,42,0.22), 0 0 0 1px rgba(255,255,255,0.6) inset",
-                        padding:6,
+                        boxShadow:"0 24px 56px rgba(15,23,42,0.28), 0 0 0 1px rgba(255,255,255,0.7) inset",
+                        padding:"8px 6px 6px",
                         overflow:"hidden",
-                        animation:"_fos_topdrop_in 200ms cubic-bezier(.32,.72,0,1)",
+                        animation:"_fos_topdrop_in 220ms cubic-bezier(.32,.72,0,1)",
+                        position:"relative",
                       }}>
                         <style>{`
                           @keyframes _fos_topdrop_in {
-                            from { opacity: 0; transform: translateY(-6px); }
-                            to   { opacity: 1; transform: translateY(0); }
+                            from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+                            to   { opacity: 1; transform: translateY(0) scale(1); }
                           }
                         `}</style>
-                        {/* Accent bar futuristic in cima al dropdown */}
+                        {/* Accent bar futuristic in cima */}
                         <div aria-hidden="true" style={{
-                          height: 2, margin: '-6px -6px 6px',
+                          position: 'absolute', top: 0, left: 0, right: 0, height: 2,
                           background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
-                          opacity: 0.7,
+                          opacity: 0.8,
                         }}/>
-                        {sec.items.map(ItemBtn)}
+                        {/* Items ordinati alfabeticamente per label (richiesta utente) */}
+                        {[...sec.items].sort((a, b) => (a.label || '').localeCompare(b.label || '')).map(ItemBtn)}
                       </div>
                     </div>
                   )}
@@ -3132,7 +3121,7 @@ export default function Dashboard({
         {/* Inner content padding. Suspense globale: copre tutte le view lazy
             (44 component lazy-loaded via React.lazy). Fallback minimale per
             evitare flash bianco - l'utente vede un loader breve. */}
-        <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 88px":isTablet?"16px 20px 28px":"16px 32px 28px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
+        <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 88px":isTablet?"16px 20px 28px":"16px 0 28px",flex:1,maxWidth:1200,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         <React.Suspense fallback={
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 20px',color:T.textSoft,fontSize:13,gap:10}}>
             <div style={{width:18,height:18,borderRadius:'50%',border:`2px solid ${T.border}`,borderTopColor:T.brand,animation:'fos_spin 0.6s linear infinite'}}/>

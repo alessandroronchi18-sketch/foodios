@@ -431,8 +431,13 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                 return (
                   <tr key={row.key} style={{ borderBottom: `1px solid ${C.border}`, background: editing ? '#FFF8F7' : i % 2 === 0 ? C.white : '#FDFAF7' }}>
                     <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>
-                      {row.nome}
-                      {!row.haPrezzo && <span style={{ marginLeft: 8, fontSize: 9, padding: '2px 6px', borderRadius: 4, background: C.amberLight, color: C.amber, fontWeight: 700 }}>Prezzo da impostare</span>}
+                      {/* Nome + badge incolonnati: nome in colonna fissa 180px,
+                          badge sempre alla stessa x indipendentemente dalla
+                          lunghezza del nome. */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ minWidth: 180, display: 'inline-block' }}>{row.nome}</span>
+                        {!row.haPrezzo && <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: C.amberLight, color: C.amber, fontWeight: 700, whiteSpace: 'nowrap' }}>Prezzo da impostare</span>}
+                      </div>
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>
                       {editing ? (
@@ -555,6 +560,9 @@ export default function MagazzinoView({
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [tab, setTab] = useState('giacenze')
+  // Toggle unità: 'kg' tutto kg (anche 0,80 kg), 'g' tutto grammi (28.000 g).
+  // Default 'kg' che è il più comodo per ingredienti grandi (farine, latte).
+  const [unitMode, setUnitMode] = useState('kg')
   const [deleteIngConf, setDeleteIngConf] = useState(null)
   const [deleteIngPin, setDeleteIngPin] = useState('')
   const [formIng, setFormIng] = useState('')
@@ -756,7 +764,13 @@ export default function MagazzinoView({
   const statoColor = s => s === 'esaurito' ? C.red : s === 'critico' ? C.red : s === 'attenzione' ? C.amber : C.green
   const statoBg = s => s === 'esaurito' ? C.redLight : s === 'critico' ? C.redLight : s === 'attenzione' ? C.amberLight : C.greenLight
   const statoLabel = s => s === 'esaurito' ? 'Esaurito' : s === 'critico' ? 'Critico' : s === 'attenzione' ? 'Attenzione' : 'OK'
-  const fmtG = g => g >= 1000 ? `${(g / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(g).toLocaleString('it-IT')} g`
+  // fmtG: rispetta unitMode utente. 'kg' -> sempre kg (anche piccoli, "0,80 kg").
+  // 'g' -> sempre grammi (anche grandi, "28.000 g"). Niente piu mix.
+  const fmtG = g => {
+    const n = Number(g) || 0
+    if (unitMode === 'g') return `${Math.round(n).toLocaleString('it-IT')} g`
+    return `${(n / 1000).toLocaleString('it-IT', { minimumFractionDigits: n >= 1000 ? 2 : 3, maximumFractionDigits: n >= 1000 ? 2 : 3 })} kg`
+  }
   // Suggerimento riordino arrotondato a step pratici: <1kg → step 100g, ≥1kg → 0,5kg.
   const fmtRiordino = g => {
     if (!(g > 0)) return null
@@ -812,9 +826,19 @@ export default function MagazzinoView({
           <KPI icon={<Icon name="money" size={18} />} label="Valore a magazzino" value={fmt0(valoreStock)} highlight
             sub={`${righe.filter(r => r.valore > 0).length} ingredienti valorizzati`}/>
           <KPI icon={<Icon name="alert" size={18} />} label="Critici" value={critici.length}
-            color={critici.length > 0 ? C.red : C.green} sub={critici.length > 0 ? 'riordino urgente' : 'tutto ok'}/>
+            color={critici.length > 0 ? C.red : C.green}
+            sub={critici.length > 0 ? 'apri il riordino' : 'tutto ok'}
+            onClick={critici.length > 0 ? () => {
+              const el = document.getElementById('riordino-urgente')
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            } : undefined}/>
           <KPI icon={<Icon name="warning" size={18} />} label="In esaurimento" value={attenzione.length}
-            color={attenzione.length > 0 ? C.amber : C.green} sub={attenzione.length > 0 ? '< 7 giorni' : 'ok'}/>
+            color={attenzione.length > 0 ? C.amber : C.green}
+            sub={attenzione.length > 0 ? 'apri il riordino' : 'ok'}
+            onClick={attenzione.length > 0 ? () => {
+              const el = document.getElementById('riordino-urgente')
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            } : undefined}/>
           <KPI icon={<Icon name="clock" size={18} />} label="Copertura media"
             value={coperturaMedia !== null ? `${coperturaMedia.toFixed(0)} gg` : '-'}
             color={coperturaMedia === null ? undefined : coperturaMedia < 3 ? C.red : coperturaMedia < 7 ? C.amber : C.green}
@@ -830,7 +854,7 @@ export default function MagazzinoView({
         if (daRiordinare.length === 0) return null
         const costoStimato = daRiordinare.reduce((s, r) => s + (r.riordinoG * r.costoG || 0), 0)
         return (
-          <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 24, boxShadow: SHADOW_PREMIUM }}>
+          <div id="riordino-urgente" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 24, boxShadow: SHADOW_PREMIUM, scrollMarginTop: 70 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: `1px solid ${C.border}`,
               background: 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' }}>
               <span style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.16)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -909,7 +933,24 @@ export default function MagazzinoView({
       {tab === 'giacenze' && (
         <div>
           <SectHead icon={<Icon name="package" size={17} />} title="Materie prime" sub="Giacenze, soglie di riordino e giorni di scorta"
-            right={<button onClick={() => setShowAddIng(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)' }}>+ Aggiungi ingrediente</button>} />
+            right={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Toggle unità kg / g: tutti i pesi della pagina cambiano insieme. */}
+                <div style={{ display: 'inline-flex', padding: 3, background: C.bgSubtle, borderRadius: 8 }}>
+                  {['kg', 'g'].map(u => (
+                    <button key={u} onClick={() => setUnitMode(u)}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                        background: unitMode === u ? C.bgCard : 'transparent',
+                        color: unitMode === u ? C.red : C.textSoft,
+                        fontSize: 11.5, fontWeight: 700,
+                        boxShadow: unitMode === u ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
+                        fontFamily: 'inherit',
+                      }}>{u}</button>
+                  ))}
+                </div>
+                <button onClick={() => setShowAddIng(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)' }}>+ Aggiungi ingrediente</button>
+              </div>
+            } />
 
           {showAddIng && (
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '16px 20px', marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end', boxShadow: SHADOW_PREMIUM }}>
