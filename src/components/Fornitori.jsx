@@ -757,6 +757,7 @@ function SpesaTab({ orgId, isMobile }) {
           <option value="30">Ultimi 30 giorni</option>
           <option value="90">Ultimi 90 giorni</option>
           <option value="365">Ultimo anno</option>
+          <option value="99999">Da sempre</option>
         </select>
       </div>
 

@@ -161,14 +161,14 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
 
   // Suggerimenti per il campo "Cosa" (ricette valide vendibili + categorie).
   const suggerimenti = useMemo(() => {
+    // Solo nomi prodotti, niente categorie (richiesta utente 26/06):
+    // i titoli "Torte", "Muffin", "Plumcake" facevano da rumore nella tendina.
     const out = new Set()
     for (const r of Object.values(ricettario?.ricette || {})) {
       if (!isRicettaValida(r.nome)) continue
       const tipo = getR(r.nome, r).tipo
       if (tipo === 'semilavorato' || tipo === 'interno') continue
       out.add(r.nome)
-      const cat = String(r.categoria || '').trim()
-      if (cat) out.add(cat)
     }
     return [...out].sort()
   }, [ricettario])
@@ -695,9 +695,14 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       {/* (4) ELENCO MOVIMENTI DEL MESE */}
       <SH sub="Tutti gli eventi del mese, dal più recente. Filtra per tipo o causale.">Movimenti del mese</SH>
       <div style={{ ...cardStyle(), padding: isMobile ? '12px 14px' : '12px 18px', marginBottom: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        {/* Filtri select: fontSize 12.5 desktop (16 mobile per evitare zoom iOS).
+            Padding ridotto a 8x12 per equipararsi alle altre select del sito
+            (Magazzino, Ricettario, etc). */}
         <div>
           <label style={labelS}>Tipo</label>
-          <select style={{ ...inputS, width: 'auto' }} value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setFiltroCausale('tutte') }}>
+          <select
+            style={{ ...inputS, width: 'auto', fontSize: isMobile ? 16 : 12.5, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
+            value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setFiltroCausale('tutte') }}>
             <option value="tutti">Tutti</option>
             <option value="spreco">Solo perdite</option>
             <option value="omaggio">Solo omaggi</option>
@@ -705,7 +710,9 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         </div>
         <div>
           <label style={labelS}>Causale</label>
-          <select style={{ ...inputS, width: 'auto' }} value={filtroCausale} onChange={e => setFiltroCausale(e.target.value)}>
+          <select
+            style={{ ...inputS, width: 'auto', fontSize: isMobile ? 16 : 12.5, padding: isMobile ? '10px 12px' : '8px 32px 8px 12px' }}
+            value={filtroCausale} onChange={e => setFiltroCausale(e.target.value)}>
             <option value="tutte">Tutte</option>
             {causaliFiltro.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>

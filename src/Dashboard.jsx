@@ -2038,7 +2038,7 @@ export default function Dashboard({
           ]},
           { id:"numeri", label:"Analisi & Numeri", items:[
             {id:"pl",label:"Profitti (P&L)",icon:"trendUp"},
-            {id:"costi-aziendali",label:"Costi aziendali",icon:"package"},
+            {id:"costi-aziendali",label:"Costi aziendali",icon:"coins"},
             {id:"storico",label:"Storico produzione",icon:"activity"},
             ...(isMetodoInventario ? [{id:"quadratura-inventario",label:"Quadratura inventario",icon:"check"}] : []),
             {id:"simulatore",label:"Food Cost simulatore",icon:"barChart"},
@@ -2053,7 +2053,7 @@ export default function Dashboard({
             {id:"personale",label:"Personale & stipendi",icon:"users"},
             {id:"haccp",label:"HACCP",icon:"shield"},
             {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
-            {id:"integrazioni",label:"Integrazioni",icon:"plug"},
+            {id:"integrazioni",label:"Integrazioni",icon:"check"},
           ]},
           // ── SEZIONE AI: tutte le 23 funzioni AI raggruppate ───────────────
           // headerView: cliccando il titolo della sezione si va a 'ai-hub'.
@@ -2062,7 +2062,7 @@ export default function Dashboard({
           { id:"ai", label:"AI", headerView:"ai-hub", badge:azioniAperte, items:[
             {id:"ai-hub",label:"Panoramica AI",icon:"sparkles"},
             {id:"ai-brain",label:"Foodos Brain (chat)",icon:"sparkles"},
-            {id:"forecast",label:"Forecast vendite 7gg",icon:"sun"},
+            {id:"forecast",label:"Forecast vendite 7gg",icon:"forecast"},
             {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
             {id:"menu-engineering",label:"Menu engineering",icon:"barChart"},
             // Audit 2026-06-25: nascoste dal menu su richiesta utente (congelate, riattivabili).

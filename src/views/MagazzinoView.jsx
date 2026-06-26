@@ -1041,7 +1041,7 @@ export default function MagazzinoView({
                           </div>
                         ) : (
                           <button onClick={() => setEditSoglia({ nome: r.k, val: r.soglia || '' })}
-                            style={{ padding: '4px 10px', borderRadius: 5, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontSize: 10, cursor: 'pointer' }}>
+                            style={{ padding: '5px 10px', minWidth: 84, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontSize: 10.5, fontWeight: 600, cursor: 'pointer', ...TNUM, textAlign: 'center', whiteSpace: 'nowrap' }}>
                             {r.soglia > 0 ? fmtG(r.soglia) : 'Imposta'}
                           </button>
                         )}

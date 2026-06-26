@@ -116,7 +116,7 @@ function exportFattureInCloudCSV(corrispettivi, fatturePassive, ivaPct, sediMap,
 
   const csv = rows.map(r => r.map(csvEscape).join(';')).join('\n')
   // BOM per Excel/Fatture in Cloud che si aspettano UTF-8 BOM
-  downloadBlob('﻿' + csv, `foodios_fatture-in-cloud_${yearMonth}.csv`, 'text/csv;charset=utf-8')
+  downloadBlob('﻿' + csv, `foodos_fatture-in-cloud_${yearMonth}.csv`, 'text/csv;charset=utf-8')
 }
 
 function exportTeamSystemXML(corrispettivi, fatturePassive, ivaPct, sediMap, yearMonth, orgNome) {
@@ -219,7 +219,7 @@ async function exportCommercialistaXLSX(corrispettivi, fatturePassive, ivaPct, s
   wsF['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 28 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }]
   XLSX.utils.book_append_sheet(wb, wsF, 'Fatture passive')
 
-  XLSX.writeFile(wb, `foodios_commercialista_${yearMonth}.xlsx`)
+  XLSX.writeFile(wb, `foodos_commercialista_${yearMonth}.xlsx`)
 }
 
 export default function ExportContabilita({ orgId, sedi = [], nomeAttivita, notify }) {
