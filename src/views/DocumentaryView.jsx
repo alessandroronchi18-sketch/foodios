@@ -68,7 +68,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
           <div style={{ fontSize: 40 }}>🎬</div>
           <div style={{ marginTop: 14, fontSize: 16, fontWeight: 800, color: TXT }}>Il tuo primo documentario arriva al prossimo trimestre</div>
           <div style={{ fontSize: 13, color: SOFT, marginTop: 8, lineHeight: 1.6, maxWidth: 480, margin: '8px auto 0' }}>
-            L'AI raccoglie i tuoi dati dal lancio FoodOS e ti prepara un riassunto narrativo<br/>
+            L'AI raccoglie i tuoi dati dal lancio Foodos e ti prepara un riassunto narrativo<br/>
             ogni 1° apr / 1° lug / 1° ott / 1° gen.<br/>
             Sarà un documento da condividere con team, soci, commercialista, social.
           </div>
@@ -131,7 +131,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
               )}
 
               <div style={{ fontSize: 11, color: SOFT, marginTop: 24, paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
-                Generato automaticamente da FoodOS Documentary AI · {new Date(selected.created_at).toLocaleDateString('it-IT')}
+                Generato automaticamente da Foodos Documentary AI · {new Date(selected.created_at).toLocaleDateString('it-IT')}
               </div>
             </div>
           )}

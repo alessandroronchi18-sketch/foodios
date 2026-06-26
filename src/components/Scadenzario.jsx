@@ -694,7 +694,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
   // ── UI helpers ────────────────────────────────────────────────────────────────
   const card = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }
-  // Touch target: 40 desktop, 44 tablet/mobile (pattern FoodOS)
+  // Touch target: 40 desktop, 44 tablet/mobile (pattern Foodos)
   const minTouch = isMobile ? 44 : (isTablet ? 44 : 40)
   const pill = (active) => ({
     padding: isMobile ? '9px 16px' : '7px 14px',

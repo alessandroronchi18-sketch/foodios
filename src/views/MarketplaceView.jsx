@@ -1,7 +1,7 @@
 // Marketplace fornitori (C4) - Scaffolding MVP
 //
 // Mostra listings caricati su public.marketplace_listings (pubblici per tutti
-// gli utenti FoodOS). Filtri categoria + ricerca prodotto. Bottone "Contatta"
+// gli utenti Foodos). Filtri categoria + ricerca prodotto. Bottone "Contatta"
 // che apre mailto/tel.
 //
 // V2: AI matching engine ("per il tuo pistacchio bronte consigliamo X").
@@ -75,7 +75,7 @@ export default function MarketplaceView() {
         eyebrow="AI · Marketplace fornitori"
         title="Trova nuovi"
         accentText="fornitori HORECA"
-        subtitle="Fornitori verificati raccomandati dalla community FoodOS. Prezzi indicativi: contatta direttamente per offerta personalizzata."
+        subtitle="Fornitori verificati raccomandati dalla community Foodos. Prezzi indicativi: contatta direttamente per offerta personalizzata."
         chainOnly
         statusBadge="BETA"
         stats={[

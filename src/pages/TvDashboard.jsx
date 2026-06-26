@@ -117,7 +117,7 @@ export default function TvDashboard() {
     <div style={styles.wrap}>
       <header style={styles.header}>
         <div>
-          <h1 style={styles.title}>{data.org?.nome || 'FoodOS'}</h1>
+          <h1 style={styles.title}>{data.org?.nome || 'Foodos'}</h1>
           <div style={styles.sub}>{giornoLabel}</div>
         </div>
         <div style={styles.ora}>{ora}</div>

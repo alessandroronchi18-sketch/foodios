@@ -41,7 +41,7 @@ export default function LegalLayout({ title, updated, children, related = [] }) 
   return (
     <div style={S.wrap}>
       <div style={S.header}>
-        <a href="/" style={{ color: '#FFF', textDecoration: 'none', fontWeight: 900, fontSize: isMobile ? 16 : 18 }}>FoodOS</a>
+        <a href="/" style={{ color: '#FFF', textDecoration: 'none', fontWeight: 900, fontSize: isMobile ? 16 : 18 }}>Foodos</a>
         <a href="/" style={{ color: '#FFF', fontSize: isMobile ? 12 : 13, opacity: 0.7, textDecoration: 'none', whiteSpace: 'nowrap' }}>← {isMobile ? 'App' : 'Torna all\'app'}</a>
       </div>
       <div style={S.body}>
@@ -68,7 +68,7 @@ export default function LegalLayout({ title, updated, children, related = [] }) 
               ))}
             </div>
           )}
-          <div style={{ marginTop: 14, fontSize: 11 }}>© {new Date().getFullYear()} FoodOS · Tutti i diritti riservati</div>
+          <div style={{ marginTop: 14, fontSize: 11 }}>© {new Date().getFullYear()} Foodos · Tutti i diritti riservati</div>
         </div>
       </div>
     </div>

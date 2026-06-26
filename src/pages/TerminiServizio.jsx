@@ -5,7 +5,7 @@ export default function TerminiServizio() {
   return (
     <LegalLayout title="Termini di Servizio" updated="2026-05-29" related={[['Privacy Policy', '/privacy'], ['Rimborsi', '/rimborsi']]}>
       <LegalP>
-        I presenti Termini regolano l'utilizzo del servizio <strong>FoodOS</strong> ("il Servizio"),
+        I presenti Termini regolano l'utilizzo del servizio <strong>Foodos</strong> ("il Servizio"),
         fornito da <strong>[RAGIONE SOCIALE]</strong> ("Fornitore"). Utilizzando il Servizio
         accetti integralmente le presenti condizioni.
       </LegalP>

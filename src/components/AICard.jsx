@@ -1,4 +1,4 @@
-// Scaffold UI shared per tutte le card AI di FoodOS.
+// Scaffold UI shared per tutte le card AI di Foodos.
 // Risolve i 5 anti-pattern visti nelle view AI esistenti:
 //   1. Loading state diverso per ogni view → spinner uniforme + skeleton
 //   2. Error mostrato come `notify()` toast → user perde il contesto del retry

@@ -117,7 +117,7 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
           </button>
         </div>
         <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.7 }}>
-          Se attivo, FoodOS invierà <strong style={{ color: '#0F172A' }}>solo dati aggregati</strong> e anonimi (food cost %, tipo attività, città) per costruire benchmark di settore. Niente nome attività, indirizzi, ricette o numeri privati.
+          Se attivo, Foodos invierà <strong style={{ color: '#0F172A' }}>solo dati aggregati</strong> e anonimi (food cost %, tipo attività, città) per costruire benchmark di settore. Niente nome attività, indirizzi, ricette o numeri privati.
           In cambio, vedrai nella sezione <strong>Food Cost</strong> la media del tuo settore confrontata con la tua.
         </div>
 

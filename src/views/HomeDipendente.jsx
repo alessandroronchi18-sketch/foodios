@@ -242,7 +242,7 @@ export default function HomeDipendente({
             <Icon name="phone" size={18} />
           </div>
           <div style={{ flex: 1, fontSize: 12.5, color: SOFT, lineHeight: 1.5 }}>
-            <strong style={{ color: TXT }}>Suggerimento</strong>: aggiungi FoodOS alla schermata Home per accedere come app
+            <strong style={{ color: TXT }}>Suggerimento</strong>: aggiungi Foodos alla schermata Home per accedere come app
             <span style={{ fontStyle: 'italic' }}> (tap sul menu del browser → "Aggiungi a Home")</span>.
           </div>
         </div>
@@ -255,7 +255,7 @@ export default function HomeDipendente({
         textAlign: 'center',
         fontSize: 11, color: SOFT, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
       }}>
-        FoodOS · modalità dipendente
+        Foodos · modalità dipendente
       </div>
     </div>
   )

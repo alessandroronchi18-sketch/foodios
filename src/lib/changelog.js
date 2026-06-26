@@ -25,7 +25,7 @@ export const CHANGELOG = [
   {
     versione: '1.0.0',
     data: '2026-05-11',
-    novita: ['Prima versione pubblica di FoodOS'],
+    novita: ['Prima versione pubblica di Foodos'],
     fix: [],
   },
 ]

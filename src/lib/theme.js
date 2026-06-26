@@ -1,4 +1,4 @@
-// FoodOS — design tokens
+// Foodos — design tokens
 // Single source of truth for the redesign. Import the slices you need:
 //   import { color, space, radius, font, shadow, motion, layout, z } from './lib/theme'
 //

@@ -52,7 +52,7 @@ function normalizeStato(v) {
   return 'da_pagare'
 }
 
-// Parse FatturaPA XML (SDI) — returns array of invoices compatible with FoodOS fatture table
+// Parse FatturaPA XML (SDI) — returns array of invoices compatible with Foodos fatture table
 export function parseFatturaXML(xmlString) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlString, 'application/xml')

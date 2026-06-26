@@ -1,7 +1,7 @@
 // WhatsApp Bot setup (C2) - SCAFFOLDING
 //
 // L'utente registra il proprio numero di telefono. Il sistema genera un
-// "magic word" da inviare al numero Twilio FoodOS per attivare il link.
+// "magic word" da inviare al numero Twilio Foodos per attivare il link.
 //
 // MVP: lista linkati + bottone per aggiungerne uno.
 
@@ -21,7 +21,7 @@ const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
 
-// Numero WhatsApp ufficiale FoodOS — placeholder finché non attivi Twilio Business
+// Numero WhatsApp ufficiale Foodos — placeholder finché non attivi Twilio Business
 const WA_NUMBER = '+39 351 234 5678'
 
 export default function WhatsAppView({ orgId, user }) {
@@ -74,7 +74,7 @@ export default function WhatsAppView({ orgId, user }) {
   async function rimuovi(id) {
     const ok = await confirmDialog({
       title: 'Scollegare numero?',
-      message: 'Il numero non riceverà più report o alert da FoodOS via WhatsApp.',
+      message: 'Il numero non riceverà più report o alert da Foodos via WhatsApp.',
       confirmLabel: 'Scollega', cancelLabel: 'Annulla', destructive: true,
     })
     if (!ok) return
@@ -86,7 +86,7 @@ export default function WhatsAppView({ orgId, user }) {
     <div style={{ maxWidth: 800, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · WhatsApp Bot"
-        title="FoodOS"
+        title="Foodos"
         accentText="via WhatsApp"
         subtitle="Chiedi KPI, registra sprechi, ricevi alert direttamente in chat. Il bot risponde in linguaggio naturale italiano."
         chainOnly
@@ -104,7 +104,7 @@ export default function WhatsAppView({ orgId, user }) {
         </div>
         <ol style={{ margin: 0, paddingLeft: 22, fontSize: 13, color: MID, lineHeight: 1.7 }}>
           <li>Inserisci sotto il tuo numero WhatsApp (incluso prefisso paese)</li>
-          <li>Salva un nuovo contatto WhatsApp: <strong>FoodOS</strong> · <code style={{ background: '#FFF', padding: '2px 6px', borderRadius: 4 }}>{WA_NUMBER}</code></li>
+          <li>Salva un nuovo contatto WhatsApp: <strong>Foodos</strong> · <code style={{ background: '#FFF', padding: '2px 6px', borderRadius: 4 }}>{WA_NUMBER}</code></li>
           <li>Invia il messaggio <strong>"aiuto"</strong> per ricevere la lista comandi</li>
           <li>L'AI risponde direttamente in chat</li>
         </ol>
@@ -142,7 +142,7 @@ export default function WhatsAppView({ orgId, user }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: TXT, fontFamily: 'ui-monospace, monospace' }}>{l.phone_number}</div>
               <div style={{ fontSize: 11, color: SOFT, marginTop: 2 }}>
-                {l.attivo ? `✓ Attivo${l.verificato_at ? ` · verificato il ${new Date(l.verificato_at).toLocaleDateString('it-IT')}` : ''}` : 'In attesa di verifica (invia "aiuto" al numero FoodOS)'}
+                {l.attivo ? `✓ Attivo${l.verificato_at ? ` · verificato il ${new Date(l.verificato_at).toLocaleDateString('it-IT')}` : ''}` : 'In attesa di verifica (invia "aiuto" al numero Foodos)'}
               </div>
             </div>
             <button onClick={() => rimuovi(l.id)} style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 4 }}>

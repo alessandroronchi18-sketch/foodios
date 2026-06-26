@@ -5,7 +5,7 @@ export default function CookiePolicy() {
   return (
     <LegalLayout title="Cookie Policy" updated="2026-05-29" related={[['Privacy Policy', '/privacy']]}>
       <LegalP>
-        La presente Cookie Policy descrive le tecnologie utilizzate da <strong>FoodOS</strong> per
+        La presente Cookie Policy descrive le tecnologie utilizzate da <strong>Foodos</strong> per
         il funzionamento del sito e dell'applicazione, in conformita' al Provvedimento del Garante
         per la Protezione dei Dati Personali dell'8 maggio 2014 e successive Linee Guida 2021.
       </LegalP>
@@ -16,9 +16,9 @@ export default function CookiePolicy() {
         per memorizzare informazioni utili a far funzionare il sito o a migliorarne l'utilizzo.
       </LegalP>
 
-      <LegalH2>2. Cookie utilizzati da FoodOS</LegalH2>
+      <LegalH2>2. Cookie utilizzati da Foodos</LegalH2>
       <LegalP>
-        FoodOS utilizza esclusivamente <strong>cookie tecnici di prima parte strettamente necessari</strong>:
+        Foodos utilizza esclusivamente <strong>cookie tecnici di prima parte strettamente necessari</strong>:
       </LegalP>
       <LegalUl items={[
         <><strong>Cookie di sessione di autenticazione</strong> (Supabase Auth): conservano il token JWT che ti tiene loggato. Scadono alla chiusura del browser o al logout esplicito. Senza questi cookie, l'accesso al servizio non e' possibile.</>,
@@ -41,14 +41,14 @@ export default function CookiePolicy() {
       <LegalP>
         I cookie tecnici e quelli strettamente necessari NON richiedono il consenso preventivo
         dell'utente ai sensi dell'art. 122 D.Lgs. 196/2003 e del Provvedimento del Garante
-        dell'8 maggio 2014. Poiche' FoodOS utilizza solo questa categoria di cookie, non e' presente
+        dell'8 maggio 2014. Poiche' Foodos utilizza solo questa categoria di cookie, non e' presente
         un banner di gestione del consenso.
       </LegalP>
 
       <LegalH2>5. Come disabilitare i cookie</LegalH2>
       <LegalP>
         Puoi disabilitare l'uso dei cookie dalle impostazioni del tuo browser. Disabilitando i
-        cookie tecnici, tuttavia, NON sarai in grado di accedere all'area riservata di FoodOS.
+        cookie tecnici, tuttavia, NON sarai in grado di accedere all'area riservata di Foodos.
         Istruzioni per i browser più diffusi:
       </LegalP>
       <LegalUl items={[

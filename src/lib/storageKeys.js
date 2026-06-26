@@ -1,4 +1,4 @@
-// Chiavi storage di FoodOS — costanti centralizzate per evitare typo.
+// Chiavi storage di Foodos — costanti centralizzate per evitare typo.
 // Sono passate a sload/ssave (vedi lib/storage.js) per salvare su user_data
 // con la giusta granularità (per-sede vs shared, vedi isSharedKey in storage.js).
 

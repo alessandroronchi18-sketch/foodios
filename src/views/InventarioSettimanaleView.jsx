@@ -18,7 +18,8 @@
 // is_sede_produzione=true AND metodo_produzione='inventario' (filtraggio nel
 // componente Dashboard, non qui).
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
@@ -406,7 +407,11 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%' }}>
-      <PageHeader subtitle={`Foglio settimanale per la registrazione di produzione e rimanenze. Il sistema calcola automaticamente il venduto: rimanenza(ieri) + produzione(oggi) − rimanenza(oggi) − scarto.`} />
+      <PageTitleFuturistic
+        title="Inventario gusti"
+        kicker="Foglio settimanale"
+        subtitle="Registra produzione e rimanenza giornaliere. Il venduto si calcola da sé: rimanenza ieri + produzione oggi − rimanenza oggi − scarto."
+      />
 
       {showOnboarding && !isAllSedi && <OnboardingInventario onClose={chiudiOnboarding} />}
 
@@ -673,9 +678,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         </div>
       )}
 
-      <div style={{ marginTop: 14, fontSize: 11.5, color: C.textSoft, lineHeight: 1.6 }}>
-        Tutte le quantità sono in <strong>grammi</strong>. Il valore della cella si salva automaticamente quando esci dal campo (clic fuori o Tab).
-        Per modificare il giorno precedente o successivo cambia settimana con i bottoni sopra.
+      <div style={{ marginTop: 14, fontSize: 11.5, color: C.textSoft, lineHeight: 1.55, maxWidth: 720 }}>
+        Quantità in <strong>grammi</strong>. Salvataggio automatico uscendo dal campo (Tab o clic fuori).
       </div>
 
       {importDlg && (
@@ -1634,17 +1638,34 @@ function OnboardingInventario({ onClose }) {
 }
 
 // ── Icona "gusto non a ricettario" con tooltip ────────────────────────────
-// Tooltip custom: il `title` HTML nativo ha 1-2s di delay e su alcune
-// configurazioni (Safari, table cell con stacking context, mouseover veloce)
-// non compare proprio. Lo sostituiamo con un overlay che mostriamo
-// immediatamente all'hover via React state.
+// Tooltip portalato su document.body con position:fixed: l'overlay scrollabile
+// orizzontale della tabella (overflowX:auto) creava un nuovo paint context che
+// CLIPPAVA il tooltip absolute → l'utente vedeva solo un lampo. Con il portal
+// il tooltip esce da qualsiasi overflow container.
 function IconaOrfano() {
   const [hover, setHover] = useState(false)
+  const [pos, setPos] = useState(null)
+  const ref = useRef(null)
+
+  const open = () => {
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect()
+      // Posizioniamo SOPRA l'icona, centrato sul triggering element.
+      setPos({ top: r.top + window.scrollY - 8, left: r.left + r.width / 2 + window.scrollX })
+    }
+    setHover(true)
+  }
+  const close = () => setHover(false)
+
   return (
     <span
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onTouchStart={() => setHover(h => !h)}
+      ref={ref}
+      onMouseEnter={open}
+      onMouseLeave={close}
+      onFocus={open}
+      onBlur={close}
+      onTouchStart={() => (hover ? close() : open())}
+      tabIndex={0}
       aria-label="Gusto non nel ricettario"
       style={{
         position: 'relative',
@@ -1655,21 +1676,21 @@ function IconaOrfano() {
         flexShrink: 0,
       }}>
       <Icon name="warning" size={11} color="#92400E" />
-      {hover && (
-        <span role="tooltip" style={{
-          position: 'absolute', bottom: 'calc(100% + 8px)', right: 0,
-          width: 260, padding: '8px 12px',
+      {hover && pos && typeof document !== 'undefined' && createPortal(
+        <div role="tooltip" style={{
+          position: 'absolute', top: pos.top, left: pos.left,
+          transform: 'translate(-50%, -100%)',
+          width: 280, padding: '10px 14px',
           background: '#0F172A', color: '#F8FAFC',
-          borderRadius: 8, fontSize: 11.5, fontWeight: 500, lineHeight: 1.45,
-          letterSpacing: '0.005em', textAlign: 'left', textTransform: 'none',
-          boxShadow: '0 6px 20px rgba(15,23,42,0.25)',
-          zIndex: 100, pointerEvents: 'none',
-          whiteSpace: 'normal',
+          borderRadius: 10, fontSize: 12, fontWeight: 500, lineHeight: 1.5,
+          textAlign: 'left',
+          boxShadow: '0 12px 32px rgba(15,23,42,0.45), 0 0 0 1px rgba(255,255,255,0.06) inset',
+          zIndex: 2147483600, pointerEvents: 'none',
         }}>
-          <strong style={{ color: '#FCD34D' }}>Gusto non nel ricettario</strong>
-          <br />
+          <strong style={{ color: '#FCD34D', display: 'block', marginBottom: 3 }}>Gusto non nel ricettario</strong>
           Aggiungilo da <em>Ricettario → Nuova ricetta</em> per gestire food cost, allergeni e categorie.
-        </span>
+        </div>,
+        document.body
       )}
     </span>
   )
@@ -2063,16 +2084,21 @@ function BigField({ label, accent, value, saving, onCommit, readOnly, unita = 'g
 function CellInput({ value, saving, accent, onCommit, readOnly, unita = 'g' }) {
   const isMobile = useIsMobile()
   const [focused, setFocused] = useState(false)
+  // Grouping manuale (1234567 → "1.234.567"): garantito su qualsiasi runtime,
+  // anche se Intl ICU non è full. Fallback safe per il display in cella.
+  const groupIT = (intStr) => intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   const toDisplay = (g, withSeparator) => {
     if (g === '' || g === 0 || g == null) return ''
     if (unita === 'kg') {
       const num = Number(g) / 1000
-      return withSeparator
-        ? num.toLocaleString('it-IT', { maximumFractionDigits: 2 })
-        : String(num).replace('.', ',')
+      if (!withSeparator) return String(num).replace('.', ',')
+      const [intP, decP] = num.toFixed(2).split('.')
+      const decTrim = decP.replace(/0+$/, '')
+      return groupIT(intP) + (decTrim ? ',' + decTrim : '')
     }
-    const num = Number(g)
-    return withSeparator ? num.toLocaleString('it-IT') : String(num)
+    const num = Math.round(Number(g))
+    if (!withSeparator) return String(num)
+    return groupIT(String(num))
   }
   const [local, setLocal] = useState(toDisplay(value, true))
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2138,4 +2164,57 @@ const tdTot = {
   color: T.brand, background: '#FEF9EB',
   fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'",
   whiteSpace: 'nowrap',
+}
+
+// ── Page title futuristic-clean ──────────────────────────────────────────
+// Test su questa view: kicker uppercase letterspaced, title gigante con
+// gradient bordeaux→nero, accent bar conic-gradient sotto il kicker, subtitle
+// pulito. Se piace si propaga alle altre view.
+function PageTitleFuturistic({ title, kicker, subtitle }) {
+  return (
+    <div style={{ marginBottom: 24, position: 'relative' }}>
+      <style>{`
+        @keyframes _fos_pt_accent {
+          0%, 100% { background-position: 0% 50%; }
+          50%      { background-position: 100% 50%; }
+        }
+        @keyframes _fos_pt_rise {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .fos-pt-accent, .fos-pt-title, .fos-pt-sub { animation: none !important; }
+        }
+      `}</style>
+      {kicker && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span aria-hidden="true" className="fos-pt-accent" style={{
+            width: 28, height: 2, borderRadius: 2,
+            background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+            backgroundSize: '200% 100%',
+            animation: '_fos_pt_accent 6s ease-in-out infinite',
+          }}/>
+          <span style={{
+            fontSize: 10.5, fontWeight: 700, letterSpacing: '0.18em',
+            textTransform: 'uppercase', color: '#6E0E1A',
+          }}>{kicker}</span>
+        </div>
+      )}
+      <h1 className="fos-pt-title" style={{
+        margin: 0,
+        fontSize: 'clamp(24px, 4.2vw, 36px)',
+        fontWeight: 800, letterSpacing: '-0.035em', lineHeight: 1.05,
+        backgroundImage: 'linear-gradient(135deg, #1C0A0A 0%, #6E0E1A 60%, #1C0A0A 100%)',
+        backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+        animation: '_fos_pt_rise .5s cubic-bezier(.32,.72,0,1) both',
+      }}>{title}</h1>
+      {subtitle && (
+        <div className="fos-pt-sub" style={{
+          marginTop: 10, maxWidth: 760,
+          fontSize: 13, color: T.textSoft, lineHeight: 1.5, fontWeight: 500,
+          animation: '_fos_pt_rise .55s .04s cubic-bezier(.32,.72,0,1) both',
+        }}>{subtitle}</div>
+      )}
+    </div>
+  )
 }

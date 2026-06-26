@@ -1,5 +1,5 @@
 /**
- * FoodOS Logo — bordeaux invariante, F armoniosa.
+ * Foodos Logo — bordeaux invariante, F armoniosa.
  *
  * Il colore è hardcoded (#6E0E1A) e non può essere cambiato: deve essere
  * identico ovunque nell'app. Il prop `color` è ignorato volutamente.
@@ -30,7 +30,7 @@ export default function Logo({
       viewBox="0 0 64 64"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
-      aria-label="FoodOS"
+      aria-label="Foodos"
       style={{ display: 'block', flexShrink: 0 }}
     >
       {/* Quadrato bordeaux pieno + "F" BIANCA piena (non ritaglio): così il
@@ -75,7 +75,7 @@ export default function Logo({
         }}
         {...rest}
       >
-        FoodOS
+        Foodos
       </span>
     )
   }
@@ -104,7 +104,7 @@ export default function Logo({
           whiteSpace: 'nowrap',
         }}
       >
-        FoodOS
+        Foodos
       </span>
     </span>
   )

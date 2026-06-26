@@ -251,7 +251,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       padding: isMobile ? '72px 14px 24px' : '88px 16px 32px',  // padding-top per il top bar fixed
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     }}>
-      {/* Top bar fixed: logo F + FoodOS · progress dots centrate · Salta tutto.
+      {/* Top bar fixed: logo F + Foodos · progress dots centrate · Salta tutto.
           Su mobile la riga e' stretta — riduciamo spacing e il "Salta tutto"
           dello Step 1 e' sotto al bottone Iniziamo (qui solo da Step 2 in poi). */}
       <div style={{
@@ -269,7 +269,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             color: '#FFF', fontSize: 14, fontWeight: 800, letterSpacing: '-0.5px',
             boxShadow: '0 4px 10px rgba(110,14,26,0.32)' }}>F</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#0E1726', letterSpacing: '-0.01em' }}>FoodOS</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#0E1726', letterSpacing: '-0.01em' }}>Foodos</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
           {[1,2,3].map(i => (
@@ -621,7 +621,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               Hai altri punti vendita?
             </h1>
             <p style={{ color: '#475264', fontSize: 14, lineHeight: 1.55, marginBottom: 28 }}>
-              FoodOS supporta più sedi con dati separati ma {LEX.ricette} condivise.
+              Foodos supporta più sedi con dati separati ma {LEX.ricette} condivise.
               Aggiungile anche più tardi da <strong>Impostazioni → Sedi</strong>.
             </p>
 

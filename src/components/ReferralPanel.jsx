@@ -12,7 +12,7 @@ import Icon from './Icon'
 import { apiFetch } from '../lib/apiFetch'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
-const APP_NAME = 'FoodOS'
+const APP_NAME = 'Foodos'
 
 // Scala premi: ogni gradino sblocca un bonus aggiuntivo per il referente.
 const LIVELLI = [

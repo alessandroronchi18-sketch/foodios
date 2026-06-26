@@ -1,4 +1,4 @@
-// Structured logger per FoodOS.
+// Structured logger per Foodos.
 //
 // Front-end logger con livelli (debug/info/warn/error) + invio a:
 //   1. console (sempre, ma debug/info droppati in build prod via vite.config esbuild.pure)

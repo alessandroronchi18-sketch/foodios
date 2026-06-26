@@ -180,7 +180,7 @@ function DashboardPreview() {
           <div style={{ padding: '0 14px 14px', borderBottom: '1px solid rgba(244,236,227,0.08)', marginBottom: 10,
             display: 'flex', alignItems: 'center', gap: 8 }}>
             <Logo size={22} style={{ borderRadius: 5 }}/>
-            <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 14, color: T.cream, letterSpacing: '-0.02em' }}>FoodOS</span>
+            <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 14, color: T.cream, letterSpacing: '-0.02em' }}>Foodos</span>
           </div>
           {[
             ['Dashboard', true],
@@ -616,14 +616,14 @@ export default function LandingPage({ onLogin, onRegister }) {
     {
       eyebrow: 'Margini & P&L',
       title: <>Scopri quali piatti <em style={{ fontStyle: 'italic', color: T.red }}>ti fanno guadagnare</em> davvero.</>,
-      body: "Non tutti i piatti più venduti sono i più redditizi. FoodOS ti mostra il margine reale di ogni ricetta, per categoria e per giornata. Vedi subito quali alzare di prezzo, quali tagliare dal menù e quali spingere.",
+      body: "Non tutti i piatti più venduti sono i più redditizi. Foodos ti mostra il margine reale di ogni ricetta, per categoria e per giornata. Vedi subito quali alzare di prezzo, quali tagliare dal menù e quali spingere.",
       bullets: ['Ranking ricette per margine', 'P&L mensile sempre aggiornato', 'Confronto periodo su periodo'],
       icon: 'receipt',
     },
     {
       eyebrow: 'Produzione',
       title: <>Chiudi la giornata <em style={{ fontStyle: 'italic', color: T.red }}>in 3 minuti</em>.</>,
-      body: "Registri quanti pezzi hai prodotto e venduto. FoodOS calcola lo sell-through, gli avanzi e il costo della giornata. Capisci subito se hai prodotto troppo o troppo poco. Si decide sui dati, non sul mal di testa.",
+      body: "Registri quanti pezzi hai prodotto e venduto. Foodos calcola lo sell-through, gli avanzi e il costo della giornata. Capisci subito se hai prodotto troppo o troppo poco. Si decide sui dati, non sul mal di testa.",
       bullets: ['Sell-through per ricetta', 'Avanzi tracciati automaticamente', 'Storico produzione consultabile'],
       icon: 'clock',
     },
@@ -643,9 +643,9 @@ export default function LandingPage({ onLogin, onRegister }) {
   ]
 
   const faqs = [
-    { q: 'Funziona anche per ristoranti e bar, non solo pasticcerie?', a: "Sì. FoodOS è pensato per tutta la ristorazione italiana: ristoranti, bar, pasticcerie, gelaterie, panetterie, pizzerie, gastronomie. Ovunque ci siano ingredienti, ricette e margini da tenere sotto controllo, FoodOS funziona." },
-    { q: 'Devo essere bravo con i computer?', a: 'No. Se sai usare WhatsApp, sai usare FoodOS. È pensato per essere usato dal titolare, non dal nipote bravo con la tecnologia. Niente formule, niente Excel da non rompere.' },
-    { q: 'Posso importare il mio ricettario esistente?', a: "Sì. Carichi un file Excel o CSV e FoodOS lo converte in automatico. L'AI sa leggere anche foto di ricette scritte a mano sul quaderno e immagini delle etichette per registrare i costi automaticamente." },
+    { q: 'Funziona anche per ristoranti e bar, non solo pasticcerie?', a: "Sì. Foodos è pensato per tutta la ristorazione italiana: ristoranti, bar, pasticcerie, gelaterie, panetterie, pizzerie, gastronomie. Ovunque ci siano ingredienti, ricette e margini da tenere sotto controllo, Foodos funziona." },
+    { q: 'Devo essere bravo con i computer?', a: 'No. Se sai usare WhatsApp, sai usare Foodos. È pensato per essere usato dal titolare, non dal nipote bravo con la tecnologia. Niente formule, niente Excel da non rompere.' },
+    { q: 'Posso importare il mio ricettario esistente?', a: "Sì. Carichi un file Excel o CSV e Foodos lo converte in automatico. L'AI sa leggere anche foto di ricette scritte a mano sul quaderno e immagini delle etichette per registrare i costi automaticamente." },
     { q: 'Quanto dura la prova gratuita?', a: 'Tre mesi pieni, gratis. Se dopo i tre mesi non ti convince, scarichi i tuoi dati e basta. Nessun addebito automatico, mai.' },
     { q: 'Posso gestire più sedi o brand?', a: "Sì. Il piano Maestro gestisce fino a 2 sedi con 3 utenti, perfetto per chi ha laboratorio + punto vendita o sta crescendo. Il piano Insegna è invece pensato per catene piccole e gruppi: sedi e utenti illimitati, integrazioni real-time con le casse, API e white-label." },
     { q: 'Cosa succede ai miei dati se smetto?', a: 'Sono tuoi. Puoi esportarli in Excel/PDF in qualsiasi momento, anche durante il trial. Non li condividiamo con nessuno e non li usiamo per addestrare AI di terzi.' },
@@ -680,7 +680,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               fontFamily: SERIF, fontSize: isMobile ? 18 : 22, fontWeight: 600,
               letterSpacing: '-0.03em', color: T.ink,
             }}>
-              FoodOS
+              Foodos
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6, flexShrink: 0 }}>
@@ -750,7 +750,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 lineHeight: 1.6, maxWidth: 520, margin: '0 0 36px',
                 wordBreak: 'break-word', overflowWrap: 'anywhere',
               }}>
-                FoodOS calcola il food cost di ogni ricetta, traccia la produzione giornaliera e
+                Foodos calcola il food cost di ogni ricetta, traccia la produzione giornaliera e
                 ti mostra i margini reali. <strong style={{ color: T.ink, fontWeight: 600 }}>In italiano, con i tuoi numeri,
                 dal tuo telefono.</strong>
               </p>
@@ -826,7 +826,7 @@ export default function LandingPage({ onLogin, onRegister }) {
       }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 32 }}>
-            Quello che cambia con FoodOS
+            Quello che cambia con Foodos
           </div>
           <div style={{
             display: 'grid',
@@ -837,7 +837,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               ['+ 4 pt', 'margine medio recuperato'],
               ['3 min', 'per chiudere una giornata'],
               ['€ 2.400', 'risparmio medio annuo'],
-              ['240+', 'locali italiani usano FoodOS'],
+              ['240+', 'locali italiani usano Foodos'],
             ].map(([v, l], i) => (
               <div key={i} style={{
                 textAlign: 'center',
@@ -867,7 +867,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 fontFamily: SERIF, fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 500,
                 color: T.ink, letterSpacing: '-0.03em', lineHeight: 1.12, margin: '0 0 18px',
               }}>
-                Vedi FoodOS <em style={{ fontStyle: 'italic', color: T.red }}>in azione</em><br/>
+                Vedi Foodos <em style={{ fontStyle: 'italic', color: T.red }}>in azione</em><br/>
                 in 3 minuti.
               </h2>
               <p style={{
@@ -910,7 +910,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 </div>
                 <div style={{ textAlign: 'center', maxWidth: 480 }}>
                   <div style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 6 }}>
-                    Una giornata con FoodOS · 3 minuti
+                    Una giornata con Foodos · 3 minuti
                   </div>
                   <div style={{ fontSize: 14, opacity: 0.78, lineHeight: 1.5 }}>
                     Dal ricettario al food cost, dalla foto dello scontrino al margine reale.
@@ -1118,7 +1118,7 @@ export default function LandingPage({ onLogin, onRegister }) {
             gap: isMobile ? 36 : 24,
           }}>
             {[
-              { n: '01', t: 'Carica il tuo menù', d: "Importi le ricette da Excel, foto del quaderno o le inserisci a mano. FoodOS calcola il food cost di ogni piatto in automatico." },
+              { n: '01', t: 'Carica il tuo menù', d: "Importi le ricette da Excel, foto del quaderno o le inserisci a mano. Foodos calcola il food cost di ogni piatto in automatico." },
               { n: '02', t: 'Registra la produzione', d: 'Ogni sera, dal cellulare, segni cosa hai prodotto e venduto. Tre minuti netti — meno della chiusura di cassa.' },
               { n: '03', t: 'Leggi i numeri che contano', d: 'Dashboard, P&L mensile e consigli AI sempre aggiornati. Decidi prezzi, menù e turni guardando i fatti.' },
             ].map((s, i) => (
@@ -1147,7 +1147,7 @@ export default function LandingPage({ onLogin, onRegister }) {
           <Reveal>
             <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto 64px' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: T.red, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 18 }}>
-                Per chi è FoodOS
+                Per chi è Foodos
               </div>
               <h2 style={{
                 fontFamily: SERIF, fontSize: 'clamp(30px, 4.5vw, 46px)', fontWeight: 500,
@@ -1542,7 +1542,7 @@ export default function LandingPage({ onLogin, onRegister }) {
             <div style={{ maxWidth: 320 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 <Logo size={28} style={{ borderRadius: 7, opacity: 0.9 }}/>
-                <span style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: T.cream, letterSpacing: '-0.02em' }}>FoodOS</span>
+                <span style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: T.cream, letterSpacing: '-0.02em' }}>Foodos</span>
               </div>
               <p style={{ fontSize: 13, color: 'rgba(244,236,227,0.4)', lineHeight: 1.6, margin: 0 }}>
                 Il gestionale food cost per la ristorazione italiana. Pensato, fatto e supportato in Italia.
@@ -1581,7 +1581,7 @@ export default function LandingPage({ onLogin, onRegister }) {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <div style={{ fontSize: 11, color: 'rgba(244,236,227,0.3)' }}>
-              © {new Date().getFullYear()} FoodOS · Tutti i diritti riservati
+              © {new Date().getFullYear()} Foodos · Tutti i diritti riservati
             </div>
             <div style={{ fontSize: 11, color: 'rgba(244,236,227,0.3)' }}>
               Fatto in Italia

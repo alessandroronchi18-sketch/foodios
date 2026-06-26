@@ -214,7 +214,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target.result)
-        if (!data.metadata?.versione) throw new Error('File non valido — non sembra un backup FoodOS')
+        if (!data.metadata?.versione) throw new Error('File non valido — non sembra un backup Foodos')
         setImportFile(data)
         setImportPreview(data.metadata)
         setImportConfirm(false)
@@ -309,7 +309,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
         <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="save" size={16} color={R} /> Backup completo</div>
         <div style={{ fontSize: 12, color: SOFT, marginBottom: 14, lineHeight: 1.6 }}>
           Scarica un file JSON con tutti i dati: ricettario, produzione, magazzino, chiusure cassa, fatture e note.<br />
-          Include metadata: data export, nome attività, versione FoodOS.
+          Include metadata: data export, nome attività, versione Foodos.
         </div>
         <button onClick={esportaTutto} disabled={!!loading} style={secBtn()}>
           {loading === 'json' ? '…' : <><Icon name="download" size={14} /> Scarica tutti i dati (.json)</>}
@@ -341,7 +341,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
       <div style={card}>
         <div style={{ fontWeight: 700, fontSize: 14, color: TXT, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="download" size={16} color={R} /> Ripristina da backup</div>
         <div style={{ fontSize: 12, color: SOFT, marginBottom: 14, lineHeight: 1.6 }}>
-          Carica un file JSON generato da FoodOS per ripristinare tutti i dati.
+          Carica un file JSON generato da Foodos per ripristinare tutti i dati.
         </div>
 
         {!importPreview ? (
@@ -357,7 +357,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
             <div style={{ fontSize: 12, color: MID, lineHeight: 1.8 }}>
               <div><b>Attività:</b> {importPreview.nomeAttivita}</div>
               <div><b>Data backup:</b> {new Date(importPreview.dataExport).toLocaleDateString('it-IT')}</div>
-              <div><b>Versione FoodOS:</b> {importPreview.versione}</div>
+              <div><b>Versione Foodos:</b> {importPreview.versione}</div>
               <div><b>Sedi:</b> {Object.keys(importFile?.sediData || {}).length}</div>
               <div><b>Fatture:</b> {(importFile?.fatture || []).length}</div>
             </div>

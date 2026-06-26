@@ -121,7 +121,7 @@ export default function PinLoginPad({ onBack, onSuccess }) {
           margin: 0, fontSize: 22, fontWeight: 800,
           letterSpacing: '-0.02em',
           color: '#FFF',
-        }}>FoodOS · accesso rapido</h1>
+        }}>Foodos · accesso rapido</h1>
         <p style={{ marginTop: 6, marginBottom: 28, fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>
           {step === 'org' ? 'Quale attività?' : `Inserisci il tuo PIN`}
         </p>

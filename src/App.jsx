@@ -1,4 +1,4 @@
-// FoodOS v1
+// Foodos v1
 import React, { useState, useEffect } from 'react'
 import { useAuth } from './auth/useAuth'
 import AuthPage, { ResetPasswordPage } from './auth/AuthPage'

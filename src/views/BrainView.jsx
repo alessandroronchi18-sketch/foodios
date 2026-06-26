@@ -1,4 +1,4 @@
-// FoodOS Brain (C1) - Chat conversazionale dedicata
+// Foodos Brain (C1) - Chat conversazionale dedicata
 //
 // L'utente parla con un assistente AI che conosce il contesto della sua
 // attività (nome, sedi, ricettario, P&L, scadenze). Memoria persistente
@@ -116,7 +116,7 @@ export default function BrainView({ orgId, sedeId, user, nomeAttivita }) {
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
 
-      const system = `Sei FoodOS Brain, l'assistente AI personale del titolare di una pasticceria/gelateria italiana.
+      const system = `Sei Foodos Brain, l'assistente AI personale del titolare di una pasticceria/gelateria italiana.
 Conosci il contesto della sua attivita' e rispondi a domande aperte usando i dati che hai.
 
 Contesto attivita': ${JSON.stringify(contextSummary || {})}
@@ -171,7 +171,7 @@ REGOLE:
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
         eyebrow="AI · Chat conversazionale"
-        title="FoodOS Brain"
+        title="Foodos Brain"
         accentText="il tuo consulente"
         subtitle="Chiedi qualsiasi cosa sui tuoi dati: ricavi, margini, scadenze. L'AI risponde in italiano usando il contesto della tua attività."
         chainOnly
@@ -211,7 +211,7 @@ REGOLE:
             <Icon name="sparkles" size={15}/>
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>FoodOS Brain</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>Foodos Brain</div>
             <div style={{ fontSize: 11, color: SOFT, marginTop: 1 }}>Il tuo CFO/consulente AI personale</div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import FoodOSLogo from '../components/FoodOSLogo'
+import FoodosLogo from '../components/FoodosLogo'
 import COMUNI_ITALIANI from '../lib/comuniItaliani'
 import PinLoginPad from './PinLoginPad'
 
@@ -469,7 +469,7 @@ export function ResetPasswordPage({ onDone }) {
       <div style={{ width: '100%', maxWidth: 440 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
-            <FoodOSLogo size={56} style={{ borderRadius: 14, boxShadow: '0 8px 28px rgba(110,14,26,0.28)' }}/>
+            <FoodosLogo size={56} style={{ borderRadius: 14, boxShadow: '0 8px 28px rgba(110,14,26,0.28)' }}/>
           </div>
           <h1 style={{
             margin: 0, fontFamily: SERIF, fontSize: 28, fontWeight: 600,
@@ -870,8 +870,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             gap: 12, marginBottom: isMobile ? 28 : 36,
           }}>
-            <FoodOSLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(110,14,26,0.28)' }}/>
-            <span style={{ fontFamily: SERIF, fontSize: isMobile ? 28 : 32, fontWeight: 600, color: T.ink, letterSpacing: '-0.03em' }}>FoodOS</span>
+            <FoodosLogo size={isMobile ? 44 : 52} style={{ borderRadius: 13, boxShadow: '0 8px 24px rgba(110,14,26,0.28)' }}/>
+            <span style={{ fontFamily: SERIF, fontSize: isMobile ? 28 : 32, fontWeight: 600, color: T.ink, letterSpacing: '-0.03em' }}>Foodos</span>
           </div>
 
           {/* Card */}
@@ -935,7 +935,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                     ? 'Bastano 30 secondi.'
                     : regStep === 1.5
                       ? `Inserisci il codice di 6 cifre inviato al ${reg.prefisso} ${reg.telefono}.`
-                      : "Ultimo passo per personalizzare la tua FoodOS.")}
+                      : "Ultimo passo per personalizzare la tua Foodos.")}
               </p>
             </div>
           )}

@@ -26,7 +26,7 @@ const BORDER = T.border || '#E5E9EF'
 const STEPS = [
   {
     key: 'nome_attivita',
-    bot: 'Ciao! Sono l\'assistente FoodOS. Iniziamo a conoscerci. Come si chiama la tua attività?',
+    bot: 'Ciao! Sono l\'assistente Foodos. Iniziamo a conoscerci. Come si chiama la tua attività?',
     placeholder: 'Es. Pasticceria Bonfanti',
     validate: v => v.trim().length >= 2,
     fail: 'Il nome deve avere almeno 2 caratteri',
@@ -70,7 +70,7 @@ const STEPS = [
   },
   {
     key: 'obiettivo',
-    bot: 'Ultima domanda: qual è il tuo obiettivo principale con FoodOS?',
+    bot: 'Ultima domanda: qual è il tuo obiettivo principale con Foodos?',
     options: [
       { label: 'Calcolare il food cost vero', value: 'food_cost' },
       { label: 'Capire dove perdo soldi', value: 'profittabilita' },
@@ -204,7 +204,7 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
             <Icon name="sparkles" size={16}/>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>FoodOS · Setup AI</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>Foodos · Setup AI</div>
             <div style={{ fontSize: 11, color: SOFT }}>Setup in 5 domande</div>
           </div>
           {onPreferWizard && (

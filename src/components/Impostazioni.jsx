@@ -238,7 +238,7 @@ function EmailCorrenteRow({ auth }) {
 function AccountSection({ auth, notify }) {
   return (
     <div>
-      <SectionCard title="Account" description="L'email è quella usata per accedere a FoodOS.">
+      <SectionCard title="Account" description="L'email è quella usata per accedere a Foodos.">
         <EmailCorrenteRow auth={auth}/>
         <CambioEmailForm auth={auth} notify={notify}/>
         <div style={{ borderTop:`1px solid ${T.borderSoft}`, margin:'18px 0' }}/>
@@ -335,7 +335,7 @@ function LogoutCard({ auth, notify }) {
     catch (e) { notify?.(e.message || 'Errore durante il logout', false); setBusy(false) }
   }
   return (
-    <SectionCard title="Sessione" description="Esci da FoodOS su questo dispositivo.">
+    <SectionCard title="Sessione" description="Esci da Foodos su questo dispositivo.">
       <button onClick={esci} disabled={busy}
         style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.red, fontSize:13, fontWeight:700, cursor: busy ? 'not-allowed':'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
         <Icon name="logout" size={15} color={T.red}/> {busy ? 'Uscita…' : 'Esci'}
@@ -371,7 +371,7 @@ function ReportMensiliSection({ orgId, notify }) {
 
   return (
     <SectionCard title="Report mensili via email"
-      description="Ogni 1° del mese ricevi un PDF con i KPI del mese precedente, generato automaticamente da FoodOS."
+      description="Ogni 1° del mese ricevi un PDF con i KPI del mese precedente, generato automaticamente da Foodos."
       action={<Toggle checked={enabled} onChange={toggle}/>}>
       <div style={{ fontSize:11, fontWeight:700, color:T.textSoft, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>
         Storico report ({reports.length})
@@ -597,7 +597,7 @@ function ReseSection({ notify }) {
 
   return (
     <SectionCard title="Resa ingredienti"
-      description="La resa indica quanta parte del peso lordo è effettivamente utilizzabile. Es. uova 85% → per 100g netti acquisti 118g lordi. FoodOS applica la resa al food cost in automatico."
+      description="La resa indica quanta parte del peso lordo è effettivamente utilizzabile. Es. uova 85% → per 100g netti acquisti 118g lordi. Foodos applica la resa al food cost in automatico."
       action={<span style={{ fontSize:11, fontWeight:700, color:T.textSoft, padding:'4px 10px', background:T.bgSubtle, borderRadius:999 }}>{nCustom} personalizzate</span>}>
       <input style={{ ...inp, marginBottom:14 }} value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Filtra ingrediente…"/>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:8 }}>
@@ -643,7 +643,7 @@ function ReseSection({ notify }) {
 function ChangelogSection({ onChangelogOpen }) {
   return (
     <SectionCard title="Novità e changelog"
-      description="Scopri le ultime funzionalità rilasciate e gli aggiornamenti di FoodOS.">
+      description="Scopri le ultime funzionalità rilasciate e gli aggiornamenti di Foodos.">
       <button onClick={onChangelogOpen}
         style={{ height:40, padding:'0 18px', borderRadius:R.md, border:`1px solid ${T.borderStr}`, background:T.bgCard, color:T.text, fontSize:13, fontWeight:700, cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8 }}>
         <Icon name="book" size={15}/> Vedi changelog completo

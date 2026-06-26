@@ -35,7 +35,7 @@ function renderRich(text) {
   })
 }
 
-const SYSTEM_PROMPT = `Sei l'assistente di FoodOS, un gestionale food cost per la ristorazione italiana.
+const SYSTEM_PROMPT = `Sei l'assistente di Foodos, un gestionale food cost per la ristorazione italiana.
 Aiuta l'utente a capire come usare le funzionalità dell'app: ricettario, food cost, P&L, produzione giornaliera, cassa, magazzino, scadenzario, fornitori, personale, menù, previsioni, integrazioni delivery (Deliveroo, JustEat, Glovo), scheda allergeni, AI foto analisi ricette.
 
 Stile: risposte brevi, concrete, in italiano. Usa elenchi puntati quando aiutano. Quando indichi una sezione, riferisciti al nome esatto della voce in sidebar (es. "Produzione", "Cassa", "Ricettario", "Food Cost", "P&L", "Magazzino", "Scadenzario", "Fornitori", "Personale", "Menù", "Previsioni", "Integrazioni", "Storico", "Calendario").
@@ -94,7 +94,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
   const [fabHover, setFabHover] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Ciao! Sono l\'assistente di FoodOS. Posso aiutarti a capire come usare l\'app — chiedi pure ' }
+    { role: 'assistant', content: 'Ciao! Sono l\'assistente di Foodos. Posso aiutarti a capire come usare l\'app — chiedi pure ' }
   ])
   const [loading, setLoading] = useState(false)
   const scrollRef = useRef(null)
@@ -180,7 +180,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
       {open && (
         <div
           role="dialog"
-          aria-label="Assistente FoodOS"
+          aria-label="Assistente Foodos"
           style={{
             position: 'fixed',
             bottom: panelBottom,
@@ -218,7 +218,7 @@ export default function AIAssistant({ externalOpen, onOpenChange, hideFab = fals
               <ChatIcon size={18} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>Assistente FoodOS</div>
+              <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em' }}>Assistente Foodos</div>
               <div style={{ fontSize: 11, opacity: 0.82, marginTop: 1 }}>Sempre online · Risponde in italiano</div>
             </div>
             <button

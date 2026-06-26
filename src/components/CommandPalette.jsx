@@ -90,7 +90,7 @@ export default function CommandPalette({ open, onClose, onNavigate, orgId }) {
       if (!token) throw new Error('Sessione scaduta')
 
       const system = `Sei un assistente per il titolare di una pasticceria/gelateria
-italiana che usa FoodOS. Riceverai una domanda libera dell'utente.
+italiana che usa Foodos. Riceverai una domanda libera dell'utente.
 Compito:
 1. Se la domanda chiede di NAVIGARE a una sezione, rispondi con: NAVIGATE:<view-id>
    View-id disponibili: home, ricettario, semilavorati, nuova-ricetta, pl,

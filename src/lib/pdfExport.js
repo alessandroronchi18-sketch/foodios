@@ -22,7 +22,7 @@
 //     }],
 //   })
 //
-// Brand FoodOS in header e footer. Logo testuale "F" gradiente bordeaux.
+// Brand Foodos in header e footer. Logo testuale "F" gradiente bordeaux.
 // A4 portrait, font Helvetica.
 
 // jsPDF + autoTable: lazy-loaded dentro buildAndDownloadPdf (audit 2026-06-17
@@ -62,7 +62,7 @@ function drawHeader(doc, { title, subtitle, periodo }) {
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
-  doc.text('FoodOS', 14, 12)
+  doc.text('Foodos', 14, 12)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.text(new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }), 196, 12, { align: 'right' })
@@ -71,7 +71,7 @@ function drawHeader(doc, { title, subtitle, periodo }) {
   doc.setTextColor(14, 23, 38)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(20)
-  doc.text(title || 'Report FoodOS', 14, 36)
+  doc.text(title || 'Report Foodos', 14, 36)
   if (subtitle) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(11)
@@ -91,7 +91,7 @@ function drawFooter(doc) {
     doc.setPage(i)
     doc.setFontSize(8)
     doc.setTextColor(139, 149, 167)
-    doc.text(`Generato da FoodOS · ${new Date().toLocaleString('it-IT')}`, 14, 290)
+    doc.text(`Generato da Foodos · ${new Date().toLocaleString('it-IT')}`, 14, 290)
     doc.text(`${i} / ${pages}`, 196, 290, { align: 'right' })
   }
 }

@@ -147,7 +147,7 @@ const VIEW_DISPLAY_LABELS = {
   'confronto-sedi':     'Confronto sedi',
   'trasferimenti':      'Trasferimenti tra sedi',
   'integrazioni':       'Integrazioni',
-  'ai-brain':           'FoodOS Brain (chat AI)',
+  'ai-brain':           'Foodos Brain (chat AI)',
   'whatsapp':           'WhatsApp Bot',
   'ricette-ai':         'Inventa ricetta AI',
   'marketplace':        'Marketplace fornitori',

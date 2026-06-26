@@ -224,14 +224,14 @@ function EmailModal({ cliente, onClose, onInvia }) {
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
         {tpl(<><Icon name="party" size={12} /> Benvenuto</>,
-          'Benvenuto in FoodOS!',
-          `Ciao ${cliente.nome_completo || ''},\n\ngrazie per aver registrato ${cliente.nome_attivita} su FoodOS. Sono qui per aiutarti a iniziare — fammi sapere se hai bisogno di una breve demo o di chiarimenti.\n\nA presto!`)}
+          'Benvenuto in Foodos!',
+          `Ciao ${cliente.nome_completo || ''},\n\ngrazie per aver registrato ${cliente.nome_attivita} su Foodos. Sono qui per aiutarti a iniziare — fammi sapere se hai bisogno di una breve demo o di chiarimenti.\n\nA presto!`)}
         {tpl(<><Icon name="clock" size={12} /> Trial in scadenza</>,
-          'La tua prova FoodOS sta per scadere',
-          `Ciao ${cliente.nome_completo || ''},\n\nho visto che il tuo trial sta per terminare. Vuoi continuare con FoodOS? Posso prepararti un'offerta dedicata, fammi sapere.\n\nGrazie,\nAlessandro`)}
+          'La tua prova Foodos sta per scadere',
+          `Ciao ${cliente.nome_completo || ''},\n\nho visto che il tuo trial sta per terminare. Vuoi continuare con Foodos? Posso prepararti un'offerta dedicata, fammi sapere.\n\nGrazie,\nAlessandro`)}
         {tpl(<><Icon name="chat" size={12} /> Check-in</>,
-          'Come va con FoodOS?',
-          `Ciao ${cliente.nome_completo || ''},\n\nti scrivo per sapere come ti stai trovando con FoodOS. C'è qualche funzione che ti manca o che vorresti migliorata?\n\nIl tuo feedback è importante.\n\nAlessandro`)}
+          'Come va con Foodos?',
+          `Ciao ${cliente.nome_completo || ''},\n\nti scrivo per sapere come ti stai trovando con Foodos. C'è qualche funzione che ti manca o che vorresti migliorata?\n\nIl tuo feedback è importante.\n\nAlessandro`)}
       </div>
 
       <input
@@ -322,7 +322,7 @@ function BulkEmailModal({ clienti, onClose, onInvia }) {
           />
           <textarea
             value={messaggio} onChange={e => setMessaggio(e.target.value)}
-            placeholder={`Ciao {{nome_completo}},\n\nun saluto da Alessandro di FoodOS.\nCome vanno le cose con {{nome_attivita}}?\n\nA presto.`}
+            placeholder={`Ciao {{nome_completo}},\n\nun saluto da Alessandro di Foodos.\nCome vanno le cose con {{nome_attivita}}?\n\nA presto.`}
             rows={9}
             disabled={busy}
             style={{
@@ -1985,8 +1985,8 @@ export default function AdminPage() {
           body: JSON.stringify({
             tipo: 'invia_email',
             destinatario: c.email,
-            oggetto: 'La tua prova FoodOS scade tra pochi giorni',
-            messaggio: `Ciao ${c.nome_completo || ''},\n\nla tua prova gratuita di FoodOS scade tra ${giorniRimanenti(c)} giorni.\n\nSe vuoi continuare ad accedere ai tuoi dati e alle analisi, rispondi a questa email e ti preparo l'attivazione.\n\nA presto,\nAlessandro`,
+            oggetto: 'La tua prova Foodos scade tra pochi giorni',
+            messaggio: `Ciao ${c.nome_completo || ''},\n\nla tua prova gratuita di Foodos scade tra ${giorniRimanenti(c)} giorni.\n\nSe vuoi continuare ad accedere ai tuoi dati e alle analisi, rispondi a questa email e ti preparo l'attivazione.\n\nA presto,\nAlessandro`,
           }),
         })
         ok++
@@ -2160,7 +2160,7 @@ export default function AdminPage() {
       }}>
         <div>
           <div style={{ fontWeight: 900, fontSize: 17, color: COLORS.text }}>
-            <Icon name="gift" size={17} /> FoodOS <span style={{ color: COLORS.accent }}>Admin</span>
+            <Icon name="gift" size={17} /> Foodos <span style={{ color: COLORS.accent }}>Admin</span>
           </div>
           <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>
             Pannello amministrazione · {lastFetch

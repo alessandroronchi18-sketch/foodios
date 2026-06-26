@@ -113,7 +113,7 @@ const INTEGRAZIONI_CFG = [
     categoria: 'Cassa',
     descrizione: 'POS leader nel food artigianale italiano. Real-time webhook + export CSV.',
     istruzioni: [
-      'Per webhook real-time (consigliato): Tilby Web → Impostazioni → Integrazioni → Webhook esterni → URL: https://foodios-rose.vercel.app/api/webhook-pos · Headers: x-pos-provider: tilby · x-pos-secret: <chiedi a FoodOS>',
+      'Per webhook real-time (consigliato): Tilby Web → Impostazioni → Integrazioni → Webhook esterni → URL: https://foodios-rose.vercel.app/api/webhook-pos · Headers: x-pos-provider: tilby · x-pos-secret: <chiedi a Foodos>',
       'Per import manuale CSV: Tilby Web → Report → Esporta vendite (CSV)',
       'Carica il file qui — l\'AI auto-rileva il formato',
     ],
@@ -130,7 +130,7 @@ const INTEGRAZIONI_CFG = [
     descrizione: 'Cassa cloud TeamSystem. CSV export giornaliero + API real-time tier Business.',
     istruzioni: [
       'Per CSV (tutti i piani): Cassa in Cloud → Statistiche → Vendite → Esporta CSV',
-      'Per API real-time (piano Business+): contatta supporto TeamSystem per webhook config con URL FoodOS',
+      'Per API real-time (piano Business+): contatta supporto TeamSystem per webhook config con URL Foodos',
       'Carica CSV qui — l\'AI auto-rileva il formato',
     ],
     tipoFile: '.csv',
@@ -284,7 +284,7 @@ const INTEGRAZIONI_CFG = [
     descrizione: 'Per qualsiasi cassa che esporta CSV. L\'AI auto-rileva il formato e usa il parser corretto. Funziona se le colonne contengono Data + Totale (o equivalenti).',
     istruzioni: [
       'Esporta CSV/TXT dalla tua cassa con la funzione standard',
-      'Carica il file qui — FoodOS prova 10 parser e usa quello che matcha',
+      'Carica il file qui — Foodos prova 10 parser e usa quello che matcha',
       'Se l\'AI non lo riconosce, vedrai un avviso e puoi scriverci a support@foodios.it per aggiungere il tuo formato',
     ],
     tipoFile: '.csv,.txt',
@@ -447,7 +447,7 @@ function StatoConnessioni({ notify }) {
       const j = await r.json().catch(() => ({}))
       const elapsed = Math.round(performance.now() - t0)
       setStato({ ...j, latencyMs: elapsed })
-      if (j.status === 'ok') notify('✓ Backend FoodOS online')
+      if (j.status === 'ok') notify('✓ Backend Foodos online')
       else notify('Backend degradato — controlla configurazione', false)
     } catch (e) {
       setStato({ status: 'down', error: e.message })
@@ -470,7 +470,7 @@ function StatoConnessioni({ notify }) {
       <div style={{ flex: 1, minWidth: 200 }}>
         <div style={{ fontWeight: 700, color, marginBottom: 2, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Icon name="dot" size={12} color={color} />
-          {isOk ? 'Backend FoodOS operativo'
+          {isOk ? 'Backend Foodos operativo'
             : isDegraded ? 'Backend degradato (DB rallentato)'
             : 'Backend non raggiungibile'}
         </div>
@@ -757,7 +757,7 @@ export default function Integrazioni({ orgId, sedeId }) {
       {/* Sub-header (il titolo è in topbar) */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 13, color: T.textSoft, letterSpacing: "-0.005em" }}>
-          Connetti FoodOS ai tuoi software di contabilità, casse, delivery, pagamenti ed e-commerce.
+          Connetti Foodos ai tuoi software di contabilità, casse, delivery, pagamenti ed e-commerce.
         </div>
       </div>
 
@@ -1004,7 +1004,7 @@ export default function Integrazioni({ orgId, sedeId }) {
               Scrivici e attiviamo la sincronizzazione: di solito serve un file CSV/Excel campione o le credenziali API.
               Le integrazioni con catena distributiva &amp; gestionali italiani sono in alta priorità.
             </div>
-            <a href={`mailto:support@foodios.it?subject=${encodeURIComponent('Richiesta integrazione FoodOS')}&body=${encodeURIComponent('Vorrei attivare l\'integrazione con:\n\n[Nome software/fornitore]\n\nUso questo software per:\n- ...\n\nVolume previsto (transazioni/mese):\n- ...\n')}`}
+            <a href={`mailto:support@foodios.it?subject=${encodeURIComponent('Richiesta integrazione Foodos')}&body=${encodeURIComponent('Vorrei attivare l\'integrazione con:\n\n[Nome software/fornitore]\n\nUso questo software per:\n- ...\n\nVolume previsto (transazioni/mese):\n- ...\n')}`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: C.red, color: '#FFF', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
               <Icon name="mail" size={13} /> Richiedi una nuova integrazione
             </a>

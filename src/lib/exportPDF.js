@@ -45,7 +45,7 @@ function addHeader(doc, title, subtitle, nomeAttivita) {
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(14)
   doc.setFont('helvetica', 'bold')
-  doc.text('FoodOS', 14, 13)
+  doc.text('Foodos', 14, 13)
   if (nomeAttivita) {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
@@ -80,7 +80,7 @@ function addFooter(doc, opts = {}) {
     doc.setPage(i)
     doc.setFontSize(8)
     doc.setTextColor(180, 160, 155)
-    doc.text('Generato da FoodOS — foodios.it', 14, 290)
+    doc.text('Generato da Foodos — foodios.it', 14, 290)
     doc.text(`${i} / ${pages}`, 196, 290, { align: 'right' })
     if (wm) {
       doc.setFontSize(7)
@@ -114,10 +114,10 @@ function setPdfMetadata(doc, opts = {}) {
   const { titolo, emailUtente, nomeAttivita } = opts
   try {
     doc.setProperties({
-      title: titolo || 'Documento FoodOS',
-      subject: nomeAttivita || 'FoodOS',
-      author: emailUtente || 'FoodOS user',
-      creator: 'FoodOS',
+      title: titolo || 'Documento Foodos',
+      subject: nomeAttivita || 'Foodos',
+      author: emailUtente || 'Foodos user',
+      creator: 'Foodos',
       keywords: `foodios,${nomeAttivita || ''},${emailUtente || ''},${new Date().toISOString()}`,
     })
   } catch { /* jsPDF versioni vecchie: ignora */ }

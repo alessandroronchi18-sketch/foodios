@@ -107,13 +107,13 @@ const CHAIN_CLUSTER = {
   accent: '#FFD86B',
   icon: 'sparkles',
   features: [
-    { id: 'ai-brain',     view: 'ai-brain',     title: 'FoodOS Brain',
+    { id: 'ai-brain',     view: 'ai-brain',     title: 'Foodos Brain',
       body: 'Chat conversazionale dedicata. Chiedi qualsiasi cosa sui tuoi dati: ricavi, margini, scadenze, andamenti.',
       cta: 'Apri la chat', status: 'LIVE', chain: true },
     // Audit 2026-06-25: 'Inventa ricetta AI' nascosta su richiesta utente.
     // { id: 'ricette-ai', view: 'ricette-ai', title: 'Inventa ricetta AI', ... },
     { id: 'whatsapp',     view: 'whatsapp',     title: 'WhatsApp Bot',
-      body: 'Gestisci FoodOS direttamente da WhatsApp: chiedi KPI, registra sprechi, ricevi alert giornalieri.',
+      body: 'Gestisci Foodos direttamente da WhatsApp: chiedi KPI, registra sprechi, ricevi alert giornalieri.',
       cta: 'Configura', status: 'BETA', chain: true },
     // Audit 2026-06-25: 'Marketplace fornitori' nascosta su richiesta utente.
     // { id: 'marketplace', view: 'marketplace', title: 'Marketplace fornitori', ... },
@@ -234,7 +234,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
           </div>
 
           <h1 style={{ margin: '20px 0 12px', fontSize: isMobile ? 30 : isTablet ? 38 : 52, fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.05 }}>
-            FoodOS<br/>
+            Foodos<br/>
             <span style={{
               background: 'linear-gradient(120deg, #FFD86B 0%, #FBD7C9 45%, #E89B43 75%, #FFD86B 100%)',
               backgroundSize: '200% auto',
@@ -262,7 +262,7 @@ export default function AiHubView({ orgId, setView, goToUpgrade, piano, userEmai
             <button onClick={() => onFeatureClick('ai-brain')}
               style={{ background: '#FFF', color: BRAND, border: 'none', padding: isMobile ? '14px 22px' : '13px 24px', minHeight: 48, borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
                 boxShadow: '0 8px 22px rgba(0,0,0,0.30)', flex: isMobile ? '1 1 auto' : 'unset', justifyContent: 'center' }}>
-              <Icon name="sparkles" size={14}/> Parla con FoodOS Brain
+              <Icon name="sparkles" size={14}/> Parla con Foodos Brain
             </button>
             <button onClick={() => setView?.('home')}
               style={{ background: 'rgba(255,255,255,0.08)', color: '#FFF', border: '1px solid rgba(255,255,255,0.28)', padding: isMobile ? '14px 20px' : '13px 22px', minHeight: 48, borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', flex: isMobile ? '1 1 auto' : 'unset', justifyContent: 'center', display: 'inline-flex', alignItems: 'center' }}>

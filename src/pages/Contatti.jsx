@@ -40,14 +40,14 @@ export default function Contatti() {
 
       <LegalH2>Feedback dentro l'app</LegalH2>
       <LegalP>
-        Se sei già utente di FoodOS, il modo più rapido per segnalare bug, idee o complimenti
+        Se sei già utente di Foodos, il modo più rapido per segnalare bug, idee o complimenti
         e' usare il bottone <strong>Feedback</strong> in basso a destra dentro l'app — arriva direttamente
         a chi sviluppa.
       </LegalP>
 
       <LegalH2>Vuoi essere design partner?</LegalH2>
       <LegalP>
-        FoodOS cresce su feedback reale. Se sei una pasticceria/gelateria/bar disposta a usare il
+        Foodos cresce su feedback reale. Se sei una pasticceria/gelateria/bar disposta a usare il
         prodotto e a darci un feedback strutturato (1 call settimanale di 30 min), offriamo
         <strong> 12 mesi gratis</strong> in cambio. Scrivi a{' '}
         <LegalLink href="mailto:hello@foodios.it">hello@foodios.it</LegalLink> con oggetto

@@ -40,7 +40,7 @@ export default function MfaSection({ notify }) {
   async function startEnroll() {
     try {
       // Nome friendly visibile nelle app TOTP
-      const friendlyName = `FoodOS ${new Date().toISOString().slice(0,10)}`
+      const friendlyName = `Foodos ${new Date().toISOString().slice(0,10)}`
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName,

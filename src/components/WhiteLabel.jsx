@@ -79,14 +79,14 @@ export default function WhiteLabel({ orgId, piano, notify }) {
     <div style={card}>
       <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="palette" size={16} />Personalizzazione</div>
       <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
-        Sì, FoodOS permette di applicare il tuo <strong>logo, il nome dell'app e il colore del brand</strong> all'interfaccia:
-        compaiono nella sidebar e nell'intestazione, e il nome custom sostituisce "FoodOS" anche nel titolo del browser.
+        Sì, Foodos permette di applicare il tuo <strong>logo, il nome dell'app e il colore del brand</strong> all'interfaccia:
+        compaiono nella sidebar e nell'intestazione, e il nome custom sostituisce "Foodos" anche nel titolo del browser.
         È incluso nel piano <strong>Chain</strong> — puoi attivarlo subito senza dover scrivere a nessuno.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 14 }}>
         <ul style={{ flex: '1 1 240px', margin: 0, padding: '0 0 0 18px', fontSize: 12, color: '#475569', lineHeight: 1.7 }}>
           <li>Logo nella sidebar e nell'intestazione dell'app</li>
-          <li>Nome app al posto di "FoodOS" (sidebar + titolo del browser)</li>
+          <li>Nome app al posto di "Foodos" (sidebar + titolo del browser)</li>
           <li>Colore del brand sulla navigazione attiva</li>
           <li>Configurabile da Impostazioni → Personalizzazione</li>
           <li>Attivo per tutti gli utenti della tua organizzazione</li>
@@ -97,7 +97,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
           style={{ padding: '10px 22px', minHeight: touchH, background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
           Passa al piano Chain
         </button>
-        <a href="mailto:support@foodios.it?subject=Personalizzazione%20FoodOS"
+        <a href="mailto:support@foodios.it?subject=Personalizzazione%20Foodos"
           style={{ padding: '10px 18px', minHeight: touchH, background: '#FFF', color: '#6E0E1A', border: '1px solid #6E0E1A', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
           Parla con noi prima
         </a>
@@ -143,7 +143,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
 
   async function reset() {
     const ok = await confirmDialog({
-      title: 'Ripristinare branding FoodOS?',
+      title: 'Ripristinare branding Foodos?',
       message: 'Logo, nome app e colori personalizzati saranno cancellati. Tornera al brand default.',
       confirmLabel: 'Ripristina', cancelLabel: 'Annulla', destructive: true,
     })
@@ -173,7 +173,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={lbl}>Nome app (al posto di "FoodOS")</label>
+          <label style={lbl}>Nome app (al posto di "Foodos")</label>
           <input value={nomeApp} onChange={e => setNomeApp(e.target.value)} placeholder="Es. PasticceriaOS"
             maxLength={32} style={inp} />
         </div>
@@ -232,7 +232,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
               </div>
             )}
             <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nomeApp || 'FoodOS'}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nomeApp || 'Foodos'}</div>
               <div style={{ fontSize: 11, color: '#64748B' }}>Sidebar e topbar useranno questo brand.</div>
             </div>
             <button style={{ marginLeft: isMobile ? 0 : 'auto', padding: '8px 16px', minHeight: touchH, background: colorePrimario, color: '#FFF', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>

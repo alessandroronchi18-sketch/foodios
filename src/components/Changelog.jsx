@@ -40,7 +40,7 @@ export function NovitaModal({ onClose, onVediTutte }) {
 
         <div style={{ marginBottom: 6, color: C.red }}><Icon name="party" size={28} /></div>
         <div style={{ fontSize: 20, fontWeight: 900, color: C.text, marginBottom: 4 }}>
-          Novità in FoodOS {latest.versione}
+          Novità in Foodos {latest.versione}
         </div>
         <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 20 }}>
           {fmtData(latest.data)}
@@ -98,7 +98,7 @@ export default function ChangelogView() {
         <Icon name="clipboard" size={20} />Novità & Changelog
       </div>
       <div style={{ fontSize: 13, color: C.textSoft, marginBottom: 32 }}>
-        Tutte le versioni e gli aggiornamenti di FoodOS
+        Tutte le versioni e gli aggiornamenti di Foodos
       </div>
 
       <div style={{ position: 'relative', paddingLeft: 28 }}>

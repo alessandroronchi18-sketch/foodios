@@ -1632,7 +1632,7 @@ function AccessiTab({ orgId, notify, isMobile }) {
   // Niente email automatica: il titolare condivide il link di registrazione col dipendente.
   function copiaLink(emailDip) {
     const url = (typeof window !== 'undefined' ? window.location.origin : '') + '/register'
-    const testo = `Registrati su FoodOS con l'email ${emailDip}: ${url}`
+    const testo = `Registrati su Foodos con l'email ${emailDip}: ${url}`
     try {
       navigator.clipboard.writeText(testo)
       notify?.('Link copiato — incollalo al dipendente (WhatsApp, email, ecc.)')

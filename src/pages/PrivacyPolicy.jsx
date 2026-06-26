@@ -5,7 +5,7 @@ export default function PrivacyPolicy() {
   return (
     <LegalLayout title="Privacy Policy" updated="2026-05-29" related={[['Termini di servizio', '/termini'], ['Cookie Policy', '/cookie']]}>
       <LegalP>
-        La presente Privacy Policy descrive come <strong>FoodOS</strong> raccoglie, utilizza e
+        La presente Privacy Policy descrive come <strong>Foodos</strong> raccoglie, utilizza e
         protegge i dati personali degli utenti, in conformità con il Regolamento UE 2016/679
         (GDPR), il D.Lgs. 196/2003 (Codice Privacy italiano) e il Provvedimento del Garante
         dell'8 maggio 2014 in materia di cookie.
@@ -93,7 +93,7 @@ export default function PrivacyPolicy() {
 
       <LegalH2>8. Cookie e tecnologie simili</LegalH2>
       <LegalP>
-        FoodOS utilizza esclusivamente <strong>cookie tecnici</strong> necessari al funzionamento del
+        Foodos utilizza esclusivamente <strong>cookie tecnici</strong> necessari al funzionamento del
         servizio (gestione della sessione autenticata, preferenze interfaccia). Non utilizziamo cookie
         di profilazione, tracciamento pubblicitario o analytics di terze parti. Per i cookie tecnici
         non e' richiesto il consenso ai sensi del Provvedimento del Garante dell'8 maggio 2014.

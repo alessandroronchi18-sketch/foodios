@@ -1,4 +1,4 @@
-// Client AI unificato per FoodOS.
+// Client AI unificato per Foodos.
 //
 // Astrazione su POST /api/ai con benefici trasversali a tutte le 15+ feature AI:
 //   - timeout configurabile (default 30s, sovrascrivibile)

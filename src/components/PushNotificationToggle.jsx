@@ -53,7 +53,7 @@ export default function PushNotificationToggle({ deviceLabel }) {
         <strong style={{ color: T.text }}>Notifiche push non supportate</strong>
         <div style={{ fontSize: 12, color: T.textSoft, marginTop: 4 }}>
           {isIOS
-            ? 'Su iPhone/iPad, aggiungi prima FoodOS alla schermata Home come app per ricevere le notifiche.'
+            ? 'Su iPhone/iPad, aggiungi prima Foodos alla schermata Home come app per ricevere le notifiche.'
             : 'Il tuo browser non supporta le notifiche push.'}
         </div>
       </div>

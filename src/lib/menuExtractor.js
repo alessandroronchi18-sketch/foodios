@@ -4,7 +4,7 @@
 // produzione/B2B usando quei prodotti.
 //
 // API: chiama /api/ai (auth admin) con prompt strutturato. Output JSON validato
-// e normalizzato in formato ricettario FoodOS (`ricette` + `ingredienti_costi`).
+// e normalizzato in formato ricettario Foodos (`ricette` + `ingredienti_costi`).
 
 import { supabase } from './supabase'
 
@@ -150,7 +150,7 @@ export function normalizeMenu(rawJson) {
   }
 }
 
-// ─── Converte il menu normalizzato in formato ricettario FoodOS ───────────
+// ─── Converte il menu normalizzato in formato ricettario Foodos ───────────
 export function menuToRicettario(menu) {
   const ricette = {}
   const ingredientiCosti = {}

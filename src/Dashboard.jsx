@@ -938,7 +938,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
               </div>
             </div>
             <div style={{ fontSize:12, color:C.textSoft, marginBottom:14, lineHeight:1.6 }}>
-              Ogni 1° del mese ricevi un PDF con i KPI del mese precedente. Generato automaticamente da FoodOS.
+              Ogni 1° del mese ricevi un PDF con i KPI del mese precedente. Generato automaticamente da Foodos.
             </div>
             {loadingReports ? (
               <div style={{ fontSize:12, color:C.textSoft }}>Caricamento…</div>
@@ -970,13 +970,13 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
             <div style={{ fontSize:12, color:C.textSoft, marginBottom:14 }}>
               Attiva le notifiche push per ricevere reminder operativi su questo dispositivo (scadenze, alert, daily brief).
             </div>
-            <PushNotificationToggle deviceLabel={`${nomeAttivita || 'FoodOS'} - ${typeof navigator!=='undefined' && /iPhone|iPad/.test(navigator.userAgent) ? 'iOS' : 'web'}`}/>
+            <PushNotificationToggle deviceLabel={`${nomeAttivita || 'Foodos'} - ${typeof navigator!=='undefined' && /iPhone|iPad/.test(navigator.userAgent) ? 'iOS' : 'web'}`}/>
           </div>
 
           {/* Novità & Changelog */}
           <div style={card}>
             <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8, display:"flex", alignItems:"center", gap:8 }}><Icon name="clipboard" size={16}/> Novità & Changelog</div>
-            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14 }}>Tutte le funzionalità e gli aggiornamenti di FoodOS.</div>
+            <div style={{ fontSize:12, color:C.textSoft, marginBottom:14 }}>Tutte le funzionalità e gli aggiornamenti di Foodos.</div>
             <button onClick={onChangelogOpen}
               style={{ padding:"10px 18px", background:C.redLight, color:C.red,
                 border:"none", borderRadius:9, fontSize:13, fontWeight:700, cursor:"pointer" }}>
@@ -994,7 +994,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
             <div style={{ fontSize:12, color:C.textSoft, marginBottom:16, lineHeight:1.7 }}>
               La resa indica quanta parte del peso lordo acquistato è effettivamente utilizzabile. <br/>
               Es. uova 85% → per 100g netti devi acquistare 118g lordi → il food cost reale è più alto.<br/>
-              FoodOS applica automaticamente la resa al calcolo del food cost di ogni ricetta.
+              Foodos applica automaticamente la resa al calcolo del food cost di ogni ricetta.
             </div>
             <div style={{ marginBottom:14 }}>
               <input value={reseFiltro} onChange={e=>setReseFiltro(e.target.value)} placeholder="Filtra ingrediente…"
@@ -1108,7 +1108,7 @@ class ErrorBoundary extends React.Component {
         <div style={{maxWidth:420,textAlign:"center",background:"#fff",border:"1px solid #E8E0DC",borderRadius:16,padding:"36px 28px",boxShadow:"0 4px 20px rgba(15,23,42,0.08)"}}>
           <div style={{marginBottom:12}}><Icon name="refresh" size={38} color="#6E0E1A" /></div>
           <h1 style={{margin:"0 0 10px",fontSize:19,fontWeight:800,color:"#1C0A0A"}}>È disponibile una nuova versione</h1>
-          <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>Ricarico la pagina per aggiornare FoodOS all'ultima versione…</p>
+          <p style={{margin:"0 0 22px",fontSize:14,color:"#6B4C44",lineHeight:1.6}}>Ricarico la pagina per aggiornare Foodos all'ultima versione…</p>
           <button onClick={()=>window.location.reload()} style={{padding:"12px 26px",background:"#6E0E1A",color:"#fff",border:"none",borderRadius:10,fontWeight:800,fontSize:14,cursor:"pointer"}}>Ricarica ora</button>
         </div>
       </div>
@@ -1339,10 +1339,10 @@ export default function Dashboard({
     }).catch(()=>{})
   }, [orgId]);
 
-  const appName = whiteLabel?.nomeApp || 'FoodOS';
+  const appName = whiteLabel?.nomeApp || 'Foodos';
   const customLogo = whiteLabel?.logoDataUrl || null;
   // Gradiente brand per la voce di navigazione attiva: usa il colore custom
-  // (piano Chain) se valido, altrimenti il bordeaux FoodOS di default.
+  // (piano Chain) se valido, altrimenti il bordeaux Foodos di default.
   const brandGrad = (() => {
     const c = whiteLabel?.colorePrimario;
     if (!c || !/^#[0-9A-Fa-f]{6}$/.test(c)) return 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)';
@@ -1549,7 +1549,7 @@ export default function Dashboard({
       .catch(e => console.error('bridge inventario→giornaliero:', e))
   }, [orgId, sedeId, sedeAttiva?.metodo_produzione, sedeAttiva?.is_sede_produzione])
 
-  // Audit 2026-06-25: pop-up "Novità in FoodOS X.Y.Z" disabilitato per richiesta
+  // Audit 2026-06-25: pop-up "Novità in Foodos X.Y.Z" disabilitato per richiesta
   // utente — appariva ad ogni release nuova. Resta accessibile manualmente da
   // Impostazioni → Dati → Changelog. Marchiamo come "vista" la versione corrente
   // così se in futuro vogliamo riabilitare il pop-up parte pulito.
@@ -2022,7 +2022,7 @@ export default function Dashboard({
           // canAccessView, non flag statico.
           { id:"ai", label:"AI", headerView:"ai-hub", badge:azioniAperte, items:[
             {id:"ai-hub",label:"Panoramica AI",icon:"sparkles"},
-            {id:"ai-brain",label:"FoodOS Brain (chat)",icon:"sparkles"},
+            {id:"ai-brain",label:"Foodos Brain (chat)",icon:"sparkles"},
             {id:"forecast",label:"Forecast vendite 7gg",icon:"sun"},
             {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
             {id:"menu-engineering",label:"Menu engineering",icon:"barChart"},
@@ -2663,7 +2663,7 @@ export default function Dashboard({
                 badge:azioniAperte,
                 children:[
                   navItem("ai-hub","sparkles","Panoramica AI"),
-                  navItem("ai-brain","sparkles","FoodOS Brain (chat)", 0, false, true),
+                  navItem("ai-brain","sparkles","Foodos Brain (chat)", 0, false, true),
                   navItem("forecast","sun","Forecast vendite 7gg"),
                   navItem("cashflow","trendUp","Cashflow predittivo"),
                   navItem("menu-engineering","barChart","Menu engineering"),
@@ -2878,7 +2878,7 @@ export default function Dashboard({
             // Mantenuti i label migliori del set "18 feature AI 2026-06".
             recensioni:"Recensioni AI", "menu-engineering":"Menu engineering", cashflow:"Cashflow",
             forecast:"Forecast AI", reformulation:"Ottimizza ricette AI", "ordini-ai":"Ordini AI fornitori",
-            "competitor-pricing":"Pricing vs competitor", "ai-brain":"FoodOS Brain", "ricette-ai":"Inventa ricette AI",
+            "competitor-pricing":"Pricing vs competitor", "ai-brain":"Foodos Brain", "ricette-ai":"Inventa ricette AI",
             marketplace:"Marketplace", whatsapp:"WhatsApp Bot", documentary:"Documentary AI",
             "ai-hub":"AI",
           };
@@ -2901,7 +2901,7 @@ export default function Dashboard({
               padding:isTablet?"18px 20px 0":"20px 32px 0",display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14}}>
               <div style={{minWidth:0}}>
                 <div style={{fontSize:9.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:8,marginBottom:3,lineHeight:1}}>
-                  <span style={{maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.brand,fontWeight:700,letterSpacing:"0.07em"}}>{nomeAttivita||"FoodOS"}</span>
+                  <span style={{maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.brand,fontWeight:700,letterSpacing:"0.07em"}}>{nomeAttivita||"Foodos"}</span>
                   {group&&<>
                     <span style={{color:T.borderStr,fontSize:11}}>›</span>
                     <span style={{color:T.textSoft,letterSpacing:"0.05em"}}>{group}</span>
@@ -2934,7 +2934,7 @@ export default function Dashboard({
             "confronto-sedi":"Confronto sedi", trasferimenti:"Trasferimenti", changelog:"Novità",
             "importa-dati":"Importa dati", "registro-attivita":"Registro attività",
           };
-          const titolo = MOBILE_LABELS[view] || nomeAttivita || "FoodOS";
+          const titolo = MOBILE_LABELS[view] || nomeAttivita || "Foodos";
           return (
             <div style={{position:"sticky",top:0,zIndex:Z.topbar,
               background:"rgba(247,248,250,0.86)",

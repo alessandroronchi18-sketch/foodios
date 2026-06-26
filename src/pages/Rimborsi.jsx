@@ -5,7 +5,7 @@ export default function Rimborsi() {
   return (
     <LegalLayout title="Politica di Rimborso" updated="2026-05-29" related={[['Termini di servizio', '/termini']]}>
       <LegalP>
-        FoodOS e' un servizio rivolto a soggetti B2B (partite IVA italiane ed europee). Questa
+        Foodos e' un servizio rivolto a soggetti B2B (partite IVA italiane ed europee). Questa
         pagina chiarisce le condizioni di rimborso e disdetta dell'abbonamento, integrando i
         Termini di Servizio.
       </LegalP>

@@ -7,7 +7,7 @@
 // Usage:
 //   <AiPageHero
 //     eyebrow="AI · Chat conversazionale"
-//     title="FoodOS Brain"
+//     title="Foodos Brain"
 //     accentText="il tuo consulente"
 //     subtitle="Chiedi qualsiasi cosa sui tuoi dati..."
 //     stats={[{ n: '3', l: 'Modelli Claude attivi' }, { n: '2s', l: 'Risposta media' }]}

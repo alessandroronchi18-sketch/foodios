@@ -66,15 +66,6 @@ export default function SplashScreen({ subtitle = 'Caricamento' }) {
           0%, 80%, 100% { opacity: 0.25; transform: translateY(0) }
           40%           { opacity: 1;    transform: translateY(-3px) }
         }
-        .fos-splash-grid {
-          position: absolute; inset: 0; pointer-events: none;
-          background-image:
-            linear-gradient(rgba(255,179,80,0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,179,80,0.04) 1px, transparent 1px);
-          background-size: 48px 48px;
-          mask-image: radial-gradient(ellipse at center, #000 35%, transparent 75%);
-          -webkit-mask-image: radial-gradient(ellipse at center, #000 35%, transparent 75%);
-        }
         @media (prefers-reduced-motion: reduce) {
           .fos-splash-aurora, .fos-splash-aurora2,
           .fos-splash-ring, .fos-splash-halo,
@@ -98,8 +89,6 @@ export default function SplashScreen({ subtitle = 'Caricamento' }) {
         filter: 'blur(48px)', pointerEvents: 'none',
         animation: '_fos_splash_aurora2 18s ease-in-out infinite',
       }}/>
-
-      <div className="fos-splash-grid" aria-hidden="true"/>
 
       <div style={{ position: 'relative', width: logoSize, height: logoSize }}>
         <div className="fos-splash-halo" aria-hidden="true" style={{
@@ -132,7 +121,7 @@ export default function SplashScreen({ subtitle = 'Caricamento' }) {
           backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.65) 100%)',
           backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           lineHeight: 1,
-        }}>FoodOS</div>
+        }}>Foodos</div>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
           fontSize: 12, color: 'rgba(255,255,255,0.55)', fontWeight: 600,
