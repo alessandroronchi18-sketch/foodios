@@ -232,10 +232,11 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             { lbl: 'Costo batch', val: fmt(fc), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
             { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
           ] : [
+            // Ordine (26/06): Ricavo, Margine, Margine %, Food cost a destra.
             { lbl: 'Ricavo', val: fmt(ricavo), c: C.text, bg: '#F8F4F2' },
-            { lbl: 'Food Cost', val: fmt(fc), c: C.red, bg: C.redLight },
             { lbl: 'Margine', val: fmt(margine), c: mc, bg: mbg, bold: true },
             { lbl: 'Margine %', val: fmtp(margPct), c: mc, bg: mbg, bold: true },
+            { lbl: 'Food cost', val: fmt(fc), c: C.red, bg: C.redLight },
           ]).map(({ lbl, val, c, bg, bold }, i) => (
             <div key={i} style={{ background: bg, padding: isMobile ? '7px 6px' : '8px 10px', borderRadius: 8, textAlign: 'center', minWidth: 0, minHeight: 48, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
               <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 3, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
@@ -642,14 +643,16 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
                   <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{ric.nome}</div>
                   <div style={{ fontSize: 11, color: T.textSoft, marginTop: 2, ...TNUM }}>{reg.unita || '?'} {reg.tipo || 'pz'} · {fmt(reg.prezzo)}</div>
                 </div>
+                {/* Ordine richiesto (26/06): MARGINE a sinistra, FOOD COST a destra.
+                    Label "Food cost" per esteso (non più "FC" criptico). */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: R.md }}>
-                    <div title="Food Cost: rapporto costo ingredienti / ricavo. Target tipico 25-35% in pasticceria, 22-30% in gelateria." style={{ fontSize: 10, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4, cursor: 'help' }}>FC</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: fC, ...TNUM }}>{fcPct.toFixed(0)}%</div>
-                  </div>
                   <div style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: R.md }}>
                     <div style={{ fontSize: 10, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Margine</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: mC, ...TNUM }}>{marg.toFixed(0)}%</div>
+                  </div>
+                  <div style={{ padding: '10px 12px', background: T.bgSubtle, borderRadius: R.md }}>
+                    <div title="Food Cost: rapporto costo ingredienti / ricavo. Target tipico 25-35% in pasticceria, 22-30% in gelateria." style={{ fontSize: 10, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', marginBottom: 4, cursor: 'help' }}>Food cost</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: fC, ...TNUM }}>{fcPct.toFixed(0)}%</div>
                   </div>
                 </div>
               </div>

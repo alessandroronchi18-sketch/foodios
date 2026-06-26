@@ -2897,12 +2897,13 @@ export default function Dashboard({
           const label = VIEW_LABELS[view] || (typeof view==="string"?view:"");
           const group = VIEW_GROUPS[view] || "";
           return (
-            // maxWidth allineato con il content area degli inner view (1200) così
-            // SedeSelector sul lato destro si incolonna con i bottoni action della
-            // view (es. "Aggiorna ricettario gusti"). Padding 32 = stessa rientranza
-            // di fos-page → l'utente vede una colonna destra perfettamente verticale.
+            // maxWidth 1200 + padding orizzontale = 0 sul desktop così:
+            //   - title h1 left edge = left edge del subtitle/KPI cards/tabelle sotto
+            //   - SedeSelector right edge = right edge del bottone "Aggiorna ricettario gusti"
+            // Le view inner usano maxWidth:1200 senza padding orizzontale (margin auto),
+            // quindi le edges combaciano esattamente. Padding verticale solo.
             <div style={{maxWidth:1200,width:"100%",margin:"0 auto",boxSizing:"border-box",
-              padding:isTablet?"18px 20px 0":"22px 32px 4px",display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14}}>
+              padding:isTablet?"18px 20px 0":"22px 0 4px",display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14}}>
               <style>{`
                 @keyframes _fos_kicker_bar {
                   0%, 100% { background-position: 0% 50%; }
