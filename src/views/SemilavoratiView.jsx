@@ -50,28 +50,24 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: '-0.015em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{sm.nome}</h3>
             {mancanti.length > 0 && <Badge label={`${mancanti.length} prezzi stimati`} color="amber" />}
           </div>
-          <div style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em', ...TNUM }}>
-            {fmtPeso(sm.peso)} batch · <span style={{ fontWeight: 600, color: T.textMid }}>{sm.nUsi > 0 ? `usato in ${sm.nUsi} ${sm.nUsi === 1 ? 'prodotto' : 'prodotti'}` : 'non ancora usato'}</span>
+          {/* Sub-text incolonnato: peso a larghezza fissa (110px) → il separatore
+              "·" e "usato in N prodotti" iniziano alla STESSA x tra card diverse,
+              indipendentemente dal numero di cifre del peso (818 g vs 1,05 kg). */}
+          <div style={{ fontSize: 12, color: T.textSoft, letterSpacing: '-0.005em', ...TNUM, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{ display: 'inline-block', minWidth: 110, color: T.textMid, fontWeight: 600 }}>{fmtPeso(sm.peso)} batch</span>
+            <span style={{ color: T.borderStr }}>·</span>
+            <span style={{ fontWeight: 600, color: T.textMid }}>{sm.nUsi > 0 ? `usato in ${sm.nUsi} ${sm.nUsi === 1 ? 'prodotto' : 'prodotti'}` : 'non ancora usato'}</span>
           </div>
         </div>
 
-        {/* KPI compatti — grid 3 col uniformi: label e value incolonnati,
-            minHeight 56 garantita su tutte le card, larghezza identica su desktop
-            (minmax 86) e split equo su mobile. */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(3, minmax(86px, 1fr))', gap: 8, flexShrink: 0, width: isMobile ? '100%' : 'auto' }}>
-          {[
-            { lbl: 'Costo / kg',   val: fmtKg(sm.costoKg),        c: T.brand,   bg: T.brandLight, tip: 'Costo materie prime per chilo di semilavorato prodotto' },
-            { lbl: 'Costo / 100g', val: fmtKg(sm.costoKg / 10),   c: T.textMid, bg: T.bgSubtle,   tip: 'Costo di una porzione tipica da 100 g' },
-            { lbl: 'Batch',        val: fmtBatch(fc),             c: T.text,    bg: T.bgSubtle,   tip: 'Costo dell’intero impasto/batch come da ricetta' },
-          ].map(({ lbl, val, c, bg, tip }) => (
-            <Tip key={lbl} text={tip}>
-              <div style={{ background: bg, padding: '9px 10px', borderRadius: R.md, textAlign: 'center', minHeight: 56, cursor: 'help', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5 }}>
-                <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: c, letterSpacing: '-0.015em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.1, ...TNUM }}>{val}</div>
-              </div>
-            </Tip>
-          ))}
-        </div>
+        {/* KPI compatto: solo Costo/kg (richiesta utente 26/06), più grande e
+            prominente. Tooltip via Tip portal — stessa esperienza di Ricette. */}
+        <Tip text="Costo materie prime per chilo di semilavorato prodotto" width={260}>
+          <div style={{ background: T.brandLight, padding: '12px 18px', borderRadius: R.md, textAlign: 'center', minHeight: 56, minWidth: 130, cursor: 'help', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, border: `1px solid ${T.brand}25`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)', flexShrink: 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</div>
+            <div style={{ fontSize: 17, fontWeight: 900, color: T.brand, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1.1, ...TNUM }}>{fmtKg(sm.costoKg)}</div>
+          </div>
+        </Tip>
 
         {/* Azioni: su mobile in flexWrap pieni a 40px+ */}
         <div style={{ display: 'flex', gap: 6, alignSelf: isMobile ? 'stretch' : 'center', flexShrink: 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
@@ -351,7 +347,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
         <KPI icon={<Icon name="barChart" size={18} />} label="Il più usato"
           value={diag.piuUsato && diag.piuUsato.nUsi > 0 ? `${diag.piuUsato.nUsi}×` : '—'}
           sub={diag.piuUsato && diag.piuUsato.nUsi > 0 ? diag.piuUsato.nome : 'nessun utilizzo'} />
-        <KPI icon={<Icon name="trendUp" size={18} />} label="Il più caro" highlight
+        <KPI icon={<Icon name="trendUp" size={18} />} label="Il più caro" color={T.brand}
           value={diag.piuCaro ? fmtKg(diag.piuCaro.costoKg) : '—'}
           sub={diag.piuCaro ? `${diag.piuCaro.nome} · al kg` : 'serve un prezzo'} />
       </div>
