@@ -313,11 +313,13 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         </div>
       )}
 
-      {/* Dettaglio aperto — Layout 2×2: 4 pannelli stessa larghezza, stesso
-          minHeight (basato sul più grande). Stesso stile (#F8F4F2 + 16 padding
-          + radius 10). Titolo "Distinta costi" rimosso per liberare spazio. */}
+      {/* Dettaglio aperto — Layout 2×2: 4 pannelli stessa larghezza, altezza
+          naturale basata sul contenuto. Più ingredienti = pannelli più alti;
+          meno = più compatti. `align-items: stretch` (default grid) garantisce
+          che i pannelli nella stessa RIGA siano alti uguali (max della riga),
+          minimizzando lo spazio vuoto. */}
       {open && (() => {
-        const PANEL_STYLE = { background: '#F8F4F2', borderRadius: 10, padding: 16, minHeight: 380, boxSizing: 'border-box' }
+        const PANEL_STYLE = { background: '#F8F4F2', borderRadius: 10, padding: 16, boxSizing: 'border-box' }
         const PANEL_TITLE_STYLE = { fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }
         return (
         <div style={{ padding: isMobile ? '16px 14px 20px' : '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 18, boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
