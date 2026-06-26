@@ -51,7 +51,7 @@ const TABLE_META = {
 const tableMeta = (t) => TABLE_META[t] || { label: t || 'Altro', icon: null }
 
 function fmtTs(iso) {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return new Date(iso).toLocaleString('it-IT', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -59,7 +59,7 @@ function fmtTs(iso) {
 }
 
 function fmtTime(iso) {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
 }
 
@@ -74,7 +74,7 @@ function fmtDayHeader(iso) {
 }
 
 function labelFromRow(r) {
-  return r?.new_data?.label || r?.operation || '—'
+  return r?.new_data?.label || r?.operation || '-'
 }
 
 function dettagliFromRow(r) {
@@ -221,7 +221,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     })
     return () => { alive = false }
     // notify NON va nelle deps (vedi notifyRef sopra). today è ricalcolato
-    // come stringa primitiva uguale, quindi Object.is gestisce — ma per
+    // come stringa primitiva uguale, quindi Object.is gestisce - ma per
     // sicurezza lo escludiamo pure.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId, utente, tabella, dataDa, dataA, sedeId, q, page])
@@ -237,9 +237,9 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     for (const r of rows) {
       const giorno = (r.created_at || '').slice(0, 10)
       if (giorno === oggiIso) oggiCount++
-      const u = r.user_email || '—'
+      const u = r.user_email || '-'
       userCount[u]  = (userCount[u]  || 0) + 1
-      const t = r.table_name || '—'
+      const t = r.table_name || '-'
       tableCount[t] = (tableCount[t] || 0) + 1
     }
     const topUser  = Object.entries(userCount).sort((a, b) => b[1] - a[1])[0]
@@ -324,7 +324,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
           {[
             { lbl: 'Azioni nel periodo', val: stats.total, sub: `${dataDa} → ${dataA}`, color: T.text, hi: true },
             { lbl: 'Azioni oggi',        val: stats.oggi,  sub: stats.oggi === 0 ? 'Nessuna attività' : 'modifiche registrate', color: T.text },
-            { lbl: 'Utente più attivo',  val: stats.topUser?.email?.split('@')[0] || '—', sub: stats.topUser ? `${stats.topUser.count} azioni` : 'Nessun dato', color: T.brand },
+            { lbl: 'Utente più attivo',  val: stats.topUser?.email?.split('@')[0] || '-', sub: stats.topUser ? `${stats.topUser.count} azioni` : 'Nessun dato', color: T.brand },
             { lbl: 'Tipo più frequente', val: tableMeta(stats.topTable?.name).label,      sub: stats.topTable ? `${stats.topTable.count} azioni` : 'Nessun dato', color: T.amber },
           ].map((k, i) => (
             <div key={i} style={{
@@ -345,7 +345,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
         </div>
       </div>
 
-      {/* QUICK FILTERS — pill periodo + search */}
+      {/* QUICK FILTERS - pill periodo + search */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 4, padding: 4, background: T.bgSubtle, borderRadius: R.lg, border: `1px solid ${T.borderSoft}` }}>
           {PRESET_PERIODS.map(p => {

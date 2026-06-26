@@ -1,4 +1,4 @@
-// AbbonamentoPanel — gestione abbonamento Stripe
+// AbbonamentoPanel - gestione abbonamento Stripe
 // - Mostra il piano attuale e lo stato Stripe
 // - Bottoni per attivare un piano (Checkout) o gestire l'esistente (Portal)
 //
@@ -13,7 +13,7 @@ import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 
 // Audit 2026-06-21: 3-tier Bottega/Maestro/Insegna con ROI claim.
-// Fallback statico — viene sovrascritto dalla query plan_pricing al mount
+// Fallback statico - viene sovrascritto dalla query plan_pricing al mount
 // se l'admin ha modificato nomi/prezzi/descrizioni dal pannello.
 const PIANI_DEFAULT = [
   {
@@ -107,7 +107,7 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
     const u = new URL(window.location.href)
     const b = u.searchParams.get('billing')
     if (b === 'success') {
-      setBillingMsg({ ok: true, text: 'Pagamento completato — l\'abbonamento è ora attivo.' })
+      setBillingMsg({ ok: true, text: 'Pagamento completato - l\'abbonamento è ora attivo.' })
       notify?.('Abbonamento attivato, grazie!')
     } else if (b === 'cancel') {
       setBillingMsg({ ok: false, text: 'Operazione annullata. Nessun addebito.' })

@@ -1,4 +1,4 @@
-// MagazzinoView + ProdottiFinitiTab + PrezziIngredientiTab — estratti da Dashboard.jsx.
+// MagazzinoView + ProdottiFinitiTab + PrezziIngredientiTab - estratti da Dashboard.jsx.
 // KPI e calcolaFabbisognoSettimana inline (uso interno al modulo).
 //
 // Persistenza: richiede orgId/sedeId come props per chiamare ssave da lib/storage
@@ -208,10 +208,10 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                       {q.toLocaleString('it-IT', { maximumFractionDigits: 2 })} {r.unita}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textSoft, ...TNUM }}>
-                      {r.soglia_min > 0 ? Number(r.soglia_min).toLocaleString('it-IT') : '—'}
+                      {r.soglia_min > 0 ? Number(r.soglia_min).toLocaleString('it-IT') : '-'}
                     </td>
                     <td style={{ padding: '10px 14px', fontSize: 11, color: C.textSoft }}>
-                      {r.updated_at ? new Date(r.updated_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      {r.updated_at ? new Date(r.updated_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                       <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false })} disabled={q <= 0}
@@ -447,7 +447,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                       ) : (
                         <span onClick={() => startEdit(row)} title="Clicca per modificare"
                           style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 5, display: 'inline-block' }}>
-                          {row.prezzoKg > 0 ? `${row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '—'}
+                          {row.prezzoKg > 0 ? `${row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '-'}
                         </span>
                       )}
                     </td>
@@ -530,7 +530,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               </div>
               {deltaPct != null && Math.abs(deltaPct) > 50 && (
                 <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', marginBottom: 16, fontSize: 11, color: '#78350F', lineHeight: 1.5 }}>
-                  <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle' }}><Icon name="warning" size={12} />Variazione importante</b> — la modifica del {Math.abs(deltaPct).toFixed(0)}% influenzerà il food cost di tutte le ricette che usano questo ingrediente (a partire dalla decorrenza scelta).
+                  <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle' }}><Icon name="warning" size={12} />Variazione importante</b> - la modifica del {Math.abs(deltaPct).toFixed(0)}% influenzerà il food cost di tutte le ricette che usano questo ingrediente (a partire dalla decorrenza scelta).
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -630,7 +630,7 @@ export default function MagazzinoView({
   const fabbisogno = useMemo(() => calcolaFabbisognoSettimana(ricettario, giornaliero), [ricettario, giornaliero])
 
   // Mappa costi €/kg (€/g): prezzi utente (ingredienti_costi) con fallback HORECA.
-  // Serve a valorizzare la giacenza (valore stock €) — sola lettura, non scrive nulla.
+  // Serve a valorizzare la giacenza (valore stock €) - sola lettura, non scrive nulla.
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi), [ricettario])
 
   // Copertura target per il suggerimento di riordino: porta la scorta a coprire
@@ -684,7 +684,7 @@ export default function MagazzinoView({
     const attuale = magazzino?.[k]?.giacenza_g || 0
     const delta = formMode === 'scarico' ? -qty : qty
     // Audit 2026-07-01 HIGH: NON clampare a 0. Allineato a scaloMagazzinoPerGusto
-    // che ammette negativi proprio per tracciare deficit reali — il clamp
+    // che ammette negativi proprio per tracciare deficit reali - il clamp
     // silenzioso cancellava l'overshoot dal log (info forensicamente persa).
     const nuova = attuale + delta
     if (nuova < 0) {
@@ -706,7 +706,7 @@ export default function MagazzinoView({
     }
     setMagazzino(nm); setLogRif(log)
     const segno = formMode === 'scarico' ? '−' : '+'
-    notify(`✓ ${segno}${qty}g di ${formIng} — giacenza: ${Math.round(nuova)}g`)
+    notify(`✓ ${segno}${qty}g di ${formIng} - giacenza: ${Math.round(nuova)}g`)
     setFormIng(''); setFormQty(''); setFormNote(''); setQuickLoad(null)
     setSaving(false)
   }
@@ -816,7 +816,7 @@ export default function MagazzinoView({
           <KPI icon={<Icon name="warning" size={18} />} label="In esaurimento" value={attenzione.length}
             color={attenzione.length > 0 ? C.amber : C.green} sub={attenzione.length > 0 ? '< 7 giorni' : 'ok'}/>
           <KPI icon={<Icon name="clock" size={18} />} label="Copertura media"
-            value={coperturaMedia !== null ? `${coperturaMedia.toFixed(0)} gg` : '—'}
+            value={coperturaMedia !== null ? `${coperturaMedia.toFixed(0)} gg` : '-'}
             color={coperturaMedia === null ? undefined : coperturaMedia < 3 ? C.red : coperturaMedia < 7 ? C.amber : C.green}
             sub={coperturaMedia !== null ? 'giorni di scorta' : 'storico assente'}/>
         </div>
@@ -869,13 +869,13 @@ export default function MagazzinoView({
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>{fmtG(r.giacenza)}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>
-                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg` : '—'}
+                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg` : '-'}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: C.text, ...TNUM }}>
-                        {fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '—'}
+                        {fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-'}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>
-                        {r.costoG > 0 ? fmt0(r.riordinoG * r.costoG) : '—'}
+                        {r.costoG > 0 ? fmt0(r.riordinoG * r.costoG) : '-'}
                       </td>
                       <td style={{ padding: '8px 14px', textAlign: 'right' }}>
                         <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
@@ -969,13 +969,13 @@ export default function MagazzinoView({
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textMid, ...TNUM }}>{r.fabb > 0 ? fmtG(r.fabb) : '—'}</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textMid, ...TNUM }}>{r.fabb > 0 ? fmtG(r.fabb) : '-'}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: statoColor(r.stato), ...TNUM }}
                           title="Giorni di scorta: giacenza diviso consumo medio giornaliero">
-                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)}gg` : '—'}
+                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)}gg` : '-'}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: r.valore > 0 ? C.text : C.textSoft, fontWeight: r.valore > 0 ? 700 : 400, ...TNUM }}>
-                        {r.valore > 0 ? fmt0(r.valore) : '—'}
+                        {r.valore > 0 ? fmt0(r.valore) : '-'}
                         {r.valore > 0 && r.costoKg > 0 && (
                           <div style={{ fontSize: 9, color: C.textSoft, fontWeight: 500 }}>
                             € {r.costoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg
@@ -988,7 +988,7 @@ export default function MagazzinoView({
                             <Icon name="truck" size={11} />~ {fmtRiordino(r.riordinoG)}
                           </span>
                         ) : (
-                          <span style={{ color: C.textSoft }}>—</span>
+                          <span style={{ color: C.textSoft }}>-</span>
                         )}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
@@ -1009,7 +1009,7 @@ export default function MagazzinoView({
                         <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: 8, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{statoLabel(r.stato)}</span>
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textSoft, fontSize: 10 }}>
-                        {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '—'}
+                        {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'center' }}>
                         <button aria-label="Elimina ingrediente" onClick={() => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
@@ -1095,7 +1095,7 @@ export default function MagazzinoView({
               </div>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
-                  Quantità (g) — {formMode === 'scarico' ? 'da rimuovere' : 'in arrivo'}
+                  Quantità (g) - {formMode === 'scarico' ? 'da rimuovere' : 'in arrivo'}
                 </div>
                 <input id="mag-qty-input" type="number" inputMode="decimal" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000" min="0"
                   style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
@@ -1145,7 +1145,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', color: C.textMid }}>{new Date(r.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>{r.ingrediente}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: C.green }}>{fmtG(r.quantita_g)}</td>
-                      <td style={{ padding: '10px 14px', color: C.textSoft }}>{r.note || '—'}</td>
+                      <td style={{ padding: '10px 14px', color: C.textSoft }}>{r.note || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

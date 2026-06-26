@@ -1,4 +1,4 @@
-// ReferralPanel — Programma referral completo.
+// ReferralPanel - Programma referral completo.
 // - Mostra il codice univoco dell'organizzazione + link condivisibile
 // - KPI: amici invitati, mesi guadagnati, livello premio raggiunto
 // - Share rapido: WhatsApp, Email, Web Share API mobile, copy
@@ -73,7 +73,7 @@ export default function ReferralPanel({ auth }) {
   }
 
   function messaggioInvito() {
-    return `Prova ${APP_NAME}, il gestionale food cost per la ristorazione: gestione ricette, magazzino, P&L e HACCP — usa il mio codice ${data.codice} e ottieni 60 giorni di prova gratuita invece di 30 → ${data.url}`
+    return `Prova ${APP_NAME}, il gestionale food cost per la ristorazione: gestione ricette, magazzino, P&L e HACCP - usa il mio codice ${data.codice} e ottieni 60 giorni di prova gratuita invece di 30 → ${data.url}`
   }
 
   function shareWhatsApp() {

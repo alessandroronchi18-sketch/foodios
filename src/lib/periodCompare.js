@@ -1,4 +1,4 @@
-// Period Compare — helper temporale riusabile su tutti i grafici/view con dati.
+// Period Compare - helper temporale riusabile su tutti i grafici/view con dati.
 //
 // L'idea: ogni view che mostra una metrica nel tempo deve poter rispondere
 // alla domanda del proprietario "rispetto a quando?". Tre modalita':
@@ -12,8 +12,8 @@
 //   // compare  = { start: Date, end: Date, label: 'maggio 2025' } | null
 //
 // Funzioni esportate:
-//   buildPeriod(kind, anchor, mode) — pure, no React
-//   formatPeriod(period, locale) — label leggibile
+//   buildPeriod(kind, anchor, mode) - pure, no React
+//   formatPeriod(period, locale) - label leggibile
 
 const MS_DAY = 86400000
 

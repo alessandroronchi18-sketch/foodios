@@ -1,4 +1,4 @@
-// Vendite B2B / ingrosso — CRUD clienti business + vendite all'ingrosso.
+// Vendite B2B / ingrosso - CRUD clienti business + vendite all'ingrosso.
 // Canale separato dal retail: scarica lo stock PF (causale 'vendita_b2b') ma
 // non tocca le chiusure cassa, quindi non entra nel sell-through B2C.
 import { supabase } from './supabase'
@@ -109,7 +109,7 @@ export async function loadVenditeB2B(orgId) {
 
 // Crea (id assente) o MODIFICA (id presente) una vendita.
 // In modifica ribilancia lo stock: ripristina le vecchie righe, poi scarica le nuove.
-// Ritorna { id, totale, warnings } — warnings include scorte insufficienti (non bloccante).
+// Ritorna { id, totale, warnings } - warnings include scorte insufficienti (non bloccante).
 export async function salvaVenditaB2B({ orgId, sedeId, clienteId, clienteNome, data, righe, note, id }) {
   if (!orgId) throw new Error('orgId mancante')
   const pulite = pulisciRighe(righe)

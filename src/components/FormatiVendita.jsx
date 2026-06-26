@@ -1,4 +1,4 @@
-// FormatiVendita — configurazione dei "formati di vendita" generici.
+// FormatiVendita - configurazione dei "formati di vendita" generici.
 // Ridisegnata col metodo Food Cost: DIAGNOSI (banda KPI) → CAPISCI (lista premium
 // dei formati con breakdown del costo confezionamento) → AGISCI (form chiaro).
 //
@@ -160,7 +160,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
   )
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
       <PageHeader
         subtitle="I formati senza gusto della tua cassa (vaschette, coni, scatole): quanto ti costa confezionarli e quanto incidono sul food cost."
         action={nuovoBtn}
@@ -172,7 +172,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
         <span>
           <b>A cosa serve.</b> Se la tua cassa batte righe senza il gusto (es. <i>"Cono piccolo"</i>, <i>"Vaschetta 500g"</i>, <i>"Panino"</i>),
           qui le colleghi a una <b>categoria di ricette</b>. In chiusura cassa il ricavo viene contato per intero e il food cost stimato come
-          media dei gusti di quella categoria, più i materiali di confezionamento — così cassa e produzione tornano anche senza il dettaglio del gusto.
+          media dei gusti di quella categoria, più i materiali di confezionamento - così cassa e produzione tornano anche senza il dettaglio del gusto.
         </span>
       </div>
 
@@ -184,7 +184,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
           <KPI icon={<Icon name="money" size={18} />} label="Confezionamento medio" value={fmt3(diag.costoMedioMat)}
             sub="materiali per unità" />
           <KPI icon={<Icon name="barChart" size={18} />} label="Formato più costoso"
-            value={diag.piuCostoso ? fmt3(diag.piuCostoso.costoMateriali) : '—'}
+            value={diag.piuCostoso ? fmt3(diag.piuCostoso.costoMateriali) : '-'}
             sub={diag.piuCostoso?.f?.nome || 'nessuno'} color={T.amber} />
           <KPI icon={<Icon name="receipt" size={18} />} label="Senza FC categoria" value={diag.senzaCategoria.toLocaleString('it-IT')}
             color={diag.senzaCategoria ? T.amber : T.green}
@@ -278,10 +278,13 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                   <span>Nessuna {LEX.ricetta} con categoria <b>"{form.categoria}"</b> (con peso definito): il food cost coprirà solo i materiali di confezionamento. Assegna la categoria ai {LEX.prodotti} nel {LEX.Ricettario} per stimare anche il prodotto.</span>
                 </div>
               ) : (
-                <div style={{ display: 'flex', gap: isMobile ? 14 : 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                // Grid uniforme 4 col: ogni stat ha stesso label (10/700/0.08em) +
+                // value (18/800) + hint (10.5). Incolonnati perfettamente tra di
+                // loro su desktop; mobile passa a 2x2.
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 14 : 16, alignItems: 'start' }}>
                   <PreviewStat label="Materiali" val={fmt3(previewFC.fcComponenti)} />
                   <PreviewStat label={`Prodotto (${previewFC.baseG.toLocaleString('it-IT')}g)`} val={fmt3(previewFC.baseG * previewFC.avg)} hint={`FC ${form.categoria}: ${fmtEuro(previewFC.avg * 1000)}/kg`} />
-                  <PreviewStat label="FC stimato / unità" val={fmt3(previewFC.fcUnit)} big color={T.green} />
+                  <PreviewStat label="FC stimato / unità" val={fmt3(previewFC.fcUnit)} color={T.green} />
                   {previewFC.margPct != null && <PreviewStat label="Margine stimato" val={`${previewFC.margPct.toFixed(0)}%`} color={previewFC.margPct >= 60 ? T.green : previewFC.margPct >= 40 ? T.amber : T.brand} />}
                 </div>
               )}
@@ -329,7 +332,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                     <div style={{ flex: 1, minWidth: 160 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{f.nome}</div>
                       <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 3 }}>
-                        Categoria: <b style={{ color: T.textMid }}>{f.categoria || '—'}</b> · base {(Number(f.baseQtaG) || 0).toLocaleString('it-IT')}g · {r.componenti.length} {r.componenti.length === 1 ? 'materiale' : 'materiali'}
+                        Categoria: <b style={{ color: T.textMid }}>{f.categoria || '-'}</b> · base {(Number(f.baseQtaG) || 0).toLocaleString('it-IT')}g · {r.componenti.length} {r.componenti.length === 1 ? 'materiale' : 'materiali'}
                         {f.alias?.length > 0 && <> · alias: {f.alias.join(', ')}</>}
                       </div>
                     </div>
@@ -391,10 +394,10 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                       <div style={{ borderTop: `1px dashed ${T.border}`, paddingTop: 12, display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 14 }}>
                         <BreakdownTot label="Materiali" val={fmt3(r.costoMateriali)} />
                         <BreakdownTot label={`Prodotto (${(Number(f.baseQtaG) || 0).toLocaleString('it-IT')}g)`}
-                          val={r.fcKnown ? fmt3(r.fcBase) : '—'}
+                          val={r.fcKnown ? fmt3(r.fcBase) : '-'}
                           hint={r.fcKnown ? `FC ${f.categoria}: ${fmtEuro(r.avg * 1000)}/kg` : `categoria senza ${LEX.prodotti} pesati`} />
                         <BreakdownTot label="FC stimato / unità" val={fmt3(r.fcUnit)} color={r.fcKnown ? T.green : T.amber} big />
-                        {r.prezzo > 0 && <BreakdownTot label={`Margine (prezzo ${fmtEuro(r.prezzo)})`} val={r.margPct != null ? `${r.margPct.toFixed(0)}%` : '—'} color={margCol} />}
+                        {r.prezzo > 0 && <BreakdownTot label={`Margine (prezzo ${fmtEuro(r.prezzo)})`} val={r.margPct != null ? `${r.margPct.toFixed(0)}%` : '-'} color={margCol} />}
                       </div>
 
                       {/* azioni su mobile (nel breakdown per non affollare la riga) */}
@@ -444,12 +447,15 @@ function BreakdownTot({ label, val, hint, color, big }) {
 }
 
 // Statistica nell'anteprima del form.
-function PreviewStat({ label, val, hint, color, big }) {
+function PreviewStat({ label, val, hint, color }) {
+  // Uniforme: label 10/700/0.08em uppercase, value 18/800 tabular,
+  // hint 10.5 textSoft. Tutti gli stat hanno la stessa altezza grazie
+  // a minHeight + flex column.
   return (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.textSoft, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: big ? 22 : 16, fontWeight: 800, color: color || T.text, letterSpacing: '-0.02em', ...TNUM }}>{val}</div>
-      {hint && <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>{hint}</div>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: 56 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.textSoft, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: color || T.text, letterSpacing: '-0.02em', ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
+      {hint && <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hint}</div>}
     </div>
   )
 }

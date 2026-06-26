@@ -59,7 +59,7 @@ const ALTERNATIVE = {
   },
   altro: {
     titolo: 'Ci dispiace vederti andare via',
-    body: 'Se c\'è qualcosa che possiamo fare, scrivici prima di cancellare. Bastano due righe — leggiamo tutto.',
+    body: 'Se c\'è qualcosa che possiamo fare, scrivici prima di cancellare. Bastano due righe - leggiamo tutto.',
     cta: 'Scrivi al supporto',
     mail: 'subject=Sto%20pensando%20di%20cancellare%20l%27account&body=',
   },
@@ -185,7 +185,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
           {step === 1 && (
             <div>
               <p style={{ fontSize: 14, color: T.text, lineHeight: 1.55, margin: '0 0 18px' }}>
-                Prima di salutarci, ci aiuti a capire perché? Ci serve per migliorare — e magari abbiamo una soluzione che non hai considerato.
+                Prima di salutarci, ci aiuti a capire perché? Ci serve per migliorare - e magari abbiamo una soluzione che non hai considerato.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {MOTIVI.map(m => (
@@ -267,7 +267,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
                 </ul>
               </div>
               <label style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
-                Per confermare, scrivi: <span style={{ color: T.text, textTransform: 'none', letterSpacing: 'normal' }}>{nomeAttivita || '—'}</span>
+                Per confermare, scrivi: <span style={{ color: T.text, textTransform: 'none', letterSpacing: 'normal' }}>{nomeAttivita || '-'}</span>
               </label>
               <input
                 value={confermaNome}

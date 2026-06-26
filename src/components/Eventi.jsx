@@ -24,7 +24,7 @@ function fmtEur(n) { return `${Number(n || 0).toLocaleString('it-IT',{minimumFra
 // € arrotondato all'unità per box KPI piccoli (più leggibile a colpo d'occhio)
 function fmtEur0(n) { return `${Math.round(Number(n || 0)).toLocaleString('it-IT')} €` }
 function fmtDate(d) {
-  if (!d) return '—'
+  if (!d) return '-'
   try { return new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' }) }
   catch { return d }
 }
@@ -60,7 +60,7 @@ async function exportSettimanaPDF(eventi, ricetteMap, nomeAttivita) {
 
   doc.setFillColor(...DARK); doc.rect(0, 0, 210, 24, 'F')
   doc.setTextColor(255, 255, 255); doc.setFontSize(15); doc.setFont('helvetica', 'bold')
-  doc.text('SCHEDA PRODUZIONE — SETTIMANA', 14, 14)
+  doc.text('SCHEDA PRODUZIONE - SETTIMANA', 14, 14)
   doc.setFontSize(9); doc.setFont('helvetica', 'normal')
   doc.text(nomeAttivita || '', 14, 20)
   const periodo = `${oggi.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })} – ${fine.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}`
@@ -74,13 +74,13 @@ async function exportSettimanaPDF(eventi, ricetteMap, nomeAttivita) {
   for (const ev of within) {
     const ft = frameTemporale(ev.data)
     doc.setTextColor(...DARK); doc.setFontSize(12); doc.setFont('helvetica', 'bold')
-    doc.text(`${fmtDate(ev.data)} · ${ev.cliente || 'Cliente —'}`, 14, y)
+    doc.text(`${fmtDate(ev.data)} · ${ev.cliente || 'Cliente -'}`, 14, y)
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...RED)
     doc.text(ft ? ft.label.toUpperCase() : '', 196, y, { align: 'right' })
     if (ev.note) { y += 5; doc.setTextColor(...GRAY); doc.setFontSize(9); doc.text(`Note: ${ev.note}`, 14, y) }
     const body = (ev.righe || []).map(r => [r.nome, `${Number(r.qty || 0)} pz`])
     autoTable(doc, {
-      startY: y + 3, head: [['Prodotto da produrre', 'Quantità']], body: body.length ? body : [['—', '—']],
+      startY: y + 3, head: [['Prodotto da produrre', 'Quantità']], body: body.length ? body : [['-', '-']],
       headStyles: { fillColor: RED, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 10 }, columnStyles: { 1: { halign: 'right', cellWidth: 40 } },
       margin: { left: 14, right: 14 },
@@ -108,7 +108,7 @@ async function exportPreventivoPDF(evento, ricetteMap, ingCosti, nomeAttivita) {
   doc.setFontSize(8); doc.text(`Emesso il ${now}`, 196, 14, { align: 'right' })
 
   doc.setTextColor(...DARK); doc.setFontSize(11); doc.setFont('helvetica', 'bold')
-  doc.text(`Cliente: ${evento.cliente || '—'}`, 14, 38)
+  doc.text(`Cliente: ${evento.cliente || '-'}`, 14, 38)
   doc.setFont('helvetica', 'normal'); doc.setTextColor(...GRAY)
   doc.text(`Data evento: ${fmtDate(evento.data)}`, 14, 44)
   if (evento.note) {
@@ -358,8 +358,8 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
       {editing == null && (
         <PageHeader
           subtitle={tab === 'archivio'
-            ? `Eventi passati — ${eventiArchivioFiltrati.length} evento/i${filterMese ? ` · ${fmtMese(filterMese)}` : ''}`
-            : `Preventivi e prenotazioni in arrivo — ${eventiAttivi.length} evento/i`}
+            ? `Eventi passati - ${eventiArchivioFiltrati.length} evento/i${filterMese ? ` · ${fmtMese(filterMese)}` : ''}`
+            : `Preventivi e prenotazioni in arrivo - ${eventiAttivi.length} evento/i`}
           action={
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               {tab === 'attivi' && (
@@ -433,7 +433,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
             <br/>Il margine si calcola automaticamente in base al food cost della ricetta.
           </div>
 
-          {/* Intestazioni colonna — solo desktop */}
+          {/* Intestazioni colonna - solo desktop */}
           {!isMobile && (draft.righe || []).length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: '2.4fr 0.9fr 1.1fr 0.6fr', gap: 8, marginBottom: 4, padding: '0 4px' }}>
               {[
@@ -619,11 +619,11 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
                   letterSpacing: '-0.015em', lineHeight: 1.25,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }} title={ev.cliente || 'Cliente'}>
-                  {ev.cliente || 'Cliente —'}
+                  {ev.cliente || 'Cliente -'}
                 </div>
               </div>
               {!isArch && ft && (
-                <span title={`Evento ${fmtDate(ev.data)} — pianifica la produzione di conseguenza`}
+                <span title={`Evento ${fmtDate(ev.data)} - pianifica la produzione di conseguenza`}
                   style={{
                     fontSize: 10, fontWeight: 800, padding: '4px 10px',
                     borderRadius: 999, background: ft.bg, color: ft.fg,
@@ -694,7 +694,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               </div>
             </div>
 
-            {/* Bottoni azione — riga 1: Modifica + Esporta PDF (flex 1) */}
+            {/* Bottoni azione - riga 1: Modifica + Esporta PDF (flex 1) */}
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => modifica(ev)}
                 style={btnAction(T.bgSubtle || '#F8FAFC', T.textMid, T.border)}>
@@ -732,7 +732,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
               </button>
             )}
 
-            {/* Riga 3 (solo archivio): Elimina definitivamente — full-width, rosso, distanziato */}
+            {/* Riga 3 (solo archivio): Elimina definitivamente - full-width, rosso, distanziato */}
             {inArchivioTab && (
               <button onClick={() => { setEliminaId(ev.id); setEliminaPin('') }}
                 style={{

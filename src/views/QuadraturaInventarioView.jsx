@@ -1,4 +1,4 @@
-// Quadratura inventario vs cassa — Dashboard del proprietario.
+// Quadratura inventario vs cassa - Dashboard del proprietario.
 //
 // Mostra (per la settimana selezionata) il confronto tra:
 //   - kg venduti calcolati dall inventario (riman+prod-riman-scarto)
@@ -43,9 +43,9 @@ function nKg(g) {
   return (Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 }
 function pct(v) {
-  if (v == null) return '—'
+  if (v == null) return '-'
   const n = Number(v)
-  if (!Number.isFinite(n)) return '—'
+  if (!Number.isFinite(n)) return '-'
   // Max 1 decimale (regola: percentuali con max 1 decimale)
   return `${n > 0 ? '+' : ''}${n.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 }
@@ -115,7 +115,7 @@ function esportaCsvSettimana({ lunediIso, kpi, righe, sedeAttiva, isAllSedi, per
 
 // Drift signed con € DOPO la cifra (es. "+ 1.234 €")
 function fmtDriftEur(v) {
-  if (v == null || !Number.isFinite(Number(v))) return '—'
+  if (v == null || !Number.isFinite(Number(v))) return '-'
   const n = Math.round(Number(v))
   const sign = n > 0 ? '+ ' : (n < 0 ? '- ' : '')
   const abs = Math.abs(n).toLocaleString('it-IT')
@@ -293,7 +293,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
         flexWrap: 'wrap', width: '100%', boxSizing: 'border-box',
         boxShadow: '0 1px 2px rgba(15,23,42,0.03)',
       }}>
-        {/* Etichetta settimana — sempre in alto, centrale */}
+        {/* Etichetta settimana - sempre in alto, centrale */}
         <div style={{
           flex: isMobile ? 'none' : 1,
           width: isMobile ? '100%' : 'auto',
@@ -348,7 +348,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
           </button>
         </div>
 
-        {/* Export — su mobile va a riga piena */}
+        {/* Export - su mobile va a riga piena */}
         <div style={{
           display: 'flex', gap: 8,
           width: isMobile ? '100%' : 'auto',
@@ -381,7 +381,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
                 { label: 'Venduto (kg)', value: nKg((kpi.totVendutoG ?? 0)), sub: 'inventario' },
                 { label: 'Cassa effettiva', value: fmt0(kpi.cassaEffettiva ?? 0) },
                 { label: 'Atteso', value: fmt0(kpi.ricavoAtteso ?? 0), sub: `${n0(euroKg)} €/kg medio` },
-                { label: 'Drift', value: kpi.driftEur != null ? `${fmtDriftEur(kpi.driftEur)} (${pct(kpi.driftPct)})` : '—' },
+                { label: 'Drift', value: kpi.driftEur != null ? `${fmtDriftEur(kpi.driftEur)} (${pct(kpi.driftPct)})` : '-' },
               ],
               sections: [
                 ...(Array.isArray(righe) && righe.length > 0 ? [{
@@ -495,7 +495,7 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
               <Tile
                 icon="checkCircle"
                 label="Drift vs cassa"
-                value={kpi.driftEur != null ? fmtDriftEur(kpi.driftEur) : '—'}
+                value={kpi.driftEur != null ? fmtDriftEur(kpi.driftEur) : '-'}
                 sub={kpi.driftPct != null ? `${pct(kpi.driftPct)} dello scostamento` : 'nessun dato'}
                 color={tone.fg}
                 bg={tone.bg}
@@ -812,7 +812,7 @@ function DiagnosiDrift({ driftEur, driftPct, isMobile }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <Icon name="warning" size={15} color="#991B1B" />
         <strong style={{ fontSize: 13 }}>
-          Cosa controllare — drift {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+          Cosa controllare - drift {tono} del {Math.abs(driftPct).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
         </strong>
       </div>
       <ul style={{ margin: 0, paddingLeft: 22 }}>

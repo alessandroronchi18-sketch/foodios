@@ -75,13 +75,13 @@ Parli come una collega: frasi brevi, niente "Vorrei suggerire", italiano umano.
 Il cliente vuole portare una ricetta a food cost target. Proponi ESATTAMENTE 3 varianti,
 una per direzione strategica:
 
-1. "sostituzioni" — cambia ingredienti mantenendo l'artigianalità (mai sciroppi industriali,
+1. "sostituzioni" - cambia ingredienti mantenendo l'artigianalità (mai sciroppi industriali,
    mai aromi sintetici, mai grassi vegetali idrogenati). Es: latte fresco→latte UHT,
    crema fresca→panna 35% bidone, cioccolato 70%→cioccolato 60% (compromessi accettabili).
-2. "rese" — riduci grammature di 5-15% sugli ingredienti più costosi senza compromettere
+2. "rese" - riduci grammature di 5-15% sugli ingredienti più costosi senza compromettere
    la struttura (non puoi togliere uova ai bignè, ma puoi togliere il 10% del cioccolato
    alla glassa).
-3. "pricing" — alza il prezzo. Stima impatto vendite usando elasticità tipica artigianale:
+3. "pricing" - alza il prezzo. Stima impatto vendite usando elasticità tipica artigianale:
    +5% prezzo ≈ -3-4% vendite, +10% prezzo ≈ -8-12% vendite.
 
 Per OGNI variante:
@@ -164,7 +164,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
             </div>
             <select value={ricSel} onChange={e => setRicSel(e.target.value)}
               style={{ width: '100%', padding: isMobile ? '12px 12px' : '10px 12px', minHeight: isMobile ? 46 : 'auto', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 16, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box', background: '#FFF' }}>
-              <option value="">— Scegli ricetta —</option>
+              <option value="">- Scegli ricetta -</option>
               {ricetteArr.map(r => <option key={r.nome} value={r.nome}>{r.nome}</option>)}
             </select>
           </div>
@@ -212,7 +212,7 @@ Restituisci 3 varianti come da schema, italiano umano.`
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
                 <Stat label="Delta FC" value={`${v.delta_fc_eur > 0 ? '+' : ''}${Number(v.delta_fc_eur || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} color={v.delta_fc_eur >= 0 ? GREEN : BRAND} />
                 <Stat label="FC stimato" value={`${(v.fc_risultante_pct || 0).toFixed(1)}%`} />
-                <Stat label="Rischio gusto" value={v.rischio_gusto || '—'} color={v.rischio_gusto === 'basso' ? GREEN : v.rischio_gusto === 'alto' ? BRAND : MID} />
+                <Stat label="Rischio gusto" value={v.rischio_gusto || '-'} color={v.rischio_gusto === 'basso' ? GREEN : v.rischio_gusto === 'alto' ? BRAND : MID} />
                 <Stat label="Impatto vendite" value={`${(v.impatto_vendite_pct || 0).toFixed(0)}%`} color={v.impatto_vendite_pct < -5 ? BRAND : MID} />
               </div>
               <div style={{ fontSize: 12, color: MID, lineHeight: 1.55, background: '#FAFAF6', padding: 10, borderRadius: 8 }}>

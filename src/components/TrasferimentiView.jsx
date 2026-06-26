@@ -30,7 +30,7 @@ const TIPI = [
 ]
 
 function fmtData(iso) {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 function fmtQty(q, u) {
@@ -126,7 +126,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       data: todayLocal(),
     }))
     setShowForm(true)
-    notify?.(`Template "${t.nome}" applicato — premi Invia`)
+    notify?.(`Template "${t.nome}" applicato - premi Invia`)
   }
 
   function ripetiTrasferimento(t) {
@@ -138,7 +138,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       note: '',
     })
     setShowForm(true)
-    notify?.('Trasferimento pre-compilato — premi Invia')
+    notify?.('Trasferimento pre-compilato - premi Invia')
   }
 
   async function carica() {
@@ -377,7 +377,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
       if (!map[key]) map[key] = { sede_da: t.sede_da, sede_a: t.sede_a, n: 0, valore: 0, prodotti: {} }
       map[key].n += 1
       map[key].valore += Number(t.quantita || 0) * Number(t.valore_unit || 0)
-      const p = t.prodotto || '—'
+      const p = t.prodotto || '-'
       map[key].prodotti[p] = (map[key].prodotti[p] || 0) + Number(t.quantita || 0)
     }
     return Object.values(map).sort((a, b) => b.n - a.n).slice(0, 6)
@@ -485,7 +485,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <div style={kpiCell}>
                     <div style={labelStyle}>Ricevuti puntuali</div>
                     <div style={valStyle(accuratezzaMese.accuracyPct == null ? C.textSoft : accuratezzaMese.accuracyPct >= 95 ? C.green : accuratezzaMese.accuracyPct >= 85 ? '#D97706' : C.red)}>
-                      {accuratezzaMese.accuracyPct != null ? `${accuratezzaMese.accuracyPct.toFixed(0)}%` : '—'}
+                      {accuratezzaMese.accuracyPct != null ? `${accuratezzaMese.accuracyPct.toFixed(0)}%` : '-'}
                     </div>
                     <div style={{ ...subStyle, ...tnum }}>{accuratezzaMese.ricevutiOk}/{accuratezzaMese.ricevuti} senza scarto</div>
                   </div>
@@ -559,7 +559,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 <Icon name="package" size={16} color={C.amber} />
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
-                  <div style={{ fontSize: 11, color: C.textSoft }}>In arrivo da <strong>{sediMap[t.sede_da]?.nome || '—'}</strong> · {fmtData(t.data)}</div>
+                  <div style={{ fontSize: 11, color: C.textSoft }}>In arrivo da <strong>{sediMap[t.sede_da]?.nome || '-'}</strong> · {fmtData(t.data)}</div>
                 </div>
                 <button onClick={() => apriRicevi(t)} disabled={busyId === t.id}
                   style={{ padding: isMobile ? '10px 16px' : '6px 14px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.green, color: C.white, fontSize: isMobile ? 13 : 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -572,7 +572,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                 <Icon name="save" size={15} color={C.textSoft} />
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{t.prodotto} · {fmtQty(t.quantita, t.unita)}</div>
-                  <div style={{ fontSize: 11, color: C.textSoft }}>Bozza verso <strong>{sediMap[t.sede_a]?.nome || '—'}</strong> · pronta da inviare</div>
+                  <div style={{ fontSize: 11, color: C.textSoft }}>Bozza verso <strong>{sediMap[t.sede_a]?.nome || '-'}</strong> · pronta da inviare</div>
                 </div>
                 <button onClick={() => azInvia(t)} disabled={busyId === t.id}
                   style={{ padding: isMobile ? '10px 16px' : '6px 14px', minHeight: isMobile ? 40 : 'auto', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: isMobile ? 13 : 12, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -655,7 +655,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             <div>
               <div style={lbl}>Da</div>
               <select value={form.sede_da} onChange={e => setForm(f => ({ ...f, sede_da: e.target.value }))} style={inp}>
-                <option value="">— Seleziona —</option>
+                <option value="">- Seleziona -</option>
                 {sediAttive.map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
               </select>
             </div>
@@ -663,7 +663,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
             <div>
               <div style={lbl}>A</div>
               <select value={form.sede_a} onChange={e => setForm(f => ({ ...f, sede_a: e.target.value }))} style={inp}>
-                <option value="">— Seleziona —</option>
+                <option value="">- Seleziona -</option>
                 {sediAttive.filter(s => s.id !== form.sede_da).map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` · ${s.citta}` : ''}</option>)}
               </select>
             </div>
@@ -739,7 +739,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           <div onClick={e => e.stopPropagation()} style={{ background: C.bgCard, borderRadius: 12, padding: 24, maxWidth: 480, width: '100%' }}>
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 7 }}><Icon name="package" size={18} /> Conferma ricezione</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>
-              <strong>{riceviModal.t.prodotto}</strong> · {fmtQty(riceviModal.t.quantita, riceviModal.t.unita)} inviati da {sediMap[riceviModal.t.sede_da]?.nome || '—'}
+              <strong>{riceviModal.t.prodotto}</strong> · {fmtQty(riceviModal.t.quantita, riceviModal.t.unita)} inviati da {sediMap[riceviModal.t.sede_da]?.nome || '-'}
             </p>
             <div style={{ marginBottom: 12 }}>
               <div style={lbl}>Quantità effettivamente ricevuta</div>
@@ -780,8 +780,8 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
             {flussiMese.map((f, i) => {
-              const da = sediMap[f.sede_da]?.nome || '—'
-              const a = sediMap[f.sede_a]?.nome || '—'
+              const da = sediMap[f.sede_da]?.nome || '-'
+              const a = sediMap[f.sede_a]?.nome || '-'
               const topProd = Object.entries(f.prodotti).sort((x, y) => y[1] - x[1]).slice(0, 2)
               return (
                 <div key={i} style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: `1px solid ${C.border}` }}>
@@ -915,7 +915,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
                   <span>•</span>
                   <span>{TIPO_LABEL[t.tipo] || t.tipo}</span>
                   <span>•</span>
-                  <span><strong style={{ color: C.text }}>{sda?.nome || '—'}</strong> → <strong style={{ color: C.text }}>{sa?.nome || '—'}</strong></span>
+                  <span><strong style={{ color: C.text }}>{sda?.nome || '-'}</strong> → <strong style={{ color: C.text }}>{sa?.nome || '-'}</strong></span>
                   {t.note && <><span>•</span><span style={{ fontStyle: 'italic' }}>{t.note}</span></>}
                 </div>
               </div>

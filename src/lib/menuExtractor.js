@@ -212,7 +212,7 @@ export async function extractMenuFromInput({ text = '', images = [] } = {}) {
 
   // Autenticazione: lo stesso pattern di FotoOCR.jsx
   const session = (await supabase.auth.getSession()).data.session
-  if (!session?.access_token) throw new Error('Sessione scaduta — rilogga')
+  if (!session?.access_token) throw new Error('Sessione scaduta - rilogga')
 
   const res = await fetch('/api/ai', {
     method: 'POST',
@@ -227,7 +227,7 @@ export async function extractMenuFromInput({ text = '', images = [] } = {}) {
       messages: [{ role: 'user', content }],
     }),
   })
-  if (res.status === 401) throw new Error('Sessione scaduta — rilogga')
+  if (res.status === 401) throw new Error('Sessione scaduta - rilogga')
   if (res.status === 429) throw new Error('Troppe richieste AI in poco tempo. Riprova fra un minuto.')
   if (!res.ok) throw new Error(`Errore servizio AI (${res.status}). Riprova fra qualche istante.`)
   const data = await res.json()

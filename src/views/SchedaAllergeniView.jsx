@@ -1,4 +1,4 @@
-// SchedaAllergeniView — Scheda allergeni (Reg. UE 1169/2011). Estratta da Dashboard.jsx.
+// SchedaAllergeniView - Scheda allergeni (Reg. UE 1169/2011). Estratta da Dashboard.jsx.
 // Allergeni effettivi per ricetta: usa quelli salvati, altrimenti auto-detect
 // dagli ingredienti (le ricette importate da Excel spesso non li hanno salvati).
 import React, { useMemo } from 'react'
@@ -36,7 +36,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
     y += 6;
     doc.setFontSize(7); doc.setFont(undefined,'normal');
     doc.setTextColor(120);
-    doc.text('Reg. UE 1169/2011 — Informazioni sugli allergeni alimentari', pw/2, y, {align:'center'});
+    doc.text('Reg. UE 1169/2011 - Informazioni sugli allergeni alimentari', pw/2, y, {align:'center'});
     doc.setTextColor(0);
     y += 8;
 
@@ -91,7 +91,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.brand,marginBottom:6}}>Sicurezza alimentare</div>
-          <p style={{margin:0,fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>Panoramica degli allergeni per tutte le {LEX.ricette} — Regolamento UE 1169/2011</p>
+          <p style={{margin:0,fontSize:13,color:T.textSoft,letterSpacing:"-0.005em",lineHeight:1.5,fontWeight:500}}>Panoramica degli allergeni per tutte le {LEX.ricette} - Regolamento UE 1169/2011</p>
         </div>
         <button onClick={esportaPDF}
           style={{padding:"10px 16px",borderRadius:R.md,border:`1px solid ${T.border}`,background:T.bgCard,fontSize:13,fontWeight:500,color:T.textMid,cursor:"pointer",letterSpacing:"-0.005em",display:"inline-flex",alignItems:"center",gap:6,boxShadow:S.sm}}>
@@ -105,7 +105,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
         </div>
       ) : (
         <>
-          {/* Tabella ricette × allergeni — righe = ricette, colonne = allergeni.
+          {/* Tabella ricette × allergeni - righe = ricette, colonne = allergeni.
               Audit 2026-06-24: scambiati gli assi perché le ricette sono molte
               più degli allergeni (14 standard UE) e crescono nel tempo, mentre
               gli allergeni sono fissi. Vertical scroll naturale sulle ricette,
@@ -149,7 +149,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
 
           {/* Disclaimer legale */}
           <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"14px 18px",fontSize:11,color:"#92400E",lineHeight:1.7}}>
-            <strong style={{display:"inline-flex",alignItems:"center",gap:4,verticalAlign:"middle"}}><Icon name="warning" size={13} />Disclaimer:</strong> Le informazioni sugli allergeni sono indicative e si basano sulle ricette inserite. Gli allergeni possono variare in base ai fornitori e alla contaminazione crociata durante la produzione. Verificare sempre le etichette dei singoli ingredienti e aggiornare la scheda ad ogni modifica di ricetta o fornitore. <em>Regolamento UE 1169/2011 — Art. 21.</em>
+            <strong style={{display:"inline-flex",alignItems:"center",gap:4,verticalAlign:"middle"}}><Icon name="warning" size={13} />Disclaimer:</strong> Le informazioni sugli allergeni sono indicative e si basano sulle ricette inserite. Gli allergeni possono variare in base ai fornitori e alla contaminazione crociata durante la produzione. Verificare sempre le etichette dei singoli ingredienti e aggiornare la scheda ad ogni modifica di ricetta o fornitore. <em>Regolamento UE 1169/2011 - Art. 21.</em>
           </div>
         </>
       )}

@@ -18,7 +18,7 @@
 //  - Chain (enterprise) = livello 3: tutto disponibile, NIENTE badge.
 
 // Audit 2026-06-21: rinominato marketing in Bottega/Maestro/Insegna. La colonna
-// DB "piano" mantiene CHECK in ('trial','base','pro','enterprise') — il rename
+// DB "piano" mantiene CHECK in ('trial','base','pro','enterprise') - il rename
 // e` solo a livello UI/label per non rompere historical data.
 //
 // Trial e` livello Maestro (rank 2): il cliente assaggia tutto il valore AI
@@ -32,7 +32,7 @@ export const PLAN_RANK = {
 }
 
 // view-id → piano minimo richiesto per accedervi.
-// Audit 2026-06-21 — riorganizzato in 3 tier (Bottega/Maestro/Insegna):
+// Audit 2026-06-21 - riorganizzato in 3 tier (Bottega/Maestro/Insegna):
 //  - Bottega (base): ricettario, food cost, magazzino, scadenzario, chiusure,
 //    sprechi, P&L base, export PDF, OCR fatture con quota, AI Assistant base.
 //    Niente forecast/menu eng/AI evoluta/multi-sede.
@@ -50,7 +50,7 @@ export const VIEW_MIN_PLAN = {
   'ai-brain':           'pro',
   'ricette-ai':         'pro',
   'recensioni':         'pro',
-  // Insegna (enterprise) tier — multi-sede + integrazioni real-time + brand
+  // Insegna (enterprise) tier - multi-sede + integrazioni real-time + brand
   'confronto-sedi': 'enterprise',
   'trasferimenti':  'enterprise',
   'integrazioni':   'enterprise',

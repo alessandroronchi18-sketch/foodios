@@ -2,7 +2,7 @@ import React from 'react'
 import Logo from './Logo'
 
 /**
- * SplashScreen — pagina di caricamento futuristic-clean condivisa.
+ * SplashScreen - pagina di caricamento futuristic-clean condivisa.
  *
  * Visivamente identica al boot-splash inline in `index.html`, così la
  * transizione boot-splash → React → !ready Dashboard è una sola immagine

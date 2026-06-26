@@ -1,4 +1,4 @@
-// DashboardHomeView + StockPFWidget — estratti da Dashboard.jsx.
+// DashboardHomeView + StockPFWidget - estratti da Dashboard.jsx.
 // Redesign 2026-06: hero brand, KPI con icone/accenti, stock con barre, hover-lift.
 // StockPFWidget riceve orgId/sedeId come props.
 
@@ -272,7 +272,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
       </div>
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 6, position: 'relative', minHeight: 26, lineHeight: 1.25 }}>{label}</div>
       <div style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, color: empty ? T.textFaint : (valueColor || T.text), lineHeight: 1.0, letterSpacing: '-0.035em', position: 'relative', minHeight: isMobile ? 26 : 32, ...TNUM }}>
-        {empty ? '—' : value}
+        {empty ? '-' : value}
       </div>
       <div title={typeof sub === 'string' ? sub : undefined} style={{ fontSize: isMobile ? 11.5 : 12.5, color: T.textSoft, marginTop: 7, fontWeight: 500, position: 'relative', minHeight: isMobile ? 30 : 32, lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
     </div>
@@ -288,7 +288,7 @@ export default function DashboardHomeView({ ricettario, magazzino, giornaliero, 
     <div style={{ maxWidth: 1220, margin: '0 auto' }}>
       <style>{HOVER_CSS}</style>
 
-      {/* Primi passi — sparisce quando completati o se dismessi */}
+      {/* Primi passi - sparisce quando completati o se dismessi */}
       <PrimiPassi
         orgId={orgId} sedeId={sedeId}
         ricettario={ricettario} magazzino={magazzino}

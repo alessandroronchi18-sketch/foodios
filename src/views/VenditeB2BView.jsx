@@ -1,4 +1,4 @@
-// VenditeB2BView — vendite all'ingrosso a clienti business (canale separato dal retail).
+// VenditeB2BView - vendite all'ingrosso a clienti business (canale separato dal retail).
 // Audit UI 2026-06-24: KPI uniformi, € dopo cifra, mobile column-first, font 16px input,
 // touch target 40/44, nowrap+ellipsis, aria-label, tabelle overflowX+minWidth,
 // filtri pill wrap, helper fmt/fmt0 IT.
@@ -26,7 +26,7 @@ const STATI = {
 
 // Helpers locali: formattazione data breve IT e pluralizzazione vendite.
 const fmtData = (d) => {
-  if (!d) return '—'
+  if (!d) return '-'
   try { return new Date(d + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }) }
   catch { return d }
 }
@@ -284,7 +284,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
 
   return (
     <div style={{ maxWidth: 1180, width: '100%', boxSizing: 'border-box' }}>
-      <PageHeader subtitle="Vendite all'ingrosso a clienti business (bar, ristoranti) — canale separato dal banco" />
+      <PageHeader subtitle="Vendite all'ingrosso a clienti business (bar, ristoranti) - canale separato dal banco" />
 
       {/* ── KPI: griglia uniforme (2 col mobile/tablet, 4 col desktop) ── */}
       <div style={{
@@ -419,14 +419,14 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
                         }} title={g.nome}>{g.nome}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>{g.n.toLocaleString('it-IT')}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: g.giorniDaUltimo > 30 ? C.amber : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
-                          {g.giorniDaUltimo != null ? `${g.giorniDaUltimo.toLocaleString('it-IT')}g fa` : '—'}
+                          {g.giorniDaUltimo != null ? `${g.giorniDaUltimo.toLocaleString('it-IT')}g fa` : '-'}
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(g.fatturato)}</td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', color: C.green, ...TNUM, whiteSpace: 'nowrap' }}>
                           {fmt(g.margine)} <span style={{ color: C.textSoft, fontSize: 10 }}>{g.margPct.toFixed(0)}%</span>
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: g.insoluto > 0 ? C.red : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>
-                          {g.insoluto > 0 ? fmt(g.insoluto) : '—'}
+                          {g.insoluto > 0 ? fmt(g.insoluto) : '-'}
                         </td>
                       </tr>
                     ))}
@@ -1042,7 +1042,7 @@ export default function VenditeB2BView({ orgId, sedeId, ricettario, notify }) {
           ) : (
             <div style={surface}>
               {clienti.map((c, i) => {
-                const meta = [c.partita_iva && `P.IVA ${c.partita_iva}`, c.citta, c.telefono].filter(Boolean).join(' · ') || '—'
+                const meta = [c.partita_iva && `P.IVA ${c.partita_iva}`, c.citta, c.telefono].filter(Boolean).join(' · ') || '-'
                 const last = i === clienti.length - 1
                 return (
                   <div key={c.id} style={{

@@ -109,7 +109,7 @@ export function parseWooCommerceOrders(csvText) {
   const { rows } = parseCSV(csvText)
   if (!rows.length) return []
 
-  // WooCommerce export ha 1 riga per ordine — niente dedupe necessaria
+  // WooCommerce export ha 1 riga per ordine - niente dedupe necessaria
   const okStatuses = new Set(['completed', 'processing', 'on-hold', 'wc-completed', 'wc-processing'])
   const ordersOnly = rows.filter(r => {
     const s = String(r['Status'] || r['Order Status'] || r['order_status'] || '').toLowerCase().trim()

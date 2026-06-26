@@ -8,7 +8,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 const lbl  = { fontSize: 11, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'block' }
 
 const SK_CHIUS = 'pasticceria-chiusure-v1'
-const IVA_DEFAULT_PCT = 10 // alimenti d'asporto: 10% — modificabile in UI
+const IVA_DEFAULT_PCT = 10 // alimenti d'asporto: 10% - modificabile in UI
 
 function isoMonthRange(yearMonth) {
   // yearMonth = "YYYY-MM"
@@ -121,7 +121,7 @@ function exportFattureInCloudCSV(corrispettivi, fatturePassive, ivaPct, sediMap,
 
 function exportTeamSystemXML(corrispettivi, fatturePassive, ivaPct, sediMap, yearMonth, orgNome) {
   // XML registro corrispettivi semplificato compatibile con import TeamSystem custom.
-  // Non è FatturaPA — è un registro corrispettivi formato lettura.
+  // Non è FatturaPA - è un registro corrispettivi formato lettura.
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;' }[c]))
   const lines = []
   lines.push('<?xml version="1.0" encoding="UTF-8"?>')

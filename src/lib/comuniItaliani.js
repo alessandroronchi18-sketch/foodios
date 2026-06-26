@@ -1,4 +1,4 @@
-// Comuni italiani — lista per autocomplete del campo città in registrazione.
+// Comuni italiani - lista per autocomplete del campo città in registrazione.
 // Include tutti i capoluoghi di provincia + i comuni più popolati (>10k abitanti).
 // Per la lista ISTAT completa (~7.900 comuni) integrare in futuro un fetch al dataset ufficiale.
 

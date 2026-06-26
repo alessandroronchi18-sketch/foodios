@@ -1,12 +1,12 @@
-// Foodos — design tokens
+// Foodos - design tokens
 // Single source of truth for the redesign. Import the slices you need:
 //   import { color, space, radius, font, shadow, motion, layout, z } from './lib/theme'
 //
-// Existing components may still use the local `C` palette in Dashboard.jsx — that
+// Existing components may still use the local `C` palette in Dashboard.jsx - that
 // palette is kept untouched. New / redesigned UI should reach for these tokens.
 
 export const color = {
-  // Brand — bordeaux invariante, deve coincidere con LOGO_COLOR in Logo.jsx
+  // Brand - bordeaux invariante, deve coincidere con LOGO_COLOR in Logo.jsx
   brand:        '#6E0E1A',
   brandDark:    '#8A1726',
   brandDarker:  '#4A0612',
@@ -115,10 +115,10 @@ export const font = {
   },
 };
 
-// Tabular numerals — spread su qualsiasi cella numerica (prezzi, KPI, colonne).
+// Tabular numerals - spread su qualsiasi cella numerica (prezzi, KPI, colonne).
 export const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum', 'cv11', 'ss01'" };
 
-// Typography presets — single source of truth della scala. Usa così:
+// Typography presets - single source of truth della scala. Usa così:
 //   import { typo, tnum, getTypo } from './lib/theme'
 //   <h1 style={typo.h1}>…</h1>
 //   <span style={{ ...typo.numSm }}>€12.345,67</span>
@@ -176,7 +176,7 @@ export const shadow = {
   fab:      '0 8px 24px rgba(110,14,26,0.42)',
 };
 
-// Motion — all timings use the same easing for coherence
+// Motion - all timings use the same easing for coherence
 export const motion = {
   ease:    'cubic-bezier(0.32, 0.72, 0, 1)',
   spring:  'cubic-bezier(0.34, 1.56, 0.64, 1)',

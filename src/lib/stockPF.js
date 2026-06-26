@@ -87,7 +87,7 @@ export async function scaricoVenditaPF({ sedeId, prodotto, quantita, unita = 'pz
 // Rettifica scarto manuale.
 export async function scartoPF({ sedeId, prodotto, quantita, note = null }) {
   // Audit 2026-07-01 LOW: stesso guard di scaricoVenditaPF/caricoProduzionePF
-  // applicato in audit 17 giu — mancava qui.
+  // applicato in audit 17 giu - mancava qui.
   if (!Number.isFinite(quantita) || quantita <= 0) {
     throw new Error('Quantita scarto deve essere > 0')
   }

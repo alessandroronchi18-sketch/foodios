@@ -139,7 +139,7 @@ export default function CashflowView({ orgId, sedeId, notify }) {
   async function salvaSaldo(nuovo) {
     const next = { ...settings, saldoOggi: Number(nuovo) || 0 }
     // Save-first: persist PRIMA di setState. Se save fallisce non aggiorniamo la UI
-    // e mostriamo l'errore — niente drift state↔DB (audit 2026-06-17 CRITICAL).
+    // e mostriamo l'errore - niente drift state↔DB (audit 2026-06-17 CRITICAL).
     try {
       await ssave(SK_CASH_SETTINGS, next, orgId, null)
       setSettings(next)

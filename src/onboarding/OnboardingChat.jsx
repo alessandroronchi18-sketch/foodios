@@ -1,4 +1,4 @@
-// Onboarding chat — alternativa moderna al wizard.
+// Onboarding chat - alternativa moderna al wizard.
 //
 // Versione MVP: il bot fa 5-6 domande in sequenza (nome, tipo attivita,
 // citta, n sedi, n dipendenti, principale obiettivo). Estrae i dati con

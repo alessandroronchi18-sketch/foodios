@@ -1,4 +1,4 @@
-// Checklist "Primi passi" — accelera l'onboarding mostrando in dashboard
+// Checklist "Primi passi" - accelera l'onboarding mostrando in dashboard
 // home un widget con i 6 task chiave che il nuovo utente dovrebbe completare
 // nei primi 7 giorni. Progress bar + dismiss permanente quando finito.
 //
@@ -80,7 +80,7 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
   const isTablet = useIsTablet()
   const [state, setState] = useState({ dismissed: false, completati: {} })
   // Audit 2026-06-24: default collassato. L'utente atterra sulla home
-  // e vede solo l'header con progress bar — cliccando si espande.
+  // e vede solo l'header con progress bar - cliccando si espande.
   const [open, setOpen] = useState(false)
   const [loaded, setLoaded] = useState(false)
 

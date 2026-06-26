@@ -37,7 +37,7 @@ export default function TvDashboard() {
     const refresh = setInterval(load, REFRESH_MS)
     // Audit 2026-06-17 MEDIUM: tick a 1s causava re-render dell'intero
     // dashboard ogni secondo. Aggiorniamo a 30s (granularità sufficiente per
-    // orario HH:mm) — riduce CPU/repaint del 30x.
+    // orario HH:mm) - riduce CPU/repaint del 30x.
     const tick = setInterval(() => setNow(new Date()), 30_000)
     return () => { clearInterval(refresh); clearInterval(tick) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,7 +166,7 @@ export default function TvDashboard() {
       )}
 
       <div style={styles.footer}>
-        Aggiornato {lastUpdate ? lastUpdate.toLocaleTimeString('it-IT') : '—'} · refresh ogni 5 min
+        Aggiornato {lastUpdate ? lastUpdate.toLocaleTimeString('it-IT') : '-'} · refresh ogni 5 min
       </div>
     </div>
   )

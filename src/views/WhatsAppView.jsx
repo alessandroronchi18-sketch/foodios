@@ -21,7 +21,7 @@ const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
 
-// Numero WhatsApp ufficiale Foodos — placeholder finché non attivi Twilio Business
+// Numero WhatsApp ufficiale Foodos - placeholder finché non attivi Twilio Business
 const WA_NUMBER = '+39 351 234 5678'
 
 export default function WhatsAppView({ orgId, user }) {

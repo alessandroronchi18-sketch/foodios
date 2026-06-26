@@ -5,7 +5,7 @@ export default function Contatti() {
   return (
     <LegalLayout title="Contatti" updated="2026-05-29" related={[['Chi siamo', '/chi-siamo']]}>
       <LegalP>
-        Vuoi parlare con noi? Vediamo come possiamo aiutarti — siamo un piccolo team italiano,
+        Vuoi parlare con noi? Vediamo come possiamo aiutarti - siamo un piccolo team italiano,
         rispondiamo personalmente.
       </LegalP>
 
@@ -41,7 +41,7 @@ export default function Contatti() {
       <LegalH2>Feedback dentro l'app</LegalH2>
       <LegalP>
         Se sei già utente di Foodos, il modo più rapido per segnalare bug, idee o complimenti
-        e' usare il bottone <strong>Feedback</strong> in basso a destra dentro l'app — arriva direttamente
+        e' usare il bottone <strong>Feedback</strong> in basso a destra dentro l'app - arriva direttamente
         a chi sviluppa.
       </LegalP>
 

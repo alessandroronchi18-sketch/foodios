@@ -138,8 +138,8 @@ Restituisci SOLO JSON valido (no markdown), con questi campi esatti:
   "verdetto": "sottoprezzato" | "in_linea" | "sovrapprezzato",
   "prezzo_consigliato": <num decimale, mai stringa>,
   "range_consigliato": { "min": <num>, "max": <num> },
-  "impatto_margine_pct": <num — differenza punti % vs margine attuale>,
-  "confidence": <0.0-1.0 — quanta certezza nel verdetto, in base al n. competitor>,
+  "impatto_margine_pct": <num - differenza punti % vs margine attuale>,
+  "confidence": <0.0-1.0 - quanta certezza nel verdetto, in base al n. competitor>,
   "spiegazione": "<max 2 frasi: cosa vedo nei dati, in italiano umano>",
   "azione": "<1 frase imperativa: cosa fare lunedì, tipo 'alza il prezzo a X' o 'tieni il prezzo, lavora sul food cost'>",
   "rischio": "<1 frase: cosa potrebbe andare male se applichi l'azione>"
@@ -200,7 +200,7 @@ Valuta se sono sotto, in linea o sopra, e dimmi cosa farei al posto mio.`
         </div>
         <select value={ricSel} onChange={e => { setRicSel(e.target.value); setAiInsight(null) }}
           style={{ width: '100%', maxWidth: isMobile ? '100%' : 400, padding: isMobile ? '12px 12px' : '10px 12px', minHeight: isMobile ? 46 : 'auto', borderRadius: 8, border: `1px solid ${BORDER}`, fontSize: 16, color: TXT, fontFamily: 'inherit', boxSizing: 'border-box', background: '#FFF' }}>
-          <option value="">— Scegli prodotto —</option>
+          <option value="">- Scegli prodotto -</option>
           {ricetteArr.map(r => <option key={r.nome} value={r.nome}>{r.nome}</option>)}
         </select>
       </div>

@@ -20,14 +20,14 @@ const C = {
 
 // Formato monetario IT: separatore migliaia "." e € SEMPRE DOPO la cifra (regola design partner).
 // fmt → 2 decimali (dettagli tabella), fmt0 → arrotondato all'unità (KPI grandi).
-function fmt(n) { const v = Number(n); return n==null||!Number.isFinite(v)?"—":`${v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €` }
+function fmt(n) { const v = Number(n); return n==null||!Number.isFinite(v)?"-":`${v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} €` }
 function fmt0(n) { const v = Number(n); return `${Math.round(Number.isFinite(v)?v:0).toLocaleString('it-IT')} €` }
 // fmtH: numeric Postgres + utenti che digitano stringhe in input → coercion + guard.
 function fmtH(h) { const v = Number(h); return `${(Number.isFinite(v)?v:0).toFixed(1)}h` }
 // Nome completo (nome + cognome) per disambiguare gli omonimi senza ambiguità.
 function etichettaNome(nome) {
   const n = String(nome || '').trim()
-  return n || '—'
+  return n || '-'
 }
 
 // ─── Copertura turni: sovrapposizioni + n° persone presenti per fascia oraria ──
@@ -35,7 +35,7 @@ const _toMin = s => { const [h,m] = String(s||'').split(':').map(Number); return
 const _hm = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`
 function analizzaCopertura(turniGiorno) {
   const shifts = (turniGiorno||[])
-    .map(t => ({ id:t.id, nome:t.dipendenti?.nome||'—', ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine) }))
+    .map(t => ({ id:t.id, nome:t.dipendenti?.nome||'-', ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine) }))
     .filter(s => s.fin > s.ini)
     .sort((a,b)=>a.ini-b.ini)
   if (!shifts.length) return { shifts:[], overlaps:new Set(), segments:[], open:0, close:0, min:0, max:0 }
@@ -312,7 +312,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             <div style={{ fontSize:11, color:C.textSoft, fontStyle:"italic", padding:"8px 0" }}>Crea prima i reparti nella scheda <b>Organigramma</b>, poi potrai assegnarli qui.</div>
           ) : (<>
             <select value={form.reparto1} onChange={e=>setForm(f=>({...f, reparto1:e.target.value, reparto2: e.target.value===f.reparto2 ? "" : f.reparto2 }))} style={inputSt}>
-              <option value="">— Nessun reparto —</option>
+              <option value="">- Nessun reparto -</option>
               {(orgData.reparti||[]).map(r=><option key={r.id} value={r.id}>{r.nome}</option>)}
             </select>
             {form.reparto1 && (orgData.reparti||[]).length>1 && (
@@ -369,7 +369,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             <div>
               <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Tipo contratto</div>
               <select value={form.contratto_tipo} onChange={e => setForm(f => ({ ...f, contratto_tipo: e.target.value }))} style={inputSt}>
-                <option value="">— Non specificato —</option>
+                <option value="">- Non specificato -</option>
                 <option value="indeterminato">Indeterminato</option>
                 <option value="determinato">Determinato</option>
                 <option value="apprendista">Apprendista</option>
@@ -451,7 +451,7 @@ function DipendentiTab({ orgId, sedeId, sedi = [], notify, isMobile }) {
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:800, fontSize:14, color:C.text }}>{d.nome}</div>
-                <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>{d.ruolo || "—"} · {fmt(d.costo_orario)}/h</div>
+                <div style={{ fontSize:12, color:C.textMid, marginTop:2 }}>{d.ruolo || "-"} · {fmt(d.costo_orario)}/h</div>
                 <div style={{ fontSize:11, color:C.textSoft, marginTop:2 }}>
                   {d.ore_settimana}h/sett · <strong style={{ color:C.red }}>{fmt((d.costo_orario||0)*(d.ore_settimana||0)*4.33)}/mese</strong>
                 </div>
@@ -830,7 +830,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                 return (
                   <div key={dIso} onClick={() => { setAnchor(dIso); setPeriodo('giorno') }} role="button" tabIndex={0}
                     onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAnchor(dIso); setPeriodo('giorno') } }}
-                    title={ds.length ? `${ds.length} turni · ${fmtH(ore)} — clicca per il dettaglio` : "Nessun turno — clicca per aggiungere"}
+                    title={ds.length ? `${ds.length} turni · ${fmtH(ore)} - clicca per il dettaglio` : "Nessun turno - clicca per aggiungere"}
                     style={{ borderRight:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, minHeight: isMobile ? 64 : 88, padding:"6px 7px", cursor:"pointer", background: oggi ? "#FFFCF7" : "transparent" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                       <span style={{ fontSize:12, fontWeight:800, color: oggi ? C.red : C.text }}>{dd.getDate()}</span>
@@ -907,7 +907,7 @@ function TurniTab({ orgId, notify, isMobile }) {
             {/* Una riga per giorno: turni come barre sull'orario, in corsie quando si sovrappongono */}
             {weekDays.map((dIso, i) => {
               const cov = covByDay[dIso]
-              const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "—"), data:t.data, note:t.note, ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine), ore:t.ore, ora_inizio:t.ora_inizio, ora_fine:t.ora_fine })).filter(s => s.fin > s.ini)
+              const dayShifts = turni.filter(t => t.data === dIso).map(t => ({ id:t.id, dipId:t.dipendente_id, nome:(t.dipendenti?.nome || "-"), data:t.data, note:t.note, ini:_toMin(t.ora_inizio), fin:_toMin(t.ora_fine), ore:t.ore, ora_inizio:t.ora_inizio, ora_fine:t.ora_fine })).filter(s => s.fin > s.ini)
               const { placed, nLanes } = packLanes(dayShifts)
               // Audit 2026-06-25: laneSpacing dinamico per evitare sovrapposizione
               // turni mobile (barre 40px su 30px spacing → overlap 10px).
@@ -946,7 +946,7 @@ function TurniTab({ orgId, notify, isMobile }) {
                   <div style={{ overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
                     <div style={{ position:"relative", height: rowH, minWidth: inner || undefined }}>
                       {ticks.map(m => <div key={m} style={{ position:"absolute", left:pos(m), top:0, bottom:0, width:1, background:"#F2ECE8" }}/>)}
-                      {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:11, color:"#CBD5E1", fontStyle:'italic' }}>—</div>}
+                      {dayShifts.length === 0 && <div style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:11, color:"#CBD5E1", fontStyle:'italic' }}>-</div>}
                       {placed.map(s => {
                         const col = colorById[s.dipId] || C.red
                         const selez = editId === s.id
@@ -1092,7 +1092,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
   // Produttività: € di fatturato per ora lavorata.
   const fatturatoPerOra = totOre>0 ? ricavi/totOre : 0
   // Pianificato vs lavorato: ore_effettive (consuntivo) vs ore pianificate dei turni.
-  // Audit 2026-06-22: doppio fix — (1) Number() su `t.ore` per evitare concat
+  // Audit 2026-06-22: doppio fix - (1) Number() su `t.ore` per evitare concat
   // stringa quando PostgREST serializza numeric come stringa; (2) isFinite
   // guard sul consuntivo perché Number(undefined) = NaN, non null → `??` non
   // sarebbe scattato.
@@ -1149,7 +1149,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
               <div style={{ flex:1, minWidth:200 }}>
                 <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Incidenza costo lavoro</div>
                 <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
-                  <span style={{ fontSize: isMobile?34:44, fontWeight:900, color: incidenza==null?"rgba(255,255,255,0.5)":(incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"), lineHeight:1, ...tnum }}>{incidenza==null?"—":`${incidenza.toFixed(1)}%`}</span>
+                  <span style={{ fontSize: isMobile?34:44, fontWeight:900, color: incidenza==null?"rgba(255,255,255,0.5)":(incidenza<=30?"#7BE0A6":incidenza<=40?"#FCD34D":"#FCA5A5"), lineHeight:1, ...tnum }}>{incidenza==null?"-":`${incidenza.toFixed(1)}%`}</span>
                   {incidenza!=null && <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>del fatturato ({fmt0(ricavi)})</span>}
                 </div>
                 <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:10, lineHeight:1.5, maxWidth:560 }}>{incVerdetto}</div>
@@ -1165,12 +1165,12 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
             </div>
           </div>
 
-          {/* KPI strip — minHeight uniformi su label/value/sub per allineare 6 card a coppie su mobile.
+          {/* KPI strip - minHeight uniformi su label/value/sub per allineare 6 card a coppie su mobile.
               Card con label lungo ("Ore pian. vs lavorate") non sfora più rispetto a "Fatturato / ora". */}
           <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill,minmax(170px,1fr))", gap: isMobile ? 8 : 12, marginBottom: 16 }}>
             {[
               { lbl:"Costo effettivo", val:fmt0(totCosto), c:C.red, sub:`${fmtH(totOre)} lavorate` },
-              { lbl:"Fatturato / ora", val: ricavi>0?fmt0(fatturatoPerOra):"—", c: fatturatoPerOra>=costoMedioOra*2.5?C.green:C.text, sub:"produttività del lavoro" },
+              { lbl:"Fatturato / ora", val: ricavi>0?fmt0(fatturatoPerOra):"-", c: fatturatoPerOra>=costoMedioOra*2.5?C.green:C.text, sub:"produttività del lavoro" },
               { lbl:"Costo medio orario", val:fmt(costoMedioOra), c:C.text, sub:"per ora lavorata" },
               { lbl:"Ore pian. vs lavorate", val: fmtH(oreEffettive), c: Math.abs(deltaOre)<2?C.green:deltaOre>0?C.amber:C.text, sub: `pianificate ${fmtH(totOre)}${Math.abs(deltaOre)>=0.5?` · ${deltaOre>0?'+':''}${fmtH(deltaOre)}`:''}` },
               { lbl:"Effettivo vs contratto", val:`${scost>=0?"+":""}${fmt0(scost)}`, c: Math.abs(scostPct)<8?C.green:scost>0?C.red:C.amber, sub: scost>0?`+${scostPct.toFixed(0)}% (straordinari?)`:`${scostPct.toFixed(0)}% sotto teorico` },
@@ -1185,7 +1185,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
           </div>
 
           {/* Per dipendente: layout grid pulito.
-              Mobile: 2 righe — riga 1 nome (sx) + costo totale (dx); riga 2 ore·€/h (sx) + % (dx); bar progress sotto.
+              Mobile: 2 righe - riga 1 nome (sx) + costo totale (dx); riga 2 ore·€/h (sx) + % (dx); bar progress sotto.
               Desktop: tutto su una riga con allineamento a destra dei numeri. */}
           {dipRows.length > 0 && (
             <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "16px 16px" : "16px 20px", boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
@@ -1223,7 +1223,7 @@ function AnalisiCostoTab({ orgId, isMobile, isTablet }) {
             </div>
           )}
 
-          {/* Costo per reparto (da organigramma) — stesso pattern grid pulito. */}
+          {/* Costo per reparto (da organigramma) - stesso pattern grid pulito. */}
           {repRows.length > 0 && (organigramma?.reparti||[]).length > 0 && (
             <div style={{ background:C.bgCard, borderRadius:16, border:`1px solid ${C.border}`, padding: isMobile ? "16px 16px" : "16px 20px", marginTop:16, boxShadow:"0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)" }}>
               <div style={{ fontSize:15, fontWeight:700, color:C.text, marginBottom:14, letterSpacing:'-0.01em' }}>Costo per reparto</div>
@@ -1317,14 +1317,14 @@ function HeaderPersonale({ orgId, isMobile, isTablet = false }) {
   const kpis = [
     { lbl: 'Dipendenti attivi', val: d.nDip, color: T.text, sub: ' ' },
     { lbl: 'Costo lavoro (mese)', val: fmt0(costo), color: T.brand, hi: true, sub: d.costoMese > 0 ? 'effettivo dai turni' : 'stima da contratti' },
-    { lbl: 'Incidenza su fatturato', val: incidenza == null ? '—' : `${incidenza.toFixed(1)}%`, color: incColor, sub: incidenza == null ? 'registra le chiusure' : 'sano ≤ 30%' },
-    { lbl: 'Fatturato / ora', val: prod > 0 ? fmt0(prod) : '—', color: T.text, sub: 'produttività del lavoro' },
+    { lbl: 'Incidenza su fatturato', val: incidenza == null ? '-' : `${incidenza.toFixed(1)}%`, color: incColor, sub: incidenza == null ? 'registra le chiusure' : 'sano ≤ 30%' },
+    { lbl: 'Fatturato / ora', val: prod > 0 ? fmt0(prod) : '-', color: T.text, sub: 'produttività del lavoro' },
   ]
 
   return (
     <div style={{ marginBottom: isMobile ? 18 : 24 }}>
       <p style={{ margin: '0 0 14px', fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5, maxWidth: 620 }}>
-        Costo del lavoro, turni e organigramma — diagnosi del mese in corso (<span style={{ textTransform: 'capitalize' }}>{meseLbl}</span>).
+        Costo del lavoro, turni e organigramma - diagnosi del mese in corso (<span style={{ textTransform: 'capitalize' }}>{meseLbl}</span>).
       </p>
       {/* Audit 2026-06-24: minHeight uniformi su label/value/sub per allineare verticalmente
           le KPI card tra loro anche su mobile (label corta vs label lunga). */}
@@ -1455,7 +1455,7 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
   // NB: il reducer di setNodes/setEdges DEVE essere puro. In StrictMode (dev)
   // React esegue gli updater due volte: ogni side-effect (ssave, ref-write,
   // notify) finirebbe duplicato. Calcoliamo `next` fuori, mutiamo i ref e
-  // salviamo dopo lo schedule del setState — il render successivo allinea lo
+  // salviamo dopo lo schedule del setState - il render successivo allinea lo
   // state al ref senza re-entry.
   const onNodesChange = useCallback((ch) => {
     const next = applyNodeChanges(ch, nodesRef.current)
@@ -1625,7 +1625,7 @@ function AccessiTab({ orgId, notify, isMobile }) {
     const { error } = await supabase.from('org_inviti').insert({ organization_id: orgId, email: e, ruolo: 'dipendente', invited_by: meId })
     setBusy(null)
     if (error) { notify?.('Invito fallito: ' + error.message, false); return }
-    setEmail(''); notify?.('Invito creato. Comunica al dipendente di registrarsi con QUESTA email — non parte alcuna email automatica.')
+    setEmail(''); notify?.('Invito creato. Comunica al dipendente di registrarsi con QUESTA email - non parte alcuna email automatica.')
     carica()
   }
 
@@ -1635,7 +1635,7 @@ function AccessiTab({ orgId, notify, isMobile }) {
     const testo = `Registrati su Foodos con l'email ${emailDip}: ${url}`
     try {
       navigator.clipboard.writeText(testo)
-      notify?.('Link copiato — incollalo al dipendente (WhatsApp, email, ecc.)')
+      notify?.('Link copiato - incollalo al dipendente (WhatsApp, email, ecc.)')
     } catch {
       notify?.(url, true)
     }
@@ -1818,7 +1818,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome 
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: isMobile ? 12 : 0 }}>
       <HeaderPersonale orgId={orgId} isMobile={isMobile} isTablet={isTablet}/>
 
-      {/* Tab pill moderni — sostituiscono il vecchio underline tab */}
+      {/* Tab pill moderni - sostituiscono il vecchio underline tab */}
       <div style={{ display: 'flex', gap: 4, marginBottom: isMobile ? 18 : 26,
         padding: 4, background: T.bgSubtle, borderRadius: R.lg,
         border: `1px solid ${T.borderSoft}`, width: 'fit-content',

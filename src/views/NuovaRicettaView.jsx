@@ -1,4 +1,4 @@
-// NuovaRicettaView — Editor ricetta (crea/modifica). Estratta da Dashboard.jsx.
+// NuovaRicettaView - Editor ricetta (crea/modifica). Estratta da Dashboard.jsx.
 //
 // REBUILD: form guidato a sezioni (POV proprietario che aggiunge un prodotto) con
 // pannello LIVE "Anteprima redditività" sempre visibile: food cost €/% calcolato
@@ -60,7 +60,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
   const empty = { nome: "", categoria: "", unita: 8, prezzo: 4, tipo: "fetta", note: "", ingredienti: [], congelabile: false, allergeniManual: [] };
   const [form, setForm] = useState(empty);
-  const [targetPct, setTargetPct] = useState(30); // food cost obiettivo (%) — modificabile
+  const [targetPct, setTargetPct] = useState(30); // food cost obiettivo (%) - modificabile
 
   // Allergeni rilevati automaticamente dagli ingredienti (Reg. UE 1169/2011).
   const autoAllergeni = useMemo(() => detectAllergeniFromIngredienti(form.ingredienti), [form.ingredienti]);
@@ -124,7 +124,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const handleDeleteRicetta = async nome => {
     if (deletePin !== "ELIMINA") { notify("Scrivi ELIMINA in maiuscolo per confermare", false); return; }
     const nuovoRic = { ...ricettario, ricette: Object.fromEntries(Object.entries(ricettario.ricette || {}).filter(([k]) => k !== nome)) };
-    onSave(nuovoRic, {}, true); // noRedirect=true — rimane sulla pagina
+    onSave(nuovoRic, {}, true); // noRedirect=true - rimane sulla pagina
     setDeleteConf(null); setDeletePin(""); setEditMode(null); setForm(empty);
     notify(`Ricetta "${nome}" eliminata`);
   };
@@ -159,7 +159,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
   const handleSave = () => {
     if (!form.nome.trim()) { notify("Inserisci il nome della ricetta", false); return; }
-    if (form.ingredienti.length === 0) { notify("Nessun ingrediente — aggiungine almeno uno prima di salvare", false); return; }
+    if (form.ingredienti.length === 0) { notify("Nessun ingrediente - aggiungine almeno uno prima di salvare", false); return; }
     const nomeUp = form.nome.trim().toUpperCase();
     const esiste = ricettario?.ricette?.[nomeUp];
     const isEditing = editMode === nomeUp;
@@ -207,7 +207,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         costoPerG: 0, costo1stampo: 0
       }));
     const nomeUp = (datiConfermati.nome || '').trim().toUpperCase();
-    if (!nomeUp || !ings.length) { notify('Dati incompleti — inserisci nome e almeno un ingrediente', false); return; }
+    if (!nomeUp || !ings.length) { notify('Dati incompleti - inserisci nome e almeno un ingrediente', false); return; }
     const nuovaRic = {
       nome: nomeUp, sheetName: 'manuale', numStampi: 1, totImpasto1: 0, foodCost1: 0,
       ingredienti: ings, note: datiConfermati.procedimento || '',
@@ -269,7 +269,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           {editMode && (
             <div style={{ marginTop: 12, fontSize: 12, color: T.amber, display: "flex", alignItems: "center", justifyContent: 'space-between', gap: 10, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-                <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 700, marginLeft: 4 }}>{editMode}</b> — salva per sovrascrivere.
+                <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 700, marginLeft: 4 }}>{editMode}</b> - salva per sovrascrivere.
               </div>
               <button type="button" onClick={() => { setEditMode(null); setForm(empty); }}
                 style={{
@@ -320,7 +320,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           const nomeIT = (translateProdottoEN(res.nome || "") || "").trim().toUpperCase();
           if (!nomeIT || ings.length === 0 || !isRicettaValida(nomeIT.toLowerCase())) return false;
           if ((ricAcc || ricettario)?.ricette?.[nomeIT] && !forceOverwrite) {
-            notify(`"${nomeIT}" già esistente — saltata (attiva "Sovrascrivi esistenti" per aggiornare)`, false);
+            notify(`"${nomeIT}" già esistente - saltata (attiva "Sovrascrivi esistenti" per aggiornare)`, false);
             return false;
           }
           const nuovaRic = {
@@ -359,7 +359,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           <div style={cardStyle}>
             <PanelHead icon={<Icon name="clipboard" size={18} />} title={`Informazioni ${LEX.prodotto}`} color={C.text} />
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
-              {/* Nome — full width */}
+              {/* Nome - full width */}
               <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                 <div style={fieldLabel}>Nome {LEX.ricetta}</div>
                 <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value.toUpperCase() }))}
@@ -367,7 +367,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   style={{ ...inputBase, fontWeight: 700 }} />
               </div>
 
-              {/* Categoria — full width con chip rapide */}
+              {/* Categoria - full width con chip rapide */}
               <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                 <div style={fieldLabel}>Categoria</div>
                 <input value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
@@ -395,11 +395,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   <option value="fetta">Fetta</option><option value="pezzo">Pezzo</option><option value="interno">Uso interno</option><option value="semilavorato">Semilavorato (base/impasto)</option>
                 </select>
                 {form.tipo === "semilavorato" && <div style={{ marginTop: 6, padding: "6px 10px", background: "#F9F2FD", border: "1px solid #D4B0E8", borderRadius: 6, fontSize: 10, color: "#8E44AD", display: "flex", alignItems: "center", gap: 5 }}>
-                  <Icon name="bulb" size={13} /> <span>Per i semilavorati usa la sezione dedicata <strong>"Semilavorati"</strong> in sidebar — ha template rapidi e import da foto.</span>
+                  <Icon name="bulb" size={13} /> <span>Per i semilavorati usa la sezione dedicata <strong>"Semilavorati"</strong> in sidebar - ha template rapidi e import da foto.</span>
                 </div>}
                 {/* Niente flag is_gusto qui: in modalita' inventario, tutte
                     le ricette tipo fetta/pezzo sono trattate automaticamente
-                    come gusti — la scelta del metodo si fa una sola volta
+                    come gusti - la scelta del metodo si fa una sola volta
                     nelle Impostazioni sedi, non per ricetta. */}
               </div>
 
@@ -440,7 +440,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   <Icon name="snow" size={13} /> {form.congelabile ? "Prodotto congelabile" : "Congelabile"}
                 </div>
                 <div style={{ fontSize: 9, color: C.textSoft, marginTop: 1 }}>
-                  {form.congelabile ? "Può essere prodotto e conservato in freezer — la vendita può avvenire nei giorni successivi" : "Attiva se questo prodotto può essere congelato e venduto in giorni diversi dalla produzione"}
+                  {form.congelabile ? "Può essere prodotto e conservato in freezer - la vendita può avvenire nei giorni successivi" : "Attiva se questo prodotto può essere congelato e venduto in giorni diversi dalla produzione"}
                 </div>
               </div>
             </div>
@@ -481,7 +481,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                               style={{ width: 80, padding: "7px 8px", borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: 16, textAlign: "right", fontWeight: 700, color: C.text, background: C.white }} />
                             <span style={{ fontSize: 10, color: C.textSoft, marginLeft: 4 }}>g</span>
                           </td>
-                          <td style={{ padding: "9px 10px", textAlign: "right", color: costo > 0 ? C.red : C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap' }}>{costo > 0 ? fmt(costo) : "—"}</td>
+                          <td style={{ padding: "9px 10px", textAlign: "right", color: costo > 0 ? C.red : C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap' }}>{costo > 0 ? fmt(costo) : "-"}</td>
                           <td style={{ padding: "6px 6px", textAlign: "right" }}>
                             <button aria-label="Rimuovi ingrediente" onClick={() => removeIng(i)} style={{ padding: 0, width: 40, height: 40, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textSoft, fontSize: 11, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: 'center' }}><Icon name="trash" size={14} /></button>
                           </td>
@@ -515,7 +515,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             </div>
           </div>
 
-          {/* 3. Allergeni — auto-rilevati */}
+          {/* 3. Allergeni - auto-rilevati */}
           <div style={cardStyle}>
             <PanelHead icon={<Icon name="warning" size={18} />} title="Allergeni presenti" color={C.amber}
               badge={<span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#E0F2FE", color: "#0369A1", textTransform: "uppercase", letterSpacing: "0.05em" }}>Auto</span>}
@@ -565,7 +565,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           {overwriteConf && (
             <div style={{ padding: "14px 16px", background: C.amberLight, border: `2px solid ${C.amber}`, borderRadius: 10, marginBottom: 4 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
-                <Icon name="warning" size={14} /> "{overwriteConf}" esiste già — sovrascrivere?
+                <Icon name="warning" size={14} /> "{overwriteConf}" esiste già - sovrascrivere?
               </div>
               <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10 }}>La ricetta esistente verrà sostituita con i nuovi ingredienti e dati.</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

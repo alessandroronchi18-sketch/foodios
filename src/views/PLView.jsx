@@ -1,4 +1,4 @@
-// PLView — Profit & Loss completo (estratto da Dashboard.jsx).
+// PLView - Profit & Loss completo (estratto da Dashboard.jsx).
 // Include 5 sub-componenti specifici: BarreRicavo, TopIngredientiTable,
 // ScenarioPrezzi, PLTable, SensTable.
 //
@@ -35,7 +35,7 @@ function BarreRicavo({ rows, euro, pct }) {
 
   return (
     <>
-      <SH sub="Verde = margine lordo che resta in cassa · Rosso = costo ingredienti · Passa il mouse sulla barra per il dettaglio">Dove va ogni euro di ricavo — per stampo</SH>
+      <SH sub="Verde = margine lordo che resta in cassa · Rosso = costo ingredienti · Passa il mouse sulla barra per il dettaglio">Dove va ogni euro di ricavo - per stampo</SH>
       <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: '24px', marginBottom: 28,
         boxShadow: SHADOW_PREMIUM, position: 'relative' }}
         onMouseLeave={() => setTooltip(null)}>
@@ -172,7 +172,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
 
   return (
     <>
-      <SH sub="Aggregato su tutti i prodotti — clicca le intestazioni per ordinare">Ingredienti per Impatto sul Food Cost</SH>
+      <SH sub="Aggregato su tutti i prodotti - clicca le intestazioni per ordinare">Ingredienti per Impatto sul Food Cost</SH>
       <div className="fos-card-glow" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, overflowX: 'auto', marginBottom: 28, boxShadow: SHADOW_PREMIUM, position: 'relative' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
           <thead>
@@ -230,7 +230,7 @@ function TopIngredientiTable({ ricettario, ingCosti, euro, pct }) {
                     </div>
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 10, color: C.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-                    {ing.costoG > 0 ? `${ing.costoG.toFixed(4)} €` : '—'}
+                    {ing.costoG > 0 ? `${ing.costoG.toFixed(4)} €` : '-'}
                   </td>
                 </tr>
               )
@@ -281,7 +281,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
         <div style={{ width: 3, height: 18, background: C.red, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }}/>
         <div style={{ flex: 1 }}>
           <h2 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.text }}>Simulatore Scenari di Prezzo</h2>
-          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Inserisci il nuovo prezzo — la variazione % e il nuovo margine si calcolano in tempo reale</div>
+          <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>Inserisci il nuovo prezzo - la variazione % e il nuovo margine si calcolano in tempo reale</div>
         </div>
         {hasChanges && (
           <button onClick={reset} style={{ padding: '6px 14px', borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="refresh" size={12} />Reset tutto</button>
@@ -340,7 +340,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red, marginBottom: 2 }}>Variazione</div>
                     <div style={{ fontSize: 15, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.delta > 0 ? C.green : C.red }}>
-                      {!changed ? '—' : `${dSign}${r.delta.toFixed(1)}%`}
+                      {!changed ? '-' : `${dSign}${r.delta.toFixed(1)}%`}
                     </div>
                   </div>
                 </div>
@@ -364,7 +364,7 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                   border: `1px solid ${!changed ? C.border : r.diffMarg > 0 ? C.green : C.red}30` }}>
                   <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red, marginBottom: 3 }}>Δ margine</div>
                   <div style={{ fontSize: 18, fontWeight: 900, ...TNUM, color: !changed ? C.textSoft : r.diffMarg > 0 ? C.green : C.red }}>
-                    {!changed ? '—' : (r.diffMarg > 0 ? '+' : '') + euro(r.diffMarg)}
+                    {!changed ? '-' : (r.diffMarg > 0 ? '+' : '') + euro(r.diffMarg)}
                   </div>
                 </div>
               </div>
@@ -613,7 +613,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
     return { ricavi, foodcost, giorni }
   }
   const meseLabel = (ym) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }) }
-  // Range etichetta: "1 giu — 24 giu 2026" (compatta per UI).
+  // Range etichetta: "1 giu - 24 giu 2026" (compatta per UI).
   const rangeLabel = (from, to) => {
     if (!from || !to) return ''
     const f = new Date(from + 'T00:00:00')
@@ -622,7 +622,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
       ? { day: 'numeric', month: 'short', year: 'numeric' }
       : { day: 'numeric', month: 'short' })
     if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) return ''
-    return `${fmtD(f, f.getFullYear() !== t.getFullYear())} — ${fmtD(t, true)}`
+    return `${fmtD(f, f.getFullYear() !== t.getFullYear())} - ${fmtD(t, true)}`
   }
   // Range del periodo precedente di pari durata, per confronto vs mese prec.
   const prevRange = (from, to) => {
@@ -687,7 +687,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
       out.push({ tipo: 'ok', testo: `${eccellenti} ${eccellenti === 1 ? 'prodotto ha' : 'prodotti hanno'} margine ≥ 60% (eccellente).` })
     }
     if (critici > 0) {
-      out.push({ tipo: 'critical', testo: `${critici} ${critici === 1 ? 'prodotto è' : 'prodotti sono'} sotto il 40% di margine — rivedere prezzo o ricetta.` })
+      out.push({ tipo: 'critical', testo: `${critici} ${critici === 1 ? 'prodotto è' : 'prodotti sono'} sotto il 40% di margine - rivedere prezzo o ricetta.` })
     }
     if (ricsotto > 0) {
       out.push({ tipo: 'warn', testo: `${ricsotto} ${ricsotto === 1 ? 'prodotto ha' : 'prodotti hanno'} food cost > 40% (benchmark pasticceria: 28–30%).` })
@@ -696,19 +696,19 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
       out.push({ tipo: 'ok', testo: `Top contributore margine: ${topContrib.nome} (${euro(topContrib.margine)}/stampo, ${pct(topContrib.margPct)}).` })
     }
     if (worstFC && worstFC.fcPct > 35) {
-      out.push({ tipo: 'warn', testo: `${worstFC.nome} ha il food cost più alto (${pct(worstFC.fcPct)}) — valuta ingredienti alternativi o aumento prezzo.` })
+      out.push({ tipo: 'warn', testo: `${worstFC.nome} ha il food cost più alto (${pct(worstFC.fcPct)}) - valuta ingredienti alternativi o aumento prezzo.` })
     }
     if (vulnerabili.length > 0) {
       out.push({ tipo: 'critical', testo: `${vulnerabili.length} ${vulnerabili.length === 1 ? 'prodotto ha' : 'prodotti hanno'} headroom < 25%: con un aumento del 10–20% delle materie prime vanno in perdita.` })
     }
     if (topIngredienti[0] && topIngredienti[0].perc > 25) {
-      out.push({ tipo: 'warn', testo: `${topIngredienti[0].nome} pesa ${topIngredienti[0].perc.toFixed(0)}% del food cost totale — concentrazione alta su un singolo ingrediente.` })
+      out.push({ tipo: 'warn', testo: `${topIngredienti[0].nome} pesa ${topIngredienti[0].perc.toFixed(0)}% del food cost totale - concentrazione alta su un singolo ingrediente.` })
     }
     return out
   }, [rows, topIngredienti])
 
   // Early return DOPO tutti gli hook (Rules of Hooks): rows può passare da
-  // vuoto a popolato quando il ricettario si carica async — il return non deve
+  // vuoto a popolato quando il ricettario si carica async - il return non deve
   // mai precedere gli useMemo, altrimenti il numero di hook cambia tra render.
   if (!rows.length && !(chiusure || []).length) return (
     <div style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', padding: '32px 24px',
@@ -914,16 +914,16 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
 
       {rows.length > 0 && (<>
       {/* Audit 2026-06-25: temporaneamente disabilitata.
-      <SH sub="Redditività teorica di ogni ricetta ai prezzi di listino — utile per le decisioni su prezzi e ricette.">Analisi del listino (teorica)</SH>
+      <SH sub="Redditività teorica di ogni ricetta ai prezzi di listino - utile per le decisioni su prezzi e ricette.">Analisi del listino (teorica)</SH>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: '#F8F4F2', border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
         <span style={{ lineHeight: 1, marginTop: 1, color: C.textMid }}><Icon name="bulb" size={16} /></span>
         <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55 }}>
-          <b style={{ color: C.text }}>Numeri teorici, non riferiti a un periodo.</b> Mostrano ricavo, food cost e margine <b>per un singolo stampo di ciascun prodotto</b>, ai <b>prezzi di listino attuali</b> — servono a capire la redditività delle ricette. Per ricavi e margini <b>reali nel tempo</b> (giorno · settimana · mese) apri la sezione <b>Storico</b>.
+          <b style={{ color: C.text }}>Numeri teorici, non riferiti a un periodo.</b> Mostrano ricavo, food cost e margine <b>per un singolo stampo di ciascun prodotto</b>, ai <b>prezzi di listino attuali</b> - servono a capire la redditività delle ricette. Per ricavi e margini <b>reali nel tempo</b> (giorno · settimana · mese) apri la sezione <b>Storico</b>.
         </div>
       </div>
       */}
 
-      {/* ESTRATTO CONTO ECONOMICO — colpo d'occhio: Ricavi − Food cost = Margine */}
+      {/* ESTRATTO CONTO ECONOMICO - colpo d'occhio: Ricavi − Food cost = Margine */}
       {(() => {
         const fcPct = totRicavo > 0 ? (totFC / totRicavo) * 100 : 0
         const margPctTot = totRicavo > 0 ? (totMargine / totRicavo) * 100 : 0
@@ -953,7 +953,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
               <span style={{ fontSize: 11, fontWeight: 600, color: C.textSoft, background: '#F8F4F2', padding: '4px 10px', borderRadius: 20 }}>a regime · prezzi di listino</span>
             </div>
 
-            {/* Statement: griglia 3 colonne — voce | % | importo, tutto incolonnato
+            {/* Statement: griglia 3 colonne - voce | % | importo, tutto incolonnato
                 con dimensioni IDENTICHE su tutte le righe. */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', columnGap: isMobile ? 18 : 36, alignItems: 'center' }}>
               {/* Ricavi */}

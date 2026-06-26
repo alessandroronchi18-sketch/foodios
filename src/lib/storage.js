@@ -28,7 +28,7 @@ function applySedeFilter(q, sedeId) {
   return sedeId === null ? q.is('sede_id', null) : q.eq('sede_id', sedeId)
 }
 
-// Distingue errori transienti (rete, 5xx) — su cui ha senso ritentare — da
+// Distingue errori transienti (rete, 5xx) - su cui ha senso ritentare - da
 // errori "permanenti" (constraint violations, RLS denial, validation).
 // Per i transienti il retry con backoff esponenziale recupera dropout brevi
 // senza imprigionare il chiamante in un loop infinito su errori veri.
@@ -143,7 +143,7 @@ export async function ssave(key, value, orgId, sedeId) {
     if (insErr) {
       // Race condition possibile: tra il SELECT e l'INSERT un altro client ha
       // inserito. In quel caso ritentiamo con UPDATE (gestito inline, non e' un
-      // retry transient — e' una resolution di concorrenza).
+      // retry transient - e' una resolution di concorrenza).
       if (insErr.code === '23505') {
         let qRetry = supabase
           .from('user_data')
@@ -170,7 +170,7 @@ export async function ssave(key, value, orgId, sedeId) {
  * Scrive PIÙ chiavi user_data in UNA sola transazione (atomico) via RPC.
  * items: [{ key, value, sedeId? }]. Le chiavi shared forzano sede_id=null.
  * Usare quando due scritture devono restare coerenti (es. magazzino + giornaliero):
- * o vanno entrambe, o nessuna — niente più drift su fallimento parziale.
+ * o vanno entrambe, o nessuna - niente più drift su fallimento parziale.
  */
 export async function ssaveBatch(items, orgId, sedeId) {
   if (!orgId) {

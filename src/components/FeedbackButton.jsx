@@ -140,7 +140,7 @@ export default function FeedbackButton({ viewCorrente, externalOpen, onOpenChang
               ) : (
                 <>
                   <div style={{ fontSize: 12, color: '#64748B', marginBottom: 12, lineHeight: 1.5 }}>
-                    Scrivi liberamente. Le segnalazioni arrivano direttamente al team — leggiamo tutto.
+                    Scrivi liberamente. Le segnalazioni arrivano direttamente al team - leggiamo tutto.
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 12 }}>
                     {SENTIMENTS.map(s => (

@@ -6,7 +6,7 @@ export async function autoDetectFormat(file) {
   const name = file.name || ''
   const ext = name.split('.').pop().toLowerCase()
 
-  // XML or P7M (signed XML) — try electronic invoice
+  // XML or P7M (signed XML) - try electronic invoice
   if (ext === 'xml' || ext === 'p7m') {
     let text
     try {
@@ -31,7 +31,7 @@ export async function autoDetectFormat(file) {
     }
   }
 
-  // Excel — try FatturaSMART (TeamSystem) format
+  // Excel - try FatturaSMART (TeamSystem) format
   if (ext === 'xlsx' || ext === 'xls') {
     try {
       const dati = await parseFatturaSMART(file)
@@ -40,12 +40,12 @@ export async function autoDetectFormat(file) {
       return {
         formato: 'excel_generico',
         dati: [],
-        errori: [e.message + ' — assicurati che il file abbia una colonna "Fornitore"'],
+        errori: [e.message + ' - assicurati che il file abbia una colonna "Fornitore"'],
       }
     }
   }
 
-  // CSV — routed to Zucchetti parsers separately
+  // CSV - routed to Zucchetti parsers separately
   if (ext === 'csv') {
     return {
       formato: 'csv',

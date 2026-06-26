@@ -1,4 +1,4 @@
-// Food Cost — pagina di DIAGNOSI → CAPISCI → AGISCI.
+// Food Cost - pagina di DIAGNOSI → CAPISCI → AGISCI.
 // 1) Hero KPI con target food cost  2) salute del listino  3) tabella prodotti
 // con food cost %, prezzo consigliato e breakdown ricetta espandibile
 // 4) top ingredienti per incidenza  5) simulatore what-if (prezzi / materie prime).
@@ -242,7 +242,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
         action={exportBtn}
       />
 
-      {/* Target food cost — selector */}
+      {/* Target food cost - selector */}
       <div style={{
         ...cardStyle(),
         padding: isMobile ? 14 : '14px 18px',
@@ -296,7 +296,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
           })}
         </div>
 
-        {/* Legenda semaforo — chip leggibili, non si rompono su mobile */}
+        {/* Legenda semaforo - chip leggibili, non si rompono su mobile */}
         <div style={{
           display: 'flex', gap: isMobile ? 8 : 10, flexWrap: 'wrap',
           fontSize: 11.5, color: T.textSoft, ...TNUM,
@@ -409,7 +409,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                       <td style={{ ...cellNum, color: T.textMid }}>{fmt(r.reg.prezzo)}</td>
                       <td style={{ ...cellNum, color: T.text, fontWeight: 600 }}>{fmt(r.fc)}</td>
                       <td style={cellNum}>
-                        {naf ? <span style={{ color: T.textSoft }}>—</span> : (
+                        {naf ? <span style={{ color: T.textSoft }}>-</span> : (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
                             <span aria-hidden="true" style={{ width: 48, height: 6, borderRadius: 3, background: T.bgSubtle, overflow: 'hidden', display: 'inline-block' }}>
                               <span style={{ display: 'block', height: '100%', width: `${Math.min(100, r.fcPct)}%`, background: col }} />
@@ -418,7 +418,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                           </span>
                         )}
                       </td>
-                      <td style={{ ...cellNum, color: T.textMid }}>{naf ? '—' : fmtp(r.margPct)}</td>
+                      <td style={{ ...cellNum, color: T.textMid }}>{naf ? '-' : fmtp(r.margPct)}</td>
                       <td style={cellNum}>
                         <div style={{
                           display: 'inline-flex',
@@ -702,7 +702,7 @@ function SimSlider({ label, value, min, max, valueColor, accentColor, suffix = '
   )
 }
 
-// Statistica del simulatore — minHeight uniformi label/value/sub
+// Statistica del simulatore - minHeight uniformi label/value/sub
 function SimStat({ label, val, c, delta }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>

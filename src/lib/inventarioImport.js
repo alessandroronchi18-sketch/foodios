@@ -218,7 +218,7 @@ function addGiorni(dataIso, n) {
 // PRODOTTI (per pastorizzata/cioccolata/zabaione).
 //
 // Riconosciamo gli sheet sede cercando il pattern "GUSTI" + "PROD/RIMAN" nelle
-// prime righe — coerenza con parseFoglioInventario. Gli altri li classifichiamo
+// prime righe - coerenza con parseFoglioInventario. Gli altri li classifichiamo
 // per nome (TOTALI / GELATO ELIMINATO / RISTORANTI / ALTRI ...).
 
 export function classificaSheet(XLSX, workbook) {
@@ -347,7 +347,7 @@ export function checkTotaliCrossSheet(perSedeRighe, totaliMatrice) {
       // estrema; vogliamo segnalare divergenze grossolane.
       calcolato[k] = calcolato[k] || { vendutoG: 0 }
       // qui usiamo prod_g come proxy se non sappiamo bilanciare bene il
-      // riman_prev cross-settimana — il check resta indicativo.
+      // riman_prev cross-settimana - il check resta indicativo.
       calcolato[k].vendutoG = (calcolato[k].vendutoG || 0)
     }
   }

@@ -1,8 +1,8 @@
-// OnboardingWizard — onboarding 4 step, time-to-value < 60s.
+// OnboardingWizard - onboarding 4 step, time-to-value < 60s.
 //
 // Filosofia di design:
 //   - SKIP-FRIENDLY: ogni step ha "Salta" visibile. L'utente non deve
-//     decidere ora — può sempre tornare.
+//     decidere ora - può sempre tornare.
 //   - VALUE-FIRST: lo step 2 NON chiede di caricare file ma di SCEGLIERE
 //     il path (file Excel / dati demo / inizia vuoto). I dati demo
 //     mostrano subito i numeri reali → "wow effect" garantito.
@@ -104,7 +104,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
     if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
   }, [])
   const [parseStats, setParseStats] = useState(null)
-  // Demo data state — sede risolta dal DB al primo uso (org appena creata).
+  // Demo data state - sede risolta dal DB al primo uso (org appena creata).
   const [demoSeeding, setDemoSeeding] = useState(false)
   const [demoStats, setDemoStats] = useState(null)
   const [demoError, setDemoError] = useState(null)
@@ -117,7 +117,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
   const [metodoProduzione, setMetodoProduzione] = useState(null)
   const [metodoSaving, setMetodoSaving] = useState(false)
 
-  // ESC chiude il wizard (skip silenzioso) — ma non se l'utente sta scrivendo
+  // ESC chiude il wizard (skip silenzioso) - ma non se l'utente sta scrivendo
   // in un input (digitare ESC mentre compili "Nome sede" non deve far saltare
   // tutto l'onboarding).
   useEffect(() => {
@@ -215,7 +215,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
     if (!secondaSede.nome.trim() || !orgId) return
     setSedeSaving(true)
     setSedeError(null)
-    // NB: il client Supabase NON lancia su errore DB — restituisce { error }.
+    // NB: il client Supabase NON lancia su errore DB - restituisce { error }.
     // Vanno controllati sia l'error sia eventuali eccezioni di rete.
     let dbError = null
     try {
@@ -252,7 +252,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     }}>
       {/* Top bar fixed: logo F + Foodos · progress dots centrate · Salta tutto.
-          Su mobile la riga e' stretta — riduciamo spacing e il "Salta tutto"
+          Su mobile la riga e' stretta - riduciamo spacing e il "Salta tutto"
           dello Step 1 e' sotto al bottone Iniziamo (qui solo da Step 2 in poi). */}
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0,
@@ -316,7 +316,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               In <strong style={{ color: '#0E1726', fontWeight: 600 }}>2 minuti</strong> sei operativo.<br/>
               Hai <strong style={{ color: '#0E1726', fontWeight: 600 }}>3 mesi gratuiti</strong> per esplorare.
             </p>
-            {/* 4 feature key icon, allineate in grid 2x2 — icone alla stessa X, testo wrappa se serve */}
+            {/* 4 feature key icon, allineate in grid 2x2 - icone alla stessa X, testo wrappa se serve */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',
               alignItems: 'start',
               columnGap: 12, rowGap: 12,
@@ -488,7 +488,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                 </div>
               </button>
 
-              {/* Path C: inizia vuoto — stesso layout dei box sopra, palette neutra */}
+              {/* Path C: inizia vuoto - stesso layout dei box sopra, palette neutra */}
               <button onClick={onComplete} disabled={parsing}
                 style={{
                   textAlign: 'left', padding: '20px 22px',
@@ -523,7 +523,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                 </div>
               </button>
 
-              {/* Hint gelateria/laboratorio — meno prominente, fuori dai 3 box azione */}
+              {/* Hint gelateria/laboratorio - meno prominente, fuori dai 3 box azione */}
               <div style={{
                 padding: '10px 14px', background: '#F0F9FF',
                 border: '1px solid #BAE6FD', borderRadius: 10,
@@ -553,7 +553,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
               Scegli il metodo che corrisponde al tuo modo di lavorare. Lo puoi cambiare in qualsiasi momento da Impostazioni → Sedi.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14, maxWidth: 520, margin: '0 auto' }}>
-              {/* OPZIONE 1: Stampi / unità — pasticceria classica */}
+              {/* OPZIONE 1: Stampi / unità - pasticceria classica */}
               <button onClick={() => handleSceltaMetodo('stampi')} disabled={metodoSaving}
                 style={{
                   textAlign: 'left', padding: '20px 22px',
@@ -579,7 +579,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                   </div>
                 </div>
               </button>
-              {/* OPZIONE 2: Inventario gusti — gelateria/laboratorio */}
+              {/* OPZIONE 2: Inventario gusti - gelateria/laboratorio */}
               <button onClick={() => handleSceltaMetodo('inventario')} disabled={metodoSaving}
                 style={{
                   textAlign: 'left', padding: '20px 22px',
@@ -598,7 +598,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
                     Inventario gusti
                   </div>
                   <div style={{ fontSize: 13, color: '#475264', lineHeight: 1.55, marginBottom: 8 }}>
-                    Per chi produce <strong>gusti</strong> ma vende <strong>formati</strong>: gelato in cono/coppetta/vaschetta, yogurt sfuso. Inserisci grammi prodotti e grammi rimasti — il venduto si calcola da solo.
+                    Per chi produce <strong>gusti</strong> ma vende <strong>formati</strong>: gelato in cono/coppetta/vaschetta, yogurt sfuso. Inserisci grammi prodotti e grammi rimasti - il venduto si calcola da solo.
                   </div>
                   <div style={{ fontSize: 11.5, color: '#8B95A7', lineHeight: 1.5 }}>
                     Indicato per: gelateria, yogurteria, gastronomia con vaschette, laboratorio.

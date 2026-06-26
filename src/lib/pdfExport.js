@@ -1,4 +1,4 @@
-// PDF Export — generatore PDF strutturato riusabile per tutte le view.
+// PDF Export - generatore PDF strutturato riusabile per tutte le view.
 //
 // Filosofia: i grafici li redenderemo come PNG via html2canvas se servono,
 // ma i KPI/tabelle li disegniamo direttamente con jsPDF per pulizia + size.

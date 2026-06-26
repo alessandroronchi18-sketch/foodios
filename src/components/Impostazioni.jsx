@@ -1,4 +1,4 @@
-// Impostazioni — redesign 2-pane (sidebar + content) ispirato a Stripe / Linear / Notion.
+// Impostazioni - redesign 2-pane (sidebar + content) ispirato a Stripe / Linear / Notion.
 //
 // Migliorie rispetto al layout precedente a tab orizzontali:
 //   - Categorie raggruppate semanticamente (Attività, Fatturazione, Notifiche, Sicurezza, Dati, Avanzate)
@@ -118,7 +118,7 @@ function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify
       </FieldRow>
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:14 }}>
         <FieldRow label="Tipo attività" hint="Modificabile solo dal supporto">
-          <div style={ro}>{tipoAttivita || '—'}</div>
+          <div style={ro}>{tipoAttivita || '-'}</div>
         </FieldRow>
         <FieldRow label="Piano" hint="Cambia da Fatturazione → Abbonamento">
           <div style={ro}>
@@ -223,7 +223,7 @@ function EmailCorrenteRow({ auth }) {
     <FieldRow label="Email attuale">
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:T.bgSubtle, borderRadius:R.md, fontSize: isMobile ? 12 : 13, color:T.text, minWidth: 0 }}>
         <Icon name="mail" size={16} color={T.textSoft}/>
-        <span style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth: 0 }} title={auth?.user?.email || ''}>{auth?.user?.email || '—'}</span>
+        <span style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth: 0 }} title={auth?.user?.email || ''}>{auth?.user?.email || '-'}</span>
         {auth?.user?.email_confirmed_at && (
           <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:700, color:T.green, padding:'2px 8px', borderRadius:999, background:T.greenLight, flexShrink:0 }}>
             <Icon name="check" size={12}/> Verificata
@@ -326,7 +326,7 @@ function DipendenteAccountSection({ auth, notify }) {
   )
 }
 
-// Card "Esci" — chiude la sessione via auth.signOut().
+// Card "Esci" - chiude la sessione via auth.signOut().
 function LogoutCard({ auth, notify }) {
   const [busy, setBusy] = useState(false)
   async function esci() {
@@ -750,7 +750,7 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, on
   const attivitaItems = [
     {
       id: 'profilo', label: 'Profilo azienda', icon: 'building',
-      summary: nomeAttivita || '—',
+      summary: nomeAttivita || '-',
       render: () => <ProfiloSection auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} notify={notify}/>,
     },
     {

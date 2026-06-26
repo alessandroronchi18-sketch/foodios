@@ -86,7 +86,7 @@ export function useAuth() {
       timeoutMs: IDLE_TIMEOUT_MS,
       onTimeout: async () => {
         try {
-          console.warn('Sessione scaduta per inattività — logout automatico')
+          console.warn('Sessione scaduta per inattività - logout automatico')
           clearIdleTimestamp()
           await supabase.auth.signOut()
         } catch (e) { /* ignore */ }
@@ -109,9 +109,9 @@ export function useAuth() {
       if (profErr) throw profErr
       // Niente log di email/userId in production: leakable via console di shared computer.
       if (import.meta.env.DEV) {
-        console.log('loadProfile OK — userId:', userId?.slice(0, 8), 'orgId:', prof?.organization_id?.slice(0, 8));
+        console.log('loadProfile OK - userId:', userId?.slice(0, 8), 'orgId:', prof?.organization_id?.slice(0, 8));
       }
-      // Imposta utente per Sentry (id e org_id come tag — niente email in chiaro)
+      // Imposta utente per Sentry (id e org_id come tag - niente email in chiaro)
       Sentry.setUser({ id: userId })
       Sentry.setTag('organization_id', prof?.organization_id || 'unknown')
       setProfile(prof)
@@ -197,7 +197,7 @@ export function useAuth() {
       // Rate limit del provider email di Supabase (non è il blocco anti-brute-force
       // del login, che è client-side e solo per il login). Messaggio chiaro per il signup.
       if (/rate limit|too many|after \d+ seconds|email.*limit/i.test(error.message || '')) {
-        throw new Error('Troppe registrazioni in poco tempo (limite temporaneo del provider email). Attendi qualche minuto e riprova — l\'account potrebbe già essere stato creato: prova ad accedere.')
+        throw new Error('Troppe registrazioni in poco tempo (limite temporaneo del provider email). Attendi qualche minuto e riprova - l\'account potrebbe già essere stato creato: prova ad accedere.')
       }
       throw new Error(tradurciErrore(error.message))
     }

@@ -1,5 +1,5 @@
 // Italian electronic invoice (FatturaPA SDI) parser + TeamSystem FatturaSMART parser
-// Loader XLSX unico e robusto (multi-CDN, no SRI) — vedi src/lib/xlsx.js.
+// Loader XLSX unico e robusto (multi-CDN, no SRI) - vedi src/lib/xlsx.js.
 import { loadXLSX } from './xlsx'
 
 // Parse a cell into ISO date string (YYYY-MM-DD). Uses LOCAL date components
@@ -52,7 +52,7 @@ function normalizeStato(v) {
   return 'da_pagare'
 }
 
-// Parse FatturaPA XML (SDI) — returns array of invoices compatible with Foodos fatture table
+// Parse FatturaPA XML (SDI) - returns array of invoices compatible with Foodos fatture table
 export function parseFatturaXML(xmlString) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlString, 'application/xml')
@@ -61,7 +61,7 @@ export function parseFatturaXML(xmlString) {
   if (parseError) throw new Error('XML non valido: ' + parseError.textContent.slice(0, 120))
 
   if (!doc.querySelector('FatturaElettronica')) {
-    throw new Error('Elemento <FatturaElettronica> non trovato — verifica che sia una fattura elettronica italiana (formato FatturaPA)')
+    throw new Error('Elemento <FatturaElettronica> non trovato - verifica che sia una fattura elettronica italiana (formato FatturaPA)')
   }
 
   // Header: cedente/prestatore
@@ -152,7 +152,7 @@ export function parseFatturaXML(xmlString) {
   return fatture
 }
 
-// Parse TeamSystem FatturaSMART Excel export — fixed positional column layout.
+// Parse TeamSystem FatturaSMART Excel export - fixed positional column layout.
 // File structure (per FatturaSMART export):
 //   Rows 0-2 : 3 rows of titles / metadata ("Elenco documenti…")
 //   Row  3   : header row (column titles)
@@ -195,7 +195,7 @@ export async function parseFatturaSMART(file) {
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: false })
 
   if (rows.length <= DATA_START_ROW) {
-    // File has no data rows — empty export
+    // File has no data rows - empty export
     return []
   }
 
@@ -204,7 +204,7 @@ export async function parseFatturaSMART(file) {
     const row = rows[i]
     if (!row || !Array.isArray(row)) continue
 
-    // Skip rows without a supplier (col 7) — these are blank/footer rows
+    // Skip rows without a supplier (col 7) - these are blank/footer rows
     const rawFornitore = row[COL.fornitore]
     if (rawFornitore === null || rawFornitore === undefined) continue
     const fornitore = String(rawFornitore).trim()

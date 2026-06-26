@@ -1,4 +1,4 @@
-// Perdite & cessioni — pagina OWNER-POV che unifica "Sprechi e omaggi" e
+// Perdite & cessioni - pagina OWNER-POV che unifica "Sprechi e omaggi" e
 // "Discrepanze" in un'unica vista DIAGNOSI → CAPISCI → AGISCI (stile Food Cost).
 //
 // Risponde a una sola domanda del proprietario: "quanto prodotto se n'e' andato
@@ -179,7 +179,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
     // SK_MOV sempre. SK_DISC solo per il titolare (read-only, fold storico).
     const pMov = caricaMovimenti(orgId, sedeId)
     const pDisc = isDip ? Promise.resolve([]) : sload(SK_DISCREPANZE, orgId, sedeId || null)
-    // Carica chiusure (titolare only — il dipendente ha view sanitizzata).
+    // Carica chiusure (titolare only - il dipendente ha view sanitizzata).
     const pChius = isDip ? Promise.resolve([]) : sload('pasticceria-chiusure-v1', orgId, sedeId)
     Promise.all([pMov, pDisc, pChius]).then(([arr, disc, chius]) => {
       if (!alive) return
@@ -210,7 +210,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
 
   const { da, a } = useMemo(() => estremiMese(mese), [mese])
 
-  // Periodo selezionato (mese) — pilota diagnosi e lista.
+  // Periodo selezionato (mese) - pilota diagnosi e lista.
   const periodo = useMemo(() => filtraPerIntervallo(tutti, da, a), [tutti, da, a])
 
   const lista = useMemo(() => {
@@ -271,7 +271,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
     return { ricavi, pct, livello }
   }, [chiusureMese, mese, diag.totPerso, isDip])
 
-  // Food cost del mese (dal ricettario reale) — per l'incidenza % della perdita.
+  // Food cost del mese (dal ricettario reale) - per l'incidenza % della perdita.
   // Solo titolare: il dipendente ha ricettario sanitizzato (FC=0) → niente diagnosi.
   const fcMeseStimato = useMemo(() => {
     if (isDip) return 0
@@ -285,7 +285,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
   }, [ricettario, ingCosti, isDip])
 
   // Lista del giorno del dipendente (calcolata sempre, usata solo nel ramo isDip
-  // — gli hook restano incondizionati per non violare le rules of hooks).
+  // - gli hook restano incondizionati per non violare le rules of hooks).
   const oggi = todayLocal()
   const mieDelGiorno = useMemo(() => movs
     .filter(m => (m.ts || '').slice(0, 10) === oggi && m.autore_uid === auth?.user?.id)
@@ -296,7 +296,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
   // di grandezza. Manteniamo soglie semaforo prudenti.
   const incidenza = fcMeseStimato > 0 ? (diag.totPerso / fcMeseStimato * 100) : 0
   const incColor = incidenza <= 3 ? C.green : incidenza <= 8 ? C.amber : C.red
-  const incLabel = incidenza <= 3 ? 'Sotto controllo' : incidenza <= 8 ? 'Da tenere d’occhio' : 'Alto — indagare'
+  const incLabel = incidenza <= 3 ? 'Sotto controllo' : incidenza <= 8 ? 'Da tenere d’occhio' : 'Alto - indagare'
 
   // Suggerimento fc unitario dalla ricetta quando il "Cosa" combacia.
   const autoFcDaRicetta = (nome) => {
@@ -326,7 +326,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
 
   const setTipo = (k) => setForm(f => ({ ...f, tipo: k, causale: CAUSALI[k][0].id }))
 
-  // ── SALVATAGGIO — SAVE-FIRST. Handler dipendente e shape movimento INVARIATI. ──
+  // ── SALVATAGGIO - SAVE-FIRST. Handler dipendente e shape movimento INVARIATI. ──
   const salva = async () => {
     if (!form) return
     if (!form.prodotto.trim() && !form.categoria.trim()) { notify?.('Specifica almeno il prodotto o la categoria', false); return }
@@ -371,7 +371,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       // Scarico stock_prodotti_finiti se l'unita' e' pz e il prodotto matcha
       // una ricetta dell'azienda. Best-effort: in caso di errore il movimento
       // resta comunque salvato (il modello SK_MOV e' la verita' contabile) ma
-      // l'utente vede un avviso — meglio di un drift silenzioso dello stock
+      // l'utente vede un avviso - meglio di un drift silenzioso dello stock
       // vetrina che generava "ghost stock" sulle vendite successive.
       if ((form.unita || 'pz') === 'pz' && form.prodotto.trim()) {
         try {
@@ -421,7 +421,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
     : filtroTipo === 'omaggio' ? CAUSALI.omaggio
     : [...CAUSALI.spreco, ...CAUSALI.omaggio]
 
-  // ── FORM (registrazione rapida) — condiviso titolare/dipendente ──────────────
+  // ── FORM (registrazione rapida) - condiviso titolare/dipendente ──────────────
   const formCard = form && (
     <div style={{ ...cardStyle(), padding: isMobile ? 16 : 20, marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
@@ -550,7 +550,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
               {mieDelGiorno.map(m => (
                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderBottom: `1px solid ${C.borderSoft}`, paddingBottom: 8 }}>
                   {tipoBadge(m.tipo)}
-                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.prodotto || m.categoria || '—'}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.prodotto || m.categoria || '-'}</span>
                   <span style={{ fontSize: 12, color: C.textSoft }}>{CAUSALE_LABEL[m.causale] || m.causale}</span>
                   <span style={{ fontSize: 12, color: C.textMid, ...TNUM }}>{fmtQta(m.qta, m.unita)}</span>
                   <span style={{ flex: 1 }} />
@@ -609,13 +609,13 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         </div>
       )}
 
-      {/* (1) DIAGNOSI — banda KPI del mese */}
+      {/* (1) DIAGNOSI - banda KPI del mese */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
         <KPI icon={<Icon name="trendDown" size={18} />} label="Perdita totale del mese" value={fmt0(diag.totPerso)} highlight
           sub={`${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi`} />
-        <KPI icon={<Icon name="receipt" size={18} />} label="Incidenza sul food cost" value={fcMeseStimato > 0 ? fmtp(incidenza) : '—'} color={incColor}
+        <KPI icon={<Icon name="receipt" size={18} />} label="Incidenza sul food cost" value={fcMeseStimato > 0 ? fmtp(incidenza) : '-'} color={incColor}
           sub={fcMeseStimato > 0 ? incLabel : 'food cost non disponibile'} />
-        <KPI icon={<Icon name="warning" size={18} />} label="Causa principale" value={diag.causaPrinc ? (CAUSALE_LABEL[diag.causaPrinc.id] || diag.causaPrinc.id) : '—'} color={T.text}
+        <KPI icon={<Icon name="warning" size={18} />} label="Causa principale" value={diag.causaPrinc ? (CAUSALE_LABEL[diag.causaPrinc.id] || diag.causaPrinc.id) : '-'} color={T.text}
           sub={diag.causaPrinc ? `${fmtp(diag.causaPct)} · ${fmt0(diag.causaPrinc.eur)}` : 'nessun evento'} />
         <KPI icon={<Icon name="clipboard" size={18} />} label="Eventi nel mese" value={fmtN(diag.nTot)} color={T.brand}
           sub={`${fmtN(diag.nSpreco)} perdite · ${fmtN(diag.nOmaggio)} omaggi`} />
@@ -626,7 +626,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         <div style={{ ...cardStyle(), padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'flex-start', gap: 10, background: C.bgSubtle }}>
           <Icon name="alert" size={15} color={C.amber} />
           <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.5 }}>
-            <b style={{ color: C.text }}>Drift di porzionatura</b> — {fmtN(legacyDrift.length)} segnalazioni storiche di porzioni fuori standard
+            <b style={{ color: C.text }}>Drift di porzionatura</b> - {fmtN(legacyDrift.length)} segnalazioni storiche di porzioni fuori standard
             (abbondanti/ridotte) erodono margine ma non sono perdite discrete. Tienile a mente quando rivedi le rese delle ricette.
           </div>
         </div>
@@ -636,7 +636,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       {azioniRapide}
       {formCard}
 
-      {/* (2) PER CAUSALE — dove va il valore perso */}
+      {/* (2) PER CAUSALE - dove va il valore perso */}
       <SH sub="Quanto pesa ogni causa di perdita nel mese. Il primo e' quello su cui agire per primo.">Per causale</SH>
       <div style={{ ...cardStyle(), padding: isMobile ? 14 : 18, marginBottom: 24 }}>
         {diag.causaliOrd.length === 0 ? (
@@ -665,7 +665,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         )}
       </div>
 
-      {/* (3) PER PRODOTTO — dove perdi più valore */}
+      {/* (3) PER PRODOTTO - dove perdi più valore */}
       <SH sub="I prodotti che ti costano di più in perdite e omaggi nel mese.">Prodotti con più perdite</SH>
       <div style={{ ...cardStyle(), padding: isMobile ? 14 : 18, marginBottom: 24 }}>
         {diag.classifica.length === 0 ? (
@@ -732,11 +732,11 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
                   <td style={{ padding: '11px 14px', color: C.textMid, whiteSpace: 'nowrap', ...TNUM }}>{fmtTs(m.ts)}</td>
                   <td style={{ padding: '11px 14px' }}>{tipoBadge(m.tipo)}</td>
                   <td style={{ padding: '11px 14px', color: C.text, fontWeight: 600 }}>
-                    {m.prodotto || m.categoria || '—'}
-                    {m.note && <span style={{ color: C.textSoft, fontWeight: 400 }}> — {m.note}</span>}
+                    {m.prodotto || m.categoria || '-'}
+                    {m.note && <span style={{ color: C.textSoft, fontWeight: 400 }}> - {m.note}</span>}
                   </td>
                   <td style={{ padding: '11px 14px', color: C.text, whiteSpace: 'nowrap', textAlign: 'right', ...TNUM }}>{fmtQta(m.qta, m.unita)}</td>
-                  <td style={{ padding: '11px 14px', color: C.textMid }}>{CAUSALE_LABEL[m.causale] || m.causale || '—'}</td>
+                  <td style={{ padding: '11px 14px', color: C.textMid }}>{CAUSALE_LABEL[m.causale] || m.causale || '-'}</td>
                   <td style={{ padding: '11px 14px', color: m.tipo === 'spreco' ? C.amber : BLU, fontWeight: 700, whiteSpace: 'nowrap', textAlign: 'right', ...TNUM }}>
                     {fmt(m.fcTot)}
                     {m.tipo === 'omaggio' && Number(m.valoreOmaggio) > 0 && (
@@ -744,7 +744,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
                     )}
                   </td>
                   <td style={{ padding: '11px 14px', color: C.textSoft, fontSize: 11 }}>
-                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: 8, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '—')}
+                    {m._legacy ? <span style={{ padding: '1px 5px', borderRadius: 4, background: C.bgSubtle, color: C.textSoft, fontSize: 8, fontWeight: 700 }}>STORICO</span> : (m.autore_email || '-')}
                     {m.autore_ruolo === 'dipendente' && <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 4, background: C.amberLight, color: C.amber, fontSize: 8, fontWeight: 700 }}>DIP</span>}
                   </td>
                   <td style={{ padding: '11px 14px' }}>

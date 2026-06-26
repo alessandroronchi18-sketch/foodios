@@ -1,4 +1,4 @@
-// AzioniView — AI Assistant chat + tracking azioni. Estratta da Dashboard.jsx.
+// AzioniView - AI Assistant chat + tracking azioni. Estratta da Dashboard.jsx.
 import React, { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
@@ -313,7 +313,7 @@ ${azioniStr}
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
           {(actions||[]).length===0&&(
             <div style={{padding:"48px 0",textAlign:"center",color:C.textSoft,fontSize:13}}>
-              Nessuna azione salvata. Usa la chat AI e chiedi di suggerire azioni concrete — poi salvale qui per tracciarle nel tempo.
+              Nessuna azione salvata. Usa la chat AI e chiedi di suggerire azioni concrete - poi salvale qui per tracciarle nel tempo.
             </div>
           )}
           {aperte.length>0&&(

@@ -141,7 +141,7 @@ const _NF0 = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 0, maximumF
 const fmtEuro = v => `${_NF2.format(Number(v || 0))} €`
 const fmtEuro0 = v => `${_NF0.format(Math.round(Number(v || 0)))} €`
 const fmtDate = d =>
-  d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
+  d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'
 
 function relDayLabel(days) {
   if (days === null || days === undefined) return ''
@@ -282,7 +282,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       await loadFornitori()
       notify('Anagrafica fornitore aggiornata')
     } catch (e) {
-      notify('Errore: ' + (e?.message || 'salvataggio fallito') + ' — verifica la migration scadenzario', false)
+      notify('Errore: ' + (e?.message || 'salvataggio fallito') + ' - verifica la migration scadenzario', false)
     }
   }
 
@@ -331,7 +331,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       notify(`${imported} fatture importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
     } else if (scartati > 0) {
-      notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
+      notify(`${scartati} fatture erano già presenti - nessun duplicato aggiunto`, false)
     }
     setImportLoading(false)
   }
@@ -359,7 +359,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       notify(`${imported} fatture XML importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
     } else if (scartati > 0) {
-      notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
+      notify(`${scartati} fatture erano già presenti - nessun duplicato aggiunto`, false)
     }
     setImportLoading(false)
   }
@@ -386,7 +386,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       notify(`${imported} fatture FatturaSMART importate${scartati > 0 ? ` · ${scartati} già presenti, saltate` : ''}`)
       try { await loadFatture() } catch { /* il toast di esito è già stato mostrato */ }
     } else if (scartati > 0) {
-      notify(`${scartati} fatture erano già presenti — nessun duplicato aggiunto`, false)
+      notify(`${scartati} fatture erano già presenti - nessun duplicato aggiunto`, false)
     }
     setImportLoading(false)
   }
@@ -451,7 +451,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       a.download = `bonifico_sepa_${exec}.xml`
       document.body.appendChild(a); a.click(); a.remove()
       URL.revokeObjectURL(url)
-      notify(`Bonifico SEPA pronto: ${included.length} pagamenti · ${fmtEuro(totale)}${skipped.length ? ` · ${skipped.length} saltati (IBAN mancante)` : ''} — caricalo nell'home banking`)
+      notify(`Bonifico SEPA pronto: ${included.length} pagamenti · ${fmtEuro(totale)}${skipped.length ? ` · ${skipped.length} saltati (IBAN mancante)` : ''} - caricalo nell'home banking`)
     } catch (e) {
       notify('Bonifico non generato: ' + (e?.message || 'errore') + (e?.skipped?.length ? ` (${e.skipped.length} senza IBAN)` : ''), false)
     }
@@ -464,7 +464,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       await navigator.clipboard.writeText(txt)
       notify('Dati bonifico copiati')
     } catch {
-      notify('Copia non riuscita — IBAN: ' + (normalizeIban(f.iban) || 'n/d'), false)
+      notify('Copia non riuscita - IBAN: ' + (normalizeIban(f.iban) || 'n/d'), false)
     }
   }
 
@@ -678,7 +678,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           f.imponibile || 0,
           f.imposta || 0,
           f.totale || 0,
-          URGENZA_CFG[f.urgenza]?.label || '—',
+          URGENZA_CFG[f.urgenza]?.label || '-',
           f.data_pagamento || '',
         ])
       ]
@@ -841,7 +841,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               <span title={f.fornitore}>{f.fornitore}</span>
             </td>
             <td colSpan={5} style={{ padding: '8px 12px 6px', color: T.textSoft, fontSize: 11.5 }}>
-              {f.numero_rif || '—'} · {fmtDate(f.data_fattura)} · scade {fmtDate(f.dueIso)} · totale <span style={{ color: T.text, fontWeight: 700, ...tnum }}>{fmtEuro(f.totale)}</span>
+              {f.numero_rif || '-'} · {fmtDate(f.data_fattura)} · scade {fmtDate(f.dueIso)} · totale <span style={{ color: T.text, fontWeight: 700, ...tnum }}>{fmtEuro(f.totale)}</span>
             </td>
             <td style={{ padding: '8px 12px 6px' }} />
           </tr>
@@ -864,14 +864,14 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           <span title={f.fornitore}>{f.fornitore}</span>
         </td>
         <td style={{ padding: '10px 12px', color: T.textMid, fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
-          <span title={f.numero_rif || ''}>{f.numero_rif || '—'}</span>
+          <span title={f.numero_rif || ''}>{f.numero_rif || '-'}</span>
         </td>
         <td style={{ padding: '10px 12px', color: T.textMid, whiteSpace: 'nowrap', ...tnum }}>
           {fmtDate(f.data_fattura)}
         </td>
         <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
           {f.stato === 'pagata' ? (
-            <span style={{ color: T.textSoft }}>—</span>
+            <span style={{ color: T.textSoft }}>-</span>
           ) : f.dueIso ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <span style={{ color: T.text, fontWeight: 500, ...tnum }}>{fmtDate(f.dueIso)}</span>
@@ -880,7 +880,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               </span>
             </div>
           ) : (
-            <span style={{ color: T.textSoft }}>—</span>
+            <span style={{ color: T.textSoft }}>-</span>
           )}
         </td>
         <td style={{
@@ -932,7 +932,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           }}>{cfg.label}</span>
         </div>
         <div title={`${f.numero_rif || ''} · ${fmtDate(f.data_fattura)}`} style={{ fontSize: 11.5, color: T.textSoft, marginBottom: 10, ...tnum, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {f.numero_rif || '—'} · fattura {fmtDate(f.data_fattura)}
+          {f.numero_rif || '-'} · fattura {fmtDate(f.data_fattura)}
           {f.stato !== 'pagata' && f.dueIso && (
             <>
               {' · '}
@@ -972,7 +972,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   // ─── Sezione gruppo ──────────────────────────────────────────────────────────
   function Gruppo({ keyU, items }) {
     // Audit 2026-06-22 CRITICAL: hook DEVE essere chiamato prima dell'early
-    // return — altrimenti hook order corrupts se items.length cambia.
+    // return - altrimenti hook order corrupts se items.length cambia.
     const [shownAll, setShownAll] = useState(false)
     if (!items.length) return null
     const cfg = URGENZA_CFG[keyU]
@@ -1018,7 +1018,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           </div>
         </div>
 
-        {/* Body — Audit 2026-07-01 batch 10 Performance: paginazione UI a 60
+        {/* Body - Audit 2026-07-01 batch 10 Performance: paginazione UI a 60
             elementi per evitare lag su scadenzari grandi (1000+ fatture). */}
         {(() => {
           const PAGE_SIZE = 60
@@ -1167,15 +1167,15 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                             background: isPagata ? '#F0FDF4' : '#FFFFFF',
                           }}>
                             <td style={{ padding: '7px 10px', fontSize: 12, color: T.text, fontWeight: 600, ...tnum, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {f.numero_rif || '—'}
+                              {f.numero_rif || '-'}
                               {isNC && <span style={{ marginLeft: 4, fontSize: 9, padding: '1px 4px', background: '#DBEAFE', color: '#1E40AF', borderRadius: 3, fontWeight: 700 }}>NC</span>}
                             </td>
                             <td style={{ padding: '7px 10px', fontSize: 11.5, color: T.textMid, ...tnum }}>
-                              {f.data_fattura ? new Date(f.data_fattura).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                              {f.data_fattura ? new Date(f.data_fattura).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '-'}
                             </td>
                             {!isMobile && (
                               <td style={{ padding: '7px 10px', fontSize: 11.5, color: f.urgenza === 'scaduta' && !isPagata ? T.brand : T.textSoft, ...tnum, fontWeight: f.urgenza === 'scaduta' && !isPagata ? 700 : 400 }}>
-                                {f.dueIso ? new Date(f.dueIso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                                {f.dueIso ? new Date(f.dueIso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' }) : '-'}
                               </td>
                             )}
                             <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: isNC ? T.green : T.text, ...tnum }}>
@@ -1235,7 +1235,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     return (
       <div style={{ ...card, padding: isMobile ? 16 : 22, marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Cassa in uscita — prossime settimane</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>Cassa in uscita - prossime settimane</div>
           {!isMobile && <div style={{ fontSize: 11, color: T.textSoft, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Settimana · Importo · Cumulato</div>}
         </div>
         <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 18 }}>Quanto esce e quando (netto note di credito). A destra il saldo cumulato.</div>
@@ -1249,7 +1249,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <div style={{ flex: 1, height: 24, background: T.bgSubtle, borderRadius: 7, position: 'relative', overflow: 'hidden' }}>
                   {b.tot !== 0 && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: col, borderRadius: 7, minWidth: b.n ? 6 : 0, transition: 'width 0.3s' }} />}
                 </div>
-                <div style={{ width: isMobile ? 84 : 104, textAlign: 'right', fontSize: 13, fontWeight: 700, color: b.tot < 0 ? T.green : T.text, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }}>{b.n ? fmtEuro0(b.tot) : '—'}</div>
+                <div style={{ width: isMobile ? 84 : 104, textAlign: 'right', fontSize: 13, fontWeight: 700, color: b.tot < 0 ? T.green : T.text, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }}>{b.n ? fmtEuro0(b.tot) : '-'}</div>
                 {!isMobile && <div style={{ width: 96, textAlign: 'right', fontSize: 11.5, color: T.textSoft, ...tnum, flexShrink: 0, whiteSpace: 'nowrap' }} title="Saldo cumulato">{fmtEuro0(b.cum)}</div>}
               </div>
             )
@@ -1273,7 +1273,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
       )}
 
-      {/* Modale eliminazione bulk — doppia conferma (frase da digitare) */}
+      {/* Modale eliminazione bulk - doppia conferma (frase da digitare) */}
       {bulkOpen && (
         <div onClick={() => !bulkDeleting && (setBulkOpen(false), setBulkConfirm(''))}
           style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -1360,7 +1360,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
       </div>
 
-      {/* Summary bar — 3 KPI azionabili */}
+      {/* Summary bar - 3 KPI azionabili */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(3, 1fr)' : 'repeat(3, 1fr)',
@@ -1443,7 +1443,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         {!editAzienda ? (
           <>
             <span title={ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : ''} style={{ fontSize: 12.5, color: ibanIsValid(azienda.iban) ? T.text : T.textSoft, ...tnum, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : 'IBAN azienda non impostato — serve per generare i bonifici SEPA'}
+              {ibanIsValid(azienda.iban) ? `${azienda.nome ? azienda.nome + ' · ' : ''}${normalizeIban(azienda.iban)}` : 'IBAN azienda non impostato - serve per generare i bonifici SEPA'}
             </span>
             <button onClick={() => setEditAzienda(true)} aria-label={ibanIsValid(azienda.iban) ? 'Modifica conto pagamenti' : 'Imposta IBAN'} style={{ ...ghostBtn, padding: isMobile ? '10px 16px' : '7px 14px', flexShrink: 0 }}>
               {ibanIsValid(azienda.iban) ? 'Modifica' : 'Imposta IBAN'}
@@ -1499,14 +1499,14 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
       </div>
 
-      {/* Vista PER FORNITORE — chiamata come funzione (non <RollupView/>): così
+      {/* Vista PER FORNITORE - chiamata come funzione (non <RollupView/>): così
           NON viene rimontata a ogni render e gli input non perdono il focus. */}
       {vista === 'fornitore' && !loading && fatture.length > 0 && RollupView()}
 
       {/* Vista CASSA IN USCITA */}
       {vista === 'cassa' && !loading && fatture.length > 0 && CassaView()}
 
-      {/* Filtri rapidi — solo nella vista per scadenza */}
+      {/* Filtri rapidi - solo nella vista per scadenza */}
       {vista === 'scadenza' && (<>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <div role="tablist" aria-label="Filtra fatture" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

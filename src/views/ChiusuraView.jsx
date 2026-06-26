@@ -1,4 +1,4 @@
-// ChiusuraView — Chiusura cassa giornaliera. Estratta da Dashboard.jsx.
+// ChiusuraView - Chiusura cassa giornaliera. Estratta da Dashboard.jsx.
 // OCR scontrini (Claude Vision), batch multi-scontrino, import delivery/cassa,
 // confronto produzione vs venduto, scarico automatico stock PF.
 //
@@ -131,7 +131,7 @@ Estrai queste informazioni dallo scontrino:
    Per ogni riga prodotto estrai: nome esatto come scritto, quantita venduta (numero prima del nome), prezzo totale riga (numero a destra).
    Calcola prezzoUnitario = totale / quantita.
    Ignora righe di sconto (es "sconto 30%"), totali di categoria, intestazioni, e prodotti di altre categorie (GELATO, BIBITE, ecc).
-3. REGOLE OBBLIGATORIE — saranno verificate dal client:
+3. REGOLE OBBLIGATORIE - saranno verificate dal client:
    - Ogni prodotto DEVE avere qta > 0 (intero).
    - Ogni prodotto DEVE avere totale > 0 (euro, due decimali).
    - prezzoUnitario = totale / qta, calcolato fino a 2 decimali.
@@ -236,7 +236,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       const reads = await Promise.all(compressed.map(readFile64))
       setBatchFiles(reads)
       setPreview(reads[0].preview); setImg(reads[0].data64)
-      notify(`${reads.length} scontrini selezionati — premi "Leggi tutti" per elaborarli`)
+      notify(`${reads.length} scontrini selezionati - premi "Leggi tutti" per elaborarli`)
     }
   }
 
@@ -516,7 +516,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       formati: formatiRiconc.righe.map(r => ({ nome: r.nome, categoria: r.categoria, unitaV: r.unitaV, rv: r.rv, fcV: r.fcV, marg: r.marg })),
       kpi: { totV, totFC, totM, totS, totMP, avgST },
     }
-    // Calcola eraGiaChiusa da `chiusure` PRIMA della filter — evita race se
+    // Calcola eraGiaChiusa da `chiusure` PRIMA della filter - evita race se
     // setChiusure asincrono dopo navigazione+ritorno (audit 2026-06-17 MEDIUM).
     const eraGiaChiusa = (chiusure || []).some(c => c.data === dataFiltro)
     const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), rec]
@@ -565,7 +565,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       // i 1200ms → notify stale o doppio.
       if (driftTimerRef.current) clearTimeout(driftTimerRef.current)
       driftTimerRef.current = setTimeout(() => {
-        notify(`Drift critico ${peggiore.categoria}: ${segno}${peggiore.driftPct.toFixed(0)}% — ${tipo}${anomalieDrift.length > 1 ? ` (e altre ${anomalieDrift.length - 1} categorie)` : ''}`, false)
+        notify(`Drift critico ${peggiore.categoria}: ${segno}${peggiore.driftPct.toFixed(0)}% - ${tipo}${anomalieDrift.length > 1 ? ` (e altre ${anomalieDrift.length - 1} categorie)` : ''}`, false)
         driftTimerRef.current = null
       }, 1200)
     }
@@ -641,7 +641,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     setImportModal(null); setImportPreview(null)
   }
 
-  // Riepilogo prodotti venduti + salvataggio — condiviso tra modalità foto e manuale.
+  // Riepilogo prodotti venduti + salvataggio - condiviso tra modalità foto e manuale.
   const vendutoBox = () => {
     if (!venduto || loading) return null
     return (
@@ -665,7 +665,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           (confronto.length > 0 || formatiRiconc.righe.length > 0) ? (
             <button onClick={handleSalva} disabled={salvando} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="save" size={14} />{salvando ? 'Salvataggio…' : 'Salva chiusura nello storico'}</button>
           ) : (
-            <div style={{ fontSize: 10, color: C.amber }}>Nessun prodotto del ricettario o formato di vendita trovato — verifica i nomi</div>
+            <div style={{ fontSize: 10, color: C.amber }}>Nessun prodotto del ricettario o formato di vendita trovato - verifica i nomi</div>
           )
         ) : (
           <div style={{ padding: '9px 14px', background: C.greenLight, borderRadius: 8, fontSize: 11, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={13} />Chiusura salvata nello storico</div>
@@ -677,7 +677,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   return (
     <div style={{ maxWidth: 1200 }}>
       <PageHeader
-        subtitle="Chiudi la giornata — foto scontrino, import delivery o manuale"
+        subtitle="Chiudi la giornata - foto scontrino, import delivery o manuale"
         action={
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => { setImportModal('delivery'); setImportPreview(null) }}
@@ -739,7 +739,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                       <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, marginBottom: 4 }}>{label}</div>
                       <select value={importGenericMapping[key] || ''} onChange={e => setImportGenericMapping(m => ({ ...m, [key]: e.target.value }))}
                         style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 11, minHeight: 40 }}>
-                        <option value="">—</option>
+                        <option value="">-</option>
                         {(importPreview.headers || []).map(h => <option key={h} value={h}>{h}</option>)}
                       </select>
                     </div>
@@ -828,7 +828,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           {sessione ? (
             <div style={{ background: C.greenLight, border: `1px solid ${C.green}25`, borderRadius: 8, padding: '8px 14px' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={12} />Produzione trovata per questa data</div>
-              <div style={{ fontSize: 11, color: C.textMid, marginTop: 2, wordBreak: 'break-word' }}>{(sessione.prodotti || []).map(p => `${(Number(p.stampi)||0).toLocaleString('it-IT')}× ${p.nome}`).join(' · ') || '—'}</div>
+              <div style={{ fontSize: 11, color: C.textMid, marginTop: 2, wordBreak: 'break-word' }}>{(sessione.prodotti || []).map(p => `${(Number(p.stampi)||0).toLocaleString('it-IT')}× ${p.nome}`).join(' · ') || '-'}</div>
             </div>
           ) : (
             <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}25`, borderRadius: 8, padding: '8px 14px' }}>
@@ -848,7 +848,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         <SectHead icon={<Icon name="receipt" size={16} />} title="Registra l'incassato"
           sub="Fotografa lo scontrino di chiusura oppure inserisci i prodotti a mano" />
         <div style={{ padding: '18px 20px' }}>
-        {/* Toggle: foto scontrino (OCR) vs inserimento manuale — segmented control premium */}
+        {/* Toggle: foto scontrino (OCR) vs inserimento manuale - segmented control premium */}
         <div style={{ display: 'flex', gap: 4, padding: 4, background: C.bgSubtle, borderRadius: 10, marginBottom: 16 }}>
           {[['foto', 'camera', 'Foto scontrino'], ['manuale', 'edit', 'Inserimento manuale']].map(([id, ic, lbl]) => (
             <button key={id} onClick={() => { setInputMode(id); setError(null) /* non azzerare venduto/salvato: i dati sotto restano visibili */ }}
@@ -868,7 +868,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '22px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 10, cursor: 'pointer' }}>
                 <Icon name="receipt" size={28} color={C.textMid} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>Tocca per fotografare lo scontrino</span>
-                <span style={{ fontSize: 10, color: C.textSoft }}>Seleziona più scontrini insieme — ogni data viene letta automaticamente</span>
+                <span style={{ fontSize: 10, color: C.textSoft }}>Seleziona più scontrini insieme - ogni data viene letta automaticamente</span>
                 <input ref={inputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile}/>
               </label>
             ) : (
@@ -957,7 +957,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               </div>
             )
           })()}
-          {/* DIAGNOSI — la giornata in sintesi. Per il titolare i 5 KPI sensibili,
+          {/* DIAGNOSI - la giornata in sintesi. Per il titolare i 5 KPI sensibili,
               per il dipendente solo Ricavo + Sell-through (KPI sensibili nascosti via !isDipendente). */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>La giornata in sintesi</div>
@@ -1024,10 +1024,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                         {r.nome}
                         {!r.inProd && <span style={{ marginLeft: 5, fontSize: 8, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>solo venduto</span>}
                       </td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textMid }}>{r.inProd ? r.unitaP : '—'}</td>
+                      <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textMid }}>{r.inProd ? r.unitaP : '-'}</td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.text }}>{r.unitaV}</td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: r.unitaR > 0 ? 700 : 400, color: r.unitaR > 0 ? C.amber : C.green }}>
-                        {r.inProd ? (r.unitaR > 0 ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>{r.unitaR} <Icon name="warning" size={11} /></span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>0 <Icon name="checkCircle" size={11} /></span>) : '—'}
+                        {r.inProd ? (r.unitaR > 0 ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>{r.unitaR} <Icon name="warning" size={11} /></span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>0 <Icon name="checkCircle" size={11} /></span>) : '-'}
                       </td>
                       <td style={{ padding: '9px 12px', textAlign: 'right' }}>
                         {r.st !== null ? (
@@ -1035,12 +1035,12 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                             <div style={{ width: 34, height: 5, background: '#EEE', borderRadius: 3 }}><div style={{ width: `${Math.min(100, r.st)}%`, height: 5, background: stC(r.st), borderRadius: 3 }}/></div>
                             <span style={{ fontWeight: 700, color: stC(r.st), minWidth: 28, textAlign: 'right' }}>{r.st.toFixed(0)}%</span>
                           </div>
-                        ) : '—'}
+                        ) : '-'}
                       </td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.rv)}</td>
                       {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: C.red }}>{fmt(r.fcV)}</td>}
                       {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 800, color: margColor(r.rv > 0 ? (r.marg / r.rv * 100) : 0), fontVariantNumeric: 'tabular-nums' }}>{fmt(r.marg)}</td>}
-                      {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: r.spreco > 2 ? C.red : C.textSoft, fontWeight: r.spreco > 2 ? 700 : 400 }}>{r.spreco > 0.01 ? fmt(r.spreco) : '—'}</td>}
+                      {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: r.spreco > 2 ? C.red : C.textSoft, fontWeight: r.spreco > 2 ? 700 : 400 }}>{r.spreco > 0.01 ? fmt(r.spreco) : '-'}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -1077,7 +1077,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                           {r.nome}
                           {!r.fcStimato && <span style={{ marginLeft: 5, fontSize: 8, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>no gusti in categoria</span>}
                         </td>
-                        <td style={{ padding: '9px 12px', color: C.textMid }}>{r.categoria || '—'}</td>
+                        <td style={{ padding: '9px 12px', color: C.textMid }}>{r.categoria || '-'}</td>
                         <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.text }}>{r.unitaV}</td>
                         <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.rv)}</td>
                         {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', color: C.red }}>{fmt(r.fcV)}</td>}
@@ -1107,7 +1107,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                           {c.gSpreco > 0 && <> · sprechi {fmtKg(c.gSpreco)}</>}
                         </span>
                         <span style={{ fontWeight: 800, color: driftColor(c.driftPct), whiteSpace: 'nowrap' }}>
-                          {c.driftPct == null ? '—' : (
+                          {c.driftPct == null ? '-' : (
                             <>
                               drift {c.drift >= 0 ? '+' : ''}{fmtKg(c.drift)} ({c.driftPct >= 0 ? '+' : ''}{c.driftPct.toFixed(0)}%)
                             </>

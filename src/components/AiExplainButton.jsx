@@ -4,7 +4,7 @@ import { color as T } from '../lib/theme'
 import { callAi } from '../lib/aiClient'
 import Icon from './Icon'
 
-// AiExplainButton — bottone "Spiegami" accanto a un KPI o numero importante.
+// AiExplainButton - bottone "Spiegami" accanto a un KPI o numero importante.
 // Quando clicchi, l'AI riceve un payload strutturato (kpi + dati a contorno)
 // e scrive 2-3 paragrafi narrativi in italiano che spiegano il numero.
 //
@@ -43,7 +43,7 @@ export default function AiExplainButton({ label, value, context, compact }) {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
-      if (!token) throw new Error('Sessione scaduta — rifai login')
+      if (!token) throw new Error('Sessione scaduta - rifai login')
 
       const system = `Sei un consulente food cost per pasticcerie/gelaterie italiane.
 Spiega in 2-3 paragrafi brevi (max 120 parole TOTALI) cosa significa il KPI

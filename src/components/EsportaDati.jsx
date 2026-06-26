@@ -214,7 +214,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target.result)
-        if (!data.metadata?.versione) throw new Error('File non valido — non sembra un backup Foodos')
+        if (!data.metadata?.versione) throw new Error('File non valido - non sembra un backup Foodos')
         setImportFile(data)
         setImportPreview(data.metadata)
         setImportConfirm(false)
@@ -264,7 +264,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
         }
       }
 
-      notify('Ripristino completato — ricarica la pagina per vedere i dati aggiornati')
+      notify('Ripristino completato - ricarica la pagina per vedere i dati aggiornati')
       setImportFile(null)
       setImportPreview(null)
       setImportConfirm(false)
@@ -364,7 +364,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
 
             {!importConfirm ? (
               <div style={{ marginTop: 12, padding: '10px 14px', background: '#FEF0EE', borderRadius: 8, border: '1px solid #FCA5A5', fontSize: 12, color: '#7F1D1D' }}>
-                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="warning" size={14} /> Attenzione</strong> — Questo sovrascriverà i dati attuali. Continuare?
+                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="warning" size={14} /> Attenzione</strong> - Questo sovrascriverà i dati attuali. Continuare?
                 <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                   <button onClick={() => setImportConfirm(true)} style={{ padding: '7px 16px', minHeight: touchH, background: R, color: '#FFF', border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', flex: isMobile ? '1 1 auto' : '0 0 auto' }}>
                     Sì, ripristina

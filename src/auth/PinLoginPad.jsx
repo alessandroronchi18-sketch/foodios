@@ -1,4 +1,4 @@
-// PinLoginPad — schermata di login alternativo via PIN per dipendenti.
+// PinLoginPad - schermata di login alternativo via PIN per dipendenti.
 // Pensato per tablet condiviso in laboratorio (Modalità Dipendente PWA).
 //
 // Flusso:
@@ -269,7 +269,7 @@ export default function PinLoginPad({ onBack, onSuccess }) {
               </button>
             </div>
 
-            {/* Torna al login normale — bottone più evidente (audit 2026-06-25:
+            {/* Torna al login normale - bottone più evidente (audit 2026-06-25:
                 utente diceva "non posso tornare indietro" → underline su nero era poco visibile). */}
             <button onClick={onBack}
               style={{

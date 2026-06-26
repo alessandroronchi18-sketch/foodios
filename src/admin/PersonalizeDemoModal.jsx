@@ -222,7 +222,7 @@ function Step1Input({ tab, setTab, images, setImages, text, setText, nomeAttivit
       {/* Disclaimer privacy */}
       <div style={{ fontSize: 10, color: P.textMute, marginBottom: 14, lineHeight: 1.5 }}>
         🔒 Le foto/testo vengono processati da Anthropic Claude per estrarre i prodotti. Anthropic non li conserva oltre 30gg
-        e non li usa per training. Niente dati sensibili (PII) — solo nomi e prezzi pubblici del listino.
+        e non li usa per training. Niente dati sensibili (PII) - solo nomi e prezzi pubblici del listino.
       </div>
 
       {error && (
@@ -433,7 +433,7 @@ function KPI({ label, value }) {
   return (
     <div style={{ padding: 10, background: P.rowAlt, borderRadius: 8 }}>
       <div style={{ fontSize: 9, color: P.textMute, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 900, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{value ?? '—'}</div>
+      <div style={{ fontSize: 18, fontWeight: 900, color: P.text, fontVariantNumeric: 'tabular-nums' }}>{value ?? '-'}</div>
     </div>
   )
 }
@@ -510,7 +510,7 @@ export default function PersonalizeDemoModal({ cliente, apiCall, toast, onClose,
       const data = await res.json().catch(() => ({}))
       setLastSavedAt(data?.saved_at || new Date().toISOString())
       setCached(true)
-      toast?.success('Menu salvato — puoi riaprire il modal e ritrovarlo')
+      toast?.success('Menu salvato - puoi riaprire il modal e ritrovarlo')
     } catch (e) {
       toast?.error('Salvataggio fallito: ' + e.message)
     } finally {

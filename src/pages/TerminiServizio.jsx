@@ -45,8 +45,8 @@ export default function TerminiServizio() {
 
       <LegalH2>5. Piani e prezzi</LegalH2>
       <LegalUl items={[
-        <><strong>Pro</strong> — €89/mese (IVA esclusa). Una sede fisica, utenti illimitati per la sede, tutte le funzionalita' core.</>,
-        <><strong>Chain</strong> — €149/mese (IVA esclusa). Sedi illimitate, gestione multi-sede, trasferimenti, consolidamento dati.</>,
+        <><strong>Pro</strong> - €89/mese (IVA esclusa). Una sede fisica, utenti illimitati per la sede, tutte le funzionalita' core.</>,
+        <><strong>Chain</strong> - €149/mese (IVA esclusa). Sedi illimitate, gestione multi-sede, trasferimenti, consolidamento dati.</>,
       ]} />
       <LegalP>
         I prezzi indicati sono per pagamento mensile in modalita' subscription. La fatturazione
@@ -71,7 +71,7 @@ export default function TerminiServizio() {
         Tuttavia il Cliente puo' disdire l'abbonamento in qualsiasi momento dalle Impostazioni;
         la disdetta diventa effettiva al termine del periodo già pagato (no proration di rimborso).
         Per casi particolari (es. malfunzionamento prolungato del Servizio), il Fornitore valuta
-        rimborsi caso per caso — vedi <LegalLink href="/rimborsi">policy rimborsi</LegalLink>.
+        rimborsi caso per caso - vedi <LegalLink href="/rimborsi">policy rimborsi</LegalLink>.
       </LegalP>
 
       <LegalH2>8. Livello di servizio (SLA)</LegalH2>

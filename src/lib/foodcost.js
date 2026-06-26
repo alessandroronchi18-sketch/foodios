@@ -1,14 +1,14 @@
-// foodcost — calcolo food cost ricette + database prezzi HORECA + normalizzazione ingredienti.
+// foodcost - calcolo food cost ricette + database prezzi HORECA + normalizzazione ingredienti.
 //
 // Estratto da Dashboard.jsx durante il refactor monolite→views. Tutti i sub-componenti
 // (RicettarioView, PLView, SimulatorePrezziView, MagazzinoView, ProduzioneGiornaliera,
 // ChiusuraView, AzioniView, DashboardHomeView, ...) usano questi helper.
 //
 // Esporta:
-//   - PREZZI_HORECA           — dizionario prezzi ingrosso standard (€/kg)
-//   - SING_PLUR               — mappa plurale→singolare per normalizzazione
-//   - normIng(nome)           — normalizza nome ingrediente (lowercase + sing/plur)
-//   - EN_IT_INGREDIENTI / EN_IT_PRODOTTI  — mappe traduzione OCR/menù
+//   - PREZZI_HORECA           - dizionario prezzi ingrosso standard (€/kg)
+//   - SING_PLUR               - mappa plurale→singolare per normalizzazione
+//   - normIng(nome)           - normalizza nome ingrediente (lowercase + sing/plur)
+//   - EN_IT_INGREDIENTI / EN_IT_PRODOTTI  - mappe traduzione OCR/menù
 //   - translateIngredienteEN / translateProdottoEN
 //   - NOMI_SKIP, isRicettaValida
 //   - REGOLE, getR(nome, ricetta)
@@ -19,7 +19,7 @@
 import { costoNettoPerG, hasResaIngrediente } from './rese'
 
 // ─── PREZZI HORECA ────────────────────────────────────────────────────────────
-// Prezzi ingrosso aggiornati 2025 — usati come stima quando l'utente non ha
+// Prezzi ingrosso aggiornati 2025 - usati come stima quando l'utente non ha
 // caricato un proprio file prezzi. Marker `isStima:true` per UI badge.
 export const PREZZI_HORECA = {
   // ── FARINE & AMIDI ──────────────────────────────────────────────────────────
@@ -714,7 +714,7 @@ export function buildIngCosti(fromFile) {
     // Accettiamo 0 come valore valido (ingrediente gratis: omaggio fornitore,
     // materia prima da orto, scarto recuperato). Solo NaN/undefined fanno cadere
     // sulla stima HORECA. Cfr. getPrezzoStoricoKg che usa la stessa logica sul
-    // ramo "storico" — senza questo i due rami davano food cost diversi.
+    // ramo "storico" - senza questo i due rami davano food cost diversi.
     if (Number.isFinite(v.costoG) && v.costoG >= 0) {
       out[normIng(k)] = { costoKg: v.costoKg, costoG: v.costoG, isStima: false }
     }
@@ -837,7 +837,7 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
     const prezzoKgStorico = getPrezzoStoricoKg(logPrezzi, ing.nome, when)
     let costoG = null
     // >= 0: un prezzo storico di 0 è un costo reale (ingrediente gratis), non un
-    // "dato mancante" — solo null/undefined fa cadere sul prezzo corrente.
+    // "dato mancante" - solo null/undefined fa cadere sul prezzo corrente.
     if (prezzoKgStorico != null && prezzoKgStorico >= 0) {
       costoG = prezzoKgStorico / 1000
     } else {
@@ -853,13 +853,13 @@ export function calcolaFCStorico(ricetta, ingCosti, ricettario, logPrezzi, when,
 
 // Calcola food cost totale di una ricetta. Ricorsivo per gestire semilavorati
 // (max 3 livelli di annidamento). Se il limite viene raggiunto, il semilavorato
-// e' trattato come ingrediente "mancante" — segnalato in `mancanti` per UI
+// e' trattato come ingrediente "mancante" - segnalato in `mancanti` per UI
 // invece di tornare silenziosamente costo 0.
 // Param _path: lista nomi nel cammino di ricorsione, per ciclo-detect e logging.
 export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) {
   // Audit 2026-06-17 HIGH: la versione precedente arrotondava `tot` a 3 decimali
   // SU OGNI livello di ricorsione, propagando errori sui semilavorati nidificati.
-  // Ora il rounding avviene SOLO al top-level (depth === 0) — i sotto-totali
+  // Ora il rounding avviene SOLO al top-level (depth === 0) - i sotto-totali
   // restano a piena precisione.
   const depth = _depth || 0
   const path = _path || []
@@ -881,7 +881,7 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
       })
       if (semiKey) {
         // Ciclo diretto/indiretto? Se il semilavorato e' già nel cammino di
-        // ricorsione, NON discendere — lo segnaliamo come mancante con un
+        // ricorsione, NON discendere - lo segnaliamo come mancante con un
         // marker speciale che l'UI puo' riconoscere.
         if (path.includes(semiKey)) {
           mancanti.push(`${ing.nome} (ciclo semilavorato rilevato)`)
@@ -945,7 +945,7 @@ export function calcolaFCDettaglio(ricetta, ingCosti, ricettario) {
         const semiRic = ricettario.ricette[semiKey]
         const semiHasResa = hasResaIngrediente(nomeNorm)
         // depth=0 per la sub-chiamata: calcolaFCDettaglio è già il "primo livello",
-        // ma la sub-chiamata calcola il sub-tree del semilavorato — può comunque
+        // ma la sub-chiamata calcola il sub-tree del semilavorato - può comunque
         // scendere fino a depth=3 (audit 2026-06-17 HIGH: prima passava 1, riducendo
         // l'annidamento effettivo di un livello rispetto a calcolaFC standalone).
         const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, 0, [semiKey], semiHasResa)

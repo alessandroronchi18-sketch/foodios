@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import Icon from './Icon'
 
-// AI Suggestions Bell — campanella in topbar che mostra i suggerimenti
+// AI Suggestions Bell - campanella in topbar che mostra i suggerimenti
 // proattivi generati dal cron giornaliero. Click su un suggerimento -> apre
 // la view CTA. Click "Fatto" / "Non interessa" -> cambia stato.
 

@@ -14,7 +14,7 @@ export default function ChiSiamo() {
       <LegalH2>Cosa fa Foodos</LegalH2>
       <LegalP>
         Un unico posto per <strong>ricettario, food cost, produzione, magazzino, cassa, fornitori,
-        HACCP e fatturazione</strong> — pensato per chi produce dolci o gelato e vende al banco.
+        HACCP e fatturazione</strong> - pensato per chi produce dolci o gelato e vende al banco.
         Niente formule complicate, niente integrazioni infinite. Calcola da solo il costo di ogni
         ricetta, ti dice cosa hai venduto e cosa no, scala il magazzino quando produci.
       </LegalP>

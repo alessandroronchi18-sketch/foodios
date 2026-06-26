@@ -1,4 +1,4 @@
-// HomeDipendente — landing dedicata al ruolo dipendente.
+// HomeDipendente - landing dedicata al ruolo dipendente.
 // Sostituisce la home generica con 6 pulsantoni XL ottimizzati per
 // laboratorio (mani sporche, tablet, mobilità). Mobile-first.
 //
@@ -150,7 +150,7 @@ export default function HomeDipendente({
         </div>
       </div>
 
-      {/* Griglia 6 azioni — 2 colonne su mobile, 3 su tablet+ */}
+      {/* Griglia 6 azioni - 2 colonne su mobile, 3 su tablet+ */}
       <div className="fos-dip-grid" style={{
         maxWidth: 880,
         margin: '0 auto',
@@ -180,7 +180,7 @@ export default function HomeDipendente({
               animationDelay: `${i * 30}ms`,
               overflow: 'hidden',
             }}
-            aria-label={a.label.replace('\n', ' ') + ' — ' + a.hint}
+            aria-label={a.label.replace('\n', ' ') + ' - ' + a.hint}
           >
             {/* Dot decorativo in alto a destra */}
             <div style={{

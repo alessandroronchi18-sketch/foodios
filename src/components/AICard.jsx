@@ -135,7 +135,7 @@ export default function AICard({
         )}
       </div>
 
-      {/* Body — varia per state */}
+      {/* Body - varia per state */}
       {state === 'loading' && <Skeleton />}
 
       {state === 'error' && (
@@ -172,7 +172,7 @@ export default function AICard({
               background: C.brand, color: '#FFF', fontSize: 14, fontWeight: 700, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 40,
               // Audit 2026-06-24: wrap label se il bottone CTA è in card stretta
-              // su mobile — meglio andare a capo che troncare.
+              // su mobile - meglio andare a capo che troncare.
               maxWidth: '100%', whiteSpace: 'normal', lineHeight: 1.25, textAlign: 'left',
             }}>
               <Icon name="sparkles" size={14} /> {ctaLabel}

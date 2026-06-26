@@ -121,7 +121,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
       }
       setRicette(parsed.ricette)
 
-      // Salva su recipe_inventions (storia delle invenzioni — utile per riprovare).
+      // Salva su recipe_inventions (storia delle invenzioni - utile per riprovare).
       try {
         await supabase.from('recipe_inventions').insert({
           organization_id: orgId,
@@ -238,7 +238,7 @@ Inventa 3 ricette diverse fra loro (es. una classica, una innovativa, una stagio
                   </div>
                   <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: MID, lineHeight: 1.6 }}>
                     {r.ingredienti.map((ing, j) => (
-                      <li key={j}><strong>{ing.qta_g}g</strong> {ing.nome}{ing.note ? <em style={{ color: SOFT }}> — {ing.note}</em> : ''}</li>
+                      <li key={j}><strong>{ing.qta_g}g</strong> {ing.nome}{ing.note ? <em style={{ color: SOFT }}> - {ing.note}</em> : ''}</li>
                     ))}
                   </ul>
                 </div>

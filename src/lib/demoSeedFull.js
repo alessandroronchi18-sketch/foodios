@@ -33,7 +33,7 @@ const SK_MOV      = 'pasticceria-movimenti-speciali-v1'
 // ─── Utility ──────────────────────────────────────────────────────────────
 const DEMO_TAG = '[Demo data]'
 
-// Chiavi shared (no sede_id) — pattern preso da src/lib/storage.js
+// Chiavi shared (no sede_id) - pattern preso da src/lib/storage.js
 const SHARED_KEYS_SET = new Set([
   'pasticceria-ricettario-v1',
   'pasticceria-actions-v1',

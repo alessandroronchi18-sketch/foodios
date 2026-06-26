@@ -1,18 +1,18 @@
 /**
- * Foodos Logo — bordeaux invariante, F armoniosa.
+ * Foodos Logo - bordeaux invariante, F armoniosa.
  *
  * Il colore è hardcoded (#6E0E1A) e non può essere cambiato: deve essere
  * identico ovunque nell'app. Il prop `color` è ignorato volutamente.
  *
  * props:
- *   size     — px (default 32)
- *   variant  — 'icon' | 'horizontal' | 'wordmark' (default 'icon')
- *   tone     — 'light' | 'dark' (default 'light')
+ *   size     - px (default 32)
+ *   variant  - 'icon' | 'horizontal' | 'wordmark' (default 'icon')
+ *   tone     - 'light' | 'dark' (default 'light')
  *                light = wordmark dark (su sfondo chiaro)
  *                dark  = wordmark light (su sfondo scuro)
- *   style    — applicato al wrapper (boxShadow, borderRadius, margin…)
+ *   style    - applicato al wrapper (boxShadow, borderRadius, margin…)
  */
-const LOGO_COLOR = '#6E0E1A' // bordeaux — invariante
+const LOGO_COLOR = '#6E0E1A' // bordeaux - invariante
 
 export default function Logo({
   size = 32,
@@ -35,7 +35,7 @@ export default function Logo({
     >
       {/* Quadrato bordeaux pieno + "F" BIANCA piena (non ritaglio): così il
           logo è identico su qualsiasi sfondo (prima la F era trasparente e
-          assumeva il colore dietro — cremina sul login, nera in sidebar). */}
+          assumeva il colore dietro - cremina sul login, nera in sidebar). */}
       <path
         fill={LOGO_COLOR}
         d="M 14 0 L 50 0 C 58 0 64 6 64 14 L 64 50 C 64 58 58 64 50 64 L 14 64 C 6 64 0 58 0 50 L 0 14 C 0 6 6 0 14 0 Z"

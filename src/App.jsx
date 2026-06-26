@@ -65,7 +65,7 @@ export default function App() {
   // di useAuth(): navigando da/verso quelle pagine il numero di hook cambiava
   // tra un render e l'altro → "Rendered fewer hooks than expected" (crash).
   const [path, setPath] = useState(window.location.pathname)
-  // Splash solo al primissimo caricamento — non a ogni eventuale loading transitorio
+  // Splash solo al primissimo caricamento - non a ogni eventuale loading transitorio
   const [primoCaricamento, setPrimoCaricamento] = useState(true)
   const auth = useAuth()
   const [onboardingVisto, setOnboardingVisto] = useState(null)
@@ -78,7 +78,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
-  // Intercetta /r/CODICE — salva codice referral in localStorage e pulisce l'URL.
+  // Intercetta /r/CODICE - salva codice referral in localStorage e pulisce l'URL.
   // In un effect (non durante il render) per non chiamare setState in fase di render.
   useEffect(() => {
     const m = path.match(/^\/r\/([A-Za-z0-9]+)$/)
@@ -154,7 +154,7 @@ export default function App() {
   // fallback. Tutti i lazy load passano da qui per UX coerente.
   const sus = (el) => <React.Suspense fallback={<SplashScreen/>}>{el}</React.Suspense>
 
-  // Static pages — no auth needed (tutte lazy)
+  // Static pages - no auth needed (tutte lazy)
   if (path === '/privacy') return sus(<PrivacyPolicy />)
   if (path === '/termini') return sus(<TerminiServizio />)
   if (path === '/cookie') return sus(<CookiePolicy />)
@@ -163,7 +163,7 @@ export default function App() {
   if (path === '/chi-siamo') return sus(<ChiSiamo />)
   if (path === '/tv') return sus(<TvDashboard />)
 
-  // Reset password — intercetta PRIMA del check auth.loading/auth.user
+  // Reset password - intercetta PRIMA del check auth.loading/auth.user
   if (showResetPassword) {
     return <ResetPasswordPage onDone={() => setShowResetPassword(false)} />
   }
@@ -204,13 +204,13 @@ export default function App() {
     )
   }
 
-  // Admin — gate per URL (/admin) + email match (auth.isAdmin = match con
+  // Admin - gate per URL (/admin) + email match (auth.isAdmin = match con
   // VITE_ADMIN_EMAIL env, normalizzato lower+trim in useAuth.js).
   //   - su /admin → AdminPage se admin
   //   - altrove   → dashboard attività normale come qualsiasi titolare
   // NB: rimosso il fallback hardcoded email (audit 2026-06-14 PM: era info
   // disclosure nel bundle pubblico, e duplicava il check env). Se VITE_ADMIN_EMAIL
-  // non è settato in Vercel, niente admin accessibile — fail-closed.
+  // non è settato in Vercel, niente admin accessibile - fail-closed.
   if (path === '/admin') {
     if (auth.isAdmin) return sus(<AdminPage />)
     // Non admin che tenta /admin: silenzioso, fall-through verso Dashboard
@@ -218,7 +218,7 @@ export default function App() {
     window.history.replaceState(null, '', '/')
   }
 
-  // Profilo non caricabile (es. RLS recursion) — mostra errore invece di Dashboard rotto
+  // Profilo non caricabile (es. RLS recursion) - mostra errore invece di Dashboard rotto
   if (auth.profileError) {
     return (
       <div style={{ minHeight:'100vh', background:'#F8FAFC', display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
@@ -270,7 +270,7 @@ export default function App() {
             Questo account è stato cancellato
           </div>
           <div style={{ fontSize:14, color:'#6B4C44', lineHeight:1.6, marginBottom:22 }}>
-            Hai cancellato l'account il {auth.org?.deleted_at ? new Date(auth.org.deleted_at).toLocaleDateString('it-IT') : '—'}. I dati sono conservati per <b>90 giorni</b>.
+            Hai cancellato l'account il {auth.org?.deleted_at ? new Date(auth.org.deleted_at).toLocaleDateString('it-IT') : '-'}. I dati sono conservati per <b>90 giorni</b>.
             <br/><br/>
             Hai cambiato idea? Scrivici a <a href="mailto:supporto@foodios.it?subject=Recupero%20account" style={{ color:'#6E0E1A', fontWeight:700 }}>supporto@foodios.it</a> e ripristiniamo tutto.
           </div>
@@ -311,7 +311,7 @@ export default function App() {
   // Trial scaduto
   if (auth.isTrialScaduto) return <TrialScadutoPage org={auth.org} onSignOut={auth.signOut} />
 
-  // Onboarding al primo accesso — SOLO per il titolare. Il dipendente entra
+  // Onboarding al primo accesso - SOLO per il titolare. Il dipendente entra
   // direttamente nelle viste operative (l'azienda è già configurata dal titolare).
   if (auth.orgId && onboardingVisto === false && !auth.isDipendente) {
     return sus(
@@ -325,7 +325,7 @@ export default function App() {
     )
   }
 
-  // Dashboard — wrap con banner globale (annunci admin) e bottone feedback.
+  // Dashboard - wrap con banner globale (annunci admin) e bottone feedback.
   return (
     <>
       <AppBanner />

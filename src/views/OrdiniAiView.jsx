@@ -136,7 +136,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(testo)
-        notifyFn('Testo ordine copiato negli appunti — incollalo in mail/WhatsApp al fornitore', true)
+        notifyFn('Testo ordine copiato negli appunti - incollalo in mail/WhatsApp al fornitore', true)
         return
       }
     } catch {
@@ -157,7 +157,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
       ta.setSelectionRange(0, testo.length)
       const ok = document.execCommand('copy')
       document.body.removeChild(ta)
-      if (ok) notifyFn('Testo ordine copiato — incollalo in mail/WhatsApp al fornitore', true)
+      if (ok) notifyFn('Testo ordine copiato - incollalo in mail/WhatsApp al fornitore', true)
       else notifyFn('Copia non riuscita. Seleziona manualmente il testo qui sotto.', false)
     } catch {
       notifyFn('Copia non supportata su questo browser. Seleziona manualmente il testo.', false)
@@ -221,7 +221,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
                       <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.soglia).toLocaleString('it-IT')}g</td>
                       <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: SOFT, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{Math.round(s.cons).toLocaleString('it-IT')}g</td>
                       <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 12, color: s.giorniRimasti != null && s.giorniRimasti <= 3 ? BRAND : MID, fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                        {s.giorniRimasti != null ? Number(s.giorniRimasti).toLocaleString('it-IT') : '—'}
+                        {s.giorniRimasti != null ? Number(s.giorniRimasti).toLocaleString('it-IT') : '-'}
                       </td>
                       <td style={{ padding: '11px 14px', textAlign: 'right', fontSize: 13, color: TXT, fontWeight: 800, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                         {s.qtaSuggerita >= 1000 ? `${(s.qtaSuggerita / 1000).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg` : `${Number(s.qtaSuggerita).toLocaleString('it-IT')} g`}

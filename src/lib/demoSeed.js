@@ -17,7 +17,7 @@ const SK_CHIUS = 'pasticceria-chiusure-v1'
 function buildRicettario() {
   return {
     ingredienti_costi: {
-      // nomi normalizzati (lowercase, no accenti) — formato `buildIngCosti`
+      // nomi normalizzati (lowercase, no accenti) - formato `buildIngCosti`
       farina: { costoG: 0.0011, isStima: false },
       zucchero: { costoG: 0.0014, isStima: false },
       burro: { costoG: 0.0072, isStima: false },
@@ -192,7 +192,7 @@ async function seedFatturaDemo(orgId, sedeId) {
       importo_lordo: 487.20,
       importo_netto: 399.34,
       stato: 'aperta',
-      note: '[Demo data] Fattura di esempio — eliminabile dallo Scadenzario',
+      note: '[Demo data] Fattura di esempio - eliminabile dallo Scadenzario',
     })
   } catch { /* tabella opzionale o fattura gia presente */ }
 }

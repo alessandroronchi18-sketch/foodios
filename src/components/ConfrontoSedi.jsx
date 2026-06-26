@@ -25,19 +25,19 @@ const BORDER = T.border
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 function fmt(n) {
-  if (n == null) return '—'
+  if (n == null) return '-'
   return '€ ' + Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 function fmt0(n) {
-  if (n == null) return '—'
+  if (n == null) return '-'
   return '€ ' + Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 })
 }
 function fmtInt(n) {
-  if (n == null) return '—'
+  if (n == null) return '-'
   return Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 })
 }
 function fmtPct(n) {
-  if (n == null) return '—'
+  if (n == null) return '-'
   return Number(n).toFixed(1) + '%'
 }
 function fmtDelta(prev, curr, fmtter) {
@@ -283,7 +283,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       if (k.foodCostPct != null && k.foodCostPct > 38) {
         out.push({ sede: s, lvl: 'red', icon: 'receipt', msg: `Food cost ${k.foodCostPct.toFixed(1)}% sopra soglia (38%)` })
       } else if (k.foodCostPct != null && k.foodCostPct > 33) {
-        out.push({ sede: s, lvl: 'amber', icon: 'receipt', msg: `Food cost ${k.foodCostPct.toFixed(1)}% — monitorare` })
+        out.push({ sede: s, lvl: 'amber', icon: 'receipt', msg: `Food cost ${k.foodCostPct.toFixed(1)}% - monitorare` })
       }
       if (k.fattureScadute > 0) {
         out.push({ sede: s, lvl: 'red', icon: 'fileText', msg: `${k.fattureScadute} fattur${k.fattureScadute === 1 ? 'a scaduta' : 'e scadute'} da pagare` })
@@ -447,7 +447,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
     { key: 'foodCostPct',     icon: 'receipt',  label: 'Food cost medio',          fmt: fmtPct,  bw: bwFC },
     { key: 'margineNettoCur', icon: 'trendUp',  label: `Margine netto ${periodoLabel}`, fmt: fmt0, bw: bwMargine },
     { key: 'prodOggi',        icon: 'factory',  label: 'Prodotti oggi',            fmt: v => v ?? 0, bw: bwProd },
-    { key: 'stockPF',         icon: 'package',  label: 'Stock vetrina',            fmt: v => v != null ? `${fmtInt(v)} pz` : '—', bw: bwStock },
+    { key: 'stockPF',         icon: 'package',  label: 'Stock vetrina',            fmt: v => v != null ? `${fmtInt(v)} pz` : '-', bw: bwStock },
     { key: 'trasfInArrivo',   icon: 'truck',    label: 'Trasf. in arrivo',         fmt: v => v ?? 0, bw: bwArrivo },
     { key: 'fattureDaPagare', icon: 'fileText', label: 'Fatture da pagare',        fmt: v => v ?? 0, bw: bwFatture },
   ]
@@ -491,7 +491,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                 kpi: consolidato ? [
                   { label: 'Ricavi gruppo', value: `${fmt0(consolidato.ricCur)} €`, sub: consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '' },
                   { label: 'Margine netto', value: `${fmt0(consolidato.margNetto)} €`, sub: consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '' },
-                  { label: 'Food cost medio', value: consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '—', sub: 'target < 33%' },
+                  { label: 'Food cost medio', value: consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '-', sub: 'target < 33%' },
                   { label: 'Costi azienda', value: `${fmt0(consolidato.costiPeriodo || 0)} €` },
                 ] : [],
                 sections: [
@@ -505,7 +505,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                         return [
                           s.nome,
                           fmt0(k.ricaviCur),
-                          k.foodCostPct != null ? k.foodCostPct.toFixed(1) + '%' : '—',
+                          k.foodCostPct != null ? k.foodCostPct.toFixed(1) + '%' : '-',
                           fmt0(k.margineNettoCur),
                           String(k.trasfInArrivo || 0),
                           String(k.fattureScadute || 0),
@@ -560,7 +560,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                     <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Ricavi {periodoLabel}</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>{fmt0(consolidato.ricCur)}</div>
                     <div style={{ fontSize: 11, marginTop: 4, color: consolidato.deltaRicPct != null ? (consolidato.deltaRicPct >= 0 ? '#86EFAC' : '#FF6B6B') : 'rgba(255,255,255,0.45)', fontWeight: 700, minHeight: 16, ...tnum }}>
-                      {consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '—'}
+                      {consolidato.deltaRicPct != null ? `${consolidato.deltaRicPct >= 0 ? '+' : ''}${consolidato.deltaRicPct.toFixed(0)}% vs prec.` : '-'}
                     </div>
                   </div>
                   <div>
@@ -569,13 +569,13 @@ export default function ConfrontoSedi({ orgId, sedi }) {
                       {fmt0(consolidato.margNetto)}
                     </div>
                     <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.65)', fontWeight: 600, minHeight: 16, ...tnum }}>
-                      {consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '—'}
+                      {consolidato.margineNettoPct != null ? `${consolidato.margineNettoPct.toFixed(1)}% dei ricavi` : '-'}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', minHeight: 28, lineHeight: 1.2 }}>Food cost medio</div>
                     <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 900, marginTop: 4, color: consolidato.foodCostMedio == null ? 'rgba(255,255,255,0.5)' : consolidato.foodCostMedio < 33 ? '#86EFAC' : consolidato.foodCostMedio < 38 ? '#FCD34D' : '#FF6B6B', whiteSpace: 'nowrap', minHeight: 30, ...tnum }}>
-                      {consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '—'}
+                      {consolidato.foodCostMedio != null ? consolidato.foodCostMedio.toFixed(1) + '%' : '-'}
                     </div>
                     <div style={{ fontSize: 11, marginTop: 4, color: 'rgba(255,255,255,0.55)', minHeight: 16 }}>
                       target &lt; 33%
@@ -721,11 +721,11 @@ export default function ConfrontoSedi({ orgId, sedi }) {
             </div>
           )}
 
-          {/* GRAFICO INTERATTIVO — chart switcher + metric + compare */}
+          {/* GRAFICO INTERATTIVO - chart switcher + metric + compare */}
           {sediAttive.length >= 2 && (() => {
             const METRICS = [
               { id: 'ricaviCur',       lbl: 'Ricavi',       fmt: v => '€' + fmt0(v) },
-              { id: 'foodCostPct',     lbl: 'Food cost %',  fmt: v => v != null ? v.toFixed(1) + '%' : '—' },
+              { id: 'foodCostPct',     lbl: 'Food cost %',  fmt: v => v != null ? v.toFixed(1) + '%' : '-' },
               { id: 'margineNettoCur', lbl: 'Margine netto',fmt: v => '€' + fmt0(v) },
               { id: 'fattureScadute',  lbl: 'Fatture scadute', fmt: v => String(v) },
               { id: 'stockPF',         lbl: 'Stock vetrina (pz)', fmt: v => String(v) },

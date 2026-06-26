@@ -130,7 +130,7 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
                 <select value={sedeSel} onChange={e => setSedeSel(e.target.value)}
                   style={inputBase}>
                   <option value="">Tutte le sedi</option>
-                  {sedi.map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` — ${s.citta}` : ''}</option>)}
+                  {sedi.map(s => <option key={s.id} value={s.id}>{s.nome}{s.citta ? ` - ${s.citta}` : ''}</option>)}
                 </select>
               </div>
             )}

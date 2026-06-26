@@ -1,4 +1,4 @@
-// RicettarioView + TortaCard — estratti da Dashboard.jsx.
+// RicettarioView + TortaCard - estratti da Dashboard.jsx.
 // TortaCard è il card espandibile usato sia dal Ricettario che dai Semilavorati.
 
 import React, { useEffect, useMemo, useState } from 'react'
@@ -29,7 +29,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const [editMode, setEditMode] = useState(false)
-  // Audit 2026-06-24: card collapsed di default — su mobile e desktop.
+  // Audit 2026-06-24: card collapsed di default - su mobile e desktop.
   // L'utente vede solo nome + 1 KPI essenziale; al tap si espande l'header
   // pieno con KPI inline + bottoni. Riduce "minestrone" visivo richiesto
   // dal design partner.
@@ -40,7 +40,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const [editPrezzo, setEditPrezzo] = useState(reg.prezzo)
   const [editUnita, setEditUnita] = useState(reg.unita)
   const [exportingPdf, setExportingPdf] = useState(false)
-  // Sort della Distinta costi — click sulle etichette dell'header riordina.
+  // Sort della Distinta costi - click sulle etichette dell'header riordina.
   // Default: costo decrescente (gli ingredienti più cari in cima).
   const [sortKey, setSortKey] = useState('costoCalc')
   const [sortDir, setSortDir] = useState('desc')
@@ -61,7 +61,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const handleSaveRegola = () => {
     const p = parseFloat(editPrezzo) || reg.prezzo
     const u = parseInt(editUnita) || reg.unita
-    // Audit 2026-07-01 HIGH: non mutare il singleton REGOLE — onUpdateRegola
+    // Audit 2026-07-01 HIGH: non mutare il singleton REGOLE - onUpdateRegola
     // persiste il dato nella ricetta, getR lo legge da li. Mutare REGOLE
     // significa inquinare org B dopo impersonation di org A.
     onUpdateRegola(ric.nome, { prezzo: p, unita: u })
@@ -169,7 +169,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // ─── Card EXPANDED (header pieno + dettaglio opzionale) ─────────────
   // Click sulla zona vuota dell'header → collapse (richiesta UX 26/06):
   // se riclicco la card si richiude. Lo fa solo se il click NON è su un
-  // bottone, input, h3 (modifica), label o link — quelli mantengono il
+  // bottone, input, h3 (modifica), label o link - quelli mantengono il
   // loro handler.
   const collapseOnEmptyClick = (e) => {
     if (e.target.closest('button, input, textarea, h3, label, a, svg')) return
@@ -184,7 +184,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
       boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
       position: 'relative',
     }}>
-      {/* Accent bar futuristic in cima al card expanded — gradient brand animato.
+      {/* Accent bar futuristic in cima al card expanded - gradient brand animato.
           Solo quando il dettaglio è aperto, così il card collapsed resta minimale. */}
       {open && (
         <>
@@ -208,7 +208,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           `}</style>
         </>
       )}
-      {/* Header — cliccabile per chiudere/comprimere */}
+      {/* Header - cliccabile per chiudere/comprimere */}
       <div onClick={collapseOnEmptyClick} style={{ padding: isMobile ? '14px 16px' : '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: open ? `1px solid ${isSemi ? SEMI.divider : C.border}` : 'none', cursor: 'pointer' }}>
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -268,7 +268,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           )}
         </div>
 
-        {/* KPI inline — su mobile occupano tutta la riga (grid 4 col), su desktop
+        {/* KPI inline - su mobile occupano tutta la riga (grid 4 col), su desktop
             ognuna ha minWidth 86 così tutti i box hanno la stessa larghezza:
             niente "fisarmonica" tra ricette con margine 1 cifra vs 4 cifre. */}
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? `repeat(${isSemi ? 3 : 4}, 1fr)` : `repeat(${isSemi ? 3 : 4}, minmax(86px, 1fr))`, gap: isMobile ? 6 : 6, alignItems: 'stretch', flexShrink: 0, flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
@@ -300,7 +300,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           ))}
         </div>
 
-        {/* Actions — su mobile su riga dedicata, bottoni grid 2 colonne uniformi
+        {/* Actions - su mobile su riga dedicata, bottoni grid 2 colonne uniformi
             con il bottone "Riduci card" full-width sopra come barra principale. */}
         <div style={{ display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, gap: 6, alignItems: 'stretch', flexShrink: 0, flexWrap: 'wrap', flexBasis: isMobile ? '100%' : 'auto', width: isMobile ? '100%' : 'auto' }}>
           <button onClick={() => { setExpanded(false); setOpen(false); setEditMode(false) }}
@@ -368,7 +368,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         </div>
       )}
 
-      {/* Dettaglio aperto — Layout 2×2: 4 pannelli stessa larghezza, altezza
+      {/* Dettaglio aperto - Layout 2×2: 4 pannelli stessa larghezza, altezza
           naturale basata sul contenuto. Più ingredienti = pannelli più alti;
           meno = più compatti. `align-items: stretch` (default grid) garantisce
           che i pannelli nella stessa RIGA siano alti uguali (max della riga),
@@ -392,7 +392,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         const PANEL_TITLE_STYLE = { fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.02em' }
         return (
         <div style={{ padding: isMobile ? '16px 14px 20px' : '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 18, boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
-          {/* PANEL 1 — Distinta costi (senza titolo) */}
+          {/* PANEL 1 - Distinta costi (senza titolo) */}
           <div style={PANEL_STYLE}>
             {PANEL_ACCENT}
             {/* Container tabella: overflowX auto + scroll hint a destra (sfumatura)
@@ -434,8 +434,8 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                         {ing.mancante && <span style={{ fontSize: 7, marginLeft: 4, background: C.redLight, color: C.red, padding: '1px 4px', borderRadius: 3, fontWeight: 700 }}>n/d</span>}
                       </td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textMid, ...TNUM, whiteSpace: 'nowrap' }}>{ing.qty1stampo}</td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textSoft, ...TNUM, fontSize: 9.5, whiteSpace: 'nowrap' }}>{ing.costoPerGCalc > 0 ? ing.costoPerGCalc.toFixed(4) : '—'}</td>
-                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 600, color: ing.costoCalc > 0 ? C.text : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>{ing.costoCalc > 0 ? fmt(ing.costoCalc) : '—'}</td>
+                      <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textSoft, ...TNUM, fontSize: 9.5, whiteSpace: 'nowrap' }}>{ing.costoPerGCalc > 0 ? ing.costoPerGCalc.toFixed(4) : '-'}</td>
+                      <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 600, color: ing.costoCalc > 0 ? C.text : C.textSoft, ...TNUM, whiteSpace: 'nowrap' }}>{ing.costoCalc > 0 ? fmt(ing.costoCalc) : '-'}</td>
                       <td style={{ padding: '9px 12px', textAlign: 'right' }}>
                         {ing.pct > 0 && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
@@ -478,7 +478,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             </div>
           </div>
 
-          {/* PANEL 2 — Composizione food cost */}
+          {/* PANEL 2 - Composizione food cost */}
           {pieData.length > 0 && (() => {
             const totPie = pieData.reduce((s, x) => s + (x.costoCalc || 0), 0) || 1
             return (
@@ -508,7 +508,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             )
           })()}
 
-          {/* PANEL 3 — Conto economico per stampo (no semi) */}
+          {/* PANEL 3 - Conto economico per stampo (no semi) */}
           {!isSemi && (
             <div style={PANEL_STYLE}>
               {PANEL_ACCENT}
@@ -533,7 +533,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             </div>
           )}
 
-          {/* PANEL 4 — Per singola fetta (no semi) */}
+          {/* PANEL 4 - Per singola fetta (no semi) */}
           {!isSemi && (
             <div style={PANEL_STYLE}>
               {PANEL_ACCENT}
@@ -553,7 +553,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             </div>
           )}
 
-          {/* PANEL 3 alt — Riepilogo batch (semi only) */}
+          {/* PANEL 3 alt - Riepilogo batch (semi only) */}
           {isSemi && (
             <div style={{ ...PANEL_STYLE, background: `linear-gradient(180deg, ${SEMI.panel} 0%, ${SEMI.accentLight} 100%)` }}>
               <div aria-hidden="true" style={{

@@ -13,7 +13,7 @@ import { caricaSessioniDaInventario } from './lib/inventarioProduzione'
 // jsPDF caricato dinamicamente solo all'export (chunk 'pdf' separato).
 // recharts NON e' importato qui: 0 simboli sono usati in Dashboard.jsx (era dead
 // import che trascinava il chunk recharts 120KB gzip sul critical path). I veri
-// consumatori — PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage —
+// consumatori - PLView, StoricoProduzioneView, PrevisioneDomanda, AdminPage -
 // sono tutti già lazy.
 import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './lib/storage'
 import { callAi as _callAi, parseAiJson as _parseAiJson } from './lib/aiClient'
@@ -116,17 +116,17 @@ const NuovaRicettaView = lazyWithReload(() => import('./views/NuovaRicettaView')
 const StoricoProduzioneView = lazyWithReload(() => import('./views/StoricoProduzioneView'))
 // DiscrepanzeView rimosso: unito nella pagina "Perdite & cessioni" (SpreciOmaggi).
 const SemilavoratiView = lazyWithReload(() => import('./views/SemilavoratiView'))
-// React hooks are imported above — no need for global destructuring
+// React hooks are imported above - no need for global destructuring
 // XLSX is loaded dynamically via loadXLSX()
 
-// Module-level storage context — updated by Dashboard on every render so that
+// Module-level storage context - updated by Dashboard on every render so that
 // view components defined at module scope can call ssave/sload without prop-drilling.
 let _ctx_orgId = null;
 let _ctx_sedeId = null;
 // Audit 2026-07-01 CRITICAL: protezione race "context-switch tra due ssave
 // consecutive". Ogni ssave registra una Promise in `_pendingSaves`. Quando
 // cambia il contesto (Dashboard render con nuovo orgId/sedeId), aspettiamo
-// che il set sia vuoto prima di aggiornare _ctx — evita "data di org A
+// che il set sia vuoto prima di aggiornare _ctx - evita "data di org A
 // salvata su org B" se l'utente cambia sede mentre un handler ha già fatto
 // `await ssave(k1, v1)` e sta per fare `await ssave(k2, v2)`.
 const _pendingSaves = new Set();
@@ -154,7 +154,7 @@ function bkReadLS(key, orgId, sedeId) {
 }
 function ssave(key, val) {
   // Cattura IL contesto AL CALL SITE (sincrono) per garantire che la riga
-  // venga scritta sulla coppia (orgId, sedeId) corretta — anche se _ctx
+  // venga scritta sulla coppia (orgId, sedeId) corretta - anche se _ctx
   // cambia prima del completamento della Promise.
   const capturedOrgId = _ctx_orgId;
   const capturedSedeId = _ctx_sedeId;
@@ -171,7 +171,7 @@ function sload(key)      { return _sload(key, _ctx_orgId, _ctx_sedeId); }
 // (audit 2026-07-01 batch 9: primo step di split file Dashboard >1500 righe).
 
 // `analizzaFotoAI` estratta in src/lib/analizzaFotoAI.js (audit 2026-07-01
-// batch 9: split file Dashboard >1500 righe — secondo step).
+// batch 9: split file Dashboard >1500 righe - secondo step).
 
 // ─── SORTABLE TABLE HOOK ──────────────────────────────────────────────────────
 function useSortable(defaultKey, defaultDir="desc") {
@@ -192,7 +192,7 @@ function useSortable(defaultKey, defaultDir="desc") {
   return { sortKey, sortDir, toggleSort, sort };
 }
 
-// Stable SortTH component — receives toggle/active as props (no re-creation issue)
+// Stable SortTH component - receives toggle/active as props (no re-creation issue)
 function SortTH({ k, children, right, active, dir, onToggle }) {
   return (
     <th onClick={()=>onToggle(k)}
@@ -437,7 +437,7 @@ const margBadge = pct => {
   if (pct>=70) return <Badge label="Eccellente" color="green"/>;
   if (pct>=55) return <Badge label="Buono" color="green"/>;
   if (pct>=40) return <Badge label="Accettabile" color="amber"/>;
-  return <Badge label="Basso — rivedere" color="red"/>;
+  return <Badge label="Basso - rivedere" color="red"/>;
 };
 const margColor = pct => pct>=60?C.green:pct>=40?C.amber:C.red;
 
@@ -487,7 +487,7 @@ function KPI({label,value,sub,color,highlight,icon,iconName}) {
 
 // ─── PAGE HEADER ──────────────────────────────────────────────────────────────
 function PageHeader({breadcrumb, title, subtitle, action}) {
-  // Il titolo della view è già nella topbar — qui mostriamo solo subtitle/action
+  // Il titolo della view è già nella topbar - qui mostriamo solo subtitle/action
   // per evitare la duplicazione del titolo in ogni pagina.
   if (!subtitle && !action) return null;
   return (
@@ -504,7 +504,7 @@ function PageHeader({breadcrumb, title, subtitle, action}) {
 // ─── SIMULATORE PREZZI VIEW ───────────────────────────────────────────────────
 
 // ─── PRODUZIONE VIEW ──────────────────────────────────────────────────────────
-// Audit 2026-06-22: aggiunto nomeAttivita ai props — era usato al rigo 539
+// Audit 2026-06-22: aggiunto nomeAttivita ai props - era usato al rigo 539
 // (aiPrompt) ma mai destrutturato → ReferenceError in build minificato.
 function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
   const isMobile = useIsMobile();
@@ -545,7 +545,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
   const st=totP>0?(totV/totP*100):0;
 
   const _eur = (n) => `€${Math.round(Number(n)||0).toLocaleString('it-IT')}`
-  const aiPrompt=`${nomeAttivita} — ${mese.label}. Ricavi totali ${_eur(totR)}, food cost ${_eur(totFC)}, margine lordo ${totMP.toFixed(1)}%. Stampi prodotti ${totP.toLocaleString('it-IT')}, venduti ${totV.toLocaleString('it-IT')}, sell-through ${st.toFixed(1)}%. Prodotti: ${rows.filter(r=>r.stampiProdotti>0).map(r=>`${r.ricettaNome} ${r.stampiProdotti}prod/${r.stampiVenduti}vend marg${r.margPct.toFixed(0)}%`).join(", ")}. ${mese.meteo?`Meteo: ${mese.meteo.tempMean}°C, ${mese.meteo.giorniSole}gg sole.`:""} Suggerisci 3 azioni concrete.`;
+  const aiPrompt=`${nomeAttivita} - ${mese.label}. Ricavi totali ${_eur(totR)}, food cost ${_eur(totFC)}, margine lordo ${totMP.toFixed(1)}%. Stampi prodotti ${totP.toLocaleString('it-IT')}, venduti ${totV.toLocaleString('it-IT')}, sell-through ${st.toFixed(1)}%. Prodotti: ${rows.filter(r=>r.stampiProdotti>0).map(r=>`${r.ricettaNome} ${r.stampiProdotti}prod/${r.stampiVenduti}vend marg${r.margPct.toFixed(0)}%`).join(", ")}. ${mese.meteo?`Meteo: ${mese.meteo.tempMean}°C, ${mese.meteo.giorniSole}gg sole.`:""} Suggerisci 3 azioni concrete.`;
   const runAI=async()=>{ setAiLoad(true); setAiData(await getAI(aiPrompt,`mese-${mese.key}`,sload,ssave)); setAiLoad(false); };
 
   return (
@@ -679,7 +679,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
         <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:"24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
             <div>
-              <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Icon name="robot" size={14}/> Consulenza AI — {mese.label}</div>
+              <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Icon name="robot" size={14}/> Consulenza AI - {mese.label}</div>
               <div style={{fontSize:11,color:C.textSoft}}>Analisi automatica basata sui tuoi dati. Aggiornata ad ogni richiesta.</div>
             </div>
             {hasData&&<button onClick={runAI} disabled={aiLoad} style={{padding:"10px 20px",background:aiLoad?"#EEE":C.red,color:aiLoad?C.textSoft:C.white,border:"none",borderRadius:8,fontWeight:700,fontSize:11,cursor:aiLoad?"default":"pointer",display:"inline-flex",alignItems:"center",gap:6}}>{aiLoad?<><Icon name="hourglass" size={12}/> Elaboro…</>:"▶ Analizza ora"}</button>}
@@ -885,7 +885,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
               <div>
                 <label style={label}>Tipo attività</label>
                 <div style={{ padding:"10px 14px", border:`1px solid ${C.border}`, borderRadius:9, fontSize:13, color:C.textMid, background:"#F8FAFC", textTransform:"capitalize" }}>
-                  {tipoAttivita || "—"}
+                  {tipoAttivita || "-"}
                 </div>
               </div>
               <div>
@@ -916,7 +916,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
           <div style={card}>
             <div style={{ fontWeight:700, fontSize:15, color:C.text, marginBottom:8 }}>Account</div>
             <div style={{ fontSize:13, color:C.textMid }}>
-              <strong>Email:</strong> {auth?.user?.email || "—"}
+              <strong>Email:</strong> {auth?.user?.email || "-"}
             </div>
             <div style={{ fontSize:12, color:C.textSoft, marginTop:6 }}>
               Per cambiare email o password contatta <a href="mailto:support@foodios.it" style={{color:C.red}}>support@foodios.it</a>
@@ -1143,11 +1143,11 @@ class ErrorBoundary extends React.Component {
 // Viste consentite al DIPENDENTE. Tutto il resto (P&L, food cost, storico,
 // previsioni, personale, registro, confronto sedi, scadenzario, fornitori, B2B,
 // menu, semilavorati, importa dati, nuova ricetta, eventi, ricettario, ecc.) è
-// NASCOSTO — sia in UI (questo set) sia a livello DB (RLS, vedi migration
+// NASCOSTO - sia in UI (questo set) sia a livello DB (RLS, vedi migration
 // 20260607_dipendente_no_lettura_sensibili.sql).
 const DIPENDENTE_VIEWS = new Set([
   'home-dipendente', // Modalità Dipendente XL: landing 6 pulsantoni mobile-first.
-  'giornaliero',     // Produzione — "caricare i prodotti" (solo oggi)
+  'giornaliero',     // Produzione - "caricare i prodotti" (solo oggi)
   'inventario-gusti',// Inventario differenziale per gelaterie/yogurt (alternativa a giornaliero)
   'chiusura',        // Cassa (solo oggi)
   'magazzino',       // Stock e rifornimenti
@@ -1155,7 +1155,7 @@ const DIPENDENTE_VIEWS = new Set([
   'calendario',      // solo oggi/futuro
   'haccp',
   'changelog',
-  'impostazioni',    // solo il proprio account (nome, cambio password, 2FA) — vista role-aware
+  'impostazioni',    // solo il proprio account (nome, cambio password, 2FA) - vista role-aware
 ]);
 
 // Viste operative che SCRIVONO dati per-sede: in "Tutte le sedi" (vista aggregata)
@@ -1306,7 +1306,7 @@ export default function Dashboard({
     // la "home produzione" del dipendente diventa 'inventario-gusti'.
     if (isDip && !DIPENDENTE_VIEWS.has(view)) {
       // Fallback dipendente: torna alla home dipendente (sostituisce il vecchio
-      // redirect diretto a giornaliero/inventario-gusti — la home dipendente
+      // redirect diretto a giornaliero/inventario-gusti - la home dipendente
       // è il punto di ingresso pulito).
       setView('home-dipendente')
     }
@@ -1334,7 +1334,7 @@ export default function Dashboard({
   }, [sidebarSec]);
   const toggleSec = (id) => setSidebarSec(s => ({ ...s, [id]: !s[id] }));
 
-  // Ricerca dentro la sidebar — filtra le voci del menu in tempo reale.
+  // Ricerca dentro la sidebar - filtra le voci del menu in tempo reale.
   const [sidebarSearch, setSidebarSearch] = useState('');
   const sidebarQuery = sidebarSearch.trim().toLowerCase();
 
@@ -1346,7 +1346,7 @@ export default function Dashboard({
     simulatore:'numeri', pl:'numeri', storico:'numeri', previsione:'numeri', 'menu-engineering':'ai', cashflow:'ai', forecast:'ai', reformulation:'ai', 'competitor-pricing':'ai', 'ordini-ai':'ai', 'ai-brain':'ai', 'ricette-ai':'ai', marketplace:'ai', whatsapp:'ai', documentary:'ai', 'ai-hub':'ai', recensioni:'ai',
     magazzino:'acquisti', scadenzario:'acquisti', fornitori:'acquisti', 'vendite-b2b':'acquisti', 'importa-dati':'acquisti',
     // Audit 2026-06-22: rimosso `recensioni:'azienda'` (duplicato col rigo sopra
-    // che lo metteva in 'ai' — la seconda chiave sovrascriveva, hiding ai sidebar).
+    // che lo metteva in 'ai' - la seconda chiave sovrascriveva, hiding ai sidebar).
     personale:'azienda', haccp:'azienda', 'confronto-sedi':'azienda', trasferimenti:'azienda',
     azioni:'strumenti', integrazioni:'strumenti',
   }), []);
@@ -1366,7 +1366,7 @@ export default function Dashboard({
     setExportCtx({ email: auth?.user?.email || null, nomeAttivita: nomeAttivita || null })
   }, [auth?.user?.email, nomeAttivita]);
 
-  // Carica personalizzazione white label (piano Chain) — solo lettura, non blocca il render
+  // Carica personalizzazione white label (piano Chain) - solo lettura, non blocca il render
   useEffect(() => {
     if (!orgId) return
     sload(WL_KEY, orgId, null).then(v => {
@@ -1374,7 +1374,7 @@ export default function Dashboard({
       if (v?.colorePrimario && /^#[0-9A-Fa-f]{6}$/.test(v.colorePrimario)) {
         document.documentElement.style.setProperty('--fos-brand', v.colorePrimario)
       }
-      if (v?.nomeApp) document.title = `${v.nomeApp} — Dashboard`
+      if (v?.nomeApp) document.title = `${v.nomeApp} - Dashboard`
     }).catch(()=>{})
   }, [orgId]);
 
@@ -1416,7 +1416,7 @@ export default function Dashboard({
       console.debug('caricaDati: orgId non ancora disponibile, attendo...');
       return;
     }
-    console.debug('caricaDati START — orgId:', orgId, 'sedeId:', sedeId);
+    console.debug('caricaDati START - orgId:', orgId, 'sedeId:', sedeId);
     // Reset stato per-sede prima di ricaricare (evita di mostrare brevemente
     // i dati della sede precedente mescolati ai nuovi). Le chiavi shared
     // (ricettario) le lasciamo: vengono comunque ricaricate sotto.
@@ -1589,7 +1589,7 @@ export default function Dashboard({
   }, [orgId, sedeId, sedeAttiva?.metodo_produzione, sedeAttiva?.is_sede_produzione])
 
   // Audit 2026-06-25: pop-up "Novità in Foodos X.Y.Z" disabilitato per richiesta
-  // utente — appariva ad ogni release nuova. Resta accessibile manualmente da
+  // utente - appariva ad ogni release nuova. Resta accessibile manualmente da
   // Impostazioni → Dati → Changelog. Marchiamo come "vista" la versione corrente
   // così se in futuro vogliamo riabilitare il pop-up parte pulito.
   useEffect(()=>{
@@ -1627,7 +1627,7 @@ export default function Dashboard({
             await ssave(SK_RIC, merged);
             setRic(merged);
             try { localStorage.setItem(cacheKey, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
-            notify(`✓ ${f.name} — ${Object.keys(result.ricette || {}).length} ricette importate`);
+            notify(`✓ ${f.name} - ${Object.keys(result.ricette || {}).length} ricette importate`);
           } catch (e) {
             notify(`${f.name}: errore salvataggio (${e.message || 'rete'})`, false);
           }
@@ -1661,7 +1661,7 @@ export default function Dashboard({
         if (!righe.length) try { const r = parseJustEat(text);  if (r?.length) { righe = r; piattaforma = 'Just Eat'; } } catch {}
         if (!righe.length) try { const r = await parseGlovo(f); if (r?.length) { righe = r; piattaforma = 'Glovo'; } } catch {}
         if (!righe.length) {
-          notify(`Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
+          notify(`Non riesco a riconoscere il formato di ${f.name} - usa la pagina Cassa per import guidato.`, false);
           continue;
         }
         // Audit 2026-06-17 CRITICAL: il loop closure capture di `chiusure` faceva
@@ -1678,7 +1678,7 @@ export default function Dashboard({
     }
   }, [chiusure, notify]);
 
-  // Casse: prova i parser conosciuti (zucchetti/streamcassa/toast) — se nessuno funziona avvisa
+  // Casse: prova i parser conosciuti (zucchetti/streamcassa/toast) - se nessuno funziona avvisa
   const handleImportCasseGlobal = useCallback(async (files) => {
     const sistemi = ['zucchetti', 'streamcassa', 'toast'];
     let base = chiusure || [];
@@ -1688,7 +1688,7 @@ export default function Dashboard({
         try { const r = await parseCassaFile(s, f); if (r?.length) { righe = r; sistema = s; break; } } catch {}
       }
       if (!righe?.length) {
-        notify(`Non riesco a riconoscere il formato di ${f.name} — usa la pagina Cassa per import guidato.`, false);
+        notify(`Non riesco a riconoscere il formato di ${f.name} - usa la pagina Cassa per import guidato.`, false);
         continue;
       }
       const nuove = mergeInChiusureCassa(base, righe, sistema);
@@ -1706,7 +1706,7 @@ export default function Dashboard({
     setView('fornitori');
   }, [notify]);
 
-  // Aggiornamento manuale singolo prezzo ingrediente — usato dalla tabella "Prezzi" in Magazzino.
+  // Aggiornamento manuale singolo prezzo ingrediente - usato dalla tabella "Prezzi" in Magazzino.
   // Salva il vecchio prezzo nel log per audit/storico, con decorrenza opzionale.
   // Se `decorreDa` è una data futura, applichiamo subito al ricettario MA il log
   // mantiene la decorrenza per i calcoli storici/futuri (es. cambio prezzo dal 01/01).
@@ -1812,7 +1812,7 @@ export default function Dashboard({
           try {
             await ssave(SK_RIC, nuovoRic);
             setRic(nuovoRic);
-            notify(`✓ ${f.name} — ${count} prezzi aggiornati`);
+            notify(`✓ ${f.name} - ${count} prezzi aggiornati`);
           } catch (e) {
             notify(`${f.name}: errore salvataggio prezzi (${e.message || 'rete'})`, false);
           }
@@ -1858,7 +1858,7 @@ export default function Dashboard({
     notify(`✓ ${nome}: ${unita} ${REGOLE[nome]?.tipo==="fetta"?"fette":"pezzi"} × ${fmt(prezzo)}${cong?" · congelabile":""}`);
   }, [ricettario]);
 
-  // noRedirect=true quando si elimina — non vogliamo uscire dalla pagina
+  // noRedirect=true quando si elimina - non vogliamo uscire dalla pagina
   const handleSalvaRicetta = useCallback(async (nuovoRic, nuoveRegole, noRedirect=false) => {
     const ricettaNome = Object.keys(nuoveRegole||{})[0];
     // Resolved orgId: prefer prop (current closure), fallback to module ctx (always fresh per render)
@@ -1879,7 +1879,7 @@ export default function Dashboard({
     for (const [n,r] of Object.entries(nuoveRegole||{})) REGOLE[n]=r;
     // 2. Salvataggio su Supabase PRIMA dello state (regola CLAUDE.md§Pattern
     //    scrittura→state: lo state riflette solo dati persistiti). Se ssave
-    //    fallisce mostriamo errore e NON tocchiamo lo state — l'UI non
+    //    fallisce mostriamo errore e NON tocchiamo lo state - l'UI non
     //    diverge dal DB.
     try {
       await ssave(SK_RIC, nuovoRic);
@@ -1887,12 +1887,12 @@ export default function Dashboard({
       console.error('ERRORE salvataggio ricetta su Supabase:', err);
       // Backup localStorage perché Supabase ha fallito
       try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: nuovoRic, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
-      notify(`Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta in cache locale — esegui SQL Supabase.`, false);
-      return; // non procedere — non redirect, non conferm toast, NO setRic
+      notify(`Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta in cache locale - esegui SQL Supabase.`, false);
+      return; // non procedere - non redirect, non conferm toast, NO setRic
     }
     // 3. State locale: solo dopo che il save e' riuscito
     setRic(nuovoRic);
-    // 4. Magazzino — aggiungi ingredienti mancanti con giacenza 0 (save-first)
+    // 4. Magazzino - aggiungi ingredienti mancanti con giacenza 0 (save-first)
     const ings = (ricettaNome && nuovoRic.ricette?.[ricettaNome]?.ingredienti) || [];
     if (ings.length > 0 && !noRedirect) {
       const nm = {...magazzino};
@@ -2166,7 +2166,7 @@ export default function Dashboard({
             })}
           </div>
 
-          {/* Ricerca sezioni. Su tablet la nascondiamo per dare aria al menu — l'utente
+          {/* Ricerca sezioni. Su tablet la nascondiamo per dare aria al menu - l'utente
               ha il bottone Cmd+K accanto al profilo per la ricerca globale. */}
           {!isTablet && (
           <div style={{position:"relative",flexShrink:0}}>
@@ -2188,7 +2188,7 @@ export default function Dashboard({
           </div>
           )}
 
-          {/* Campanella notifiche (con badge non letti) — scopribile a colpo d'occhio */}
+          {/* Campanella notifiche (con badge non letti) - scopribile a colpo d'occhio */}
           <button onClick={()=>setShowNotifiche(true)} aria-label="Notifiche" title="Notifiche"
             style={{position:"relative",flexShrink:0,width:36,height:36,borderRadius:10,border:`1px solid ${T.borderOnDarkStr}`,background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.82)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:`background ${M.durFast} ${M.ease}`}}
             onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.12)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"}>
@@ -2202,7 +2202,7 @@ export default function Dashboard({
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
 
-          {/* AI Suggestions bell — campanella suggerimenti proattivi */}
+          {/* AI Suggestions bell - campanella suggerimenti proattivi */}
           <AISuggestionsBell orgId={orgId} onNavigate={(v)=>setView(v)} />
 
           {/* Profilo (dx) con dropdown */}
@@ -2447,7 +2447,7 @@ export default function Dashboard({
               0%   { transform: rotate(0deg); }
               100% { transform: rotate(360deg); }
             }
-            /* Float sui sub-decoro (alone radial) — quasi-impercettibile. */
+            /* Float sui sub-decoro (alone radial) - quasi-impercettibile. */
             @keyframes _fos_ambientDrift {
               0%, 100% { transform: translate(0, 0); }
               33%      { transform: translate(6px, -4px); }
@@ -2565,7 +2565,7 @@ export default function Dashboard({
 
             {!['confronto-sedi','trasferimenti'].includes(view) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />}
 
-            {/* Search nel menu — filtra le voci della sidebar in tempo reale.
+            {/* Search nel menu - filtra le voci della sidebar in tempo reale.
                 Input glass con bordo brand su focus. Min-height 38 per touch
                 comodo senza ingombrare. */}
             <div style={{padding:"10px 16px 8px",position:"relative"}}>
@@ -2599,7 +2599,7 @@ export default function Dashboard({
               )}
             </div>
 
-            {/* Nav — gruppi collassabili, ottimizzati per utenti non tecnici.
+            {/* Nav - gruppi collassabili, ottimizzati per utenti non tecnici.
                 overflowAnchor:none impedisce al browser di ri-scrollare la
                 sidebar quando un Group si espande/collassa (lo scroll anchoring
                 automatico spostava la view in alto). */}
@@ -2882,7 +2882,7 @@ export default function Dashboard({
         );
       })()}
 
-      {/* Notifications panel — lazy: serve un proprio Suspense, altrimenti il
+      {/* Notifications panel - lazy: serve un proprio Suspense, altrimenti il
           click sincrono che lo monta sospende senza boundary (React #426). */}
       <React.Suspense fallback={null}>
         {showNotifiche&&<NotifichePanel notifiche={notifiche} nonLette={nonLette} onSegnaLetta={segnaLetta} onSegnaTutte={segnaTutte} onClose={()=>setShowNotifiche(false)}/>}
@@ -2992,7 +2992,7 @@ export default function Dashboard({
             </div>
           );
         })()}
-        {/* Mobile topbar — sticky, flat */}
+        {/* Mobile topbar - sticky, flat */}
         {isMobile&&(()=>{
           const MOBILE_LABELS = {
             home:"Oggi", giornaliero:"Produzione", "inventario-gusti":"Inventario gusti",
@@ -3062,7 +3062,7 @@ export default function Dashboard({
 
         {/* Inner content padding. Suspense globale: copre tutte le view lazy
             (44 component lazy-loaded via React.lazy). Fallback minimale per
-            evitare flash bianco — l'utente vede un loader breve. */}
+            evitare flash bianco - l'utente vede un loader breve. */}
         <div className="fos-page" key={view} style={{padding:isMobile?"16px 16px 88px":isTablet?"16px 20px 28px":"16px 32px 28px",flex:1,maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         <React.Suspense fallback={
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'60px 20px',color:T.textSoft,fontSize:13,gap:10}}>
@@ -3078,7 +3078,7 @@ export default function Dashboard({
             borderRadius:R.lg,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:10,
             boxShadow:S.brandSoft}}>
             <span style={{width:6,height:6,borderRadius:"50%",background:"#FFF",animation:"_sp_pulse 1.6s ease-in-out infinite",boxShadow:"0 0 0 0 rgba(255,255,255,0.7)"}}/>
-            Connessione assente — i dati potrebbero non essere aggiornati
+            Connessione assente - i dati potrebbero non essere aggiornati
           </div>
         )}
         {offlineMode&&isOnline&&offlineCacheDate&&(
@@ -3089,7 +3089,7 @@ export default function Dashboard({
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            Dati offline — ultimo aggiornamento {offlineCacheDate}
+            Dati offline - ultimo aggiornamento {offlineCacheDate}
           </div>
         )}
 
@@ -3122,7 +3122,7 @@ export default function Dashboard({
         {/* Home dashboard (titolare) */}
         {view==="home"&&<DashboardHomeView ricettario={ricettario} magazzino={magazzino} giornaliero={giornaliero} chiusure={chiusure} actions={actions} setView={setView} orgId={orgId} sedeId={sedeId} nomeAttivita={nomeAttivita} isTrialAttivo={isTrialAttivo} auth={auth} sedi={sedi} sedeAttiva={sedeAttiva} LEX={LEX}/>}
 
-        {/* Home Dipendente — Modalità Dipendente XL: 6 pulsantoni mobile-first */}
+        {/* Home Dipendente - Modalità Dipendente XL: 6 pulsantoni mobile-first */}
         {view==="home-dipendente"&&<HomeDipendente
           user={auth?.user}
           sedeAttiva={sedeAttiva}
@@ -3134,13 +3134,13 @@ export default function Dashboard({
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
         {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify} tipoAttivita={tipoAttivita}/>}
 
-        {/* Registro attività — solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
+        {/* Registro attività - solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
         {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
 
-        {/* Perdite & cessioni — titolare e dipendente, per-sede */}
+        {/* Perdite & cessioni - titolare e dipendente, per-sede */}
         {view==="sprechi-omaggi"&&!isAllSedi&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} auth={auth} notify={notify}/>}
 
-        {/* Ricettario — mostra upload se non ancora caricato */}
+        {/* Ricettario - mostra upload se non ancora caricato */}
         {view==="ricettario"&&!ricettario&&(
           <div style={{maxWidth:500,margin:"80px auto",textAlign:"center"}}>
             <div style={{marginBottom:18}}><Icon name="book" size={52} color={C.red} /></div>
@@ -3217,8 +3217,8 @@ export default function Dashboard({
         </div>{/* /fos-page */}
       </div>
 
-      {/* AI Assistant — floating button su tutte le pagine (lazy → Suspense) */}
-      {/* AIAssistant è ora renderizzato da <FloatingActions /> in App.jsx — vedi audit 2026-06-24 unifica FAB. */}
+      {/* AI Assistant - floating button su tutte le pagine (lazy → Suspense) */}
+      {/* AIAssistant è ora renderizzato da <FloatingActions /> in App.jsx - vedi audit 2026-06-24 unifica FAB. */}
     </div>
     </ErrorBoundary>
   );

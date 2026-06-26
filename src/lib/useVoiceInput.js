@@ -1,4 +1,4 @@
-// useVoiceInput — Web Speech API hook per input vocale rapido.
+// useVoiceInput - Web Speech API hook per input vocale rapido.
 // Pensato per il dipendente in laboratorio (mani sporche / guanti).
 //
 // Uso:
@@ -10,7 +10,7 @@
 //
 // Note:
 // - Funziona su Chrome/Edge/Safari mobile. Firefox no (gracefully degrada).
-// - `onResult` riceve testo "interim" + "final" — distingue con flag isFinal.
+// - `onResult` riceve testo "interim" + "final" - distingue con flag isFinal.
 // - Press-and-hold pattern: start su pointer down, stop su pointer up.
 
 import { useState, useEffect, useRef, useCallback } from 'react'

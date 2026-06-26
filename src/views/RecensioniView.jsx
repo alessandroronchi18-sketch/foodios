@@ -1,4 +1,4 @@
-// Recensioni — AI Reply suggerito
+// Recensioni - AI Reply suggerito
 //
 // Il titolare incolla il testo di una recensione (Google Maps, TripAdvisor,
 // social) e l'AI genera 3 risposte con tono diverso (formale/caldo/fattuale).
@@ -93,7 +93,7 @@ Genera le 3 risposte come da istruzioni.`
   }
 
   // Audit 2026-07-01 HIGH: tracking timer, click rapidi accumulavano timer
-  // sovrapposti — l'ultimo finiva per resetare anche i success "verdi" futuri.
+  // sovrapposti - l'ultimo finiva per resetare anche i success "verdi" futuri.
   const copyTimerRef = useRef(null)
   useEffect(() => () => {
     if (copyTimerRef.current) clearTimeout(copyTimerRef.current)

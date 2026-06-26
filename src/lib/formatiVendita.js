@@ -1,9 +1,9 @@
-// Formati di vendita — risolve il problema dello scontrino "generico".
+// Formati di vendita - risolve il problema dello scontrino "generico".
 //
 // Molti sistemi di cassa battono righe SENZA il dettaglio del gusto/ripieno:
-//   "Cono piccolo  2,60"     (gelateria — non dice quale gusto)
-//   "Vaschetta 500g  12,00"  (gelateria — gusti misti)
-//   "Panino  5,50"           (panineria — non dice quale farcitura)
+//   "Cono piccolo  2,60"     (gelateria - non dice quale gusto)
+//   "Vaschetta 500g  12,00"  (gelateria - gusti misti)
+//   "Panino  5,50"           (panineria - non dice quale farcitura)
 // Queste righe non corrispondono a nessuna ricetta per nome, quindi venivano
 // scartate dal confronto: ricavi mancanti e cassa/produzione che non tornano.
 //
@@ -47,7 +47,7 @@ export function nuovoFormato() {
 
 // Restituisce i componenti del formato in forma normalizzata. Se il formato e'
 // in formato legacy (solo costoContenitore), lo trasforma in un singolo componente
-// "Contenitore" — così il resto del codice puo' lavorare solo con componenti[].
+// "Contenitore" - così il resto del codice puo' lavorare solo con componenti[].
 export function componentiNormalizzati(formato) {
   if (Array.isArray(formato?.componenti) && formato.componenti.length > 0) {
     return formato.componenti.map(c => ({

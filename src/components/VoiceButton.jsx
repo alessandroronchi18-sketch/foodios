@@ -1,4 +1,4 @@
-// VoiceButton — pulsante "tieni premuto per parlare" riusabile.
+// VoiceButton - pulsante "tieni premuto per parlare" riusabile.
 // Si nasconde se il browser non supporta Web Speech API.
 //
 // Uso:

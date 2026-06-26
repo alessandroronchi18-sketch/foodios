@@ -16,10 +16,10 @@ const SK_MENU = 'menu-giorno-v1'
 function bcgQuadrant(margPct, volRel) {
   const high = margPct >= 55
   const pop  = volRel >= 0.5
-  if (high && pop)  return { q:"Star",   color:T.green, bg:T.greenLight, tip:"Alta redditività e alta popolarità — prodotto core" }
-  if (high && !pop) return { q:"Puzzle", color:T.blue,  bg:T.blueLight,  tip:"Alta redditività ma bassa popolarità — promuovere" }
-  if (!high && pop) return { q:"Plow",   color:T.amber, bg:T.amberLight, tip:"Bassa redditività ma alta popolarità — ottimizzare food cost" }
-  return                    { q:"Dog",   color:T.red,   bg:T.redLight,   tip:"Bassa redditività e bassa popolarità — rivalutare o rimuovere" }
+  if (high && pop)  return { q:"Star",   color:T.green, bg:T.greenLight, tip:"Alta redditività e alta popolarità - prodotto core" }
+  if (high && !pop) return { q:"Puzzle", color:T.blue,  bg:T.blueLight,  tip:"Alta redditività ma bassa popolarità - promuovere" }
+  if (!high && pop) return { q:"Plow",   color:T.amber, bg:T.amberLight, tip:"Bassa redditività ma alta popolarità - ottimizzare food cost" }
+  return                    { q:"Dog",   color:T.red,   bg:T.redLight,   tip:"Bassa redditività e bassa popolarità - rivalutare o rimuovere" }
 }
 
 // Suggerimento azionabile per quadrante BCG.
@@ -646,7 +646,7 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
 
           <SH sub={`Seleziona ${LEX.ricette === 'pizze' || LEX.ricette === 'gusti' || LEX.ricette === 'piatti' || LEX.ricette === 'formati' ? `i ${LEX.ricette}` : `le ${LEX.ricette}`}, analizza i quadranti BCG ed esporta il menù.`}>Menù del giorno</SH>
 
-          {/* Tabs — overflowX:auto su mobile per non far wrappare le label. */}
+          {/* Tabs - overflowX:auto su mobile per non far wrappare le label. */}
           <div style={{
             display:"flex", gap:2, marginBottom:22,
             borderBottom:`1px solid ${T.border}`,

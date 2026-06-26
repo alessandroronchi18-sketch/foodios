@@ -81,7 +81,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
       <div style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
         Sì, Foodos permette di applicare il tuo <strong>logo, il nome dell'app e il colore del brand</strong> all'interfaccia:
         compaiono nella sidebar e nell'intestazione, e il nome custom sostituisce "Foodos" anche nel titolo del browser.
-        È incluso nel piano <strong>Chain</strong> — puoi attivarlo subito senza dover scrivere a nessuno.
+        È incluso nel piano <strong>Chain</strong> - puoi attivarlo subito senza dover scrivere a nessuno.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 14 }}>
         <ul style={{ flex: '1 1 240px', margin: 0, padding: '0 0 0 18px', fontSize: 12, color: '#475569', lineHeight: 1.7 }}>
@@ -255,7 +255,7 @@ export async function applyWhiteLabel(orgId) {
       document.documentElement.style.setProperty('--fos-brand', v.colorePrimario)
     }
     if (v.nomeApp) {
-      document.title = `${v.nomeApp} — Dashboard`
+      document.title = `${v.nomeApp} - Dashboard`
     }
     return v
   } catch (e) {

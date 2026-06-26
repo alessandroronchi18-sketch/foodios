@@ -10,7 +10,7 @@ import { ToastProvider, GlobalToastBridge } from './components/Toast.jsx'
 import { ConfirmProvider } from './components/ConfirmModal.jsx'
 import { registerServiceWorker, setupInstallPrompt } from './lib/pwa'
 
-// ─── Sentry — SDK ufficiale con scrubber ───────────────────────────────────
+// ─── Sentry - SDK ufficiale con scrubber ───────────────────────────────────
 // DSN nel client è pubblico per design (rate-limited lato Sentry).
 // Per limitare la quota, attiva l'allowList del dominio nel pannello Sentry → Settings → Security.
 
@@ -135,7 +135,7 @@ registerServiceWorker({
     // Lasciamo che l'utente accetti via toast tramite window.__foodos_toast
     // (popolato da GlobalToastBridge dopo render). Fallback: applica al prossimo reload.
     if (window.__foodos_toast) {
-      window.__foodos_toast.info('Nuova versione disponibile — ricarica per aggiornare', {
+      window.__foodos_toast.info('Nuova versione disponibile - ricarica per aggiornare', {
         action: { label: 'Aggiorna', onClick: () => apply() },
       })
     }

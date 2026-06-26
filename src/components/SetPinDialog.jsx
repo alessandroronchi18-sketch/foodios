@@ -1,4 +1,4 @@
-// SetPinDialog — modal per il titolare per impostare/cambiare/rimuovere il PIN
+// SetPinDialog - modal per il titolare per impostare/cambiare/rimuovere il PIN
 // di un dipendente. Layout: nome dipendente in alto, stato attuale,
 // tastierino numerico XL, bottoni Conferma/Rimuovi/Annulla.
 

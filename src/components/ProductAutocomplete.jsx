@@ -1,4 +1,4 @@
-// ProductAutocomplete — input con suggerimenti reali da ricettario / stock PF / magazzino MP.
+// ProductAutocomplete - input con suggerimenti reali da ricettario / stock PF / magazzino MP.
 //
 // Comportamento:
 //   - Per tipo='prodotto': pesca dal RICETTARIO (nome ricetta) + opzionale stock_prodotti_finiti.

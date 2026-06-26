@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import Icon from './Icon'
 
-// Card del Brief del mattino — appare in alto nella Home se il brief di
+// Card del Brief del mattino - appare in alto nella Home se il brief di
 // oggi e' stato generato dal cron. Riassume in 3-4 frasi la situazione.
 //
 // Tap su "Spiegami" → mostra dettagli KPI snapshot.
@@ -16,7 +16,7 @@ const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 
 // Render bullet point con markdown semplice (**bold**) parsato.
-// L'AI a volte ritorna "**Titolo** — testo" o paragrafi: trasformiamo in bullet.
+// L'AI a volte ritorna "**Titolo** - testo" o paragrafi: trasformiamo in bullet.
 function renderBriefBullets(text) {
   if (!text) return null
   // Split per riga o per "frasi-bullet" (•, -, *, paragrafo doppio).
@@ -155,7 +155,7 @@ export default function DailyBriefCard({ orgId }) {
             color: TXT, fontSize: 12, fontWeight: 700,
             padding: '8px 14px', minHeight: 40, borderRadius: 8, cursor: 'pointer',
           }}>
-          {expanded ? '— Nascondi dettagli' : '+ Dettagli KPI'}
+          {expanded ? '- Nascondi dettagli' : '+ Dettagli KPI'}
         </button>
       </div>
 

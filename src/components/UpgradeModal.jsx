@@ -1,4 +1,4 @@
-// UpgradeModal — pop-up modale mostrato quando un utente clicca una feature
+// UpgradeModal - pop-up modale mostrato quando un utente clicca una feature
 // non inclusa nel suo piano corrente. Sostituisce il pattern "naviga alla
 // view + UpgradeGate full-screen": più immediato, meno friction.
 //
@@ -120,7 +120,7 @@ export default function UpgradeModal({
           </button>
 
           <div style={{ position: 'relative', maxWidth: 'calc(100% - 40px)' }}>
-            {/* Eyebrow — max-width per evitare overflow nome lungo */}
+            {/* Eyebrow - max-width per evitare overflow nome lungo */}
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '4px 12px', borderRadius: 999,

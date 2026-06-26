@@ -1,4 +1,4 @@
-// AiHubView — Landing hub di tutte le 23+ funzioni AI.
+// AiHubView - Landing hub di tutte le 23+ funzioni AI.
 //
 // Design v2 (2026-06-13): futuristico premium.
 //  - Hero mesh gradient animato + dot grid + glow blobs + stats bar

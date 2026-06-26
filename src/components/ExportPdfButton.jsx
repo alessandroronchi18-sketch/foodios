@@ -1,4 +1,4 @@
-// ExportPdfButton — bottone riusabile per esportare la view corrente in PDF.
+// ExportPdfButton - bottone riusabile per esportare la view corrente in PDF.
 //
 // Modi di uso:
 //   1. Modo "structured": passi { fileName, title, kpi, sections } e jsPDF

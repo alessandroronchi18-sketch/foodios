@@ -1,4 +1,4 @@
-// ConfirmModal — sostituisce window.confirm() nativo nei flussi utente.
+// ConfirmModal - sostituisce window.confirm() nativo nei flussi utente.
 // Audit 2026-07-01 MEDIUM: confirm() nativo blocca il thread, ignora la
 // notify pipeline, ha look-and-feel del browser (non brand Foodos).
 //

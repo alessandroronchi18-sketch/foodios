@@ -50,7 +50,7 @@ export async function apiFetch(path, opts = {}) {
   if (!token) {
     // Sessione assente in partenza: vai a login.
     redirectToLogin()
-    throw new Error('Sessione non valida — login richiesto')
+    throw new Error('Sessione non valida - login richiesto')
   }
 
   const callWithToken = (tok) => fetch(path, {

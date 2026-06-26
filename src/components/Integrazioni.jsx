@@ -22,7 +22,7 @@ const C = {
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" };
 
 const fmtTs = ts => {
-  if (!ts) return '—'
+  if (!ts) return '-'
   const d = new Date(ts)
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
     ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
@@ -38,7 +38,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Accedi al portale SDI o al tuo provider di fatturazione (es. Aruba, Fatture in Cloud)',
       'Scarica le fatture passive in formato XML o P7M',
-      'Carica il file qui sotto — supporta sia fatture singole che lotti',
+      'Carica il file qui sotto - supporta sia fatture singole che lotti',
     ],
     tipoFile: '.xml,.p7m',
     tipoLabel: 'XML / P7M',
@@ -53,7 +53,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'In TeamSystem: Contabilità › Fatture passive',
       'Filtra per periodo desiderato',
-      'Clicca "Esporta Excel" — il file avrà colonne Numero, Fornitore, Totale, ecc.',
+      'Clicca "Esporta Excel" - il file avrà colonne Numero, Fornitore, Totale, ecc.',
     ],
     tipoFile: '.xlsx,.xls',
     tipoLabel: 'Excel (.xlsx)',
@@ -100,7 +100,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Disponibile solo con licenza Zucchetti Enterprise',
       'Configura l\'URL webhook nel pannello Zucchetti: Impostazioni › Integrazioni › Webhook',
-      'Inserisci l\'URL e il secret qui sotto — i dati arriveranno automaticamente',
+      'Inserisci l\'URL e il secret qui sotto - i dati arriveranno automaticamente',
     ],
     tipo: 'webhook',
   },
@@ -115,7 +115,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Per webhook real-time (consigliato): Tilby Web → Impostazioni → Integrazioni → Webhook esterni → URL: https://foodios-rose.vercel.app/api/webhook-pos · Headers: x-pos-provider: tilby · x-pos-secret: <chiedi a Foodos>',
       'Per import manuale CSV: Tilby Web → Report → Esporta vendite (CSV)',
-      'Carica il file qui — l\'AI auto-rileva il formato',
+      'Carica il file qui - l\'AI auto-rileva il formato',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV o Webhook',
@@ -131,7 +131,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Per CSV (tutti i piani): Cassa in Cloud → Statistiche → Vendite → Esporta CSV',
       'Per API real-time (piano Business+): contatta supporto TeamSystem per webhook config con URL Foodos',
-      'Carica CSV qui — l\'AI auto-rileva il formato',
+      'Carica CSV qui - l\'AI auto-rileva il formato',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -147,7 +147,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Dalla cassa: Menu Manager → Chiusura giornaliera → Export CSV su USB',
       'Trasferisci il file CSV sul tablet/PC',
-      'Carica qui — auto-rilevamento formato RCH',
+      'Carica qui - auto-rilevamento formato RCH',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -163,7 +163,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Dalla cassa Olivetti: Funzione 99 → "Export Vendite" → CSV/TXT su USB',
       'Trasferisci il file sul PC',
-      'Carica qui — auto-rilevamento header Olivetti',
+      'Carica qui - auto-rilevamento header Olivetti',
     ],
     tipoFile: '.csv,.txt',
     tipoLabel: 'CSV/TXT',
@@ -269,7 +269,7 @@ const INTEGRAZIONI_CFG = [
     descrizione: 'Soluzione cassa Zucchetti dedicata food. Stesso schema export Zucchetti.',
     istruzioni: [
       'Cassanova → Report giornaliero → Export',
-      'Carica qui — usa parser Zucchetti standard',
+      'Carica qui - usa parser Zucchetti standard',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -284,7 +284,7 @@ const INTEGRAZIONI_CFG = [
     descrizione: 'Per qualsiasi cassa che esporta CSV. L\'AI auto-rileva il formato e usa il parser corretto. Funziona se le colonne contengono Data + Totale (o equivalenti).',
     istruzioni: [
       'Esporta CSV/TXT dalla tua cassa con la funzione standard',
-      'Carica il file qui — Foodos prova 10 parser e usa quello che matcha',
+      'Carica il file qui - Foodos prova 10 parser e usa quello che matcha',
       'Se l\'AI non lo riconosce, vedrai un avviso e puoi scriverci a support@foodios.it per aggiungere il tuo formato',
     ],
     tipoFile: '.csv,.txt',
@@ -303,7 +303,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Accedi a sumup.com → Vendite → Transazioni',
       'Esporta in CSV nel periodo desiderato',
-      'Carica qui — verranno aggregati per giorno e aggiunti alle chiusure cassa',
+      'Carica qui - verranno aggregati per giorno e aggiunti alle chiusure cassa',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -318,7 +318,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Accedi a businessdashboard.satispay.com → Movimenti',
       'Esporta i movimenti del periodo in CSV',
-      'Carica qui — vengono considerati solo i pagamenti ACCETTATI',
+      'Carica qui - vengono considerati solo i pagamenti ACCETTATI',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -333,7 +333,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Accedi a squareup.com → Reports → Transactions',
       'Esporta in CSV',
-      'Carica qui — l\'importo netto sottrae le commissioni Square',
+      'Carica qui - l\'importo netto sottrae le commissioni Square',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -350,7 +350,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Restaurant Hub Deliveroo → Sales → Export orders',
       'Scarica il CSV del periodo',
-      'Carica qui — gli ordini verranno aggregati per giorno',
+      'Carica qui - gli ordini verranno aggregati per giorno',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -365,7 +365,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'JustEat Partner Hub → Reports → Orders → Export',
       'Seleziona il periodo e formato CSV',
-      'Carica qui — l\'importo netto sottrae la commissione JustEat',
+      'Carica qui - l\'importo netto sottrae la commissione JustEat',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -380,7 +380,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Restaurant Manager Uber Eats → Reports → Payouts',
       'Esporta CSV del periodo',
-      'Carica qui — gli ordini sono aggregati per data; le service fee sono sottratte',
+      'Carica qui - gli ordini sono aggregati per data; le service fee sono sottratte',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -412,7 +412,7 @@ const INTEGRAZIONI_CFG = [
       'Admin Shopify → Orders → Export',
       'Scegli "Current page" o "All orders matching your search"',
       'Formato: "Plain CSV file" → Export',
-      'Carica qui — verranno aggregati gli ordini "paid" per giorno',
+      'Carica qui - verranno aggregati gli ordini "paid" per giorno',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -427,7 +427,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'WP Admin → WooCommerce → Orders → Export to CSV',
       'In alternativa: Order Export plugin → CSV',
-      'Carica qui — vengono importati ordini completed/processing',
+      'Carica qui - vengono importati ordini completed/processing',
     ],
     tipoFile: '.csv',
     tipoLabel: 'CSV',
@@ -448,7 +448,7 @@ function StatoConnessioni({ notify }) {
       const elapsed = Math.round(performance.now() - t0)
       setStato({ ...j, latencyMs: elapsed })
       if (j.status === 'ok') notify('✓ Backend Foodos online')
-      else notify('Backend degradato — controlla configurazione', false)
+      else notify('Backend degradato - controlla configurazione', false)
     } catch (e) {
       setStato({ status: 'down', error: e.message })
       notify('Backend non raggiungibile: ' + e.message, false)
@@ -504,14 +504,14 @@ function StatoBadge({ stato, errore, lastSync }) {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.amber }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.amber, display: 'inline-block' }} />
-        Errore — {errore ? errore.slice(0, 60) : 'vedi log'}
+        Errore - {errore ? errore.slice(0, 60) : 'vedi log'}
       </span>
     )
   }
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.green }}>
       <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.green, display: 'inline-block' }} />
-      Connessa — ultimo sync: {fmtTs(lastSync)}
+      Connessa - ultimo sync: {fmtTs(lastSync)}
     </span>
   )
 }
@@ -545,11 +545,11 @@ function LogTable({ logs }) {
               </span>
             </td>
             <td style={{ padding: '6px 10px', color: C.text, fontWeight: 600 }}>
-              {l.records_importati ?? '—'}
+              {l.records_importati ?? '-'}
             </td>
             <td style={{ padding: '6px 10px', color: C.red, fontSize: 10, maxWidth: 200,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {l.errore || '—'}
+              {l.errore || '-'}
             </td>
           </tr>
         ))}
@@ -604,7 +604,7 @@ export default function Integrazioni({ orgId, sedeId }) {
       }
       setLogs(grouped)
     } catch (e) {
-      // sync_log table might not exist yet — show banner only
+      // sync_log table might not exist yet - show banner only
       setLogs({})
     } finally {
       setLoading(false)
@@ -685,7 +685,7 @@ export default function Integrazioni({ orgId, sedeId }) {
           else if (cfg.id === 'shopify')  aggregati = parseShopifyOrders(await file.text())
           else if (cfg.id === 'woocommerce') aggregati = parseWooCommerceOrders(await file.text())
 
-          // Merge nelle chiusure cassa (SK_CHIUS) — chiave PER-SEDE: usare sedeId,
+          // Merge nelle chiusure cassa (SK_CHIUS) - chiave PER-SEDE: usare sedeId,
           // non null, altrimenti i dati finiscono nel bucket shared e ChiusuraView
           // (che legge per-sede) non li vede mai.
           const chiusureAttuali = (await sload(SK_CHIUS, orgId, sedeId)) || []
@@ -789,7 +789,7 @@ export default function Integrazioni({ orgId, sedeId }) {
 
             return (
               <div key={cfg.id} style={card}>
-                {/* Card header — clickable */}
+                {/* Card header - clickable */}
                 <div
                   onClick={() => setExpanded(isExp ? null : cfg.id)}
                   style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14,
@@ -879,7 +879,7 @@ export default function Integrazioni({ orgId, sedeId }) {
                         </label>
                         {lastLog?.stato === 'ok' && (
                           <span style={{ fontSize: 11, color: C.green }}>
-                            ✓ Ultimo: {lastLog.records_importati} record — {fmtTs(lastLog.created_at)}
+                            ✓ Ultimo: {lastLog.records_importati} record - {fmtTs(lastLog.created_at)}
                           </span>
                         )}
                         {lastLog?.stato === 'errore' && (

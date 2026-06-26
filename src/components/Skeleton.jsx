@@ -1,4 +1,4 @@
-// Skeleton — placeholder animati per loading states.
+// Skeleton - placeholder animati per loading states.
 //
 // Uso:
 //   <Skeleton width="60%" height={14} />

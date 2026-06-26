@@ -5,7 +5,7 @@
 
 export async function compressImage(file, maxSide = 1600, quality = 0.85) {
   if (!file || !file.type?.startsWith('image/')) return file
-  // Skip su file già piccoli (<300KB) — non vale la pena
+  // Skip su file già piccoli (<300KB) - non vale la pena
   if (file.size < 300_000) return file
   return new Promise((resolve) => {
     const img = new Image()

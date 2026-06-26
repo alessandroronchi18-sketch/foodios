@@ -131,7 +131,7 @@ export function parseUberEats(csvText) {
 }
 
 // ── Parser Glovo / Foodinho ───────────────────────────────────────────────────
-// Formato Excel — usa SheetJS (xlsx)
+// Formato Excel - usa SheetJS (xlsx)
 export async function parseGlovo(file) {
   const XLSX = await loadXLSX();
   const buf = await file.arrayBuffer();
@@ -197,7 +197,7 @@ export function mergeInChiusure(chiusure = [], importati = [], fonte = '') {
 
 // Carica SheetJS da CDN con SRI integrity hash.
 // Non usiamo il pacchetto npm 'xlsx' perché ha vuln high (prototype pollution + ReDoS)
-// senza fix disponibile. La versione CDN ufficiale è la stessa libreria — il SRI hash
+// senza fix disponibile. La versione CDN ufficiale è la stessa libreria - il SRI hash
 // garantisce che il file scaricato sia identico al bundle atteso.
 async function loadXLSX() {
   if (window.XLSX) return window.XLSX;

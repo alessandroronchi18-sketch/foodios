@@ -1,4 +1,4 @@
-// AiPageHero — header premium riusabile per le pagine AI.
+// AiPageHero - header premium riusabile per le pagine AI.
 //
 // Stessa estetica della landing AiHub: gradient bordeaux-oro animato +
 // dot grid + glow blobs + eyebrow chip con LED + headline gigante con

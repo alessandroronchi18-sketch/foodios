@@ -80,7 +80,7 @@ function addFooter(doc, opts = {}) {
     doc.setPage(i)
     doc.setFontSize(8)
     doc.setTextColor(180, 160, 155)
-    doc.text('Generato da Foodos — foodios.it', 14, 290)
+    doc.text('Generato da Foodos - foodios.it', 14, 290)
     doc.text(`${i} / ${pages}`, 196, 290, { align: 'right' })
     if (wm) {
       doc.setFontSize(7)
@@ -91,7 +91,7 @@ function addFooter(doc, opts = {}) {
   }
 }
 
-// Watermark "diagonale" leggero sulla pagina — dissuade screenshot/condivisione casuale.
+// Watermark "diagonale" leggero sulla pagina - dissuade screenshot/condivisione casuale.
 // È visibile ma non occlude i contenuti. Si applica solo se emailUtente è fornito.
 function addDiagonalWatermark(doc, emailUtente) {
   if (!emailUtente) return
@@ -142,7 +142,7 @@ export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita
   const costMap = ingCosti || {}
 
   const doc = new jsPDF()
-  setPdfMetadata(doc, { titolo: `Ricetta — ${ricetta.nome || ''}`, emailUtente, nomeAttivita })
+  setPdfMetadata(doc, { titolo: `Ricetta - ${ricetta.nome || ''}`, emailUtente, nomeAttivita })
   addHeader(doc, ricetta.nome || 'Ricetta', ricetta.categoria || '', nomeAttivita)
 
   const startY = 52
@@ -167,10 +167,10 @@ export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita
 
   // Info box
   const info = [
-    ['Categoria', ricetta.categoria || '—'],
+    ['Categoria', ricetta.categoria || '-'],
     ['Porzioni', String(ricetta.porzioni || ricetta.unita || 1)],
     ['Prezzo di vendita', fmt(ricetta.prezzo)],
-    ['Food cost %', foodCost?.perc != null ? `${Number(foodCost.perc).toFixed(1)}%` : '—'],
+    ['Food cost %', foodCost?.perc != null ? `${Number(foodCost.perc).toFixed(1)}%` : '-'],
   ]
   autoTable(doc, {
     startY,
@@ -197,7 +197,7 @@ export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita
   autoTable(doc, {
     startY: afterInfo + 4,
     head: [['Ingrediente', 'Quantità', 'Costo unitario', 'Costo totale']],
-    body: rows.length ? rows : [['Nessun ingrediente', '—', '—', '—']],
+    body: rows.length ? rows : [['Nessun ingrediente', '-', '-', '-']],
     theme: 'striped',
     headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
     bodyStyles: { fontSize: 9, textColor: DARK },
@@ -251,12 +251,12 @@ export async function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtent
   doc.setTextColor(...DARK)
   doc.text('Ricavi per categoria', 14, startY)
 
-  const ricavi = (dati.ricavi || []).map(r => [r.categoria || '—', String(r.quantita || 0), fmt(r.ricavo)])
+  const ricavi = (dati.ricavi || []).map(r => [r.categoria || '-', String(r.quantita || 0), fmt(r.ricavo)])
   const totRicavi = (dati.ricavi || []).reduce((s, r) => s + (r.ricavo || 0), 0)
   autoTable(doc, {
     startY: startY + 5,
     head: [['Categoria', 'Pezzi', 'Ricavo']],
-    body: ricavi.length ? [...ricavi, [{ content: 'TOTALE', fontStyle: 'bold' }, '', { content: fmt(totRicavi), fontStyle: 'bold' }]] : [['—', '—', '—']],
+    body: ricavi.length ? [...ricavi, [{ content: 'TOTALE', fontStyle: 'bold' }, '', { content: fmt(totRicavi), fontStyle: 'bold' }]] : [['-', '-', '-']],
     theme: 'striped',
     headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
     bodyStyles: { fontSize: 9 },
@@ -273,12 +273,12 @@ export async function exportPLMensile(dati, mese, anno, nomeAttivita, emailUtent
   doc.setTextColor(...DARK)
   doc.text('Costi materie prime', 14, y2)
 
-  const costi = (dati.costi || []).map(c => [c.categoria || '—', fmt(c.costo), `${(c.perc || 0).toFixed(1)}%`])
+  const costi = (dati.costi || []).map(c => [c.categoria || '-', fmt(c.costo), `${(c.perc || 0).toFixed(1)}%`])
   const totCosti = (dati.costi || []).reduce((s, c) => s + (c.costo || 0), 0)
   autoTable(doc, {
     startY: y2 + 5,
     head: [['Categoria', 'Costo MP', 'FC%']],
-    body: costi.length ? [...costi, [{ content: 'TOTALE', fontStyle: 'bold' }, { content: fmt(totCosti), fontStyle: 'bold' }, '']] : [['—', '—', '—']],
+    body: costi.length ? [...costi, [{ content: 'TOTALE', fontStyle: 'bold' }, { content: fmt(totCosti), fontStyle: 'bold' }, '']] : [['-', '-', '-']],
     theme: 'striped',
     headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
     bodyStyles: { fontSize: 9 },
@@ -416,7 +416,7 @@ export async function exportPLCompleto(dati, nomeAttivita, emailUtente) {
     head: [['Prodotto', 'Un./st.', '€/un.', 'Ricavo', 'Food cost', 'FC %', 'Margine', 'Marg. %']],
     body: sorted.map(r => [
       r.nome,
-      String(r.reg?.unita ?? '—'),
+      String(r.reg?.unita ?? '-'),
       fmt(r.reg?.prezzo),
       fmt(r.ricavo),
       fmt(r.fc),
@@ -596,11 +596,11 @@ export async function exportSimulatorePrezzi(dati, nomeAttivita, emailUtente) {
       r.nome,
       fmt(r.reg?.prezzo),
       fmt(r.newPrezzo),
-      r.changed ? `${r.delta > 0 ? '+' : ''}${(r.delta || 0).toFixed(1)}%` : '—',
+      r.changed ? `${r.delta > 0 ? '+' : ''}${(r.delta || 0).toFixed(1)}%` : '-',
       fmt(r.margine),
       fmt(r.newMarg),
-      r.changed ? `${r.diffMarg > 0 ? '+' : ''}${fmt(r.diffMarg)}` : '—',
-      r.changed ? `${r.proiDiff > 0 ? '+' : ''}${fmt(r.proiDiff)}` : '—',
+      r.changed ? `${r.diffMarg > 0 ? '+' : ''}${fmt(r.diffMarg)}` : '-',
+      r.changed ? `${r.proiDiff > 0 ? '+' : ''}${fmt(r.proiDiff)}` : '-',
     ]),
     theme: 'striped',
     headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
@@ -666,7 +666,7 @@ export async function exportProduzione(dati, data, nomeAttivita, emailUtente) {
     const rows = items.map(i => {
       const costoTot = (i.costo || 0) * (i.quantita || 0)
       totaleCosto += costoTot
-      return [i.nome || '—', String(i.quantita || 0), i.unita || 'pz', fmt(i.costo), fmt(costoTot)]
+      return [i.nome || '-', String(i.quantita || 0), i.unita || 'pz', fmt(i.costo), fmt(costoTot)]
     })
 
     autoTable(doc, {
@@ -706,7 +706,7 @@ export async function exportScadenzario(fatture, nomeAttivita, emailUtente) {
   addHeader(doc, 'Scadenzario Fatture', `${fatture.length} fatture`, nomeAttivita)
 
   const statoLabel = { da_pagare: 'Da pagare', in_scadenza: 'In scadenza', pagata: 'Pagata' }
-  const fmt2 = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—'
+  const fmt2 = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '-'
 
   // Raggruppa per fornitore
   const byFornitore = {}
@@ -731,7 +731,7 @@ export async function exportScadenzario(fatture, nomeAttivita, emailUtente) {
       if (stato === 'pagata') totalePagato += f.totale || 0
       else totaleDaPagare += f.totale || 0
       return [
-        f.numero_fattura || '—',
+        f.numero_fattura || '-',
         fmt2(f.data_fattura),
         fmt2(f.data_scadenza),
         statoLabel[stato] || stato,

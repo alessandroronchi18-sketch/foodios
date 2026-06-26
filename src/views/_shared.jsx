@@ -6,7 +6,7 @@ import React, { useState, useRef, useCallback } from 'react'
 import { color as T } from '../lib/theme'
 import useIsMobile from '../lib/useIsMobile'
 
-// Palette "C.*" usata dal vecchio Dashboard.jsx — mappa diretta ai token theme.
+// Palette "C.*" usata dal vecchio Dashboard.jsx - mappa diretta ai token theme.
 // Usata per non riscrivere ogni accesso a C.foo nei body delle view.
 export const C = {
   white:      T.bgCard,
@@ -53,11 +53,11 @@ export const fmtp = v => { const n = Number(v); return `${(Number.isFinite(n) ? 
 export const fmt0 = v => { const n = Number(v); return `${NF_IT_0DEC.format(Math.round(Number.isFinite(n) ? n : 0))} €` }
 
 // CSS futuristic-clean per tile/KPI shared. Iniettato una volta (idempotente
-// se il browser carica più volte _shared — il selettore di style id evita
+// se il browser carica più volte _shared - il selettore di style id evita
 // duplicati).
-// — fos-kpi-tile: hover lift drammatico + ombra brand colorata
-// — accent strip animato superiore opzionale (className fos-kpi-accent)
-// — sheen sweep al primo render (sottile riflesso che scorre, una volta sola)
+// - fos-kpi-tile: hover lift drammatico + ombra brand colorata
+// - accent strip animato superiore opzionale (className fos-kpi-accent)
+// - sheen sweep al primo render (sottile riflesso che scorre, una volta sola)
 // Tutto pause su prefers-reduced-motion.
 if (typeof document !== 'undefined' && !document.getElementById('fos-kpi-css')) {
   const s = document.createElement('style')
@@ -93,7 +93,7 @@ if (typeof document !== 'undefined' && !document.getElementById('fos-kpi-css')) 
     .fos-kpi-sheen {
       animation: _fos_kpiSheen 1.6s cubic-bezier(.32,.72,0,1) 0.2s 1 forwards;
     }
-    /* Section header bar — pulsa brand→corallo→brand 3s in loop */
+    /* Section header bar - pulsa brand→corallo→brand 3s in loop */
     .fos-sh-bar {
       animation: _fos_shBarPulse 3s ease-in-out infinite;
     }
@@ -173,7 +173,7 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
       boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.32), inset 0 1px 0 rgba(255,255,255,0.18)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
       display: 'flex', flexDirection: 'column', height: '100%',
     }}>
-      {/* Accent strip animato superiore (2px) — gradient brand→corallo→brand
+      {/* Accent strip animato superiore (2px) - gradient brand→corallo→brand
           in loop 6s. Crea "vivo / connesso" senza essere invadente. */}
       <div className="fos-kpi-accent" aria-hidden="true" style={{
         position: 'absolute', top: 0, left: 0, right: 0, height: 2,
@@ -183,7 +183,7 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
         backgroundSize: '200% 100%',
         pointerEvents: 'none',
       }}/>
-      {/* Sheen sweep iniziale — diagonal light pass una volta sola al mount */}
+      {/* Sheen sweep iniziale - diagonal light pass una volta sola al mount */}
       <div className="fos-kpi-sheen" aria-hidden="true" style={{
         position: 'absolute', top: -20, bottom: -20, width: 80, pointerEvents: 'none',
         background: highlight
@@ -232,7 +232,7 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
 }
 
 // Tooltip Recharts condiviso (era inline in Dashboard.jsx).
-// Importato da StoricoProduzioneView, PLView, ecc. — senza questo modulo dedicato
+// Importato da StoricoProduzioneView, PLView, ecc. - senza questo modulo dedicato
 // le view post-code-split sbattevano contro `ChartTip is not defined`.
 export const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
@@ -244,7 +244,7 @@ export const ChartTip = ({ active, payload, label }) => {
     }}>
       <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{label}</div>
       {/* Audit 2026-07-01 MEDIUM: key={dataKey} stabile (stacked charts hanno
-          ordine variabile in payload) — prima key={i} swappava i colori al
+          ordine variabile in payload) - prima key={i} swappava i colori al
           riordino interno di Recharts. */}
       {payload.map((p, i) => (
         <div key={p.dataKey || p.name || i} style={{ color: p.color || C.red }}>{p.name}: <b>{p.value}</b></div>
@@ -274,7 +274,7 @@ export const margBadge = pct => {
   if (pct >= 70) return <Badge label="Eccellente" color="green"/>
   if (pct >= 55) return <Badge label="Buono" color="green"/>
   if (pct >= 40) return <Badge label="Accettabile" color="amber"/>
-  return <Badge label="Basso — rivedere" color="red"/>
+  return <Badge label="Basso - rivedere" color="red"/>
 }
 
 // Tooltip su hover (portato fuori dal flow per essere always-on-top)

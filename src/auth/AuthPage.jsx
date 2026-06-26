@@ -42,7 +42,7 @@ const TIPI_ATTIVITA = [
   { label: 'Altro',                      slug: 'altro' },
 ]
 
-// Prefissi telefonici internazionali — default Italia (+39)
+// Prefissi telefonici internazionali - default Italia (+39)
 const PREFISSI_TELEFONO = [
   { code: '+39',  label: 'Italia' },
   { code: '+378', label: 'San Marino' },
@@ -772,7 +772,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
       if (error) throw error
       // Verifica OK: sign out della sessione OTP per non interferire col signUp
       // email+password. Se il signOut fallisce il signup successivo userebbe
-      // l'utente OTP (telefono-only) come parent — bloccato in fase di insert
+      // l'utente OTP (telefono-only) come parent - bloccato in fase di insert
       // sui profili. Loggiamo + abortiamo invece di silenziare.
       try {
         const { error: outErr } = await supabase.auth.signOut()
@@ -851,7 +851,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
       WebkitFontSmoothing: 'antialiased',
       position: 'relative', overflow: 'hidden',
     }}>
-      {/* Background ornament — discreto, warm */}
+      {/* Background ornament - discreto, warm */}
       <div aria-hidden style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         background: 'radial-gradient(circle at 80% 0%, rgba(110,14,26,0.06), transparent 50%), radial-gradient(circle at 0% 100%, rgba(230,189,90,0.05), transparent 55%)',
@@ -865,7 +865,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
       }}>
         <div style={{ width: '100%', maxWidth: 460 }}>
 
-          {/* Header — logo + brand */}
+          {/* Header - logo + brand */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             gap: 12, marginBottom: isMobile ? 28 : 36,
@@ -984,7 +984,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                     display: 'inline-flex', alignItems: 'center', gap: 8,
                   }}>
                   <Icon name="key" size={14} color={T.textMid}/>
-                  Sono un dipendente — entra col PIN
+                  Sono un dipendente - entra col PIN
                 </button>
               </div>
             </form>

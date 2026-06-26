@@ -8,7 +8,7 @@ import Icon from './Icon'
  *
  * Props:
  *  - sedeAttiva: { id, nome, citta } | null
- *  - sedi: array completo (per decidere se mostrare il banner — solo se >1 sede)
+ *  - sedi: array completo (per decidere se mostrare il banner - solo se >1 sede)
  *  - onChange: optional, click per aprire SedeSelector altrove
  *  - scope: 'per-sede' (default) | 'org' (entità a livello azienda, banner muted)
  *  - hint: testo opzionale es. "Magazzino di questa sede"
@@ -33,7 +33,7 @@ export default function SedeContextBanner({ sedeAttiva, sedi = [], onChange, sco
     )
   }
 
-  const nome = sedeAttiva?.nome || '—'
+  const nome = sedeAttiva?.nome || '-'
   const citta = sedeAttiva?.citta
 
   return (

@@ -41,7 +41,7 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
 
       // Refresh quando il SW prende controllo (post skipWaiting → reload).
       // Audit 2026-06-25 CRITICO: questo handler era causa di "girava tra pagine
-      // a caso" — quando un chunk lazy fallisce (vecchio hash non più sul CDN),
+      // a caso" - quando un chunk lazy fallisce (vecchio hash non più sul CDN),
       // l'ErrorBoundary innesca reload, il SW poll detect nuovo SW, controllerchange
       // triggera un secondo reload mentre l'utente sta già navigando → ciclo.
       // Guard: reloadiamo solo se non abbiamo già reloaded negli ultimi 60s,
@@ -56,7 +56,7 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
           sessionStorage.setItem(k, String(Date.now()))
         } catch { /* sessionStorage non disponibile, procedi */ }
         refreshing = true
-        // Pulisci cache runtime prima del reload — il nuovo SW caches ricomincia da zero.
+        // Pulisci cache runtime prima del reload - il nuovo SW caches ricomincia da zero.
         try {
           if (navigator.serviceWorker.controller) {
             navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' })
@@ -81,7 +81,7 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
       }, SW_POLL_MS)
 
       // Update anche al rientro in foreground (Safari sospende il setInterval
-      // quando la PWA non e' visibile — al ritorno verifichiamo subito).
+      // quando la PWA non e' visibile - al ritorno verifichiamo subito).
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
           reg.update().catch(() => {})
@@ -106,7 +106,7 @@ export function clearServiceWorkerCache() {
   if (!navigator.serviceWorker?.controller) return Promise.resolve()
   return new Promise((resolve) => {
     navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' })
-    // No round-trip ack — fail-soft, basta che il messaggio parta.
+    // No round-trip ack - fail-soft, basta che il messaggio parta.
     setTimeout(resolve, 100)
   })
 }

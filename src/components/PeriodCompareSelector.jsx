@@ -1,4 +1,4 @@
-// PeriodCompareSelector — pill UI riusabile per "confronta con"
+// PeriodCompareSelector - pill UI riusabile per "confronta con"
 //
 // Riceve mode + onChange; mostra 3 chip cliccabili.
 // Pensato per stare a fianco del selettore periodo (settimana/mese/anno).

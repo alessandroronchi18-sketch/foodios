@@ -91,7 +91,7 @@ export function parseZucchettiInfinity(csvText) {
     })
   }
 
-  if (!movimenti.length) throw new Error('Nessun movimento trovato — verifica il formato (Data, Causale, Dare, Avere, Saldo, Descrizione)')
+  if (!movimenti.length) throw new Error('Nessun movimento trovato - verifica il formato (Data, Causale, Dare, Avere, Saldo, Descrizione)')
   return movimenti
 }
 
@@ -158,7 +158,7 @@ export function parseZucchettiKassa(csvText) {
     totaliGiorno[data].per_reparto[reparto] = (totaliGiorno[data].per_reparto[reparto] || 0) + importo
   }
 
-  if (!vendite.length) throw new Error('Nessuna vendita trovata — verifica il formato (Data, Ora, Reparto, Importo, IVA, Metodo pagamento)')
+  if (!vendite.length) throw new Error('Nessuna vendita trovata - verifica il formato (Data, Ora, Reparto, Importo, IVA, Metodo pagamento)')
 
   return {
     vendite,

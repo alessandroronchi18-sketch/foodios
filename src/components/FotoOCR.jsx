@@ -1,4 +1,4 @@
-// FotoOCR — Componente analisi foto via Claude Vision API.
+// FotoOCR - Componente analisi foto via Claude Vision API.
 // Modi: 'ricetta' | 'produzione' | 'magazzino' | 'prezzi'
 //
 // Estratto da Dashboard.jsx. Usato da MagazzinoView, ProduzioneGiornaliera, NuovaRicetta.
@@ -46,9 +46,9 @@ export default function FotoOCR({ mode, onResult, onBatchSave, notify, ricettari
 
   const PROMPTS = {
     ricetta: `You are an expert OCR and recipe parser for Italian and international artisan pastry recipes.
-The image may be: handwritten notes, a cookbook page, a printed recipe sheet — in ITALIAN or ENGLISH.
+The image may be: handwritten notes, a cookbook page, a printed recipe sheet - in ITALIAN or ENGLISH.
 Instructions:
-- Read ALL ingredients carefully even if handwriting is unclear — infer from context
+- Read ALL ingredients carefully even if handwriting is unclear - infer from context
 - Extract the recipe name. If in English translate to Italian: "carrot cake"→"TORTA DI CAROTE", "banana bread"→"BANANA BREAD", "apple cake"→"TORTA DI MELE", "cookies"→"COOKIES", "poppy seed cake"→"POPPY SEEDS", "lemon coconut"→"LIMONE E COCCO"
 - Extract each ingredient name IN ITALIAN LOWERCASE. Translate from English if needed: "butter"→"burro", "eggs"→"uovo", "flour"→"farina 00", "sugar"→"zucchero", "milk"→"latte intero", "cream"→"panna fresca", "baking powder"→"lievito chimico", "baking soda"→"bicarbonato", "vanilla"→"estratto di vaniglia", "cocoa powder"→"cacao amaro in polvere", "chocolate chips"→"gocce di cioccolato", "carrots"→"carota", "bananas"→"banana", "poppy seeds"→"seme di papavero", "cinnamon"→"cannella in polvere", "nutmeg"→"noce moscata", "walnuts"→"noce", "almonds"→"mandorla", "honey"→"miele", "oil"→"olio di semi", "lemon zest"→"scorza di limone", "cornstarch"→"amido di mais"
 - Extract quantity AND unit EXACTLY as written (do NOT pre-convert to grams). Use the unit from the recipe: "g","kg","ml","l","dl","cl","cucchiaio","cucchiaini","tazza","bicchiere","noce","pizzico","qb"
@@ -59,7 +59,7 @@ Instructions:
 {"nome":"RECIPE NAME IN UPPERCASE ITALIAN","porzioni":8,"ingredienti":[{"nome":"ingredient name in italian lowercase","quantita":250,"unita":"g"}],"note":"cooking notes or empty string"}`,
 
     produzione: `You are an OCR specialist for Italian artisan pastry daily production notes.
-The image is a handwritten note (paper, notebook) with today's production — e.g. "2 carote", "1 banana", "3 cookies", OR in English: "2 carrot cake", "1 banana bread".
+The image is a handwritten note (paper, notebook) with today's production - e.g. "2 carote", "1 banana", "3 cookies", OR in English: "2 carrot cake", "1 banana bread".
 Instructions:
 - Read each line even if cursive, abbreviated, or in English
 - "stampi" = number of trays/batches produced (NOT number of slices)
@@ -70,7 +70,7 @@ Instructions:
 {"prodotti":[{"nome":"PRODUCT NAME UPPERCASE","stampi":integer_number}]}`,
 
     prezzi: `You are an OCR specialist for Italian artisan pastry wholesale price lists and invoices.
-The image may be a: handwritten price list, printed wholesale catalogue, delivery receipt/invoice, supermarket receipt, or supplier price sheet — in Italian or English.
+The image may be a: handwritten price list, printed wholesale catalogue, delivery receipt/invoice, supermarket receipt, or supplier price sheet - in Italian or English.
 Instructions:
 - Extract EVERY ingredient/product that has a visible price
 - Ingredient names in ITALIAN lowercase: translate from English if needed ("butter"→"burro", "flour"→"farina 00", "eggs"→"uova", "sugar"→"zucchero", "cream"→"panna fresca", "milk"→"latte intero", "chocolate"→"cioccolato fondente")
@@ -81,7 +81,7 @@ Instructions:
 {"ingredienti":[{"nome":"ingredient name italian lowercase","prezzo_kg":price_per_kg_as_number}]}`,
 
     magazzino: `You are an OCR specialist for Italian pastry ingredient/supply lists.
-The image is a handwritten list (sheet, notebook, delivery receipt) of ingredients received with quantities — may be in Italian or English.
+The image is a handwritten list (sheet, notebook, delivery receipt) of ingredients received with quantities - may be in Italian or English.
 Instructions:
 - Read each line even if cursive or abbreviated
 - Convert ALL to grams: 1kg=1000g, 500g=500g, 1L milk≈1030g, 1L cream≈1000g, 1L oil≈920g, 1 block butter 250g=250g, 1lb=454g, 1oz=28g
@@ -221,10 +221,10 @@ Instructions:
   }
 
   const ML = {
-    ricetta:    { title: 'Foto della ricetta',          sub: 'Foglio scritto a mano o pagina di libro — Claude legge anche grafia difficile' },
-    produzione: { title: "Foto dell'appunto di oggi",   sub: 'Foglietto o quaderno con le torte prodotte — anche corsivo abbreviato' },
+    ricetta:    { title: 'Foto della ricetta',          sub: 'Foglio scritto a mano o pagina di libro - Claude legge anche grafia difficile' },
+    produzione: { title: "Foto dell'appunto di oggi",   sub: 'Foglietto o quaderno con le torte prodotte - anche corsivo abbreviato' },
     magazzino:  { title: 'Foto della lista ingredienti', sub: 'Foglio scritto con gli ingredienti arrivati e le quantità' },
-    prezzi:     { title: 'Foto del listino / fattura',   sub: 'Listino prezzi, fattura fornitore, scontrino — Claude estrae €/kg automaticamente' },
+    prezzi:     { title: 'Foto del listino / fattura',   sub: 'Listino prezzi, fattura fornitore, scontrino - Claude estrae €/kg automaticamente' },
   }[mode]
 
   return (
@@ -288,7 +288,7 @@ Instructions:
                       </div>
                     ) : (
                       <div style={{ padding: '8px 10px', background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 6, fontSize: 11, color: C.amber, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <Icon name="warning" size={12} /> Nessun ingrediente estratto — prova con una foto più nitida
+                        <Icon name="warning" size={12} /> Nessun ingrediente estratto - prova con una foto più nitida
                       </div>
                     )}
                     {parsed.note && <div style={{ fontSize: 10, color: C.textSoft, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="edit" size={11} /> {parsed.note}</div>}

@@ -17,7 +17,7 @@ const TIPI_IMPORT = [
     colonne: [
       { nome: 'Nome ricetta',    nota: 'Es. "Torta della nonna"', esempi: ['Torta della nonna', 'Crostata di mele', 'Tiramisù'] },
       { nome: 'Categoria',       nota: 'Torte / Biscotti / Crostate / ...', esempi: ['Torte', 'Crostate', 'Dolci al cucchiaio'] },
-      { nome: 'Ingrediente',     nota: 'Una riga per ingrediente — ripeti il nome ricetta', esempi: ['farina 00', 'mele', 'mascarpone'] },
+      { nome: 'Ingrediente',     nota: 'Una riga per ingrediente - ripeti il nome ricetta', esempi: ['farina 00', 'mele', 'mascarpone'] },
       { nome: 'Quantità (g/ml)', nota: 'Per uno stampo, in grammi o ml', esempi: [400, 600, 500] },
       { nome: 'N° pezzi/fette',  nota: 'Quanti pezzi/fette si ricavano da uno stampo', esempi: [10, 8, 12] },
       { nome: 'Prezzo €/pezzo',  nota: 'Prezzo di vendita al cliente per pezzo', esempi: [4.5, 3.0, 5.0] },
@@ -201,7 +201,7 @@ export default function ImportaDatiView({
         </p>
       </div>
 
-      {/* Mini guida — 3 passi */}
+      {/* Mini guida - 3 passi */}
       <div style={{ marginBottom: isMobile ? 24 : 30 }}>
         <div style={{
           fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase',

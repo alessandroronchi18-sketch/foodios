@@ -2,7 +2,7 @@
 //
 // PRINCIPIO: il modello dati resta GENERICO ("prodotto", "ricetta"). Qui cambiano
 // SOLO le parole mostrate all'utente. Una gelateria vede "gusti", una pizzeria
-// "pizze", un ristorante "piatti" — ma sotto è sempre lo stesso concetto e lo
+// "pizze", un ristorante "piatti" - ma sotto è sempre lo stesso concetto e lo
 // stesso codice. Questo evita di forkare la logica per categoria e funziona
 // anche per gli ibridi (es. gelateria+pasticceria): basta scegliere la categoria
 // principale, le parole non sbagliate restano comprensibili.

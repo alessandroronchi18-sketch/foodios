@@ -1,4 +1,4 @@
-// CameraButton — scatta foto con la fotocamera del device.
+// CameraButton - scatta foto con la fotocamera del device.
 // Usa input[capture] per aprire direttamente la fotocamera su mobile
 // (no galleria → meno tap per il dipendente).
 //

@@ -1,10 +1,10 @@
 // Menu Engineering (Kasavana-Smith)
 //
 // Matrice 2x2: popolarità (asse X) × margine (asse Y).
-//   STARS    (alto/alto)   — proteggi, evidenzia in vetrina
-//   PLOWHORSE (alto/basso) — popolare ma poco redditizio → alza prezzo o riduci costo
-//   PUZZLE   (basso/alto)  — alto margine ma non vende → marketing, promo, riposiziona
-//   DOG      (basso/basso) — basso margine, basso volume → considera sostituire
+//   STARS    (alto/alto)   - proteggi, evidenzia in vetrina
+//   PLOWHORSE (alto/basso) - popolare ma poco redditizio → alza prezzo o riduci costo
+//   PUZZLE   (basso/alto)  - alto margine ma non vende → marketing, promo, riposiziona
+//   DOG      (basso/basso) - basso margine, basso volume → considera sostituire
 //
 // Calcolo:
 //   popolarità = (qta venduta nel periodo) / (media qta venduta del menu)

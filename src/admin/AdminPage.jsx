@@ -13,7 +13,7 @@ import PersonalizeDemoModal from './PersonalizeDemoModal'
 const PIANI = ['trial', 'base', 'pro', 'enterprise']
 const PIANO_PREZZO = { trial: 0, base: 39, pro: 89, enterprise: 199 }
 
-// Etichette per le chiavi di user_data — allineate ai label scritti dai trigger
+// Etichette per le chiavi di user_data - allineate ai label scritti dai trigger
 // di audit (mig. 20260606). Tenere in sync se cambiano lì.
 const LABEL_CHIAVE = {
   'pasticceria-magazzino-v1':            'Magazzino',
@@ -63,8 +63,8 @@ const COLORS = {
 const tnum = _tnum;
 
 // ─── Utility ───────────────────────────────────────────────────────────────
-const fmtData = iso => iso ? new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'
-const fmtDataOra = iso => iso ? new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'
+const fmtData = iso => iso ? new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '-'
+const fmtDataOra = iso => iso ? new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'
 // useGrouping:'always' obbligatorio: senza, "4715" appare senza separatore migliaia
 // su Safari iOS private / Node senza ICU full. Vedi _shared.jsx.
 const _ADMIN_NF = new Intl.NumberFormat('it-IT', { useGrouping: 'always', maximumFractionDigits: 0 })
@@ -225,7 +225,7 @@ function EmailModal({ cliente, onClose, onInvia }) {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
         {tpl(<><Icon name="party" size={12} /> Benvenuto</>,
           'Benvenuto in Foodos!',
-          `Ciao ${cliente.nome_completo || ''},\n\ngrazie per aver registrato ${cliente.nome_attivita} su Foodos. Sono qui per aiutarti a iniziare — fammi sapere se hai bisogno di una breve demo o di chiarimenti.\n\nA presto!`)}
+          `Ciao ${cliente.nome_completo || ''},\n\ngrazie per aver registrato ${cliente.nome_attivita} su Foodos. Sono qui per aiutarti a iniziare - fammi sapere se hai bisogno di una breve demo o di chiarimenti.\n\nA presto!`)}
         {tpl(<><Icon name="clock" size={12} /> Trial in scadenza</>,
           'La tua prova Foodos sta per scadere',
           `Ciao ${cliente.nome_completo || ''},\n\nho visto che il tuo trial sta per terminare. Vuoi continuare con Foodos? Posso prepararti un'offerta dedicata, fammi sapere.\n\nGrazie,\nAlessandro`)}
@@ -449,9 +449,9 @@ function DemoCleanupModal({ cliente, matches, onClose, onConferma }) {
               <tbody>
                 {matches.map((f, i) => (
                   <tr key={f.id} style={{ borderBottom: i < matches.length - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
-                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '—'}</td>
+                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, whiteSpace: 'nowrap' }}>{f.data_fattura || '-'}</td>
                     <td style={{ padding: '8px 12px', color: COLORS.text, fontWeight: 500 }}>{f.fornitore}</td>
-                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{f.numero_rif || '—'}</td>
+                    <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{f.numero_rif || '-'}</td>
                     <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: COLORS.text, whiteSpace: 'nowrap' }}>€ {Number(f.totale || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
@@ -658,7 +658,7 @@ function RegalaMesiModal({ cliente, codici, onClose, onRegala }) {
         </label>
         <select value={codiceRif} onChange={e => setCodiceRif(e.target.value)}
           style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 13, background: '#FFF', boxSizing: 'border-box' }}>
-          <option value="">— Nessuno (regalo manuale) —</option>
+          <option value="">- Nessuno (regalo manuale) -</option>
           {(codici || []).filter(c => c.attivo).map(c => (
             <option key={c.id} value={c.codice}>{c.codice} ({c.descrizione || 'senza descrizione'})</option>
           ))}
@@ -686,7 +686,7 @@ function ImpersonaModal({ cliente, link, onClose }) {
     catch { /* ignore */ }
   }
   return (
-    <Modal title={`Link di accesso — ${cliente.nome_attivita}`} onClose={onClose}>
+    <Modal title={`Link di accesso - ${cliente.nome_attivita}`} onClose={onClose}>
       <div style={{ fontSize: 13, color: COLORS.textSoft, lineHeight: 1.6, marginBottom: 14 }}>
         Magic link generato per <strong>{cliente.email}</strong>.<br/>
         Apri il link in una <strong>finestra anonima</strong> per accedere come quell'utente
@@ -758,7 +758,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
   const healthBadge = (() => {
     const ref = cliente.ultimo_accesso || cliente.registrata_il
     const d = giorniDa(ref)
-    if (d == null) return { bg: COLORS.blockedBg, fg: COLORS.blocked, dot: null, lbl: '— Sconosciuto' }
+    if (d == null) return { bg: COLORS.blockedBg, fg: COLORS.blocked, dot: null, lbl: '- Sconosciuto' }
     if (d <= 2) return { bg: COLORS.okBg, fg: COLORS.ok, dot: '#0E9F6E', lbl: 'Attivo' }
     if (d <= 7) return { bg: COLORS.warnBg, fg: COLORS.warn, dot: '#D97706', lbl: `A rischio (${d}gg)` }
     return { bg: COLORS.errBg, fg: COLORS.err, dot: '#6E0E1A', lbl: `Dormiente (${d}gg)` }
@@ -816,18 +816,18 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         </div>
         <div>
           <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Ultimo accesso</div>
-          <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.ultimo_accesso ? fmtDataOra(cliente.ultimo_accesso) : '—'}</div>
+          <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.ultimo_accesso ? fmtDataOra(cliente.ultimo_accesso) : '-'}</div>
         </div>
         <div>
           <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Trial scade</div>
-          <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.trial_ends_at ? fmtData(cliente.trial_ends_at) : '—'}</div>
+          <div style={{ fontSize: 12, color: COLORS.text }}>{cliente.trial_ends_at ? fmtData(cliente.trial_ends_at) : '-'}</div>
         </div>
         <div>
           <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Stripe</div>
           <div style={{ fontSize: 11, color: COLORS.text }}>
             {org?.stripe_subscription_id
               ? <><b>{org.stripe_status || 'attivo'}</b>{org.stripe_current_period_end ? <> · al {fmtData(org.stripe_current_period_end)}</> : null}</>
-              : <span style={{ color: COLORS.textMute }}>— (nessuna sub)</span>}
+              : <span style={{ color: COLORS.textMute }}>- (nessuna sub)</span>}
           </div>
         </div>
       </div>
@@ -920,7 +920,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
         <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMute }}>Caricamento dettaglio…</div>
       ) : (
         <>
-          {/* Customer 360 — moduli e operazioni (Audit 2026-06-19).
+          {/* Customer 360 - moduli e operazioni (Audit 2026-06-19).
               Aree prima invisibili: integrazioni, B2B, POS, push subs, scadenzario,
               costi aziendali, stipendi. Grid 2col mobile / 4col desktop. */}
           {has360 && (
@@ -1043,7 +1043,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
               {c360.integrazioni && c360.integrazioni.items?.filter(i => i.attiva).length > 0 && (
                 <div style={{ marginTop: 10, padding: 10, background: COLORS.bg || '#FAFAFA', border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
                   <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
-                    Integrazioni attive — clic su × per revocare
+                    Integrazioni attive - clic su × per revocare
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {c360.integrazioni.items.filter(i => i.attiva).map(i => (
@@ -1071,7 +1071,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
               {c360.push && c360.push.devices?.length > 0 && (
                 <div style={{ marginTop: 10, padding: 10, background: COLORS.bg || '#FAFAFA', border: `1px solid ${COLORS.border}`, borderRadius: 8 }}>
                   <div style={{ fontSize: 10, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6, fontWeight: 700 }}>
-                    Dispositivi push sottoscritti — clic su × per revocare
+                    Dispositivi push sottoscritti - clic su × per revocare
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {c360.push.devices.map(d => (
@@ -1128,7 +1128,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
             </h3>
             {usage.length === 0 ? (
               <div style={{ fontSize: 12, color: COLORS.textMute, padding: '12px 0' }}>
-                Nessun dato salvato — il cliente non ha mai inserito nulla.
+                Nessun dato salvato - il cliente non ha mai inserito nulla.
               </div>
             ) : (
               <div style={{ border: `1px solid ${COLORS.border}`, borderRadius: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -1159,9 +1159,9 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                             )}
                           </td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', color: COLORS.textSoft, fontWeight: 600 }}>{u.conteggio}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', color: COLORS.textMute }}>{u.n_sedi || '—'}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: COLORS.textMute }}>{u.n_sedi || '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', color: fresca ? COLORS.ok : COLORS.textMute, whiteSpace: 'nowrap', fontWeight: fresca ? 600 : 400 }}>
-                            {u.ultimo ? fmtDataOra(u.ultimo) : '—'}
+                            {u.ultimo ? fmtDataOra(u.ultimo) : '-'}
                           </td>
                         </tr>
                       )
@@ -1194,7 +1194,7 @@ function ClienteDettaglioModal({ cliente, dettaglio, loading, onClose, onAzione,
                           {fmtDataOra(e.when)}
                         </td>
                         <td style={{ padding: '6px 10px', color: COLORS.textSoft, fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.user_email || ''}>
-                          {e.user_email || '—'}
+                          {e.user_email || '-'}
                           {e.ruolo === 'dipendente' && <span style={{ marginLeft: 4, fontSize: 9, padding: '1px 4px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700 }}>dip</span>}
                         </td>
                         <td style={{ padding: '6px 10px', color: COLORS.text }}>
@@ -1509,7 +1509,7 @@ export default function AdminPage() {
     }
   }, [apiCall, fetchBlocklist, toast])
 
-  // ─── ADMIN v2 — Audit 2026-06-20 ────────────────────────────────────────
+  // ─── ADMIN v2 - Audit 2026-06-20 ────────────────────────────────────────
   // Activity feed (live poll 12s)
   const [activity, setActivity] = useState([])
   const [activityLoading, setActivityLoading] = useState(false)
@@ -1676,7 +1676,7 @@ export default function AdminPage() {
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      toast.success('Codice ad-hoc creato — copialo dalla lista in alto')
+      toast.success('Codice ad-hoc creato - copialo dalla lista in alto')
       setAdHocOpen(false)
       setAdHocForm({ target_org_id: '', tipo_sconto: 'percent', valore_sconto: 20, durata: 'once', descrizione: '' })
       fetchCodici()
@@ -2254,7 +2254,7 @@ export default function AdminPage() {
         )}
 
         {adminTab === 'overview' && (<>
-        {/* Alert visibile: feedback non gestiti — il founder li deve vedere subito */}
+        {/* Alert visibile: feedback non gestiti - il founder li deve vedere subito */}
         {feedback.filter(f => !f.gestito).length > 0 && (
           <div
             onClick={() => setAdminTab('ops')}
@@ -2289,34 +2289,34 @@ export default function AdminPage() {
           gridTemplateColumns: isAdminNarrow ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)',
           gap: 12, marginBottom: 20,
         }}>
-          <KpiCard label="Totale clienti" value={stats?.totale ?? '—'} sub={stats?.nuoviMese != null ? `+${stats.nuoviMese} ultimo mese` : null} />
+          <KpiCard label="Totale clienti" value={stats?.totale ?? '-'} sub={stats?.nuoviMese != null ? `+${stats.nuoviMese} ultimo mese` : null} />
           <KpiCard
             label="Trial attivi"
-            value={stats?.trial ?? '—'}
+            value={stats?.trial ?? '-'}
             sub={stats?.giorniMediTrial != null ? `Media ${stats.giorniMediTrial}gg rimasti` : null}
             color={COLORS.warn}
           />
           <KpiCard
             label="Paganti"
-            value={stats?.paganti ?? '—'}
+            value={stats?.paganti ?? '-'}
             sub={metricheAvanzate?.conversion != null ? `Conversion ${metricheAvanzate.conversion}%` : null}
             color={COLORS.ok}
           />
           <KpiCard
             label="Trial scaduti"
-            value={stats?.scaduti ?? '—'}
+            value={stats?.scaduti ?? '-'}
             sub="Da convertire"
             color={COLORS.err}
           />
           <KpiCard
             label="MRR stimato"
-            value={stats ? fmtEuro(stats.mrrStimato) : '—'}
+            value={stats ? fmtEuro(stats.mrrStimato) : '-'}
             sub="Su piani attivi"
             color={COLORS.blue}
           />
           <KpiCard
             label="Nuovi 7gg"
-            value={stats?.nuoviSettimana ?? '—'}
+            value={stats?.nuoviSettimana ?? '-'}
             sub="Registrazioni"
           />
         </div>
@@ -2569,11 +2569,11 @@ export default function AdminPage() {
               title="Filtra per segnale comportamentale"
             >
               <option value="tutti">Tutti (no filtro signal)</option>
-              <option value="hot">🔥 Hot — da chiamare</option>
-              <option value="silent">😴 Silent — trial inattivo</option>
-              <option value="churning">☠️ Churn risk — pagante in calo</option>
-              <option value="new_value">New value — primo wow</option>
-              <option value="errors">⚠ Errors — bug ricorrenti</option>
+              <option value="hot">🔥 Hot - da chiamare</option>
+              <option value="silent">😴 Silent - trial inattivo</option>
+              <option value="churning">☠️ Churn risk - pagante in calo</option>
+              <option value="new_value">New value - primo wow</option>
+              <option value="errors">⚠ Errors - bug ricorrenti</option>
             </select>
           </div>
 
@@ -2665,7 +2665,7 @@ export default function AdminPage() {
                         </td>
                         <td style={{ ...td(), cursor: 'pointer' }} onClick={() => apriDettaglio(c)} title="Apri dettaglio cliente">
                           <div style={{ fontWeight: 700, color: COLORS.accent, textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {c.nome_attivita || '—'}
+                            {c.nome_attivita || '-'}
                             {/* Audit 2026-06-20: signal badge inline */}
                             {signals[c.org_id] && signals[c.org_id].status !== 'normal' && (() => {
                               const s = signals[c.org_id]
@@ -2688,7 +2688,7 @@ export default function AdminPage() {
                           </div>
                           {c.nome_completo && <div style={{ fontSize: 11, color: COLORS.textMute }}>{c.nome_completo}</div>}
                         </td>
-                        <td style={{ ...td(), color: COLORS.textSoft, textTransform: 'capitalize' }}>{c.tipo || '—'}</td>
+                        <td style={{ ...td(), color: COLORS.textSoft, textTransform: 'capitalize' }}>{c.tipo || '-'}</td>
                         <td style={{ ...td(), color: COLORS.textSoft }}>
                           {c.email}
                           {!c.email_confermata && (
@@ -2713,7 +2713,7 @@ export default function AdminPage() {
                         <td style={{ ...td(), color: COLORS.textSoft, textAlign: 'center' }}>{c.num_sedi || 0}</td>
                         <td style={{ ...td(), color: COLORS.textSoft, textAlign: 'center' }}>{c.num_record || 0}</td>
                         <td style={{ ...td(), color: COLORS.textSoft, whiteSpace: 'nowrap' }}>
-                          {c.ultimo_accesso ? fmtDataOra(c.ultimo_accesso) : <span style={{ color: COLORS.textMute }}>—</span>}
+                          {c.ultimo_accesso ? fmtDataOra(c.ultimo_accesso) : <span style={{ color: COLORS.textMute }}>-</span>}
                         </td>
                         <td style={td()}>
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -3066,7 +3066,7 @@ export default function AdminPage() {
                         {descrAttuale}
                       </div>
                       <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 4 }}>
-                        Stripe price: <code>{row.stripe_price_id || '— (usa env)'}</code>
+                        Stripe price: <code>{row.stripe_price_id || '- (usa env)'}</code>
                       </div>
                     </div>
                     {!inEdit && (
@@ -3204,7 +3204,7 @@ export default function AdminPage() {
                           {usato}{c.max_redemptions ? ` / ${c.max_redemptions}` : ''}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft, whiteSpace: 'nowrap' }}>
-                          {c.scade_il ? fmtData(c.scade_il) : '—'}
+                          {c.scade_il ? fmtData(c.scade_il) : '-'}
                         </td>
                         <td style={td()}>
                           {!c.attivo ? <StatoBadge stato="bloccato" />
@@ -3213,7 +3213,7 @@ export default function AdminPage() {
                             : <span style={{ background: COLORS.okBg, color: COLORS.ok, padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 700 }}>Attivo</span>}
                         </td>
                         <td style={{ ...td(), color: COLORS.textSoft, fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.descrizione || ''}>
-                          {c.descrizione || '—'}
+                          {c.descrizione || '-'}
                         </td>
                         <td style={td()}>
                           <div style={{ display: 'flex', gap: 4 }}>
@@ -3355,7 +3355,7 @@ export default function AdminPage() {
                           {!e.livemode && <span style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px', borderRadius: 3, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>test</span>}
                         </td>
                         <td style={{ padding: '8px 12px', color: COLORS.textSoft, fontSize: 11 }}>
-                          {e.customer_email || (e.customer_id ? <code>{e.customer_id.slice(0, 16)}…</code> : '—')}
+                          {e.customer_email || (e.customer_id ? <code>{e.customer_id.slice(0, 16)}…</code> : '-')}
                         </td>
                         <td style={{ padding: '8px 18px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {e.amount_cents != null ? `${Number(e.amount_cents / 100).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${(e.currency || 'EUR').toUpperCase()}` : ''}
@@ -3409,7 +3409,7 @@ export default function AdminPage() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                       <span style={{ background: s.bg, color: s.fg, padding: '2px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name={s.icon} size={11} /> {s.lbl}</span>
-                      <strong style={{ fontSize: 13, color: COLORS.text }}>{f.nome_attivita || '—'}</strong>
+                      <strong style={{ fontSize: 13, color: COLORS.text }}>{f.nome_attivita || '-'}</strong>
                       <span style={{ fontSize: 11, color: COLORS.textMute }}>·</span>
                       <span style={{ fontSize: 11, color: COLORS.textSoft }}>{f.user_email}</span>
                       {f.ruolo === 'dipendente' && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: COLORS.warnBg, color: COLORS.warn, fontWeight: 700, textTransform: 'uppercase' }}>dip</span>}
@@ -3609,8 +3609,8 @@ export default function AdminPage() {
                     <td style={{ ...td(), fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 700, color: COLORS.err }}>
                       @{b.domain}
                     </td>
-                    <td style={td()}>{b.motivo || <span style={{ color: COLORS.textMute }}>—</span>}</td>
-                    <td style={{ ...td(), color: COLORS.textMute }}>{b.created_by || '—'}</td>
+                    <td style={td()}>{b.motivo || <span style={{ color: COLORS.textMute }}>-</span>}</td>
+                    <td style={{ ...td(), color: COLORS.textMute }}>{b.created_by || '-'}</td>
                     <td style={{ ...td(), color: COLORS.textMute }}>{fmtDataOra(b.created_at)}</td>
                     <td style={{ ...td(), textAlign: 'right' }}>
                       <Btn kind="ghost" size="sm" onClick={() => rimuoviBlocco(b.domain)} title="Sblocca">
@@ -3777,7 +3777,7 @@ export default function AdminPage() {
                 try {
                   const res = await apiCall('/api/admin?action=migrate_integrazioni')
                   const data = await res.json()
-                  toast.success(`✓ Migrate ${data.migrated}/${data.total} integrazioni — errori: ${data.errors?.length || 0}`)
+                  toast.success(`✓ Migrate ${data.migrated}/${data.total} integrazioni - errori: ${data.errors?.length || 0}`)
                   if (data.errors?.length) console.error('migrate errors:', data.errors)
                 } catch (e) {
                   toast.error(`Errore migrazione: ${e.message}`)
@@ -3812,7 +3812,7 @@ export default function AdminPage() {
                 <div key={e.id} style={{ padding: '10px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                     <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11, padding: '1px 6px', background: COLORS.rowAlt, borderRadius: 4, color: COLORS.text, fontWeight: 600 }}>
-                      {e.endpoint || '—'}{e.operation ? `:${e.operation}` : ''}
+                      {e.endpoint || '-'}{e.operation ? `:${e.operation}` : ''}
                     </span>
                     {e.code && <span style={{ fontSize: 10, padding: '1px 5px', background: COLORS.errBg, color: COLORS.err, borderRadius: 4, fontWeight: 700 }}>{e.code}</span>}
                     {e.status && <span style={{ fontSize: 10, padding: '1px 5px', background: COLORS.warnBg, color: COLORS.warn, borderRadius: 4, fontWeight: 700 }}>{e.status}</span>}
@@ -3897,7 +3897,7 @@ export default function AdminPage() {
           <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 14 }}><Icon name="coins" size={14} /> Costi AI per cliente</strong>
             <span style={{ fontSize: 11, color: COLORS.textMute }}>
-              ultimi {aiCostDays} gg · totale {aiCost ? '$' + Number(aiCost.total_cost_usd || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+              ultimi {aiCostDays} gg · totale {aiCost ? '$' + Number(aiCost.total_cost_usd || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
             </span>
             <span style={{ flex: 1 }} />
             <select value={aiCostDays} onChange={e => setAiCostDays(parseInt(e.target.value, 10))}
@@ -3947,7 +3947,7 @@ export default function AdminPage() {
                         <td style={{ ...td(), fontSize: 11 }}>
                           {c.top_features.map(f => `${f.feature} $${Number(f.cost_usd).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(' · ')}
                         </td>
-                        <td style={{ ...td(), color: COLORS.textMute, fontSize: 11 }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '—'}</td>
+                        <td style={{ ...td(), color: COLORS.textMute, fontSize: 11 }}>{c.last_call_at ? fmtDataOra(c.last_call_at) : '-'}</td>
                       </tr>
                     )
                   })}
@@ -3999,7 +3999,7 @@ export default function AdminPage() {
                     {(aiTelemetry.daily_brief?.tot ?? 0).toLocaleString('it-IT')}
                   </div>
                   <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
-                    {aiTelemetry.daily_brief?.sent ?? 0} inviati · OR {aiTelemetry.daily_brief?.open_rate ?? '—'}%
+                    {aiTelemetry.daily_brief?.sent ?? 0} inviati · OR {aiTelemetry.daily_brief?.open_rate ?? '-'}%
                   </div>
                 </div>
                 <div>
@@ -4017,7 +4017,7 @@ export default function AdminPage() {
                     {(aiTelemetry.ocr_fatture?.estratte ?? 0).toLocaleString('it-IT')}
                   </div>
                   <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
-                    avg conf {aiTelemetry.ocr_fatture?.avg_confidence ?? '—'}
+                    avg conf {aiTelemetry.ocr_fatture?.avg_confidence ?? '-'}
                   </div>
                 </div>
               </div>
@@ -4034,12 +4034,12 @@ export default function AdminPage() {
                     <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
                       <td style={{ padding: '6px 14px' }}>AI Suggestions</td>
                       <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>azione</td>
-                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{aiTelemetry.ai_suggestions?.agito ?? 0}/{aiTelemetry.ai_suggestions?.tot ?? 0} ({aiTelemetry.ai_suggestions?.action_rate ?? '—'}%)</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{aiTelemetry.ai_suggestions?.agito ?? 0}/{aiTelemetry.ai_suggestions?.tot ?? 0} ({aiTelemetry.ai_suggestions?.action_rate ?? '-'}%)</td>
                     </tr>
                     <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
                       <td style={{ padding: '6px 14px' }}>Recipe Inventor</td>
                       <td style={{ padding: '6px 14px', textAlign: 'right', color: COLORS.textMute }}>salvate</td>
-                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{aiTelemetry.recipe_inventor?.ricette_salvate ?? 0}/{aiTelemetry.recipe_inventor?.ricette_generate ?? 0} ({aiTelemetry.recipe_inventor?.save_rate ?? '—'}%)</td>
+                      <td style={{ padding: '6px 14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{aiTelemetry.recipe_inventor?.ricette_salvate ?? 0}/{aiTelemetry.recipe_inventor?.ricette_generate ?? 0} ({aiTelemetry.recipe_inventor?.save_rate ?? '-'}%)</td>
                     </tr>
                     <tr style={{ borderTop: `1px solid ${COLORS.border}` }}>
                       <td style={{ padding: '6px 14px' }}>Forecast vendite</td>
@@ -4110,10 +4110,10 @@ export default function AdminPage() {
                       <div key={c.id} style={{ padding: '8px 10px', border: `1px solid ${COLORS.border}`, borderRadius: 6, background: bg }}>
                         <div style={{ fontSize: 12, fontWeight: 600 }}>{sym} {c.id}</div>
                         <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
-                          Tabella: <code>{c.table || '—'}</code> · atteso ~{c.expected_hour_utc ?? '?'}:00 UTC
+                          Tabella: <code>{c.table || '-'}</code> · atteso ~{c.expected_hour_utc ?? '?'}:00 UTC
                         </div>
                         <div style={{ fontSize: 10, color: COLORS.textMute, marginTop: 2 }}>
-                          Ultimo run: {c.last_run ? fmtDataOra(c.last_run) : '—'}{c.hours_ago != null ? ` (${c.hours_ago}h fa)` : ''}
+                          Ultimo run: {c.last_run ? fmtDataOra(c.last_run) : '-'}{c.hours_ago != null ? ` (${c.hours_ago}h fa)` : ''}
                         </div>
                         {c.error && <div style={{ fontSize: 10, color: '#dc2626', marginTop: 2 }}>{c.error}</div>}
                       </div>
@@ -4124,13 +4124,13 @@ export default function AdminPage() {
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
                 <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Errori produzione 24h</div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: (healthSnap.errori_ultime_24h || 0) > 0 ? '#dc2626' : '#059669' }}>
-                  {healthSnap.errori_ultime_24h ?? '—'}
+                  {healthSnap.errori_ultime_24h ?? '-'}
                 </div>
               </div>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
                 <div style={{ fontSize: 11, color: COLORS.textMute, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Build Vercel</div>
                 <div style={{ fontSize: 12, fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>
-                  commit: <strong>{healthSnap.build?.git_commit || '—'}</strong> · branch: {healthSnap.build?.git_branch || '—'} · env: {healthSnap.build?.vercel_env || '—'}
+                  commit: <strong>{healthSnap.build?.git_commit || '-'}</strong> · branch: {healthSnap.build?.git_branch || '-'} · env: {healthSnap.build?.vercel_env || '-'}
                 </div>
               </div>
               <div style={{ padding: '12px 18px' }}>
@@ -4139,7 +4139,7 @@ export default function AdminPage() {
                   {Object.entries(healthSnap.table_counts || {}).map(([t, n]) => (
                     <div key={t} style={{ padding: '4px 8px', background: COLORS.rowAlt, borderRadius: 4, fontSize: 11, display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: COLORS.textMute }}>{t}</span>
-                      <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{typeof n === 'number' ? n.toLocaleString('it-IT') : (n ?? '—')}</span>
+                      <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{typeof n === 'number' ? n.toLocaleString('it-IT') : (n ?? '-')}</span>
                     </div>
                   ))}
                 </div>
@@ -4325,7 +4325,7 @@ export default function AdminPage() {
                   {securitySnap.anomalie.slice(0, 20).map(a => (
                     <div key={a.id} style={{ padding: '6px 0', fontSize: 12, borderTop: `1px dashed ${COLORS.border}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{a.user_id ? a.user_id.slice(0, 8) + '…' : '—'}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: 11 }}>{a.user_id ? a.user_id.slice(0, 8) + '…' : '-'}</span>
                         <span style={{ color: COLORS.textMute, fontSize: 11 }}>{fmtDataOra(a.created_at)}</span>
                       </div>
                       <div style={{ fontSize: 11, color: COLORS.textMute, marginTop: 2 }}>{JSON.stringify(a.details || {}).slice(0, 200)}</div>
@@ -4339,8 +4339,8 @@ export default function AdminPage() {
                   <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                     {securitySnap.admin_log.slice(0, 50).map((l, i) => (
                       <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 8, padding: '4px 0', fontSize: 11, borderTop: `1px dashed ${COLORS.border}` }}>
-                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{l.admin_email || '—'}</span>
-                        <span style={{ color: COLORS.text }}>{l.azione || '—'}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>{l.admin_email || '-'}</span>
+                        <span style={{ color: COLORS.text }}>{l.azione || '-'}</span>
                         <span style={{ color: COLORS.textMute }}>{fmtDataOra(l.created_at)}</span>
                       </div>
                     ))}
@@ -4563,7 +4563,7 @@ export default function AdminPage() {
               <span style={{ fontSize: 11, color: COLORS.textMute, fontWeight: 700 }}>Cliente</span>
               <select value={adHocForm.target_org_id} onChange={e => setAdHocForm({ ...adHocForm, target_org_id: e.target.value })}
                 style={{ padding: '8px 10px', borderRadius: 6, border: `1px solid ${COLORS.border}`, fontSize: 12, background: '#FFF' }}>
-                <option value="">— seleziona —</option>
+                <option value="">- seleziona -</option>
                 {clienti.filter(c => c.nome_attivita).map(c => (
                   <option key={c.org_id} value={c.org_id}>{c.nome_attivita} ({c.email})</option>
                 ))}

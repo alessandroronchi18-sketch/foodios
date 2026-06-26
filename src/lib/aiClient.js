@@ -73,7 +73,7 @@ export function parseAiJson(text) {
 }
 
 // Friendly error: trasforma vari fail-mode in messaggio italiano umano.
-// NB: il copy è volutamente diretto, senza "Mi dispiace ma..." — vedi memory
+// NB: il copy è volutamente diretto, senza "Mi dispiace ma..." - vedi memory
 // feedback-no-ai-copy.
 export function friendlyAiError(err, status) {
   if (status === 429) return 'Limite AI raggiunto per oggi. Riprova domani.'

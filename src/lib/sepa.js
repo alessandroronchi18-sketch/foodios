@@ -1,11 +1,11 @@
-// Generazione bonifico SEPA — file pain.001.001.03 (SEPA Credit Transfer
+// Generazione bonifico SEPA - file pain.001.001.03 (SEPA Credit Transfer
 // Initiation), formato accettato dall'home banking italiano per i "bonifici
 // massivi" / disposizioni CBI. Il proprietario seleziona le fatture da pagare,
 // scarica l'XML e lo carica nella sua banca → paga tutto in un colpo, senza
 // riscrivere IBAN/importi. Nessuna licenza, nessun costo per transazione.
 //
 // NB: il debtor (azienda) deve avere un IBAN valido; il creditore (fornitore)
-// idem — le fatture senza IBAN valido vengono escluse e segnalate al chiamante.
+// idem - le fatture senza IBAN valido vengono escluse e segnalate al chiamante.
 
 // ── Validazione IBAN (mod-97, ISO 13616) ─────────────────────────────────────
 export function normalizeIban(iban) {
@@ -54,10 +54,10 @@ export function causaleFattura(f) {
 // Testo "copia bonifico" per la singola fattura (quando non si usa l'XML massivo).
 export function bonificoText({ beneficiario, iban, importo, causale }) {
   return [
-    `Beneficiario: ${beneficiario || '—'}`,
-    `IBAN: ${normalizeIban(iban) || '—'}`,
+    `Beneficiario: ${beneficiario || '-'}`,
+    `IBAN: ${normalizeIban(iban) || '-'}`,
     `Importo: € ${round2(importo).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    `Causale: ${causale || '—'}`,
+    `Causale: ${causale || '-'}`,
   ].join('\n')
 }
 
@@ -68,7 +68,7 @@ export function bonificoText({ beneficiario, iban, importo, causale }) {
 // Ritorna { xml, included, skipped, totale }.
 export function generateSepaXml({ debtor, payments = [], executionDate, msgId, creationDateTime }) {
   if (!debtor?.iban || !ibanIsValid(debtor.iban)) {
-    throw new Error('IBAN dell’azienda mancante o non valido — impostalo in alto nella pagina.')
+    throw new Error('IBAN dell’azienda mancante o non valido - impostalo in alto nella pagina.')
   }
   if (!debtor?.nome) throw new Error('Nome azienda (intestatario conto) mancante.')
 

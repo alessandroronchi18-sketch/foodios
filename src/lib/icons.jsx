@@ -1,4 +1,4 @@
-// Icon library — Lucide-style outline icons usate in tutta l'app.
+// Icon library - Lucide-style outline icons usate in tutta l'app.
 //
 // Le icone sono SVG path strings (24x24 viewBox, stroke-width 1.5, currentColor).
 // Helper Ic() renderizza un'icona dato il nome. aria-hidden=true di default

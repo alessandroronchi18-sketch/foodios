@@ -33,7 +33,7 @@ export default function AIFotoAnalisi({ dati, onConferma, onRianalizza, onAnnull
     <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: 20, marginBottom: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontWeight: 700, color: '#065F46', fontSize: 15 }}>
-          Dati estratti — controlla e modifica se necessario
+          Dati estratti - controlla e modifica se necessario
         </div>
         <button onClick={onRianalizza} style={{
           padding: '6px 12px', background: '#FFF', border: '1px solid #E2E8F0',

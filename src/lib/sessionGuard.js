@@ -1,6 +1,6 @@
 // Session guard: user-agent binding lato client.
 // Salva un fingerprint del browser al primo login e verifica che non cambi tra le sessioni.
-// NOTA tecnica: l'IP binding NON è applicato di proposito — gli utenti su mobile cambiano
+// NOTA tecnica: l'IP binding NON è applicato di proposito - gli utenti su mobile cambiano
 // IP in continuazione (4G ↔ WiFi, switch torre, VPN aziendale), produrrebbe logout costanti.
 // Lo UA binding è un dissuasore: rileva session-hijacking solo se l'attaccante usa un browser
 // diverso. Non è una difesa completa contro chi clona perfettamente il browser.

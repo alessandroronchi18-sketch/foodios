@@ -21,7 +21,7 @@ const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 
 function emojiMeteo(weatherCode) {
-  if (weatherCode == null) return '—'
+  if (weatherCode == null) return '-'
   if (weatherCode === 0) return '☀️'
   if (weatherCode <= 3) return '⛅'
   if (weatherCode <= 48) return '🌫️'

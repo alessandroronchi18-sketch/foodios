@@ -1,4 +1,4 @@
-// ChainBadge — badge SVG che marca le feature esclusive del piano Chain.
+// ChainBadge - badge SVG che marca le feature esclusive del piano Chain.
 //
 // Non e' una emoji ma un SVG nitido a ogni resolution (gradient bordeaux→oro
 // + sparkle). Pensato per stare a fianco del label nel menu.

@@ -1,4 +1,4 @@
-// Inventario settimanale — metodo differenziale (gelateria/yogurt/pasta fresca).
+// Inventario settimanale - metodo differenziale (gelateria/yogurt/pasta fresca).
 //
 // Esperienza utente che replica il foglio Excel che i dipendenti già usano:
 //   righe   = gusti (ricette con is_gusto=true)
@@ -57,7 +57,7 @@ function fmtRange(lunediIso) {
 }
 
 function fmtG(n) {
-  if (n == null) return '—'
+  if (n == null) return '-'
   return Number(n).toLocaleString('it-IT')
 }
 
@@ -291,7 +291,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   }
 
   // Salva una cella e aggiorna lo state locale ottimisticamente. In caso di
-  // errore mostriamo il toast — lo state torna allo stato precedente al
+  // errore mostriamo il toast - lo state torna allo stato precedente al
   // prossimo reload (sufficiente per evitare drift duraturo).
   const handleSave = useCallback(async (gustoNome, dataIso, campo, valore) => {
     const k = `${gustoNome}|${dataIso}|${campo}`
@@ -324,7 +324,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       }
 
       // Audit 2026-07-01 HIGH: pre-calcolo magazzino. Se devo scalare, SCALO
-      // PRIMA di salvare inventario — se ssave magazzino fallisce, NON salvo
+      // PRIMA di salvare inventario - se ssave magazzino fallisce, NON salvo
       // inventario (rollback implicito). Prima l'ordine era invertito: salvare
       // inventario poi magazzino → drift permanente su rete persa.
       let nuovoMagazzinoTarget = null
@@ -356,7 +356,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       }
 
       // Salvataggio inventario DOPO il magazzino (ordine inverso rispetto al
-      // vecchio codice — vedi audit HIGH sopra).
+      // vecchio codice - vedi audit HIGH sopra).
       const saved = await salvaCella(orgId, sedeId, gustoNome, dataIso, patch)
 
       setRighe(prev => {
@@ -417,7 +417,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           border: '1px solid #BFDBFE', borderRadius: 10, marginBottom: 12,
         }}>
           <div style={{ fontSize: 12.5, color: '#1E3A8A', lineHeight: 1.5, marginBottom: 10 }}>
-            <Icon name="globe" size={13} style={{ marginRight: 6, verticalAlign: 'middle' }}/><strong>Vista aggregata</strong> — Somma delle sedi selezionate qui sotto.
+            <Icon name="globe" size={13} style={{ marginRight: 6, verticalAlign: 'middle' }}/><strong>Vista aggregata</strong> - Somma delle sedi selezionate qui sotto.
             Compilazione e import disabilitati: per modificare i dati, seleziona una sede
             specifica dal selettore in alto.
           </div>
@@ -526,7 +526,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         </button>
       </div>
 
-      {/* Toolbar navigazione settimana (solo modalita' settimana) — grid 3 col uguali su mobile,
+      {/* Toolbar navigazione settimana (solo modalita' settimana) - grid 3 col uguali su mobile,
           così Sett.prec / Questa sett / Sett.succ non si schiacciano. Il range data va sopra. */}
       {vista === 'settimana' && (
         <div style={{
@@ -924,7 +924,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
         <div style={{ marginBottom: 12 }}>
           <label style={lblForm}>Gusto</label>
           <select value={state.gusto} onChange={e => update('gusto', e.target.value)} style={inpForm}>
-            <option value="">— Seleziona —</option>
+            <option value="">- Seleziona -</option>
             {gustiBase.map(g => (
               <option key={g.nome} value={normGusto(g.nome)}>{g.nome}</option>
             ))}
@@ -939,7 +939,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
         <div style={{ marginBottom: 18 }}>
           <label style={lblForm}>Sede destinazione</label>
           <select value={state.destSedeId} onChange={e => update('destSedeId', e.target.value)} style={inpForm}>
-            <option value="">— Seleziona —</option>
+            <option value="">- Seleziona -</option>
             {sediDest.map(s => (
               <option key={s.id} value={s.id}>
                 {s.nome} ({s.is_sede_produzione && s.metodo_produzione === 'inventario' ? 'inventario' : 'stampi'})
@@ -963,10 +963,10 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
 
 // ── Dialog import file (wizard 4 step) ────────────────────────────────────
 // Step:
-//   1. 'pick'    — scegli file (drag&drop o input)
-//   2. 'mese'    — se mese non rilevato dal nome file, scelta manuale
-//   3. 'preview' — mostra diff vs DB (nuovi/divergenti/identici)
-//   4. 'apply'   — confermato, applica via onCommit
+//   1. 'pick'    - scegli file (drag&drop o input)
+//   2. 'mese'    - se mese non rilevato dal nome file, scelta manuale
+//   3. 'preview' - mostra diff vs DB (nuovi/divergenti/identici)
+//   4. 'apply'   - confermato, applica via onCommit
 function DialogImport({ orgId, sedeId, righeDb, ricettario: ricettarioProp, state, setState, onCommit }) {
   const dlg = state || {}
   const close = () => setState(null)
@@ -1329,7 +1329,7 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
                     <select value={sedeAttuale}
                       onChange={e => setMappaSede(m => ({ ...m, [x.sheetName]: e.target.value }))}
                       style={{ ...inpForm, minWidth: 200 }}>
-                      <option value="">— Ignora questo foglio —</option>
+                      <option value="">- Ignora questo foglio -</option>
                       {sedi.map(s => (
                         <option key={s.id} value={s.id}>
                           {s.nome}{s.is_default ? ' (principale)' : ''}
@@ -1710,7 +1710,7 @@ function NomeGustoConFlag({ nome, orfano }) {
 // raggruppato per settimana ISO del mese.
 function VistaMese({ gusti, righeMese, lunediIso, unita = 'g' }) {
   const fmtVal = (g) => {
-    if (g <= 0) return '—'
+    if (g <= 0) return '-'
     if (unita === 'kg') {
       return (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + ' kg'
     }
@@ -1821,7 +1821,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g' }) {
 // ── VistaStorico: timeline scorrevole multi-mese (ultimi 6 mesi) ──────────
 function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
   const fmtTot = (g) => {
-    if (g <= 0) return '—'
+    if (g <= 0) return '-'
     return unita === 'kg'
       ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
       : g.toLocaleString('it-IT')
@@ -1953,7 +1953,7 @@ function VistaOggi({ gusti, matrice, saving, onSave, readOnly, unita = 'g' }) {
         padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400E',
       }}>
         <strong>Oggi {new Date(oggiIso).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}</strong>
-        &nbsp;— Compila PROD (quanto hai prodotto) e RIMAN (quanto e' rimasto a fine giornata). I valori si salvano automaticamente.
+        &nbsp;- Compila PROD (quanto hai prodotto) e RIMAN (quanto e' rimasto a fine giornata). I valori si salvano automaticamente.
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {gusti.map(({ nome, orfano }) => {

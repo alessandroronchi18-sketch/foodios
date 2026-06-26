@@ -1,6 +1,6 @@
-// pushNotifications — gestisce subscribe/unsubscribe Web Push dal client.
+// pushNotifications - gestisce subscribe/unsubscribe Web Push dal client.
 // La key VAPID public viene da VITE_VAPID_PUBLIC_KEY (env Vercel).
-// Il backend (api/push-send.js — da implementare in fase 2) usa la corrispondente
+// Il backend (api/push-send.js - da implementare in fase 2) usa la corrispondente
 // VAPID_PRIVATE_KEY per firmare i messaggi.
 //
 // Uso:
@@ -53,7 +53,7 @@ function urlBase64ToUint8Array(base64String) {
 export async function subscribeToPush({ deviceLabel } = {}) {
   if (!isPushSupported()) return null
   if (!VAPID_PUBLIC) {
-    console.warn('[push] VITE_VAPID_PUBLIC_KEY not set — push disabled')
+    console.warn('[push] VITE_VAPID_PUBLIC_KEY not set - push disabled')
     return null
   }
 

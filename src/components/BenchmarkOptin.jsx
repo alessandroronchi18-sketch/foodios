@@ -144,7 +144,7 @@ export default function BenchmarkOptin({ orgId, sedeId, tipoAttivita, sedi, noti
   )
 }
 
-// Widget compatto per la view Food Cost — mostra media settore vs tu
+// Widget compatto per la view Food Cost - mostra media settore vs tu
 export function BenchmarkBadge({ tipoAttivita, miaFcPct, citta }) {
   const [data, setData] = useState(null)
 

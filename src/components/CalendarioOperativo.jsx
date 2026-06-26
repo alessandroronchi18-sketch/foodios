@@ -1,4 +1,4 @@
-// Calendario operativo — pagina di DIAGNOSI → CAPISCI → AGISCI (POV proprietario).
+// Calendario operativo - pagina di DIAGNOSI → CAPISCI → AGISCI (POV proprietario).
 // 1) Banda diagnosi del mese (solo titolare): copertura %, semaforo, streak, anomalie.
 // 2) Griglia calendario premium: ogni cella con indicatori produzione/cassa + colore stato.
 // 3) Pannello dettaglio giorno premium: dati produzione/cassa + link alle sezioni + nota.
@@ -204,7 +204,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
     return days
   }, [anno, mese])
 
-  // Render del pannello dettaglio giorno — estratto in funzione così
+  // Render del pannello dettaglio giorno - estratto in funzione così
   // su mobile possiamo inserirlo INLINE subito sotto la card cliccata
   // (audit 2026-06-24: prima compariva in fondo alla lista e non si capiva
   // dove fosse). Su desktop resta in colonna laterale sticky.
@@ -396,7 +396,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
           {isMobile ? (
             /* ── Mobile list view: tutti i giorni del mese selezionato ──
                 Dettaglio (Produzione/Cassa/Nota) inserito INLINE subito sotto
-                la card cliccata — non in fondo (audit 2026-06-24 fix UX). */
+                la card cliccata - non in fondo (audit 2026-06-24 fix UX). */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {mobileList.map(k => {
                 const status  = getStatus(k, true)
@@ -538,7 +538,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
   )
 }
 
-// KPI compatto della banda diagnosi — coerente con il KPI premium di _shared (chip icona + decoro).
+// KPI compatto della banda diagnosi - coerente con il KPI premium di _shared (chip icona + decoro).
 function Kpi({ icon, label, value, sub, color, highlight, bar, barColor }) {
   const accent = color || T.brand
   return (

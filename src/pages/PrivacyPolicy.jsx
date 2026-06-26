@@ -13,7 +13,7 @@ export default function PrivacyPolicy() {
 
       <LegalH2>1. Titolare del trattamento</LegalH2>
       <LegalP>
-        <strong>[RAGIONE SOCIALE]</strong> — sede legale: [INDIRIZZO COMPLETO], C.F./P.IVA [INSERIRE].<br />
+        <strong>[RAGIONE SOCIALE]</strong> - sede legale: [INDIRIZZO COMPLETO], C.F./P.IVA [INSERIRE].<br />
         Email del titolare: <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.<br />
         Non e' nominato un DPO obbligatorio ai sensi dell'art. 37 GDPR. Per richieste relative
         ai dati personali contatta il titolare all'indirizzo email indicato.
@@ -52,13 +52,13 @@ export default function PrivacyPolicy() {
       <LegalH2>5. Diritti dell'interessato</LegalH2>
       <LegalP>Ai sensi degli artt. 15-22 GDPR puoi esercitare in qualsiasi momento i seguenti diritti:</LegalP>
       <LegalUl items={[
-        <><strong>Accesso</strong> (art. 15) — copia dei tuoi dati personali trattati.</>,
-        <><strong>Rettifica</strong> (art. 16) — correzione dati inesatti o incompleti.</>,
-        <><strong>Cancellazione</strong> (art. 17, diritto all'oblio) — salvo obblighi di legge.</>,
+        <><strong>Accesso</strong> (art. 15) - copia dei tuoi dati personali trattati.</>,
+        <><strong>Rettifica</strong> (art. 16) - correzione dati inesatti o incompleti.</>,
+        <><strong>Cancellazione</strong> (art. 17, diritto all'oblio) - salvo obblighi di legge.</>,
         <><strong>Limitazione del trattamento</strong> (art. 18).</>,
-        <><strong>Portabilita'</strong> (art. 20) — ricezione dei dati in formato JSON/CSV strutturato, leggibile da macchina.</>,
-        <><strong>Opposizione</strong> (art. 21) — al trattamento basato su legittimo interesse.</>,
-        <><strong>Revoca del consenso</strong> (art. 7.3) — in qualsiasi momento, senza pregiudicare la liceita' del trattamento precedente.</>,
+        <><strong>Portabilita'</strong> (art. 20) - ricezione dei dati in formato JSON/CSV strutturato, leggibile da macchina.</>,
+        <><strong>Opposizione</strong> (art. 21) - al trattamento basato su legittimo interesse.</>,
+        <><strong>Revoca del consenso</strong> (art. 7.3) - in qualsiasi momento, senza pregiudicare la liceita' del trattamento precedente.</>,
       ]} />
       <LegalP>
         Per esercitare i tuoi diritti: <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.
@@ -82,13 +82,13 @@ export default function PrivacyPolicy() {
         ex art. 28 GDPR mediante DPA (Data Processing Agreement):
       </LegalP>
       <LegalUl items={[
-        <><strong>Supabase Inc.</strong> (USA, infrastruttura su AWS Europa) — database, autenticazione, storage file. Trasferimento extra-UE coperto da Standard Contractual Clauses (SCC).</>,
-        <><strong>Vercel Inc.</strong> (USA, regione di esecuzione Europa) — hosting CDN, serverless functions. SCC applicabili.</>,
-        <><strong>Stripe Payments Europe</strong> (Irlanda) — gestione pagamenti e subscription. Certificato PCI-DSS Livello 1.</>,
-        <><strong>Resend Inc.</strong> (USA) — invio email transazionali. SCC applicabili.</>,
-        <><strong>Anthropic, PBC</strong> (USA) — funzionalita' AI Assistant facoltative. I dati inviati all'AI non vengono usati per training (vedi privacy Anthropic). SCC applicabili.</>,
-        <><strong>[PROVIDER SDI]</strong> (Italia) — emissione fattura elettronica via Sistema di Interscambio. Riceve dati di fatturazione strettamente necessari.</>,
-        <><strong>GitHub Inc. / Sentry / log providers</strong> — log di sistema anonimi per debug.</>,
+        <><strong>Supabase Inc.</strong> (USA, infrastruttura su AWS Europa) - database, autenticazione, storage file. Trasferimento extra-UE coperto da Standard Contractual Clauses (SCC).</>,
+        <><strong>Vercel Inc.</strong> (USA, regione di esecuzione Europa) - hosting CDN, serverless functions. SCC applicabili.</>,
+        <><strong>Stripe Payments Europe</strong> (Irlanda) - gestione pagamenti e subscription. Certificato PCI-DSS Livello 1.</>,
+        <><strong>Resend Inc.</strong> (USA) - invio email transazionali. SCC applicabili.</>,
+        <><strong>Anthropic, PBC</strong> (USA) - funzionalita' AI Assistant facoltative. I dati inviati all'AI non vengono usati per training (vedi privacy Anthropic). SCC applicabili.</>,
+        <><strong>[PROVIDER SDI]</strong> (Italia) - emissione fattura elettronica via Sistema di Interscambio. Riceve dati di fatturazione strettamente necessari.</>,
+        <><strong>GitHub Inc. / Sentry / log providers</strong> - log di sistema anonimi per debug.</>,
       ]} />
 
       <LegalH2>8. Cookie e tecnologie simili</LegalH2>

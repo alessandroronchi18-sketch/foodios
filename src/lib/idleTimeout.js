@@ -2,7 +2,7 @@
 // Traccia eventi di attività (mouse, keyboard, touch, scroll, visibility)
 // e resetta il timer ogni volta. Quando il timer scatta, chiama onTimeout (di solito signOut).
 //
-// Non blocca chi sta lavorando attivamente — solo chi lascia la finestra aperta
+// Non blocca chi sta lavorando attivamente - solo chi lascia la finestra aperta
 // e va via. È una misura di igiene per dispositivi condivisi (cassa banco,
 // computer del laboratorio).
 

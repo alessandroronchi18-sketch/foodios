@@ -1,8 +1,8 @@
-// HACCP — pagina di DIAGNOSI → CAPISCI → AGISCI (POV proprietario).
+// HACCP - pagina di DIAGNOSI → CAPISCI → AGISCI (POV proprietario).
 // 1) Banda diagnosi: stato conformità (semaforo), temperature fuori range,
 //    pulizie in ritardo/da fare oggi, % completamento del periodo.
 // 2) Evidenza anomalie (temperature fuori range recenti, task scaduti).
-// 3) Tab operative premium — la LOGICA di registrazione/salvataggio è INTATTA.
+// 3) Tab operative premium - la LOGICA di registrazione/salvataggio è INTATTA.
 //
 // NOTA LEGALE: questo è uno strumento di supporto. La conformità HACCP
 // effettiva richiede valutazione di un tecnico HACCP certificato.
@@ -35,12 +35,12 @@ const FREQUENZE = [
 ]
 
 const FmtDt = (s) => {
-  if (!s) return '—'
+  if (!s) return '-'
   const d = new Date(s)
   return d.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })
 }
 const FmtDate = (s) => {
-  if (!s) return '—'
+  if (!s) return '-'
   const d = new Date(s)
   return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'2-digit' })
 }
@@ -192,7 +192,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
         <KPI
           icon={<Icon name="barChart" size={18} />}
           label="Completamento periodo"
-          value={d.pctCompletamento === null ? '—' : `${Math.round(d.pctCompletamento)}%`}
+          value={d.pctCompletamento === null ? '-' : `${Math.round(d.pctCompletamento)}%`}
           color={d.pctCompletamento === null ? T.textSoft : d.pctCompletamento >= 70 ? T.green : d.pctCompletamento >= 40 ? T.amber : T.brand}
           sub="temperature + pulizie · 7gg"
         />
@@ -213,7 +213,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
               ) : d.fuoriRangeRecenti.map(t => (
                 <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 12px', background:T.brandLight, borderRadius:R.md, marginBottom:6 }}>
                   <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:12.5, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.haccp_apparecchi?.nome || '—'}</div>
+                    <div style={{ fontSize:12.5, fontWeight:700, color:T.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.haccp_apparecchi?.nome || '-'}</div>
                     <div style={{ fontSize:11, color:T.textSoft }}>{FmtDt(t.rilevato_at)}{t.operatore ? ` · ${t.operatore}` : ''}</div>
                   </div>
                   <span style={{ fontSize:14, fontWeight:800, color:T.brand, ...TNUM, whiteSpace:'nowrap', display:'inline-flex', alignItems:'center', gap:4 }}>
@@ -353,7 +353,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
           <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'2fr 1fr 1fr', gap:10 }}>
             <select style={inp} value={formLog.apparecchio_id}
               onChange={e => setFormLog(f => ({ ...f, apparecchio_id: e.target.value }))}>
-              <option value="">— Seleziona apparecchio —</option>
+              <option value="">- Seleziona apparecchio -</option>
               {apparecchi.map(a => <option key={a.id} value={a.id}>{a.nome} ({a.temp_min}/{a.temp_max}°C)</option>)}
             </select>
             <input style={inp} type="number" step="0.1" placeholder="Temperatura °C"
@@ -443,11 +443,11 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
                 {storico.map(s => (
                   <tr key={s.id} style={{ borderTop:`1px solid ${T.borderSoft}`, background: s.fuori_range ? T.brandLight : 'transparent' }}>
                     <td style={{ padding:'10px 14px', color:T.textMid }}>{FmtDt(s.rilevato_at)}</td>
-                    <td style={{ padding:'10px 14px', color:T.text, fontWeight:600 }}>{s.haccp_apparecchi?.nome || '—'}</td>
+                    <td style={{ padding:'10px 14px', color:T.text, fontWeight:600 }}>{s.haccp_apparecchi?.nome || '-'}</td>
                     <td style={{ padding:'10px 14px', textAlign:'right', ...TNUM, color: s.fuori_range ? T.brand : T.text, fontWeight: s.fuori_range ? 800 : 600 }}>
                       {nfmt(s.temperatura)}°C {s.fuori_range && <Icon name="warning" size={13} />}
                     </td>
-                    <td style={{ padding:'10px 14px', color:T.textSoft }}>{s.operatore || '—'}</td>
+                    <td style={{ padding:'10px 14px', color:T.textSoft }}>{s.operatore || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -650,7 +650,7 @@ function AllergeniTab({ ricettario, isMobile }) {
       <div style={cardStyle}>
         <div style={{ ...sectionTitle, marginBottom:8 }}><Icon name="barChart" size={18} color={T.brand} />Sintesi allergeni nel ricettario</div>
         <div style={{ fontSize:12, color:T.textSoft, marginBottom:14 }}>
-          Reg. UE 1169/2011 — informazioni obbligatorie sugli allergeni.
+          Reg. UE 1169/2011 - informazioni obbligatorie sugli allergeni.
         </div>
         <div style={{ display:'grid', gridTemplateColumns: isMobile?'repeat(2,1fr)':'repeat(auto-fill, minmax(180px, 1fr))', gap:10 }}>
           {ALLERGENI.map(a => {
@@ -825,9 +825,9 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
         head: [['Data/ora', 'Apparecchio', 'Temp °C', 'Operatore', 'Note', 'Stato']],
         body: (temp.data || []).map(r => [
           FmtDt(r.rilevato_at),
-          r.haccp_apparecchi?.nome || '—',
+          r.haccp_apparecchi?.nome || '-',
           String(r.temperatura),
-          r.operatore || '—',
+          r.operatore || '-',
           r.note || '',
           r.fuori_range ? 'FUORI RANGE' : 'OK',
         ]),
@@ -846,9 +846,9 @@ function ExportTab({ orgId, sedeId, nomeAttivita, isMobile, notify }) {
         head: [['Data/ora', 'Task', 'Frequenza', 'Operatore']],
         body: (log.data || []).map(l => [
           FmtDt(l.eseguito_at),
-          l.haccp_checklist_template?.nome || '—',
-          l.haccp_checklist_template?.frequenza || '—',
-          l.operatore || '—',
+          l.haccp_checklist_template?.nome || '-',
+          l.haccp_checklist_template?.frequenza || '-',
+          l.operatore || '-',
         ]),
         headStyles: { fillColor: RED, textColor: [255,255,255], fontStyle: 'bold' },
         bodyStyles: { fontSize: 8 },
@@ -922,7 +922,7 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
       <div style={{ marginBottom: isMobile ? 14 : 18 }}>
         <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5 }}>
-          Registro HACCP — diagnosi della conformità, temperature, pulizie e allergeni. Strumento di supporto per ispezioni ASL.
+          Registro HACCP - diagnosi della conformità, temperature, pulizie e allergeni. Strumento di supporto per ispezioni ASL.
         </p>
       </div>
 

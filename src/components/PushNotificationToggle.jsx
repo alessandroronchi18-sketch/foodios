@@ -1,9 +1,9 @@
-// PushNotificationToggle — controllo on/off per Web Push notifications.
+// PushNotificationToggle - controllo on/off per Web Push notifications.
 // Lo metti nelle impostazioni profilo. Mostra stato corrente + bottone di azione.
 //
 // Note:
 // - Su iOS Safari, Web Push richiede che l'app sia installata come PWA
-//   (display: standalone) — altrimenti l'API è bloccata.
+//   (display: standalone) - altrimenti l'API è bloccata.
 // - Se VAPID public key manca, il toggle si nasconde.
 
 import React, { useState, useEffect } from 'react'

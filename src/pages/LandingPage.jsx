@@ -5,7 +5,7 @@ import usePlanPricing, { fmtPrezzo } from '../lib/usePlanPricing'
 
 
 /* ────────────────────────────────────────────────────────────────────────────
-   DESIGN TOKENS — warm italian premium
+   DESIGN TOKENS - warm italian premium
 ─────────────────────────────────────────────────────────────────────────── */
 const T = {
   cream:      '#FBF8F4',
@@ -562,7 +562,7 @@ function VisualAI() {
             background: T.creamDeep, borderRadius: '16px 16px 16px 4px',
             padding: '14px 16px', fontSize: 14, color: T.ink, lineHeight: 1.55,
           }}>
-            Il <strong>Cannolo siciliano</strong> ha solo il <strong style={{ color: T.red }}>44% di margine</strong> — il più basso del menù. Costa €1,38 e lo vendi a €2,50.
+            Il <strong>Cannolo siciliano</strong> ha solo il <strong style={{ color: T.red }}>44% di margine</strong> - il più basso del menù. Costa €1,38 e lo vendi a €2,50.
             <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(15,9,7,0.06)', fontSize: 13, color: T.textMid }}>
               Suggerimento: alzando il prezzo a €2,90 (+16%) il margine salirebbe al <strong style={{ color: T.green }}>52%</strong>, in linea con la media del banco.
             </div>
@@ -609,7 +609,7 @@ export default function LandingPage({ onLogin, onRegister }) {
     {
       eyebrow: 'Food cost',
       title: <>Il costo di ogni piatto, <em style={{ fontStyle: 'italic', color: T.red }}>aggiornato da solo</em>.</>,
-      body: "Quando cambia il prezzo dell'olio o della farina, il food cost di tutte le ricette si ricalcola da solo. Niente Excel, niente formule rotte. Lavori sui margini reali — non su quelli che pensavi di avere tre mesi fa.",
+      body: "Quando cambia il prezzo dell'olio o della farina, il food cost di tutte le ricette si ricalcola da solo. Niente Excel, niente formule rotte. Lavori sui margini reali - non su quelli che pensavi di avere tre mesi fa.",
       bullets: ['Importa il tuo Excel in 5 minuti', 'Cambia un prezzo, si aggiorna tutto', 'Costo per porzione, ricetta, categoria'],
       icon: 'chart',
     },
@@ -630,7 +630,7 @@ export default function LandingPage({ onLogin, onRegister }) {
     {
       eyebrow: 'AI Assistant',
       title: <>Un consulente che <em style={{ fontStyle: 'italic', color: T.red }}>conosce i tuoi numeri</em>.</>,
-      body: 'Chiedi: "Qual è la mia ricetta meno redditizia di maggio?" o "Quanto devo alzare il prezzo del tiramisù per restare sotto il 30% di food cost?" L\'AI risponde con i tuoi dati. Non è ChatGPT generico — è un sous-chef finanziario.',
+      body: 'Chiedi: "Qual è la mia ricetta meno redditizia di maggio?" o "Quanto devo alzare il prezzo del tiramisù per restare sotto il 30% di food cost?" L\'AI risponde con i tuoi dati. Non è ChatGPT generico - è un sous-chef finanziario.',
       bullets: ['Domande in italiano naturale', 'Risposte basate sui tuoi dati', 'Analisi e raccomandazioni proattive'],
       icon: 'sparkles',
     },
@@ -855,7 +855,7 @@ export default function LandingPage({ onLogin, onRegister }) {
         </div>
       </section>
 
-      {/* VIDEO — Loom demo 90 secondi */}
+      {/* VIDEO - Loom demo 90 secondi */}
       <section style={{ padding: isMobile ? '60px 24px' : '100px 24px', background: T.cream }}>
         <div style={{ maxWidth: 980, margin: '0 auto' }}>
           <Reveal>
@@ -1119,7 +1119,7 @@ export default function LandingPage({ onLogin, onRegister }) {
           }}>
             {[
               { n: '01', t: 'Carica il tuo menù', d: "Importi le ricette da Excel, foto del quaderno o le inserisci a mano. Foodos calcola il food cost di ogni piatto in automatico." },
-              { n: '02', t: 'Registra la produzione', d: 'Ogni sera, dal cellulare, segni cosa hai prodotto e venduto. Tre minuti netti — meno della chiusura di cassa.' },
+              { n: '02', t: 'Registra la produzione', d: 'Ogni sera, dal cellulare, segni cosa hai prodotto e venduto. Tre minuti netti - meno della chiusura di cassa.' },
               { n: '03', t: 'Leggi i numeri che contano', d: 'Dashboard, P&L mensile e consigli AI sempre aggiornati. Decidi prezzi, menù e turni guardando i fatti.' },
             ].map((s, i) => (
               <Reveal key={s.n} delay={i * 100}>
@@ -1188,14 +1188,14 @@ export default function LandingPage({ onLogin, onRegister }) {
         </div>
       </section>
 
-      {/* ROI — visibile su tutti i device */}
+      {/* ROI - visibile su tutti i device */}
       <section style={{ padding: isMobile ? '60px 24px' : '40px 24px 120px', background: T.cream }}>
         <div style={{ maxWidth: 980, margin: '0 auto' }}>
           <Reveal><RoiCalculator/></Reveal>
         </div>
       </section>
 
-      {/* TESTIMONIANZE (placeholder — sostituire con quelle reali) */}
+      {/* TESTIMONIANZE (placeholder - sostituire con quelle reali) */}
       <section style={{ padding: isMobile ? '80px 24px' : '120px 24px', background: T.paper, borderTop: `1px solid ${T.border}`, borderBottom: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           <Reveal>
@@ -1254,7 +1254,7 @@ export default function LandingPage({ onLogin, onRegister }) {
           </div>
           <Reveal delay={300}>
             <p style={{ fontSize: 11, color: T.textSoft, textAlign: 'center', marginTop: 24, fontStyle: 'italic' }}>
-              Placeholder — sostituire con testimonianze reali appena disponibili.
+              Placeholder - sostituire con testimonianze reali appena disponibili.
             </p>
           </Reveal>
         </div>
@@ -1289,7 +1289,7 @@ export default function LandingPage({ onLogin, onRegister }) {
               gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
               gap: isMobile ? 16 : 20, alignItems: 'stretch',
             }}>
-              {/* BOTTEGA — piano entry singola sede (nome+desc da admin) */}
+              {/* BOTTEGA - piano entry singola sede (nome+desc da admin) */}
               <div style={{
                 background: T.cream,
                 border: `1px solid ${T.border}`,
@@ -1333,7 +1333,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 </div>
               </div>
 
-              {/* MAESTRO — piano standard evidenziato */}
+              {/* MAESTRO - piano standard evidenziato */}
               <div style={{
                 background: T.inkSoft,
                 borderRadius: 24,
@@ -1392,7 +1392,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 </div>
               </div>
 
-              {/* INSEGNA — piano premium multi-sede */}
+              {/* INSEGNA - piano premium multi-sede */}
               <div style={{
                 background: T.cream,
                 border: `1px solid ${T.border}`,

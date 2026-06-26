@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import Icon from './Icon'
 
-// Bottone "Carica fattura con AI" — modal per upload + preview risultato OCR
+// Bottone "Carica fattura con AI" - modal per upload + preview risultato OCR
 // editabile. Quando l'utente conferma, chiama onSave(extracted) col payload
 // pulito che il parent puo' inserire in `fatture` table.
 
@@ -132,7 +132,7 @@ export default function OcrFatturaButton({ orgId, sedeId, onSave, buttonLabel = 
               <>
                 {extracted.confidence != null && (
                   <div style={{ background: extracted.confidence >= 0.8 ? '#F0FDF4' : '#FEFCE8', border: `1px solid ${extracted.confidence >= 0.8 ? '#86EFAC' : '#FDE68A'}`, borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 12, color: MID }}>
-                    Confidence AI: <strong>{Math.round(extracted.confidence * 100)}%</strong> — verifica sempre i campi prima di salvare.
+                    Confidence AI: <strong>{Math.round(extracted.confidence * 100)}%</strong> - verifica sempre i campi prima di salvare.
                   </div>
                 )}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>

@@ -121,7 +121,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
         />
         <KpiBox
           label="Categoria principale"
-          value={topCategoria ? fmt0(topCategoria.value) : '—'}
+          value={topCategoria ? fmt0(topCategoria.value) : '-'}
           sub={topCategoria ? `${topCategoria.label} · ${topCategoria.pct.toFixed(0)}% del totale` : 'Aggiungi voci per vedere il dettaglio'}
           accent={C.textMid}
         />

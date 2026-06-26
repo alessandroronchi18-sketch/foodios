@@ -1,4 +1,4 @@
-// Global background job store — lives in module scope, never destroyed on navigation
+// Global background job store - lives in module scope, never destroyed on navigation
 const jobs = new Map()
 const listeners = new Set()
 

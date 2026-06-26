@@ -1,4 +1,4 @@
-// Semilavorati — pagina di DIAGNOSI → CAPISCI → AGISCI (POV proprietario).
+// Semilavorati - pagina di DIAGNOSI → CAPISCI → AGISCI (POV proprietario).
 // 1) Banda diagnosi: n° semilavorati, costo medio €/kg, il più usato, il più caro.
 // 2) Lista premium: per ogni semilavorato → costo (al kg / a porzione / batch), breakdown
 //    ingredienti espandibile (calcolaFCDettaglio) e "Usato in N prodotti" con elenco
@@ -40,7 +40,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
       onMouseEnter={e => { e.currentTarget.style.boxShadow = SHADOW_HOVER; e.currentTarget.style.transform = 'translateY(-2px)' }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = SHADOW_PREMIUM; e.currentTarget.style.transform = 'translateY(0)' }}>
 
-      {/* Header riga — su mobile: card collapsed di default con chevron, tap per espandere */}
+      {/* Header riga - su mobile: card collapsed di default con chevron, tap per espandere */}
       <div style={{ padding: isMobile ? '14px 16px' : '18px 20px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: isMobile ? 14 : 16 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -61,7 +61,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
         </div>
 
         {/* KPI compatto: solo Costo/kg (richiesta utente 26/06), più grande e
-            prominente. Tooltip via Tip portal — stessa esperienza di Ricette. */}
+            prominente. Tooltip via Tip portal - stessa esperienza di Ricette. */}
         <Tip text="Costo materie prime per chilo di semilavorato prodotto" width={260}>
           <div style={{ background: T.brandLight, padding: '12px 18px', borderRadius: R.md, textAlign: 'center', minHeight: 56, minWidth: 130, cursor: 'help', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, border: `1px solid ${T.brand}25`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)', flexShrink: 0 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</div>
@@ -92,7 +92,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
         </div>
       </div>
 
-      {/* Pannello: breakdown costo — header con totale, righe incolonnate con
+      {/* Pannello: breakdown costo - header con totale, righe incolonnate con
           quantità/barra/costo/% perfettamente allineati. Numeri tabular ovunque,
           whiteSpace nowrap per evitare a-capo nelle celle strette. */}
       {tab === 'ingredienti' && (
@@ -125,7 +125,7 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
           )}
           {mancanti.length > 0 && (
             <div style={{ marginTop: 12, padding: '8px 11px', background: C.amberLight, borderRadius: 8, fontSize: 11, color: C.amber, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Icon name="warning" size={13} /> Prezzi mancanti: {mancanti.map(m => m.nome).join(', ')} — il costo è sottostimato.
+              <Icon name="warning" size={13} /> Prezzi mancanti: {mancanti.map(m => m.nome).join(', ')} - il costo è sottostimato.
             </div>
           )}
         </div>
@@ -304,7 +304,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
     } finally { setSaving(false) }
   }
 
-  // Live cost calc del form — Audit 2026-07-01 HIGH: usare calcolaFC con
+  // Live cost calc del form - Audit 2026-07-01 HIGH: usare calcolaFC con
   // ricettario per ricorrere su semilavorati nidificati (es. crema → pasta
   // frolla con sub-semilavorato). Prima sommava solo costi diretti.
   const fcLive = useMemo(() => {
@@ -345,10 +345,10 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
         <KPI icon={<Icon name="receipt" size={18} />} label="Costo medio / kg" value={fmtKg(diag.costoMedioKg)} color={T.brand}
           sub="materie prime" />
         <KPI icon={<Icon name="barChart" size={18} />} label="Il più usato"
-          value={diag.piuUsato && diag.piuUsato.nUsi > 0 ? `${diag.piuUsato.nUsi}×` : '—'}
+          value={diag.piuUsato && diag.piuUsato.nUsi > 0 ? `${diag.piuUsato.nUsi}×` : '-'}
           sub={diag.piuUsato && diag.piuUsato.nUsi > 0 ? diag.piuUsato.nome : 'nessun utilizzo'} />
         <KPI icon={<Icon name="trendUp" size={18} />} label="Il più caro" color={T.brand}
-          value={diag.piuCaro ? fmtKg(diag.piuCaro.costoKg) : '—'}
+          value={diag.piuCaro ? fmtKg(diag.piuCaro.costoKg) : '-'}
           sub={diag.piuCaro ? `${diag.piuCaro.nome} · al kg` : 'serve un prezzo'} />
       </div>
 
@@ -420,11 +420,11 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                       </td>
                       <td style={{ padding: '11px 16px', textAlign: 'right', ...TNUM, color: T.textMid, whiteSpace: 'nowrap' }}>{fmtPeso(s.peso)}</td>
                       <td style={{ padding: '11px 16px', textAlign: 'right', ...TNUM, color: T.text, fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtBatch(s.fc)}</td>
-                      <td style={{ padding: '11px 16px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 700, whiteSpace: 'nowrap' }}>{s.costoKg > 0 ? fmtKg(s.costoKg) : '—'}</td>
+                      <td style={{ padding: '11px 16px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 700, whiteSpace: 'nowrap' }}>{s.costoKg > 0 ? fmtKg(s.costoKg) : '-'}</td>
                       <td style={{ padding: '11px 16px', textAlign: 'right', ...TNUM, whiteSpace: 'nowrap' }}>
                         {s.nUsi > 0
                           ? <span style={{ fontWeight: 700, color: T.text }}>{s.nUsi} {s.nUsi === 1 ? 'prodotto' : 'prodotti'}</span>
-                          : <span style={{ color: T.textSoft }}>—</span>}
+                          : <span style={{ color: T.textSoft }}>-</span>}
                       </td>
                     </tr>
                   ))}
@@ -440,7 +440,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
         <>
           <SH>{editMode ? `Modifica: ${editMode}` : 'Nuovo semilavorato'}</SH>
 
-          {/* Foto rapida — sopra il form */}
+          {/* Foto rapida - sopra il form */}
           <div style={{ marginBottom: 12 }}>
             <FotoOCR mode="ricetta" notify={notify} ricettario={ricettario} onResult={res => {
               const SKIP = ['ingrediente', 'ingredient', 'ingredienti', 'nome ingrediente in minuscolo', 'n/d', 'nan', 'undefined', '']
@@ -538,7 +538,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                   {[
                     { lbl: 'Peso batch', val: fmtPeso(pesoLive), c: T.text },
                     { lbl: 'Costo batch', val: fmtBatch(fcLive), c: T.brand },
-                    { lbl: 'Costo / kg', val: costoKgLive > 0 ? fmtKg(costoKgLive) : '—', c: T.brand },
+                    { lbl: 'Costo / kg', val: costoKgLive > 0 ? fmtKg(costoKgLive) : '-', c: T.brand },
                   ].map(({ lbl, val, c }) => (
                     <div key={lbl} style={{ padding: '10px 12px', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 10 }}>
                       <div style={{ fontSize: 9, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{lbl}</div>
@@ -550,7 +550,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
 
               {overwriteConf && (
                 <div style={{ padding: '12px 14px', background: C.amberLight, border: `2px solid ${C.amber}`, borderRadius: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={14} /> "{overwriteConf}" esiste già — sovrascrivere?</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={14} /> "{overwriteConf}" esiste già - sovrascrivere?</div>
                   <div style={{ display: 'flex', gap: 7 }}>
                     <button onClick={doSaveSemi} style={{ padding: '8px 14px', background: C.amber, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={14} /> Sovrascrivi</button>
                     <button onClick={() => setOverwriteConf(null)} style={{ padding: '8px 12px', background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
@@ -572,7 +572,7 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
           </div>
 
           <div style={{ marginTop: 12, padding: '11px 14px', background: T.brandLight, border: `1px solid ${T.border}`, borderRadius: 10, fontSize: 12, color: T.textMid, lineHeight: 1.6, display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-            <Icon name="bulb" size={14} color={T.brand} style={{ marginTop: 2, flexShrink: 0 }} /><span>Per usare un semilavorato in una {LEX.ricetta}, aggiungi il suo nome come ingrediente (es. <em>"crema pasticcera"</em>) con la quantità in grammi — il costo si calcola automaticamente.</span>
+            <Icon name="bulb" size={14} color={T.brand} style={{ marginTop: 2, flexShrink: 0 }} /><span>Per usare un semilavorato in una {LEX.ricetta}, aggiungi il suo nome come ingrediente (es. <em>"crema pasticcera"</em>) con la quantità in grammi - il costo si calcola automaticamente.</span>
           </div>
         </>
       )}

@@ -1,4 +1,4 @@
-// WhatsAppReportPanel — Impostazioni → WhatsApp
+// WhatsAppReportPanel - Impostazioni → WhatsApp
 // Permette al titolare di configurare il numero per ricevere il report serale
 // alle 22:00 con KPI giornalieri. Se nessun numero è impostato, il cron salta.
 //

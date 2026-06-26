@@ -1,16 +1,16 @@
-// Foodios UI kit — stili condivisi per garantire allineamento e coerenza visiva
+// Foodios UI kit - stili condivisi per garantire allineamento e coerenza visiva
 // fra tutti i componenti. Importare come:
 //   import { uiCard, uiInput, uiBtn, uiLabel, uiTable } from '../lib/uiKit'
 //
 // Tutti i valori derivano dai design token in theme.js. NON aggiungere stili
-// hardcoded qui — fanno parte del sistema.
+// hardcoded qui - fanno parte del sistema.
 
 import { color as T, radius as R, shadow as S } from './theme'
 
 // ─── CARD ────────────────────────────────────────────────────────────────────
 export const uiCard = (opts = {}) => ({
   background: T.bgCard,
-  borderRadius: R.xl,                 // 12 — standard per card di contenuto
+  borderRadius: R.xl,                 // 12 - standard per card di contenuto
   border: `1px solid ${T.border}`,
   boxShadow: S.sm,
   padding: opts.padding || '18px 20px',
@@ -19,7 +19,7 @@ export const uiCard = (opts = {}) => ({
 
 export const uiCardCompact = (opts = {}) => ({
   background: T.bgCard,
-  borderRadius: R.lg,                 // 10 — card piccola / inline
+  borderRadius: R.lg,                 // 10 - card piccola / inline
   border: `1px solid ${T.border}`,
   padding: '12px 14px',
   ...opts,
@@ -49,7 +49,7 @@ export const uiInput = (isMobile = false) => ({
   width: '100%',
   height: 40,
   padding: '0 12px',
-  borderRadius: R.md,                 // 8 — input standard
+  borderRadius: R.md,                 // 8 - input standard
   border: `1px solid ${T.borderStr}`,
   fontSize: isMobile ? 16 : 13,       // 16 mobile per disattivare zoom iOS
   color: T.text,
@@ -72,7 +72,7 @@ export const uiTextarea = (isMobile = false) => ({
 // Tre taglie: sm (28h), md (36h), lg (44h). Tutti hanno stessa border-radius.
 const BTN_BASE = {
   border: 'none',
-  borderRadius: R.md,                 // 8 — coerente con input
+  borderRadius: R.md,                 // 8 - coerente con input
   fontWeight: 700,
   cursor: 'pointer',
   display: 'inline-flex',

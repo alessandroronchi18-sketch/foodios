@@ -1,4 +1,4 @@
-// Parser ricettario Excel — estratto da Dashboard.jsx per essere riusabile
+// Parser ricettario Excel - estratto da Dashboard.jsx per essere riusabile
 // in OnboardingWizard, RicettarioView import, eventuale CLI.
 //
 // Formato atteso del file .xlsx:

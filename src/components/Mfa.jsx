@@ -75,7 +75,7 @@ export default function MfaSection({ notify }) {
         code: code.trim(),
       })
       if (verErr) throw verErr
-      notify?.('2FA attivato — userai il codice ad ogni login')
+      notify?.('2FA attivato - userai il codice ad ogni login')
       setEnrolling(null)
       setCode('')
       await loadFactors()
@@ -270,7 +270,7 @@ export default function MfaSection({ notify }) {
 
 // ── Componente challenge MFA durante il login ─────────────────────────────────
 // Da renderizzare in App.jsx quando getAuthenticatorAssuranceLevel ritorna
-// { currentLevel: 'aal1', nextLevel: 'aal2' } — significa che l'utente ha
+// { currentLevel: 'aal1', nextLevel: 'aal2' } - significa che l'utente ha
 // password verificata ma deve ancora completare il 2FA.
 export function MfaChallenge({ onComplete, onCancel }) {
   const isMobile = useIsMobile()

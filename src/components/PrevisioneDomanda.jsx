@@ -134,7 +134,7 @@ function RicettaProduzione({ ric, serieMese, sellThrough, stagionale, totStag, g
           }}>
             <Icon name={stIcon} size={14} color={stColor} />
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 900, color: stColor, ...tnum, lineHeight: 1 }}>{st == null ? '—' : `${nf(st.pct)}%`}</div>
+              <div style={{ fontSize: 13, fontWeight: 900, color: stColor, ...tnum, lineHeight: 1 }}>{st == null ? '-' : `${nf(st.pct)}%`}</div>
               <div style={{ fontSize: 9, fontWeight: 700, color: stColor, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2, whiteSpace: 'nowrap' }}>{stMsg}</div>
             </div>
           </div>
@@ -332,7 +332,7 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
     )
   }
 
-  const nextMeseLabel = serieTotale.length ? meseLabel(meseSucc(serieTotale.at(-1).mese)) : '—'
+  const nextMeseLabel = serieTotale.length ? meseLabel(meseSucc(serieTotale.at(-1).mese)) : '-'
 
   // Picco/minimo settimanale per descrizione
   const dowPicco = stagionale.indexOf(Math.max(...stagionale))
@@ -388,14 +388,14 @@ export default function PrevisioneDomanda({ ricettario, giornaliero, chiusure, i
         />
         <KPI
           label="Accuratezza media"
-          value={accuratezza == null ? '—' : `${nf(accuratezza)}%`}
+          value={accuratezza == null ? '-' : `${nf(accuratezza)}%`}
           sub={accuratezza == null ? 'servono ≥ 3 mesi' : 'backtest 1 mese'}
           color={accuratezza == null ? C.text : accuratezza >= 75 ? C.green : accuratezza >= 50 ? C.amber : C.red}
           icon={<Icon name="target" size={18} />}
         />
       </div>
 
-      {/* Tab — scrollabili su mobile, touch target ≥ 44 */}
+      {/* Tab - scrollabili su mobile, touch target ≥ 44 */}
       <div
         role="tablist"
         aria-label="Vista previsione domanda"

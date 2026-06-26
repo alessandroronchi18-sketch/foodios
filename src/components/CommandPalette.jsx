@@ -4,13 +4,13 @@ import { color as T } from '../lib/theme'
 import { callAi } from '../lib/aiClient'
 import Icon from './Icon'
 
-// Command Palette (Cmd+K / Ctrl+K) — search globale con intent parser AI.
+// Command Palette (Cmd+K / Ctrl+K) - search globale con intent parser AI.
 //
 // 4 modi:
-//   1. Naviga    — "food cost" -> view P&L
-//   2. Trova     — "cannolo siciliano" -> ricetta
-//   3. Calcola   — "quanto ho incassato oggi" -> risposta diretta
-//   4. Comando   — "aggiungi spreco di 2 brioches" -> azione (placeholder)
+//   1. Naviga    - "food cost" -> view P&L
+//   2. Trova     - "cannolo siciliano" -> ricetta
+//   3. Calcola   - "quanto ho incassato oggi" -> risposta diretta
+//   4. Comando   - "aggiungi spreco di 2 brioches" -> azione (placeholder)
 //
 // Trigger: Cmd+K / Ctrl+K globale o click su icona search in topbar.
 

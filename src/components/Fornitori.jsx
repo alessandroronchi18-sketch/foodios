@@ -9,9 +9,9 @@ import { KPI, SH, PageHeader, Tip, C, useSortable, SortTH } from '../views/_shar
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
-function fmt(n) { return n == null ? "—" : `${Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` }
+function fmt(n) { return n == null ? "-" : `${Number(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` }
 function fmt0(n) { const x = Number(n); return `${Math.round(Number.isFinite(x) ? x : 0).toLocaleString('it-IT')} €` }
-function fmtDate(s) { if (!s) return "—"; const d = new Date(s); return d.toLocaleDateString("it-IT") }
+function fmtDate(s) { if (!s) return "-"; const d = new Date(s); return d.toLocaleDateString("it-IT") }
 
 // Maschera IBAN: mostra prefisso paese + 2 cifre e ultime 4. Es: IT60…3456
 function maskIban(iban) {
@@ -33,7 +33,7 @@ function catColor(name) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Banda diagnosi (KPI condivisi) — n° attivi, spesa periodo, top fornitore, categorie
+// Banda diagnosi (KPI condivisi) - n° attivi, spesa periodo, top fornitore, categorie
 // ─────────────────────────────────────────────────────────────────────────────
 function BandaDiagnosi({ orgId, sedeId, isMobile, isTablet, refreshKey }) {
   const [stats, setStats] = useState(null)
@@ -54,30 +54,30 @@ function BandaDiagnosi({ orgId, sedeId, isMobile, isTablet, refreshKey }) {
       const spesa = (ord || []).reduce((s, o) => s + (Number(o.totale) || 0), 0)
       const byForn = {}
       for (const o of (ord || [])) {
-        const n = o.fornitori?.nome || "—"
+        const n = o.fornitori?.nome || "-"
         byForn[n] = (byForn[n] || 0) + (Number(o.totale) || 0)
       }
       const top = Object.entries(byForn).sort((a, b) => b[1] - a[1])[0]
-      setStats({ attivi, categorie, spesa, topNome: top?.[0] || "—", topTot: top?.[1] || 0 })
+      setStats({ attivi, categorie, spesa, topNome: top?.[0] || "-", topTot: top?.[1] || 0 })
     }
     load()
     return () => { alive = false }
   }, [orgId, sedeId, refreshKey])
 
-  const s = stats || { attivi: 0, categorie: 0, spesa: 0, topNome: "—", topTot: 0 }
+  const s = stats || { attivi: 0, categorie: 0, spesa: 0, topNome: "-", topTot: 0 }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, marginBottom: isMobile ? 16 : 24 }}>
       <KPI label="Fornitori attivi" value={s.attivi.toLocaleString('it-IT')} icon={<Icon name="truck" size={17} />} />
       <KPI label="Spesa 30gg" value={fmt0(s.spesa)} sub="ordini ricevuti" color={T.brand} highlight icon={<Icon name="money" size={17} />} />
-      <KPI label="Top fornitore" value={s.topNome} sub={s.topTot > 0 ? `${fmt0(s.topTot)} · 30gg` : "—"} icon={<Icon name="trophy" size={17} />} />
+      <KPI label="Top fornitore" value={s.topNome} sub={s.topTot > 0 ? `${fmt0(s.topTot)} · 30gg` : "-"} icon={<Icon name="trophy" size={17} />} />
       <KPI label="Categorie" value={s.categorie.toLocaleString('it-IT')} sub="merceologiche" icon={<Icon name="package" size={17} />} />
     </div>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 1 — Anagrafica fornitori
+// TAB 1 - Anagrafica fornitori
 // ─────────────────────────────────────────────────────────────────────────────
 function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = false, onMutate }) {
   const confirmDialog = useConfirm()
@@ -394,7 +394,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 2 — Ordini
+// TAB 2 - Ordini
 // ─────────────────────────────────────────────────────────────────────────────
 function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
   const [ordini, setOrdini] = useState([])
@@ -602,7 +602,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
           {ordiniFiltrati.map(o => (
             <div key={o.id} className="fos-tile" style={{ background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, padding: "12px 14px", marginBottom: 8, boxShadow: S.lg }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: C.text, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{o.fornitori?.nome || "—"}</div>
+                <div style={{ fontWeight: 800, fontSize: 13, color: C.text, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{o.fornitori?.nome || "-"}</div>
                 <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 12, background: `${statoColor[o.stato]}20`, color: statoColor[o.stato], whiteSpace: "nowrap" }}>{o.stato}</span>
               </div>
               <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 8 }}>
@@ -639,7 +639,7 @@ function OrdiniTab({ orgId, notify, isMobile, onMutate }) {
               {ordiniFiltrati.map(o => (
                 <tr key={o.id} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
                   <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: C.text }}>
-                    {o.fornitori?.nome || "—"}
+                    {o.fornitori?.nome || "-"}
                     {o.note && <div style={{ fontSize: 10, color: C.textSoft, fontWeight: 400, fontStyle: 'italic', marginTop: 2 }}>{o.note}</div>}
                   </td>
                   <td style={{ padding: '11px 16px', fontSize: 12, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtDate(o.data_ordine)}</td>
@@ -694,7 +694,7 @@ function BarRow({ label, value, max, color, sub }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 3 — Spesa
+// TAB 3 - Spesa
 // ─────────────────────────────────────────────────────────────────────────────
 function SpesaTab({ orgId, isMobile }) {
   const [ordini, setOrdini] = useState([])
@@ -728,7 +728,7 @@ function SpesaTab({ orgId, isMobile }) {
   const byFornitore = useMemo(() => {
     const acc = {}
     for (const r of ordini) {
-      const n = r.fornitori?.nome || "—"
+      const n = r.fornitori?.nome || "-"
       acc[n] = (acc[n] || 0) + (Number(r.totale) || 0)
     }
     return Object.entries(acc).sort((a, b) => b[1] - a[1])
@@ -791,7 +791,7 @@ function SpesaTab({ orgId, isMobile }) {
                 ordini.map(o => (
                   <div key={o.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: C.bgCard, borderRadius: 12, border: `1px solid ${C.border}`, marginBottom: 8 }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{o.fornitori?.nome || "—"}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{o.fornitori?.nome || "-"}</div>
                       <div style={{ fontSize: 11, color: C.textSoft, marginTop: 2 }}>{fmtDate(o.data_ordine)}{catMap[o.fornitore_id] ? ` · ${catMap[o.fornitore_id]}` : ''}</div>
                     </div>
                     <span style={{ fontSize: 14, fontWeight: 800, color: C.text, ...tnum }}>{fmt(o.totale)}</span>
@@ -811,11 +811,11 @@ function SpesaTab({ orgId, isMobile }) {
                     <tbody>
                       {ordini.map(o => (
                         <tr key={o.id} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
-                          <td style={{ padding: '10px 16px', fontSize: 12, fontWeight: 700, color: C.text }}>{o.fornitori?.nome || "—"}</td>
+                          <td style={{ padding: '10px 16px', fontSize: 12, fontWeight: 700, color: C.text }}>{o.fornitori?.nome || "-"}</td>
                           <td style={{ padding: '10px 16px', fontSize: 11, color: C.textMid }}>
                             {catMap[o.fornitore_id]
                               ? <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 999, background: `${catColor(catMap[o.fornitore_id])}18`, color: catColor(catMap[o.fornitore_id]), fontWeight: 700 }}>{catMap[o.fornitore_id]}</span>
-                              : <span style={{ color: C.textFaint }}>—</span>}
+                              : <span style={{ color: C.textFaint }}>-</span>}
                           </td>
                           <td style={{ padding: '10px 16px', fontSize: 11, color: C.textMid, whiteSpace: 'nowrap', ...tnum }}>{fmtDate(o.data_ordine)}</td>
                           <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: C.text, ...tnum }}>{fmt(o.totale)}</td>
