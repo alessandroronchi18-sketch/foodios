@@ -177,7 +177,37 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
     setExpanded(false)
   }
   return (
-    <div className={open ? undefined : 'fos-tile'} style={{ background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+    <div className={open ? undefined : 'fos-tile'} style={{
+      background: isSemi ? SEMI.bg : T.bgCard,
+      border: `1px solid ${isSemi ? SEMI.border : T.border}`,
+      borderRadius: 18, overflow: 'hidden',
+      boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)',
+      position: 'relative',
+    }}>
+      {/* Accent bar futuristic in cima al card expanded — gradient brand animato.
+          Solo quando il dettaglio è aperto, così il card collapsed resta minimale. */}
+      {open && (
+        <>
+          <div aria-hidden="true" style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+            background: isSemi
+              ? `linear-gradient(90deg, ${SEMI.accent} 0%, #B58FCE 50%, ${SEMI.accent} 100%)`
+              : 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+            backgroundSize: '200% 100%',
+            animation: '_fos_ric_accent 6s ease-in-out infinite',
+            zIndex: 1,
+          }}/>
+          <style>{`
+            @keyframes _fos_ric_accent {
+              0%, 100% { background-position: 0% 50%; }
+              50%      { background-position: 100% 50%; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              [data-fos-accent] { animation: none !important; }
+            }
+          `}</style>
+        </>
+      )}
       {/* Header — cliccabile per chiudere/comprimere */}
       <div onClick={collapseOnEmptyClick} style={{ padding: isMobile ? '14px 16px' : '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: open ? `1px solid ${isSemi ? SEMI.divider : C.border}` : 'none', cursor: 'pointer' }}>
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
@@ -185,8 +215,23 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             {isSemi && (
               <span style={{ padding: '3px 8px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', lineHeight: 1.2 }}>Semilavorato</span>
             )}
+            {/* Titolo futuristic: gradient bordeaux → quasi-nero, uppercase
+                letterspaced 0.02em, fontWeight 800. Match con il titolo h1
+                del topbar globale per coerenza visiva. */}
             <h3 onClick={onEdit ? () => onEdit(ric.nome) : undefined}
-              style={{ margin: 0, fontSize: isMobile ? 15 : 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', cursor: onEdit ? 'pointer' : 'default', lineHeight: 1.25 }}>
+              style={{
+                margin: 0,
+                fontSize: isMobile ? 15 : 17,
+                fontWeight: 800,
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
+                lineHeight: 1.25,
+                cursor: onEdit ? 'pointer' : 'default',
+                backgroundImage: isSemi
+                  ? `linear-gradient(135deg, #1C0A0A 0%, ${SEMI.accent} 60%, #1C0A0A 100%)`
+                  : 'linear-gradient(135deg, #1C0A0A 0%, #6E0E1A 60%, #1C0A0A 100%)',
+                backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              }}>
               {ric.nome}
             </h3>
           </div>
@@ -238,8 +283,18 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             { lbl: 'Margine %', val: fmtp(margPct), c: mc, bg: mbg, bold: true },
             { lbl: 'Food cost', val: fmt(fc), c: C.red, bg: C.redLight },
           ]).map(({ lbl, val, c, bg, bold }, i) => (
-            <div key={i} style={{ background: bg, padding: isMobile ? '7px 6px' : '8px 10px', borderRadius: 8, textAlign: 'center', minWidth: 0, minHeight: 48, display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
-              <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 3, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
+            // KPI futuristic: subtle inset highlight + ring borderColor brand
+            // sui prominent (bold). Tabular nums + monospace digits.
+            <div key={i} style={{
+              background: bg,
+              padding: isMobile ? '7px 6px' : '8px 10px',
+              borderRadius: 10,
+              border: bold ? `1px solid ${c}30` : `1px solid transparent`,
+              boxShadow: bold ? `inset 0 1px 0 rgba(255,255,255,0.6), 0 0 0 1px ${c}10` : 'inset 0 1px 0 rgba(255,255,255,0.5)',
+              textAlign: 'center', minWidth: 0, minHeight: 48,
+              display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden',
+            }}>
+              <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 3, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lbl}</div>
               <div style={{ fontSize: isMobile ? 11.5 : 13, fontWeight: bold ? 900 : 700, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
             </div>
           ))}
@@ -319,12 +374,27 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           che i pannelli nella stessa RIGA siano alti uguali (max della riga),
           minimizzando lo spazio vuoto. */}
       {open && (() => {
-        const PANEL_STYLE = { background: '#F8F4F2', borderRadius: 10, padding: 16, boxSizing: 'border-box' }
-        const PANEL_TITLE_STYLE = { fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }
+        // Futuristic panel: gradient verticale leggero + accent line top + box shadow.
+        // Identical look per tutti e 4 i pannelli → coerenza visiva del quadrato.
+        const PANEL_STYLE = {
+          background: 'linear-gradient(180deg, #FBF5F2 0%, #F4ECE7 100%)',
+          borderRadius: 12, padding: 16, boxSizing: 'border-box',
+          position: 'relative', overflow: 'hidden',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7)',
+        }
+        const PANEL_ACCENT = (
+          <div aria-hidden="true" style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+            background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+            opacity: 0.7,
+          }}/>
+        )
+        const PANEL_TITLE_STYLE = { fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.02em' }
         return (
         <div style={{ padding: isMobile ? '16px 14px 20px' : '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 18, boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
           {/* PANEL 1 — Distinta costi (senza titolo) */}
           <div style={PANEL_STYLE}>
+            {PANEL_ACCENT}
             {/* Container tabella: overflowX auto + scroll hint a destra (sfumatura)
                 per segnalare visivamente che ci sono altre colonne da scrollare.
                 minWidth 480 cosi le 5 colonne (Ingr/g/€-g/Costo/%FC) non si
@@ -413,6 +483,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             const totPie = pieData.reduce((s, x) => s + (x.costoCalc || 0), 0) || 1
             return (
             <div style={PANEL_STYLE}>
+              {PANEL_ACCENT}
               <div style={PANEL_TITLE_STYLE}><Icon name="barChart" size={14} /> Composizione food cost</div>
               {pieData.map((ing, i) => {
                 const pct = ing.costoCalc / totPie * 100
@@ -440,6 +511,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           {/* PANEL 3 — Conto economico per stampo (no semi) */}
           {!isSemi && (
             <div style={PANEL_STYLE}>
+              {PANEL_ACCENT}
               <div style={PANEL_TITLE_STYLE}><Icon name="money" size={14} /> Conto economico per stampo</div>
               {/* 4 righe perfettamente incolonnate */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -464,6 +536,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           {/* PANEL 4 — Per singola fetta (no semi) */}
           {!isSemi && (
             <div style={PANEL_STYLE}>
+              {PANEL_ACCENT}
               <div style={PANEL_TITLE_STYLE}><Icon name="gift" size={14} /> Per singola {reg.tipo}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {[
@@ -482,7 +555,12 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 
           {/* PANEL 3 alt — Riepilogo batch (semi only) */}
           {isSemi && (
-            <div style={{ ...PANEL_STYLE, background: SEMI.panel }}>
+            <div style={{ ...PANEL_STYLE, background: `linear-gradient(180deg, ${SEMI.panel} 0%, ${SEMI.accentLight} 100%)` }}>
+              <div aria-hidden="true" style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+                background: `linear-gradient(90deg, ${SEMI.accent} 0%, #B58FCE 50%, ${SEMI.accent} 100%)`,
+                opacity: 0.7,
+              }}/>
               <div style={PANEL_TITLE_STYLE}><Icon name="bank" size={14} /> Riepilogo batch</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {[
