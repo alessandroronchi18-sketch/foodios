@@ -313,18 +313,23 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         </div>
       )}
 
-      {/* Dettaglio aperto */}
-      {open && (
-        <div style={{ padding: isMobile ? '16px 14px 20px' : '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 0.9fr', gap: isMobile ? 18 : 28, boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '0.01em' }}><Icon name="receipt" size={14} /> Distinta costi</div>
+      {/* Dettaglio aperto — Layout 2×2: 4 pannelli stessa larghezza, stesso
+          minHeight (basato sul più grande). Stesso stile (#F8F4F2 + 16 padding
+          + radius 10). Titolo "Distinta costi" rimosso per liberare spazio. */}
+      {open && (() => {
+        const PANEL_STYLE = { background: '#F8F4F2', borderRadius: 10, padding: 16, minHeight: 380, boxSizing: 'border-box' }
+        const PANEL_TITLE_STYLE = { fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }
+        return (
+        <div style={{ padding: isMobile ? '16px 14px 20px' : '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 18, boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
+          {/* PANEL 1 — Distinta costi (senza titolo) */}
+          <div style={PANEL_STYLE}>
             {/* Container tabella: overflowX auto + scroll hint a destra (sfumatura)
                 per segnalare visivamente che ci sono altre colonne da scrollare.
-                minWidth 560 cosi le 5 colonne (Ingr/g/€-g/Costo/%FC) non si
+                minWidth 480 cosi le 5 colonne (Ingr/g/€-g/Costo/%FC) non si
                 comprimono troppo su mobile 375px. */}
-            <div style={{ position: 'relative', border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', background: C.white }}>
               <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: isMobile ? 560 : 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: isMobile ? 480 : 'auto' }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {[
@@ -401,104 +406,99 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {pieData.length > 0 && (() => {
-              const totPie = pieData.reduce((s, x) => s + (x.costoCalc || 0), 0) || 1
-              return (
-              <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="barChart" size={14} /> Composizione food cost</div>
-                {pieData.map((ing, i) => {
-                  const pct = ing.costoCalc / totPie * 100
-                  const col = PIE_COLORS[i % PIE_COLORS.length]
-                  return (
-                    // Grid 3 col: nome (1fr ellipsis) | € (right) | % (right).
-                    // Larghezze fisse sulle ultime due → tutti gli € sono uno
-                    // sotto l'altro e tutte le % sono uno sotto l'altro.
-                    <div key={i} style={{ marginBottom: 10, minHeight: 26 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 78px 44px', alignItems: 'baseline', gap: 10, fontSize: 11, marginBottom: 4 }}>
-                        <span style={{ color: C.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{formatNome(ing.nome)}</span>
-                        <span style={{ color: C.textMid, fontWeight: 700, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{fmt(ing.costoCalc)}</span>
-                        <span style={{ color: C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{pct.toFixed(0)}%</span>
-                      </div>
-                      <div style={{ height: 6, background: 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: col, borderRadius: 3, transition: 'width 320ms cubic-bezier(.32,.72,0,1)' }}/>
-                      </div>
+          {/* PANEL 2 — Composizione food cost */}
+          {pieData.length > 0 && (() => {
+            const totPie = pieData.reduce((s, x) => s + (x.costoCalc || 0), 0) || 1
+            return (
+            <div style={PANEL_STYLE}>
+              <div style={PANEL_TITLE_STYLE}><Icon name="barChart" size={14} /> Composizione food cost</div>
+              {pieData.map((ing, i) => {
+                const pct = ing.costoCalc / totPie * 100
+                const col = PIE_COLORS[i % PIE_COLORS.length]
+                return (
+                  // Grid 3 col: nome (1fr ellipsis) | € (right) | % (right).
+                  // Larghezze fisse sulle ultime due → tutti gli € sono uno
+                  // sotto l'altro e tutte le % sono uno sotto l'altro.
+                  <div key={i} style={{ marginBottom: 10, minHeight: 26 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 78px 44px', alignItems: 'baseline', gap: 10, fontSize: 11, marginBottom: 4 }}>
+                      <span style={{ color: C.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{formatNome(ing.nome)}</span>
+                      <span style={{ color: C.textMid, fontWeight: 700, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{fmt(ing.costoCalc)}</span>
+                      <span style={{ color: C.textSoft, fontWeight: 600, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{pct.toFixed(0)}%</span>
                     </div>
-                  )
-                })}
-              </div>
-              )
-            })()}
+                    <div style={{ height: 6, background: 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: col, borderRadius: 3, transition: 'width 320ms cubic-bezier(.32,.72,0,1)' }}/>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            )
+          })()}
 
-            {!isSemi && (
-              <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="money" size={14} /> Conto economico per stampo</div>
-                {/* 4 righe perfettamente incolonnate:
-                    - tutte le label iniziano allo stesso x (no prefissi +/−/=/Δ
-                      che facevano shiftare la posizione del testo)
-                    - tutti i valori finiscono allo stesso x (right-align via grid)
-                    - stessa altezza (44), stesso padding (11×14), stessa fontSize.
-                    Il "segno" matematico è veicolato dal colore (verde positivo,
-                    rosso negativo) e dal − prefisso solo sul valore di Food cost. */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[
-                    { lbl: 'Ricavo',         val: fmt(ricavo),    c: C.green, bg: C.greenLight, brd: `${C.green}25` },
-                    { lbl: 'Food cost',      val: `−${fmt(fc)}`,  c: C.red,   bg: C.redLight,   brd: `${C.red}20` },
-                    { lbl: 'Margine lordo',  val: fmt(margine),   c: mc,      bg: mbg,          brd: `${mc}25`, prominent: true },
-                    { lbl: 'Margine %',      val: fmtp(margPct),  c: mc,      bg: mbg,          brd: `${mc}25` },
-                  ].map((r, i) => (
-                    <div key={i} style={{
-                      padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
-                      display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', minHeight: 44, columnGap: 12,
-                    }}>
-                      <span style={{ fontSize: 12, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
-                      <span style={{ fontSize: 15, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
-                    </div>
-                  ))}
-                </div>
+          {/* PANEL 3 — Conto economico per stampo (no semi) */}
+          {!isSemi && (
+            <div style={PANEL_STYLE}>
+              <div style={PANEL_TITLE_STYLE}><Icon name="money" size={14} /> Conto economico per stampo</div>
+              {/* 4 righe perfettamente incolonnate */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { lbl: 'Ricavo',         val: fmt(ricavo),    c: C.green, bg: C.greenLight, brd: `${C.green}25` },
+                  { lbl: 'Food cost',      val: `−${fmt(fc)}`,  c: C.red,   bg: C.redLight,   brd: `${C.red}20` },
+                  { lbl: 'Margine lordo',  val: fmt(margine),   c: mc,      bg: mbg,          brd: `${mc}25`, prominent: true },
+                  { lbl: 'Margine %',      val: fmtp(margPct),  c: mc,      bg: mbg,          brd: `${mc}25` },
+                ].map((r, i) => (
+                  <div key={i} style={{
+                    padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
+                    display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', minHeight: 44, columnGap: 12,
+                  }}>
+                    <span style={{ fontSize: 12, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
+                    <span style={{ fontSize: 15, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {!isSemi && (
-              <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="gift" size={14} /> Per singola {reg.tipo}</div>
-                {/* Grid 3 col uniformi: ogni card stesso minHeight + label/value
-                    incolonnati. Label fontSize 8.5, value 15, gap 6 dentro la card. */}
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : '1fr 1fr 1fr', gap: 8 }}>
-                  {[
-                    { lbl: 'Prezzo',    val: fmt(reg.prezzo), c: C.text },
-                    { lbl: 'Food cost', val: fmt(fcUnita),    c: C.red },
-                    { lbl: 'Margine',   val: fmt(mrgUnita),   c: mrgUnita > 0 ? C.green : C.red },
-                  ].map(({ lbl, val, c }) => (
-                    <div key={lbl} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: '11px 8px', textAlign: 'center', minHeight: 60, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5 }}>
-                      <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{lbl}</div>
-                      <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
-                    </div>
-                  ))}
-                </div>
+          {/* PANEL 4 — Per singola fetta (no semi) */}
+          {!isSemi && (
+            <div style={PANEL_STYLE}>
+              <div style={PANEL_TITLE_STYLE}><Icon name="gift" size={14} /> Per singola {reg.tipo}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {[
+                  { lbl: 'Prezzo',    val: fmt(reg.prezzo), c: C.text },
+                  { lbl: 'Food cost', val: fmt(fcUnita),    c: C.red },
+                  { lbl: 'Margine',   val: fmt(mrgUnita),   c: mrgUnita > 0 ? C.green : C.red },
+                ].map(({ lbl, val, c }) => (
+                  <div key={lbl} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: '11px 8px', textAlign: 'center', minHeight: 60, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5 }}>
+                    <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{lbl}</div>
+                    <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {isSemi && (
-              <div style={{ background: SEMI.panel, borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="bank" size={14} /> Riepilogo batch</div>
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : '1fr 1fr 1fr', gap: 8 }}>
-                  {[
-                    { lbl: 'Peso totale',   val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text },
-                    { lbl: 'Costo / kg',    val: fmt(costoGSemi * 1000), c: SEMI.accent },
-                    { lbl: 'Costo / 100 g', val: fmt(costoGSemi * 100),  c: SEMI.accent },
-                  ].map(({ lbl, val, c }) => (
-                    <div key={lbl} style={{ background: C.white, border: `1px solid ${SEMI.divider}`, borderRadius: 7, padding: '11px 8px', textAlign: 'center', minHeight: 60, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5 }}>
-                      <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{lbl}</div>
-                      <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
-                    </div>
-                  ))}
-                </div>
+          {/* PANEL 3 alt — Riepilogo batch (semi only) */}
+          {isSemi && (
+            <div style={{ ...PANEL_STYLE, background: SEMI.panel }}>
+              <div style={PANEL_TITLE_STYLE}><Icon name="bank" size={14} /> Riepilogo batch</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {[
+                  { lbl: 'Peso totale',   val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text },
+                  { lbl: 'Costo / kg',    val: fmt(costoGSemi * 1000), c: SEMI.accent },
+                  { lbl: 'Costo / 100 g', val: fmt(costoGSemi * 100),  c: SEMI.accent },
+                ].map(({ lbl, val, c }) => (
+                  <div key={lbl} style={{ background: C.white, border: `1px solid ${SEMI.divider}`, borderRadius: 7, padding: '11px 8px', textAlign: 'center', minHeight: 60, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5 }}>
+                    <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{lbl}</div>
+                    <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, color: c, ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
