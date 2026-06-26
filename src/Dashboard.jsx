@@ -2137,15 +2137,35 @@ export default function Dashboard({
             animation:"_fos_topbar_accent 8s ease-in-out infinite"}}/>
           {/* Logo + nome (sx). Su tablet nascondiamo il nome app per recuperare spazio
               alle sezioni di navigazione. */}
-          <button onClick={()=>go(isDip?"home-dipendente":"home")} aria-label={`Home ${appName}`} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
-            {customLogo ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/> : <Logo size={26} style={{borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.45)"}}/>}
+          <button onClick={()=>go(isDip?"home-dipendente":"home")} aria-label={`Home ${appName}`} style={{display:"flex",alignItems:"center",gap:10,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
+            {/* Brand brick con conic-ring rotante (echo splash). Molto visibile. */}
+            <span style={{position:"relative", width:30, height:30, flexShrink:0, display:"inline-flex", alignItems:"center", justifyContent:"center"}}>
+              <span aria-hidden="true" style={{
+                position:"absolute", inset:-2, borderRadius:9,
+                background:"conic-gradient(from 0deg, #E84B3A 0deg, #FFB350 90deg, #6E0E1A 180deg, #FF7B5A 270deg, #E84B3A 360deg)",
+                opacity:0.95, filter:"blur(0.5px)",
+                animation:"_fos_brand_rotate 8s linear infinite",
+                WebkitMask:"radial-gradient(circle, transparent 14px, black 15px)",
+                mask:"radial-gradient(circle, transparent 14px, black 15px)",
+              }}/>
+              {customLogo
+                ? <img src={customLogo} alt={appName} style={{position:"relative", zIndex:1, height:26,maxWidth:46,objectFit:'contain',borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.55)"}}/>
+                : <Logo size={26} style={{position:"relative", zIndex:1, borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.55), inset 0 1px 0 rgba(255,255,255,0.16)"}}/>
+              }
+            </span>
             {!isTablet && <span style={{
-              fontSize:15,fontWeight:800,
-              letterSpacing:"-0.015em",whiteSpace:"nowrap",
-              backgroundImage:"linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.7) 100%)",
+              fontSize:15, fontWeight:800,
+              letterSpacing:"0.02em", textTransform:"uppercase", whiteSpace:"nowrap",
+              backgroundImage:"linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.6) 100%)",
               backgroundClip:"text", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
             }}>{appName}</span>}
           </button>
+          <style>{`
+            @keyframes _fos_brand_rotate { to { transform: rotate(360deg) } }
+            @media (prefers-reduced-motion: reduce) {
+              [style*="_fos_brand_rotate"] { animation: none !important; }
+            }
+          `}</style>
 
           {/* Sezioni con mega-menu su hover (centrate) */}
           <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:isTablet?0:2,flex:1,minWidth:0,overflow:"visible"}}>
@@ -2161,11 +2181,20 @@ export default function Dashboard({
                 <div key={sec.id} style={{position:"relative",height:"100%",display:"flex",alignItems:"center"}} onMouseEnter={()=>setHoverSec(sec.id)} onMouseLeave={()=>setHoverSec(null)}>
                   <button
                     onClick={()=>{ if(sec.headerView){ go(sec.headerView) } }}
-                    style={{display:"flex",alignItems:"center",gap:isTablet?4:6,padding:isTablet?"8px 8px":"8px 12px",borderRadius:8,border:"none",cursor:sec.headerView?"pointer":"default",whiteSpace:"nowrap",
-                    background:open?"rgba(255,255,255,0.14)":secActive?"rgba(255,255,255,0.08)":(sec.id==="ai"?"linear-gradient(120deg, rgba(232,75,58,0.18), rgba(255,216,107,0.10))":"transparent"),
-                    color:secActive||open?"#fff":"rgba(255,255,255,0.80)",fontSize:isTablet?11.5:12.5,fontWeight:secActive?700:(sec.id==="ai"?700:500),fontFamily:"inherit",
-                    boxShadow:secActive?"inset 0 -2px 0 #E84B3A":"none",
+                    style={{position:"relative",display:"flex",alignItems:"center",gap:isTablet?4:6,padding:isTablet?"8px 10px":"8px 14px",borderRadius:8,border:"none",cursor:sec.headerView?"pointer":"default",whiteSpace:"nowrap",
+                    background:open?"rgba(255,255,255,0.14)":secActive?"rgba(255,255,255,0.08)":(sec.id==="ai"?"linear-gradient(120deg, rgba(232,75,58,0.22), rgba(255,216,107,0.12))":"transparent"),
+                    color:secActive||open?"#fff":"rgba(255,255,255,0.82)",
+                    fontSize:isTablet?10.5:11.5, fontWeight:secActive?800:(sec.id==="ai"?800:700),
+                    letterSpacing:"0.10em", textTransform:"uppercase",
+                    fontFamily:"inherit",
                     transition:`background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`}}>
+                    {/* Underline accent gradient quando sezione attiva. Brand colors animati. */}
+                    {secActive && <span aria-hidden="true" style={{
+                      position:"absolute", left:8, right:8, bottom:0, height:2.5, borderRadius:2,
+                      background:"linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)",
+                      backgroundSize:"200% 100%",
+                      animation:"_fos_topbar_accent 4s ease-in-out infinite",
+                    }}/>}
                     {sec.id==="ai" && secHasLocked && <ChainBadge size={12}/>}
                     {secLabel}
                     {sec.badge>0&&<span style={{background:"#E84B3A",color:"#fff",borderRadius:9,fontSize:9,fontWeight:700,padding:"1px 6px"}}>{sec.badge}</span>}
