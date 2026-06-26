@@ -267,9 +267,15 @@
     </div>
     <div id="root"></div>
     <script>
-      // Boot splash removal: appena React popola #root, marka html.app-mounted
-      // (fade-out CSS), poi rimuove il nodo dopo la transition. Fail-safe a 6s
-      // se per qualche motivo React non monta (evita splash permanente).
+      // Boot splash removal + stuck-app recovery.
+      //
+      // Happy path: appena React popola #root, marka html.app-mounted
+      // (fade-out CSS), poi rimuove il nodo dopo la transition.
+      //
+      // Recovery path: se dopo 9s React NON ha montato, l'app è stuck (chunk
+      // 404, JS errato in cache, SW corrotto, network lentissima). Mostriamo
+      // un pulsante "Riprova" che pulisce SW + cache + reload hard, così
+      // l'utente esce dal limbo senza dover sapere cos'è un service worker.
       (function() {
         var root = document.getElementById('root');
         var splash = document.getElementById('boot-splash');
@@ -280,13 +286,54 @@
           document.documentElement.classList.add('app-mounted');
           setTimeout(function () { try { splash.parentNode && splash.parentNode.removeChild(splash); } catch(e){} }, 260);
         }
+        function showRecovery() {
+          if (removed) return; // React è montato, nessun recovery
+          if (document.getElementById('boot-recovery')) return;
+          var box = document.createElement('div');
+          box.id = 'boot-recovery';
+          box.style.cssText = 'position:absolute;bottom:8%;left:50%;transform:translateX(-50%);z-index:2147483601;'
+            + 'display:flex;flex-direction:column;align-items:center;gap:10px;'
+            + 'font-family:Inter,system-ui,sans-serif;color:rgba(255,255,255,0.9);text-align:center;';
+          var msg = document.createElement('div');
+          msg.style.cssText = 'font-size:13px;color:rgba(255,255,255,0.65);max-width:300px;line-height:1.5';
+          msg.textContent = 'Caricamento più lento del solito. Se non si sblocca, riprova.';
+          var btn = document.createElement('button');
+          btn.textContent = 'Riprova';
+          btn.style.cssText = 'padding:11px 22px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);'
+            + 'background:#6E0E1A;color:#fff;font-weight:700;font-size:13.5px;cursor:pointer;'
+            + 'box-shadow:0 8px 22px rgba(110,14,26,0.45);font-family:inherit;letterSpacing:0.02em';
+          btn.onclick = function() {
+            btn.disabled = true; btn.textContent = 'Ripulisco…';
+            // 1) Unregister tutti i SW. 2) Cancella tutte le cache. 3) Reload.
+            var p = Promise.resolve();
+            try {
+              if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+                p = navigator.serviceWorker.getRegistrations().then(function(rs){
+                  return Promise.all(rs.map(function(r){ return r.unregister(); }));
+                });
+              }
+            } catch(e){}
+            p.then(function(){
+              try { if (typeof caches !== 'undefined' && caches.keys) {
+                return caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); });
+              } } catch(e){}
+            }).finally(function(){
+              try { sessionStorage.removeItem('foodios_sw_reload_ts'); } catch(e){}
+              try { sessionStorage.removeItem('foodos_chunk_reload_ts'); } catch(e){}
+              window.location.reload();
+            });
+          };
+          box.appendChild(msg); box.appendChild(btn);
+          splash.appendChild(box);
+        }
         if (root.children.length > 0) { remove(); return; }
         var obs = new MutationObserver(function () {
           if (root.children.length > 0) { obs.disconnect(); remove(); }
         });
         obs.observe(root, { childList: true });
-        // Fail-safe: se React tarda > 6s, togliamo lo splash comunque per non bloccare la UI.
-        setTimeout(function () { obs.disconnect(); remove(); }, 6000);
+        // 9s: a questo punto se React non è montato, mostra "Riprova".
+        // Non rimuoviamo lo splash (un blank fa peggio): mostriamo la via d'uscita.
+        setTimeout(showRecovery, 9000);
       })();
     </script>
     <script type="module" src="/src/main.jsx"></script>
