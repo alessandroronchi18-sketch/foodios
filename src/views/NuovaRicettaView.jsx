@@ -241,67 +241,36 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         </div>
       </div>
 
-      {/* Edit ricetta esistente */}
+      {/* Edit + Delete: due pulsanti che aprono dropdown con ricerca.
+          Refactor 26/06: chip-list saturo (15+ nomi a pieno schermo) sostituito
+          con due pulsanti-action elegant futuristic. Doppio check per delete. */}
       {ricetteEsistenti.length > 0 && (
         <div style={{ ...cardStyle, borderRadius: 18, padding: isMobile ? "14px 16px" : "18px 22px", marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 12, letterSpacing: "-0.005em", display: "flex", alignItems: "center", gap: 8 }}>
-            <Icon name="edit" size={14} /> Modifica ricetta esistente
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: 'center' }}>
+            <RicettaPicker
+              label="Modifica ricetta"
+              icon={<Icon name="edit" size={14} />}
+              variant="primary"
+              ricette={ricetteEsistenti}
+              activeNome={editMode}
+              onSelect={(nome) => loadForEdit(nome)}
+              isMobile={isMobile}
+            />
+            <RicettaPickerDelete
+              ricette={ricetteEsistenti}
+              deleteConf={deleteConf}
+              setDeleteConf={setDeleteConf}
+              deletePin={deletePin}
+              setDeletePin={setDeletePin}
+              onConfirm={handleDeleteRicetta}
+              isMobile={isMobile}
+            />
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 6 }}>
-            {ricetteEsistenti.map(n => (
-              <button key={n} onClick={() => loadForEdit(n)}
-                style={{ padding: isMobile ? "10px 14px" : "6px 14px", minHeight: isMobile ? 40 : 'auto', borderRadius: R.full, border: `1px solid ${editMode === n ? T.brand : T.border}`,
-                  background: editMode === n ? T.brandLight : T.bgCard, color: editMode === n ? T.brand : T.textMid,
-                  fontSize: isMobile ? 13 : 12, fontWeight: editMode === n ? 600 : 500, cursor: "pointer", letterSpacing: "-0.005em",
-                  maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  transition: `background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}` }}>
-                {n}
-              </button>
-            ))}
-          </div>
-          {editMode && <div style={{ marginTop: 10, fontSize: 12, color: T.amber, display: "flex", alignItems: "center", gap: 6 }}>
-            <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 600 }}>{editMode}</b> — salva per sovrascrivere.
-          </div>}
-          {/* Delete ricetta */}
-          <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
-            {deleteConf === null ? (
-              <button onClick={() => setDeleteConf("")} style={{ fontSize: isMobile ? 12 : 10, fontWeight: 700, color: C.red, background: "transparent", border: `1px solid ${C.red}22`, borderRadius: 6, padding: isMobile ? "10px 14px" : "4px 12px", minHeight: isMobile ? 40 : 'auto', cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <Icon name="trash" size={13} /> Elimina una ricetta…
-              </button>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ fontSize: isMobile ? 12 : 10, fontWeight: 700, color: C.text }}>Seleziona la ricetta da eliminare:</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 6 }}>
-                  {ricetteEsistenti.map(n => (
-                    <button key={n} onClick={() => setDeleteConf(n)}
-                      style={{ padding: isMobile ? "10px 14px" : "4px 12px", minHeight: isMobile ? 40 : 'auto', borderRadius: 6, border: `1px solid ${deleteConf === n ? C.red : C.border}`, background: deleteConf === n ? C.redLight : C.white, color: deleteConf === n ? C.red : C.textMid, fontSize: isMobile ? 12 : 10, fontWeight: deleteConf === n ? 800 : 500, cursor: "pointer", maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {n}
-                    </button>
-                  ))}
-                </div>
-                {deleteConf && (
-                  <div style={{ background: "#FFF5F5", border: `1px solid ${C.red}30`, borderRadius: 8, padding: "12px 14px" }}>
-                    <div style={{ fontSize: isMobile ? 12 : 11, fontWeight: 700, color: C.red, marginBottom: 6, display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}><Icon name="warning" size={14} /> <span>Stai per eliminare <b>{deleteConf}</b> in modo permanente.</span></div>
-                    <div style={{ fontSize: isMobile ? 11.5 : 10, color: C.textSoft, marginBottom: 10 }}>Scrivi <b>ELIMINA</b> in maiuscolo per confermare:</div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isMobile ? "column" : "row" }}>
-                      <input value={deletePin} onChange={e => setDeletePin(e.target.value)} placeholder="ELIMINA"
-                        style={{ flex: 1, minWidth: 120, padding: "10px 12px", borderRadius: 6, border: `1px solid ${deletePin === "ELIMINA" ? C.red : C.borderStr}`, fontSize: 16, fontWeight: 700, color: C.red, letterSpacing: "0.08em", boxSizing: 'border-box' }} />
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => handleDeleteRicetta(deleteConf)}
-                          style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? "12px 16px" : "7px 16px", minHeight: isMobile ? 44 : 'auto', background: deletePin === "ELIMINA" ? C.red : "#EEE", color: deletePin === "ELIMINA" ? C.white : C.textSoft, border: "none", borderRadius: 6, fontSize: isMobile ? 13 : 11, fontWeight: 800, cursor: deletePin === "ELIMINA" ? "pointer" : "default" }}>
-                          Elimina
-                        </button>
-                        <button onClick={() => { setDeleteConf(null); setDeletePin(""); }}
-                          style={{ flex: isMobile ? 1 : 'unset', padding: isMobile ? "12px 14px" : "7px 12px", minHeight: isMobile ? 44 : 'auto', background: "transparent", color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: isMobile ? 13 : 11, cursor: "pointer" }}>
-                          Annulla
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          {editMode && (
+            <div style={{ marginTop: 12, fontSize: 12, color: T.amber, display: "flex", alignItems: "center", gap: 6, padding: '8px 12px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8 }}>
+              <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 700, marginLeft: 4 }}>{editMode}</b> — salva per sovrascrivere.
+            </div>
+          )}
         </div>
       )}
 
@@ -707,4 +676,229 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       </div>
     </div>
   );
+}
+
+// ─── RicettaPicker: pulsante che apre dropdown con ricerca interna ──────
+// Pattern futuristic-elegant: pulsante con icona + label + caret. Click apre
+// un floating panel con barra di ricerca in cima + lista scrollabile delle
+// ricette filtrate. Click outside o ESC chiude. Selezione → onSelect + close.
+function RicettaPicker({ label, icon, variant = 'primary', ricette, activeNome, onSelect, isMobile }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef(null)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    setTimeout(() => inputRef.current?.focus(), 30)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  const filtered = useMemo(() => {
+    const s = q.toLowerCase().trim()
+    if (!s) return ricette
+    return ricette.filter(n => n.toLowerCase().includes(s))
+  }, [q, ricette])
+
+  const isDelete = variant === 'danger'
+  const accent = isDelete ? C.red : T.brand
+  const accentLight = isDelete ? C.redLight : T.brandLight
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button onClick={() => setOpen(o => !o)} type="button"
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: isMobile ? '11px 16px' : '9px 16px',
+          minHeight: isMobile ? 42 : 'auto',
+          background: open ? accentLight : (isDelete ? 'transparent' : accent),
+          color: open ? accent : (isDelete ? accent : '#FFF'),
+          border: `1px solid ${isDelete ? `${accent}40` : accent}`,
+          borderRadius: 10,
+          fontSize: isMobile ? 13 : 12.5, fontWeight: 700,
+          cursor: 'pointer', letterSpacing: '0.01em',
+          boxShadow: open ? 'none' : (isDelete ? 'none' : `0 6px 16px ${accent}28`),
+          transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}, box-shadow ${M.durFast} ${M.ease}`,
+          whiteSpace: 'nowrap',
+        }}>
+        {icon}
+        <span>{label}</span>
+        {activeNome && !open && (
+          <span style={{ marginLeft: 4, padding: '2px 8px', background: isDelete ? 'transparent' : 'rgba(255,255,255,0.18)', color: isDelete ? accent : '#FFF', borderRadius: 6, fontSize: 11, fontWeight: 600, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {activeNome}
+          </span>
+        )}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 8px)', left: 0,
+          width: isMobile ? 280 : 340,
+          maxWidth: 'calc(100vw - 32px)',
+          background: '#FFF',
+          border: `1px solid ${accent}30`,
+          borderRadius: 12,
+          boxShadow: '0 18px 48px rgba(15,23,42,0.18), 0 0 0 1px rgba(255,255,255,0.04) inset',
+          overflow: 'hidden',
+          zIndex: 1000,
+          animation: '_fos_ricdrop_in 180ms cubic-bezier(.32,.72,0,1)',
+        }}>
+          <style>{`
+            @keyframes _fos_ricdrop_in {
+              from { opacity: 0; transform: translateY(-6px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+          `}</style>
+          {/* Accent bar futuristic in cima */}
+          <div aria-hidden="true" style={{
+            height: 2,
+            background: isDelete
+              ? `linear-gradient(90deg, ${C.red} 0%, #FFB350 50%, ${C.red} 100%)`
+              : 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+          }}/>
+          {/* Search bar */}
+          <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ position: 'relative' }}>
+              <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)}
+                placeholder="Cerca ricetta…"
+                style={{
+                  width: '100%', padding: '10px 12px 10px 36px',
+                  border: `1px solid ${C.border}`, borderRadius: 8,
+                  fontSize: isMobile ? 16 : 13, color: C.text,
+                  background: '#FAFAFA', outline: 'none',
+                  fontFamily: 'inherit', boxSizing: 'border-box',
+                }}/>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.textSoft} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }}>
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </div>
+          </div>
+          {/* Lista risultati */}
+          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: 12, color: C.textSoft }}>
+                Nessuna ricetta trovata
+              </div>
+            ) : filtered.map(n => {
+              const active = activeNome === n
+              return (
+                <button key={n} onClick={() => { onSelect(n); setOpen(false); setQ('') }} type="button"
+                  style={{
+                    width: '100%', textAlign: 'left',
+                    padding: '11px 14px',
+                    background: active ? accentLight : 'transparent',
+                    color: active ? accent : C.text,
+                    border: 'none', borderLeft: active ? `3px solid ${accent}` : '3px solid transparent',
+                    fontSize: 13, fontWeight: active ? 800 : 500,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: `background ${M.durFast} ${M.ease}`,
+                  }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = C.bgSubtle || '#F5F1EE' }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}>
+                  {n}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── RicettaPickerDelete: dropdown delete con doppio check ───────────────
+// Step 1: scegli ricetta dalla lista filtrata. Step 2: scrivi "ELIMINA"
+// nell'input per confermare. Step 3: bottone Conferma elimina diventa attivo
+// solo con la parola esatta.
+function RicettaPickerDelete({ ricette, deleteConf, setDeleteConf, deletePin, setDeletePin, onConfirm, isMobile }) {
+  const handleSelect = (nome) => {
+    setDeleteConf(nome)
+    setDeletePin('')
+  }
+  return (
+    <>
+      <RicettaPicker
+        label="Elimina ricetta"
+        icon={<Icon name="trash" size={14} />}
+        variant="danger"
+        ricette={ricette}
+        activeNome={deleteConf || null}
+        onSelect={handleSelect}
+        isMobile={isMobile}
+      />
+      {/* Modal-like confirmation panel: appare sotto i bottoni quando una
+          ricetta è stata scelta. Scrivi ELIMINA per attivare la conferma. */}
+      {deleteConf && (
+        <div style={{
+          flexBasis: '100%', width: '100%',
+          marginTop: 4,
+          background: 'linear-gradient(180deg, #FFF5F5 0%, #FFE9E9 100%)',
+          border: `1px solid ${C.red}35`,
+          borderRadius: 12,
+          padding: '14px 16px',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.7), 0 4px 12px rgba(204,0,0,0.06)',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${C.red} 0%, #FFB350 50%, ${C.red} 100%)`, opacity: 0.7 }}/>
+          <div style={{ fontSize: 12.5, fontWeight: 800, color: C.red, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="warning" size={14} /> Stai per eliminare <b style={{ fontWeight: 900, letterSpacing: '0.02em', textTransform: 'uppercase' }}>{deleteConf}</b>
+          </div>
+          <div style={{ fontSize: 11.5, color: C.textSoft, marginBottom: 10, lineHeight: 1.5 }}>
+            L'operazione è permanente. Scrivi <b style={{ color: C.red, letterSpacing: '0.05em' }}>ELIMINA</b> in maiuscolo per attivare il pulsante di conferma.
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
+            <input value={deletePin} onChange={e => setDeletePin(e.target.value)} placeholder="ELIMINA"
+              autoFocus
+              style={{
+                flex: 1, minWidth: 140,
+                padding: '11px 14px',
+                borderRadius: 8,
+                border: `2px solid ${deletePin === 'ELIMINA' ? C.red : '#E5C7C7'}`,
+                fontSize: 16, fontWeight: 800,
+                color: C.red, letterSpacing: '0.1em',
+                textAlign: 'center',
+                outline: 'none', background: '#FFF',
+                fontFamily: 'inherit', boxSizing: 'border-box',
+              }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => onConfirm(deleteConf)} disabled={deletePin !== 'ELIMINA'}
+                style={{
+                  flex: isMobile ? 1 : 'unset',
+                  padding: '11px 22px', minHeight: 44,
+                  background: deletePin === 'ELIMINA' ? `linear-gradient(135deg, ${C.red} 0%, #8B0000 100%)` : '#E8DEDE',
+                  color: deletePin === 'ELIMINA' ? '#FFF' : C.textSoft,
+                  border: 'none', borderRadius: 8,
+                  fontSize: 13, fontWeight: 800, letterSpacing: '0.02em',
+                  cursor: deletePin === 'ELIMINA' ? 'pointer' : 'not-allowed',
+                  boxShadow: deletePin === 'ELIMINA' ? `0 6px 16px ${C.red}40` : 'none',
+                  transition: `background ${M.durFast} ${M.ease}, box-shadow ${M.durFast} ${M.ease}`,
+                }}>
+                Conferma elimina
+              </button>
+              <button type="button" onClick={() => { setDeleteConf(null); setDeletePin('') }}
+                style={{
+                  flex: isMobile ? 1 : 'unset',
+                  padding: '11px 18px', minHeight: 44,
+                  background: 'transparent', color: C.textMid,
+                  border: `1px solid ${C.border}`, borderRadius: 8,
+                  fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                }}>
+                Annulla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
 }
