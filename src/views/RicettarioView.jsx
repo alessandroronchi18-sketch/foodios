@@ -110,9 +110,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
     return sortDir === 'asc' ? na - nb : nb - na
   })
 
-  const pieRaw = ingList.filter(i => i.costoCalc > 0).slice(0, 5)
-  const resto = fc - pieRaw.reduce((s, i) => s + i.costoCalc, 0)
-  const pieData = [...pieRaw, ...(resto > 0.01 ? [{ nome: 'Altri', costoCalc: parseFloat(resto.toFixed(3)) }] : [])]
+  // Composizione FC: tutti gli ingredienti con costo > 0, niente aggregazione
+  // "Altri" (richiesta utente 26/06: voglio vedere ogni ingrediente).
+  const pieData = ingList.filter(i => i.costoCalc > 0)
 
   // ─── Card COLLAPSED ───────────────────────────────────────────────
   // Mostra solo: nome + badge qualità + 1 KPI chiave (Margine % per ricette,
