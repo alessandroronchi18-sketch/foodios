@@ -2119,13 +2119,32 @@ export default function Dashboard({
           background:"linear-gradient(100deg, #16121C 0%, #1E0B11 55%, #2C0E14 100%)",
           borderBottom:"1px solid rgba(0,0,0,0.4)",boxShadow:"0 1px 0 rgba(255,255,255,0.04) inset, 0 4px 18px rgba(0,0,0,0.18)",
           display:"flex",alignItems:"center",gap:isTablet?8:14,padding:isTablet?"0 10px":"0 16px"}}>
-          {/* Linea accento brand in cima (firma premium) */}
-          <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 50%, #6E0E1A 100%)"}}/>
+          {/* Linea accento brand in cima ANIMATA — gradient brand che si muove
+              orizzontalmente in loop 8s (futuristic-clean). prefers-reduced-motion
+              annulla l'animazione. */}
+          <style>{`
+            @keyframes _fos_topbar_accent {
+              0%, 100% { background-position: 0% 50%; }
+              50%      { background-position: 100% 50%; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .fos-topbar-accent { animation: none !important; }
+            }
+          `}</style>
+          <div className="fos-topbar-accent" style={{position:"absolute",top:0,left:0,right:0,height:2,
+            background:"linear-gradient(90deg, #6E0E1A 0%, #E84B3A 25%, #FFB350 50%, #E84B3A 75%, #6E0E1A 100%)",
+            backgroundSize:"200% 100%",
+            animation:"_fos_topbar_accent 8s ease-in-out infinite"}}/>
           {/* Logo + nome (sx). Su tablet nascondiamo il nome app per recuperare spazio
               alle sezioni di navigazione. */}
           <button onClick={()=>go(isDip?"home-dipendente":"home")} aria-label={`Home ${appName}`} style={{display:"flex",alignItems:"center",gap:9,background:"transparent",border:"none",cursor:"pointer",flexShrink:0,padding:0}}>
-            {customLogo ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/> : <Logo size={26} style={{borderRadius:6}}/>}
-            {!isTablet && <span style={{fontSize:15,fontWeight:700,color:T.textOnDark,letterSpacing:"-0.015em",whiteSpace:"nowrap"}}>{appName}</span>}
+            {customLogo ? <img src={customLogo} alt={appName} style={{height:26,maxWidth:46,objectFit:'contain',borderRadius:6}}/> : <Logo size={26} style={{borderRadius:6, boxShadow:"0 4px 14px rgba(232,75,58,0.45)"}}/>}
+            {!isTablet && <span style={{
+              fontSize:15,fontWeight:800,
+              letterSpacing:"-0.015em",whiteSpace:"nowrap",
+              backgroundImage:"linear-gradient(180deg, #FFFFFF 0%, rgba(255,255,255,0.7) 100%)",
+              backgroundClip:"text", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+            }}>{appName}</span>}
           </button>
 
           {/* Sezioni con mega-menu su hover (centrate) */}
@@ -2156,7 +2175,28 @@ export default function Dashboard({
                       spostandosi sull'elenco il menu NON si chiude. */}
                   {open&&(
                     <div style={{position:"absolute",top:"100%",left:0,paddingTop:6,zIndex:60}}>
-                      <div style={{minWidth:212,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,boxShadow:"0 14px 38px rgba(15,23,42,0.20)",padding:6}}>
+                      <div style={{
+                        minWidth:220,
+                        background:"linear-gradient(180deg, #FFFFFF 0%, #FBF6F2 100%)",
+                        border:`1px solid ${C.border}`,
+                        borderRadius:14,
+                        boxShadow:"0 18px 48px rgba(15,23,42,0.22), 0 0 0 1px rgba(255,255,255,0.6) inset",
+                        padding:6,
+                        overflow:"hidden",
+                        animation:"_fos_topdrop_in 200ms cubic-bezier(.32,.72,0,1)",
+                      }}>
+                        <style>{`
+                          @keyframes _fos_topdrop_in {
+                            from { opacity: 0; transform: translateY(-6px); }
+                            to   { opacity: 1; transform: translateY(0); }
+                          }
+                        `}</style>
+                        {/* Accent bar futuristic in cima al dropdown */}
+                        <div aria-hidden="true" style={{
+                          height: 2, margin: '-6px -6px 6px',
+                          background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+                          opacity: 0.7,
+                        }}/>
                         {sec.items.map(ItemBtn)}
                       </div>
                     </div>

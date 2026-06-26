@@ -206,25 +206,25 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
             <div>
               <label style={labelStyle}>Nome formato (come sullo scontrino)</label>
-              <input style={inputStyle} value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Cono piccolo" />
+              <input style={inputStyle} value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="es. Cono piccolo" />
             </div>
             <div>
               <label style={labelStyle}>Categoria ricette collegata</label>
-              <input style={inputStyle} list="categorie-list" value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })} placeholder="Gelato" />
+              <input style={inputStyle} list="categorie-list" value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })} placeholder="es. Gelato" />
               <datalist id="categorie-list">{categorie.map(c => <option key={c} value={c} />)}</datalist>
             </div>
             <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
               <label style={labelStyle}>Alias / altri nomi sullo scontrino (separati da virgola)</label>
               <input style={inputStyle} value={Array.isArray(form.alias) ? form.alias.join(', ') : form.alias}
-                onChange={e => setForm({ ...form, alias: e.target.value })} placeholder="cono p, cono 1 gusto, conetto" />
+                onChange={e => setForm({ ...form, alias: e.target.value })} placeholder="es. cono p, cono 1 gusto, conetto" />
             </div>
             <div>
               <label style={labelStyle}>Base consumata per unità (grammi)</label>
-              <input style={inputStyle} type="number" min="0" value={form.baseQtaG} onChange={e => setForm({ ...form, baseQtaG: e.target.value })} placeholder="80" />
+              <input style={inputStyle} type="number" min="0" value={form.baseQtaG} onChange={e => setForm({ ...form, baseQtaG: e.target.value })} placeholder="es. 80" />
             </div>
             <div>
               <label style={labelStyle}>Prezzo di vendita (€, informativo)</label>
-              <input style={inputStyle} type="number" min="0" step="0.01" value={form.prezzoDefault} onChange={e => setForm({ ...form, prezzoDefault: e.target.value })} placeholder="2.60" />
+              <input style={inputStyle} type="number" min="0" step="0.01" value={form.prezzoDefault} onChange={e => setForm({ ...form, prezzoDefault: e.target.value })} placeholder="es. 2.60" />
             </div>
           </div>
 
@@ -248,11 +248,11 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                 const subtot = (Number(c.qta) || 0) * (Number(c.costo) || 0)
                 return (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 84px 36px' : '2fr 80px 110px 100px 40px', gap: 8, alignItems: 'center' }}>
-                    <input style={inputStyle} value={c.nome || ''} placeholder="Cono cialda piccolo"
+                    <input style={inputStyle} value={c.nome || ''} placeholder="es. Cono cialda piccolo"
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, nome: e.target.value } : x) }))}/>
-                    <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.01" value={c.qta ?? ''} placeholder="1"
+                    <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.01" value={c.qta ?? ''} placeholder="es. 1"
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, qta: e.target.value } : x) }))}/>
-                    <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.001" value={c.costo ?? ''} placeholder="0,060"
+                    <input style={{ ...inputStyle, textAlign: 'right', ...TNUM }} type="number" min="0" step="0.001" value={c.costo ?? ''} placeholder="es. 0,060"
                       onChange={e => setForm(f => ({ ...f, componenti: f.componenti.map((x, j) => j === i ? { ...x, costo: e.target.value } : x) }))}/>
                     {!isMobile && <span style={{ textAlign: 'right', fontSize: 12.5, fontWeight: 700, color: T.textMid, ...TNUM }}>{fmt3(subtot)}</span>}
                     <button onClick={() => setForm(f => ({ ...f, componenti: f.componenti.filter((_, j) => j !== i) }))} title="Rimuovi materiale"
@@ -262,7 +262,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                   </div>
                 )
               })}
-              <button onClick={() => setForm(f => ({ ...f, componenti: [...(f.componenti || []), { nome: '', qta: 1, costo: 0 }] }))}
+              <button onClick={() => setForm(f => ({ ...f, componenti: [...(f.componenti || []), { nome: '', qta: '', costo: '' }] }))}
                 style={{ alignSelf: 'flex-start', marginTop: 4, padding: '8px 14px', background: 'transparent', color: T.textMid, border: `1px dashed ${T.borderStr}`, borderRadius: R.md, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="plus" size={13} />Aggiungi materiale
               </button>

@@ -604,35 +604,31 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             {form.ingredienti.length === 0 ? (
               <div style={{ color: C.textSoft, fontSize: 11, textAlign: "center", padding: "12px 0 4px" }}>Aggiungi ingredienti per vedere il calcolo</div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {/* Ricavo */}
-                <div style={{ padding: "10px 14px", background: C.greenLight, border: `1px solid ${C.green}25`, borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: C.green, fontWeight: 700 }}>+ Ricavo ({form.unita} × {fmt(form.prezzo)})</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: C.green, ...TNUM }}>{fmt(live.ricavo)}</span>
-                </div>
-                {/* Food cost */}
-                <div style={{ padding: "10px 14px", background: C.redLight, border: `1px solid ${C.red}20`, borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>− Food cost ({fmtp(live.fcPct)})</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: C.red, ...TNUM }}>−{fmt(live.fc)}</span>
-                </div>
-                {/* Margine */}
-                <div style={{ padding: "12px 14px", background: sem.bg, border: `1px solid ${sem.border}`, borderRadius: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: sem.color }}>= Margine lordo</span>
-                    <span style={{ fontSize: 17, fontWeight: 900, color: sem.color, ...TNUM }}>{fmt(live.margine)}</span>
+              // 4 righe perfettamente incolonnate: stessa altezza (44),
+              // stessa fontSize per label (12) e value (15), grid 2col,
+              // tutti tabular-nums. Niente prefissi +/-/= sulle label
+              // (facevano shift di x), solo - sul VALORE di Food cost.
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  { lbl: 'Ricavo',         val: fmt(live.ricavo),     c: C.green, bg: C.greenLight, brd: `${C.green}25` },
+                  { lbl: 'Food cost',      val: `-${fmt(live.fc)}`,   c: C.red,   bg: C.redLight,   brd: `${C.red}20` },
+                  { lbl: 'Margine lordo',  val: fmt(live.margine),    c: sem.color, bg: sem.bg, brd: sem.border, prominent: true },
+                  { lbl: 'Margine %',      val: fmtp(live.margPct),   c: sem.color, bg: sem.bg, brd: sem.border },
+                ].map((r, i) => (
+                  <div key={i} style={{
+                    padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
+                    display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', minHeight: 44, columnGap: 12,
+                  }}>
+                    <span style={{ fontSize: 12, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
+                    <span style={{ fontSize: 15, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
-                    <span style={{ color: C.textMid }}>Margine %</span>
-                    <span style={{ fontWeight: 700, color: sem.color, ...TNUM }}>{fmtp(live.margPct)}</span>
-                  </div>
-                </div>
-                {/* Per unità */}
-                <div style={{ fontSize: 10, color: C.textSoft, lineHeight: 1.6, display: "flex", alignItems: "center", gap: 5 }}>
+                ))}
+                {/* Per unità: nota piccola sotto */}
+                <div style={{ fontSize: 10.5, color: C.textSoft, lineHeight: 1.5, display: "flex", alignItems: "center", gap: 6, marginTop: 2, padding: '0 4px' }}>
                   <Icon name="bulb" size={12} /> Per unità: FC {fmt(live.fcUnit)} · Margine {fmt(form.unita > 0 ? live.margine / form.unita : 0)}
                 </div>
-                {/* Ingredienti senza prezzo */}
                 {live.mancanti.length > 0 && (
-                  <div style={{ fontSize: 10, color: C.amber, background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "flex-start", gap: 6 }}>
+                  <div style={{ fontSize: 10.5, color: C.amber, background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "flex-start", gap: 6 }}>
                     <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={12} /></span>
                     <span>Food cost sottostimato: manca il prezzo di {live.mancanti.join(", ")}. Caricalo nel listino prezzi.</span>
                   </div>
@@ -641,10 +637,14 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             )}
           </div>
 
-          {/* Prezzo consigliato */}
+          {/* Prezzo minimo per centrare il food cost obiettivo.
+              Rinominato 26/06: era "Prezzo consigliato" ma poteva suggerire
+              di abbassare il prezzo (= ricavo minore). Ora è chiaro che è il
+              prezzo MINIMO sotto cui il food cost % sfora il target; sopra
+              quel prezzo si guadagna di più, mai consigliato abbassarlo. */}
           {!isSemiOrInterno && (
             <div style={cardStyle}>
-              <PanelHead icon={<Icon name="money" size={18} />} title="Prezzo consigliato" color={C.red} />
+              <PanelHead icon={<Icon name="money" size={18} />} title="Prezzo minimo per il target" color={C.red} sub="prezzo minimo che mantiene il food cost dentro l'obiettivo. Sopra, guadagni di più." />
 
               {/* Target food cost selector */}
               <div style={{ marginBottom: 14 }}>
@@ -661,24 +661,31 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <>
                   <div style={{ textAlign: "center", padding: "8px 0 12px" }}>
                     <div style={{ fontSize: 32, fontWeight: 800, color: C.text, letterSpacing: "-0.03em", ...TNUM }}>{fmt(live.prezzoConsigliato)}</div>
-                    <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>per {form.tipo === "pezzo" ? "pezzo" : "fetta/porzione"} · food cost al {targetPct}%</div>
+                    <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>prezzo minimo per {form.tipo === "pezzo" ? "pezzo" : "fetta/porzione"} · food cost al {targetPct}%</div>
                   </div>
-                  {/* Delta vs prezzo attuale */}
-                  {Math.abs(live.deltaPrezzo) >= 0.01 ? (
-                    <div style={{ padding: "10px 12px", borderRadius: 8, background: live.deltaPrezzo > 0 ? C.amberLight : C.greenLight, border: `1px solid ${live.deltaPrezzo > 0 ? C.amber : C.green}40`, fontSize: 11, color: live.deltaPrezzo > 0 ? C.amber : C.green, fontWeight: 600, lineHeight: 1.5 }}>
-                      {live.deltaPrezzo > 0
-                        ? <>Il prezzo attuale ({fmt(form.prezzo)}) è basso: alzalo di <b>{fmt(live.deltaPrezzo)}</b> per centrare il {targetPct}%.</>
-                        : <>Hai margine: potresti scendere fino a <b>{fmt(live.prezzoConsigliato)}</b> restando al {targetPct}% di food cost.</>}
+                  {/* Messaggio: alzare se sotto, OK se sopra/in linea. MAI suggerire di scendere. */}
+                  {live.deltaPrezzo > 0.01 ? (
+                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.amberLight, border: `1px solid ${C.amber}40`, fontSize: 11, color: C.amber, fontWeight: 600, lineHeight: 1.5 }}>
+                      Il prezzo attuale ({fmt(form.prezzo)}) è sotto il minimo: per centrare il food cost al {targetPct}% serve alzare di <b>{fmt(live.deltaPrezzo)}</b>.
+                    </div>
+                  ) : Math.abs(live.deltaPrezzo) < 0.01 ? (
+                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.greenLight, border: `1px solid ${C.green}40`, fontSize: 11, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                      <Icon name="checkCircle" size={14} /> Il prezzo attuale è in linea col target del {targetPct}%.
                     </div>
                   ) : (
                     <div style={{ padding: "10px 12px", borderRadius: 8, background: C.greenLight, border: `1px solid ${C.green}40`, fontSize: 11, color: C.green, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                      <Icon name="checkCircle" size={14} /> Il prezzo attuale è in linea con il target.
+                      <Icon name="checkCircle" size={14} /> Sei sopra il minimo: stai guadagnando più del target del {targetPct}%.
                     </div>
                   )}
-                  <button type="button" onClick={() => setForm(f => ({ ...f, prezzo: live.prezzoConsigliato }))}
-                    style={{ marginTop: 10, width: "100%", padding: isMobile ? "13px" : "9px", minHeight: isMobile ? 44 : 'auto', background: C.white, color: C.red, border: `1px solid ${C.red}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                    <Icon name="check" size={14} /> Usa questo prezzo
-                  </button>
+                  {/* Bottone "Imposta come prezzo" mostrato SOLO se il prezzo attuale è
+                      SOTTO il minimo (alzare). Se sei già sopra, niente bottone:
+                      non vogliamo nemmeno offrire l'opzione di abbassare. */}
+                  {live.deltaPrezzo > 0.01 && (
+                    <button type="button" onClick={() => setForm(f => ({ ...f, prezzo: live.prezzoConsigliato }))}
+                      style={{ marginTop: 10, width: "100%", padding: isMobile ? "13px" : "9px", minHeight: isMobile ? 44 : 'auto', background: C.white, color: C.red, border: `1px solid ${C.red}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                      <Icon name="check" size={14} /> Alza al minimo target
+                    </button>
+                  )}
                 </>
               ) : (
                 <div style={{ color: C.textSoft, fontSize: 11, textAlign: "center", padding: "8px 0" }}>Aggiungi ingredienti con prezzo per il calcolo</div>
