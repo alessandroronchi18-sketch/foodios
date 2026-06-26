@@ -373,13 +373,13 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                   ))}
                 </tbody>
                 <tfoot>
-                  {/* TOTALE: stesso padding e textAlign delle celle "Costo" sopra
-                      → "2,40 €" del totale è perfettamente incolonnato con i
-                      valori "1,32 €", "0,36 €" etc. dei singoli ingredienti.
-                      Le 3 colonne a sinistra restano spannate per il label. */}
+                  {/* TOTALE: padding e fontSize IDENTICI alle celle "Costo" sopra
+                      (9px 12px, 11px) → "2,40 €" del totale è esattamente nello
+                      stesso x dei valori "1,32 €", "0,36 €" etc. Solo fontWeight
+                      e background per evidenziarlo. */}
                   <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-                    <td colSpan={3} style={{ padding: '11px 12px', fontWeight: 800, fontSize: 11, color: C.text, letterSpacing: '0.05em' }}>TOTALE</td>
-                    <td style={{ padding: '11px 12px', textAlign: 'right', fontWeight: 900, fontSize: 12, color: C.red, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(fc)}</td>
+                    <td colSpan={3} style={{ padding: '9px 12px', fontWeight: 800, fontSize: 11, color: C.text, letterSpacing: '0.05em' }}>TOTALE</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, fontSize: 11, color: C.red, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(fc)}</td>
                     <td/>
                   </tr>
                 </tfoot>
@@ -426,24 +426,25 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             {!isSemi && (
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="money" size={14} /> Conto economico per stampo</div>
-                {/* 4 righe perfettamente uniformi:
-                    - stessa altezza (44), stesso padding (11×14)
-                    - label fontSize 12, value fontSize 15, tutti tabular-nums
-                    - allineamento via grid 2col (label flex | value right fixed)
-                      → ogni € finisce esattamente nella stessa colonna verticale.
-                */}
+                {/* 4 righe perfettamente incolonnate:
+                    - tutte le label iniziano allo stesso x (no prefissi +/−/=/Δ
+                      che facevano shiftare la posizione del testo)
+                    - tutti i valori finiscono allo stesso x (right-align via grid)
+                    - stessa altezza (44), stesso padding (11×14), stessa fontSize.
+                    Il "segno" matematico è veicolato dal colore (verde positivo,
+                    rosso negativo) e dal − prefisso solo sul valore di Food cost. */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[
-                    { sign: '+', lbl: 'Ricavo',         val: fmt(ricavo),    c: C.green, bg: C.greenLight, brd: `${C.green}25` },
-                    { sign: '−', lbl: 'Food cost',      val: `−${fmt(fc)}`,  c: C.red,   bg: C.redLight,   brd: `${C.red}20` },
-                    { sign: '=', lbl: 'Margine lordo',  val: fmt(margine),   c: mc,      bg: mbg,          brd: `${mc}25`, prominent: true },
-                    { sign: 'Δ', lbl: 'Margine %',      val: fmtp(margPct),  c: mc,      bg: mbg,          brd: `${mc}25` },
+                    { lbl: 'Ricavo',         val: fmt(ricavo),    c: C.green, bg: C.greenLight, brd: `${C.green}25` },
+                    { lbl: 'Food cost',      val: `−${fmt(fc)}`,  c: C.red,   bg: C.redLight,   brd: `${C.red}20` },
+                    { lbl: 'Margine lordo',  val: fmt(margine),   c: mc,      bg: mbg,          brd: `${mc}25`, prominent: true },
+                    { lbl: 'Margine %',      val: fmtp(margPct),  c: mc,      bg: mbg,          brd: `${mc}25` },
                   ].map((r, i) => (
                     <div key={i} style={{
                       padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
                       display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', minHeight: 44, columnGap: 12,
                     }}>
-                      <span style={{ fontSize: 12, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.sign} {r.lbl}</span>
+                      <span style={{ fontSize: 12, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
                       <span style={{ fontSize: 15, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
                     </div>
                   ))}
