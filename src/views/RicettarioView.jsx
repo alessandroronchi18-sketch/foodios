@@ -140,10 +140,37 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   }
 
   // ─── Card EXPANDED (header pieno + dettaglio opzionale) ─────────────
+  // Click sulla zona vuota dell'header → collapse (richiesta UX 26/06):
+  // se riclicco la card si richiude. Lo fa solo se il click NON è su un
+  // bottone, input, h3 (modifica), label o link — quelli mantengono il
+  // loro handler.
+  const collapseOnEmptyClick = (e) => {
+    if (e.target.closest('button, input, textarea, h3, label, a, svg')) return
+    if (open) { setOpen(false); setExpanded(false); return }
+    setExpanded(false)
+  }
   return (
-    <div className={open ? undefined : 'fos-tile'} style={{ background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-      {/* Header */}
-      <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: open ? `1px solid ${isSemi ? SEMI.divider : C.border}` : 'none' }}>
+    <div className={open ? undefined : 'fos-tile'} style={{ background: isSemi ? SEMI.bg : T.bgCard, border: `1px solid ${isSemi ? SEMI.border : T.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: isSemi ? '0 1px 2px rgba(142,68,173,0.05), 0 10px 28px rgba(142,68,173,0.07)' : '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', position: 'relative' }}>
+      {/* Accent bar superiore: animata, conic-gradient brand. Solo quando open. */}
+      {open && (
+        <div aria-hidden="true" style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+          background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+          backgroundSize: '200% 100%',
+          animation: '_fos_ric_accent 6s ease-in-out infinite',
+        }}/>
+      )}
+      <style>{`
+        @keyframes _fos_ric_accent {
+          0%, 100% { background-position: 0% 50%; }
+          50%      { background-position: 100% 50%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [style*="_fos_ric_accent"] { animation: none !important; }
+        }
+      `}</style>
+      {/* Header — cliccabile per chiudere/comprimere */}
+      <div onClick={collapseOnEmptyClick} style={{ padding: isMobile ? '14px 16px' : '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', borderBottom: open ? `1px solid ${isSemi ? SEMI.divider : C.border}` : 'none', cursor: 'pointer' }}>
         <div style={{ flex: '1 1 220px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
             {isSemi && (
@@ -280,7 +307,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
       {open && (
         <div style={{ padding: isMobile ? '16px 14px 20px' : '24px 24px 28px', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 0.9fr', gap: isMobile ? 18 : 28, boxSizing: 'border-box', width: '100%', minWidth: 0 }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="receipt" size={14} /> Distinta costi</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '0.01em' }}><Icon name="receipt" size={14} /> Distinta costi</div>
             {/* Container tabella: overflowX auto + scroll hint a destra (sfumatura)
                 per segnalare visivamente che ci sono altre colonne da scrollare.
                 minWidth 560 cosi le 5 colonne (Ingr/g/€-g/Costo/%FC) non si
@@ -348,19 +375,21 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             {pieData.length > 0 && (() => {
               const totPie = pieData.reduce((s, x) => s + (x.costoCalc || 0), 0) || 1
               return (
-              <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="barChart" size={14} /> Composizione food cost</div>
+              <div style={{ background: 'linear-gradient(180deg, #FBF5F2 0%, #F4ECE8 100%)', borderRadius: 12, padding: '16px 18px', position: 'relative', overflow: 'hidden', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)' }}>
+                {/* Accent bar laterale */}
+                <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 3, background: 'linear-gradient(180deg, #E84B3A 0%, #FFB350 100%)' }}/>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '0.01em' }}><Icon name="barChart" size={14} /> Composizione food cost</div>
                 {pieData.map((ing, i) => {
                   const pct = ing.costoCalc / totPie * 100
                   const col = PIE_COLORS[i % PIE_COLORS.length]
                   return (
-                    <div key={i} style={{ marginBottom: 8 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 10, marginBottom: 3 }}>
-                        <span style={{ color: C.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ing.nome}</span>
-                        <span style={{ color: C.textMid, fontWeight: 700, flexShrink: 0, ...TNUM }}>{fmt(ing.costoCalc)} · {pct.toFixed(0)}%</span>
+                    <div key={i} style={{ marginBottom: 10, minHeight: 26 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, fontSize: 11, marginBottom: 4 }}>
+                        <span style={{ color: C.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>{ing.nome}</span>
+                        <span style={{ color: C.textMid, fontWeight: 700, flexShrink: 0, ...TNUM, whiteSpace: 'nowrap' }}>{fmt(ing.costoCalc)}<span style={{ color: C.textSoft, fontWeight: 600, marginLeft: 6 }}>·  {pct.toFixed(0)}%</span></span>
                       </div>
-                      <div style={{ height: 6, background: '#EAE0DB', borderRadius: 3 }}>
-                        <div style={{ height: 6, width: `${Math.min(100, pct)}%`, background: col, borderRadius: 3 }}/>
+                      <div style={{ height: 6, background: 'rgba(0,0,0,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: col, borderRadius: 3, transition: 'width 320ms cubic-bezier(.32,.72,0,1)' }}/>
                       </div>
                     </div>
                   )
@@ -370,8 +399,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             })()}
 
             {!isSemi && (
-              <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="money" size={14} /> Conto economico per stampo</div>
+              <div style={{ background: 'linear-gradient(180deg, #FBF5F2 0%, #F4ECE8 100%)', borderRadius: 12, padding: '16px 18px', position: 'relative', overflow: 'hidden', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)' }}>
+                <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 3, background: 'linear-gradient(180deg, #16A34A 0%, #6E0E1A 50%, #E84B3A 100%)' }}/>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '0.01em' }}><Icon name="money" size={14} /> Conto economico per stampo</div>
                 {/* 3 righe affiancate: stessa altezza (minHeight 44), stesso padding,
                     stessa fontSize sui valori, incolonnamento garantito tra label e
                     valore. Il "= Margine lordo" mantiene un sotto-pannello margine%
@@ -403,8 +433,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             )}
 
             {!isSemi && (
-              <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="gift" size={14} /> Per singola {reg.tipo}</div>
+              <div style={{ background: 'linear-gradient(180deg, #FBF5F2 0%, #F4ECE8 100%)', borderRadius: 12, padding: '16px 18px', position: 'relative', overflow: 'hidden', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)' }}>
+                <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 3, background: 'linear-gradient(180deg, #FFB350 0%, #E84B3A 100%)' }}/>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '0.01em' }}><Icon name="gift" size={14} /> Per singola {reg.tipo}</div>
                 {/* Grid 3 col uniformi: ogni card stesso minHeight + label/value
                     incolonnati. Label fontSize 8.5, value 15, gap 6 dentro la card. */}
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : '1fr 1fr 1fr', gap: 8 }}>
@@ -423,8 +454,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             )}
 
             {isSemi && (
-              <div style={{ background: SEMI.panel, borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="bank" size={14} /> Riepilogo batch</div>
+              <div style={{ background: `linear-gradient(180deg, ${SEMI.panel} 0%, ${SEMI.accentLight} 100%)`, borderRadius: 12, padding: '16px 18px', position: 'relative', overflow: 'hidden', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)' }}>
+                <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 3, background: `linear-gradient(180deg, ${SEMI.accent} 0%, #B58FCE 100%)` }}/>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 7, letterSpacing: '0.01em' }}><Icon name="bank" size={14} /> Riepilogo batch</div>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : '1fr 1fr 1fr', gap: 8 }}>
                   {[
                     { lbl: 'Peso totale',   val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text },
