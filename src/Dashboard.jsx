@@ -2898,16 +2898,48 @@ export default function Dashboard({
           const group = VIEW_GROUPS[view] || "";
           return (
             <div style={{maxWidth:L.contentMaxWidth,width:"100%",margin:"0 auto",boxSizing:"border-box",
-              padding:isTablet?"18px 20px 0":"20px 32px 0",display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14}}>
-              <div style={{minWidth:0}}>
-                <div style={{fontSize:9.5,color:T.textSoft,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:8,marginBottom:3,lineHeight:1}}>
-                  <span style={{maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.brand,fontWeight:700,letterSpacing:"0.07em"}}>{nomeAttivita||"Foodos"}</span>
+              padding:isTablet?"18px 20px 0":"22px 32px 4px",display:"flex",alignItems:"flex-end",justifyContent:"space-between",gap:14}}>
+              <style>{`
+                @keyframes _fos_kicker_bar {
+                  0%, 100% { background-position: 0% 50%; }
+                  50%      { background-position: 100% 50%; }
+                }
+                @keyframes _fos_title_rise {
+                  from { opacity: 0; transform: translateY(6px); }
+                  to   { opacity: 1; transform: translateY(0); }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                  .fos-kicker-bar, .fos-title-h1 { animation: none !important; }
+                }
+              `}</style>
+              <div style={{minWidth:0, flex: '1 1 auto'}}>
+                {/* Kicker futuristic: accent bar animata + breadcrumb */}
+                <div style={{fontSize:10,color:T.textSoft,fontWeight:700,letterSpacing:"0.16em",textTransform:"uppercase",display:"flex",alignItems:"center",gap:10,marginBottom:8,lineHeight:1}}>
+                  <span aria-hidden="true" className="fos-kicker-bar" style={{
+                    display:'inline-block', width:24, height:2, borderRadius:2,
+                    background:'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
+                    backgroundSize:'200% 100%',
+                    animation:'_fos_kicker_bar 6s ease-in-out infinite',
+                    flexShrink:0,
+                  }}/>
+                  <span style={{maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:T.brand,fontWeight:800,letterSpacing:"0.18em"}}>{nomeAttivita||"Foodos"}</span>
                   {group&&<>
                     <span style={{color:T.borderStr,fontSize:11}}>›</span>
-                    <span style={{color:T.textSoft,letterSpacing:"0.05em"}}>{group}</span>
+                    <span style={{color:T.textSoft,letterSpacing:"0.14em",fontWeight:600}}>{group}</span>
                   </>}
                 </div>
-                <h1 style={{margin:0,fontSize:22,fontWeight:700,color:T.text,letterSpacing:"-0.022em",lineHeight:1.1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{label}</h1>
+                {/* Titolo: gradient bordeaux → quasi-nero, peso 800, tight letter-spacing */}
+                <h1 className="fos-title-h1" style={{
+                  margin:0,
+                  fontSize: isTablet ? 26 : 30,
+                  fontWeight:800,
+                  letterSpacing:"-0.035em",
+                  lineHeight:1.05,
+                  backgroundImage:'linear-gradient(135deg, #1C0A0A 0%, #6E0E1A 60%, #1C0A0A 100%)',
+                  backgroundClip:'text', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
+                  whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
+                  animation:'_fos_title_rise .45s cubic-bezier(.32,.72,0,1) both',
+                }}>{label}</h1>
               </div>
               {(sedi||[]).length>0 && !['confronto-sedi','trasferimenti'].includes(view) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} variant="topbar" />}
             </div>

@@ -407,11 +407,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%' }}>
-      <PageTitleFuturistic
-        title="Inventario gusti"
-        kicker="Foglio settimanale"
-        subtitle="Registra produzione e rimanenza giornaliere. Il venduto si calcola da sé: rimanenza ieri + produzione oggi − rimanenza oggi − scarto."
-      />
+      <PageHeader subtitle="Registra produzione e rimanenza giornaliere. Il venduto si calcola da sé: rimanenza ieri + produzione oggi − rimanenza oggi − scarto." />
 
       {showOnboarding && !isAllSedi && <OnboardingInventario onClose={chiudiOnboarding} />}
 
@@ -2166,55 +2162,3 @@ const tdTot = {
   whiteSpace: 'nowrap',
 }
 
-// ── Page title futuristic-clean ──────────────────────────────────────────
-// Test su questa view: kicker uppercase letterspaced, title gigante con
-// gradient bordeaux→nero, accent bar conic-gradient sotto il kicker, subtitle
-// pulito. Se piace si propaga alle altre view.
-function PageTitleFuturistic({ title, kicker, subtitle }) {
-  return (
-    <div style={{ marginBottom: 24, position: 'relative' }}>
-      <style>{`
-        @keyframes _fos_pt_accent {
-          0%, 100% { background-position: 0% 50%; }
-          50%      { background-position: 100% 50%; }
-        }
-        @keyframes _fos_pt_rise {
-          from { opacity: 0; transform: translateY(6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .fos-pt-accent, .fos-pt-title, .fos-pt-sub { animation: none !important; }
-        }
-      `}</style>
-      {kicker && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <span aria-hidden="true" className="fos-pt-accent" style={{
-            width: 28, height: 2, borderRadius: 2,
-            background: 'linear-gradient(90deg, #E84B3A 0%, #FFB350 50%, #6E0E1A 100%)',
-            backgroundSize: '200% 100%',
-            animation: '_fos_pt_accent 6s ease-in-out infinite',
-          }}/>
-          <span style={{
-            fontSize: 10.5, fontWeight: 700, letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: '#6E0E1A',
-          }}>{kicker}</span>
-        </div>
-      )}
-      <h1 className="fos-pt-title" style={{
-        margin: 0,
-        fontSize: 'clamp(24px, 4.2vw, 36px)',
-        fontWeight: 800, letterSpacing: '-0.035em', lineHeight: 1.05,
-        backgroundImage: 'linear-gradient(135deg, #1C0A0A 0%, #6E0E1A 60%, #1C0A0A 100%)',
-        backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-        animation: '_fos_pt_rise .5s cubic-bezier(.32,.72,0,1) both',
-      }}>{title}</h1>
-      {subtitle && (
-        <div className="fos-pt-sub" style={{
-          marginTop: 10, maxWidth: 760,
-          fontSize: 13, color: T.textSoft, lineHeight: 1.5, fontWeight: 500,
-          animation: '_fos_pt_rise .55s .04s cubic-bezier(.32,.72,0,1) both',
-        }}>{subtitle}</div>
-      )}
-    </div>
-  )
-}
