@@ -134,6 +134,7 @@ const VIEWS = [
   'InventarioSettimanaleView',
   'VenditeB2BView',
   'TrasferimentiView',
+  'CostiAziendaliView',
 ]
 
 describe('View render-smoke — tutte le View principali rendono senza crash di scope', () => {
