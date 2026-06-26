@@ -2569,9 +2569,9 @@ export default function AdminPage() {
               title="Filtra per segnale comportamentale"
             >
               <option value="tutti">Tutti (no filtro signal)</option>
-              <option value="hot">🔥 Hot - da chiamare</option>
-              <option value="silent">😴 Silent - trial inattivo</option>
-              <option value="churning">☠️ Churn risk - pagante in calo</option>
+              <option value="hot">Hot - da chiamare</option>
+              <option value="silent">Silent - trial inattivo</option>
+              <option value="churning">Churn risk - pagante in calo</option>
               <option value="new_value">New value - primo wow</option>
               <option value="errors">⚠ Errors - bug ricorrenti</option>
             </select>
@@ -2670,12 +2670,12 @@ export default function AdminPage() {
                             {signals[c.org_id] && signals[c.org_id].status !== 'normal' && (() => {
                               const s = signals[c.org_id]
                               const cfg = {
-                                hot: { bg: '#FEF3C7', fg: '#92400E', txt: '🔥 hot' },
-                                silent: { bg: '#E0E7FF', fg: '#3730A3', txt: '😴 silent' },
-                                churning: { bg: COLORS.errBg, fg: COLORS.err, txt: '☠️ churn' },
+                                hot: { bg: '#FEF3C7', fg: '#92400E', txt: 'hot' },
+                                silent: { bg: '#E0E7FF', fg: '#3730A3', txt: 'silent' },
+                                churning: { bg: COLORS.errBg, fg: COLORS.err, txt: 'churn' },
                                 new_value: { bg: COLORS.okBg, fg: COLORS.ok, txt: 'new value' },
                                 errors: { bg: COLORS.errBg, fg: COLORS.err, txt: '⚠ errors' },
-                                blocked: { bg: COLORS.blockedBg, fg: COLORS.blocked, txt: '🚫 blocked' },
+                                blocked: { bg: COLORS.blockedBg, fg: COLORS.blocked, txt: 'blocked' },
                               }[s.status] || { bg: COLORS.rowAlt, fg: COLORS.textMute, txt: s.status }
                               return (
                                 <span title={s.detail} style={{

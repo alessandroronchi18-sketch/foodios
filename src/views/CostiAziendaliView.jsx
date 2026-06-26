@@ -70,6 +70,27 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
     ? vociScopeFiltrate.filter(v => v.categoria === filterCategoria)
     : vociScopeFiltrate
 
+  // Top 3 voci singole più costose (mese): utile a colpo d'occhio per il
+  // proprietario - sa subito da dove iniziare a tagliare.
+  const topVoci = useMemo(() => {
+    try {
+      const ranked = vociScopeFiltrate
+        .map(v => ({ ...v, mensile: importoMensile(v) }))
+        .filter(v => v.mensile > 0)
+        .sort((a, b) => b.mensile - a.mensile)
+        .slice(0, 3)
+      return ranked
+    } catch { return [] }
+  }, [vociScopeFiltrate])
+
+  // Voce singola "concentrata" che pesa >20% del totale = candidata negoziazione.
+  const voceConcentrata = useMemo(() => {
+    if (!topVoci.length || totMese <= 0) return null
+    const top = topVoci[0]
+    const pct = (top.mensile / totMese) * 100
+    return pct >= 20 ? { voce: top.voce, mensile: top.mensile, pct } : null
+  }, [topVoci, totMese])
+
   // Per la card "categoria principale" del KPI.
   const topCategoria = useMemo(() => {
     if (!perCategoria.length || totMese <= 0) return null
@@ -213,6 +234,69 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
         />
       </div>
 
+      {/* Banner "voce concentrata" - alert intelligente per il proprietario:
+          se una singola voce pesa >=20% del totale, vale la pena negoziare. */}
+      {voceConcentrata && (
+        <div style={{
+          marginBottom: 16, padding: '12px 16px',
+          background: 'linear-gradient(180deg, #FFFBEB 0%, #FEF3C7 100%)',
+          border: '1px solid #FCD34D', borderRadius: 12,
+          display: 'flex', alignItems: 'flex-start', gap: 12,
+        }}>
+          <span style={{ flexShrink: 0, color: '#B45309', marginTop: 2 }}>
+            <Icon name="warning" size={20} />
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#78350F', marginBottom: 3 }}>
+              Voce concentrata: <b>{voceConcentrata.voce}</b> pesa il {voceConcentrata.pct.toFixed(0)}% di tutti i costi
+            </div>
+            <div style={{ fontSize: 12, color: '#92400E', lineHeight: 1.5 }}>
+              {fmt0(voceConcentrata.mensile)}/mese - vale la pena chiamare il fornitore e provare a negoziare o cercare alternative: anche un -10% qui significa {fmt0(voceConcentrata.mensile * 0.10 * 12)}/anno di risparmio.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top 3 voci più care del mese - utile per il proprietario per capire
+          immediatamente da dove iniziare a tagliare. */}
+      {topVoci.length > 0 && (
+        <div style={{
+          marginBottom: 20, padding: '14px 18px',
+          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14,
+          boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Voci più care del mese</div>
+            <div style={{ fontSize: 10.5, color: C.textSoft }}>top 3</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 10 }}>
+            {topVoci.map((v, i) => {
+              const pct = totMese > 0 ? (v.mensile / totMese) * 100 : 0
+              const catLbl = CATEGORIE_DEFAULT.find(c => c.id === v.categoria)?.label || v.categoria || 'altro'
+              return (
+                <div key={v.id} style={{
+                  padding: '11px 13px', background: '#FBF6F2',
+                  border: `1px solid ${C.border}`, borderRadius: 10,
+                  display: 'flex', flexDirection: 'column', gap: 5, minHeight: 78,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                    <span style={{ width: 22, height: 22, borderRadius: '50%', background: T.brand, color: '#FFF', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.voce}>{v.voce}</div>
+                      <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>{catLbl}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 'auto' }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: T.brand, ...TNUM, letterSpacing: '-0.015em' }}>{fmt0(v.mensile)}/mese</span>
+                    {pct > 0 && <span style={{ fontSize: 11, color: C.textSoft, ...TNUM, fontWeight: 600 }}>{pct.toFixed(0)}%</span>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Filtri + bottone aggiungi.
           Audit 2026-06-24: su mobile il filtro va in colonna sopra il bottone
           per non comprimere la select. Touch target ≥40px ovunque.
@@ -311,12 +395,14 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
               const pctTot = totMese > 0 ? (gruppo.totaleMensile / totMese) * 100 : 0
               return (
                 <div key={gruppo.categoria}>
-                  {/* Header categoria */}
+                  {/* Header categoria - colore brand (bordeaux) + accent bar laterale
+                      per distinguerlo dalle voci sotto. Sfondo cream warm. */}
                   <div style={{
                     padding: isMobile ? '12px 14px' : '12px 18px',
-                    background: '#F8FAFC',
+                    background: 'linear-gradient(180deg, #FBF6F2 0%, #F4ECE7 100%)',
                     borderTop: gi === 0 ? 'none' : `1px solid ${C.border}`,
-                    borderBottom: `1px solid ${C.borderSoft}`,
+                    borderBottom: `1px solid ${C.border}`,
+                    boxShadow: 'inset 3px 0 0 #6E0E1A',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     gap: 10,
                   }}>
@@ -325,8 +411,8 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
                       minWidth: 0, flex: 1,
                     }}>
                       <span style={{
-                        fontSize: 11, fontWeight: 700, color: C.textMid,
-                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                        fontSize: 12, fontWeight: 800, color: '#6E0E1A',
+                        textTransform: 'uppercase', letterSpacing: '0.08em',
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>{catLabel}</span>
                       <span style={{
@@ -445,19 +531,19 @@ function VoceRow({ v, sedi, isMobile, iconBtnSize = 40, onEdit, onDelete }) {
             background: '#F1F5F9', padding: '2px 7px', borderRadius: 6,
             fontWeight: 600, color: C.textMid, whiteSpace: 'nowrap',
           }}>{periodLabel}</span>
-          {/* Scope badge: emoji + colore distintivo. Verde =azienda, brand = sede. */}
+          {/* Scope badge: colore distintivo. Verde = azienda, brand = sede. */}
           {v.sede_id ? (
             <span style={{
               background: 'rgba(110,14,26,0.08)', color: T.brand, padding: '2px 8px', borderRadius: 6,
               fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.01em',
               border: '1px solid rgba(110,14,26,0.18)',
-            }} title={`Costo specifico per ${sedeLabel}`}>📍 {sedeLabel}</span>
+            }} title={`Costo specifico per ${sedeLabel}`}>Sede: {sedeLabel}</span>
           ) : (
             <span style={{
               background: 'rgba(22,163,74,0.08)', color: '#15803D', padding: '2px 8px', borderRadius: 6,
               fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.01em',
               border: '1px solid rgba(22,163,74,0.18)',
-            }} title="Costo a livello azienda (vale per ogni sede)">🏢 Azienda</span>
+            }} title="Costo a livello azienda (vale per ogni sede)">Azienda</span>
           )}
         </div>
       </div>
@@ -792,9 +878,9 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
           <label style={lblStyle}>Questo costo vale per</label>
           <div style={{ position: 'relative' }}>
             <select value={form.sede_id || ''} onChange={e => update('sede_id', e.target.value || null)} style={selectStyle}>
-              <option value="">🏢 Tutta l'azienda (vale per ogni sede)</option>
+              <option value="">Tutta l'azienda (vale per ogni sede)</option>
               {(sedi || []).filter(s => s.attiva !== false).map(s => (
-                <option key={s.id} value={s.id}>📍 Solo sede: {s.nome}</option>
+                <option key={s.id} value={s.id}>Solo sede: {s.nome}</option>
               ))}
             </select>
             <span aria-hidden style={{
@@ -804,8 +890,8 @@ function DialogFormCosto({ form, setForm, sedi, isMobile, onClose, onSave }) {
           </div>
           <div style={{ fontSize: 11, color: C.textSoft, marginTop: 6, lineHeight: 1.4 }}>
             {!form.sede_id
-              ? <>💡 Esempi: commercialista, software, marketing centrale, stipendi titolare.</>
-              : <>💡 Esempi: affitto, luce, gas, addetti di quella sede specifica.</>}
+              ? <>Esempi: commercialista, software, marketing centrale, stipendi titolare.</>
+              : <>Esempi: affitto, luce, gas, addetti di quella sede specifica.</>}
           </div>
         </div>
 

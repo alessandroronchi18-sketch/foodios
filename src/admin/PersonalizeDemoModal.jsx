@@ -150,7 +150,11 @@ function Step1Input({ tab, setTab, images, setImages, text, setText, nomeAttivit
               textAlign: 'center', marginBottom: 14,
               transition: 'all 150ms',
             }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>📷</div>
+            <div style={{ fontSize: 32, marginBottom: 8, color: P.textSoft }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block' }}>
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
             <div style={{ fontSize: 13, fontWeight: 700, color: P.text, marginBottom: 4 }}>
               Trascina qui le foto del listino
             </div>
@@ -221,7 +225,7 @@ function Step1Input({ tab, setTab, images, setImages, text, setText, nomeAttivit
 
       {/* Disclaimer privacy */}
       <div style={{ fontSize: 10, color: P.textMute, marginBottom: 14, lineHeight: 1.5 }}>
-        🔒 Le foto/testo vengono processati da Anthropic Claude per estrarre i prodotti. Anthropic non li conserva oltre 30gg
+        Privacy. Le foto/testo vengono processati da Anthropic Claude per estrarre i prodotti. Anthropic non li conserva oltre 30gg
         e non li usa per training. Niente dati sensibili (PII) - solo nomi e prezzi pubblici del listino.
       </div>
 
