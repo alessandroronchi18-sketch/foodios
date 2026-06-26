@@ -486,7 +486,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   );
 
   return (
-    <div style={{maxWidth: 1200, boxSizing:'border-box', width:'100%'}}>
+    <div style={{maxWidth:1200, margin:'0 auto', boxSizing:'border-box', width:'100%'}}>
       {/* Tab principali - centrali, larghe e ben visibili */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
         <div style={{display:"flex",gap:4,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:14,padding:4,width:"100%",maxWidth:540,boxSizing:'border-box'}}>

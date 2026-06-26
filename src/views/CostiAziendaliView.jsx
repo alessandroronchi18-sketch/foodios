@@ -101,7 +101,7 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
   const kpiCols = isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'
 
   return (
-    <div style={{ maxWidth: 1100, width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <PageHeader subtitle="Costi extra-food: consumabili, manutenzione, ammortamenti, utenze. Confluiscono nel P&L mensile normalizzati alla periodicità scelta." />
 
       {/* KPI riepilogativi */}

@@ -323,7 +323,7 @@ export default function CalendarioOperativo({ giornaliero, chiusure, orgId, sede
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 1200 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
       {/* ── ① BANDA DIAGNOSI (solo titolare) ──────────────────────────────── */}
       {!isDipendente && (

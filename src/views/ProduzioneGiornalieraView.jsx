@@ -531,7 +531,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   return (
     // paddingBottom 96 su mobile per non far coprire i bottoni dal FAB (bottom 78 + halo).
     // boxSizing border-box sui figli evita overflow su 375px.
-    <div style={{ maxWidth: 1200, paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%', overflowX: 'hidden' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%', overflowX: 'hidden' }}>
       <PageHeader
         subtitle={`${new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} · Il magazzino si aggiorna automaticamente`}
         action={(giornaliero || []).length > 0 && (

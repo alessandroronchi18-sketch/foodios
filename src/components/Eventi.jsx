@@ -335,7 +335,7 @@ export default function EventiView({ orgId, sedeId, ricettario, notify, nomeAtti
   const eventiCorrentiTab = tab === 'archivio' ? eventiArchivioFiltrati : eventiAttivi
 
   return (
-    <div style={{ maxWidth: 1200, padding: isMobile ? 8 : 0, paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 8 : 0, paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%' }}>
       {/* Tab attivi / archivio */}
       {editing == null && (
         <div style={{ display: 'flex', gap: 2, marginBottom: 16, borderBottom: `1px solid ${T.border}` }}>

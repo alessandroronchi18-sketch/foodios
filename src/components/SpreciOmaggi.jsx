@@ -569,7 +569,7 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
 
   // ── VISTA TITOLARE: diagnosi → registrazione → breakdown ─────────────────────
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <PageHeader
         subtitle={`Quanto prodotto se n'e' andato senza incasso, perché, e quanto ti e' costato. Perdite (scarti, avanzi, errori, ammanchi) e omaggi (regali, assaggi)${sedeAttiva ? ` · sede ${sedeAttiva.nome}` : ''}.`}
       />

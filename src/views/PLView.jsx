@@ -725,7 +725,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   )
 
   return (
-    <div style={{ maxWidth: 1200 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <PageHeader
         subtitle={'Conto economico mensile reale + analisi di redditività del listino'}
         action={

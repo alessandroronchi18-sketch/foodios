@@ -87,7 +87,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
   };
 
   return (
-    <div style={{maxWidth:1100}}>
+    <div style={{maxWidth:1200, margin:'0 auto', width:'100%', boxSizing:'border-box'}}>
       <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:10,fontWeight:700,letterSpacing:"0.12em",textTransform:"uppercase",color:T.brand,marginBottom:6}}>Sicurezza alimentare</div>

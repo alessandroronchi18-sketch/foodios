@@ -308,14 +308,19 @@ function BCGMatrix({ menuItems, popVenduto, hasStorico, isMobile, isTablet }) {
           {ranked.map((m,idx) => {
             const x = m.volRel * 90 + 5
             const y = 100 - (Math.min(100,m.margPct) / 100 * 90 + 5)
+            const tipText = `${m.nome} - quadrante ${m.bcg.q}: ${fmtp(m.margPct)} di margine, ${m.vol.toLocaleString('it-IT')} ${hasStorico ? "vendite" : "pz/ric"}.`
             return (
-              <div key={m.nome} title={`${m.nome}: ${fmtp(m.margPct)} margine · ${m.vol.toLocaleString('it-IT')} ${hasStorico ? "vendite" : "pz/ric"}`}
-                style={{
-                  position:"absolute", left:`${x}%`, top:`${y}%`, transform:"translate(-50%,-50%)",
-                  width:22, height:22, borderRadius:"50%", background:m.bcg.color, color:"#fff",
-                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800,
-                  border:`2px solid ${T.bgCard}`, boxShadow:"0 2px 6px rgba(15,23,42,0.22)", cursor:"help",
-                }}>{idx+1}</div>
+              <div key={m.nome} style={{
+                position:"absolute", left:`${x}%`, top:`${y}%`, transform:"translate(-50%,-50%)",
+              }}>
+                <Tip text={tipText} width={280}>
+                  <div style={{
+                    width:22, height:22, borderRadius:"50%", background:m.bcg.color, color:"#fff",
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800,
+                    border:`2px solid ${T.bgCard}`, boxShadow:"0 2px 6px rgba(15,23,42,0.22)", cursor:"help",
+                  }}>{idx+1}</div>
+                </Tip>
+              </div>
             )
           })}
         </div>

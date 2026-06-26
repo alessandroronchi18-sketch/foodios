@@ -222,7 +222,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
 
   if (!rows.length) {
     return (
-      <div style={{ maxWidth: 1200, width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         <PageHeader subtitle="Quanto ti costano i prodotti, quanto margini e a che prezzo venderli." action={exportBtn} />
         <div style={{ ...cardStyle(), textAlign: 'center', padding: '60px 40px', color: T.textSoft, fontSize: 14 }}>
           Nessun prodotto vendibile nel ricettario. Aggiungi ricette con prezzo e ingredienti per vedere il food cost.
@@ -234,7 +234,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const cellNum = { padding: '11px 14px', textAlign: 'right', ...TNUM, whiteSpace: 'nowrap' }
 
   return (
-    <div style={{ maxWidth: 1200, width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <style>{SLIDER_CSS}</style>
 
       <PageHeader

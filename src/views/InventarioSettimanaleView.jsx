@@ -406,7 +406,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   }
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%' }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: isMobile ? 96 : 24, boxSizing: 'border-box', width: '100%' }}>
       <PageHeader subtitle="Registra produzione e rimanenza giornaliere. Il venduto si calcola da sé: rimanenza ieri + produzione oggi − rimanenza oggi − scarto." />
 
       {showOnboarding && !isAllSedi && <OnboardingInventario onClose={chiudiOnboarding} />}

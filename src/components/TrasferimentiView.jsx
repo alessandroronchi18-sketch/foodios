@@ -452,7 +452,7 @@ export default function TrasferimentiView({ orgId, sedi = [], sedeAttiva = null,
   const lbl = { fontSize: isMobile ? 11 : 9.5, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: isMobile ? 6 : 4 }
 
   return (
-    <div style={{ maxWidth: 1100, padding: isMobile ? '0 4px 80px' : 0 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box', padding: isMobile ? '0 4px 80px' : 0 }}>
       <div style={{ marginBottom: 6 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: C.red, marginBottom: 6 }}>Operazioni multi-sede</div>
         <p style={{ margin: 0, fontSize: 13, color: C.textSoft }}>
