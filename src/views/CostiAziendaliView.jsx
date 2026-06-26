@@ -44,14 +44,20 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
 
   // Filtraggio per scope: tutte vs sede attiva (include sempre quelle globali).
   // Multi-sede only: se l'azienda ha una sola sede il toggle non ha senso.
-  const hasMultiSede = (sedi || []).length > 1
+  // try/catch wrap difensivo: se il filter dovesse crashare per dati malformati,
+  // ricado su tutte le voci invece di rompere la pagina.
+  const hasMultiSede = Array.isArray(sedi) && sedi.length > 1
   const vociScopeFiltrate = useMemo(() => {
-    if (scope === 'all' || !sedeId) return voci
-    return voci.filter(v => v.sede_id === null || v.sede_id === sedeId)
+    try {
+      if (scope === 'all' || !sedeId || !Array.isArray(voci)) return voci || []
+      return voci.filter(v => v && (v.sede_id == null || v.sede_id === sedeId))
+    } catch { return voci || [] }
   }, [voci, scope, sedeId])
   const sedeAttivaNome = useMemo(() => {
-    const s = (sedi || []).find(x => x.id === sedeId)
-    return s?.nome || ''
+    try {
+      const s = (Array.isArray(sedi) ? sedi : []).find(x => x && x.id === sedeId)
+      return (s && s.nome) || ''
+    } catch { return '' }
   }, [sedi, sedeId])
 
   // KPI calcolati sul SCOPE attivo: se "sede attiva" mostro totali della sede,
@@ -123,11 +129,10 @@ export default function CostiAziendaliView({ orgId, sedeId, sedi, notify }) {
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <PageHeader subtitle="Costi extra-food: consumabili, manutenzione, ammortamenti, utenze. Confluiscono nel P&L mensile normalizzati alla periodicità scelta." />
 
-      {/* Toggle SCOPE futuristic-clean: visibile solo se multi-sede.
-          "Tutta l'azienda" mostra TUTTI i costi (azienda-level + sede-specifici).
-          "Sede attiva: NOME" filtra a costi globali + quelli della sede corrente.
-          Stile: glass card + accent bar conic-gradient brand + pill toggle. */}
-      {hasMultiSede && (
+      {/* Toggle SCOPE futuristic-clean: visibile solo se multi-sede E c'e' una
+          sede attiva (non in modalita' "Tutte le sedi" aggregate). In _all
+          mode il toggle "Sede: -" non avrebbe senso. */}
+      {hasMultiSede && sedeId && sedeAttivaNome && (
         <div style={{
           marginBottom: 20, padding: '14px 16px',
           background: 'linear-gradient(180deg, #FFFFFF 0%, #FBF6F2 100%)',
