@@ -230,7 +230,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > Logo custom s
   style="display: inline-flex; align-items: center; gap: 15px;"
 >
   <svg
-    aria-label="FoodOS"
+    aria-label="Foodos"
     height="48"
     role="img"
     style="display: block; flex-shrink: 0;"
@@ -250,7 +250,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > Logo custom s
   <span
     style="font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -0.028em; color: #1A130E; line-height: 1; white-space: nowrap;"
   >
-    FoodOS
+    Foodos
   </span>
 </span>
 `;
@@ -260,7 +260,7 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > Logo default 
   style="display: inline-flex; line-height: 0;"
 >
   <svg
-    aria-label="FoodOS"
+    aria-label="Foodos"
     height="32"
     role="img"
     style="display: block; flex-shrink: 0;"
