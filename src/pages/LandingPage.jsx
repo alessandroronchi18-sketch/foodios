@@ -922,6 +922,13 @@ export default function LandingPage({ onLogin, onRegister }) {
         </div>
       </section>
 
+      {/* ROI - subito dopo Problems: personalizzazione del valore prima dei dettagli feature */}
+      <section style={{ padding: isMobile ? '20px 24px 60px' : '20px 24px 80px', background: T.cream }}>
+        <div style={{ maxWidth: 980, margin: '0 auto' }}>
+          <Reveal><RoiCalculator/></Reveal>
+        </div>
+      </section>
+
       {/* FEATURES */}
       <section style={{ padding: isMobile ? '40px 24px 80px' : '40px 24px 120px', background: T.cream }}>
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -1083,13 +1090,6 @@ export default function LandingPage({ onLogin, onRegister }) {
               </Reveal>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ROI - visibile su tutti i device */}
-      <section style={{ padding: isMobile ? '60px 24px' : '40px 24px 120px', background: T.cream }}>
-        <div style={{ maxWidth: 980, margin: '0 auto' }}>
-          <Reveal><RoiCalculator/></Reveal>
         </div>
       </section>
 
