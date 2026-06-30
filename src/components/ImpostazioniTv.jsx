@@ -110,17 +110,28 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
   return (
     <div>
       <div style={cardResp}>
-        <div style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="tv" size={16} />Dashboard TV</div>
-        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 18, lineHeight: 1.6 }}>
-          Visualizzazione full-screen pensata per uno schermo TV in laboratorio o sala.
-          Mostra produzione del giorno e stock vetrina, si aggiorna automaticamente ogni 5 minuti.
-          Il link è pubblico ma protetto da un token: chi ha il link può vedere i dati, quindi rigeneralo se serve revocare l'accesso.
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#FFF7ED', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="tv" size={22} color="#6E0E1A"/>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#0F172A' }}>Schermo in laboratorio</div>
+            <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
+              {token
+                ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16A34A' }}/> Attivo</span>
+                : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#94A3B8' }}/> Spento</span>
+              }
+            </div>
+          </div>
+        </div>
+        <div style={{ fontSize: 13, color: '#475569', marginBottom: 18, lineHeight: 1.6 }}>
+          Una pagina a tutto schermo per la TV in laboratorio o in sala: produzione del giorno e stock vetrina, aggiornati ogni 5 minuti. Il link è protetto da un token — chi ce l'ha, vede. Se serve, lo rigeneri.
         </div>
 
         {!token ? (
           <button onClick={rigenera}
             style={{ ...btnBase, width: isMobile ? '100%' : 'auto', background: '#6E0E1A', color: '#FFF' }}>
-            Genera link TV
+            <Icon name="plus" size={14} color="#FFF"/> Accendi lo schermo
           </button>
         ) : (
           <>
@@ -141,22 +152,22 @@ export default function ImpostazioniTv({ orgId, sedi, notify }) {
                 style={{ ...inputBase, flex: 1, fontSize: isMobile ? 16 : 12, color: '#0F172A', background: '#F1F5F9', fontFamily: 'monospace' }} />
               <button onClick={copia}
                 style={{ ...btnBase, background: '#0F172A', color: '#FFF', whiteSpace: 'nowrap', width: isMobile ? '100%' : 'auto' }}>
-                Copia link
+                <Icon name="copy" size={14} color="#FFF"/> Copia
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, flexWrap: 'wrap' }}>
               <a href={fullUrl} target="_blank" rel="noreferrer"
                 style={{ ...btnBase, background: '#10B981', color: '#FFF', textDecoration: 'none', width: isMobile ? '100%' : 'auto' }}>
-                Apri in nuova scheda
+                <Icon name="play" size={14} color="#FFF"/> Apri lo schermo
               </a>
               <button onClick={rigenera}
                 style={{ ...btnBase, background: '#FFFBEB', color: '#92400E', border: '1px solid #FDE68A', width: isMobile ? '100%' : 'auto' }}>
-                Rigenera token
+                <Icon name="refresh" size={14} color="#92400E"/> Rigenera link
               </button>
               <button onClick={revoca}
                 style={{ ...btnBase, background: '#FFF5F5', color: '#6E0E1A', border: '1px solid #FCA5A5', width: isMobile ? '100%' : 'auto' }}>
-                Revoca
+                <Icon name="trash" size={14} color="#6E0E1A"/> Spegni
               </button>
             </div>
           </>

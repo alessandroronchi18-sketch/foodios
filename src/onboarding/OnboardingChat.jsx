@@ -26,57 +26,57 @@ const BORDER = T.border || '#E5E9EF'
 const STEPS = [
   {
     key: 'nome_attivita',
-    bot: 'Ciao! Sono l\'assistente Foodos. Iniziamo a conoscerci. Come si chiama la tua attività?',
+    bot: 'Cominciamo. Come si chiama la tua attività?',
     placeholder: 'Es. Pasticceria Bonfanti',
     validate: v => v.trim().length >= 2,
-    fail: 'Il nome deve avere almeno 2 caratteri',
+    fail: 'Serve almeno il nome',
   },
   {
     key: 'tipo',
-    bot: (ctx) => `Piacere, ${ctx.nome_attivita}! Che tipo di attività hai?`,
+    bot: (ctx) => `${ctx.nome_attivita} è una…`,
     options: [
       { label: 'Pasticceria', value: 'pasticceria' },
       { label: 'Gelateria', value: 'gelateria' },
-      { label: 'Bar / Caffetteria', value: 'bar' },
+      { label: 'Bar / caffetteria', value: 'bar' },
       { label: 'Ristorante', value: 'ristorante' },
       { label: 'Laboratorio + vendita', value: 'misto' },
     ],
   },
   {
     key: 'citta',
-    bot: 'In quale città sei?',
+    bot: 'In che città?',
     placeholder: 'Es. Torino',
     validate: v => v.trim().length >= 2,
   },
   {
     key: 'sedi',
-    bot: 'Quante sedi gestisci?',
+    bot: 'Quante sedi?',
     options: [
-      { label: '1 sede', value: 1 },
-      { label: '2 sedi', value: 2 },
-      { label: '3-5 sedi', value: 4 },
-      { label: 'Più di 5', value: 8 },
+      { label: 'Una sola', value: 1 },
+      { label: 'Due', value: 2 },
+      { label: 'Da tre a cinque', value: 4 },
+      { label: 'Più di cinque', value: 8 },
     ],
   },
   {
     key: 'dipendenti',
-    bot: 'Quanti dipendenti (incluso te se lavori in laboratorio)?',
+    bot: 'Quante persone ci lavorano? (te incluso)',
     options: [
       { label: 'Solo io', value: 1 },
-      { label: '2-5', value: 3 },
-      { label: '6-15', value: 10 },
-      { label: '15+', value: 20 },
+      { label: 'Da 2 a 5', value: 3 },
+      { label: 'Da 6 a 15', value: 10 },
+      { label: 'Più di 15', value: 20 },
     ],
   },
   {
     key: 'obiettivo',
-    bot: 'Ultima domanda: qual è il tuo obiettivo principale con Foodos?',
+    bot: 'Ultima domanda: a cosa ti serve di più, all\'inizio?',
     options: [
-      { label: 'Calcolare il food cost vero', value: 'food_cost' },
+      { label: 'Sapere il food cost vero', value: 'food_cost' },
       { label: 'Capire dove perdo soldi', value: 'profittabilita' },
-      { label: 'Gestire meglio magazzino/sprechi', value: 'magazzino' },
-      { label: 'Avere un assistente AI giornaliero', value: 'ai_assistant' },
-      { label: 'Crescere con dati alla mano', value: 'crescita' },
+      { label: 'Tenere d\'occhio magazzino e sprechi', value: 'magazzino' },
+      { label: 'Una mano sui numeri ogni giorno', value: 'ai_assistant' },
+      { label: 'Crescere con i numeri in mano', value: 'crescita' },
     ],
   },
 ]
@@ -138,7 +138,7 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
 
   async function finalize(finalCtx) {
     setSaving(true); setError(null)
-    setHistory(h => [...h, { role: 'bot', text: `Perfetto! Sto preparando il tuo workspace per ${finalCtx.nome_attivita}…` }])
+    setHistory(h => [...h, { role: 'bot', text: `Un attimo, sto sistemando le cose per ${finalCtx.nome_attivita}…` }])
     try {
       // Crea organization se non c'è
       const { data: profile } = await supabase.from('profiles')
@@ -182,7 +182,7 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
         })
       } catch {}
 
-      setHistory(h => [...h, { role: 'bot', text: 'Tutto pronto! Ti porto alla dashboard.' }])
+      setHistory(h => [...h, { role: 'bot', text: 'Pronto. Entriamo.' }])
       const tDone = setTimeout(() => onComplete?.(), 1200)
       timersRef.current.push(tDone)
     } catch (e) {
@@ -204,8 +204,8 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
             <Icon name="sparkles" size={16}/>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>Foodos · Setup AI</div>
-            <div style={{ fontSize: 11, color: SOFT }}>Setup in 5 domande</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>Foodos · Iniziamo</div>
+            <div style={{ fontSize: 11, color: SOFT }}>Ci mettiamo un minuto</div>
           </div>
           {onPreferWizard && (
             <button onClick={onPreferWizard}
@@ -237,7 +237,7 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
           )}
           {saving && (
             <div style={{ textAlign: 'center', color: SOFT, fontSize: 12, padding: '8px 0' }}>
-              Sto preparando il workspace…
+              Un secondo…
             </div>
           )}
         </div>

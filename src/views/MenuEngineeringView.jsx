@@ -32,10 +32,10 @@ const GREEN = T.green || '#16A34A'
 const AMBER = T.amber || '#D97706'
 
 const QUAD_LABEL = {
-  STAR:    { lbl: 'Star',       short: 'Star',      bg: '#F0FDF4', fg: GREEN,  desc: 'Tieni stretti: alti volumi + alti margini' },
-  PLOWHORSE:{ lbl: 'Plowhorse', short: 'Plowhorse', bg: '#FEF3C7', fg: AMBER,  desc: 'Popolare ma poco redditizio: alza prezzo o riduci food cost' },
-  PUZZLE:  { lbl: 'Puzzle',    short: 'Puzzle',   bg: '#E0F2FE', fg: '#0369A1', desc: 'Alto margine ma vende poco: marketing/promo/riposiziona' },
-  DOG:     { lbl: 'Dog',       short: 'Dog',      bg: '#FEF2F2', fg: BRAND,  desc: 'Basso margine + basso volume: considera sostituirlo' },
+  STAR:     { lbl: 'Star',      short: 'Star',      bg: '#F0FDF4', fg: GREEN,    desc: 'Vendono tanto e rendono. Tienteli stretti.' },
+  PLOWHORSE:{ lbl: 'Plowhorse', short: 'Plowhorse', bg: '#FEF3C7', fg: AMBER,    desc: 'Vendono ma il margine è basso. Alza il prezzo o taglia il costo.' },
+  PUZZLE:   { lbl: 'Puzzle',    short: 'Puzzle',    bg: '#E0F2FE', fg: '#0369A1',desc: 'Buon margine, pochi li comprano. Mettili più in vista.' },
+  DOG:      { lbl: 'Dog',       short: 'Dog',       bg: '#FEF2F2', fg: BRAND,    desc: 'Vendono poco e rendono poco. Da rivedere.' },
 }
 
 function classifica(popolarita, margine, mediaPop, mediaMarg) {
@@ -158,14 +158,14 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
-        eyebrow="AI · Menu engineering"
-        title="Stars, Dogs,"
-        accentText="Puzzles, Plowhorses"
-        subtitle="Matrice Kasavana-Smith automatica: capisci quali prodotti tirano (Star), quali rubano margine (Plowhorse), quali ignori (Puzzle) o devi togliere (Dog)."
+        eyebrow="Menu engineering"
+        title="Quali piatti"
+        accentText="reggono il banco"
+        subtitle="Guardo cosa vendi e quanto ti rende. Ti dico quali tenerti stretto, quali alzare di prezzo, quali rivedere o togliere dal menù."
         statusBadge="LIVE"
         stats={[
-          { n: '4', l: 'Quadranti analizzati' },
-          { n: 'Auto', l: 'Calcolo settimanale' },
+          { n: '4', l: 'Categorie di prodotto' },
+          { n: '7-90 gg', l: 'Periodo a scelta' },
         ]}
       />
 
@@ -190,7 +190,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
         <div style={{ padding: 40, textAlign: 'center', color: SOFT }}>Caricamento…</div>
       ) : classified.length === 0 ? (
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 40, textAlign: 'center', color: SOFT }}>
-          Nessun prodotto venduto negli ultimi {periodo} giorni. Registra le chiusure cassa per popolare l'analisi.
+          Nessun prodotto venduto negli ultimi {periodo} giorni. Registra le chiusure cassa: appena ci sono dati, qui parte l'analisi.
         </div>
       ) : (
         <>
@@ -221,16 +221,16 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
                   subtitle: sedeAttiva?.nome || '',
                   periodo: `Ultimi ${periodo} giorni`,
                   kpi: [
-                    { label: 'Stars', value: String(stats.STAR.length), sub: 'da proteggere' },
-                    { label: 'Plowhorses', value: String(stats.PLOWHORSE.length), sub: 'rialza prezzo' },
-                    { label: 'Puzzles', value: String(stats.PUZZLE.length), sub: 'promo/marketing' },
-                    { label: 'Dogs', value: String(stats.DOG.length), sub: 'sostituire' },
+                    { label: 'Star', value: String(stats.STAR.length), sub: 'da tenere stretti' },
+                    { label: 'Plowhorse', value: String(stats.PLOWHORSE.length), sub: 'alza il prezzo' },
+                    { label: 'Puzzle', value: String(stats.PUZZLE.length), sub: 'metti in vista' },
+                    { label: 'Dog', value: String(stats.DOG.length), sub: 'da rivedere' },
                   ],
                   sections: [
-                    { title: 'Stars (proteggi)',     table: { columns: ['Prodotto', 'Qta vendute', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.STAR.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
-                    { title: 'Plowhorses (rialza)',  table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PLOWHORSE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
-                    { title: 'Puzzles (promo)',      table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PUZZLE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
-                    { title: 'Dogs (sostituire)',    table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.DOG.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Star — da tenere stretti',    table: { columns: ['Prodotto', 'Qta vendute', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.STAR.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Plowhorse — alza il prezzo',   table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PLOWHORSE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Puzzle — metti in vista',     table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.PUZZLE.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
+                    { title: 'Dog — da rivedere',           table: { columns: ['Prodotto', 'Qta', 'Margine/pz'], alignments: ['left','right','right'], rows: stats.DOG.slice(0, 10).map(x => [x.nome, x.qtaVenduta, '€' + Number(x.margine).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })]) } },
                   ],
                 })}
               />

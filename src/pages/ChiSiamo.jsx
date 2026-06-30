@@ -21,9 +21,9 @@ export default function ChiSiamo() {
 
       <LegalH2>Per chi</LegalH2>
       <LegalP>
-        Pasticcerie e gelaterie artigianali italiane con 1-10 sedi. Soggetti con partita IVA che
+        Pasticcerie, gelaterie, bar e ristoranti artigianali italiani — con partita IVA — che
         vogliono capire i numeri della propria attivita' senza diventare contabili. Lavoriamo
-        bene con chi ha tra <strong>1 e 6 sedi</strong>; ogni sede ha la sua dashboard, e dal
+        meglio con chi ha tra <strong>1 e 6 sedi</strong>: ogni sede ha la sua dashboard, dal
         backoffice vedi tutto consolidato.
       </LegalP>
 
@@ -37,9 +37,9 @@ export default function ChiSiamo() {
 
       <LegalH2>Come lavoriamo</LegalH2>
       <LegalP>
-        Foodos e' guidato dai feedback dei design partner: <strong>chi usa il prodotto decide le
-        prossime feature</strong>. Ogni settimana raccogliamo bug, idee, frustrazioni. Le più
-        urgenti diventano release nello stesso giorno; le altre entrano in roadmap.
+        Foodos e' guidato dai feedback di chi lo usa davvero: <strong>chi sta dietro il banco
+        decide le prossime feature</strong>. Ogni settimana raccogliamo bug, idee, frustrazioni.
+        Le più urgenti diventano release nello stesso giorno; le altre entrano in roadmap.
       </LegalP>
 
       <LegalH2>Il team</LegalH2>

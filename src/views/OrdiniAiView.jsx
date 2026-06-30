@@ -136,7 +136,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(testo)
-        notifyFn('Testo ordine copiato negli appunti - incollalo in mail/WhatsApp al fornitore', true)
+        notifyFn('Testo copiato. Incollalo nella mail o nel WhatsApp del fornitore.', true)
         return
       }
     } catch {
@@ -157,24 +157,24 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
       ta.setSelectionRange(0, testo.length)
       const ok = document.execCommand('copy')
       document.body.removeChild(ta)
-      if (ok) notifyFn('Testo ordine copiato - incollalo in mail/WhatsApp al fornitore', true)
-      else notifyFn('Copia non riuscita. Seleziona manualmente il testo qui sotto.', false)
+      if (ok) notifyFn('Testo copiato. Incollalo nella mail o nel WhatsApp del fornitore.', true)
+      else notifyFn('Copia non riuscita. Seleziona il testo qui sotto a mano.', false)
     } catch {
-      notifyFn('Copia non supportata su questo browser. Seleziona manualmente il testo.', false)
+      notifyFn('Copia non supportata. Seleziona il testo qui sotto a mano.', false)
     }
   }
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
-        eyebrow="AI · Procurement"
-        title="Ordini AI"
-        accentText="già pronti"
-        subtitle="L'AI guarda magazzino + consumo medio + soglie minime e ti dice cosa ordinare. Copia il testo e invialo al fornitore via mail o WhatsApp."
+        eyebrow="Approvvigionamento"
+        title="Ordini ai fornitori"
+        accentText="già scritti"
+        subtitle="Guardo magazzino, consumo medio degli ultimi 30 giorni e soglie minime. Ti faccio la lista di cosa ordinare e ti preparo il testo da incollare nella mail o nel WhatsApp del fornitore."
         statusBadge="LIVE"
         stats={[
-          { n: '30gg', l: 'Storico analizzato' },
-          { n: 'EOQ', l: 'Algoritmo + safety stock' },
+          { n: '30 gg', l: 'Consumi analizzati' },
+          { n: '+40%', l: 'Scorta di sicurezza' },
         ]}
       />
 
@@ -183,8 +183,8 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
       ) : suggerimenti.length === 0 ? (
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 40, textAlign: 'center', color: SOFT, lineHeight: 1.6 }}>
           <Icon name="check" size={28} color="#16A34A"/>
-          <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Nessun ordine urgente</div>
-          <div style={{ fontSize: 12, marginTop: 6 }}>Tutte le materie prime sono sopra soglia. L'AI ricontrolla quotidianamente.</div>
+          <div style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: TXT }}>Tutto sopra soglia</div>
+          <div style={{ fontSize: 12, marginTop: 6 }}>Niente da ordinare oggi. Ti avviso appena qualcosa scende.</div>
         </div>
       ) : (
         <>
@@ -195,7 +195,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
               </div>
               <button onClick={copia}
                 style={{ marginLeft: isMobile ? '0' : 'auto', background: BRAND, color: '#FFF', border: 'none', padding: isMobile ? '12px 14px' : '8px 14px', minHeight: isMobile ? 44 : 'auto', borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                <Icon name="copy" size={13}/> Copia testo ordine
+                <Icon name="copy" size={13}/> Copia per il fornitore
               </button>
             </div>
             <div style={{ overflowX: 'auto' }}>
@@ -236,7 +236,7 @@ export default function OrdiniAiView({ orgId, sedeId, notify }) {
           {/* Preview testo ordine */}
           <div style={{ background: '#FAFAF6', border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: SOFT, letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 8 }}>
-              Anteprima testo da inviare al fornitore
+              Testo pronto da inviare
             </div>
             <pre style={{ fontFamily: 'inherit', fontSize: 13, color: TXT, whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>
               {genTestoOrdine()}

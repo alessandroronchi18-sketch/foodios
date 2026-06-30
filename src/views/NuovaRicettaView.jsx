@@ -75,6 +75,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const [forceOverwrite, setForceOverwrite] = useState(false); // per batch foto
   const [datiEstratti, setDatiEstratti] = useState(null);  // dati AI in attesa di conferma
   const [saving, setSaving] = useState(false);             // bottone salva in corso
+  const [showMore, setShowMore] = useState(false);         // progressive disclosure: note + congelabile
   const formRef = useRef(null);
   // Audit 2026-07-01 HIGH: tracking scroll timer per cleanup unmount.
   const scrollTimerRef = useRef(null);
@@ -235,8 +236,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 13, color: T.textSoft, lineHeight: 1.5, letterSpacing: "-0.005em" }}>
             {editMode
-              ? <>Stai modificando <strong style={{ color: T.brand, fontWeight: 600 }}>{editMode}</strong>. Mentre compili, l’anteprima a destra ti dice subito se la ricetta è in salute.</>
-              : "Compila il form: l’anteprima redditività a destra calcola food cost e margine in tempo reale, e ti suggerisce il prezzo giusto."}
+              ? <>Stai modificando <strong style={{ color: T.brand, fontWeight: 600 }}>{editMode}</strong>. L'anteprima a destra ti dice subito se la ricetta regge i conti.</>
+              : "Mentre compili, a destra vedi food cost e margine aggiornarsi in tempo reale. Ti suggerisco anche il prezzo giusto."}
           </p>
         </div>
       </div>
@@ -421,29 +422,46 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   style={{ ...inputBase, opacity: isSemiOrInterno ? 0.5 : 1 }} />
               </div>
 
-              {/* Note */}
-              <div>
-                <div style={fieldLabel}>Note (cottura, temperatura…)</div>
-                <input value={form.note} aria-label="Note ricetta (cottura, temperatura)" onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="es. 180°C per 45 min"
-                  style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
-              </div>
             </div>
 
-            {/* Congelabile toggle */}
-            <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: form.congelabile ? "#EEF8FF" : "#F8F4F2", borderRadius: 8, border: `1px solid ${form.congelabile ? "#BDE" : "#E8E0DC"}`, cursor: "pointer" }}
-              onClick={() => setForm(f => ({ ...f, congelabile: !f.congelabile }))}>
-              <div style={{ width: 40, height: 22, borderRadius: 11, background: form.congelabile ? "#2980B9" : "#C8B8B4", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
-                <div style={{ position: "absolute", top: 2, left: form.congelabile ? 20 : 2, width: 18, height: 18, borderRadius: 9, background: "#FFF", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: form.congelabile ? "#2980B9" : C.textMid, display: "flex", alignItems: "center", gap: 5 }}>
-                  <Icon name="snow" size={13} /> {form.congelabile ? "Prodotto congelabile" : "Congelabile"}
+            {/* Progressive disclosure: note + congelabile nascosti di default */}
+            {!showMore && !form.note && !form.congelabile && (
+              <button type="button" onClick={() => setShowMore(true)}
+                style={{
+                  marginTop: 14, padding: '10px 14px',
+                  background: 'transparent', border: `1px dashed ${C.border}`,
+                  borderRadius: 8, color: C.textMid, cursor: 'pointer',
+                  fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}>
+                <Icon name="plus" size={12} /> Aggiungi note di cottura o congelabilità
+              </button>
+            )}
+
+            {(showMore || form.note || form.congelabile) && (
+              <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <div style={fieldLabel}>Note (cottura, temperatura…)</div>
+                  <input value={form.note} aria-label="Note ricetta (cottura, temperatura)" onChange={e => setForm(f => ({ ...f, note: e.target.value }))} placeholder="es. 180°C per 45 min"
+                    style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
                 </div>
-                <div style={{ fontSize: 9, color: C.textSoft, marginTop: 1 }}>
-                  {form.congelabile ? "Può essere prodotto e conservato in freezer - la vendita può avvenire nei giorni successivi" : "Attiva se questo prodotto può essere congelato e venduto in giorni diversi dalla produzione"}
+
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: form.congelabile ? "#EEF8FF" : "#F8F4F2", borderRadius: 8, border: `1px solid ${form.congelabile ? "#BDE" : "#E8E0DC"}`, cursor: "pointer" }}
+                  onClick={() => setForm(f => ({ ...f, congelabile: !f.congelabile }))}>
+                  <div style={{ width: 40, height: 22, borderRadius: 11, background: form.congelabile ? "#2980B9" : "#C8B8B4", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+                    <div style={{ position: "absolute", top: 2, left: form.congelabile ? 20 : 2, width: 18, height: 18, borderRadius: 9, background: "#FFF", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: form.congelabile ? "#2980B9" : C.textMid, display: "flex", alignItems: "center", gap: 5 }}>
+                      <Icon name="snow" size={13} /> {form.congelabile ? "Si può congelare" : "Si può congelare?"}
+                    </div>
+                    <div style={{ fontSize: 9, color: C.textSoft, marginTop: 1 }}>
+                      {form.congelabile ? "Lo produci in anticipo, lo tieni in freezer, lo vendi nei giorni successivi." : "Attiva se lo produci e lo vendi in giorni diversi."}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* 2. Ingredienti */}

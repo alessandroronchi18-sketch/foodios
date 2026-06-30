@@ -85,28 +85,28 @@ export default function WhatsAppView({ orgId, user }) {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
-        eyebrow="AI · WhatsApp Bot"
+        eyebrow="WhatsApp"
         title="Foodos"
-        accentText="via WhatsApp"
-        subtitle="Chiedi KPI, registra sprechi, ricevi alert direttamente in chat. Il bot risponde in linguaggio naturale italiano."
+        accentText="in chat"
+        subtitle="Scrivimi su WhatsApp come faresti a un dipendente: ti rispondo con i numeri del giorno, registro uno spreco al volo, ti mando gli alert importanti. In italiano normale."
         chainOnly
         statusBadge="BETA"
         stats={[
-          { n: 'Twilio', l: 'Provider WhatsApp Business' },
-          { n: 'AI', l: 'Intent parser naturale' },
+          { n: 'WhatsApp', l: 'Lo stesso che usi già' },
+          { n: '0 app', l: 'In più da scaricare' },
         ]}
       />
 
       {/* Setup */}
       <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 12, padding: 18, marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: '#166534', marginBottom: 8 }}>
-          📱 Come attivare
+        <div style={{ fontSize: 13, fontWeight: 800, color: '#166534', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="chat" size={14} color="#166534"/> Come attivare
         </div>
         <ol style={{ margin: 0, paddingLeft: 22, fontSize: 13, color: MID, lineHeight: 1.7 }}>
-          <li>Inserisci sotto il tuo numero WhatsApp (incluso prefisso paese)</li>
-          <li>Salva un nuovo contatto WhatsApp: <strong>Foodos</strong> · <code style={{ background: '#FFF', padding: '2px 6px', borderRadius: 4 }}>{WA_NUMBER}</code></li>
-          <li>Invia il messaggio <strong>"aiuto"</strong> per ricevere la lista comandi</li>
-          <li>L'AI risponde direttamente in chat</li>
+          <li>Scrivi sotto il tuo numero WhatsApp (con il prefisso paese)</li>
+          <li>Salva il contatto: <strong>Foodos</strong> · <code style={{ background: '#FFF', padding: '2px 6px', borderRadius: 4 }}>{WA_NUMBER}</code></li>
+          <li>Mandagli un messaggio con scritto <strong>aiuto</strong>: ti elenco i comandi</li>
+          <li>Da lì in poi rispondo in chat come un dipendente</li>
         </ol>
       </div>
 
@@ -142,7 +142,7 @@ export default function WhatsAppView({ orgId, user }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: TXT, fontFamily: 'ui-monospace, monospace' }}>{l.phone_number}</div>
               <div style={{ fontSize: 11, color: SOFT, marginTop: 2 }}>
-                {l.attivo ? `✓ Attivo${l.verificato_at ? ` · verificato il ${new Date(l.verificato_at).toLocaleDateString('it-IT')}` : ''}` : 'In attesa di verifica (invia "aiuto" al numero Foodos)'}
+                {l.attivo ? `Attivo${l.verificato_at ? ` · verificato il ${new Date(l.verificato_at).toLocaleDateString('it-IT')}` : ''}` : 'Da verificare: manda "aiuto" al numero Foodos'}
               </div>
             </div>
             <button onClick={() => rimuovi(l.id)} style={{ background: 'transparent', border: 'none', color: SOFT, cursor: 'pointer', padding: 4 }}>
@@ -153,7 +153,7 @@ export default function WhatsAppView({ orgId, user }) {
       </div>
 
       <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
-        🚧 Bot AI completo in attivazione. Costo ~€0.05/messaggio Twilio incluso nel piano Chain.
+        Funzioni complete in arrivo. Il costo per messaggio è compreso nel piano Insegna.
       </div>
     </div>
   )

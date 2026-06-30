@@ -49,15 +49,15 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
-        eyebrow="AI · Documentary"
-        title="La tua storia,"
-        accentText="generata dall'AI"
-        subtitle="Ogni trimestre l'AI prepara un riassunto narrativo di cosa hai fatto: KPI, prodotti top, momenti chiave. Pronto da condividere col team, soci, commercialista."
+        eyebrow="Trimestre"
+        title="Il racconto"
+        accentText="dei tuoi tre mesi"
+        subtitle="Ogni trimestre ti scrivo un riassunto dei tuoi numeri: cosa è andato bene, cosa è cambiato, i prodotti che hanno tirato. Pronto da girare al socio, al commercialista o al team."
         chainOnly
         statusBadge="LIVE"
         stats={[
-          { n: 'Trimestrale', l: 'Generazione automatica' },
-          { n: 'Opus', l: 'Narratore AI' },
+          { n: '4', l: 'Volte all\'anno' },
+          { n: '1 pagina', l: 'Da leggere in 2 minuti' },
         ]}
       />
 
@@ -65,12 +65,12 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
         <div style={{ padding: 40, textAlign: 'center', color: SOFT }}>Caricamento…</div>
       ) : snapshots.length === 0 ? (
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '60px 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 40 }}>🎬</div>
-          <div style={{ marginTop: 14, fontSize: 16, fontWeight: 800, color: TXT }}>Il tuo primo documentario arriva al prossimo trimestre</div>
+          <div style={{ display: 'inline-flex', width: 56, height: 56, borderRadius: 16, background: '#FFF7ED', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="book" size={28} color={BRAND}/>
+          </div>
+          <div style={{ marginTop: 14, fontSize: 16, fontWeight: 800, color: TXT }}>Il primo racconto arriva a fine trimestre</div>
           <div style={{ fontSize: 13, color: SOFT, marginTop: 8, lineHeight: 1.6, maxWidth: 480, margin: '8px auto 0' }}>
-            L'AI raccoglie i tuoi dati dal lancio Foodos e ti prepara un riassunto narrativo<br/>
-            ogni 1° apr / 1° lug / 1° ott / 1° gen.<br/>
-            Sarà un documento da condividere con team, soci, commercialista, social.
+            Sto già mettendo da parte i tuoi numeri. Te lo consegno il 1° aprile, 1° luglio, 1° ottobre o 1° gennaio — il primo che capita.
           </div>
         </div>
       ) : (
@@ -131,7 +131,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
               )}
 
               <div style={{ fontSize: 11, color: SOFT, marginTop: 24, paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
-                Generato automaticamente da Foodos Documentary AI · {new Date(selected.created_at).toLocaleDateString('it-IT')}
+                Scritto in automatico · {new Date(selected.created_at).toLocaleDateString('it-IT')}
               </div>
             </div>
           )}

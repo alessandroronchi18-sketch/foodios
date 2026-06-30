@@ -137,10 +137,10 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
   }
 
   const SEM = {
-    verde:  { c:T.green, bg:T.greenLight, lbl:'Conforme', icon:'checkCircle', msg:'Registro in regola. Continua a registrare con costanza.' },
-    ambra:  { c:T.amber, bg:T.amberLight, lbl:'Da sistemare', icon:'clock', msg:'Ci sono attività in ritardo o registrazioni incomplete.' },
-    rosso:  { c:T.brand, bg:T.brandLight, lbl:'Anomalia attiva', icon:'alert', msg:'Temperature fuori range nelle ultime 24h: intervieni subito.' },
-    neutro: { c:T.textSoft, bg:T.bgSubtle, lbl:'Da configurare', icon:'clipboard', msg:'Aggiungi apparecchi e checklist per iniziare a monitorare.' },
+    verde:  { c:T.green, bg:T.greenLight, lbl:'Tutto a posto', icon:'checkCircle', msg:'Continua a registrare con costanza, sei in regola.' },
+    ambra:  { c:T.amber, bg:T.amberLight, lbl:'Da sistemare', icon:'clock', msg:'Hai qualcosa in ritardo o registrazioni mancanti.' },
+    rosso:  { c:T.brand, bg:T.brandLight, lbl:'Da guardare subito', icon:'alert', msg:'Temperature fuori range nelle ultime 24 ore: vai a controllare.' },
+    neutro: { c:T.textSoft, bg:T.bgSubtle, lbl:'Da impostare', icon:'clipboard', msg:'Aggiungi apparecchi e checklist per cominciare.' },
   }
   const sem = d.vuoto ? SEM.neutro : SEM[d.stato]
 
@@ -154,7 +154,7 @@ function BandaDiagnosi({ orgId, sedeId, refreshKey, isMobile, isTablet, onVaiTab
           <Icon name={sem.icon} size={24} />
         </span>
         <div style={{ flex:1, minWidth:200 }}>
-          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:T.textSoft }}>Stato conformità HACCP</div>
+          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:T.textSoft }}>Come stai messo</div>
           <div style={{ fontSize:19, fontWeight:800, color:sem.c, letterSpacing:'-0.02em', marginTop:2 }}>{sem.lbl}</div>
           <div style={{ fontSize:12.5, color:T.textMid, marginTop:3, lineHeight:1.45 }}>{sem.msg}</div>
         </div>
@@ -922,7 +922,7 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? 12 : 0 }}>
       <div style={{ marginBottom: isMobile ? 14 : 18 }}>
         <p style={{ margin: 0, fontSize: 13, color: T.textSoft, letterSpacing: '-0.005em', lineHeight: 1.5 }}>
-          Registro HACCP - diagnosi della conformità, temperature, pulizie e allergeni. Strumento di supporto per ispezioni ASL.
+          Tieni in ordine temperature, pulizie e allergeni. Quando arriva l'ASL hai tutto pronto da stampare.
         </p>
       </div>
 
@@ -936,8 +936,7 @@ export default function HaccpView({ orgId, sedeId, ricettario, nomeAttivita, not
         padding: '10px 14px', background: T.amberLight, border: `1px solid ${T.amber}55`,
         borderRadius: R.md, marginBottom: 16, fontSize: 12, color: '#92400E', lineHeight: 1.5,
       }}>
-        <strong style={{ display:'inline-flex', alignItems:'center', gap:5, verticalAlign:'middle' }}><Icon name="warning" size={14} />Disclaimer:</strong> Questo registro è uno strumento di supporto.
-        Consulta un tecnico HACCP certificato per la conformità normativa effettiva.
+        <strong style={{ display:'inline-flex', alignItems:'center', gap:5, verticalAlign:'middle' }}><Icon name="warning" size={14} />Nota:</strong> questo è uno strumento di supporto. Per la conformità formale serve sempre il parere di un tecnico HACCP.
       </div>
 
       <div style={{ display:'flex', gap:2, marginBottom: isMobile?16:20, borderBottom:`1px solid ${T.border}`, overflowX:'auto', WebkitOverflowScrolling:'touch' }}>

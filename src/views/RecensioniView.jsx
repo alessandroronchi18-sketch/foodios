@@ -22,9 +22,9 @@ const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 
 const TONI = [
-  { id: 'caldo',    label: '🤍 Caldo / personale', desc: 'Ringraziamento empatico, parole gentili' },
-  { id: 'formale',  label: '🎩 Formale / aziendale', desc: 'Professionale, rispettoso, senza emoji' },
-  { id: 'fattuale', label: '📝 Fattuale / risolutivo', desc: 'Diretto al problema, soluzione concreta' },
+  { id: 'caldo',    label: 'Caldo', desc: 'Empatico, parole gentili, come parli al banco' },
+  { id: 'formale',  label: 'Formale', desc: 'Professionale, rispettoso, niente confidenze' },
+  { id: 'fattuale', label: 'Fattuale', desc: 'Dritto al problema, soluzione concreta' },
 ]
 
 export default function RecensioniView({ nomeAttivita }) {
@@ -83,7 +83,7 @@ Genera le 3 risposte come da istruzioni.`
         parseJson: true,
         timeoutMs: 30_000,
       })
-      if (!parsed) throw Object.assign(new Error('Risposta AI non valida'), { friendly: 'L\'AI non ha prodotto risposte valide. Riprova.' })
+      if (!parsed) throw Object.assign(new Error('Risposta non valida'), { friendly: 'Qualcosa è andato storto. Riprova.' })
       setRisposte(parsed)
     } catch (e) {
       setError(e.friendly || e.message)
@@ -120,14 +120,14 @@ Genera le 3 risposte come da istruzioni.`
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: isMobile ? 12 : isTablet ? 16 : 0 }}>
       <AiPageHero
-        eyebrow="AI · Reputazione & Marketing"
-        title="Rispondi"
-        accentText="alle recensioni"
-        subtitle="Incolla qui la recensione che hai ricevuto. L'AI genera 3 risposte (calda, formale, fattuale) in italiano impeccabile. Copia quella che preferisci."
+        eyebrow="Recensioni"
+        title="Tre risposte"
+        accentText="pronte"
+        subtitle="Incolla la recensione che hai ricevuto. Ti scrivo tre versioni della risposta — calda, formale, fattuale — in italiano pulito. Copi quella che ti suona meglio."
         statusBadge="LIVE"
         stats={[
-          { n: '3', l: 'Toni per risposta' },
-          { n: 'Sonnet', l: 'Modello linguistico' },
+          { n: '3', l: 'Toni diversi' },
+          { n: '30 sec', l: 'Pronto da incollare' },
         ]}
       />
 
@@ -171,13 +171,13 @@ Genera le 3 risposte come da istruzioni.`
             cursor: recensione.trim() && !loading ? 'pointer' : 'not-allowed',
             display: 'inline-flex', alignItems: 'center', gap: 8,
           }}>
-          <Icon name="sparkles" size={14} /> {loading ? 'Genero risposte…' : 'Genera 3 risposte AI'}
+          <Icon name="sparkles" size={14} /> {loading ? 'Sto scrivendo…' : 'Scrivimi le risposte'}
         </button>
       </div>
 
       {error && (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#991B1B', fontSize: 13 }}>
-          ⚠️ {error}
+        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: '#991B1B', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="alert" size={14} color="#991B1B"/> {error}
         </div>
       )}
 
@@ -202,7 +202,7 @@ Genera le 3 risposte come da istruzioni.`
                     fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}>
-                  {copiato === t.id ? '✓ Copiata negli appunti' : <><Icon name="copy" size={12}/> Copia testo</>}
+                  {copiato === t.id ? <><Icon name="check" size={12} color="#FFF"/> Copiata</> : <><Icon name="copy" size={12}/> Copia</>}
                 </button>
               </div>
             )
