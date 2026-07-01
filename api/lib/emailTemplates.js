@@ -105,6 +105,39 @@ export function templateScadenzaTrial() {
   }
 }
 
+// ── 4b. Accesso dipendente creato / codice cambiato ──────────────────────
+// Il titolare ha creato l'accesso (o cambiato il codice) del dipendente.
+// L'email al dipendente NON contiene il codice in chiaro: lo comunica il
+// titolare a voce sul posto di lavoro. Qui diamo solo l'istruzione di
+// come accedere.
+export function templateAccessoDipendente({ nomeDipendente, nomeAttivita, tipo }) {
+  const isCambio = tipo === 'codice_cambiato'
+  const subject = isCambio
+    ? `Il tuo codice Foodos e' stato aggiornato`
+    : `Il tuo accesso Foodos e' pronto`
+  const titolo = isCambio ? 'Codice aggiornato' : 'Accesso pronto'
+  const corpo = isCambio
+    ? `${escapeHtml(nomeDipendente || 'Ciao')}, ${escapeHtml(nomeAttivita || 'la tua attivita\'')} ha aggiornato il tuo codice personale di accesso a Foodos. Il nuovo codice te lo comunica direttamente il titolare.`
+    : `${escapeHtml(nomeDipendente || 'Ciao')}, ${escapeHtml(nomeAttivita || 'la tua attivita\'')} ti ha creato un accesso a Foodos, il gestionale per la ristorazione. Il tuo codice personale (6 cifre) te lo dice direttamente il titolare.`
+  return {
+    subject,
+    html: frame(`
+      <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">${titolo}</h1>
+      <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 18px;">${corpo}</p>
+      <p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 22px;">
+        Come si accede:
+      </p>
+      <ol style="color:#6B4C44;font-size:14px;line-height:1.8;margin:0 0 22px;padding-left:22px;">
+        <li>Apri Foodos dal tablet del laboratorio</li>
+        <li>Tocca <strong>Sono un dipendente</strong></li>
+        <li>Inserisci la tua email <strong>e</strong> il codice a 6 cifre</li>
+      </ol>
+      <p style="color:#9C7B76;font-size:13px;line-height:1.6;margin:0 0 6px;">
+        <strong>Regola:</strong> il codice e' tuo e va tenuto riservato. Ogni operazione fatta con il tuo codice viene tracciata a tuo nome.
+      </p>`),
+  }
+}
+
 // ── 5. Magazzino sotto soglia ────────────────────────────────────────────
 export function templateMagazzinoSottoSoglia({ nomeAttivita, ingredienti }) {
   const items = Array.isArray(ingredienti) ? ingredienti : []

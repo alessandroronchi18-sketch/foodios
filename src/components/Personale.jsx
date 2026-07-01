@@ -4,7 +4,8 @@ import '@xyflow/react/dist/style.css'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
-import SetPinDialog from './SetPinDialog'
+import AddDipendenteDialog from './AddDipendenteDialog'
+import SetCodiceDialog from './SetCodiceDialog'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { SkeletonList } from './Skeleton'
@@ -1546,31 +1547,22 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
 // account dipendente. Solo le email pre-autorizzate qui possono entrare nell'org
 // (vedi handle_new_user in 20260607c). Un dipendente non attivo = accesso ZERO.
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-function AccessiTab({ orgId, notify, isMobile }) {
+function AccessiTab({ orgId, notify, isMobile, nomeAttivita }) {
   const [meId, setMeId] = useState(null)
   const [dipendenti, setDipendenti] = useState([])   // profiles ruolo='dipendente'
-  const [pinStatuses, setPinStatuses] = useState({}) // { user_id: { has_pin, pin_set_at } }
-  const [inviti, setInviti] = useState([])           // org_inviti pending non accettati
   const [loading, setLoading] = useState(true)
-  const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(null)             // id in lavorazione
   const [delConf, setDelConf] = useState(null)       // dipendente in conferma eliminazione
-  const [pinTarget, setPinTarget] = useState(null)   // dipendente per cui aprire il SetPinDialog
+  const [codiceTarget, setCodiceTarget] = useState(null) // dipendente per cui aprire SetCodiceDialog
+  const [addOpen, setAddOpen] = useState(false)      // AddDipendenteDialog
 
   async function carica() {
     if (!orgId) return
-    // Audit 2026-06-22 CRITICAL: destructure annidata `[{ data: { user } }]`
-    // crashava il render se supabase.auth.getUser() ritornava data:null
-    // (es. sessione scaduta o RPC fos_dipendenti_org inesistente → throw
-    // dentro Promise.all → tutte le promesse rigettate). Sostituito con
-    // accesso safe e try/catch globale.
-    let userRes, dip, inv, pinRes
+    let userRes, dip
     try {
-      [userRes, dip, inv, pinRes] = await Promise.all([
+      [userRes, dip] = await Promise.all([
         supabase.auth.getUser(),
         supabase.rpc('fos_dipendenti_org'),
-        supabase.from('org_inviti').select('id,email,stato,created_at').eq('organization_id', orgId).eq('stato', 'pending').order('created_at', { ascending: false }),
-        supabase.rpc('fos_dipendente_pin_status'),
       ])
     } catch (e) {
       notify?.('Errore caricamento personale: ' + (e?.message || 'rete'), false)
@@ -1579,21 +1571,10 @@ function AccessiTab({ orgId, notify, isMobile }) {
     }
     const user = userRes?.data?.user || null
     setMeId(user?.id || null)
-    // Notify su RPC che ritornano error (lista dipendenti vuota silenziosa)
     if (dip?.error) {
       notify?.('Impossibile caricare la lista dipendenti: ' + (dip.error.message || 'errore RPC'), false)
     }
-    if (inv?.error) {
-      notify?.('Impossibile caricare gli inviti pendenti: ' + (inv.error.message || 'errore DB'), false)
-    }
     setDipendenti(Array.isArray(dip?.data) ? dip.data : [])
-    setInviti(Array.isArray(inv?.data) ? inv.data : [])
-    // Mappa pinStatuses → { user_id: { has_pin, pin_set_at } }
-    const map = {}
-    for (const r of (pinRes?.data || [])) {
-      map[r.id] = { has_pin: !!r.has_pin, pin_set_at: r.pin_set_at }
-    }
-    setPinStatuses(map)
     setLoading(false)
   }
   useEffect(() => { setLoading(true); carica() }, [orgId])
@@ -1606,40 +1587,6 @@ function AccessiTab({ orgId, notify, isMobile }) {
     document.addEventListener('visibilitychange', reload)
     return () => { window.removeEventListener('focus', reload); document.removeEventListener('visibilitychange', reload) }
   }, [orgId])
-
-  // Email già invitate (pending) o già con un account dipendente.
-  const emailEsistenti = new Set([
-    ...inviti.map(i => (i.email || '').toLowerCase()),
-    ...dipendenti.map(d => (d.email || '').toLowerCase()),
-  ])
-  // Inviti ancora rilevanti: nascondi quelli la cui email ha GIÀ un account
-  // dipendente (es. invito ricreato dopo che la persona si era già registrata).
-  const invitiVisibili = inviti.filter(i =>
-    !dipendenti.some(d => (d.email || '').toLowerCase() === (i.email || '').toLowerCase()))
-
-  async function invita() {
-    const e = email.trim().toLowerCase()
-    if (!EMAIL_RX.test(e)) { notify?.('Email non valida', false); return }
-    if (emailEsistenti.has(e)) { notify?.('Questa email è già invitata o già collegata', false); return }
-    setBusy('invite')
-    const { error } = await supabase.from('org_inviti').insert({ organization_id: orgId, email: e, ruolo: 'dipendente', invited_by: meId })
-    setBusy(null)
-    if (error) { notify?.('Invito fallito: ' + error.message, false); return }
-    setEmail(''); notify?.('Invito creato. Comunica al dipendente di registrarsi con QUESTA email - non parte alcuna email automatica.')
-    carica()
-  }
-
-  // Niente email automatica: il titolare condivide il link di registrazione col dipendente.
-  function copiaLink(emailDip) {
-    const url = (typeof window !== 'undefined' ? window.location.origin : '') + '/register'
-    const testo = `Registrati su Foodos con l'email ${emailDip}: ${url}`
-    try {
-      navigator.clipboard.writeText(testo)
-      notify?.('Link copiato - incollalo al dipendente (WhatsApp, email, ecc.)')
-    } catch {
-      notify?.(url, true)
-    }
-  }
 
   // Azioni sul profilo di UN ALTRO utente (attiva/disattiva/elimina): la RLS non
   // consente al titolare l'update cross-user lato client (no-op silenzioso) →
@@ -1668,14 +1615,6 @@ function AccessiTab({ orgId, notify, isMobile }) {
     }
   }
 
-  async function revocaInvito(invId) {
-    setBusy(invId)
-    const { error } = await supabase.from('org_inviti').delete().eq('id', invId).eq('organization_id', orgId)
-    setBusy(null)
-    if (error) { notify?.('Revoca fallita: ' + error.message, false); return }
-    notify?.('Invito revocato'); carica()
-  }
-
   async function elimina(dip) {
     setBusy(dip.id)
     try {
@@ -1695,22 +1634,17 @@ function AccessiTab({ orgId, notify, isMobile }) {
   return (
     <div style={{ maxWidth: 760 }}>
       <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
-        Solo le email che inviti qui possono entrare nella tua azienda. Un nuovo dipendente parte <b>in attesa</b> e
-        accede <b>solo dopo</b> che lo attivi. Puoi disattivarlo (revoca immediata) o eliminarlo in qualsiasi momento.
+        Il dipendente entra dal tablet con la <b>sua email</b> e un <b>codice a 6 cifre</b> che scegli tu. Ogni operazione (produzione, chiusura cassa, spreco…) resta tracciata a suo nome.
       </div>
       <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55, marginBottom: 16, padding: '10px 12px', background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 8 }}>
-        <b>Non viene inviata un'email automatica.</b> Dopo l'invito, comunica tu al dipendente (WhatsApp, di persona) di
-        registrarsi con <b>quella stessa email</b> su <b>{(typeof window !== 'undefined' ? window.location.origin : '') + '/register'}</b>.
-        Appena si registra comparirà qui sotto come "In attesa": allora lo attivi.
+        <b>Consiglio:</b> usa un'email di lavoro dedicata (es. <em>mario.laboratorio@tuodominio.it</em>) — non l'email personale del dipendente. Il codice comuniclielo <b>a voce sul posto</b>: non lo mandiamo nell'email per sicurezza.
       </div>
 
-      {/* Invito per email */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
-        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email.dipendente@esempio.it"
-          onKeyDown={e => { if (e.key === 'Enter') invita() }} autoComplete="off"
-          style={{ flex: 1, minWidth: 220, padding: isMobile ? '12px 14px' : '9px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text }} />
-        <button onClick={invita} disabled={busy === 'invite'} style={{ ...btn(C.red, C.white), padding: isMobile ? '12px 18px' : '9px 16px', fontWeight: 800, opacity: busy === 'invite' ? 0.6 : 1 }}>
-          <Icon name="plus" size={14} />Invita dipendente
+      {/* Aggiungi nuovo dipendente */}
+      <div style={{ marginBottom: 20 }}>
+        <button onClick={() => setAddOpen(true)}
+          style={{ ...btn(C.red, C.white), padding: isMobile ? '12px 18px' : '10px 18px', fontWeight: 800 }}>
+          <Icon name="plus" size={14} />Nuovo dipendente
         </button>
       </div>
 
@@ -1722,32 +1656,29 @@ function AccessiTab({ orgId, notify, isMobile }) {
       {dipendenti.length === 0 && <div style={{ fontSize: 12, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>Nessun account dipendente ancora.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
         {dipendenti.map(d => {
-          const pinInfo = pinStatuses[d.id]
-          const hasPin = !!pinInfo?.has_pin
+          const codiceSet = !!d.dipendente_codice_set_at
+          const lastLogin = d.dipendente_last_login_at
+            ? new Date(d.dipendente_last_login_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })
+            : null
           return (
           <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
-              <div style={{ fontSize: 11, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.email}</div>
+              <div style={{ fontSize: 11, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {d.email}
+                {lastLogin && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastLogin}</span>}
+              </div>
             </div>
-            {/* Badge PIN: visibile solo se impostato */}
-            {hasPin && (
-              <span title="PIN attivo per login rapido da tablet"
-                style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: '#1E40AF', background: '#DBEAFE', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <Icon name="key" size={11} />PIN
-              </span>
-            )}
             <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.approvato ? C.green : C.amber, background: d.approvato ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <Icon name={d.approvato ? 'checkCircle' : 'hourglass'} size={11} />{d.approvato ? 'Attivo' : 'In attesa / sospeso'}
+              <Icon name={d.approvato ? 'checkCircle' : 'hourglass'} size={11} />{d.approvato ? 'Attivo' : 'Sospeso'}
             </span>
-            {/* Bottone PIN: imposta o cambia */}
-            <button onClick={() => setPinTarget(d)} disabled={busy === d.id}
-              title={hasPin ? 'Cambia o rimuovi PIN' : 'Imposta PIN per login rapido tablet'}
-              style={btn(hasPin ? '#DBEAFE' : C.white, hasPin ? '#1E40AF' : C.textMid, `1px solid ${hasPin ? '#93C5FD' : C.border}`)}>
-              <Icon name="key" size={12} />{hasPin ? 'PIN' : 'Imposta PIN'}
+            <button onClick={() => setCodiceTarget(d)} disabled={busy === d.id}
+              title="Cambia il codice a 6 cifre"
+              style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>
+              <Icon name="key" size={12} />{codiceSet ? 'Cambia codice' : 'Imposta codice'}
             </button>
             {d.approvato
-              ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Disattiva</button>
+              ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Sospendi</button>
               : <button onClick={() => setApprovato(d.id, true)} disabled={busy === d.id} style={btn(C.green, C.white)}><Icon name="check" size={12} />Attiva</button>}
             <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Elimina account" style={btn(C.white, C.red, `1px solid ${C.red}40`)}><Icon name="trash" size={12} /></button>
           </div>
@@ -1755,29 +1686,22 @@ function AccessiTab({ orgId, notify, isMobile }) {
         })}
       </div>
 
-      {/* Inviti in attesa di registrazione */}
-      {invitiVisibili.length > 0 && (
-        <>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Inviti in attesa di registrazione</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {invitiVisibili.map(i => (
-              <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgSubtle, border: `1px dashed ${C.border}`, borderRadius: 10 }}>
-                <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: C.textMid, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.email}</div>
-                <span style={{ fontSize: 11, color: C.amber, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="hourglass" size={11} />Deve registrarsi</span>
-                <button onClick={() => copiaLink(i.email)} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}><Icon name="clipboard" size={12} />Copia link</button>
-                <button onClick={() => revocaInvito(i.id)} disabled={busy === i.id} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Revoca</button>
-              </div>
-            ))}
-          </div>
-        </>
+      {/* AddDipendenteDialog: crea nuovo accesso (email + nome + codice) */}
+      {addOpen && (
+        <AddDipendenteDialog
+          nomeAttivita={nomeAttivita}
+          onClose={() => setAddOpen(false)}
+          onDone={() => { setAddOpen(false); carica() }}
+          notify={notify}
+        />
       )}
 
-      {/* Set/Cambia/Rimuovi PIN dipendente */}
-      {pinTarget && (
-        <SetPinDialog
-          dipendente={pinTarget}
-          currentStatus={pinStatuses[pinTarget.id]}
-          onClose={() => setPinTarget(null)}
+      {/* SetCodiceDialog: cambia codice a un dipendente esistente */}
+      {codiceTarget && (
+        <SetCodiceDialog
+          dipendente={codiceTarget}
+          nomeAttivita={nomeAttivita}
+          onClose={() => setCodiceTarget(null)}
           onDone={() => carica()}
           notify={notify}
         />
@@ -1802,7 +1726,7 @@ function AccessiTab({ orgId, notify, isMobile }) {
   )
 }
 
-export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome }) {
+export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome, nomeAttivita }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [tab, setTab] = useState("dipendenti")
@@ -1846,7 +1770,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome 
       </div>
 
       {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
-      {tab === "accessi"    && <AccessiTab    orgId={orgId} notify={notify} isMobile={isMobile}/>}
+      {tab === "accessi"    && <AccessiTab    orgId={orgId} notify={notify} isMobile={isMobile} nomeAttivita={nomeAttivita}/>}
       {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
       {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile} adminNome={adminNome}/>}
       {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile} isTablet={isTablet}/>}

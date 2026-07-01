@@ -2381,7 +2381,7 @@ const SQL_TABLES_ALLOWED = new Set([
   'dipendenti', 'turni', 'clienti_b2b', 'vendite_b2b', 'costi_aziendali',
   'feedback', 'error_log', 'audit_log', 'admin_log', 'rate_limits',
   'banners', 'ai_usage_daily', 'integrazioni', 'push_subscriptions',
-  'codici_sconto', 'cron_runs', 'pin_attempts', 'email_domain_blocklist',
+  'codici_sconto', 'cron_runs', 'email_domain_blocklist',
   'pos_scontrini', 'scadenzario_pagamenti', 'plan_pricing', 'login_attempts',
   'daily_briefs', 'documentary_snapshots',
 ])

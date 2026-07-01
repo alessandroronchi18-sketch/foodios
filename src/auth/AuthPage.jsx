@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import FoodosLogo from '../components/FoodosLogo'
 import COMUNI_ITALIANI from '../lib/comuniItaliani'
-import PinLoginPad from './PinLoginPad'
+import EmployeeLoginPad from './EmployeeLoginPad'
 
 const T = {
   cream:      '#FBF8F4',
@@ -839,9 +839,9 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
   const isReset = mode === 'reset-request' || mode === 'reset-password'
 
-  // Modalità Dipendente PWA: PIN login standalone (tema scuro), bypass del layout normale.
+  // Modalita' Dipendente PWA: login email + codice (tema scuro), bypass layout normale.
   if (mode === 'pin-login') {
-    return <PinLoginPad onBack={() => setMode('login')} />
+    return <EmployeeLoginPad onBack={() => setMode('login')} />
   }
 
   return (
@@ -984,7 +984,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                     display: 'inline-flex', alignItems: 'center', gap: 8,
                   }}>
                   <Icon name="key" size={14} color={T.textMid}/>
-                  Sono un dipendente - entra col PIN
+                  Sono un dipendente - entra col codice
                 </button>
               </div>
             </form>

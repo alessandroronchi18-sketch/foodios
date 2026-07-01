@@ -56,9 +56,9 @@ describe('Accessibility (axe-core) — form pubblici e onboarding', () => {
     expect(results).toHaveNoViolations()
   })
 
-  it('PinLoginPad non ha violation strutturali a11y', async () => {
-    const { default: Pad } = await import('../../src/auth/PinLoginPad')
-    const { container } = render(<Pad orgId="org-1" onLogin={() => {}} onBack={() => {}} />)
+  it('EmployeeLoginPad non ha violation strutturali a11y', async () => {
+    const { default: Pad } = await import('../../src/auth/EmployeeLoginPad')
+    const { container } = render(<Pad onBack={() => {}} onSuccess={() => {}} />)
     const results = await axe(container, {
       rules: { 'color-contrast': { enabled: false } },
     })
