@@ -43,7 +43,7 @@ jobs:
           fi
       - name: Comment on PR
         if: steps.diff.outputs.found == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const files = `${{ steps.diff.outputs.files }}`.trim().split('\n')
