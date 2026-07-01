@@ -292,26 +292,31 @@ describe('collectOrgSnapshot', () => {
     expect(snap.fattureScadute[0].fornitore).not.toContain('…')
   })
 
-  // Skip: test fragile su date — fallisce quando "today" cade troppo vicino al
-  // mese precedente (es. inizio mese, la settimana corrente attraversa il bordo
-  // mese). Audit 2026-06-22: da rifare con clock mock invece di Date reale.
-  it.skip('food cost: NaN ricavoTot/fcTot vengono saltati (NaN guard)', async () => {
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const lun = new Date(today); lun.setDate(today.getDate() - ((today.getDay() + 6) % 7))
-    const lunIso = `${lun.getFullYear()}-${String(lun.getMonth() + 1).padStart(2, '0')}-${String(lun.getDate()).padStart(2, '0')}`
-    const supabase = mockSupabase({
-      sedi: [{ id: 'sede-A', nome: 'X' }],
-      userData: {
-        'sede-A|pasticceria-giornaliero-v1': [
-          { data: lunIso, ricavoTot: NaN, fcTot: 100 },     // skip
-          { data: lunIso, ricavoTot: 1000, fcTot: NaN },    // skip
-          { data: lunIso, ricavoTot: 0, fcTot: 0 },         // skip (ricavoTot<=0)
-          { data: lunIso, ricavoTot: 1000, fcTot: 350 },    // 35%
-        ],
-      },
-    })
-    const snap = await collectOrgSnapshot({ supabase, orgId: 'org-1', sedeId: 'sede-A' })
-    expect(snap.foodCostMedio).toBeCloseTo(35, 1)
+  it('food cost: NaN ricavoTot/fcTot vengono saltati (NaN guard)', async () => {
+    // Clock mockato a giovedì 12 marzo 2026: mid-week, mid-month → nessun
+    // bordo mese, e la settimana corrente ha lunedì = 9 marzo (diverso da
+    // today), così il filtro `d >= lunIso && d < todayIso` include i dati
+    // che il test inserisce a lunedì.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-12T10:00:00'))
+    try {
+      const lunIso = '2026-03-09'
+      const supabase = mockSupabase({
+        sedi: [{ id: 'sede-A', nome: 'X' }],
+        userData: {
+          'sede-A|pasticceria-giornaliero-v1': [
+            { data: lunIso, ricavoTot: NaN, fcTot: 100 },     // skip
+            { data: lunIso, ricavoTot: 1000, fcTot: NaN },    // skip
+            { data: lunIso, ricavoTot: 0, fcTot: 0 },         // skip (ricavoTot<=0)
+            { data: lunIso, ricavoTot: 1000, fcTot: 350 },    // 35%
+          ],
+        },
+      })
+      const snap = await collectOrgSnapshot({ supabase, orgId: 'org-1', sedeId: 'sede-A' })
+      expect(snap.foodCostMedio).toBeCloseTo(35, 1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('food cost: nessun dato valido → foodCostMedio null (no NaN bleed)', async () => {
