@@ -13,31 +13,45 @@ import { parseRicettario } from './parseRicettario'
 
 const SYSTEM_PROMPT = `Sei un esperto parser di ricettari di pasticceria, gelateria e panetteria italiana.
 
-Ricevi il contenuto grezzo di un foglio Excel come testo CSV (multi-sheet, separati da "=== SHEET: nome ==="). Il tuo compito e' identificare TUTTE le ricette elencate e restituire un JSON strutturato.
+Ricevi il contenuto grezzo di un foglio Excel come testo CSV (multi-sheet, separati da "=== SHEET: nome ==="). Il tuo compito e' identificare TUTTE le ricette elencate e restituire un JSON strutturato, indipendentemente dal layout usato.
 
-Ogni ricetta deve avere:
-- nome: string (obbligatorio, in MAIUSCOLO)
-- ingredienti: array di { nome: string (lowercase), qty1stampo: number in GRAMMI, costoPerG?: number in EUR/grammo }
+## Layout comuni che DEVI riconoscere
+
+**Layout A - una ricetta per sheet**: ogni sheet e' una ricetta, con nome in cima e righe ingrediente+quantita' sotto.
+
+**Layout B - tabella classica per riga**: un solo sheet, 3+ colonne (ricetta / ingrediente / quantita'), una riga per (ricetta, ingrediente).
+
+**Layout C - PIVOT / MATRICE (frequente in gelaterie)**: un solo sheet, prima colonna = nomi ingredienti, prima riga = nomi ricette/gusti (es. "Arancia", "Banana", "Fior di Panna", "Nocciola", ecc.), le celle interne contengono la quantita' di quell'ingrediente per quella ricetta (celle vuote = ingrediente non usato in quella ricetta). Le colonne header a volte si ripetono nel foglio (secondo blocco di ricette che continua la matrice a destra). In questo caso ogni colonna dopo la prima e' una ricetta separata e devi ricostruire l'elenco ingredienti di ogni ricetta leggendo verticalmente lungo la colonna.
+
+**Listino prezzi**: uno sheet chiamato "listino", "prezzi", "materie prime" o simile, colonne tipo (nome | unita | costo confezione | €/kg o €/unita). Estrai in "ingredienti_costi".
+
+## Output atteso
+
+Ogni ricetta:
+- nome: string in MAIUSCOLO (es. "NOCCIOLA", "TORTA MELE", "CREMA PASTICCERA")
+- ingredienti: array di { nome: string lowercase (singolare, italiano), qty1stampo: number in GRAMMI, costoPerG?: number in EUR/grammo }
 - note?: string
-- tipo?: 'fetta' | 'pezzo' | 'semilavorato'  (default 'fetta')
+- tipo?: 'fetta' | 'pezzo' | 'semilavorato'  (default 'fetta'; usa 'semilavorato' per basi/impasti riutilizzati come "base bianca", "pasta sfoglia", "crema pasticcera intermedia")
 
-Regole:
-1. Se le quantita' sono in kg/l/ml/cucchiai, convertile SEMPRE in grammi (1 kg = 1000 g, 1 ml acqua/latte/panna = 1 g, 1 ml olio = 0.92 g, 1 cucchiaio = 15 g).
-2. Se vedi righe come "totale", "note", "procedimento" saltale (non sono ingredienti).
-3. Se il foglio ha una tabella prezzi ingredienti separata (nome + €/kg), estraila in "ingredienti_costi" con chiavi lowercase (es. "burro": { "costoKg": 8.5, "costoG": 0.0085 }).
-4. Se non capisci una ricetta ambigua, SALTALA piuttosto che indovinare.
-5. Nomi ingredienti: usa singolare, lowercase, nome comune italiano ("tuorlo" non "tuorli" non "Tuorlo d'uovo").
-6. Ignora righe vuote, header di sheet, colonne extra non riconosciute.
+## Regole obbligatorie
+
+1. **Unita' di misura**: se le quantita' sono in kg/l/ml/cucchiai, convertile SEMPRE in grammi. 1 kg = 1000 g; 1 l acqua/latte/panna = 1000 g; 1 ml olio = 0.92 g; 1 cucchiaio = 15 g. Numeri decimali come 0.355 o 0.45 in un foglio gelateria sono quasi sempre KILOGRAMMI → moltiplica per 1000 (0.355 kg → 355 g).
+2. **Salta ricette vuote**: se una ricetta non ha ingredienti con quantita' > 0, SALTALA.
+3. **Salta righe non ingredienti**: "totale", "somma", "note", "procedimento", header ripetuti nella tabella.
+4. **Listino prezzi**: se trovi un foglio prezzi separato, estrai in "ingredienti_costi" con chiavi lowercase e struttura { "burro": { "costoKg": 8.5, "costoG": 0.0085 } }. Se il costo e' formattato "8.24 €" o "1.66 €" estrai solo il numero.
+5. **Ambiguita'**: se una ricetta ha layout confuso o solo qty=0, SALTALA piuttosto che indovinare.
+6. **Nomi**: usa singolare lowercase italiano ("tuorlo" non "tuorli"; "cioccolato fondente" non "Cioccolato Nedo Fondente").
+7. **Colonne ripetute**: se vedi lo stesso header ("quantitativo materia prima per gusto", "Prodotto", ecc.) ripetuto a meta' foglio, e' un separatore visivo: le ricette continuano nella seconda meta' con le stesse regole. Elabora TUTTE le colonne di ricette, non solo le prime.
 
 Restituisci ESCLUSIVAMENTE JSON valido nel formato:
 {
   "ricette": [
-    {"nome": "TORTA AL CIOCCOLATO", "ingredienti": [{"nome":"burro","qty1stampo":200},{"nome":"zucchero","qty1stampo":180}], "note":"cottura 180°C per 40 min"},
+    {"nome": "NOCCIOLA", "ingredienti": [{"nome":"pasta nocciola","qty1stampo":250},{"nome":"base bianca","qty1stampo":1000}]},
     ...
   ],
   "ingredienti_costi": {
     "burro": {"costoKg": 8.5, "costoG": 0.0085},
-    ...
+    "zucchero": {"costoKg": 1.66, "costoG": 0.00166}
   }
 }
 
@@ -121,9 +135,9 @@ export async function parseRicettarioAI(file) {
     model: 'claude-sonnet-4-6',
     system: SYSTEM_PROMPT,
     prompt: `Ecco il contenuto del file Excel. Estrai tutte le ricette e restituisci JSON.\n\n${promptText}`,
-    maxTokens: 8000,
+    maxTokens: 12_000,
     parseJson: true,
-    timeoutMs: 90_000,
+    timeoutMs: 120_000,
   })
 
   const out = normalizeAiOutput(json)
