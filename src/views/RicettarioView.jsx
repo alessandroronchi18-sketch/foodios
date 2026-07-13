@@ -595,7 +595,9 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo === 'semilavorato'), [ricettario])
 
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState('margine_desc')
+  // Default: alfabetico ascendente (richiesta utente 13/07/2026: piu' facile
+  // trovare una ricetta per nome che per margine).
+  const [sortBy, setSortBy] = useState('nome_az')
   const [gridView, setGridView] = useState(false)
 
   const fcMedio = ricette.length === 0 ? 0 : (() => {
@@ -624,7 +626,8 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
       const ma = ra.unita * ra.prezzo > 0 ? ((ra.unita * ra.prezzo - fca) / (ra.unita * ra.prezzo) * 100) : 0
       const mb = rb.unita * rb.prezzo > 0 ? ((rb.unita * rb.prezzo - fcb) / (rb.unita * rb.prezzo) * 100) : 0
       if (sortBy === 'margine_asc') return ma - mb
-      return mb - ma // margine_desc (default)
+      if (sortBy === 'margine_desc') return mb - ma
+      return a.nome.localeCompare(b.nome) // fallback: alfabetico
     })
     return arr
   }, [ricette, search, sortBy, ingCosti, ricettario])

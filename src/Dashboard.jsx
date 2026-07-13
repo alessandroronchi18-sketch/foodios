@@ -2,6 +2,7 @@ import React from 'react'
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import * as Sentry from '@sentry/react'
 import { lazyWithReload } from './lib/lazyWithReload'
+import { getUnsavedGuardCurrent } from './lib/useUnsavedGuard'
 import UpgradeGate from './components/UpgradeGate'
 import AISuggestionsBell from './components/AISuggestionsBell'
 import ChainBadge from './components/ChainBadge'
@@ -1212,7 +1213,7 @@ export default function Dashboard({
   const [giornaliero,setGiornaliero]=useState([]);
   const [chiusure,setChiusure]=useState([]);
   const [esclusi,setEsclusi]=useState(new Set());
-  const [view,setView]=useState(() => {
+  const [view,_setViewRaw]=useState(() => {
     try {
       const stored = sessionStorage.getItem(`foodios_view_${orgId||'_'}`);
       if (stored) return stored;
@@ -1221,6 +1222,25 @@ export default function Dashboard({
       return auth?.ruolo === 'dipendente' ? "home-dipendente" : "home";
     } catch { return "home"; }
   });
+  // Modifiche non salvate: se una view ha registrato useUnsavedGuard e
+  // isDirty() == true, intercettiamo il cambio view mostrando un modal.
+  // pendingNav = target view richiesto (o null).
+  const [pendingNav, setPendingNav] = useState(null);
+  const [savingBeforeNav, setSavingBeforeNav] = useState(false);
+  // setView "guarded": se una view ha modifiche non salvate mostra il modal;
+  // altrimenti naviga normalmente. Zero refactor sui 30+ callsite di setView.
+  const setView = useCallback((v) => {
+    if (typeof v === 'function') { _setViewRaw(v); return; }
+    try {
+      const g = getUnsavedGuardCurrent();
+      const dirty = g?.ref?.current?.isDirty?.();
+      if (dirty && v !== view) {
+        setPendingNav(v);
+        return;
+      }
+    } catch {}
+    _setViewRaw(v);
+  }, [view]);
   useEffect(() => {
     try { sessionStorage.setItem(`foodios_view_${orgId||'_'}`, view); } catch {}
   }, [view, orgId]);
@@ -3280,6 +3300,53 @@ export default function Dashboard({
 
       {/* AI Assistant - floating button su tutte le pagine (lazy → Suspense) */}
       {/* AIAssistant è ora renderizzato da <FloatingActions /> in App.jsx - vedi audit 2026-06-24 unifica FAB. */}
+
+      {/* Dirty-form guard modal: attivo quando l'utente cambia view con modifiche non salvate in una form (es. NuovaRicettaView) */}
+      {pendingNav && (
+        <div role="dialog" aria-modal="true" aria-labelledby="dirty-guard-title"
+          onClick={(e) => { if (e.target === e.currentTarget && !savingBeforeNav) setPendingNav(null); }}
+          style={{ position: "fixed", inset: 0, background: "rgba(28,10,10,0.55)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "#fff", borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxWidth: 460, width: "100%", padding: isMobile ? 20 : 26 }}>
+            <div id="dirty-guard-title" style={{ fontSize: 18, fontWeight: 800, color: "#1C0A0A", marginBottom: 8, letterSpacing: "-0.01em" }}>
+              Hai modifiche non salvate
+            </div>
+            <div style={{ fontSize: 13.5, color: "#4B3832", lineHeight: 1.55, marginBottom: 20 }}>
+              Se esci ora perdi le modifiche fatte in questa pagina. Vuoi salvarle prima di cambiare pagina?
+            </div>
+            <div style={{ display: "flex", gap: 8, flexDirection: isMobile ? "column-reverse" : "row", justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <button onClick={() => setPendingNav(null)} disabled={savingBeforeNav}
+                style={{ padding: "10px 16px", minHeight: 42, background: "transparent", color: "#4B3832", border: "1px solid #E8DDD8", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: savingBeforeNav ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                Resta qui
+              </button>
+              <button onClick={() => {
+                try { getUnsavedGuardCurrent()?.ref?.current?.discard?.() } catch {}
+                const target = pendingNav;
+                setPendingNav(null);
+                _setViewRaw(target);
+              }} disabled={savingBeforeNav}
+                style={{ padding: "10px 16px", minHeight: 42, background: "transparent", color: "#991B1B", border: "1px solid #FECACA", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: savingBeforeNav ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                Esci senza salvare
+              </button>
+              <button onClick={async () => {
+                setSavingBeforeNav(true);
+                try {
+                  await getUnsavedGuardCurrent()?.ref?.current?.save?.();
+                  const target = pendingNav;
+                  setPendingNav(null);
+                  _setViewRaw(target);
+                } catch (e) {
+                  // save fallito: resto sulla view, notify passato dalla view stessa
+                } finally {
+                  setSavingBeforeNav(false);
+                }
+              }} disabled={savingBeforeNav}
+                style={{ padding: "10px 16px", minHeight: 42, background: savingBeforeNav ? "#CBD5E1" : "#6E0E1A", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: savingBeforeNav ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+                {savingBeforeNav ? "Salvo…" : "Salva prima di uscire"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </ErrorBoundary>
   );

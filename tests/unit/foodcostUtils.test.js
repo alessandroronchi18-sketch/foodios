@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   normIng, translateProdottoEN, translateIngredienteEN,
   isRicettaValida, isSemilavorato, getR, REGOLE, resetRegoleRuntime,
+  mergeIngredientiPerNorm,
 } from '../../src/lib/foodcost.js'
 
 describe('normIng', () => {
@@ -15,6 +16,54 @@ describe('normIng', () => {
   it('input falsy → stringa vuota', () => {
     expect(normIng(null)).toBe('')
     expect(normIng(undefined)).toBe('')
+  })
+})
+
+describe('mergeIngredientiPerNorm', () => {
+  it('accorpa tuorlo + tuorli sommando quantita', () => {
+    const out = mergeIngredientiPerNorm([
+      { nome: 'tuorlo', quantita: 40 },
+      { nome: 'tuorli', quantita: 20 },
+    ])
+    expect(out).toHaveLength(1)
+    expect(out[0].quantita).toBe(60)
+    expect(out[0].nome).toBe('tuorlo') // preferisce la forma canonica singolare
+  })
+  it('accorpa Uova + uovo case-insensitive', () => {
+    const out = mergeIngredientiPerNorm([
+      { nome: 'Uova', quantita: 100 },
+      { nome: 'uovo', quantita: 55 },
+    ])
+    expect(out).toHaveLength(1)
+    expect(out[0].quantita).toBe(155)
+  })
+  it('mantiene ingredienti distinti senza aggregare', () => {
+    const out = mergeIngredientiPerNorm([
+      { nome: 'burro', quantita: 100 },
+      { nome: 'zucchero', quantita: 80 },
+    ])
+    expect(out).toHaveLength(2)
+  })
+  it('supporta qtyField alternativo (qty1stampo)', () => {
+    const out = mergeIngredientiPerNorm([
+      { nome: 'mandorle', qty1stampo: 50, costoPerG: 0 },
+      { nome: 'mandorla', qty1stampo: 30, costoPerG: 0 },
+    ], { qtyField: 'qty1stampo' })
+    expect(out).toHaveLength(1)
+    expect(out[0].qty1stampo).toBe(80)
+  })
+  it('salta ingredienti con nome vuoto', () => {
+    const out = mergeIngredientiPerNorm([
+      { nome: '', quantita: 5 },
+      { nome: '  ', quantita: 3 },
+      { nome: 'burro', quantita: 100 },
+    ])
+    expect(out).toHaveLength(1)
+    expect(out[0].nome).toBe('burro')
+  })
+  it('input non-array → array vuoto', () => {
+    expect(mergeIngredientiPerNorm(null)).toEqual([])
+    expect(mergeIngredientiPerNorm(undefined)).toEqual([])
   })
 })
 

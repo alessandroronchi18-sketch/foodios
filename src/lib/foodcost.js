@@ -505,6 +505,16 @@ export const SING_PLUR = [
   ["scaglie di cioccolato","scaglia di cioccolato"],
   ["chips cioccolato","chips cioccolato"],
   ["zucchine","zucchina"],
+  // ── Extra pasticceria/gelateria/bar (aggiunte 13/07/2026) ────────────────
+  ["cornetti","cornetto"],["croissant","cornetto"],
+  ["cioccolatini","cioccolatino"],["praline","pralina"],
+  ["tartufini","tartufino"],["sfogliatine","sfogliatina"],
+  ["bignè","bigne'"],["bignes","bigne'"],["bigne","bigne'"],
+  ["meringhe","meringa"],["madeleines","madeleine"],
+  ["cetrioli","cetriolo"],["cipolle","cipolla"],
+  ["patate","patata"],["pomodori","pomodoro"],
+  ["olive","oliva"],["capperi","cappero"],
+  ["chiodini","chiodino"],["stecche","stecca"],
 ]
 
 const _NORM_MAP = new Map(SING_PLUR.map(([pl, sg]) => [pl, sg]))
@@ -512,6 +522,34 @@ const _NORM_MAP = new Map(SING_PLUR.map(([pl, sg]) => [pl, sg]))
 export function normIng(nome) {
   const k = (nome || '').toLowerCase().trim().replace(/\s+/g, ' ')
   return _NORM_MAP.get(k) || k
+}
+
+// Aggrega ingredienti OCR con stessa chiave normalizzata (sommandone la
+// quantita'). Usato quando la foto elenca lo stesso ingrediente scritto in
+// modi diversi (tuorlo/tuorli, uovo/uova, ecc.).
+// - qtyField: nome del campo con la quantita' (default "quantita", ma alcuni
+//   flussi usano "qty1stampo").
+// - Ritorna un array con lo stesso shape ma senza duplicati per chiave.
+export function mergeIngredientiPerNorm(ings, { qtyField = 'quantita' } = {}) {
+  if (!Array.isArray(ings)) return []
+  const map = new Map()
+  for (const ing of ings) {
+    const rawNome = (ing.nome || '').trim()
+    if (!rawNome) continue
+    const key = normIng(rawNome)
+    if (!key) continue
+    const qty = Number(ing[qtyField]) || 0
+    if (map.has(key)) {
+      const acc = map.get(key)
+      acc[qtyField] = (Number(acc[qtyField]) || 0) + qty
+      // Se il nome corrente e' gia' nella forma singolare canonica (== key),
+      // preferiscilo come display (piu' pulito del plurale iniziale).
+      if (rawNome.toLowerCase() === key) acc.nome = rawNome
+    } else {
+      map.set(key, { ...ing, nome: rawNome, [qtyField]: qty })
+    }
+  }
+  return [...map.values()]
 }
 
 // ─── TRADUZIONI EN→IT (per OCR foto/menù in inglese) ─────────────────────────

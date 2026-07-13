@@ -11,7 +11,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, motion as M } from '../lib/theme'
-import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
+import { buildIngCosti, calcolaFC, getR, isRicettaValida, mergeIngredientiPerNorm, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, mergeAllergeni } from '../lib/allergeni'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
@@ -19,6 +19,7 @@ import FotoOCR from '../components/FotoOCR'
 import AIFotoAnalisi from '../components/AIFotoAnalisi'
 import Icon from '../components/Icon'
 import { C, fmt, fmtp, TNUM } from './_shared'
+import { useUnsavedGuard } from '../lib/useUnsavedGuard'
 
 // Ombra premium coerente con la Dashboard home.
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -60,6 +61,9 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
   const empty = { nome: "", categoria: "", unita: 8, prezzo: 4, tipo: "fetta", note: "", ingredienti: [], congelabile: false, allergeniManual: [] };
   const [form, setForm] = useState(empty);
+  // Snapshot del form all'ultimo save/load: serve al dirty-guard (useUnsavedGuard)
+  // per capire se ci sono modifiche non salvate rispetto allo stato "pulito".
+  const initialFormRef = useRef(empty);
   const [targetPct, setTargetPct] = useState(30); // food cost obiettivo (%) - modificabile
 
   // Allergeni rilevati automaticamente dagli ingredienti (Reg. UE 1169/2011).
@@ -76,6 +80,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const [datiEstratti, setDatiEstratti] = useState(null);  // dati AI in attesa di conferma
   const [saving, setSaving] = useState(false);             // bottone salva in corso
   const [showMore, setShowMore] = useState(false);         // progressive disclosure: note + congelabile
+  // Modal "imposta prezzo" per ingrediente con prezzo mancante:
+  // { nome, costoKg: string, saving } | null
+  const [priceModal, setPriceModal] = useState(null);
+  // Toolbar azioni secondarie in cima: quale pannello e' aperto (null | 'foto' | 'modifica' | 'elimina')
+  const [openAction, setOpenAction] = useState(null);
+  // Allergeni manuali: elenco checkbox nascosto di default per non intasare
+  // la card. Si apre col bottone "Modifica manualmente" o automaticamente se
+  // l'utente ha gia' selezionato override manuali (es. edit di ricetta esistente).
+  const [showManualAllergeni, setShowManualAllergeni] = useState(false);
   const formRef = useRef(null);
   // Audit 2026-07-01 HIGH: tracking scroll timer per cleanup unmount.
   const scrollTimerRef = useRef(null);
@@ -101,6 +114,37 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   };
   const removeIng = i => setForm(f => ({ ...f, ingredienti: f.ingredienti.filter((_, j) => j !== i) }));
 
+  // Salva il prezzo di un ingrediente al kg nel ricettario e chiude il modal.
+  // Al successo il form si aggiorna via prop `ricettario` (buildIngCosti rilegge)
+  // e il badge "prezzo mancante" scompare da solo per quell'ingrediente.
+  const handleSavePrezzoIng = async () => {
+    if (!priceModal) return;
+    const raw = String(priceModal.costoKg || '').replace(',', '.').trim();
+    const val = parseFloat(raw);
+    if (!Number.isFinite(val) || val < 0) {
+      notify("Inserisci un prezzo valido in euro al kg (es. 8,50)", false);
+      return;
+    }
+    setPriceModal(m => m ? { ...m, saving: true } : m);
+    try {
+      const key = normIng(priceModal.nome);
+      const costoG = parseFloat((val / 1000).toFixed(6));
+      const nuovoRic = {
+        ...(ricettario || {}),
+        ingredienti_costi: {
+          ...(ricettario?.ingredienti_costi || {}),
+          [key]: { costoKg: val, costoG }
+        }
+      };
+      await onSave(nuovoRic, {}, true); // noRedirect: resta sul form
+      setPriceModal(null);
+      notify(`Prezzo di "${priceModal.nome}" salvato: ${val.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg`);
+    } catch (e) {
+      setPriceModal(m => m ? { ...m, saving: false } : m);
+      notify("Errore salvataggio prezzo, riprova", false);
+    }
+  };
+
   const loadForEdit = nome => {
     const r = ricettario?.ricette?.[nome];
     if (!r) return;
@@ -108,7 +152,9 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const ings = r.ingredienti.map(i => ({ ...i }));
     const auto = detectAllergeniFromIngredienti(ings);
     const manual = (r.allergeni || []).filter(a => !auto.includes(a));
-    setForm({ nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual });
+    const loaded = { nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual };
+    setForm(loaded);
+    initialFormRef.current = loaded; // reset dirty
     setEditMode(nome);
     scrollToFormDeferred(100);
   };
@@ -153,6 +199,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       };
       await onSave(nuovoRic, { [nuovaRic.nome]: { unita: form.unita, prezzo: form.prezzo, tipo: form.tipo } });
       setForm(empty); setEditMode(null); setOverwriteConf(null);
+      initialFormRef.current = empty; // dirty pulito dopo save
     } finally {
       setSaving(false);
     }
@@ -166,6 +213,37 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const isEditing = editMode === nomeUp;
     if (esiste && !isEditing) { setOverwriteConf(nomeUp); } else { doSaveRicetta(); }
   };
+
+  // Save invocato dal dirty-guard prima di navigare via: se il salvataggio
+  // non e' possibile (nome vuoto / no ingredienti / overwrite richiesto) rifiuta
+  // la promise cosi' il Dashboard mantiene l'utente sulla view.
+  const handleSaveFromGuard = async () => {
+    if (!form.nome.trim()) { notify("Serve il nome della ricetta prima di salvare", false); throw new Error('name empty'); }
+    if (form.ingredienti.length === 0) { notify("Aggiungi almeno un ingrediente prima di salvare", false); throw new Error('no ingredients'); }
+    const nomeUp = form.nome.trim().toUpperCase();
+    const esiste = ricettario?.ricette?.[nomeUp];
+    const isEditing = editMode === nomeUp;
+    if (esiste && !isEditing) {
+      notify("Esiste gia' una ricetta con questo nome: cambia nome o conferma la sovrascrittura prima di uscire.", false);
+      throw new Error('overwrite required');
+    }
+    await doSaveRicetta();
+  };
+
+  // Dirty-guard: registra al Dashboard che la view ha modifiche non salvate.
+  // Il Dashboard intercetta setView e mostra un modal "Salva / Esci senza salvare".
+  useUnsavedGuard({
+    isDirty: () => {
+      try { return JSON.stringify(form) !== JSON.stringify(initialFormRef.current) }
+      catch { return false }
+    },
+    save: handleSaveFromGuard,
+    discard: () => {
+      setForm(empty);
+      setEditMode(null);
+      initialFormRef.current = empty;
+    },
+  });
 
   // ─── Calcolo redditività LIVE ──────────────────────────────────────────────
   // Usa calcolaFC (motore ufficiale: gestisce semilavorati + rese) così l'anteprima
@@ -227,97 +305,159 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const cardStyle = { background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, padding: isMobile ? '16px' : '20px', boxShadow: SHADOW_PREMIUM };
 
   return (
+    <>
     <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-      {/* Intro */}
-      <div style={{ marginBottom: 24, display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ width: 48, height: 48, borderRadius: R.lg, background: T.brandLight, display: "flex", alignItems: "center", justifyContent: "center", color: T.brand, flexShrink: 0 }}>
-          <Icon name={editMode ? "edit" : "plus"} size={22} />
+      {/* Hero + titolo: da' peso all'inserimento manuale che e' il flusso primario. */}
+      <div style={{ marginBottom: 18, display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ width: isMobile ? 44 : 52, height: isMobile ? 44 : 52, borderRadius: R.lg, background: `linear-gradient(135deg, ${T.brand}, #4A0612)`, display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", flexShrink: 0, boxShadow: `0 8px 24px ${T.brand}33` }}>
+          <Icon name={editMode ? "edit" : "plus"} size={isMobile ? 20 : 24} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 13, color: T.textSoft, lineHeight: 1.5, letterSpacing: "-0.005em" }}>
+          <h1 style={{ margin: 0, fontSize: isMobile ? 20 : 24, fontWeight: 800, color: C.text, letterSpacing: "-0.02em", lineHeight: 1.15 }}>
+            {editMode ? <>Modifica <span style={{ color: T.brand }}>{editMode}</span></> : "Nuova ricetta"}
+          </h1>
+          <p style={{ margin: "4px 0 0", fontSize: 12.5, color: T.textSoft, lineHeight: 1.45 }}>
             {editMode
-              ? <>Stai modificando <strong style={{ color: T.brand, fontWeight: 600 }}>{editMode}</strong>. L'anteprima a destra ti dice subito se la ricetta regge i conti.</>
-              : "Mentre compili, a destra vedi food cost e margine aggiornarsi in tempo reale. Ti suggerisco anche il prezzo giusto."}
+              ? "L'anteprima a destra ti dice subito se la ricetta regge i conti."
+              : "Compila qui sotto: a destra vedi food cost e margine in tempo reale."}
           </p>
         </div>
       </div>
 
-      {/* Edit + Delete: due pulsanti che aprono dropdown con ricerca.
-          Refactor 26/06: chip-list saturo (15+ nomi a pieno schermo) sostituito
-          con due pulsanti-action elegant futuristic. Doppio check per delete. */}
-      {ricetteEsistenti.length > 0 && (
-        <div style={{ ...cardStyle, borderRadius: 18, padding: isMobile ? "14px 16px" : "18px 22px", marginBottom: 20 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: 'center' }}>
-            <RicettaPicker
-              label="Modifica ricetta"
-              icon={<Icon name="edit" size={14} />}
-              variant="primary"
-              ricette={ricetteEsistenti}
-              activeNome={editMode}
-              onSelect={(nome) => loadForEdit(nome)}
-              isMobile={isMobile}
-            />
-            <RicettaPickerDelete
-              ricette={ricetteEsistenti}
-              deleteConf={deleteConf}
-              setDeleteConf={setDeleteConf}
-              deletePin={deletePin}
-              setDeletePin={setDeletePin}
-              onConfirm={handleDeleteRicetta}
-              isMobile={isMobile}
-            />
+      {/* Banner "stai modificando" - resta in evidenza per non perdere il contesto. */}
+      {editMode && (
+        <div style={{ marginBottom: 14, fontSize: 12.5, color: T.amber, display: "flex", alignItems: "center", justifyContent: 'space-between', gap: 10, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.28)', borderRadius: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+            <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 700, marginLeft: 4 }}>{editMode}</b> - il salvataggio sovrascrive.
           </div>
-          {editMode && (
-            <div style={{ marginTop: 12, fontSize: 12, color: T.amber, display: "flex", alignItems: "center", justifyContent: 'space-between', gap: 10, padding: '10px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-                <Icon name="warning" size={12} /> Stai modificando <b style={{ fontWeight: 700, marginLeft: 4 }}>{editMode}</b> - salva per sovrascrivere.
-              </div>
-              <button type="button" onClick={() => { setEditMode(null); setForm(empty); }}
-                style={{
-                  padding: '7px 14px', minHeight: isMobile ? 36 : 'auto',
-                  background: '#FFF', color: T.brand,
-                  border: `1px solid ${T.brand}40`, borderRadius: 7,
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  whiteSpace: 'nowrap', flexShrink: 0,
-                }}>
-                <Icon name="plus" size={12} /> Nuova ricetta
-              </button>
-            </div>
-          )}
+          <button type="button" onClick={() => { setEditMode(null); setForm(empty); initialFormRef.current = empty; }}
+            style={{
+              padding: '7px 14px', minHeight: isMobile ? 36 : 'auto',
+              background: '#FFF', color: T.brand,
+              border: `1px solid ${T.brand}40`, borderRadius: 7,
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              whiteSpace: 'nowrap', flexShrink: 0,
+            }}>
+            <Icon name="plus" size={12} /> Ricetta nuova
+          </button>
         </div>
       )}
 
-      {/* FOTO OCR */}
-      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? 6 : 10, marginBottom: 8, padding: isMobile ? "10px 12px" : "8px 12px", background: C.amberLight, borderRadius: 8, border: `1px solid ${C.amber}40`, flexWrap: "wrap" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: isMobile ? 12 : 11, color: C.amber, fontWeight: 700, minHeight: isMobile ? 40 : 'auto', lineHeight: 1.35 }}>
-          <input type="checkbox" checked={forceOverwrite} onChange={e => setForceOverwrite(e.target.checked)} style={{ width: 18, height: 18, cursor: "pointer", flexShrink: 0 }} />
-          Sovrascrivi ricette già esistenti (per aggiornamenti da foto)
-        </label>
-        <span style={{ fontSize: isMobile ? 10.5 : 9, color: C.textSoft, lineHeight: 1.4 }}>Disattivato = le ricette con lo stesso nome vengono saltate</span>
+      {/* Toolbar azioni secondarie: chip compatti che espandono un pannello contestuale.
+          Regola UX: le azioni "shortcut" (foto, modifica esistente, elimina) NON devono
+          dominare il flusso primario che e' la compilazione manuale del form sotto. */}
+      <div style={{ marginBottom: openAction ? 12 : 22, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <ActionChip
+          isMobile={isMobile}
+          active={openAction === 'foto'}
+          onClick={() => setOpenAction(a => a === 'foto' ? null : 'foto')}
+          icon={<Icon name="camera" size={15} />}
+          color={T.brand}
+          label="Parti da una foto"
+          sub="OCR ricetta o listino"
+        />
+        {ricetteEsistenti.length > 0 && (
+          <ActionChip
+            isMobile={isMobile}
+            active={openAction === 'modifica'}
+            onClick={() => setOpenAction(a => a === 'modifica' ? null : 'modifica')}
+            icon={<Icon name="edit" size={15} />}
+            color="#0369A1"
+            label="Modifica esistente"
+            sub={`${ricetteEsistenti.length} nel ricettario`}
+          />
+        )}
+        {ricetteEsistenti.length > 0 && (
+          <ActionChip
+            isMobile={isMobile}
+            active={openAction === 'elimina'}
+            onClick={() => setOpenAction(a => a === 'elimina' ? null : 'elimina')}
+            icon={<Icon name="trash" size={15} />}
+            color="#991B1B"
+            label="Elimina ricetta"
+            sub="conferma richiesta"
+          />
+        )}
       </div>
+
+      {/* Pannello contestuale: "Modifica esistente" */}
+      {openAction === 'modifica' && ricetteEsistenti.length > 0 && (
+        <div style={{ ...cardStyle, marginBottom: 22, padding: isMobile ? '14px 16px' : '16px 20px', borderColor: '#0369A122' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#0369A1', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Scegli la ricetta da modificare</div>
+          <RicettaPicker
+            label="Cerca fra le tue ricette"
+            icon={<Icon name="search" size={14} />}
+            variant="primary"
+            ricette={ricetteEsistenti}
+            activeNome={editMode}
+            onSelect={(nome) => { loadForEdit(nome); setOpenAction(null); }}
+            isMobile={isMobile}
+          />
+        </div>
+      )}
+
+      {/* Pannello contestuale: "Elimina ricetta" */}
+      {openAction === 'elimina' && ricetteEsistenti.length > 0 && (
+        <div style={{ ...cardStyle, marginBottom: 22, padding: isMobile ? '14px 16px' : '16px 20px', borderColor: '#991B1B22' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#991B1B', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Elimina una ricetta esistente</div>
+          <div style={{ fontSize: 12, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
+            La cancellazione e' definitiva. Serve confermare scrivendo <b>ELIMINA</b>.
+          </div>
+          <RicettaPickerDelete
+            ricette={ricetteEsistenti}
+            deleteConf={deleteConf}
+            setDeleteConf={setDeleteConf}
+            deletePin={deletePin}
+            setDeletePin={setDeletePin}
+            onConfirm={async (nome) => { await handleDeleteRicetta(nome); setOpenAction(null); }}
+            isMobile={isMobile}
+          />
+        </div>
+      )}
+
+      {/* Pannello contestuale: "Parti da una foto" (OCR upload) */}
+      {openAction === 'foto' && (
+        <div style={{ ...cardStyle, marginBottom: 22, padding: isMobile ? '14px 16px' : '16px 20px', borderColor: `${T.brand}22` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.brand, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Estrai una ricetta da una foto</div>
+          <div style={{ fontSize: 12, color: C.textMid, marginBottom: 12, lineHeight: 1.5 }}>
+            Carica una foto della ricetta o del listino: leggo io nome, ingredienti e quantita', poi tu confermi.
+          </div>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? 6 : 10, marginBottom: 10, padding: isMobile ? "10px 12px" : "8px 12px", background: C.amberLight, borderRadius: 8, border: `1px solid ${C.amber}40`, flexWrap: "wrap" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: isMobile ? 12 : 11, color: C.amber, fontWeight: 700, minHeight: isMobile ? 40 : 'auto', lineHeight: 1.35 }}>
+              <input type="checkbox" checked={forceOverwrite} onChange={e => setForceOverwrite(e.target.checked)} style={{ width: 18, height: 18, cursor: "pointer", flexShrink: 0 }} />
+              Sovrascrivi ricette gia' esistenti
+            </label>
+            <span style={{ fontSize: isMobile ? 10.5 : 9, color: C.textSoft, lineHeight: 1.4 }}>Se disattivato, le ricette con lo stesso nome vengono saltate</span>
+          </div>
       <FotoOCR mode="ricetta" notify={notify} ricettario={ricettario}
         onResult={res => {
+          const ingsRaw = (res.ingredienti || []).map(i => ({
+            nome: translateIngredienteEN(i.nome || ''),
+            quantita: parseFloat(i.quantita) || parseFloat(i.qty) || 0,
+            unita: i.unita || 'g'
+          }));
+          // Accorpa doppi singolare/plurale (tuorlo+tuorli → un solo tuorlo con quantita' sommata).
+          const ingredienti = mergeIngredientiPerNorm(ingsRaw, { qtyField: 'quantita' });
           setDatiEstratti({
             nome: translateProdottoEN(res.nome || ''),
             categoria: 'Altro',
             porzioni: res.porzioni || res.unita || 8,
-            ingredienti: (res.ingredienti || []).map(i => ({
-              nome: translateIngredienteEN(i.nome || ''),
-              quantita: parseFloat(i.quantita) || parseFloat(i.qty) || 0,
-              unita: i.unita || 'g'
-            })),
+            ingredienti,
             procedimento: res.note || ''
           });
+          setOpenAction(null); // chiudi pannello foto: sotto compare AIFotoAnalisi
           scrollToFormDeferred(150);
         }}
         onBatchSave={async (res, idx, ricAcc, setRicAcc) => {
           const UNIT_G = { g: 1, gr: 1, grammi: 1, grammo: 1, kg: 1000, chilo: 1000, chilogrammo: 1000, ml: 1, millilitri: 1, l: 1000, litro: 1000, litri: 1000, cl: 10, centilitri: 10, dl: 100, decilitri: 100, cucchiaio: 15, cucchiai: 15, tbsp: 15, cucchiaino: 5, cucchiaini: 5, tsp: 5, tazza: 240, cup: 240, tazze: 240, bicchiere: 200, bicchieri: 200, noce: 15, pizzico: 2, pizzichi: 2, qb: 0 };
           const SKIP_ING_OCR = ["ingrediente", "ingredient", "ingredienti", "nome ingrediente in minuscolo", "n/d", "nan", "undefined", ""];
           const toGrams = (i) => { if (i.qty != null) return parseFloat(i.qty) || 0; const q = parseFloat(i.quantita) || 0; const u = (i.unita || "g").toLowerCase().trim(); return Math.round(q * (UNIT_G[u] ?? 1)); };
-          const ings = (res.ingredienti || [])
+          const ingsRaw = (res.ingredienti || [])
             .map(i => ({ nome: translateIngredienteEN(i.nome || ""), qty1stampo: toGrams(i), costoPerG: 0, costo1stampo: 0 }))
             .filter(i => !SKIP_ING_OCR.includes(i.nome.toLowerCase().trim()) && i.qty1stampo >= 0);
+          // Accorpa doppi singolare/plurale (es. tuorlo+tuorli → tuorlo con qty sommata).
+          const ings = mergeIngredientiPerNorm(ingsRaw, { qtyField: 'qty1stampo' });
           const nomeIT = (translateProdottoEN(res.nome || "") || "").trim().toUpperCase();
           if (!nomeIT || ings.length === 0 || !isRicettaValida(nomeIT.toLowerCase())) return false;
           if ((ricAcc || ricettario)?.ricette?.[nomeIT] && !forceOverwrite) {
@@ -342,6 +482,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           return true;
         }}
       />
+        </div>
+      )}
 
       {datiEstratti && (
         <AIFotoAnalisi
@@ -492,7 +634,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                         <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: rowIndex % 2 === 0 ? C.white : "#FDFAF7" }}>
                           <td style={{ padding: "9px 10px", fontWeight: 600, color: C.text }}>
                             <span title={ing.nome} style={{ display: "inline-block", maxWidth: isMobile ? 130 : 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{ing.nome}</span>
-                            {!c && <span style={{ fontSize: 9, marginLeft: 6, background: C.amberLight, color: C.amber, padding: "2px 6px", borderRadius: 3, fontWeight: 700, whiteSpace: "nowrap" }}>prezzo mancante</span>}
+                            {!c && (
+                              <button type="button"
+                                onClick={() => setPriceModal({ nome: ing.nome, costoKg: '', saving: false })}
+                                aria-label={`Imposta prezzo per ${ing.nome}`}
+                                title={`Clicca per impostare il prezzo di ${ing.nome} (€/kg)`}
+                                style={{ fontSize: 9, marginLeft: 6, background: C.amberLight, color: C.amber, padding: "2px 6px", borderRadius: 3, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", border: `1px solid ${C.amber}40`, fontFamily: 'inherit' }}>
+                                prezzo mancante ›
+                              </button>
+                            )}
                           </td>
                           <td style={{ padding: "6px 10px", textAlign: "right" }}>
                             <input type="number" min="0" value={ing.qty1stampo}
@@ -595,25 +745,75 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </div>
             )}
 
-            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
-              <div style={{ ...fieldLabel, marginBottom: 8 }}>Aggiungi manualmente (override)</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 6 }}>
-                {ALLERGENI.filter(a => !autoAllergeni.includes(a.id)).map(a => {
-                  const sel = (form.allergeniManual || []).includes(a.id);
-                  return (
-                    <label key={a.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 10px", borderRadius: 7, cursor: "pointer", border: `1px solid ${sel ? ALLERGENE_COLORS[a.id] : "#E2D9D5"}`, background: sel ? `${ALLERGENE_COLORS[a.id]}10` : "#FDFAF8", transition: "all 0.15s" }}>
-                      <input type="checkbox" checked={sel} style={{ display: "none" }}
-                        onChange={() => setForm(f => ({ ...f, allergeniManual: sel ? (f.allergeniManual || []).filter(x => x !== a.id) : [...(f.allergeniManual || []), a.id] }))} />
-                      <span style={{ fontSize: 11, fontWeight: sel ? 700 : 500, color: sel ? ALLERGENE_COLORS[a.id] : C.textMid }}>{a.label}</span>
-                      {sel && <span style={{ marginLeft: "auto", color: ALLERGENE_COLORS[a.id], display: "inline-flex" }}><Icon name="check" size={12} /></span>}
-                    </label>
-                  );
-                })}
-              </div>
-              {ALLERGENI.filter(a => !autoAllergeni.includes(a.id)).length === 0 && (
-                <div style={{ fontSize: 10, color: C.textSoft, fontStyle: "italic" }}>Tutti gli allergeni UE sono già stati rilevati automaticamente.</div>
-              )}
-            </div>
+            {(() => {
+              const disponibili = ALLERGENI.filter(a => !autoAllergeni.includes(a.id));
+              const manualSelezionati = (form.allergeniManual || []).filter(id => disponibili.some(a => a.id === id));
+              const hasManual = manualSelezionati.length > 0;
+              const isExpanded = showManualAllergeni || hasManual;
+              if (disponibili.length === 0) {
+                return (
+                  <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, fontSize: 11, color: C.textSoft, fontStyle: "italic" }}>
+                    Tutti gli allergeni UE sono gia' stati rilevati automaticamente.
+                  </div>
+                );
+              }
+              return (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+                  {/* Selezionati manualmente: sempre visibili come chip rimovibili */}
+                  {hasManual && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                      {manualSelezionati.map(id => {
+                        const a = ALLERGENI.find(x => x.id === id);
+                        if (!a) return null;
+                        return (
+                          <button key={id} type="button" aria-label={`Rimuovi ${a.label} dagli allergeni manuali`}
+                            onClick={() => setForm(f => ({ ...f, allergeniManual: (f.allergeniManual || []).filter(x => x !== id) }))}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: `${ALLERGENE_COLORS[id]}15`, color: ALLERGENE_COLORS[id], border: `1.5px solid ${ALLERGENE_COLORS[id]}55`, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                            {a.label}
+                            <Icon name="x" size={10} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Toggle "Modifica manualmente" */}
+                  {!isExpanded && (
+                    <button type="button" onClick={() => setShowManualAllergeni(true)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "#FFF", color: C.textMid, border: `1px dashed ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                      <Icon name="plus" size={12} /> Modifica manualmente
+                      <span style={{ fontSize: 10, color: C.textSoft, fontWeight: 500 }}>({disponibili.length} disponibili)</span>
+                    </button>
+                  )}
+
+                  {/* Elenco checkbox: visibile solo se l'utente ha cliccato o ha selezioni esistenti */}
+                  {isExpanded && (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                        <div style={fieldLabel}>{hasManual ? "Modifica selezione manuale" : "Seleziona allergeni aggiuntivi"}</div>
+                        <button type="button" onClick={() => setShowManualAllergeni(false)}
+                          style={{ background: "transparent", border: "none", color: C.textSoft, fontSize: 11, fontWeight: 600, cursor: "pointer", padding: "4px 8px", fontFamily: "inherit" }}>
+                          Chiudi elenco
+                        </button>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 6 }}>
+                        {disponibili.map(a => {
+                          const sel = (form.allergeniManual || []).includes(a.id);
+                          return (
+                            <label key={a.id} style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 10px", borderRadius: 7, cursor: "pointer", border: `1px solid ${sel ? ALLERGENE_COLORS[a.id] : "#E2D9D5"}`, background: sel ? `${ALLERGENE_COLORS[a.id]}10` : "#FDFAF8", transition: "all 0.15s" }}>
+                              <input type="checkbox" checked={sel} style={{ display: "none" }}
+                                onChange={() => setForm(f => ({ ...f, allergeniManual: sel ? (f.allergeniManual || []).filter(x => x !== a.id) : [...(f.allergeniManual || []), a.id] }))} />
+                              <span style={{ fontSize: 11, fontWeight: sel ? 700 : 500, color: sel ? ALLERGENE_COLORS[a.id] : C.textMid }}>{a.label}</span>
+                              {sel && <span style={{ marginLeft: "auto", color: ALLERGENE_COLORS[a.id], display: "inline-flex" }}><Icon name="check" size={12} /></span>}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Overwrite conferma + Salva */}
@@ -750,7 +950,89 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         </div>
       </div>
     </div>
+
+    {/* Modal "Imposta prezzo ingrediente" - aperto dai badge "prezzo mancante" */}
+    {priceModal && (
+      <div role="dialog" aria-modal="true" aria-labelledby="prezzo-ing-titolo"
+        onClick={(e) => { if (e.target === e.currentTarget && !priceModal.saving) setPriceModal(null); }}
+        style={{ position: "fixed", inset: 0, background: "rgba(28,10,10,0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div style={{ background: C.bgCard, borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxWidth: 420, width: "100%", padding: isMobile ? 20 : 24 }}>
+          <div id="prezzo-ing-titolo" style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 6, letterSpacing: "-0.01em" }}>
+            Imposta prezzo di questo ingrediente
+          </div>
+          <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.5 }}>
+            <strong style={{ color: C.text }}>{priceModal.nome}</strong> non ha ancora un prezzo nel tuo listino.
+            Inserisci il prezzo <strong>al chilo</strong> (€/kg) e verra' usato in tutte le ricette.
+          </div>
+          <div style={fieldLabel}>Prezzo € / kg</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 18 }}>
+            <input type="text" inputMode="decimal" value={priceModal.costoKg} autoFocus
+              onChange={(e) => setPriceModal(m => m ? { ...m, costoKg: e.target.value } : m)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSavePrezzoIng(); if (e.key === "Escape") setPriceModal(null); }}
+              placeholder="es. 8,50"
+              aria-label="Prezzo al chilo in euro"
+              style={{ ...inputBase, flex: 1, fontSize: 16, padding: "11px 12px" }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.textMid, whiteSpace: "nowrap" }}>€ / kg</span>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexDirection: isMobile ? "column-reverse" : "row", justifyContent: "flex-end" }}>
+            <button onClick={() => setPriceModal(null)} disabled={priceModal.saving}
+              style={{ padding: "10px 16px", minHeight: 42, background: "transparent", color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: priceModal.saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+              Annulla
+            </button>
+            <button onClick={handleSavePrezzoIng} disabled={priceModal.saving || !String(priceModal.costoKg || "").trim()}
+              style={{ padding: "10px 16px", minHeight: 42, background: priceModal.saving ? "#CBD5E1" : C.red, color: C.white, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: priceModal.saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+              {priceModal.saving ? "Salvo…" : "Salva prezzo"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
+}
+
+// ─── ActionChip: chip compatto per la toolbar azioni secondarie in cima ──
+// Le azioni "shortcut" (foto/modifica/elimina) usano queste chip: quando
+// attivo il chip prende il colore dell'azione e mostra un chevron in giu';
+// altrimenti resta neutro con icona colorata. Toggle open/close.
+function ActionChip({ icon, label, sub, active, onClick, color, isMobile }) {
+  const border = active ? color : 'rgba(15,23,42,0.10)'
+  const bg = active ? `${color}0F` : '#FFF'
+  return (
+    <button type="button" onClick={onClick} aria-expanded={!!active}
+      style={{
+        padding: isMobile ? '11px 14px' : '13px 16px',
+        background: bg,
+        border: `1px solid ${border}`,
+        borderRadius: 12,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        fontFamily: 'inherit',
+        color: active ? color : C.text,
+        transition: 'all 0.15s ease',
+        flex: isMobile ? '1 1 100%' : '0 0 auto',
+        minWidth: 0,
+        boxShadow: active ? `0 4px 12px ${color}22` : 'none',
+      }}>
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center', justifyContent: 'center',
+        width: 30, height: 30, borderRadius: 8,
+        background: active ? color : `${color}15`,
+        color: active ? '#FFF' : color,
+        flexShrink: 0,
+      }}>
+        {icon}
+      </span>
+      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0, textAlign: 'left' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{label}</span>
+        {sub && <span style={{ fontSize: 10.5, color: active ? color : C.textSoft, fontWeight: 500, marginTop: 2, opacity: active ? 0.8 : 1 }}>{sub}</span>}
+      </span>
+      <Icon name="chevDown" size={12} color={active ? color : C.textSoft} />
+    </button>
+  )
 }
 
 // ─── RicettaPicker: pulsante che apre dropdown con ricerca interna ──────
