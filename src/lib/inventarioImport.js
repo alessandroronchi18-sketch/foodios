@@ -83,7 +83,10 @@ export function lunediSettimana1DelMese(mese, anno) {
   const dow = d.getDay()
   const avanza = dow === 1 ? 0 : (dow === 0 ? 1 : 8 - dow)
   d.setDate(1 + avanza)
-  return d.toISOString().slice(0, 10)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 // ── Helper: parseFileInventario ────────────────────────────────────────────
