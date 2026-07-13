@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import * as Sentry from '@sentry/react'
 import { lazyWithReload } from './lib/lazyWithReload'
 import { getUnsavedGuardCurrent } from './lib/useUnsavedGuard'
+import { parseRicettarioSmart } from './lib/parseRicettarioAI'
 import UpgradeGate from './components/UpgradeGate'
 import AISuggestionsBell from './components/AISuggestionsBell'
 import ChainBadge from './components/ChainBadge'
@@ -1631,16 +1632,15 @@ export default function Dashboard({
       const id = `ric-${f.name}-${Date.now()}`;
       const cacheKey = _RIC_CACHE_KEY;
       uploadManager.add(id, f, async (onProgress) => {
-        onProgress(20);
-        const p = await parseRicettario(f);
+        onProgress(15);
+        // Parser ibrido: prova prima il template rigido, fallback su AI se
+        // il file non segue la struttura standard. Non blocca su AI errors.
+        const p = await parseRicettarioSmart(f);
         onProgress(100);
         return p;
       }, {
         onComplete: async (result) => {
           if (!result) return;
-          // save-first: niente side-effect dentro l'updater di setState (in
-          // StrictMode viene chiamato due volte → doppio ssave). Calcoliamo
-          // il merged fuori, salviamo, e solo se ok aggiorniamo state+cache.
           const merged = ricettario ? {
             ...ricettario,
             ricette: { ...ricettario.ricette, ...result.ricette },
@@ -1650,7 +1650,14 @@ export default function Dashboard({
             await ssave(SK_RIC, merged);
             setRic(merged);
             try { localStorage.setItem(cacheKey, JSON.stringify({ data: merged, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
-            notify(`✓ ${f.name} - ${Object.keys(result.ricette || {}).length} ricette importate`);
+            const n = Object.keys(result.ricette || {}).length;
+            const source = result.source === 'ai' ? ' (letto con AI: controlla che siano giuste)' : '';
+            const trunc = result.truncated ? ' - file lungo, alcune ricette potrebbero mancare' : '';
+            if (n === 0) {
+              notify(`${f.name}: nessuna ricetta riconosciuta${result.aiError ? ' (' + result.aiError + ')' : ''}`, false);
+            } else {
+              notify(`${f.name} - ${n} ricette importate${source}${trunc}`);
+            }
           } catch (e) {
             notify(`${f.name}: errore salvataggio (${e.message || 'rete'})`, false);
           }
