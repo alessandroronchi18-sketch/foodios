@@ -70,7 +70,7 @@ const STEPS = [
   },
   {
     key: 'obiettivo',
-    bot: 'Ultima domanda: a cosa ti serve di più, all\'inizio?',
+    bot: 'Ultima: a cosa ti serve di piu\', all\'inizio?',
     options: [
       { label: 'Sapere il food cost vero', value: 'food_cost' },
       { label: 'Capire dove perdo soldi', value: 'profittabilita' },
@@ -97,11 +97,14 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
     timersRef.current = []
   }, [])
 
-  // Inizializza la conversazione con il primo messaggio bot
+  // Inizializza la conversazione con intro + prima domanda
   useEffect(() => {
     if (history.length === 0) {
       const first = STEPS[0]
-      setHistory([{ role: 'bot', text: typeof first.bot === 'function' ? first.bot(ctx) : first.bot }])
+      setHistory([
+        { role: 'bot', text: 'Ciao. Ti chiedo 5 cose per cucirti Foodos addosso. Ci mettiamo un attimo.' },
+        { role: 'bot', text: typeof first.bot === 'function' ? first.bot(ctx) : first.bot },
+      ])
     }
   }, [])
 
@@ -138,7 +141,7 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
 
   async function finalize(finalCtx) {
     setSaving(true); setError(null)
-    setHistory(h => [...h, { role: 'bot', text: `Un attimo, sto sistemando le cose per ${finalCtx.nome_attivita}…` }])
+    setHistory(h => [...h, { role: 'bot', text: `Un attimo, imposto tutto per ${finalCtx.nome_attivita}…` }])
     try {
       // Crea organization se non c'è
       const { data: profile } = await supabase.from('profiles')
@@ -204,13 +207,13 @@ export default function OnboardingChat({ user, onComplete, onPreferWizard }) {
             <Icon name="sparkles" size={16}/>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>Foodos · Iniziamo</div>
-            <div style={{ fontSize: 11, color: SOFT }}>Ci mettiamo un minuto</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: TXT }}>Foodos · Ci conosciamo</div>
+            <div style={{ fontSize: 11, color: SOFT }}>5 domande veloci, poi lavori</div>
           </div>
           {onPreferWizard && (
             <button onClick={onPreferWizard}
               style={{ background: 'transparent', border: `1px solid ${BORDER}`, color: SOFT, padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
-              Modulo classico
+              Preferisco il modulo
             </button>
           )}
         </div>

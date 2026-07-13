@@ -14,6 +14,9 @@ function mkS(isMobile) {
     p:  { fontSize: isMobile ? 15 : 14, lineHeight: 1.75, color: '#4B3832', marginBottom: 12, wordBreak: 'break-word', overflowWrap: 'anywhere' },
     ul: { fontSize: isMobile ? 15 : 14, lineHeight: 1.85, color: '#4B3832', paddingLeft: 20, marginBottom: 12, wordBreak: 'break-word', overflowWrap: 'anywhere' },
     badge: { display: 'inline-block', background: '#FEF2F2', color: '#6E0E1A', padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, marginBottom: 24 },
+    callout: { borderLeft: '3px solid #6E0E1A', background: '#FDF4F2', padding: isMobile ? '14px 16px' : '16px 20px', margin: '18px 0', borderRadius: '0 8px 8px 0' },
+    calloutTitle: { fontSize: isMobile ? 15 : 14, fontWeight: 800, color: '#1C0A0A', marginBottom: 6 },
+    calloutBody: { fontSize: isMobile ? 14 : 13, lineHeight: 1.7, color: '#4B3832' },
     footer: { borderTop: '1px solid #E8DDD8', marginTop: isMobile ? 36 : 48, paddingTop: 20, fontSize: 12, color: '#9C7B76' },
     related: { display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 8 },
   }
@@ -33,6 +36,16 @@ export function LegalUl({ items }) {
 }
 export function LegalLink({ href, children, target }) {
   return <a href={href} {...(target ? { target, rel: 'noreferrer' } : {})} style={{ color: '#6E0E1A', wordBreak: 'break-word' }}>{children}</a>
+}
+export function LegalCallout({ title, children }) {
+  const isMobile = useIsMobile()
+  const S = mkS(isMobile)
+  return (
+    <div style={S.callout}>
+      {title && <div style={S.calloutTitle}>{title}</div>}
+      <div style={S.calloutBody}>{children}</div>
+    </div>
+  )
 }
 
 export default function LegalLayout({ title, updated, children, related = [] }) {

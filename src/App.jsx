@@ -28,6 +28,7 @@ import { supabase } from './lib/supabase'
 
 function TrialScadutoPage({ org, onSignOut }) {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const nome = org?.nome || 'la tua attivita\''
   return (
     <div style={{
       minHeight: '100vh',
@@ -39,14 +40,31 @@ function TrialScadutoPage({ org, onSignOut }) {
         <div style={{ textAlign: 'center', marginBottom: isMobile ? 22 : 32 }}>
           <Logo size={isMobile ? 48 : 56} style={{ display: 'inline-block', borderRadius: 14, boxShadow: '0 10px 30px rgba(110,14,26,0.30)', marginBottom: 16 }} />
           <h1 style={{ color: '#1C0A0A', margin: '0 0 8px', fontSize: isMobile ? 22 : 26, letterSpacing: '-0.02em' }}>
-            Prova gratuita terminata
+            Il tuo periodo di prova e' finito
           </h1>
           <p style={{ color: '#6B4C44', lineHeight: 1.6, fontSize: 14, margin: 0, padding: '0 4px' }}>
-            Attiva un abbonamento per continuare ad accedere ai tuoi dati e alle analisi di {org?.nome || 'la tua attività'}.
+            Attiva un abbonamento per riprendere da dove hai lasciato con {nome}.
           </p>
         </div>
+        <div style={{
+          maxWidth: 640, margin: '0 auto 20px',
+          background: '#FDF4F2', border: '1px solid #F0D4CE',
+          borderRadius: 10, padding: isMobile ? '12px 14px' : '14px 18px',
+          fontSize: 13, color: '#4B3832', lineHeight: 1.6,
+        }}>
+          I tuoi dati restano al sicuro per <strong>60 giorni</strong>. Se attivi
+          l'abbonamento entro questa finestra ritrovi tutto esattamente come lo avevi
+          lasciato: ricette, magazzino, chiusure, storico.
+        </div>
         <AbbonamentoPanel org={org} isInline />
-        <div style={{ textAlign: 'center', marginTop: 24 }}>
+        <div style={{ textAlign: 'center', marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+          <div style={{ fontSize: 13, color: '#6B4C44' }}>
+            Hai una domanda prima di decidere?{' '}
+            <a href="mailto:support@foodios.it" style={{ color: '#6E0E1A', fontWeight: 600 }}>
+              Scrivici
+            </a>
+            , rispondiamo subito.
+          </div>
           <button onClick={onSignOut} style={{
             padding: '12px 20px', minHeight: 44,
             background: 'transparent', color: '#6B4C44',

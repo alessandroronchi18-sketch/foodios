@@ -95,7 +95,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
                 {nomeAttivita} · {selected.periodo}
               </div>
               <h2 style={{ margin: '6px 0 20px', fontSize: isMobile ? 22 : 28, fontWeight: 800, color: TXT, letterSpacing: '-0.02em' }}>
-                Il tuo trimestre
+                Come sono andati i tre mesi
               </h2>
 
               {selected.contenuto?.headline && (
@@ -131,7 +131,7 @@ export default function DocumentaryView({ orgId, nomeAttivita }) {
               )}
 
               <div style={{ fontSize: 11, color: SOFT, marginTop: 24, paddingTop: 14, borderTop: `1px solid ${BORDER}` }}>
-                Scritto in automatico · {new Date(selected.created_at).toLocaleDateString('it-IT')}
+                Riassunto dei tuoi numeri · {new Date(selected.created_at).toLocaleDateString('it-IT')}
               </div>
             </div>
           )}
