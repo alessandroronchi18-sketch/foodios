@@ -15,6 +15,7 @@ import { exportProduzione } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
+import { scaricaTemplateProduzione } from '../lib/produzioneTemplate'
 import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
 import { C, TNUM, margColor, fmt, fmt0, fmtp, KPI, PageHeader } from './_shared'
@@ -78,17 +79,25 @@ function ProdottiChips({ prodotti }) {
   )
 }
 
-export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify, sedi = [], sedeAttiva = null, orgId, sedeId, isDipendente = false, LEX = lessico() }) {
+export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMagazzino, giornaliero, setGiornaliero, notify, sedi = [], sedeAttiva = null, orgId, sedeId, isDipendente = false, nomeAttivita = '', LEX = lessico() }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
-  const ricette = Object.values(ricettario?.ricette || {}).filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
+  // Include anche i semilavorati (richiesta utente 13/07/2026: molti laboratori
+  // producono batch settimanali di frolla/creme/impasti e vogliono tracciarli qui).
+  // Escludiamo solo tipo='interno' (che serve solo come componente in altre ricette).
+  const ricette = Object.values(ricettario?.ricette || {}).filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno')
     .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it')) // lista prodotti in ordine alfabetico
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
   // Scrittura atomica di più chiavi insieme (magazzino + giornaliero): o entrambe o nessuna.
   const ssaveBatch = (items) => _ssaveBatch(items, orgId, sedeId)
 
   const [tab, setTab] = useState('nuova')
+  // Toolbar collassabile per "Parti da una foto": OCR nascosto dietro chip
+  // per dare piu' peso al flusso primario di inserimento manuale.
+  const [showFotoPanel, setShowFotoPanel] = useState(false)
+  // Search bar sulla tabella ricette (evita di scrollare 50+ righe).
+  const [ricSearch, setRicSearch] = useState('')
   const [deleteSessConf, setDeleteSessConf] = useState(null)
   const [deleteSessPin, setDeleteSessPin] = useState('')
   const [deletingSess, setDeletingSess] = useState(false)
@@ -570,25 +579,85 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
       {tab === 'nuova' && (
         <div>
-          <FotoOCR mode="produzione" notify={notify} ricettario={ricettario} onResult={res => {
-            const nuovaMap = { ...qtaMap }
-            const ignorati = []
-            let importati = 0
-            for (const p of (res.prodotti || [])) {
-              const nomeIT = translateProdottoEN(p.nome || '')
-              const match = ricette.find(r => {
-                const rn = r.nome.toUpperCase(); const pn = nomeIT.toUpperCase()
-                return rn === pn || rn.includes(pn) || pn.includes(rn)
-              })
-              if (!match) { ignorati.push({ nome: nomeIT, stampi: p.stampi || 0 }); continue }
-              nuovaMap[match.nome] = (nuovaMap[match.nome] || 0) + (p.stampi || 0)
-              importati++
-            }
-            setQtaMap(nuovaMap)
-            setProdottiNonRicettario(ignorati)
-            if (ignorati.length > 0) notify(`${importati} prodotti importati · ${ignorati.length} non riconosciuti (ignorati nei calcoli)`)
-            else notify(`Importati ${importati} prodotti - controlla i valori`)
-          }}/>
+          {/* Shortcut "parti da una foto" + "scarica modello" - collassati
+              per non intralciare il flusso primario (inserimento manuale). */}
+          <div style={{ marginBottom: showFotoPanel ? 12 : 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setShowFotoPanel(v => !v)} aria-expanded={showFotoPanel}
+              style={{
+                padding: isMobile ? '11px 14px' : '12px 16px',
+                background: showFotoPanel ? `${T.brand}0F` : '#FFF',
+                border: `1px solid ${showFotoPanel ? T.brand : 'rgba(15,23,42,0.10)'}`,
+                borderRadius: 12,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                fontFamily: 'inherit',
+                color: showFotoPanel ? T.brand : C.text,
+                transition: 'all 0.15s ease',
+                boxShadow: showFotoPanel ? `0 4px 12px ${T.brand}22` : 'none',
+              }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, background: showFotoPanel ? T.brand : `${T.brand}15`, color: showFotoPanel ? '#FFF' : T.brand, flexShrink: 0 }}>
+                <Icon name="camera" size={15} />
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>Parti da una foto</span>
+                <span style={{ fontSize: 10.5, color: showFotoPanel ? T.brand : C.textSoft, fontWeight: 500, marginTop: 2, opacity: showFotoPanel ? 0.8 : 1 }}>Estrai i prodotti da un appunto</span>
+              </span>
+              <Icon name="chevDown" size={12} color={showFotoPanel ? T.brand : C.textSoft} />
+            </button>
+
+            {/* Scarica modello Excel: check-list stampabile per registrare la produzione a mano */}
+            <button type="button" onClick={() => scaricaTemplateProduzione({ ricette, nomeAttivita, notify })} title="Scarica un modello Excel pre-compilato con le tue ricette"
+              style={{
+                padding: isMobile ? '11px 14px' : '12px 16px',
+                background: '#FFF',
+                border: '1px solid rgba(15,23,42,0.10)',
+                borderRadius: 12,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                fontFamily: 'inherit',
+                color: C.text,
+              }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 8, background: '#0369A115', color: '#0369A1', flexShrink: 0 }}>
+                <Icon name="download" size={15} />
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>Scarica modello</span>
+                <span style={{ fontSize: 10.5, color: C.textSoft, fontWeight: 500, marginTop: 2 }}>Excel pre-compilato per la produzione</span>
+              </span>
+            </button>
+          </div>
+
+          {showFotoPanel && (
+            <div style={{ background: C.bgCard, border: `1px solid ${T.brand}22`, borderRadius: 14, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: C.textMid, marginBottom: 12, lineHeight: 1.5 }}>
+                Carica una foto dell'appunto di produzione (o listino): estraggo io prodotti e stampi, poi tu confermi.
+              </div>
+              <FotoOCR mode="produzione" notify={notify} ricettario={ricettario} onResult={res => {
+                const nuovaMap = { ...qtaMap }
+                const ignorati = []
+                let importati = 0
+                for (const p of (res.prodotti || [])) {
+                  const nomeIT = translateProdottoEN(p.nome || '')
+                  const match = ricette.find(r => {
+                    const rn = r.nome.toUpperCase(); const pn = nomeIT.toUpperCase()
+                    return rn === pn || rn.includes(pn) || pn.includes(rn)
+                  })
+                  if (!match) { ignorati.push({ nome: nomeIT, stampi: p.stampi || 0 }); continue }
+                  nuovaMap[match.nome] = (nuovaMap[match.nome] || 0) + (p.stampi || 0)
+                  importati++
+                }
+                setQtaMap(nuovaMap)
+                setProdottiNonRicettario(ignorati)
+                setShowFotoPanel(false) // chiude pannello dopo l'import
+                if (ignorati.length > 0) notify(`${importati} prodotti importati · ${ignorati.length} non riconosciuti (ignorati nei calcoli)`)
+                else notify(`Importati ${importati} prodotti - controlla i valori`)
+              }}/>
+            </div>
+          )}
 
           {prodottiNonRicettario && prodottiNonRicettario.length > 0 && (
             <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '12px 14px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -637,11 +706,29 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap: isMobile ? 14 : 24, width: '100%' }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)', boxSizing: 'border-box', width: '100%' }}>
-                <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ padding: isMobile ? '14px 16px' : '16px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: isMobile ? 'stretch' : 'flex-end', gap: isMobile ? 12 : 16, flexDirection: isMobile ? 'column' : 'row' }}>
+                  <div style={{ flex: '0 0 auto', minWidth: 0 }}>
                     <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data produzione</div>
                     <input type="date" value={data} onChange={e => setData(e.target.value)}
                       style={{ padding: isMobile ? '10px 12px' : '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, boxSizing: 'border-box', width: isMobile ? '100%' : 'auto', maxWidth: isMobile ? '100%' : undefined }}/>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Cerca prodotto</div>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.textSoft, display: 'inline-flex', pointerEvents: 'none' }}>
+                        <Icon name="search" size={14} />
+                      </span>
+                      <input type="text" value={ricSearch} onChange={e => setRicSearch(e.target.value)}
+                        placeholder={`Filtra fra ${ricette.length} ${ricette.length === 1 ? 'prodotto' : 'prodotti'}...`}
+                        aria-label="Cerca prodotto"
+                        style={{ padding: isMobile ? '10px 12px 10px 32px' : '9px 12px 9px 32px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box', width: '100%' }} />
+                      {ricSearch && (
+                        <button type="button" onClick={() => setRicSearch('')} aria-label="Pulisci ricerca"
+                          style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 26, height: 26, background: 'transparent', border: 'none', color: C.textSoft, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4 }}>
+                          <Icon name="x" size={12} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
@@ -661,8 +748,22 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       </tr>
                     </thead>
                     <tbody>
-                      {ricette.map((ric, i) => {
+                      {(() => {
+                        const q = ricSearch.trim().toLowerCase()
+                        const filtered = q ? ricette.filter(r => (r.nome || '').toLowerCase().includes(q)) : ricette
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={4} style={{ padding: '20px 14px', textAlign: 'center', fontSize: 12, color: C.textSoft }}>
+                                Nessun prodotto trovato per "{ricSearch}".{' '}
+                                <button type="button" onClick={() => setRicSearch('')} style={{ background: 'transparent', border: 'none', color: T.brand, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>Pulisci ricerca</button>
+                              </td>
+                            </tr>
+                          )
+                        }
+                        return filtered.map((ric, i) => {
                         const reg = getR(ric.nome, ric)
+                        const isSemi = reg.tipo === 'semilavorato'
                         const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
                         const q = qtaMap[ric.nome] || 0
                         const vq = vendibileMap[ric.nome] != null ? vendibileMap[ric.nome] : q
@@ -670,10 +771,16 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                         return (
                           <tr key={ric.nome} style={{ borderBottom: `1px solid ${C.border}`, background: (q > 0 || vq > 0) ? '#FFF9F9' : i % 2 === 0 ? C.white : '#FDFAF7' }}>
                             <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text }}>
-                              {ric.nome}
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                {ric.nome}
+                                {isSemi && <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4, background: '#F0E4FA', color: '#8E44AD' }}>Semi</span>}
+                              </span>
                               <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
                                 <span style={{ fontSize: 9, color: C.textSoft }}>
-                                  1 stampo → <b style={{ color: C.text }}>{reg.unita} {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</b> × {fmt(reg.prezzo)}
+                                  {isSemi
+                                    ? <>1 batch → <b style={{ color: C.text }}>base per altre ricette</b></>
+                                    : <>1 stampo → <b style={{ color: C.text }}>{reg.unita} {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</b> × {fmt(reg.prezzo)}</>
+                                  }
                                 </span>
                                 {q > 0 && reg.unita > 0 && (
                                   <span style={{ fontSize: 8, fontWeight: 700, background: '#FEF7F5', color: C.red, padding: '1px 6px', borderRadius: 3 }}>
@@ -706,7 +813,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                             </td>
                           </tr>
                         )
-                      })}
+                      })
+                      })()}
                     </tbody>
                   </table>
                 </div>
