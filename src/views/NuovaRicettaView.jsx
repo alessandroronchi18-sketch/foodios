@@ -479,11 +479,17 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     </tr>
                   </thead>
                   <tbody>
-                    {form.ingredienti.map((ing, i) => {
+                    {/* Ordine alfabetico per nome (richiesta utente 13/07/2026).
+                        Manteniamo originalIndex per callback edit/remove che
+                        agiscono su form.ingredienti per indice. */}
+                    {form.ingredienti
+                      .map((ing, originalIndex) => ({ ing, originalIndex }))
+                      .sort((a, b) => String(a.ing.nome || '').localeCompare(String(b.ing.nome || ''), 'it', { sensitivity: 'base' }))
+                      .map(({ ing, originalIndex: i }, rowIndex) => {
                       const c = ingCosti[normIng(ing.nome)];
                       const costo = c ? parseFloat((ing.qty1stampo * c.costoG).toFixed(3)) : 0;
                       return (
-                        <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : "#FDFAF7" }}>
+                        <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: rowIndex % 2 === 0 ? C.white : "#FDFAF7" }}>
                           <td style={{ padding: "9px 10px", fontWeight: 600, color: C.text }}>
                             <span title={ing.nome} style={{ display: "inline-block", maxWidth: isMobile ? 130 : 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{ing.nome}</span>
                             {!c && <span style={{ fontSize: 9, marginLeft: 6, background: C.amberLight, color: C.amber, padding: "2px 6px", borderRadius: 3, fontWeight: 700, whiteSpace: "nowrap" }}>prezzo mancante</span>}

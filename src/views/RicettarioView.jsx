@@ -41,9 +41,10 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const [editUnita, setEditUnita] = useState(reg.unita)
   const [exportingPdf, setExportingPdf] = useState(false)
   // Sort della Distinta costi - click sulle etichette dell'header riordina.
-  // Default: costo decrescente (gli ingredienti più cari in cima).
-  const [sortKey, setSortKey] = useState('costoCalc')
-  const [sortDir, setSortDir] = useState('desc')
+  // Default: alfabetico ascendente (richiesta utente 13/07/2026: piu' facile
+  // trovare un ingrediente noto per nome che per costo).
+  const [sortKey, setSortKey] = useState('nome')
+  const [sortDir, setSortDir] = useState('asc')
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
     else { setSortKey(key); setSortDir(key === 'nome' ? 'asc' : 'desc') }
