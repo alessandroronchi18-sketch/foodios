@@ -87,7 +87,82 @@ Restituisci ESCLUSIVAMENTE JSON valido nel formato:
 
 Nessun testo prima o dopo il JSON.`
 
-// Estrae il contenuto dell'Excel come testo CSV multi-sheet.
+const SEP_HEADER_RE = /quantitativo|materia\s*prima|prodotto|ingredient|nome|totale|somma/i
+
+// Detection: e' un layout PIVOT (ricette in colonne, ingredienti in righe)?
+// Un pivot ha: prima riga con molti header, prima colonna con molti nomi
+// ingredienti, e la maggior parte delle celle interne "utili" e' numerica.
+// Le colonne che sembrano "label ripetute" (header separatore) vengono
+// escluse dal campione altrimenti abbassano il ratio numerico.
+export function isLikelyPivot(rows) {
+  if (!Array.isArray(rows) || rows.length < 3) return false
+  const header = rows[0] || []
+  const nonEmptyHeaders = header.slice(1).filter(v => v != null && String(v).trim())
+  if (nonEmptyHeaders.length < 3) return false
+  const firstCol = rows.slice(1).map(r => (r || [])[0])
+  const nonEmptyFirstCol = firstCol.filter(v => v != null && String(v).trim())
+  if (nonEmptyFirstCol.length < 3) return false
+  // Escludi dal campione le colonne "label ripetute" (separatori del pivot).
+  const skipCols = new Set([0])
+  for (let c = 1; c < header.length; c++) {
+    const h = String(header[c] || '').trim()
+    if (!h || SEP_HEADER_RE.test(h)) skipCols.add(c)
+  }
+  let numeric = 0, total = 0
+  const rowsSample = Math.min(rows.length, 40)
+  for (let i = 1; i < rowsSample; i++) {
+    const row = rows[i] || []
+    const colsSample = Math.min(row.length, 40)
+    for (let j = 1; j < colsSample; j++) {
+      if (skipCols.has(j)) continue
+      const v = row[j]
+      if (v == null || v === '') continue
+      total++
+      const n = Number(v)
+      if (Number.isFinite(n)) numeric++
+    }
+  }
+  if (total < 5) return false
+  return numeric / total > 0.75
+}
+
+// Appiattisce un pivot in una tabella classica "Ricetta,Ingrediente,Quantita_kg".
+// Molto piu' facile da parsare per Claude che deve solo leggere riga per riga.
+export function flattenPivot(rows) {
+  const header = rows[0] || []
+  const ricette = []
+  for (let c = 1; c < header.length; c++) {
+    const h = String(header[c] || '').trim()
+    if (!h) continue
+    if (SEP_HEADER_RE.test(h)) continue // separatori/header ripetuti
+    ricette.push({ nome: h, col: c })
+  }
+  const lines = ['Ricetta,Ingrediente,Quantita_kg']
+  const seen = new Set() // dedup: alcuni fogli hanno righe duplicate (bug utente)
+  for (const { nome, col } of ricette) {
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r] || []
+      const ing = String(row[0] || '').trim()
+      if (!ing) continue
+      if (SEP_HEADER_RE.test(ing)) continue // salta righe placeholder
+      const raw = row[col]
+      if (raw == null || raw === '') continue
+      const qty = Number(raw)
+      if (!Number.isFinite(qty) || qty === 0) continue
+      const key = `${nome}||${ing}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      // Escape virgolette nei nomi per il CSV
+      const escNome = nome.includes(',') || nome.includes('"') ? `"${nome.replace(/"/g, '""')}"` : nome
+      const escIng = ing.includes(',') || ing.includes('"') ? `"${ing.replace(/"/g, '""')}"` : ing
+      lines.push(`${escNome},${escIng},${qty}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+// Estrae il contenuto dell'Excel come testo. Se rileva un layout pivot,
+// lo appiattisce in tabella classica per aiutare Claude a non perderci ricette.
 async function excelToText(file) {
   const XLSX = await loadXLSX()
   const buf = await file.arrayBuffer()
@@ -95,10 +170,23 @@ async function excelToText(file) {
   const chunks = []
   for (const sheetName of wb.SheetNames) {
     const ws = wb.Sheets[sheetName]
-    // sheet_to_csv e' compatto e mantiene la struttura tabulare, meglio di JSON
-    // per il context window (meno token per riga).
     const csv = XLSX.utils.sheet_to_csv(ws, { blankrows: false })
-    if (csv.trim()) chunks.push(`=== SHEET: ${sheetName} ===\n${csv}`)
+    if (!csv.trim()) continue
+
+    const lower = sheetName.toLowerCase()
+    const isListino = /listino|prezz|costo|materie\s*prime/.test(lower)
+
+    if (!isListino) {
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: false })
+      if (isLikelyPivot(rows)) {
+        const flat = flattenPivot(rows)
+        const nRic = new Set(flat.split('\n').slice(1).map(l => l.split(',')[0])).size
+        chunks.push(`=== SHEET: ${sheetName} (pivot appianato: ${nRic} ricette rilevate) ===\n${flat}`)
+        continue
+      }
+    }
+
+    chunks.push(`=== SHEET: ${sheetName} ===\n${csv}`)
   }
   return chunks.join('\n\n')
 }

@@ -14,7 +14,7 @@ vi.mock('../../src/lib/xlsx', () => ({
   })),
 }))
 
-const { parseRicettarioAI } = await import('../../src/lib/parseRicettarioAI')
+const { parseRicettarioAI, isLikelyPivot, flattenPivot } = await import('../../src/lib/parseRicettarioAI')
 const aiClient = await import('../../src/lib/aiClient')
 const xlsx = await import('../../src/lib/xlsx')
 
@@ -88,6 +88,62 @@ describe('parseRicettarioAI - normalizzazione output', () => {
     expect(out.ricette).toEqual({})
     expect(out.source).toBe('ai-empty')
     expect(aiClient.callAi).not.toHaveBeenCalled()
+  })
+
+  it('detecta pivot layout (matrice ingredienti x ricette)', () => {
+    const rows = [
+      ['header',   'Arancia', 'Banana', 'Bunet'],
+      ['Acqua',    0.355,     0.355,    null   ],
+      ['Amaretti', null,      null,     0.1    ],
+      ['Base bianca', null,   null,     0.75   ],
+      ['Cacao',    null,      null,     0.06   ],
+      ['Zucchero', 0.1,       null,     null   ],
+    ]
+    expect(isLikelyPivot(rows)).toBe(true)
+  })
+
+  it('non detecta pivot su tabella classica (poche colonne + testo)', () => {
+    const rows = [
+      ['nome', 'ingredienti', 'note'],
+      ['torta', 'farina, uova, zucchero', 'cottura 180C'],
+      ['crostata', 'pasta frolla, marmellata', ''],
+    ]
+    expect(isLikelyPivot(rows)).toBe(false)
+  })
+
+  it('flattenPivot ricostruisce ricette da matrice + salta separatori', () => {
+    const rows = [
+      ['header',   'Arancia', 'Banana', 'quantitativo materia prima', 'Bunet'],
+      ['Acqua',    0.355,     0.355,    null,                          null   ],
+      ['Amaretti', null,      null,     null,                          0.1    ],
+      ['Zucchero', 0.1,       null,     null,                          0.05   ],
+    ]
+    const flat = flattenPivot(rows)
+    const lines = flat.split('\n')
+    expect(lines[0]).toBe('Ricetta,Ingrediente,Quantita_kg')
+    // Arancia ha 2 ingredienti (Acqua, Zucchero), Banana ha 1 (Acqua), Bunet ha 2 (Amaretti, Zucchero)
+    // Il separatore "quantitativo materia prima" non deve produrre righe.
+    const ricNames = new Set(lines.slice(1).map(l => l.split(',')[0]))
+    expect(ricNames).toEqual(new Set(['Arancia', 'Banana', 'Bunet']))
+    expect(lines).toContain('Arancia,Acqua,0.355')
+    expect(lines).toContain('Bunet,Amaretti,0.1')
+    expect(lines.filter(l => l.includes('quantitativo')).length).toBe(0)
+  })
+
+  it('flattenPivot salta celle con quantita zero o vuote', () => {
+    const rows = [
+      ['header', 'Ric1', 'Ric2'],
+      ['ingA',   0,      1.5   ],
+      ['ingB',   '',     null  ],
+      ['ingC',   2.0,    3.0   ],
+    ]
+    const flat = flattenPivot(rows)
+    const lines = flat.split('\n').slice(1)
+    expect(lines).toEqual([
+      'Ric1,ingC,2',
+      'Ric2,ingA,1.5',
+      'Ric2,ingC,3',
+    ])
   })
 
   it('normalizza kg→g e nomi capitalizzati', async () => {
