@@ -15,13 +15,43 @@ const SYSTEM_PROMPT = `Sei un esperto parser di ricettari di pasticceria, gelate
 
 Ricevi il contenuto grezzo di un foglio Excel come testo CSV (multi-sheet, separati da "=== SHEET: nome ==="). Il tuo compito e' identificare TUTTE le ricette elencate e restituire un JSON strutturato, indipendentemente dal layout usato.
 
+**REGOLA D'ORO**: se il file dichiara 40 ricette nell'header, devi restituirne 40. Non pigrizia: elabora ogni singola ricetta anche se il file e' grande. Meglio un JSON lungo che ricette mancanti.
+
 ## Layout comuni che DEVI riconoscere
 
 **Layout A - una ricetta per sheet**: ogni sheet e' una ricetta, con nome in cima e righe ingrediente+quantita' sotto.
 
 **Layout B - tabella classica per riga**: un solo sheet, 3+ colonne (ricetta / ingrediente / quantita'), una riga per (ricetta, ingrediente).
 
-**Layout C - PIVOT / MATRICE (frequente in gelaterie)**: un solo sheet, prima colonna = nomi ingredienti, prima riga = nomi ricette/gusti (es. "Arancia", "Banana", "Fior di Panna", "Nocciola", ecc.), le celle interne contengono la quantita' di quell'ingrediente per quella ricetta (celle vuote = ingrediente non usato in quella ricetta). Le colonne header a volte si ripetono nel foglio (secondo blocco di ricette che continua la matrice a destra). In questo caso ogni colonna dopo la prima e' una ricetta separata e devi ricostruire l'elenco ingredienti di ogni ricetta leggendo verticalmente lungo la colonna.
+**Layout C - PIVOT / MATRICE (frequente in gelaterie)**: uno sheet dove le RICETTE stanno nelle COLONNE (nomi nella prima riga) e gli INGREDIENTI stanno nelle RIGHE (nomi nella prima colonna). Ogni cella interna e' la quantita' di quell'ingrediente per quella ricetta; celle vuote = ingrediente non usato. Le colonne di intestazione a volte si ripetono a meta' foglio (es. la colonna "quantitativo materia prima per gusto" compare 2 volte come separatore visivo): la matrice CONTINUA sulla destra con ALTRE ricette diverse.
+
+### Esempio Layout C (pivot gelateria)
+
+Input CSV:
+\`\`\`
+quantitativo materia prima per gusto,Arancia,Banana,Base Bianca,Bunet,quantitativo materia prima per gusto,Mango,Nocciola,Pistacchio
+Acqua,0.355,0.355,,,Acqua,,,
+Amaretti,,,,0.1,Amaretti,,,
+Base bianca,,,0.1,0.75,Base bianca,0.375,1,1
+Cacao,,,,0.06,Cacao,,,
+Pasta nocciola,,,,,Pasta nocciola,,0.25,
+Pasta pistacchio,,,,,Pasta pistacchio,,,0.25
+\`\`\`
+
+Contiene 7 ricette DISTINTE: Arancia, Banana, Base Bianca, Bunet, Mango, Nocciola, Pistacchio (le colonne "quantitativo materia prima per gusto" sono separatori). Devi produrre 7 oggetti in "ricette", ognuno con gli ingredienti che nella sua colonna hanno valore > 0. Le quantita' sono in kg -> converti in grammi (0.355 kg -> 355 g).
+
+Output atteso (frammento):
+\`\`\`json
+{"ricette": [
+  {"nome":"ARANCIA","ingredienti":[{"nome":"acqua","qty1stampo":355}]},
+  {"nome":"BANANA","ingredienti":[{"nome":"acqua","qty1stampo":355}]},
+  {"nome":"BASE BIANCA","ingredienti":[{"nome":"base bianca","qty1stampo":100}]},
+  {"nome":"BUNET","ingredienti":[{"nome":"amaretti","qty1stampo":100},{"nome":"base bianca","qty1stampo":750},{"nome":"cacao","qty1stampo":60}]},
+  {"nome":"MANGO","ingredienti":[{"nome":"base bianca","qty1stampo":375}]},
+  {"nome":"NOCCIOLA","ingredienti":[{"nome":"base bianca","qty1stampo":1000},{"nome":"pasta nocciola","qty1stampo":250}]},
+  {"nome":"PISTACCHIO","ingredienti":[{"nome":"base bianca","qty1stampo":1000},{"nome":"pasta pistacchio","qty1stampo":250}]}
+]}
+\`\`\`
 
 **Listino prezzi**: uno sheet chiamato "listino", "prezzi", "materie prime" o simile, colonne tipo (nome | unita | costo confezione | €/kg o €/unita). Estrai in "ingredienti_costi".
 
@@ -130,15 +160,26 @@ export async function parseRicettarioAI(file) {
   const truncated = testo.length > MAX_CHARS
   const promptText = truncated ? testo.slice(0, MAX_CHARS) + '\n\n[...file troncato per lunghezza...]' : testo
 
-  const { json } = await callAi({
+  const { json, text, raw } = await callAi({
     feature: 'parse-ricettario-ai',
-    model: 'claude-sonnet-4-6',
+    // Opus 4.7 e' piu' preciso per parsing strutturato di layout complessi
+    // (pivot, matrici, righe con header ripetuti). Il costo aggiuntivo vs
+    // Sonnet e' accettabile per un flusso raro come l'import ricettario.
+    model: 'claude-opus-4-7',
     system: SYSTEM_PROMPT,
-    prompt: `Ecco il contenuto del file Excel. Estrai tutte le ricette e restituisci JSON.\n\n${promptText}`,
-    maxTokens: 12_000,
+    prompt: `Ecco il contenuto del file Excel. Estrai TUTTE le ricette (non solo le prime) e restituisci JSON.\n\n${promptText}`,
+    maxTokens: 16_000,
     parseJson: true,
-    timeoutMs: 120_000,
+    timeoutMs: 180_000,
   })
+
+  // Debug: logga il conteggio in console cosi' l'utente puo' diagnosticare
+  // se qualcosa non torna (es. Claude ha ritornato 2 ricette invece di 40).
+  const n = Object.keys(json?.ricette || {}).length || (Array.isArray(json?.ricette) ? json.ricette.length : 0)
+  console.log(`[parseRicettarioAI] ricette estratte dall'AI: ${n}`)
+  if (n < 3 && text) {
+    console.log('[parseRicettarioAI] raw response (troncato a 4k):', String(text).slice(0, 4000))
+  }
 
   const out = normalizeAiOutput(json)
   return { ...out, source: 'ai', truncated }
