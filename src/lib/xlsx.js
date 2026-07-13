@@ -5,9 +5,14 @@
 // rompeva. Il npm package ha una vuln high non patchata sul registry, quindi
 // restiamo su CDN affidabili, ma con più host di fallback per non dipendere da
 // un singolo punto di rottura. Cache su window.XLSX per non ricaricarlo.
+// Ordine: cloudflare per primo perche' e' l'unico CDN whitelistato nella CSP
+// (`Content-Security-Policy: script-src ... https://cdnjs.cloudflare.com`
+// in vercel.json). Gli altri sarebbero bloccati come fallback: teniamoli come
+// backup teorico ma primary e' cloudflare, cosi' la console non si riempie
+// di CSP violation errors ad ogni parse.
 const CDN_URLS = [
-  'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+  'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
   'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
 ]
 
