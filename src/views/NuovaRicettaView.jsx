@@ -537,6 +537,37 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <Icon name="plus" size={14} /> Aggiungi
               </button>
             </div>
+
+            {/* Helper conversioni - grammi restano l'unita' unica, ma ricordiamo
+                le equivalenze comuni per uova e liquidi. */}
+            <details style={{ marginTop: 12, fontSize: 12, color: C.textMid, background: '#FAF6F2', border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700, color: C.textMid, listStyle: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="lightbulb" size={12} />
+                Non hai la bilancia? Conversioni rapide
+              </summary>
+              <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 6 : 14, lineHeight: 1.7 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Uova</div>
+                  1 uovo medio ≈ 55 g<br />
+                  1 tuorlo ≈ 18 g · 1 albume ≈ 33 g
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Liquidi (per ml)</div>
+                  Acqua, latte, panna ≈ 1 g<br />
+                  Olio ≈ 0,92 g · Miele ≈ 1,4 g
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Cucchiai</div>
+                  1 cucchiaio ≈ 15 g<br />
+                  1 cucchiaino ≈ 5 g
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Farina & zucchero</div>
+                  1 bicchiere farina 00 ≈ 130 g<br />
+                  1 bicchiere zucchero ≈ 200 g
+                </div>
+              </div>
+            </details>
           </div>
 
           {/* 3. Allergeni - auto-rilevati */}
