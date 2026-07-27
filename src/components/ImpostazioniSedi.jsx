@@ -4,6 +4,10 @@ import { useConfirm } from './ConfirmModal'
 import { supabase } from '../lib/supabase'
 import { sload, ssave } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
+import CittaAutocomplete from './CittaAutocomplete'
+import COMUNI_ITALIANI from '../lib/comuniItaliani'
+
+const CITTA_VALIDE = new Set(COMUNI_ITALIANI)
 
 const R = '#6E0E1A'
 const TXT = '#1C0A0A'
@@ -143,7 +147,7 @@ function ScenarioOperativoCard({ orgId, scenarioCorrente, onCambia }) {
   )
 }
 
-export default function ImpostazioniSedi({ orgId, onSediChange }) {
+export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione = 'stampi', onNavigateAttivita }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
@@ -187,6 +191,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
 
   async function handleAdd() {
     if (!form.nome.trim()) return notify('Il nome sede è obbligatorio', false)
+    if (form.citta && !CITTA_VALIDE.has(form.citta)) return notify('Seleziona la città dalla lista', false)
     setLoading(true)
     try {
       if (form.is_default) {
@@ -232,10 +237,10 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
 
   async function handleSave(id) {
     if (!editForm.nome?.trim()) return notify('Il nome è obbligatorio', false)
-    // is_sede_produzione + metodo_produzione: nuovo flag introdotto con il
-    // metodo "inventario differenziale" per gelaterie. Una sede ricevente
-    // (punto vendita non produttivo) lascia is_sede_produzione=false e
-    // non vede la voce "Inventario gusti".
+    if (editForm.citta && !CITTA_VALIDE.has(editForm.citta)) return notify('Seleziona la città dalla lista', false)
+    // is_sede_produzione: flag per-sede (laboratorio vs punto vendita ricevente).
+    // Il metodo di produzione (stampi vs inventario) è deciso a livello ORG
+    // (audit 2026-07-23) — vedi Impostazioni attività.
     const patch = {
       nome: editForm.nome.trim(),
       indirizzo: editForm.indirizzo?.trim() || null,
@@ -244,30 +249,23 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
     if (typeof editForm.is_sede_produzione === 'boolean') {
       patch.is_sede_produzione = editForm.is_sede_produzione
     }
-    if (editForm.metodo_produzione && ['stampi','inventario'].includes(editForm.metodo_produzione)) {
-      patch.metodo_produzione = editForm.metodo_produzione
-    }
 
-    // Cambio strutturale: se sta cambiando il metodo di produzione (stampi
-    // <-> inventario) o sta attivando/disattivando la produzione della sede,
-    // chiediamo conferma esplicita con avviso. Decisione di prodotto:
-    // questo toggle cambia profondamente i meccanismi del prodotto e non
-    // deve essere flippato per sbaglio.
+    // Attivare/disattivare la produzione di una sede è un cambio strutturale:
+    // chiediamo conferma esplicita con avviso.
     const sedeOrig = (sedi || []).find(s => s.id === id) || {}
-    const oldMetodo = sedeOrig.metodo_produzione || 'stampi'
     const oldProd = !!sedeOrig.is_sede_produzione
-    const newMetodo = patch.metodo_produzione || oldMetodo
     const newProd = (patch.is_sede_produzione !== undefined) ? !!patch.is_sede_produzione : oldProd
-    const metodoCambiato = newProd && (newMetodo !== oldMetodo)
     const produzioneAttivata = newProd && !oldProd
     const produzioneDisattivata = !newProd && oldProd
-    if (metodoCambiato || produzioneAttivata || produzioneDisattivata) {
+    if (produzioneAttivata || produzioneDisattivata) {
       setConfirmMethodChange({
         id,
         patch,
         nomeSede: sedeOrig.nome || 'questa sede',
-        oldMetodo, newMetodo, oldProd, newProd,
-        metodoCambiato, produzioneAttivata, produzioneDisattivata,
+        oldProd, newProd,
+        produzioneAttivata, produzioneDisattivata,
+        // Placeholder per compat con DialogCambioMetodo (non usati più per cambio metodo).
+        oldMetodo: metodoProduzione, newMetodo: metodoProduzione, metodoCambiato: false,
       })
       return
     }
@@ -383,7 +381,7 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
             </div>
             <div>
               <label style={lbl}>Città</label>
-              <input value={form.citta} onChange={e => setForm(f => ({ ...f, citta: e.target.value }))} style={inpR} placeholder="Torino" />
+              <CittaAutocomplete value={form.citta} onChange={v => setForm(f => ({ ...f, citta: v }))} inputStyle={inpR} />
             </div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: MID, marginBottom: 16, cursor: 'pointer' }}>
@@ -412,11 +410,14 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
                 </div>
                 <div>
                   <label style={lbl}>Città</label>
-                  <input value={editForm.citta || ''} onChange={e => setEditForm(f => ({ ...f, citta: e.target.value }))} style={inpR} />
+                  <CittaAutocomplete value={editForm.citta || ''} onChange={v => setEditForm(f => ({ ...f, citta: v }))} inputStyle={inpR} />
                 </div>
               </div>
-              {/* Sede di produzione + metodo. Si applica al singolo punto vendita:
-                  una org puo' avere "Laboratorio" produttivo + "Banco" ricevente. */}
+              {/* Sede di produzione: flag per-sede (una org può avere laboratorio +
+                  punti vendita riceventi). Il METODO di produzione (stampi vs
+                  inventario) è invece deciso a livello di attività — vedi
+                  Impostazioni attività — perché ricettario e formati vendita
+                  sono shared e non possono avere metodi diversi tra sedi. */}
               <div style={{ marginBottom: 12, padding: '12px 14px', background: '#F8FAFC', borderRadius: 10, border: `1px solid ${BOR}` }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                   <input type="checkbox"
@@ -428,31 +429,17 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
                   Attiva se in questa sede si produce. Le sedi solo riceventi (ricevono via trasferimenti) lasciano questa opzione disattiva.
                 </div>
                 {editForm.is_sede_produzione && (
-                  <div style={{ marginTop: 12, marginLeft: 26 }}>
-                    <label style={{ ...lbl, marginBottom: 6 }}>Metodo di registrazione produzione</label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
-                        <input type="radio" name={`metodo-${sede.id}`}
-                          checked={(editForm.metodo_produzione || 'stampi') === 'stampi'}
-                          onChange={() => setEditForm(f => ({ ...f, metodo_produzione: 'stampi' }))} />
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: TXT }}>Stampi / unità</div>
-                          <div style={{ fontSize: 11, color: SOFT, lineHeight: 1.4 }}>
-                            Registri quante unità (stampi, vassoi, kg) hai prodotto per ogni ricetta. Adatto a pasticcerie, panifici.
-                          </div>
-                        </div>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
-                        <input type="radio" name={`metodo-${sede.id}`}
-                          checked={editForm.metodo_produzione === 'inventario'}
-                          onChange={() => setEditForm(f => ({ ...f, metodo_produzione: 'inventario' }))} />
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: TXT }}>Inventario differenziale</div>
-                          <div style={{ fontSize: 11, color: SOFT, lineHeight: 1.4 }}>
-                            Registri quanti grammi hai prodotto e quanti ne sono rimasti. Il sistema calcola il venduto. Adatto a gelaterie, yogurterie, pasta fresca.
-                          </div>
-                        </div>
-                      </label>
+                  <div style={{ marginTop: 12, marginLeft: 26, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 11.5, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <Icon name="info" size={13} />
+                    <div>
+                      Metodo di produzione: <b>{metodoProduzione === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'}</b>.
+                      Impostato a livello di attività (uguale per tutte le sedi).
+                      {onNavigateAttivita && (
+                        <> · <button type="button" onClick={onNavigateAttivita}
+                          style={{ background: 'transparent', border: 'none', padding: 0, color: '#1E3A8A', textDecoration: 'underline', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', fontWeight: 700 }}>
+                          Modifica in Impostazioni attività
+                        </button></>
+                      )}
                     </div>
                   </div>
                 )}
@@ -465,24 +452,29 @@ export default function ImpostazioniSedi({ orgId, onSediChange }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'flex-start', gap: isMobile ? 12 : 8 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: TXT, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{sede.nome}</span>
+                <div style={{ fontWeight: 700, fontSize: 14, color: TXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {sede.nome}
+                </div>
+                {/* Badge in riga dedicata SOTTO il nome: così tra card diverse
+                    partono sempre dalla stessa X e sono allineati verticalmente,
+                    indipendentemente dalla lunghezza del nome sede. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 6, minHeight: 20 }}>
                   {sede.is_default && <span style={{ fontSize: 10, background: '#FEF3C7', color: '#92400E', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>DEFAULT</span>}
                   {sede.attiva === false && <span style={{ fontSize: 10, background: '#F1F5F9', color: '#94A3B8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>INATTIVA</span>}
                   {sede.is_sede_produzione && (
                     <span style={{ fontSize: 10, background: '#E0F2FE', color: '#075985', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
-                      PRODUZIONE · {sede.metodo_produzione === 'inventario' ? 'INVENTARIO' : 'STAMPI'}
+                      PRODUZIONE
                     </span>
                   )}
                 </div>
                 {(sede.indirizzo || sede.citta) && (
-                  <div style={{ fontSize: 12, color: SOFT, marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={[sede.indirizzo, sede.citta].filter(Boolean).join(', ')}>
+                  <div style={{ fontSize: 12, color: SOFT, marginTop: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={[sede.indirizzo, sede.citta].filter(Boolean).join(', ')}>
                     {[sede.indirizzo, sede.citta].filter(Boolean).join(', ')}
                   </div>
                 )}
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
-                <button onClick={() => { setEditing(sede.id); setEditForm({ nome: sede.nome, indirizzo: sede.indirizzo || '', citta: sede.citta || '', is_sede_produzione: !!sede.is_sede_produzione, metodo_produzione: sede.metodo_produzione || 'stampi' }) }}
+                <button onClick={() => { setEditing(sede.id); setEditForm({ nome: sede.nome, indirizzo: sede.indirizzo || '', citta: sede.citta || '', is_sede_produzione: !!sede.is_sede_produzione }) }}
                   style={{ padding: isMobile ? '8px 12px' : '5px 10px', background: '#F8FAFC', border: `1px solid ${BOR}`, borderRadius: 8, fontSize: isMobile ? 12 : 11, cursor: 'pointer', color: MID, fontWeight: 600 }}>
                   Modifica
                 </button>

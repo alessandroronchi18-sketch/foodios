@@ -83,6 +83,7 @@ import {
   NOMI_SKIP, isRicettaValida, REGOLE, getR, isSemilavorato, resetRegoleRuntime,
   buildIngCosti, calcolaFC,
 } from './lib/foodcost'
+import { labelPlurale } from './lib/tipoRicetta'
 import { SK_RIC, SK_PROD, SK_ACT, SK_AI, SK_MAG, SK_GIOR, SK_CHIUS, SK_EXCL, SK_RESE, SK_LOG_PRZ } from './lib/storageKeys'
 import { loadXLSX } from './lib/xlsx'
 const SimulatorePrezziView = lazyWithReload(() => import('./views/SimulatorePrezziView'))
@@ -652,7 +653,7 @@ function ProduzioneView({ricettario,mese,onSave,onAddAction,nomeAttivita=''}) {
                     <tr key={e.ricettaNome} style={{borderBottom:`1px solid ${C.border}`,background:i%2===0?C.white:"#FDFAF7"}}>
                       <td style={{padding:"10px 14px",fontWeight:700,color:C.text}}>
                         {e.ricettaNome}
-                        <div style={{fontSize:9,color:C.textSoft,marginTop:1}}>{reg.unita} {reg.tipo==="fetta"?"fette":"pezzi"} × {fmt(reg.prezzo)}</div>
+                        <div style={{fontSize:9,color:C.textSoft,marginTop:1}}>{reg.unita} {labelPlurale(reg.tipo)} × {fmt(reg.prezzo)}</div>
                       </td>
                       <td style={{padding:"10px 14px",textAlign:"center",fontWeight:700,color:C.green}}>{fmt(rs)}</td>
                       <td style={{padding:"10px 14px",textAlign:"center",color:C.red}}>{fmt(e.fc)}</td>
@@ -1174,10 +1175,16 @@ export default function Dashboard({
   onSetSedeAttiva = () => {},
   nomeAttivita = 'La mia attività',
   tipoAttivita = 'bar',
+  metodoProduzione = 'stampi',
   piano = 'trial',
   isTrialAttivo = false,
   onSignOut = null,
 }) {
+  // Audit 2026-07-23: il metodo di produzione (stampi vs inventario) è ORA a
+  // livello ORG. Prima era per-sede: rompeva le analisi consolidate perché
+  // ricette/formati/ricettario sono shared org. `is_sede_produzione` resta
+  // per sede (identifica laboratorio vs punto vendita ricevente).
+  const isMetodoInv = metodoProduzione === 'inventario'
   // Sync module-level storage context with current org/sede.
   // Audit 2026-07-01 CRITICAL: prima di cambiare contesto, aspettiamo che
   // le scritture pendenti completino. Senza, una ssave registrata con il
@@ -1600,7 +1607,7 @@ export default function Dashboard({
   // vedono i dati senza modifiche al loro codice. 1 stampo virtuale = 1 kg.
   useEffect(() => {
     if (!orgId || !sedeId) return
-    const isInv = sedeAttiva?.metodo_produzione === 'inventario' && sedeAttiva?.is_sede_produzione
+    const isInv = isMetodoInv && sedeAttiva?.is_sede_produzione
     if (!isInv) return
     caricaSessioniDaInventario(orgId, sedeId, { monthsBack: 12 })
       .then(sessioni => {
@@ -1610,7 +1617,7 @@ export default function Dashboard({
         setGiornaliero(sessioni)
       })
       .catch(e => console.error('bridge inventario→giornaliero:', e))
-  }, [orgId, sedeId, sedeAttiva?.metodo_produzione, sedeAttiva?.is_sede_produzione])
+  }, [orgId, sedeId, isMetodoInv, sedeAttiva?.is_sede_produzione])
 
   // Audit 2026-06-25: pop-up "Novità in Foodos X.Y.Z" disabilitato per richiesta
   // utente - appariva ad ogni release nuova. Resta accessibile manualmente da
@@ -1885,7 +1892,7 @@ export default function Dashboard({
     catch (e) { notify(`Aggiornamento ricetta fallito: ${e.message || 'rete'}`, false); return; }
     setRic(nuovoRic);
     const cong = congelabile!==undefined ? congelabile : ricettario?.ricette?.[nome]?.congelabile;
-    notify(`✓ ${nome}: ${unita} ${REGOLE[nome]?.tipo==="fetta"?"fette":"pezzi"} × ${fmt(prezzo)}${cong?" · congelabile":""}`);
+    notify(`✓ ${nome}: ${unita} ${labelPlurale(REGOLE[nome]?.tipo)} × ${fmt(prezzo)}${cong?" · congelabile":""}`);
   }, [ricettario]);
 
   // noRedirect=true quando si elimina - non vogliamo uscire dalla pagina
@@ -2023,17 +2030,14 @@ export default function Dashboard({
         const hasProdOggi = (giornaliero||[]).some(s=>s.data===today2&&(s.prodotti||[]).length>0);
         const cassaMancante = !(chiusure||[]).some(c=>c.data===today2) && new Date().getHours()>=14;
         const multiSede = (sedi||[]).length>1;
-        // Metodo produzione della sede attiva: determina se mostrare la voce
+        // Metodo produzione ORG (audit 2026-07-23): determina se mostrare la voce
         // "Inventario gusti" (metodo=inventario, gelaterie/yogurt) al posto
         // di "Produzione" (metodo=stampi, pasticcerie/panifici).
         //
-        // Anche la lettura via .find su `sedi` come fallback: in alcuni casi
-        // sedeAttiva e' temporaneamente uno stub privo dei campi inventario
-        // (es. dopo reload del profilo); così evitiamo che la voce sparisca
-        // per un attimo nel menu mentre l'utente sta lavorando dentro la view.
+        // La sede attiva deve avere `is_sede_produzione=true` (produce in proprio)
+        // affinché la voce compaia — un punto vendita ricevente non produce nulla.
         const sedeFull = (sedi || []).find(s => s.id === sedeAttiva?.id) || sedeAttiva
-        const isMetodoInventario = (sedeFull?.is_sede_produzione === true
-            && sedeFull?.metodo_produzione === 'inventario')
+        const isMetodoInventario = (sedeFull?.is_sede_produzione === true && isMetodoInv)
           // Anche se sedeAttiva e' incompleta, se l'utente e' GIÀ dentro
           // 'inventario-gusti' manteniamo la voce visibile per non disorientare.
           || view === 'inventario-gusti' || view === 'quadratura-inventario'
@@ -2735,7 +2739,7 @@ export default function Dashboard({
               {Group({ id:"oggi", iconKey:"today", label:"Oggi",
                 alert:(!hasProdOggi && new Date().getHours()>=6) || cassaMancante,
                 children:[
-                  ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && (sedi||[]).find(s=>s.id===sedeAttiva?.id)?.metodo_produzione === 'inventario') || view === 'inventario-gusti'
+                  ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && isMetodoInv) || view === 'inventario-gusti'
                     ? [navItem("inventario-gusti","layers","Inventario gusti")]
                     : [navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)]),
                   navItem("chiusura","creditCard","Cassa",0,cassaMancante),
@@ -2768,7 +2772,7 @@ export default function Dashboard({
                   navItem("pl","trendUp","Profitti (P&L)"),
                   navItem("costi-aziendali","package","Costi aziendali"),
                   navItem("storico","activity","Storico produzione"),
-                  ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && (sedi||[]).find(s=>s.id===sedeAttiva?.id)?.metodo_produzione === 'inventario') || view === 'quadratura-inventario'
+                  ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && isMetodoInv) || view === 'quadratura-inventario'
                     ? [navItem("quadratura-inventario","check","Quadratura inventario")] : []),
                   navItem("simulatore","barChart","Food Cost simulatore"),
                   navItem("previsione","forecast","Previsione domanda"),
@@ -2900,7 +2904,7 @@ export default function Dashboard({
           {/* Mobile bottom navigation */}
           {isMobile&&(()=>{
             const sFull = (sedi||[]).find(s=>s.id===sedeAttiva?.id) || sedeAttiva
-            const isInv = (sFull?.is_sede_produzione && sFull?.metodo_produzione === 'inventario')
+            const isInv = (sFull?.is_sede_produzione && isMetodoInv)
               || view === 'inventario-gusti'
             const BOTTOM_NAV = [
               {id:"home",        icon:"home",       label:"Oggi"},
@@ -3214,7 +3218,7 @@ export default function Dashboard({
         {view==="home-dipendente"&&<HomeDipendente
           user={auth?.user}
           sedeAttiva={sedeAttiva}
-          isInventario={sedeAttiva?.is_sede_produzione === true && sedeAttiva?.metodo_produzione === 'inventario'}
+          isInventario={sedeAttiva?.is_sede_produzione === true && isMetodoInv}
           setView={setView}
           notify={notify}
         />}
@@ -3244,7 +3248,7 @@ export default function Dashboard({
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi}/>}
-        {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX}/>}
+        {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
@@ -3257,11 +3261,11 @@ export default function Dashboard({
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} LEX={LEX}/>}
         {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} nomeAttivita={nomeAttivita} LEX={LEX}/>}
-        {view==="inventario-gusti"&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} notify={notify}/>}
-        {view==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} onNavigate={setView}/>}
+        {view==="inventario-gusti"&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} notify={notify}/>}
+        {view==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} metodoProduzione={metodoProduzione} onNavigate={setView}/>}
         {view==="costi-aziendali"&&<CostiAziendaliView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
-        {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
+        {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
         {view==="importa-dati"&&<ImportaDatiView
           onImportRicettario={handleFile}
           onImportPrezzi={handleImportPrezzi}

@@ -82,6 +82,111 @@ const mkBtn = (disabled) => ({
 
 // ─── Sub-componenti generale (Profilo + Account + Email report + Changelog) ──
 
+// Metodo di produzione a livello ORG (audit 2026-07-23): un'attività ha un
+// solo metodo, valido per tutte le sedi produttive. Il ricettario, i formati
+// vendita e le analisi consolidate presuppongono un modello unico.
+function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
+  const isMobile = useIsMobile()
+  const [confirm, setConfirm] = useState(null) // { target: 'stampi'|'inventario' } | null
+  const [saving, setSaving] = useState(false)
+  const current = metodoProduzione === 'inventario' ? 'inventario' : 'stampi'
+
+  async function applica(target) {
+    setSaving(true)
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .update({ metodo_produzione: target })
+        .eq('id', orgId)
+      if (error) throw error
+      // Sincronizziamo anche sedi.metodo_produzione per compat/leggibilità
+      // (source of truth è organizations, ma alcuni legacy query potrebbero
+      // ancora leggere sedi — evitiamo drift).
+      await supabase.from('sedi').update({ metodo_produzione: target }).eq('organization_id', orgId)
+      notify?.('Metodo di produzione aggiornato. Ricarica la pagina per applicarlo ovunque.')
+      setConfirm(null)
+    } catch (e) {
+      notify?.('Errore: ' + (e.message || 'salvataggio fallito'), false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const card = (target, titolo, descrizione, esempi) => {
+    const selected = current === target
+    return (
+      <button type="button"
+        onClick={() => { if (!selected) setConfirm({ target }) }}
+        disabled={saving}
+        style={{
+          textAlign: 'left', padding: '16px 18px', borderRadius: 12,
+          border: `2px solid ${selected ? '#6E0E1A' : '#E2E8F0'}`,
+          background: selected ? '#FEF0EE' : '#FFF',
+          cursor: selected ? 'default' : 'pointer',
+          fontFamily: 'inherit', width: '100%',
+          opacity: saving ? 0.6 : 1,
+          transition: 'all 0.15s ease',
+        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#1C0A0A' }}>{titolo}</div>
+          {selected && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#6E0E1A', background: '#FFF', border: '1px solid #6E0E1A', padding: '2px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Attivo
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 12.5, color: '#4A3728', lineHeight: 1.55, marginBottom: 8 }}>{descrizione}</div>
+        <div style={{ fontSize: 11, color: '#9C7B76' }}>{esempi}</div>
+      </button>
+    )
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16, fontSize: 12.5, color: '#4A3728', lineHeight: 1.6 }}>
+        Come registri la produzione nella tua attività. Questa scelta vale per <b>tutte le sedi</b> — ricettario, formati di vendita e analisi consolidate presuppongono un modello unico.
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        {card('stampi', 'Stampi / unità',
+          'Registri quante unità (stampi, vassoi, pezzi) hai prodotto per ogni ricetta. Il food cost è per stampo, il prezzo per fetta o pezzo.',
+          'Pasticcerie · Panifici · Pizzerie · Ristoranti · Bar')}
+        {card('inventario', 'Inventario differenziale',
+          'Produci "gusti" a peso (kg) e vendi in formati (cono, coppetta, vaschetta). Il venduto si calcola da residuo mattutino e produzione.',
+          'Gelaterie · Yogurterie · Pasta fresca · Panifici a peso')}
+      </div>
+
+      {confirm && (
+        <div role="dialog" aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget && !saving) setConfirm(null) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(28,10,10,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#FFF', borderRadius: 14, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxWidth: 480, width: '100%', padding: 24 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#1C0A0A', marginBottom: 8 }}>
+              Cambiare il metodo di produzione?
+            </div>
+            <div style={{ fontSize: 13, color: '#4A3728', lineHeight: 1.55, marginBottom: 12 }}>
+              Passi da <b>{current === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'}</b> a <b>{confirm.target === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'}</b>.
+            </div>
+            <div style={{ padding: '10px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, fontSize: 12, color: '#92400E', lineHeight: 1.5, marginBottom: 16 }}>
+              Questa scelta cambia le viste operative (Produzione ↔ Inventario), la struttura delle ricette e le analisi. Le ricette già esistenti restano ma potrebbero apparire in modo diverso. Meglio farlo con un solo utente collegato.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setConfirm(null)} disabled={saving}
+                style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'transparent', fontSize: 13, fontWeight: 600, color: '#4A3728', cursor: 'pointer', fontFamily: 'inherit' }}>
+                Annulla
+              </button>
+              <button type="button" onClick={() => applica(confirm.target)} disabled={saving}
+                style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: '#6E0E1A', color: '#FFF', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1 }}>
+                {saving ? 'Salvataggio…' : 'Conferma cambio'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ProfiloSection({ auth, nomeAttivita, tipoAttivita, piano, orgId, notify }) {
   const isMobile = useIsMobile()
   const [nomeMod, setNomeMod] = useState(nomeAttivita || '')
@@ -725,7 +830,7 @@ function PianoBadge({ piano, approvato }) {
 
 // ─── Sezioni registry ────────────────────────────────────────────────────────
 
-function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, onImportPrezzi, notify, onChangelogOpen }) {
+function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'stampi', piano, orgId, sedi, onImportPrezzi, notify, onChangelogOpen }) {
   // ─── DIPENDENTE: solo il proprio account, niente roba aziendale ───
   if (auth?.isDipendente) {
     return [
@@ -759,9 +864,14 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, on
       render: () => <AccountSection auth={auth} notify={notify}/>,
     },
     {
+      id: 'metodo-produzione', label: 'Metodo di produzione', icon: 'settings',
+      summary: metodoProduzione === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità',
+      render: () => <MetodoProduzioneSection orgId={orgId} metodoProduzione={metodoProduzione} notify={notify}/>,
+    },
+    {
       id: 'sedi', label: 'Sedi', icon: 'map',
       summary: `${(sedi || []).filter(s => s.attiva !== false).length} sede/i`,
-      render: () => <ImpostazioniSedi orgId={orgId}/>,
+      render: () => <ImpostazioniSedi orgId={orgId} metodoProduzione={metodoProduzione}/>,
     },
   ]
   if (whiteLabelOk) {
@@ -861,7 +971,7 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi, on
 
 export default function Impostazioni(props) {
   const isMobile = useIsMobile()
-  const sezioni = useMemo(() => buildSezioni(props), [props.auth, props.nomeAttivita, props.tipoAttivita, props.piano, props.orgId, props.sedi])
+  const sezioni = useMemo(() => buildSezioni(props), [props.auth, props.nomeAttivita, props.tipoAttivita, props.metodoProduzione, props.piano, props.orgId, props.sedi])
   const allItems = useMemo(() => sezioni.flatMap(s => s.items.map(it => ({ ...it, _group: s.label, _groupId: s.id }))), [sezioni])
 
   // Active item via URL hash (#section=xyz) per deep-link + back button
