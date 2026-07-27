@@ -1,7 +1,7 @@
 // ImportaDati - hub per modelli scaricabili + import file esterni.
 //
 // Al 13/07/2026: la sezione era vuota. La popoliamo con la prima utility -
-// download del modello Excel per la produzione giornaliera - cosi' l'utente
+// download del modello Excel per la produzione giornaliera - così l'utente
 // puo' scegliere di raccogliere la produzione a mano su carta/Excel e poi
 // ricopiare, o distribuirlo ai dipendenti come check-list stampabile.
 

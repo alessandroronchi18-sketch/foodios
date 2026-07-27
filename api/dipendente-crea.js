@@ -6,10 +6,10 @@
 //   2) Inserisce riga in org_inviti (email pre-autorizzata) — pilota handle_new_user()
 //   3) supabase.auth.admin.createUser(email, password=codice, email_confirm=true)
 //      → trigger handle_new_user() consuma l'invito e crea profile (dipendente, approvato=false)
-//   4) UPDATE profiles.approvato=true (il titolare ha gia' autorizzato) + set nome_completo
+//   4) UPDATE profiles.approvato=true (il titolare ha già autorizzato) + set nome_completo
 //   5) email di notifica al dipendente via Resend (NO codice in chiaro nell'email)
 //
-// Se il dipendente esiste gia' (email trovata in profiles per questa org):
+// Se il dipendente esiste già (email trovata in profiles per questa org):
 //   → aggiorna solo password + nome (equivalente a "cambia codice / cambia nome")
 //
 // Autorizzazione: solo TITOLARE dell'org.
@@ -78,7 +78,7 @@ export default async function handler(req) {
   const orgId = profile.organization_id
   const nomeAttivita = (body?.nomeAttivita || '').toString().slice(0, 120) || null
 
-  // Passo 1: verifica se esiste gia' un profile dipendente per questa email nella stessa org.
+  // Passo 1: verifica se esiste già un profile dipendente per questa email nella stessa org.
   // Se si → "cambia codice / aggiorna nome" (branch update).
   const { data: existingProfile } = await supabase
     .from('profiles')
@@ -120,7 +120,7 @@ export default async function handler(req) {
     const { data: authUserByEmail } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 })
     const existingAuthUser = (authUserByEmail?.users || []).find(u => (u.email || '').toLowerCase() === emailRaw)
     if (existingAuthUser) {
-      // Auth user gia' esistente ma senza profile in questa org → conflitto multi-org non gestito
+      // Auth user già esistente ma senza profile in questa org → conflitto multi-org non gestito
       return json({
         error: 'Questa email e\' gia\' associata a un altro account Foodos. Il dipendente deve usare una email diversa (es. mario.laboratorio@… per separarla da quella personale).',
       }, 409, req)

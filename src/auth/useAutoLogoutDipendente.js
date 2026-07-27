@@ -1,6 +1,6 @@
 // useAutoLogoutDipendente — auto-logout dopo inattivita' per sessioni dipendente.
 //
-// Motivazione: il tablet in laboratorio e' condiviso tra piu' dipendenti. Se
+// Motivazione: il tablet in laboratorio e' condiviso tra più dipendenti. Se
 // uno chiude il turno senza fare logout, il successivo potrebbe agire con
 // l'account precedente. Timeout di 30 minuti senza attivita' → signOut +
 // redirect a login.

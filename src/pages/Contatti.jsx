@@ -15,11 +15,11 @@ export default function Contatti() {
         o una proposta scrivici: rispondiamo sempre, di solito nella stessa giornata.
       </LegalP>
 
-      <LegalCallout title="Il modo piu' veloce">
+      <LegalCallout title="Il modo più veloce">
         Per qualsiasi cosa scrivi a{' '}
         <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.
-        Se sei gia' utente, il bottone <strong>Feedback</strong> in basso a destra
-        dentro l'app va direttamente a chi sviluppa - piu' rapido dell'email.
+        Se sei già utente, il bottone <strong>Feedback</strong> in basso a destra
+        dentro l'app va direttamente a chi sviluppa - più rapido dell'email.
       </LegalCallout>
 
       <LegalH2>Supporto tecnico</LegalH2>

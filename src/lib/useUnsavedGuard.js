@@ -25,7 +25,7 @@ export function getUnsavedGuardCurrent() {
 
 export function useUnsavedGuard({ isDirty, save, discard }) {
   const ref = useRef({ isDirty, save, discard })
-  // Aggiorna la ref ad ogni render cosi' le closure catturano gli state freschi.
+  // Aggiorna la ref ad ogni render così le closure catturano gli state freschi.
   ref.current = { isDirty, save, discard }
 
   useEffect(() => {

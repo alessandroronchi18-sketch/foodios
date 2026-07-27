@@ -542,8 +542,8 @@ export function mergeIngredientiPerNorm(ings, { qtyField = 'quantita' } = {}) {
     if (map.has(key)) {
       const acc = map.get(key)
       acc[qtyField] = (Number(acc[qtyField]) || 0) + qty
-      // Se il nome corrente e' gia' nella forma singolare canonica (== key),
-      // preferiscilo come display (piu' pulito del plurale iniziale).
+      // Se il nome corrente e' già nella forma singolare canonica (== key),
+      // preferiscilo come display (più pulito del plurale iniziale).
       if (rawNome.toLowerCase() === key) acc.nome = rawNome
     } else {
       map.set(key, { ...ing, nome: rawNome, [qtyField]: qty })

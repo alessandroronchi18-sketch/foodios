@@ -5,7 +5,7 @@ export default function Rimborsi() {
   return (
     <LegalLayout title="Politica di Rimborso" updated="2026-07-13" related={[['Termini di servizio', '/termini']]}>
       <LegalP>
-        In breve: puoi disdire in qualsiasi momento senza penali. Il canone gia'
+        In breve: puoi disdire in qualsiasi momento senza penali. Il canone già
         pagato per il mese in corso di regola non viene rimborsato, ma se c'e'
         un problema tecnico serio o un errore di addebito rimediamo subito.
       </LegalP>
@@ -22,13 +22,13 @@ export default function Rimborsi() {
       <LegalP>
         Puoi disdire quando vuoi da <strong>Impostazioni → Abbonamento → Gestisci</strong>.
         Nessuna penale, nessun costo. Il servizio resta attivo fino alla fine
-        del periodo gia' pagato.
+        del periodo già pagato.
       </LegalP>
 
       <LegalH2>2. Rimborso del periodo non utilizzato</LegalH2>
       <LegalP>
-        Di regola non rimborsiamo il canone gia' pagato per il mese in corso
-        (nessun proration). L'accesso al servizio pero' resta pieno fino al
+        Di regola non rimborsiamo il canone già pagato per il mese in corso
+        (nessun proration). L'accesso al servizio però resta pieno fino al
         rinnovo successivo.
       </LegalP>
 
