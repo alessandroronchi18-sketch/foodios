@@ -6,6 +6,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { lessico } from '../lib/lessico'
 import Icon from './Icon'
 import { KPI, SH, PageHeader, Tip, C, fmt, fmtp } from '../views/_shared'
+import { labelPlurale } from '../lib/tipoRicetta'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
@@ -141,7 +142,7 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
                 {r.nome}
               </div>
               <div style={{ fontSize:11, color:T.textSoft, ...tnum }}>
-                {fmt(reg.prezzo)} · {reg.unita} {reg.tipo==="fetta"?"fette":"pezzi"}
+                {fmt(reg.prezzo)} · {reg.unita} {labelPlurale(reg.tipo)}
               </div>
               {sel && (
                 <div style={{ fontSize:10, fontWeight:600, color:T.brand, marginTop:5,

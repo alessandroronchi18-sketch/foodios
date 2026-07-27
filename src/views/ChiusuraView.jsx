@@ -13,6 +13,7 @@ import { callAi, parseAiJson } from '../lib/aiClient'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
+import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { scaricoVenditaPF } from '../lib/stockPF'
 import { SK_CHIUS, SK_FORMATI, SK_MOV } from '../lib/storageKeys'
 import { riconciliaFormati } from '../lib/formatiVendita'
@@ -1140,8 +1141,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 {!isMobile && ['Prodotto', 'Rimaste', 'Spreco', 'Suggerito'].map((h, i) => (
                   <div key={h} style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.amber, textAlign: i === 0 ? 'left' : i === 3 ? 'left' : 'right' }}>{h}</div>
                 ))}
-                {confronto.filter(r => r.spreco > 2).map(r => {
-                  const tipo = r.reg?.tipo === 'fetta' ? 'fette' : 'pezzi'
+                {/* Suggerimento "meno stampi" ha senso solo per ricette a stampo.
+                    Per i gusti (gelateria) non c'è concetto di "stampo consigliato". */}
+                {confronto.filter(r => r.spreco > 2 && !isGustoTipo(r.reg?.tipo)).map(r => {
+                  const tipo = labelPlurale(r.reg?.tipo)
                   const consigliato = Math.ceil(r.unitaV / r.reg.unita)
                   return isMobile ? (
                     <React.Fragment key={r.nome}>

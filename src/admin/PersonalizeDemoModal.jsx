@@ -351,7 +351,7 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
                 </select>
                 <input type="number" step="0.1" min="0" value={p.unita || 1}
                   onChange={e => updateProdotto(p._idx, { unita: Math.max(1, Math.round(Number(e.target.value) || 1)) })}
-                  title={p.tipo === 'fetta' ? 'fette per stampo' : 'unità'}
+                  title={p.tipo === 'fetta' ? 'fette per stampo' : p.tipo === 'kg' || p.tipo === 'gusto' ? 'kg per batch (gusto gelateria)' : 'unità'}
                   style={{ padding: '6px 8px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 11, textAlign: 'right' }} />
                 <input type="number" step="0.10" min="0.50" max="80" value={p.prezzo}
                   onChange={e => updateProdotto(p._idx, { prezzo: Math.max(0.5, Math.min(80, Number(e.target.value) || 0)) })}

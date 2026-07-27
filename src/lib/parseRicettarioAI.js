@@ -1,5 +1,5 @@
 // Parser ricettario AI-driven: fallback quando il parser rigido
-// (parseRicettario.js) non trova ricette perche' il file non segue lo schema
+// (parseRicettario.js) non trova ricette perché il file non segue lo schema
 // standard. Passa il contenuto del foglio a Claude che lo interpreta come
 // linguaggio naturale e restituisce JSON strutturato pronto per Foodos.
 //
@@ -61,7 +61,7 @@ Ogni ricetta:
 - nome: string in MAIUSCOLO (es. "NOCCIOLA", "TORTA MELE", "CREMA PASTICCERA")
 - ingredienti: array di { nome: string lowercase (singolare, italiano), qty1stampo: number in GRAMMI, costoPerG?: number in EUR/grammo }
 - note?: string
-- tipo?: 'fetta' | 'pezzo' | 'semilavorato'  (default 'fetta'; usa 'semilavorato' per basi/impasti riutilizzati come "base bianca", "pasta sfoglia", "crema pasticcera intermedia")
+- tipo?: 'fetta' | 'pezzo' | 'gusto' | 'semilavorato'  (default 'fetta'; usa 'gusto' per gusti gelato/yogurt (ingredienti per 1 kg di prodotto finito); usa 'semilavorato' per basi/impasti riutilizzati come "base bianca", "pasta sfoglia", "crema pasticcera intermedia")
 
 ## Regole obbligatorie
 
@@ -127,7 +127,7 @@ export function isLikelyPivot(rows) {
 }
 
 // Appiattisce un pivot in una tabella classica "Ricetta,Ingrediente,Quantita_kg".
-// Molto piu' facile da parsare per Claude che deve solo leggere riga per riga.
+// Molto più facile da parsare per Claude che deve solo leggere riga per riga.
 export function flattenPivot(rows) {
   const header = rows[0] || []
   const ricette = []
@@ -208,7 +208,7 @@ function normalizeAiOutput(json) {
       .filter(i => i.nome && i.qty1stampo > 0)
     if (ingredienti.length === 0) continue
     const tipoRaw = String(r?.tipo || '').toLowerCase()
-    const tipo = ['fetta', 'pezzo', 'semilavorato', 'interno'].includes(tipoRaw) ? tipoRaw : 'fetta'
+    const tipo = ['fetta', 'pezzo', 'gusto', 'semilavorato', 'interno'].includes(tipoRaw) ? tipoRaw : 'fetta'
     ricette[nome] = {
       nome,
       sheetName: 'ai',
@@ -250,7 +250,7 @@ export async function parseRicettarioAI(file) {
 
   const { json, text, raw } = await callAi({
     feature: 'parse-ricettario-ai',
-    // Opus 4.7 e' piu' preciso per parsing strutturato di layout complessi
+    // Opus 4.7 e' più preciso per parsing strutturato di layout complessi
     // (pivot, matrici, righe con header ripetuti). Il costo aggiuntivo vs
     // Sonnet e' accettabile per un flusso raro come l'import ricettario.
     model: 'claude-opus-4-7',
@@ -261,7 +261,7 @@ export async function parseRicettarioAI(file) {
     timeoutMs: 180_000,
   })
 
-  // Debug: logga il conteggio in console cosi' l'utente puo' diagnosticare
+  // Debug: logga il conteggio in console così l'utente puo' diagnosticare
   // se qualcosa non torna (es. Claude ha ritornato 2 ricette invece di 40).
   const n = Object.keys(json?.ricette || {}).length || (Array.isArray(json?.ricette) ? json.ricette.length : 0)
   console.log(`[parseRicettarioAI] ricette estratte dall'AI: ${n}`)
@@ -292,7 +292,7 @@ export async function parseRicettarioSmart(file) {
   try {
     const ai = await parseRicettarioAI(file)
     // Se anche l'AI non ha trovato nulla, restituiamo il rigido (source='rigid')
-    // cosi' il chiamante puo' distinguere fra "AI ha capito ma vuoto" e "nemmeno
+    // così il chiamante puo' distinguere fra "AI ha capito ma vuoto" e "nemmeno
     // provato" — utile per diagnostica.
     if (Object.keys(ai?.ricette || {}).length === 0) {
       return { ...rigido, source: 'rigid', aiTried: true }

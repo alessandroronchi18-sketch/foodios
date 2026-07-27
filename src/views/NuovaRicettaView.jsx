@@ -25,7 +25,26 @@ import { useUnsavedGuard } from '../lib/useUnsavedGuard'
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 
 // Categorie suggerite (chip rapide). L'utente può anche digitare liberamente.
-const CATEGORIE = ['Torte', 'Biscotti', 'Lievitati', 'Monoporzioni', 'Crostate', 'Salato', 'Bevande', 'Altro']
+// Sono scelte in base al tipo attivita': una gelateria non vuole vedere "Torte"
+// come primo suggerimento, così come una pasticceria non vuole "Frutta".
+const CATEGORIE_DEFAULT = ['Torte', 'Biscotti', 'Lievitati', 'Monoporzioni', 'Crostate', 'Salato', 'Bevande', 'Altro']
+const CATEGORIE_PER_TIPO = {
+  gelateria: ['Gusto', 'Crema', 'Frutta', 'Cioccolato', 'Sorbetto', 'Yogurt', 'Vegan', 'Altro'],
+  pizzeria:  ['Classiche', 'Bianche', 'Speciali', 'Focacce', 'Calzoni', 'Altro'],
+  pasta_fresca: ['Ripiene', 'Lunga', 'Corta', 'All\'uovo', 'Sughi', 'Altro'],
+  ristorante: ['Antipasti', 'Primi', 'Secondi', 'Contorni', 'Dolci', 'Bevande', 'Altro'],
+}
+function categorieFor(tipoAttivita) {
+  return CATEGORIE_PER_TIPO[String(tipoAttivita || '').toLowerCase().trim()] || CATEGORIE_DEFAULT
+}
+function placeholderNomeFor(tipoAttivita) {
+  const t = String(tipoAttivita || '').toLowerCase().trim()
+  if (t === 'gelateria') return 'es. CIOCCOLATO'
+  if (t === 'pizzeria') return 'es. MARGHERITA'
+  if (t === 'pasta_fresca') return 'es. TAGLIATELLE ALL\'UOVO'
+  if (t === 'ristorante') return 'es. LASAGNE AL FORNO'
+  return 'es. TORTA AL CIOCCOLATO'
+}
 
 // Titolo di card con chip icona (gerarchia premium come la Dashboard home).
 function PanelHead({ icon, title, color = C.red, badge, sub }) {
@@ -45,9 +64,17 @@ function PanelHead({ icon, title, color = C.red, badge, sub }) {
 const fieldLabel = { fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }
 const inputBase = { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, color: C.text, background: C.white, boxSizing: 'border-box' }
 
-export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed, LEX = lessico() }) {
+export default function NuovaRicettaView({ ricettario, onSave, notify, editingRicetta, onEditConsumed, LEX = lessico(), tipoAttivita }) {
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
+  // isGelateria: definisce le OPZIONI mostrate (dropdown Tipo, categorie, placeholder).
+  // isGusto: segue form.tipo — definisce il LAYOUT effettivo. Serve distinguere:
+  //   - gelateria con nuovo record → default tipo='gusto' → isGusto=true → UI gusto
+  //   - gelateria che apre ricetta storica con tipo='fetta' → isGusto=false → UI stampi
+  // Non allineare le due porta a UI vs dati inconsistenti (audit 2026-07-23).
+  const isGelateria = String(tipoAttivita || '').toLowerCase().trim() === 'gelateria'
+  const CATEGORIE = useMemo(() => categorieFor(tipoAttivita), [tipoAttivita])
+  const placeholderNome = useMemo(() => placeholderNomeFor(tipoAttivita), [tipoAttivita])
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario]);
   const tuttiIng = useMemo(() => {
     const s = new Set();
@@ -59,8 +86,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     return [...s].filter(k => k && k.length > 1).sort();
   }, [ricettario]);
 
-  const empty = { nome: "", categoria: "", unita: 8, prezzo: 4, tipo: "fetta", note: "", ingredienti: [], congelabile: false, allergeniManual: [] };
+  // Per gelateria: categoria default "Gusto", unità di riferimento = 1 (gli ingredienti
+  // sono per 1 kg di gusto finito), prezzo 0 (vive su Formati vendita), tipo "gusto" —
+  // così `elencoGusti` continua a includerla (esclude solo semilavorato/interno).
+  const empty = isGelateria
+    ? { nome: "", categoria: "Gusto", unita: 1, prezzo: 0, tipo: "gusto", note: "", ingredienti: [], congelabile: false, allergeniManual: [] }
+    : { nome: "", categoria: "", unita: 8, prezzo: 4, tipo: "fetta", note: "", ingredienti: [], congelabile: false, allergeniManual: [] };
   const [form, setForm] = useState(empty);
+  // isGusto è dinamico sul form corrente (loadForEdit può caricare tipo != 'gusto').
+  const isGusto = form.tipo === 'gusto'
   // Snapshot del form all'ultimo save/load: serve al dirty-guard (useUnsavedGuard)
   // per capire se ci sono modifiche non salvate rispetto allo stato "pulito".
   const initialFormRef = useRef(empty);
@@ -87,7 +121,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const [openAction, setOpenAction] = useState(null);
   // Allergeni manuali: elenco checkbox nascosto di default per non intasare
   // la card. Si apre col bottone "Modifica manualmente" o automaticamente se
-  // l'utente ha gia' selezionato override manuali (es. edit di ricetta esistente).
+  // l'utente ha già selezionato override manuali (es. edit di ricetta esistente).
   const [showManualAllergeni, setShowManualAllergeni] = useState(false);
   const formRef = useRef(null);
   // Audit 2026-07-01 HIGH: tracking scroll timer per cleanup unmount.
@@ -216,7 +250,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
   // Save invocato dal dirty-guard prima di navigare via: se il salvataggio
   // non e' possibile (nome vuoto / no ingredienti / overwrite richiesto) rifiuta
-  // la promise cosi' il Dashboard mantiene l'utente sulla view.
+  // la promise così il Dashboard mantiene l'utente sulla view.
   const handleSaveFromGuard = async () => {
     if (!form.nome.trim()) { notify("Serve il nome della ricetta prima di salvare", false); throw new Error('name empty'); }
     if (form.ingredienti.length === 0) { notify("Aggiungi almeno un ingrediente prima di salvare", false); throw new Error('no ingredients'); }
@@ -224,7 +258,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const esiste = ricettario?.ricette?.[nomeUp];
     const isEditing = editMode === nomeUp;
     if (esiste && !isEditing) {
-      notify("Esiste gia' una ricetta con questo nome: cambia nome o conferma la sovrascrittura prima di uscire.", false);
+      notify("Esiste già una ricetta con questo nome: cambia nome o conferma la sovrascrittura prima di uscire.", false);
       throw new Error('overwrite required');
     }
     await doSaveRicetta();
@@ -344,65 +378,28 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         </div>
       )}
 
-      {/* Toolbar azioni secondarie: chip compatti che espandono un pannello contestuale.
-          Regola UX: le azioni "shortcut" (foto, modifica esistente, elimina) NON devono
-          dominare il flusso primario che e' la compilazione manuale del form sotto. */}
-      <div style={{ marginBottom: openAction ? 12 : 22, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <ActionChip
-          isMobile={isMobile}
-          active={openAction === 'foto'}
-          onClick={() => setOpenAction(a => a === 'foto' ? null : 'foto')}
-          icon={<Icon name="camera" size={15} />}
-          color={T.brand}
-          label="Parti da una foto"
-          sub="OCR ricetta o listino"
-        />
-        {ricetteEsistenti.length > 0 && (
-          <ActionChip
-            isMobile={isMobile}
-            active={openAction === 'modifica'}
-            onClick={() => setOpenAction(a => a === 'modifica' ? null : 'modifica')}
-            icon={<Icon name="edit" size={15} />}
-            color="#0369A1"
-            label="Modifica esistente"
-            sub={`${ricetteEsistenti.length} nel ricettario`}
-          />
-        )}
-        {ricetteEsistenti.length > 0 && (
-          <ActionChip
-            isMobile={isMobile}
-            active={openAction === 'elimina'}
-            onClick={() => setOpenAction(a => a === 'elimina' ? null : 'elimina')}
-            icon={<Icon name="trash" size={15} />}
-            color="#991B1B"
-            label="Elimina ricetta"
-            sub="conferma richiesta"
-          />
-        )}
-      </div>
+      {/* Command bar unica: la vecchia toolbar-3-chip espandeva pannelli in verticale
+          creando spazio vuoto (audit UX 07/2026). Ora: search inline per ricette
+          esistenti + icon-buttons compatti (foto/elimina) + toggle sovrascrivi.
+          I pannelli attivi scorrono inline sotto in max 220px. */}
+      <CommandBar
+        isMobile={isMobile}
+        ricetteEsistenti={ricetteEsistenti}
+        activeNome={editMode}
+        onPickExisting={(nome) => { loadForEdit(nome); setOpenAction(null) }}
+        activeAction={openAction}
+        onToggleAction={(a) => setOpenAction(prev => prev === a ? null : a)}
+        forceOverwrite={forceOverwrite}
+        setForceOverwrite={setForceOverwrite}
+        LEX={LEX}
+      />
 
-      {/* Pannello contestuale: "Modifica esistente" */}
-      {openAction === 'modifica' && ricetteEsistenti.length > 0 && (
-        <div style={{ ...cardStyle, marginBottom: 22, padding: isMobile ? '14px 16px' : '16px 20px', borderColor: '#0369A122' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#0369A1', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Scegli la ricetta da modificare</div>
-          <RicettaPicker
-            label="Cerca fra le tue ricette"
-            icon={<Icon name="search" size={14} />}
-            variant="primary"
-            ricette={ricetteEsistenti}
-            activeNome={editMode}
-            onSelect={(nome) => { loadForEdit(nome); setOpenAction(null); }}
-            isMobile={isMobile}
-          />
-        </div>
-      )}
-
-      {/* Pannello contestuale: "Elimina ricetta" */}
+      {/* Pannello contestuale: elimina — appare sotto la command bar */}
       {openAction === 'elimina' && ricetteEsistenti.length > 0 && (
-        <div style={{ ...cardStyle, marginBottom: 22, padding: isMobile ? '14px 16px' : '16px 20px', borderColor: '#991B1B22' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#991B1B', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Elimina una ricetta esistente</div>
-          <div style={{ fontSize: 12, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
-            La cancellazione e' definitiva. Serve confermare scrivendo <b>ELIMINA</b>.
+        <div style={{ marginBottom: 18, padding: isMobile ? '12px 14px' : '14px 18px', background: '#FFF', border: '1px solid #991B1B22', borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#991B1B', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Elimina una ricetta esistente</div>
+          <div style={{ fontSize: 11.5, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
+            Cancellazione definitiva. Conferma scrivendo <b>ELIMINA</b>.
           </div>
           <RicettaPickerDelete
             ricette={ricetteEsistenti}
@@ -416,19 +413,13 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         </div>
       )}
 
-      {/* Pannello contestuale: "Parti da una foto" (OCR upload) */}
+      {/* Pannello contestuale: "Parti da una foto" — compatto, il toggle sovrascrivi
+          e' già nella command bar sopra (rimosso banner arancione redundant). */}
       {openAction === 'foto' && (
-        <div style={{ ...cardStyle, marginBottom: 22, padding: isMobile ? '14px 16px' : '16px 20px', borderColor: `${T.brand}22` }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.brand, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Estrai una ricetta da una foto</div>
-          <div style={{ fontSize: 12, color: C.textMid, marginBottom: 12, lineHeight: 1.5 }}>
-            Carica una foto della ricetta o del listino: leggo io nome, ingredienti e quantita', poi tu confermi.
-          </div>
-          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "flex-start" : "center", gap: isMobile ? 6 : 10, marginBottom: 10, padding: isMobile ? "10px 12px" : "8px 12px", background: C.amberLight, borderRadius: 8, border: `1px solid ${C.amber}40`, flexWrap: "wrap" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: isMobile ? 12 : 11, color: C.amber, fontWeight: 700, minHeight: isMobile ? 40 : 'auto', lineHeight: 1.35 }}>
-              <input type="checkbox" checked={forceOverwrite} onChange={e => setForceOverwrite(e.target.checked)} style={{ width: 18, height: 18, cursor: "pointer", flexShrink: 0 }} />
-              Sovrascrivi ricette gia' esistenti
-            </label>
-            <span style={{ fontSize: isMobile ? 10.5 : 9, color: C.textSoft, lineHeight: 1.4 }}>Se disattivato, le ricette con lo stesso nome vengono saltate</span>
+        <div style={{ marginBottom: 18, padding: isMobile ? '12px 14px' : '14px 18px', background: '#FFF', border: `1px solid ${T.brand}22`, borderRadius: 12, boxShadow: SHADOW_PREMIUM }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: T.brand, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Estrai una ricetta da una foto</div>
+          <div style={{ fontSize: 11.5, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
+            Carica una foto della ricetta: leggo nome, ingredienti e quantità, poi confermi.
           </div>
       <FotoOCR mode="ricetta" notify={notify} ricettario={ricettario}
         onResult={res => {
@@ -506,7 +497,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                 <div style={fieldLabel}>Nome {LEX.ricetta}</div>
                 <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value.toUpperCase() }))}
-                  placeholder="es. TORTA AL CIOCCOLATO"
+                  placeholder={placeholderNome}
                   style={{ ...inputBase, fontWeight: 700 }} />
               </div>
 
@@ -514,7 +505,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                 <div style={fieldLabel}>Categoria</div>
                 <input value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
-                  placeholder="es. Torte" list="cat-autocomplete"
+                  placeholder={`es. ${CATEGORIE[0]}`} list="cat-autocomplete"
                   style={inputBase} />
                 <datalist id="cat-autocomplete">{CATEGORIE.map(c => <option key={c} value={c} />)}</datalist>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 5, marginTop: 8 }}>
@@ -530,39 +521,80 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 </div>
               </div>
 
-              {/* Tipo unità */}
-              <div>
-                <div style={fieldLabel}>Tipo unità</div>
-                <select value={form.tipo} aria-label="Tipo unità" onChange={e => setForm(f => ({ ...f, tipo: e.target.value, unita: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.unita, prezzo: e.target.value === "semilavorato" || e.target.value === "interno" ? 0 : f.prezzo }))}
+              {/* Tipo unità — set opzioni deriva da tipoAttivita (isGelateria),
+                  layout dei campi sotto deriva da form.tipo (isGusto). */}
+              <div style={isGusto ? { gridColumn: isMobile ? "auto" : "1 / -1" } : undefined}>
+                <div style={fieldLabel}>Tipo</div>
+                <select value={form.tipo} aria-label="Tipo unità"
+                  onChange={e => {
+                    const v = e.target.value
+                    setForm(f => {
+                      // Reset unita/prezzo a valori sensati quando si cambia tipo:
+                      //   gusto      → unita=1 (per 1 kg), prezzo=0 (su Formati vendita)
+                      //   semi/int   → unita=0, prezzo=0
+                      //   fetta/pezzo → mantiene se erano positivi, altrimenti default
+                      const u = v === 'gusto' ? 1
+                              : (v === 'semilavorato' || v === 'interno') ? 0
+                              : (f.unita > 0 ? f.unita : 8)
+                      const p = v === 'gusto' ? 0
+                              : (v === 'semilavorato' || v === 'interno') ? 0
+                              : (f.prezzo > 0 ? f.prezzo : 4)
+                      return { ...f, tipo: v, unita: u, prezzo: p }
+                    })
+                  }}
                   style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }}>
-                  <option value="fetta">Fetta</option><option value="pezzo">Pezzo</option><option value="interno">Uso interno</option><option value="semilavorato">Semilavorato (base/impasto)</option>
+                  {isGelateria ? (
+                    <>
+                      <option value="gusto">Gusto (kg)</option>
+                      <option value="fetta">Fetta (torta/monoporzione)</option>
+                      <option value="pezzo">Pezzo</option>
+                      <option value="interno">Uso interno</option>
+                      <option value="semilavorato">Base / semilavorato</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="fetta">Fetta</option>
+                      <option value="pezzo">Pezzo</option>
+                      {/* Se una ricetta importata ha tipo=gusto in un contesto non-gelateria,
+                          il valore va comunque mostrato — altrimenti il select cade sul primo
+                          option e il form salva un tipo diverso da quello caricato. */}
+                      {form.tipo === 'gusto' && <option value="gusto">Gusto (kg)</option>}
+                      <option value="interno">Uso interno</option>
+                      <option value="semilavorato">Semilavorato (base/impasto)</option>
+                    </>
+                  )}
                 </select>
                 {form.tipo === "semilavorato" && <div style={{ marginTop: 6, padding: "6px 10px", background: "#F9F2FD", border: "1px solid #D4B0E8", borderRadius: 6, fontSize: 10, color: "#8E44AD", display: "flex", alignItems: "center", gap: 5 }}>
                   <Icon name="bulb" size={13} /> <span>Per i semilavorati usa la sezione dedicata <strong>"Semilavorati"</strong> in sidebar - ha template rapidi e import da foto.</span>
                 </div>}
-                {/* Niente flag is_gusto qui: in modalita' inventario, tutte
-                    le ricette tipo fetta/pezzo sono trattate automaticamente
-                    come gusti - la scelta del metodo si fa una sola volta
-                    nelle Impostazioni sedi, non per ricetta. */}
+                {isGusto && form.tipo === "gusto" && (
+                  <div style={{ marginTop: 6, padding: "8px 10px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 6, fontSize: 10.5, color: "#1E3A8A", lineHeight: 1.5 }}>
+                    Gli ingredienti sono per <b>1 kg di gusto finito</b>. Il prezzo di vendita del cono/coppetta/vaschetta si imposta in <b>Formati vendita</b>.
+                  </div>
+                )}
               </div>
 
-              {/* N° pezzi/fette per stampo */}
-              <div>
-                <div style={fieldLabel}>{form.tipo === "pezzo" ? "Pezzi per stampo" : "Fette / porzioni per stampo"}</div>
-                <input type="number" min="0" value={form.unita} disabled={isSemiOrInterno}
-                  aria-label={form.tipo === "pezzo" ? "Pezzi per stampo" : "Fette o porzioni per stampo"}
-                  onChange={e => setForm(f => ({ ...f, unita: parseFloat(e.target.value) || 0 }))}
-                  style={{ ...inputBase, opacity: isSemiOrInterno ? 0.5 : 1 }} />
-              </div>
-
-              {/* Prezzo di vendita */}
-              <div>
-                <div style={fieldLabel}>Prezzo vendita / unità (€)</div>
-                <input type="number" min="0" step="0.5" value={form.prezzo} disabled={isSemiOrInterno}
-                  aria-label="Prezzo vendita per unità in euro"
-                  onChange={e => setForm(f => ({ ...f, prezzo: parseFloat(e.target.value) || 0 }))}
-                  style={{ ...inputBase, opacity: isSemiOrInterno ? 0.5 : 1 }} />
-              </div>
+              {/* Fette/pezzi + prezzo: solo in modalità stampi (pasticceria/panificio/...).
+                  Per gelateria (gusto) questi campi non hanno senso: gli ingredienti
+                  sono per 1 kg e il prezzo vive su Formati vendita per formato. */}
+              {!isGusto && (
+                <>
+                  <div>
+                    <div style={fieldLabel}>{form.tipo === "pezzo" ? "Pezzi per stampo" : "Fette / porzioni per stampo"}</div>
+                    <input type="number" min="0" value={form.unita} disabled={isSemiOrInterno}
+                      aria-label={form.tipo === "pezzo" ? "Pezzi per stampo" : "Fette o porzioni per stampo"}
+                      onChange={e => setForm(f => ({ ...f, unita: parseFloat(e.target.value) || 0 }))}
+                      style={{ ...inputBase, opacity: isSemiOrInterno ? 0.5 : 1 }} />
+                  </div>
+                  <div>
+                    <div style={fieldLabel}>Prezzo vendita / unità (€)</div>
+                    <input type="number" min="0" step="0.5" value={form.prezzo} disabled={isSemiOrInterno}
+                      aria-label="Prezzo vendita per unità in euro"
+                      onChange={e => setForm(f => ({ ...f, prezzo: parseFloat(e.target.value) || 0 }))}
+                      style={{ ...inputBase, opacity: isSemiOrInterno ? 0.5 : 1 }} />
+                  </div>
+                </>
+              )}
 
             </div>
 
@@ -609,13 +641,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           {/* 2. Ingredienti */}
           <div style={cardStyle}>
             <PanelHead icon={<Icon name="receipt" size={18} />} title="Ingredienti"
-              sub="Aggiungi ogni ingrediente con la quantità in grammi per uno stampo. Il costo viene preso dal tuo listino prezzi (o dalla stima HoReCa)." />
+              sub={isGusto
+                ? "Aggiungi ogni ingrediente in grammi per 1 kg di gusto finito. Il costo viene preso dal tuo listino prezzi (o dalla stima HoReCa)."
+                : "Aggiungi ogni ingrediente con la quantità in grammi per uno stampo. Il costo viene preso dal tuo listino prezzi (o dalla stima HoReCa)."} />
             {form.ingredienti.length > 0 && (
               <div style={{ marginBottom: 14, border: `1px solid ${C.border}`, borderRadius: 8, overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 360 }}>
                   <thead>
                     <tr style={{ background: "#F8F4F2" }}>
-                      {[["Ingrediente", null], ["g / stampo", "Grammi di ingrediente per uno stampo"], ["Costo €", "Costo dell'ingrediente per uno stampo"], ["", null]].map(([h, tip], i) => (
+                      {[["Ingrediente", null], [isGusto ? "g / kg gusto" : "g / stampo", isGusto ? "Grammi di ingrediente per 1 kg di gusto finito" : "Grammi di ingrediente per uno stampo"], ["Costo €", isGusto ? "Costo dell'ingrediente per 1 kg" : "Costo dell'ingrediente per uno stampo"], ["", null]].map(([h, tip], i) => (
                         <th key={i} title={tip || undefined} style={{ padding: "8px 10px", textAlign: i === 0 ? "left" : "right", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", ...(tip ? { cursor: "help", textDecoration: "underline dotted", textUnderlineOffset: 3 } : null) }}>{h}</th>
                       ))}
                     </tr>
@@ -753,7 +787,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               if (disponibili.length === 0) {
                 return (
                   <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, fontSize: 11, color: C.textSoft, fontStyle: "italic" }}>
-                    Tutti gli allergeni UE sono gia' stati rilevati automaticamente.
+                    Tutti gli allergeni UE sono già stati rilevati automaticamente.
                   </div>
                 );
               }
@@ -838,12 +872,39 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           </button>
         </div>
 
-        {/* ── Anteprima redditività LIVE (destra) ──────────────────────────── */}
+        {/* ── Anteprima costo (destra) ──────────────────────────────────────
+            Per stampi (pasticceria): pannello redditività completo (ricavo/food cost/margine).
+            Per gusti (gelateria): solo food cost/kg — il prezzo di vendita vive su
+            FormatiVendita, quindi ricavo e margine non hanno senso qui. */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ ...cardStyle, position: isMobile ? "static" : "sticky", top: 20 }}>
-            <PanelHead icon={<Icon name="barChart" size={18} />} title="Anteprima redditività" color={C.text} />
+            <PanelHead icon={<Icon name="barChart" size={18} />} title={isGusto ? "Costo del gusto" : "Anteprima redditività"} color={C.text} />
 
-            {/* Semaforo */}
+            {isGusto ? (
+              form.ingredienti.length === 0 ? (
+                <div style={{ color: C.textSoft, fontSize: 11, textAlign: "center", padding: "16px 0" }}>Aggiungi ingredienti per vedere il food cost</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ padding: '14px 16px', background: C.redLight, border: `1px solid ${C.red}20`, borderRadius: 10, textAlign: 'center' }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: C.red, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Food cost al kg</div>
+                    <div style={{ fontSize: 30, fontWeight: 900, color: C.red, letterSpacing: '-0.02em', ...TNUM }}>{fmt(live.fc)}</div>
+                    <div style={{ fontSize: 10, color: C.textSoft, marginTop: 4 }}>materie prime per 1 kg di gusto finito</div>
+                  </div>
+                  <div style={{ fontSize: 10.5, color: C.textSoft, lineHeight: 1.5, display: "flex", alignItems: "flex-start", gap: 6, padding: '4px 4px 0' }}>
+                    <Icon name="bulb" size={12} />
+                    <span>Il ricarico dipende dal formato di vendita (cono, coppetta, vaschetta). Impostalo in <b>Formati vendita</b>.</span>
+                  </div>
+                  {live.mancanti.length > 0 && (
+                    <div style={{ fontSize: 10.5, color: C.amber, background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "flex-start", gap: 6 }}>
+                      <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={12} /></span>
+                      <span>Food cost sottostimato: manca il prezzo di {live.mancanti.join(", ")}. Caricalo nel listino prezzi.</span>
+                    </div>
+                  )}
+                </div>
+              )
+            ) : (
+            <>
+            {/* Semaforo (solo stampi) */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, background: sem.bg, border: `1px solid ${sem.border}`, marginBottom: 14 }}>
               <span style={{ width: 38, height: 38, borderRadius: "50%", background: live.ricavo > 0 ? sem.color : C.border, color: C.white, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Icon name={sem.icon} size={20} />
@@ -890,14 +951,19 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 )}
               </div>
             )}
+            </>
+            )}
           </div>
 
           {/* Prezzo minimo per centrare il food cost obiettivo.
               Rinominato 26/06: era "Prezzo consigliato" ma poteva suggerire
               di abbassare il prezzo (= ricavo minore). Ora è chiaro che è il
               prezzo MINIMO sotto cui il food cost % sfora il target; sopra
-              quel prezzo si guadagna di più, mai consigliato abbassarlo. */}
-          {!isSemiOrInterno && (
+              quel prezzo si guadagna di più, mai consigliato abbassarlo.
+              Per i gusti (gelateria) il prezzo vive su FormatiVendita, non
+              sulla ricetta — questo pannello non ha significato e viene
+              nascosto. */}
+          {!isSemiOrInterno && !isGusto && (
             <div style={cardStyle}>
               <PanelHead icon={<Icon name="money" size={18} />} title="Prezzo minimo per il target" color={C.red} sub="prezzo minimo che mantiene il food cost dentro l'obiettivo. Sopra, guadagni di più." />
 
@@ -995,6 +1061,163 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 // Le azioni "shortcut" (foto/modifica/elimina) usano queste chip: quando
 // attivo il chip prende il colore dell'azione e mostra un chevron in giu';
 // altrimenti resta neutro con icona colorata. Toggle open/close.
+// ─── CommandBar: strip unica in cima a Nuova ricetta ────────────────────────
+// Rimpiazza la vecchia toolbar-3-chip che espandeva pannelli verticali con
+// tanto spazio vuoto. Design a singola strip: search inline delle ricette
+// esistenti (sostituisce "Modifica esistente") + icon-buttons compatti
+// (📷 foto, 🗑 elimina) con badge count + toggle "sovrascrivi da foto".
+function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, activeAction, onToggleAction, forceOverwrite, setForceOverwrite, LEX }) {
+  const [q, setQ] = useState('')
+  const [showList, setShowList] = useState(false)
+  const wrapRef = useRef(null)
+  const hasEsistenti = ricetteEsistenti.length > 0
+
+  useEffect(() => {
+    function onDown(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setShowList(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [])
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase()
+    if (!s) return ricetteEsistenti.slice(0, 8)
+    return ricetteEsistenti.filter(n => n.toLowerCase().includes(s)).slice(0, 8)
+  }, [q, ricetteEsistenti])
+
+  const IconBtn = ({ name, label, active, onClick, color, badge }) => (
+    <button type="button" onClick={onClick} aria-pressed={!!active} aria-label={label} title={label}
+      style={{
+        position: 'relative',
+        width: isMobile ? 42 : 40, height: isMobile ? 42 : 40,
+        borderRadius: 10,
+        background: active ? color : `${color}0F`,
+        color: active ? '#FFF' : color,
+        border: `1px solid ${active ? color : `${color}30`}`,
+        cursor: 'pointer',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        transition: 'background 0.15s ease',
+        boxShadow: active ? `0 6px 14px ${color}30` : 'none',
+      }}>
+      <Icon name={name} size={17} />
+      {badge != null && badge > 0 && (
+        <span style={{
+          position: 'absolute', top: -5, right: -5,
+          minWidth: 18, height: 18, padding: '0 5px',
+          background: '#FFF', color, border: `1px solid ${color}`,
+          borderRadius: 9, fontSize: 10, fontWeight: 800,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}>{badge}</span>
+      )}
+    </button>
+  )
+
+  return (
+    <div ref={wrapRef} style={{ marginBottom: activeAction ? 12 : 22 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10,
+        padding: isMobile ? '8px 10px' : '8px 12px',
+        background: '#FFF',
+        border: `1px solid ${C.border}`,
+        borderRadius: 14,
+        boxShadow: '0 2px 12px rgba(15,23,42,0.04)',
+        flexWrap: isMobile ? 'wrap' : 'nowrap',
+      }}>
+        {/* Search inline ricette esistenti */}
+        <div style={{ flex: '1 1 240px', minWidth: 0, position: 'relative' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: isMobile ? '9px 12px' : '8px 12px',
+            background: '#F8F7F5',
+            border: `1px solid ${showList ? C.text : 'transparent'}`,
+            borderRadius: 10, transition: 'border 0.15s ease',
+          }}>
+            <Icon name="search" size={15} color={C.textSoft} />
+            <input
+              type="text"
+              value={q}
+              onChange={e => { setQ(e.target.value); setShowList(true) }}
+              onFocus={() => setShowList(true)}
+              placeholder={hasEsistenti ? `Cerca fra ${ricetteEsistenti.length} ${LEX?.ricette || 'ricette'} esistenti…` : `Nessuna ${LEX?.ricetta || 'ricetta'} ancora — compila sotto`}
+              disabled={!hasEsistenti}
+              style={{
+                flex: 1, minWidth: 0,
+                border: 'none', outline: 'none', background: 'transparent',
+                fontSize: isMobile ? 14 : 13, color: C.text, fontFamily: 'inherit',
+              }}
+            />
+            {activeNome && (
+              <span style={{ fontSize: 10.5, fontWeight: 800, color: T.brand, background: `${T.brand}12`, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                editing
+              </span>
+            )}
+          </div>
+          {showList && hasEsistenti && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 100,
+              background: '#FFF', border: `1px solid ${C.border}`,
+              borderRadius: 10, boxShadow: '0 12px 32px rgba(15,23,42,0.10)',
+              overflow: 'hidden', maxHeight: 320, overflowY: 'auto',
+            }}>
+              {filtered.length === 0 ? (
+                <div style={{ padding: 14, fontSize: 12, color: C.textSoft, textAlign: 'center' }}>Nessun risultato per "{q}"</div>
+              ) : filtered.map(nome => (
+                <button key={nome} type="button"
+                  onMouseDown={e => { e.preventDefault(); onPickExisting(nome); setQ(''); setShowList(false) }}
+                  style={{
+                    display: 'flex', width: '100%', textAlign: 'left',
+                    padding: '10px 14px', gap: 10, alignItems: 'center',
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    borderBottom: `1px solid ${C.borderSoft || C.border}`,
+                    fontSize: 13, color: C.text, fontFamily: 'inherit', fontWeight: 500,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#F8F7F5'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <Icon name="edit" size={13} color={C.textSoft} />
+                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nome}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Toggle sovrascrivi (pillola) */}
+        <button type="button" onClick={() => setForceOverwrite(v => !v)}
+          aria-pressed={forceOverwrite}
+          title={forceOverwrite ? 'Le foto sovrascrivono le ricette con lo stesso nome' : 'Le ricette esistenti vengono saltate'}
+          style={{
+            padding: isMobile ? '8px 12px' : '7px 12px',
+            background: forceOverwrite ? '#FEF3C7' : '#F8F7F5',
+            border: `1px solid ${forceOverwrite ? '#F59E0B' : C.border}`,
+            borderRadius: 999,
+            fontSize: 11, fontWeight: 700,
+            color: forceOverwrite ? '#92400E' : C.textSoft,
+            cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontFamily: 'inherit', whiteSpace: 'nowrap',
+            transition: 'background 0.15s ease',
+          }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: 999,
+            background: forceOverwrite ? '#F59E0B' : '#CBD5E1',
+          }} />
+          Sovrascrivi da foto
+        </button>
+
+        {/* Icon buttons: foto + elimina */}
+        <div style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
+          <IconBtn name="camera" label="Parti da una foto" color={T.brand} active={activeAction === 'foto'} onClick={() => onToggleAction('foto')} />
+          {hasEsistenti && (
+            <IconBtn name="trash" label="Elimina ricetta" color="#991B1B" active={activeAction === 'elimina'} onClick={() => onToggleAction('elimina')} badge={ricetteEsistenti.length} />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ActionChip({ icon, label, sub, active, onClick, color, isMobile }) {
   const border = active ? color : 'rgba(15,23,42,0.10)'
   const bg = active ? `${color}0F` : '#FFF'

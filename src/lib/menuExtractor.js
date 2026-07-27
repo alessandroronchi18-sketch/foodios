@@ -39,8 +39,8 @@ Output: SOLO JSON valido in questo formato esatto (niente markdown, niente comme
 REGOLE STRETTE:
 - nome: UPPERCASE, max 45 caratteri, niente accenti gravi su lettere isolate
 - categoria: "Torte" | "Crostate" | "Biscotti" | "Lievitati" | "Dolci al cucchiaio" | "Gelati" | "Salato" | "Bevande" | "Plumcake" | "Muffin" | "Cioccolateria" | "Confetteria" | "Altro"
-- tipo: "pezzo" (singolo, monoporzione), "fetta" (torta intera divisa in fette), oppure "kg" (vendita a peso, gelato)
-- unita: se tipo="fetta" → numero fette per stampo (6, 8, 10, 12); se tipo="pezzo" o "kg" → 1
+- tipo: "pezzo" (singolo, monoporzione), "fetta" (torta intera divisa in fette), oppure "gusto" (gelato/yogurt venduto a peso, ingredienti per 1 kg di prodotto finito)
+- unita: se tipo="fetta" → numero fette per stampo (6, 8, 10, 12); se tipo="pezzo" → 1; se tipo="gusto" → 1 (ingredienti per 1 kg finito)
 - prezzo: numero decimale tra 0.50 e 80 EUR (per unità di vendita)
 - ingredienti: 3-6 voci principali con quantità in grammi per UN intero stampo (es. torta da 8 fette → quantità per la torta intera, non per fetta)
 - ingredienti.nome: lowercase, snake_case, italiano (mascarpone, savoiardi, pistacchio, farina_00, zucchero, burro, uova, latte, panna, cacao, vaniglia, lievito_di_birra, ecc.)
@@ -119,8 +119,11 @@ export function normalizeMenu(rawJson) {
     if (!nome || nome.length < 2) continue
     if (seen.has(nome)) continue
     seen.add(nome)
-    const tipoRaw = String(p?.tipo || 'pezzo').toLowerCase()
-    const tipo = ['pezzo', 'fetta', 'kg'].includes(tipoRaw) ? tipoRaw : 'pezzo'
+    // Backwards-compat: prompt storico usava 'kg' come slug per gelato; ora lo mappiamo
+    // sullo slug interno canonico 'gusto' (allineato al ricettario).
+    let tipoRaw = String(p?.tipo || 'pezzo').toLowerCase()
+    if (tipoRaw === 'kg') tipoRaw = 'gusto'
+    const tipo = ['pezzo', 'fetta', 'gusto'].includes(tipoRaw) ? tipoRaw : 'pezzo'
     const unita = tipo === 'fetta'
       ? clamp(Math.round(Number(p?.unita) || 8), 4, 16)
       : 1

@@ -16,6 +16,7 @@ import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng,
 } from '../lib/foodcost'
+import { labelPlurale, labelSingolare, isGustoTipo } from '../lib/tipoRicetta'
 import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
@@ -318,10 +319,10 @@ function ScenarioPrezzi({ rows, euro, pct }) {
                 background: changed ? (r.delta > 0 ? '#F6FBF7' : '#FEF6F5') : C.white }}>
                 <div style={{ width: 180, flexShrink: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{r.nome}</div>
-                  <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>{r.reg.unita} {r.reg.tipo === 'fetta' ? 'fette' : 'pz'}/stampo</div>
+                  <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>{r.reg.unita} {labelPlurale(r.reg.tipo)}/stampo</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-                  <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.textSoft }}>Prezzo / {r.reg.tipo === 'fetta' ? 'fetta' : 'pezzo'}</div>
+                  <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.textSoft }}>Prezzo / {labelSingolare(r.reg.tipo)}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>€</span>
                     <input type="number" min="0" step="0.10" value={prezzi[r.nome]}
@@ -413,7 +414,7 @@ function PLTable({ rows, euro, pct, totRicavo, totFC, totMargine, fcAvg, avgMarg
               {sorted.map((r, i) => (
                 <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                   <TD bold>{r.nome}</TD>
-                  <TD right color={C.textMid}>{r.reg.unita} {r.reg.tipo === 'fetta' ? 'fette' : 'pz'}</TD>
+                  <TD right color={C.textMid}>{r.reg.unita} {labelPlurale(r.reg.tipo)}</TD>
                   <TD right bold color={C.text} mono>{euro(r.reg.prezzo)}</TD>
                   <TD right bold color={C.green} mono>{fmt0(r.ricavo)}</TD>
                   <TD right color={C.red} mono>{euro(r.fc)}</TD>
@@ -502,8 +503,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
-  const ricette = Object.values(ricettario?.ricette || {})
+  // I gusti (gelateria) sono esclusi dal P&L: il ricavo per gusto è 0 perché il
+  // prezzo di vendita vive su FormatiVendita (cono/coppetta/vaschetta). Includerli
+  // inquinerebbe totRicavo/totMargine e avgMarg. Contati a parte per il banner.
+  const tutteLeRicette = Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
+  const gustiCount = tutteLeRicette.filter(r => isGustoTipo(getR(r.nome, r).tipo)).length
+  const ricette = tutteLeRicette.filter(r => !isGustoTipo(getR(r.nome, r).tipo))
 
   // Costi aziendali extra-food (consumabili, manutenzione, utenze, ammortamenti)
   // - vengono sottratti per ottenere il margine NETTO mensile/annuale.
@@ -755,6 +761,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
           </button>
         }
       />
+
+      {gustiCount > 0 && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, fontSize: 11.5, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <Icon name="bulb" size={13} />
+          <span><b>{gustiCount} gusti gelateria</b> non appaiono in questo P&L: il prezzo di vendita vive su <b>Formati vendita</b> (cono/coppetta/vaschetta), quindi il conto economico dei gusti si costruisce dal mix di formati venduti in cassa, non dalla ricetta.</span>
+        </div>
+      )}
 
       {/* ═══ P&L MENSILE REALE ═══ */}
       <SH sub="Ricavi e food cost reali dalle chiusure di cassa, meno costo del personale e costi fissi. = utile vero del periodo.">Conto economico · {rangeLabel(dateFrom, dateTo)}</SH>

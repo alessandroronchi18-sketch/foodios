@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateProdottoEN } from '../lib/foodcost'
+import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { caricoProduzionePF, scartoPF } from '../lib/stockPF'
 import { creaTrasferimento } from '../lib/trasferimenti'
 import { SK_GIOR, SK_MAG } from '../lib/storageKeys'
@@ -94,7 +95,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
   const [tab, setTab] = useState('nuova')
   // Toolbar collassabile per "Parti da una foto": OCR nascosto dietro chip
-  // per dare piu' peso al flusso primario di inserimento manuale.
+  // per dare più peso al flusso primario di inserimento manuale.
   const [showFotoPanel, setShowFotoPanel] = useState(false)
   // Search bar sulla tabella ricette (evita di scrollare 50+ righe).
   const [ricSearch, setRicSearch] = useState('')
@@ -779,7 +780,9 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                                 <span style={{ fontSize: 9, color: C.textSoft }}>
                                   {isSemi
                                     ? <>1 batch → <b style={{ color: C.text }}>base per altre ricette</b></>
-                                    : <>1 stampo → <b style={{ color: C.text }}>{reg.unita} {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</b> × {fmt(reg.prezzo)}</>
+                                    : isGustoTipo(reg.tipo)
+                                      ? <>1 batch → <b style={{ color: C.text }}>{reg.unita} kg di gusto</b> (prezzo su formati vendita)</>
+                                      : <>1 stampo → <b style={{ color: C.text }}>{reg.unita} {labelPlurale(reg.tipo)}</b> × {fmt(reg.prezzo)}</>
                                   }
                                 </span>
                                 {q > 0 && reg.unita > 0 && (
@@ -860,7 +863,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                           </div>
                           {reg.unita > 1 && (
                             <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>
-                              → <b style={{ color: C.red }}>{pezziVetrina.toLocaleString('it-IT')} {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</b> al banco
+                              → <b style={{ color: C.red }}>{pezziVetrina.toLocaleString('it-IT')} {labelPlurale(reg.tipo)}</b> al banco
                               {q !== qv && <span style={{ color: '#92400E', marginLeft: 6 }}>({qv} vendibili oggi, {q - qv} in freezer)</span>}
                             </div>
                           )}
@@ -905,7 +908,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       const pezzi = qv * (reg.unita || 1)
                       return (
                         <span key={ric.nome} style={{ fontSize: 11, padding: '5px 10px', borderRadius: 6, background: C.white, border: `1px solid ${C.red}25`, color: C.text, fontWeight: 700 }}>
-                          {ric.nome} <span style={{ color: C.red }}>+{pezzi.toLocaleString('it-IT')}</span> <span style={{ fontWeight: 500, color: C.textSoft }}>{reg.tipo === 'fetta' ? 'fette' : 'pezzi'}</span>
+                          {ric.nome} <span style={{ color: C.red }}>+{pezzi.toLocaleString('it-IT')}</span> <span style={{ fontWeight: 500, color: C.textSoft }}>{labelPlurale(reg.tipo)}</span>
                         </span>
                       )
                     })}

@@ -8,6 +8,7 @@ import React, { useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { buildIngCosti, calcolaFCDettaglio, getR, isRicettaValida } from '../lib/foodcost'
+import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { exportSimulatorePrezzi } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { lessico } from '../lib/lessico'
@@ -33,9 +34,14 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const isTablet = useIsTablet()
 
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
-  const ricette = useMemo(() => Object.values(ricettario?.ricette || {})
+  // I gusti (gelateria) sono esclusi dal simulatore prezzi: il prezzo di vendita
+  // vive su FormatiVendita (cono/coppetta/vaschetta), non sulla ricetta gusto.
+  // Il simulatore muove `reg.prezzo` — per un gusto è sempre 0 e non ha senso.
+  const tutteLeRicette = useMemo(() => Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato'),
     [ricettario])
+  const gustiCount = useMemo(() => tutteLeRicette.filter(r => isGustoTipo(getR(r.nome, r).tipo)).length, [tutteLeRicette])
+  const ricette = useMemo(() => tutteLeRicette.filter(r => !isGustoTipo(getR(r.nome, r).tipo)), [tutteLeRicette])
 
   // ── Stato ───────────────────────────────────────────────────────────────────
   const [targetPct, setTargetPct] = useState(30)       // food cost obiettivo (%)
@@ -242,6 +248,13 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
         action={exportBtn}
       />
 
+      {gustiCount > 0 && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, fontSize: 11.5, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <Icon name="bulb" size={13} />
+          <span><b>{gustiCount} gusti gelateria</b> non appaiono qui: il prezzo di vendita si simula in <b>Formati vendita</b> (cono/coppetta/vaschetta).</span>
+        </div>
+      )}
+
       {/* Target food cost - selector */}
       <div style={{
         ...cardStyle(),
@@ -444,7 +457,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
                       <tr style={{ background: T.bgSubtle }}>
                         <td colSpan={7} style={{ padding: '8px 14px 18px' }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 10px' }}>
-                            Composizione del costo · {r.reg.unita.toLocaleString('it-IT')} {r.reg.tipo === 'fetta' ? 'fette' : 'pz'}/stampo
+                            Composizione del costo · {r.reg.unita.toLocaleString('it-IT')} {labelPlurale(r.reg.tipo)}/stampo
                           </div>
                           {r.righe.length === 0 ? (
                             <div style={{ fontSize: 12.5, color: T.textSoft }}>Nessun ingrediente con quantità nel ricettario.</div>

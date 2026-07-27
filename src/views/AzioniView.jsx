@@ -69,11 +69,19 @@ export default function AzioniView({ actions, onUpdate, onDelete, ricettario, gi
       const margine = ricavo - fc;
       const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0;
       const ingList = (ric.ingredienti || []).map(i => `${i.nome} ${i.qty1stampo}g`).join(", ");
+      // Per gusti (gelateria) il prezzo di vendita vive su Formati vendita (cono/coppetta),
+      // non sulla ricetta. Riga dedicata per non confondere il modello AI con ricavo=0.
+      if (reg.tipo === 'gusto') {
+        return `- ${ric.nome} (GUSTO gelateria, 1 kg finito): food cost ${ftEur(fc)}/kg${mancanti.length > 0 ? ` [prezzi mancanti: ${mancanti.join(", ")}]` : ""}. Prezzo di vendita: su Formati vendita (cono/coppetta/vaschetta). Ingredienti: ${ingList}`;
+      }
       return `- ${ric.nome}: ${reg.unita} ${pluralizza(reg.tipo, reg.unita)} × ${ftEur(reg.prezzo)} = ricavo ${ftEur(ricavo)}, FC ${ftEur(fc)} (${ricavo > 0 ? ftPct(fc / ricavo * 100) : '0%'}), margine ${ftEur(margine)} (${ftPct(margPct)})${mancanti.length > 0 ? ` [prezzi mancanti: ${mancanti.join(", ")}]` : ""}. Ingredienti: ${ingList}`;
     }).join("\n");
 
-    const totRicavo  = ricette.reduce((s, r) => { const rg = getR(r.nome, r); const { tot: fc } = calcolaFC(r, ingCosti, ricettario); return s + rg.unita * rg.prezzo; }, 0);
-    const totFC      = ricette.reduce((s, r) => { const { tot: fc } = calcolaFC(r, ingCosti, ricettario); return s + fc; }, 0);
+    // Totali su ricette con prezzo/unita: escludiamo i gusti (prezzo=0 su ricetta,
+    // vive su Formati vendita) per non gonfiare totFC senza corrispondente ricavo.
+    const ricetteConPrezzo = ricette.filter(r => { const rg = getR(r.nome, r); return rg.tipo !== 'gusto' })
+    const totRicavo  = ricetteConPrezzo.reduce((s, r) => { const rg = getR(r.nome, r); return s + rg.unita * rg.prezzo; }, 0);
+    const totFC      = ricetteConPrezzo.reduce((s, r) => { const { tot: fc } = calcolaFC(r, ingCosti, ricettario); return s + fc; }, 0);
     const totMargine = totRicavo - totFC;
     const avgMarg    = totRicavo > 0 ? (totMargine / totRicavo * 100) : 0;
 

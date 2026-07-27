@@ -9,6 +9,7 @@ import {
 } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS } from '../lib/allergeni'
 import { lessico } from '../lib/lessico'
+import { labelPlurale, labelSingolare } from '../lib/tipoRicetta'
 import { exportRicettaPDF } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import Icon from '../components/Icon'
@@ -41,7 +42,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const [editUnita, setEditUnita] = useState(reg.unita)
   const [exportingPdf, setExportingPdf] = useState(false)
   // Sort della Distinta costi - click sulle etichette dell'header riordina.
-  // Default: alfabetico ascendente (richiesta utente 13/07/2026: piu' facile
+  // Default: alfabetico ascendente (richiesta utente 13/07/2026: più facile
   // trovare un ingrediente noto per nome che per costo).
   const [sortKey, setSortKey] = useState('nome')
   const [sortDir, setSortDir] = useState('asc')
@@ -252,7 +253,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           <div style={{ fontSize: 11, color: C.textSoft, lineHeight: 1.4 }}>
             {isSemi
               ? `Base interna · ${pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`} per batch${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
-              : `${reg.unita} ${reg.tipo === 'fetta' ? 'fette' : 'pezzi'} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`}
+              : reg.tipo === 'gusto'
+                ? `Gusto · food cost ${fmt(fc)}/kg · prezzo su formati vendita`
+                : `${reg.unita} ${labelPlurale(reg.tipo)} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`}
           </div>
           {(ric.allergeni || []).length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
@@ -315,7 +318,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${isSemi ? SEMI.border : C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: isSemi ? SEMI.accent : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap' }}>
             {open ? '▲ Chiudi' : '▼ Dettaglio'}
           </button>
-          {!isSemi && (
+          {/* Edit rapido prezzo/n°fette: solo per stampi. Per i gusti (gelateria)
+              il prezzo vive su Formati vendita, non sulla ricetta. */}
+          {!isSemi && reg.tipo !== 'gusto' && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
               style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Prezzo
@@ -347,14 +352,14 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
       {/* Edit inline */}
       {editMode && (
         <div style={{ padding: '14px 24px', background: '#FFF8F7', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Modifica prezzo / {reg.tipo === 'fetta' ? 'fette' : 'pezzi'}:</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>Modifica prezzo / {labelPlurale(reg.tipo)}:</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <label style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>N°</label>
             <input type="number" inputMode="numeric" min="1" max="100" value={editUnita} onChange={e => setEditUnita(e.target.value)}
               style={{ width: isMobile ? 80 : 64, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>€ / {reg.tipo === 'fetta' ? 'fetta' : 'pezzo'}</label>
+            <label style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase' }}>€ / {labelSingolare(reg.tipo)}</label>
             <input type="number" inputMode="decimal" min="0" step="0.1" value={editPrezzo} onChange={e => setEditPrezzo(e.target.value)}
               style={{ width: isMobile ? 90 : 72, padding: '8px 8px', minHeight: isMobile ? 44 : 'auto', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, fontWeight: 700, color: C.text, textAlign: 'center' }}/>
           </div>
@@ -509,8 +514,8 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             )
           })()}
 
-          {/* PANEL 3 - Conto economico per stampo (no semi) */}
-          {!isSemi && (
+          {/* PANEL 3 - Conto economico per stampo. Escluso per gusti: prezzo su Formati vendita. */}
+          {!isSemi && reg.tipo !== 'gusto' && (
             <div style={PANEL_STYLE}>
               {PANEL_ACCENT}
               <div style={PANEL_TITLE_STYLE}><Icon name="money" size={14} /> Conto economico per stampo</div>
@@ -534,8 +539,22 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             </div>
           )}
 
-          {/* PANEL 4 - Per singola fetta (no semi) */}
-          {!isSemi && (
+          {/* PANEL 4 - Per singola fetta/pezzo (stampi). Per gusti mostra solo food cost/kg
+              (il prezzo di vendita vive su Formati vendita). */}
+          {!isSemi && reg.tipo === 'gusto' && (
+            <div style={PANEL_STYLE}>
+              {PANEL_ACCENT}
+              <div style={PANEL_TITLE_STYLE}><Icon name="gift" size={14} /> Costo al kg</div>
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: '14px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 4 }}>Food cost / kg</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: C.red, ...TNUM }}>{fmt(fc)}</div>
+                <div style={{ fontSize: 9.5, color: C.textSoft, marginTop: 6, lineHeight: 1.4 }}>
+                  Prezzo di vendita: vedi <b>Formati vendita</b> per cono/coppetta/vaschetta.
+                </div>
+              </div>
+            </div>
+          )}
+          {!isSemi && reg.tipo !== 'gusto' && (
             <div style={PANEL_STYLE}>
               {PANEL_ACCENT}
               <div style={PANEL_TITLE_STYLE}><Icon name="gift" size={14} /> Per singola {reg.tipo}</div>
@@ -595,7 +614,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo === 'semilavorato'), [ricettario])
 
   const [search, setSearch] = useState('')
-  // Default: alfabetico ascendente (richiesta utente 13/07/2026: piu' facile
+  // Default: alfabetico ascendente (richiesta utente 13/07/2026: più facile
   // trovare una ricetta per nome che per margine).
   const [sortBy, setSortBy] = useState('nome_az')
   const [gridView, setGridView] = useState(false)

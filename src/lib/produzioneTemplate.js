@@ -47,7 +47,9 @@ function buildAoA(ricette, nomeAttivita) {
     .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'it'))
   for (const r of validate) {
     const reg = getR(r.nome, r)
-    const nota = reg.tipo === 'semilavorato' ? '(semilavorato - base per altre ricette)' : ''
+    const nota = reg.tipo === 'semilavorato' ? '(semilavorato - base per altre ricette)'
+               : reg.tipo === 'gusto' ? '(gusto gelato - registra la produzione in kg su Inventario settimanale)'
+               : ''
     rows.push([r.nome, '', '', nota])
   }
   if (validate.length === 0) {
