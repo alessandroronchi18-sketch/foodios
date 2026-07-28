@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast'
 import { apiFetch } from '../lib/apiFetch'
 import Icon from '../components/Icon'
 import PersonalizeDemoModal from './PersonalizeDemoModal'
+import MethodChangeRequestsPanel from './MethodChangeRequestsPanel'
 
 // ─── Costanti ──────────────────────────────────────────────────────────────
 const PIANI = ['trial', 'base', 'pro', 'enterprise']
@@ -2780,6 +2781,7 @@ export default function AdminPage() {
 
         {/* ═══ PENDING APPROVALS (NEW · audit 2026-06-21) ═════════════ */}
         {adminTab === 'pending' && (<>
+          <MethodChangeRequestsPanel />
           <Card style={{ marginBottom: 20, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
               <div>

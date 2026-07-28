@@ -28,7 +28,6 @@ import ReferralPanel from './ReferralPanel'
 import DeleteAccountModal from './DeleteAccountModal'
 
 import { getAllRese, getStoreRese, setResaIngrediente } from '../lib/rese'
-import { seedFormatiGelateriaSeMancano } from '../lib/formatiVendita'
 
 const SK_RESE = 'pasticceria-rese-v1' // stesso constant usato da Dashboard.jsx per persistere su localStorage
 
@@ -83,40 +82,79 @@ const mkBtn = (disabled) => ({
 
 // ─── Sub-componenti generale (Profilo + Account + Email report + Changelog) ──
 
-// Metodo di produzione a livello ORG (audit 2026-07-23): un'attività ha un
-// solo metodo, valido per tutte le sedi produttive. Il ricettario, i formati
-// vendita e le analisi consolidate presuppongono un modello unico.
+// Metodo di produzione a livello ORG (audit 2026-07-23) + approval workflow
+// admin (audit 2026-07-28): cambiare metodo tocca ricettario/formati/viste
+// operative → puo' corrompere dati storici. L'utente puo' SOLO richiedere il
+// cambio; l'admin (founder) applica dopo verifica. Setup iniziale (nessun
+// metodo scelto ancora) resta libero — vedi OnboardingWizard.
 function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
   const isMobile = useIsMobile()
-  const [confirm, setConfirm] = useState(null) // { target: 'stampi'|'inventario' } | null
+  const [confirm, setConfirm] = useState(null) // { target } | null: apre modale richiesta
+  const [motivazione, setMotivazione] = useState('')
   const [saving, setSaving] = useState(false)
+  const [richiesteRecenti, setRichiesteRecenti] = useState([])
+  const [loadingReq, setLoadingReq] = useState(true)
   const current = metodoProduzione === 'inventario' ? 'inventario' : 'stampi'
 
-  async function applica(target) {
+  const labelMetodo = (m) => m === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'
+
+  // Carica ultime richieste (pending + ultima decisa) per mostrare stato all'utente.
+  useEffect(() => {
+    if (!orgId) { setLoadingReq(false); return }
+    let alive = true
+    supabase.from('metodo_change_requests')
+      .select('id, from_metodo, to_metodo, status, motivazione, admin_note, created_at, decided_at, decided_by')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: false })
+      .limit(5)
+      .then(({ data }) => { if (alive) { setRichiesteRecenti(data || []); setLoadingReq(false) } })
+    return () => { alive = false }
+  }, [orgId])
+
+  const richiestaPending = richiesteRecenti.find(r => r.status === 'pending')
+  const ultimaDecisa = richiesteRecenti.find(r => r.status === 'rejected' || r.status === 'approved')
+
+  async function inviaRichiesta() {
+    if (!confirm?.target) return
     setSaving(true)
     try {
-      const { error } = await supabase
-        .from('organizations')
-        .update({ metodo_produzione: target })
-        .eq('id', orgId)
-      if (error) throw error
-      // Sincronizziamo anche sedi.metodo_produzione per compat/leggibilità
-      // (source of truth è organizations, ma alcuni legacy query potrebbero
-      // ancora leggere sedi — evitiamo drift).
-      await supabase.from('sedi').update({ metodo_produzione: target }).eq('organization_id', orgId)
-      // Se sta passando a gelateria (inventario) e non ha ancora formati
-      // vendita: seed di 3 default (cono/coppetta/vaschetta) così i gusti
-      // partono con un ricavo/kg stimato. Idempotente.
-      let seeded = 0
-      if (target === 'inventario') {
-        try { const r = await seedFormatiGelateriaSeMancano(orgId); seeded = r?.seeded || 0 } catch {}
+      // Recupera email utente per audit trail leggibile (fallback null).
+      let userEmail = null
+      try { const { data: u } = await supabase.auth.getUser(); userEmail = u?.user?.email || null } catch {}
+      const { data: inserted, error } = await supabase.from('metodo_change_requests').insert({
+        organization_id: orgId,
+        requested_by_email: userEmail,
+        from_metodo: current,
+        to_metodo: confirm.target,
+        motivazione: (motivazione || '').trim() || null,
+      }).select().single()
+      if (error) {
+        // Gestione duplicato pending (unique index)
+        if (String(error.message || '').includes('uniq_pending_per_org')) {
+          throw new Error('Hai gia\' una richiesta in attesa. Aspetta la decisione o cancellala prima di crearne un\'altra.')
+        }
+        throw error
       }
-      notify?.(seeded > 0
-        ? `Metodo aggiornato + ${seeded} formati vendita creati. Ricarica per applicare ovunque.`
-        : 'Metodo di produzione aggiornato. Ricarica la pagina per applicarlo ovunque.')
-      setConfirm(null)
+      setRichiesteRecenti(r => [inserted, ...r])
+      notify?.('Richiesta inviata. Ti avvisiamo appena l\'admin decide.')
+      setConfirm(null); setMotivazione('')
     } catch (e) {
-      notify?.('Errore: ' + (e.message || 'salvataggio fallito'), false)
+      notify?.('Errore: ' + (e.message || 'invio fallito'), false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function cancellaRichiesta(id) {
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('metodo_change_requests')
+        .update({ status: 'cancelled' }).eq('id', id)
+      if (error) throw error
+      setRichiesteRecenti(r => r.map(x => x.id === id ? { ...x, status: 'cancelled' } : x))
+      notify?.('Richiesta annullata.')
+    } catch (e) {
+      notify?.('Errore: ' + (e.message || 'annullamento fallito'), false)
     } finally {
       setSaving(false)
     }
@@ -124,20 +162,22 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
 
   const card = (target, titolo, descrizione, esempi) => {
     const selected = current === target
+    const disabled = !!richiestaPending || saving || selected
     return (
       <button type="button"
-        onClick={() => { if (!selected) setConfirm({ target }) }}
-        disabled={saving}
+        onClick={() => { if (!disabled) { setConfirm({ target }); setMotivazione('') } }}
+        disabled={disabled}
+        title={richiestaPending ? 'Hai una richiesta in attesa: annullala per crearne un\'altra' : (selected ? 'Metodo gia\' attivo' : '')}
         style={{
           textAlign: 'left', padding: '16px 18px', borderRadius: 12,
           border: `2px solid ${selected ? '#6E0E1A' : '#E2E8F0'}`,
           background: selected ? '#FEF0EE' : '#FFF',
-          cursor: selected ? 'default' : 'pointer',
+          cursor: disabled && !selected ? 'not-allowed' : (selected ? 'default' : 'pointer'),
           fontFamily: 'inherit', width: '100%',
-          opacity: saving ? 0.6 : 1,
+          opacity: (disabled && !selected) ? 0.55 : 1,
           transition: 'all 0.15s ease',
         }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#1C0A0A' }}>{titolo}</div>
           {selected && (
             <span style={{ fontSize: 10, fontWeight: 700, color: '#6E0E1A', background: '#FFF', border: '1px solid #6E0E1A', padding: '2px 8px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -157,6 +197,28 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
         Come registri la produzione nella tua attività. Questa scelta vale per <b>tutte le sedi</b> — ricettario, formati di vendita e analisi consolidate presuppongono un modello unico.
       </div>
 
+      {/* Banner: richiesta pending o esito recente (informativo). */}
+      {!loadingReq && richiestaPending && (
+        <div style={{ marginBottom: 14, padding: '12px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 12.5, color: '#92400E', lineHeight: 1.55 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Richiesta in attesa di approvazione</div>
+          <div>Vuoi passare da <b>{labelMetodo(richiestaPending.from_metodo)}</b> a <b>{labelMetodo(richiestaPending.to_metodo)}</b>. Inviata il {new Date(richiestaPending.created_at).toLocaleDateString('it-IT')}.</div>
+          {richiestaPending.motivazione && <div style={{ marginTop: 6, fontStyle: 'italic', color: '#78350F' }}>Motivo: {richiestaPending.motivazione}</div>}
+          <div style={{ marginTop: 10 }}>
+            <button type="button" onClick={() => cancellaRichiesta(richiestaPending.id)} disabled={saving}
+              style={{ padding: '6px 12px', borderRadius: 7, border: '1px solid #FDE68A', background: '#FFF', color: '#92400E', fontSize: 12, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              Annulla richiesta
+            </button>
+          </div>
+        </div>
+      )}
+      {!loadingReq && !richiestaPending && ultimaDecisa?.status === 'rejected' && (
+        <div style={{ marginBottom: 14, padding: '12px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 10, fontSize: 12.5, color: '#7F1D1D', lineHeight: 1.55 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Ultima richiesta non approvata</div>
+          <div>Passaggio a <b>{labelMetodo(ultimaDecisa.to_metodo)}</b> del {new Date(ultimaDecisa.decided_at || ultimaDecisa.created_at).toLocaleDateString('it-IT')}.</div>
+          {ultimaDecisa.admin_note && <div style={{ marginTop: 6, fontStyle: 'italic' }}>Motivo: {ultimaDecisa.admin_note}</div>}
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 12 }}>
         {card('stampi', 'Stampi / unità',
           'Registri quante unità (stampi, vassoi, pezzi) hai prodotto per ogni ricetta. Il food cost è per stampo, il prezzo per fetta o pezzo.',
@@ -166,28 +228,39 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
           'Gelaterie · Yogurterie · Pasta fresca · Panifici a peso')}
       </div>
 
+      <div style={{ padding: '10px 12px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 11.5, color: '#4A3728', lineHeight: 1.5 }}>
+        Il cambio metodo passa da <b>approvazione admin</b>: modifica in modo strutturale il ricettario e le analisi, quindi lo verifichiamo insieme prima di applicarlo. Di solito rispondiamo entro 24h lavorative.
+      </div>
+
       {confirm && (
         <div role="dialog" aria-modal="true"
           onClick={(e) => { if (e.target === e.currentTarget && !saving) setConfirm(null) }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(28,10,10,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: '#FFF', borderRadius: 14, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxWidth: 480, width: '100%', padding: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#1C0A0A', marginBottom: 8 }}>
-              Cambiare il metodo di produzione?
+              Richiedere il cambio metodo?
             </div>
             <div style={{ fontSize: 13, color: '#4A3728', lineHeight: 1.55, marginBottom: 12 }}>
-              Passi da <b>{current === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'}</b> a <b>{confirm.target === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'}</b>.
+              Passi da <b>{labelMetodo(current)}</b> a <b>{labelMetodo(confirm.target)}</b>. Non viene applicato subito: l'admin lo valuta e ti scrive appena decide.
             </div>
             <div style={{ padding: '10px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, fontSize: 12, color: '#92400E', lineHeight: 1.5, marginBottom: 16 }}>
-              Questa scelta cambia le viste operative (Produzione ↔ Inventario), la struttura delle ricette e le analisi. Le ricette già esistenti restano ma potrebbero apparire in modo diverso. Meglio farlo con un solo utente collegato.
+              Questa scelta cambia le viste operative (Produzione ↔ Inventario), la struttura delle ricette e le analisi. Meglio farlo con un solo utente collegato.
             </div>
+            <label style={{ display: 'block', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#4A3728', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>Motivo del cambio (facoltativo)</div>
+              <textarea value={motivazione} onChange={e => setMotivazione(e.target.value.slice(0, 500))}
+                placeholder="Es: apriamo la gelateria a giugno e vogliamo passare all'inventario differenziale"
+                rows={3}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, color: '#1C0A0A', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+            </label>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setConfirm(null)} disabled={saving}
                 style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'transparent', fontSize: 13, fontWeight: 600, color: '#4A3728', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Annulla
               </button>
-              <button type="button" onClick={() => applica(confirm.target)} disabled={saving}
+              <button type="button" onClick={inviaRichiesta} disabled={saving}
                 style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: '#6E0E1A', color: '#FFF', fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1 }}>
-                {saving ? 'Salvataggio…' : 'Conferma cambio'}
+                {saving ? 'Invio…' : 'Invia richiesta'}
               </button>
             </div>
           </div>

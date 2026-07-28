@@ -2614,6 +2614,33 @@ export default async function handler(req) {
         }, 200, req)
       }
 
+      if (action === 'metodo_richieste_pending') {
+        // Audit 2026-07-28: lista richieste pending di cambio metodo
+        // produzione (stampi ↔ inventario). Ordine cronologico ascendente,
+        // così la più vecchia sta in cima.
+        const { data, error } = await supabase.from('metodo_change_requests')
+          .select('id, organization_id, requested_by_email, from_metodo, to_metodo, motivazione, created_at, status')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: true })
+          .limit(200)
+        if (error) throw new Error(error.message)
+        // Hydrate con nome org per riga
+        const ids = [...new Set((data || []).map(r => r.organization_id))]
+        const orgMap = {}
+        if (ids.length > 0) {
+          const { data: orgs } = await supabase.from('organizations')
+            .select('id, nome, tipo, metodo_produzione').in('id', ids)
+          for (const o of (orgs || [])) orgMap[o.id] = o
+        }
+        const richieste = (data || []).map(r => ({
+          ...r,
+          org_nome: orgMap[r.organization_id]?.nome || null,
+          org_tipo: orgMap[r.organization_id]?.tipo || null,
+          org_metodo_corrente: orgMap[r.organization_id]?.metodo_produzione || null,
+        }))
+        return json({ richieste }, 200, req)
+      }
+
       if (action === 'pending_approvals') {
         // Audit 2026-06-21: lista org in_attesa=true per il signup gate.
         const { data, error } = await supabase.from('organizations')
@@ -3050,6 +3077,91 @@ export default async function handler(req) {
             .eq('id', orgId)
           if (error) throw new Error(error.message)
           result = { ok: true }
+          break
+        }
+        case 'metodo_richiesta_approva': {
+          // Audit 2026-07-28: admin approva un cambio metodo produzione.
+          // Applica: organizations.metodo_produzione + sync sedi + notifica
+          // in-app. Se target='inventario' seeda i formati default se mancano.
+          const richiestaId = body?.richiesta_id
+          if (!richiestaId) throw new Error('richiesta_id richiesto')
+          const { data: rq, error: rqErr } = await supabase.from('metodo_change_requests')
+            .select('*').eq('id', richiestaId).maybeSingle()
+          if (rqErr) throw new Error(rqErr.message)
+          if (!rq) throw new Error('Richiesta non trovata')
+          if (rq.status !== 'pending') throw new Error(`Richiesta già ${rq.status}`)
+          // Applica cambio metodo su org + sedi
+          const { error: e1 } = await supabase.from('organizations')
+            .update({ metodo_produzione: rq.to_metodo }).eq('id', rq.organization_id)
+          if (e1) throw new Error(e1.message)
+          await supabase.from('sedi').update({ metodo_produzione: rq.to_metodo })
+            .eq('organization_id', rq.organization_id)
+          // Seed formati gelateria se target='inventario' e org non ne ha
+          if (rq.to_metodo === 'inventario') {
+            try {
+              const { data: attuali } = await supabase.from('user_data')
+                .select('valore').eq('organization_id', rq.organization_id)
+                .eq('chiave', 'pasticceria-formati-vendita-v1').is('sede_id', null).maybeSingle()
+              const arr = Array.isArray(attuali?.valore) ? attuali.valore : []
+              if (arr.length === 0) {
+                const { FORMATI_GELATERIA_DEFAULT } = await import('../src/lib/formatiVendita.js')
+                const now = Date.now()
+                const nuovi = FORMATI_GELATERIA_DEFAULT.map((f, i) => ({
+                  id: `fmt-${now}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+                  ...f,
+                }))
+                await supabase.from('user_data').upsert({
+                  organization_id: rq.organization_id, sede_id: null,
+                  chiave: 'pasticceria-formati-vendita-v1', valore: nuovi,
+                  updated_at: new Date().toISOString(),
+                }, { onConflict: 'organization_id,sede_id,chiave' })
+              }
+            } catch (e) { console.warn('seed formati skipped:', e?.message) }
+          }
+          // Marca richiesta approved
+          const { error: e2 } = await supabase.from('metodo_change_requests')
+            .update({ status: 'approved', decided_at: new Date().toISOString(), decided_by: user.email, admin_note: body?.admin_note || null })
+            .eq('id', richiestaId)
+          if (e2) throw new Error(e2.message)
+          // Notifica in-app all'org (l'utente la vede subito nel pannello)
+          try {
+            await supabase.from('notifiche').insert({
+              organization_id: rq.organization_id,
+              tipo: 'metodo_produzione_cambiato',
+              titolo: 'Metodo di produzione aggiornato',
+              messaggio: `La tua richiesta di passaggio a "${rq.to_metodo === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'}" è stata approvata. Ricarica l'app per vedere le viste operative aggiornate.`,
+              link: '/impostazioni#section=metodo-produzione',
+            })
+          } catch (e) { console.warn('notifica skipped:', e?.message) }
+          result = { ok: true, applied: { org: rq.organization_id, metodo: rq.to_metodo } }
+          break
+        }
+        case 'metodo_richiesta_rifiuta': {
+          // Audit 2026-07-28: admin rifiuta un cambio metodo. Marca rejected
+          // con admin_note (spiegazione all'utente) + notifica in-app.
+          const richiestaId = body?.richiesta_id
+          const nota = String(body?.admin_note || '').trim().slice(0, 500)
+          if (!richiestaId) throw new Error('richiesta_id richiesto')
+          if (!nota) throw new Error('admin_note richiesta (spiegazione al tenant)')
+          const { data: rq, error: rqErr } = await supabase.from('metodo_change_requests')
+            .select('*').eq('id', richiestaId).maybeSingle()
+          if (rqErr) throw new Error(rqErr.message)
+          if (!rq) throw new Error('Richiesta non trovata')
+          if (rq.status !== 'pending') throw new Error(`Richiesta già ${rq.status}`)
+          const { error: e1 } = await supabase.from('metodo_change_requests')
+            .update({ status: 'rejected', decided_at: new Date().toISOString(), decided_by: user.email, admin_note: nota })
+            .eq('id', richiestaId)
+          if (e1) throw new Error(e1.message)
+          try {
+            await supabase.from('notifiche').insert({
+              organization_id: rq.organization_id,
+              tipo: 'metodo_produzione_richiesta_rifiutata',
+              titolo: 'Richiesta cambio metodo non approvata',
+              messaggio: `La richiesta di passare a "${rq.to_metodo === 'inventario' ? 'Inventario differenziale' : 'Stampi / unità'}" non è stata approvata. Motivo: ${nota}`,
+              link: '/impostazioni#section=metodo-produzione',
+            })
+          } catch (e) { console.warn('notifica skipped:', e?.message) }
+          result = { ok: true, rejected: { richiesta: richiestaId } }
           break
         }
         case 'rifiuta_signup': {
