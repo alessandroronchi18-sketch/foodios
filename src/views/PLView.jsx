@@ -17,8 +17,8 @@ import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng,
 } from '../lib/foodcost'
 import { labelPlurale, labelSingolare, isGustoTipo } from '../lib/tipoRicetta'
-import { avgPrezzoPerKgCategoria, SK_FORMATI } from '../lib/formatiVendita'
-import { useListinoSede, applicaListinoAiFormati, getRegSede } from '../lib/listinoSede'
+import { useListinoSede, getRegSede } from '../lib/listinoSede'
+import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
@@ -505,30 +505,11 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
-  // Listino per-sede: prezzi ricette/formati override per la sede attiva.
+  // Listino per-sede: prezzi ricette (override) per la sede attiva. I ricavi
+  // gusti passano da useRicavoFlat che internamente applica anche l'override
+  // sui formati vendita (una fonte sola di verita').
   const { listino: listinoSede } = useListinoSede(orgId, sedeId)
-  // Formati vendita (shared org): servono per stimare il ricavo/kg dei gusti
-  // (gelateria) — applichiamo l'eventuale override sede sui prezzi.
-  const [formatiBase, setFormatiBase] = useState([])
-  useEffect(() => {
-    if (!orgId) return
-    let alive = true
-    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormatiBase(Array.isArray(v) ? v : []) })
-    return () => { alive = false }
-  }, [orgId])
-  const formati = useMemo(() => applicaListinoAiFormati(formatiBase, listinoSede), [formatiBase, listinoSede])
-  const ricavoFlatByCategoria = useMemo(() => {
-    const m = new Map()
-    for (const r of Object.values(ricettario?.ricette || {})) {
-      const cat = String(r?.categoria || '').trim().toLowerCase()
-      if (cat && !m.has(cat)) m.set(cat, avgPrezzoPerKgCategoria(cat, formati))
-    }
-    return m
-  }, [ricettario, formati])
-  const ricavoFlatFor = (ric) => {
-    const cat = String(ric?.categoria || '').trim().toLowerCase()
-    return cat ? (ricavoFlatByCategoria.get(cat) || null) : null
-  }
+  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario, sedeId)
 
   const tutteLeRicette = Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')

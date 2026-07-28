@@ -34,7 +34,9 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // Ricavo effettivo per gusti (gelateria): stimato dai Formati vendita.
   // Prima di questo hook, i gusti nello storico avevano ricavo=0 e falsavano
   // i margini periodici (audit 2026-07-28).
-  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
+  // sedeId → applica override formati per la sede: i ricavi storici dei gusti
+  // riflettono il listino locale (Milano vs Poggibonsi).
+  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario, sedeId)
   // Listino per-sede: il ricavo storico riflette i prezzi correnti della sede
   // (non c'è tracking storico degli override per-sede, semplificazione MVP).
   const { listino: listinoSede } = useListinoSede(orgId, sedeId)

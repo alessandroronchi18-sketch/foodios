@@ -10,9 +10,8 @@ import {
 import { ALLERGENI, ALLERGENE_COLORS } from '../lib/allergeni'
 import { lessico } from '../lib/lessico'
 import { labelPlurale, labelSingolare } from '../lib/tipoRicetta'
-import { avgPrezzoPerKgCategoria, SK_FORMATI } from '../lib/formatiVendita'
-import { sload } from '../lib/storage'
-import { useListinoSede, applicaListinoAiFormati, getRegSede } from '../lib/listinoSede'
+import { useListinoSede, getRegSede } from '../lib/listinoSede'
+import { useRicavoFlat } from '../lib/useRicavoFlat'
 import PrezziPerSedeModal from '../components/PrezziPerSedeModal'
 import { exportRicettaPDF } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
@@ -724,31 +723,9 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
   const semilavorati = useMemo(() => Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo === 'semilavorato'), [ricettario])
 
-  // Formati vendita (shared org): servono ai GUSTI (gelateria) per stimare il
-  // ricavo flat €/kg. Applichiamo l'eventuale override sede sui prezzi così
-  // il ricavo/kg riflette il listino locale (es. Milano vs Poggibonsi).
-  const [formatiBase, setFormatiBase] = useState([])
-  useEffect(() => {
-    if (!orgId) return
-    let alive = true
-    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormatiBase(Array.isArray(v) ? v : []) })
-    return () => { alive = false }
-  }, [orgId])
-  const formati = useMemo(() => applicaListinoAiFormati(formatiBase, listinoSede), [formatiBase, listinoSede])
-  // Cache ricavo flat €/kg per categoria: così N gusti della stessa categoria
-  // riusano lo stesso calcolo invece di ripeterlo N volte.
-  const ricavoFlatByCategoria = useMemo(() => {
-    const m = new Map()
-    const cats = new Set(ricette.map(r => String(r.categoria || '').trim().toLowerCase()).filter(Boolean))
-    for (const cat of cats) {
-      m.set(cat, avgPrezzoPerKgCategoria(cat, formati))
-    }
-    return m
-  }, [ricette, formati])
-  const ricavoFlatFor = (ric) => {
-    const cat = String(ric?.categoria || '').trim().toLowerCase()
-    return cat ? (ricavoFlatByCategoria.get(cat) || null) : null
-  }
+  // Ricavo flat €/kg per gusti: delegato a useRicavoFlat che internamente
+  // applica anche l'override formati sede (fonte unica di verita').
+  const { ricavoFlatFor, byCategoria: ricavoFlatByCategoria } = useRicavoFlat(orgId, ricettario, sedeIdCorrente)
 
   const [search, setSearch] = useState('')
   // Default: alfabetico ascendente (richiesta utente 13/07/2026: più facile

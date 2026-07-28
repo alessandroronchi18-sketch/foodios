@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   componentiNormalizzati, costoComponentiUnita, matchFormato,
   fcStimatoFormato, avgFCperGCategoria, riconciliaFormati,
+  avgPrezzoPerKgCategoria, FORMATI_GELATERIA_DEFAULT,
 } from '../../src/lib/formatiVendita.js'
 import { buildIngCosti } from '../../src/lib/foodcost.js'
 
@@ -59,6 +60,125 @@ describe('avgFCperGCategoria — match categoria case-insensitive', () => {
     } }
     const avg = avgFCperGCategoria('Gelato', ricettario, ingCosti)
     expect(avg).toBeCloseTo(0.001, 6)
+  })
+})
+
+describe('avgPrezzoPerKgCategoria — ricavo flat gusti gelateria', () => {
+  const F = (id, nome, categoria, baseQtaG, prezzoDefault) => ({ id, nome, categoria, baseQtaG, prezzoDefault })
+
+  it('media semplice sui formati della categoria esatta', () => {
+    // Cono €2.50/80g = 31.25 €/kg · Vaschetta €10/500g = 20 €/kg → media 25.625
+    const formati = [
+      F('c', 'Cono', 'Gusto', 80, 2.5),
+      F('v', 'Vaschetta', 'Gusto', 500, 10),
+    ]
+    expect(avgPrezzoPerKgCategoria('gusto', formati)).toBeCloseTo(25.625, 3)
+  })
+  it('match case-insensitive sulla categoria', () => {
+    const formati = [F('c', 'Cono', 'CREMA', 100, 3)]
+    expect(avgPrezzoPerKgCategoria('crema', formati)).toBeCloseTo(30, 3)
+    expect(avgPrezzoPerKgCategoria('Crema', formati)).toBeCloseTo(30, 3)
+  })
+  it('categoria non trovata → fallback su formati "gusto/gelato/gelati/yogurt"', () => {
+    const formati = [
+      F('c', 'Cono', 'Gusto', 80, 2.5),      // 31.25 €/kg — usato per fallback
+      F('t', 'Torta 8 fette', 'Torta', 300, 12), // 40 €/kg — NON incluso
+    ]
+    // "Frutta" non ha match → fallback su Gusto (non su tutti)
+    expect(avgPrezzoPerKgCategoria('frutta', formati)).toBeCloseTo(31.25, 3)
+  })
+  it('categoria non trovata + nessun generic gelateria → fallback su TUTTI i formati validi', () => {
+    const formati = [F('t', 'Torta', 'Torta', 300, 12)] // 40 €/kg
+    expect(avgPrezzoPerKgCategoria('inesistente', formati)).toBeCloseTo(40, 3)
+  })
+  it('formati con baseQtaG=0 o prezzo=0 sono esclusi', () => {
+    const formati = [
+      F('a', 'a', 'Gusto', 0, 2.5),   // baseQtaG=0 → escluso
+      F('b', 'b', 'Gusto', 100, 0),   // prezzo=0 → escluso
+      F('c', 'c', 'Gusto', 100, 3),   // ok: 30 €/kg
+    ]
+    expect(avgPrezzoPerKgCategoria('gusto', formati)).toBeCloseTo(30, 3)
+  })
+  it('array vuoto o nessun formato valido → null', () => {
+    expect(avgPrezzoPerKgCategoria('gusto', [])).toBeNull()
+    expect(avgPrezzoPerKgCategoria('gusto', null)).toBeNull()
+    expect(avgPrezzoPerKgCategoria('gusto', undefined)).toBeNull()
+    expect(avgPrezzoPerKgCategoria('gusto', [F('x', 'x', 'y', 0, 0)])).toBeNull()
+  })
+  it('categoria vuota/null → considera tutti i validi (nessuna preferenza)', () => {
+    const formati = [F('c', 'Cono', 'Gusto', 100, 2)] // 20 €/kg
+    expect(avgPrezzoPerKgCategoria('', formati)).toBeCloseTo(20, 3)
+    expect(avgPrezzoPerKgCategoria(null, formati)).toBeCloseTo(20, 3)
+  })
+})
+
+describe('FORMATI_GELATERIA_DEFAULT — struttura seed', () => {
+  it('esporta 3 formati validi con struttura completa', () => {
+    expect(FORMATI_GELATERIA_DEFAULT).toHaveLength(3)
+    for (const f of FORMATI_GELATERIA_DEFAULT) {
+      expect(f.nome).toBeTruthy()
+      expect(f.categoria).toBe('Gusto')
+      expect(typeof f.baseQtaG).toBe('number')
+      expect(f.baseQtaG).toBeGreaterThan(0)
+      expect(typeof f.prezzoDefault).toBe('number')
+      expect(f.prezzoDefault).toBeGreaterThan(0)
+      expect(Array.isArray(f.componenti)).toBe(true)
+      expect(Array.isArray(f.alias)).toBe(true)
+    }
+  })
+  it('include Cono, Coppetta, Vaschetta', () => {
+    const nomi = FORMATI_GELATERIA_DEFAULT.map(f => f.nome.toLowerCase())
+    expect(nomi.some(n => n.includes('cono'))).toBe(true)
+    expect(nomi.some(n => n.includes('coppetta'))).toBe(true)
+    expect(nomi.some(n => n.includes('vaschetta'))).toBe(true)
+  })
+})
+
+describe('seedFormatiGelateriaSeMancano — idempotenza', () => {
+  // Mock di storage.js: sload/ssave in-memory per non toccare Supabase.
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it('crea 3 formati se l\'org non ne ha', async () => {
+    const store = new Map()
+    const fakeSload = vi.fn(async () => store.get('formati') || null)
+    const fakeSsave = vi.fn(async (key, val) => { store.set('formati', val); return true })
+    vi.doMock('../../src/lib/storage.js', () => ({ sload: fakeSload, ssave: fakeSsave }))
+    const { seedFormatiGelateriaSeMancano } = await import('../../src/lib/formatiVendita.js')
+    const res = await seedFormatiGelateriaSeMancano('org-1')
+    expect(res.seeded).toBe(3)
+    expect(res.giaPresenti).toBe(0)
+    expect(fakeSsave).toHaveBeenCalledOnce()
+    expect(store.get('formati')).toHaveLength(3)
+    // ID unici
+    const ids = store.get('formati').map(f => f.id)
+    expect(new Set(ids).size).toBe(3)
+  })
+
+  it('non tocca nulla se l\'org ha già almeno un formato', async () => {
+    const store = new Map()
+    store.set('formati', [{ id: 'fmt-x', nome: 'Custom', prezzoDefault: 5, baseQtaG: 100, componenti: [] }])
+    const fakeSload = vi.fn(async () => store.get('formati') || null)
+    const fakeSsave = vi.fn(async (key, val) => { store.set('formati', val); return true })
+    vi.doMock('../../src/lib/storage.js', () => ({ sload: fakeSload, ssave: fakeSsave }))
+    const { seedFormatiGelateriaSeMancano } = await import('../../src/lib/formatiVendita.js')
+    const res = await seedFormatiGelateriaSeMancano('org-1')
+    expect(res.seeded).toBe(0)
+    expect(res.giaPresenti).toBe(1)
+    expect(fakeSsave).not.toHaveBeenCalled()
+    expect(store.get('formati')).toHaveLength(1) // invariato
+  })
+
+  it('senza orgId non fa niente', async () => {
+    const fakeSload = vi.fn()
+    const fakeSsave = vi.fn()
+    vi.doMock('../../src/lib/storage.js', () => ({ sload: fakeSload, ssave: fakeSsave }))
+    const { seedFormatiGelateriaSeMancano } = await import('../../src/lib/formatiVendita.js')
+    const res = await seedFormatiGelateriaSeMancano(null)
+    expect(res.seeded).toBe(0)
+    expect(fakeSload).not.toHaveBeenCalled()
+    expect(fakeSsave).not.toHaveBeenCalled()
   })
 })
 

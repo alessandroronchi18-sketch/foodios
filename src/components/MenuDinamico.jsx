@@ -581,7 +581,9 @@ function BandaDiagnosi({ menuItems, popVenduto, isMobile, isTablet = false }) {
 /* ─── MAIN WRAPPER ───────────────────────────────────────────────────── */
 export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, nomeAttivita, tipoAttivita, chiusure, orgId, sedeId }) {
   // Ricavo effettivo per gusti (gelateria): dal ricavoFlat dei Formati vendita.
-  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
+  // sedeId → useRicavoFlat applica l'override formati della sede corrente,
+  // così i ricavi/kg dei gusti riflettono il listino locale.
+  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario, sedeId)
   // Listino per-sede: prezzi override della sede attiva.
   const { listino: listinoSede } = useListinoSede(orgId, sedeId)
   const isMobile = useIsMobile()

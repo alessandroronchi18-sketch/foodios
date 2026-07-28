@@ -54,7 +54,8 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
   // Vedi useRicavoFlat: se il gusto ha ricavoFlat stimabile viene incluso
   // nel menu engineering; altrimenti resta escluso (senza formati non ha senso
   // classificarlo per quadrante popolarità/margine).
-  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
+  // sedeId → applica override formati sede sul ricavo/kg dei gusti.
+  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario, sedeId)
   // Listino per-sede: prezzo effettivo per la classifica.
   const { listino: listinoSede } = useListinoSede(orgId, sedeId)
   const isMobile = useIsMobile()

@@ -183,11 +183,13 @@ export function avgFCperGCategoria(categoria, ricettario, ingCosti) {
 // (cono/coppetta/vaschetta) e non sulla singola ricetta.
 //
 // Calcolo: media semplice di (prezzoDefault / baseQtaG) × 1000 sui formati
-// validi (baseQtaG > 0, prezzo > 0). Prima cerca formati con categoria
-// esatta; se non ne trova (comune in gelateria dove cono/coppetta valgono
-// per TUTTE le sotto-categorie di gusti — Crema, Frutta, Cioccolato…) fa
-// fallback su TUTTI i formati validi. Ritorna null se non c'è alcun formato
-// utile: la UI mostra CTA "Configura formati".
+// validi (baseQtaG > 0, prezzo > 0). Priorita' di ricerca:
+//   1. formati con la categoria esatta (es. "Crema")
+//   2. formati con categoria "gusto" o "gelato" (generici per gelateria)
+//   3. TUTTI i formati validi (ultimo fallback)
+// Cosi' un'org mista pasticceria + gelateria non usa formati "Torta 8 fette"
+// per stimare un gusto in categoria "Sorbetto" — cade prima sul generico.
+// Ritorna null se non c'è alcun formato utile.
 export function avgPrezzoPerKgCategoria(categoria, formati) {
   if (!Array.isArray(formati)) return null
   const validi = formati.filter(f =>
@@ -198,7 +200,15 @@ export function avgPrezzoPerKgCategoria(categoria, formati) {
   const perCategoria = cat
     ? validi.filter(f => String(f?.categoria || '').trim().toLowerCase() === cat)
     : []
-  const src = perCategoria.length > 0 ? perCategoria : validi
+  const genericGelato = perCategoria.length === 0
+    ? validi.filter(f => {
+        const c = String(f?.categoria || '').trim().toLowerCase()
+        return c === 'gusto' || c === 'gelato' || c === 'gelati' || c === 'yogurt'
+      })
+    : []
+  const src = perCategoria.length > 0 ? perCategoria
+            : genericGelato.length > 0 ? genericGelato
+            : validi
   const valori = src.map(f => (Number(f.prezzoDefault) / Number(f.baseQtaG)) * 1000)
   return valori.reduce((s, v) => s + v, 0) / valori.length
 }

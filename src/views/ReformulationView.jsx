@@ -30,14 +30,15 @@ const CARD = T.bgCard || '#FFF'
 const BORDER = T.border || '#E5E9EF'
 const GREEN = T.green || '#16A34A'
 
-export default function ReformulationView({ ricettario, orgId }) {
+export default function ReformulationView({ ricettario, orgId, sedeId }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ricetteArr = useMemo(
     () => (ricettario?.ricette ? Object.values(ricettario.ricette) : []),
     [ricettario]
   )
-  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
+  // sedeId → useRicavoFlat applica override formati sede sul prezzo/kg dei gusti.
+  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario, sedeId)
   const [ricSel, setRicSel] = useState('')
   const [fcTarget, setFcTarget] = useState('')
   const [loading, setLoading] = useState(false)
