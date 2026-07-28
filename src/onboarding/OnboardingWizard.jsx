@@ -182,12 +182,18 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
     }
   }
 
-  // ─── STEP 3a: scelta metodo produzione sulla sede principale ──
+  // ─── STEP 3a: scelta metodo produzione a livello ORG + attivazione sede principale ──
   async function handleSceltaMetodo(metodo) {
     if (!orgId || metodoSaving) return
     setMetodoSaving(true)
     try {
-      // Risolvi la sede principale (creata dal trigger di registrazione).
+      // Source of truth: organizations.metodo_produzione (audit 2026-07-23).
+      // Senza questo update, App.jsx legge auth.org.metodo_produzione='stampi'
+      // (default trigger handle_new_user) e l'utente che ha scelto 'inventario'
+      // vede comunque il menu pasticceria. sedi.metodo_produzione tenuta in
+      // sync solo come rete di compat legacy.
+      await supabase.from('organizations').update({ metodo_produzione: metodo }).eq('id', orgId)
+
       const { data: sediRow } = await supabase
         .from('sedi')
         .select('id')
@@ -203,7 +209,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       }
       setMetodoProduzione(metodo)
     } catch {
-      // Fail-soft: l'utente puo' cambiare il metodo da Impostazioni > Sedi.
+      // Fail-soft: l'utente puo' cambiare il metodo da Impostazioni attività.
       setMetodoProduzione(metodo)
     } finally {
       setMetodoSaving(false)

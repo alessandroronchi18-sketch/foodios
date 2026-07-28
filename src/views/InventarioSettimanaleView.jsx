@@ -14,9 +14,9 @@
 // Salvataggio per-cella su blur: ogni modifica di PROD o RIMAN scrive subito
 // la riga (upsert su unique org+sede+gusto+data). UX da foglio di calcolo.
 //
-// La voce menu che porta qui appare in Dashboard solo se la sede attiva e'
-// is_sede_produzione=true AND metodo_produzione='inventario' (filtraggio nel
-// componente Dashboard, non qui).
+// La voce menu che porta qui appare in Dashboard solo se l'ORG e' su
+// metodo='inventario' (audit 2026-07-23: metodo e' ORG-level, non più per-sede)
+// AND la sede attiva ha is_sede_produzione=true.
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
@@ -61,14 +61,17 @@ function fmtG(n) {
   return Number(n).toLocaleString('it-IT')
 }
 
-export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAttiva, ricettario, magazzino, setMagazzino, tipoAttivita, notify }) {
+export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAttiva, ricettario, magazzino, setMagazzino, tipoAttivita, metodoProduzione = 'stampi', notify }) {
   // "Tutte le sedi" attivo: vista AGGREGATA read-only. Somma PROD/RIMAN di
-  // tutte le sedi produttive con metodo='inventario'. Niente save, niente
-  // import: si scelgono prima una sede specifica.
+  // tutte le sedi produttive dell'org (il metodo e' org-level, quindi tutte
+  // le sedi produttive di questa org hanno lo stesso metodo). Niente save,
+  // niente import: si sceglie prima una sede specifica.
   const isAllSedi = sedeAttiva?._all === true
-  // Sedi produttive con metodo inventario tra cui scegliere quando isAllSedi.
+  // Sedi produttive dell'org tra cui scegliere quando isAllSedi. Il filtro
+  // sul metodo e' implicito: questa view compare solo se metodoProduzione
+  // dell'org e' 'inventario' (gate in Dashboard).
   const sediProduttive = useMemo(() => (sedi || [])
-    .filter(s => s.attiva !== false && s.is_sede_produzione && s.metodo_produzione === 'inventario')
+    .filter(s => s.attiva !== false && s.is_sede_produzione)
   , [sedi])
   // Sub-selezione utente: array di sede_id da aggregare. Default: tutte.
   const [sediFiltro, setSediFiltro] = useState(null)
@@ -833,6 +836,9 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           sedeOrigineId={sedeId}
           righeOggi={(righe || []).filter(r => r.data === new Date().toISOString().slice(0, 10))}
           onConferma={async ({ gusto, kg, destSedeId }) => {
+            // Metodo e' org-level: dentro questa view (che gira solo se
+            // metodoProduzione='inventario') tutte le sedi is_sede_produzione
+            // ricevono come inventario. Le non-produttive prendono via stock PF.
             try {
               const qtaG = Math.round(Number(kg) * 1000)
               const oggiIso = new Date().toISOString().slice(0, 10)
@@ -849,7 +855,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 spedito_g: (cella?.spedito_g || 0) + qtaG,
               })
               const destSede = (sedi || []).find(s => s.id === destSedeId)
-              const destInventario = destSede?.is_sede_produzione && destSede?.metodo_produzione === 'inventario'
+              const destInventario = !!destSede?.is_sede_produzione
               // 2) carico destinazione
               if (destInventario) {
                 // Sede dest in modalita' inventario: la quantita' diventa PROD
@@ -942,7 +948,7 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
             <option value="">- Seleziona -</option>
             {sediDest.map(s => (
               <option key={s.id} value={s.id}>
-                {s.nome} ({s.is_sede_produzione && s.metodo_produzione === 'inventario' ? 'inventario' : 'stampi'})
+                {s.nome} ({s.is_sede_produzione ? 'inventario' : 'stock vetrina'})
               </option>
             ))}
           </select>
@@ -1103,7 +1109,7 @@ function StepSetupMulti({ orgId, sedeCorrenteId, classif, fileName, meseRilevato
 
   useEffect(() => {
     if (!orgId) return
-    supabase.from('sedi').select('id, nome, is_default, is_sede_produzione, metodo_produzione, attiva')
+    supabase.from('sedi').select('id, nome, is_default, is_sede_produzione, attiva')
       .eq('organization_id', orgId).eq('attiva', true)
       .then(({ data }) => {
         const lista = data || []

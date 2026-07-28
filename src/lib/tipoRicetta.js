@@ -39,3 +39,14 @@ export function isGustoTipo(tipo) {
 export function isSemiOInterno(tipo) {
   return tipo === 'semilavorato' || tipo === 'interno'
 }
+
+// Descrizione dell'unità di misura del campo `unita` (per tooltip / hint UI).
+// Serve nei form dove `unita` significa cose diverse in base al tipo (fette per
+// stampo vs kg per batch vs unità singola).
+export function descrizioneUnita(tipo) {
+  switch (tipo) {
+    case 'fetta': return 'fette per stampo'
+    case 'gusto': return 'kg per batch (gusto gelateria)'
+    default:      return 'unità'
+  }
+}

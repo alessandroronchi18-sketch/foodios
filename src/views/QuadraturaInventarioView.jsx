@@ -122,7 +122,7 @@ function fmtDriftEur(v) {
   return `${sign}${abs} €`
 }
 
-export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure, onNavigate }) {
+export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAttiva, chiusure, metodoProduzione = 'stampi', onNavigate }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const isAllSedi = sedeAttiva?._all === true
@@ -219,10 +219,12 @@ export default function QuadraturaInventarioView({ orgId, sedeId, sedi, sedeAtti
 
   // Drill-down per sede (solo isAllSedi): per ogni sede produttiva
   // carichiamo settimana + b2b e calcoliamo KPI individuali.
+  // Il metodo (inventario vs stampi) e' org-level: se l'org non e' su
+  // 'inventario' non c'e' nulla da drillare qui.
   useEffect(() => {
-    if (!isAllSedi || !orgId) { setPerSede([]); return }
+    if (!isAllSedi || !orgId || metodoProduzione !== 'inventario') { setPerSede([]); return }
     const sediProduttive = (sedi || []).filter(s =>
-      s.attiva !== false && s.is_sede_produzione && s.metodo_produzione === 'inventario'
+      s.attiva !== false && s.is_sede_produzione
     )
     if (sediProduttive.length === 0) { setPerSede([]); return }
     Promise.all(sediProduttive.map(async s => {

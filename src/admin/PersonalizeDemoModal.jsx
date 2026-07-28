@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react'
 import Icon from '../components/Icon'
 import { compressImageToBase64, extractMenuFromInput, menuToRicettario, normalizeMenu } from '../lib/menuExtractor'
+import { descrizioneUnita } from '../lib/tipoRicetta'
 
 // ─── Palette locale (stesso look di AdminPage) ────────────────────────────
 const P = {
@@ -289,7 +290,9 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
     let totFc = 0, totV = 0
     for (const p of menu.prodotti) {
       const fcRicetta = (p.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0) * (FALLBACK[i.nome] ?? 0.005), 0)
-      const ricavoStampo = p.prezzo * (p.tipo === 'fetta' ? p.unita : 1)
+      // normalizeMenu tiene `unita`=1 per non-fetta (pezzo/gusto), quindi
+      // p.prezzo * p.unita e' equivalente al vecchio branch tipo==='fetta'.
+      const ricavoStampo = p.prezzo * (p.unita || 1)
       if (ricavoStampo > 0) { totFc += fcRicetta; totV += ricavoStampo }
     }
     return totV > 0 ? Math.round(100 * totFc / totV) : 0
@@ -347,11 +350,11 @@ function Step2Review({ menu, setMenu, onBack, onSave, onCommit, saving, committi
                   style={{ padding: '6px 8px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 11, background: P.bg }}>
                   <option value="pezzo">pezzo</option>
                   <option value="fetta">fetta</option>
-                  <option value="kg">kg</option>
+                  <option value="gusto">gusto</option>
                 </select>
                 <input type="number" step="0.1" min="0" value={p.unita || 1}
                   onChange={e => updateProdotto(p._idx, { unita: Math.max(1, Math.round(Number(e.target.value) || 1)) })}
-                  title={p.tipo === 'fetta' ? 'fette per stampo' : p.tipo === 'kg' || p.tipo === 'gusto' ? 'kg per batch (gusto gelateria)' : 'unità'}
+                  title={descrizioneUnita(p.tipo)}
                   style={{ padding: '6px 8px', borderRadius: 6, border: `1px solid ${P.border}`, fontSize: 11, textAlign: 'right' }} />
                 <input type="number" step="0.10" min="0.50" max="80" value={p.prezzo}
                   onChange={e => updateProdotto(p._idx, { prezzo: Math.max(0.5, Math.min(80, Number(e.target.value) || 0)) })}
