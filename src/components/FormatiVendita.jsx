@@ -21,6 +21,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { lessico } from '../lib/lessico'
 import { KPI, fmt as fmtEuro, PageHeader, SH } from '../views/_shared'
 import Icon from './Icon'
+import PrezziPerSedeModal from './PrezziPerSedeModal'
 
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
@@ -34,7 +35,7 @@ const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: R.md, bo
 const labelStyle = { fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6, display: 'block' }
 const cardStyle = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
-export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita }) {
+export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita, sedi = [] }) {
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
@@ -43,6 +44,8 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(null) // formato in editing, o null
   const [expanded, setExpanded] = useState(null) // id formato col breakdown aperto
+  const [prezziSedeTarget, setPrezziSedeTarget] = useState(null) // formato per cui aprire modal "Prezzi per sede"
+  const hasMultiSede = Array.isArray(sedi) && sedi.filter(s => s?.attiva !== false).length > 1
 
   // Categorie disponibili dalle ricette (per il dropdown).
   const categorie = useMemo(() => {
@@ -346,6 +349,13 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
 
                     {!isMobile && (
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        {hasMultiSede && (
+                          <button onClick={(e) => { e.stopPropagation(); setPrezziSedeTarget(f) }}
+                            title="Prezzi diversi per sede"
+                            style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <Icon name="map" size={13} />Prezzi / sede
+                          </button>
+                        )}
                         <button onClick={(e) => { e.stopPropagation(); apriEditor(f) }}
                           style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Icon name="edit" size={13} />Modifica
@@ -402,15 +412,23 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
 
                       {/* azioni su mobile (nel breakdown per non affollare la riga) */}
                       {isMobile && (
-                        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                          <button onClick={(e) => { e.stopPropagation(); apriEditor(f) }}
-                            style={{ flex: 1, padding: '10px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                            <Icon name="edit" size={14} />Modifica
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); elimina(f.id) }}
-                            style={{ flex: 1, padding: '10px', background: T.brandLight, color: T.brand, border: 'none', borderRadius: R.sm, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                            <Icon name="trash" size={14} />Elimina
-                          </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+                          {hasMultiSede && (
+                            <button onClick={(e) => { e.stopPropagation(); setPrezziSedeTarget(f) }}
+                              style={{ padding: '10px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <Icon name="map" size={14} />Prezzi per sede
+                            </button>
+                          )}
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={(e) => { e.stopPropagation(); apriEditor(f) }}
+                              style={{ flex: 1, padding: '10px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <Icon name="edit" size={14} />Modifica
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); elimina(f.id) }}
+                              style={{ flex: 1, padding: '10px', background: T.brandLight, color: T.brand, border: 'none', borderRadius: R.sm, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <Icon name="trash" size={14} />Elimina
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -420,6 +438,16 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
             })}
           </div>
         </>
+      )}
+      {prezziSedeTarget && (
+        <PrezziPerSedeModal
+          open={!!prezziSedeTarget}
+          onClose={() => setPrezziSedeTarget(null)}
+          orgId={orgId}
+          sedi={sedi}
+          target={{ kind: 'formato', formato: prezziSedeTarget }}
+          notify={notify}
+        />
       )}
     </div>
   )

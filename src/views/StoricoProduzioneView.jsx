@@ -5,6 +5,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFCStorico, getR } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
+import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip } from './_shared'
@@ -29,11 +30,14 @@ const yPCT = v => `${v}%`
 // k.slice(5) restituisce mesi 01-12 e parseInt('01') = 1.
 const MN = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
-export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], orgId, LEX = lessico() }) {
+export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], orgId, sedeId, LEX = lessico() }) {
   // Ricavo effettivo per gusti (gelateria): stimato dai Formati vendita.
   // Prima di questo hook, i gusti nello storico avevano ricavo=0 e falsavano
   // i margini periodici (audit 2026-07-28).
   const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
+  // Listino per-sede: il ricavo storico riflette i prezzi correnti della sede
+  // (non c'è tracking storico degli override per-sede, semplificazione MVP).
+  const { listino: listinoSede } = useListinoSede(orgId, sedeId)
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const [vista, setVista]   = useState("giornaliero"); // "giornaliero" | "settimana" | "mese"
@@ -89,7 +93,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         // fc=0).
         const ric = ricettario?.ricette?.[prod.nome]
           || ricettario?.ricette?.[(prod.nome || '').toUpperCase().trim()];
-        const reg = getR(prod.nome, ric);
+        const reg = getRegSede(prod.nome, ric, listinoSede);
         // Food cost STORICO: usa il prezzo materie prime valido nella data della sessione,
         // così le produzioni passate non vengono "rivalutate" se i prezzi cambiano oggi.
         const {tot:fc} = ric
@@ -117,7 +121,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     }));
   // ricavoFlatFor cambia se cambiano i Formati vendita → storico gusti si aggiorna.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [giornaliero, vista, ricettario, ingCosti, dateFrom, dateTo, ricavoFlatFor]);
+  }, [giornaliero, vista, ricettario, ingCosti, dateFrom, dateTo, ricavoFlatFor, listinoSede]);
 
   // ── PERIODI VENDITE (da chiusure) ───────────────────────────────────────────
   const periodiVend = useMemo(()=>{
@@ -298,7 +302,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
             for (const prod of (sess.prodotti||[])) {
               const ric = ricettario?.ricette?.[prod.nome]
                 || ricettario?.ricette?.[(prod.nome || '').toUpperCase().trim()];
-              const reg = getR(prod.nome, ric);
+              const reg = getRegSede(prod.nome, ric, listinoSede);
               const {tot:f} = ric ? calcolaFCStorico(ric, ingCosti, ricettario, logPrezzi, sess.data+'T12:00:00') : {tot:0};
               rv += prod.stampi*reg.unita*reg.prezzo; fc += prod.stampi*f;
             }

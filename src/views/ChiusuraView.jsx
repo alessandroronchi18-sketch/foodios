@@ -14,6 +14,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
+import { useListinoSede, applicaListinoAiFormati, getRegSede } from '../lib/listinoSede'
 import { scaricoVenditaPF } from '../lib/stockPF'
 import { SK_CHIUS, SK_FORMATI, SK_MOV } from '../lib/storageKeys'
 import { riconciliaFormati } from '../lib/formatiVendita'
@@ -52,6 +53,9 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const confirmDialog = useConfirm()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
   const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
+  // Listino per-sede: prezzi ricette override + prezzi formati vendita per la
+  // sede attiva. La riconciliazione cassa usa questi valori.
+  const { listino: listinoSede } = useListinoSede(orgId, sedeId)
 
   const ricetteNote = useMemo(() => {
     const out = {}
@@ -64,7 +68,10 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
 
   // Formati di vendita (config shared): mappano le righe scontrino senza dettaglio
   // gusto/ripieno (cono, vaschetta, panino…) a una categoria di ricette.
-  const [formati, setFormati] = useState([])
+  // Applichiamo l'override sede sui prezzi (una sede in centro puo' avere il
+  // cono a prezzo diverso da quella in periferia).
+  const [formatiBase, setFormatiBase] = useState([])
+  const formati = useMemo(() => applicaListinoAiFormati(formatiBase, listinoSede), [formatiBase, listinoSede])
   // Audit 2026-07-01 HIGH: ref per cleanup drift timer.
   const driftTimerRef = useRef(null)
   useEffect(() => () => {
@@ -73,7 +80,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   useEffect(() => {
     let alive = true
     if (!orgId) return
-    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormati(Array.isArray(v) ? v : []) })
+    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormatiBase(Array.isArray(v) ? v : []) })
     return () => { alive = false }
   }, [orgId])
 
@@ -183,7 +190,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       let prezzo = Number(String(r.prezzo).replace(',', '.')) || 0
       if (!prezzo) {
         const match = Object.values(ricettario?.ricette || {}).find(x => (x.nome || '').toUpperCase().trim() === nome)
-        if (match) prezzo = Number(getR(match.nome, match).prezzo) || 0
+        if (match) prezzo = Number(getRegSede(match.nome, match, listinoSede).prezzo) || 0
       }
       return { nome, qta, prezzoUnitario: prezzo, totale: Math.round(qta * prezzo * 100) / 100 }
     }).filter(Boolean)
@@ -387,7 +394,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       })
       if (!mk) return []
       const ric = ricetteNote[mk]
-      const reg = getR(mk, ric)
+      const reg = getRegSede(mk, ric, listinoSede)
       const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
       const stampiP = prodottiOggi[mk] || 0
       const unitaP = stampiP * reg.unita

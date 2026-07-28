@@ -9,6 +9,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S } from '../lib/theme'
 import { buildIngCosti, calcolaFCDettaglio, getR, isRicettaValida } from '../lib/foodcost'
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
+import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import { exportSimulatorePrezzi } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import { lessico } from '../lib/lessico'
@@ -28,12 +29,15 @@ const SLIDER_CSS = `
 .fos-sim-slider:focus::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(110,14,26,0.18), 0 2px 6px rgba(15,23,42,0.18); }
 `
 
-export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita }) {
+export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAttivita, orgId, sedeId }) {
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
 
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
+  // Listino per-sede: quando lavori sulla sede attiva, il simulatore parte dai
+  // prezzi override (non da quelli base) — è il "listino reale" di quella sede.
+  const { listino: listinoSede } = useListinoSede(orgId, sedeId)
   // I gusti (gelateria) sono esclusi dal SIMULATORE PREZZI di proposito: il
   // simulatore muove `reg.prezzo` della ricetta per fare what-if sui listini,
   // ma per un gusto il prezzo non vive sulla ricetta — vive sui Formati
@@ -91,7 +95,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
 
   // ── Righe prodotto con food cost, breakdown, prezzo consigliato ──────────────
   const rows = useMemo(() => ricette.map(ric => {
-    const reg = getR(ric.nome, ric)
+    const reg = getRegSede(ric.nome, ric, listinoSede)
     const dett = calcolaFCDettaglio(ric, ingCosti, ricettario)
     const fc = dett.tot
     const ricavo = +(reg.unita * reg.prezzo).toFixed(2)

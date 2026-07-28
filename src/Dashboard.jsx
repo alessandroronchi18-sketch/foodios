@@ -3224,7 +3224,7 @@ export default function Dashboard({
         />}
 
         {/* Formati di vendita (prodotti generici senza dettaglio gusto) */}
-        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify} tipoAttivita={tipoAttivita}/>}
+        {view==="formati-vendita"&&<FormatiVendita orgId={orgId} ricettario={ricettario} notify={notify} tipoAttivita={tipoAttivita} sedi={sedi}/>}
 
         {/* Registro attività - solo titolare (RLS + DIPENDENTE_VIEWS gate). */}
         {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
@@ -3244,10 +3244,10 @@ export default function Dashboard({
             </label>
           </div>
         )}
-        {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} orgId={orgId} LEX={LEX}/>}
+        {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} orgId={orgId} sedi={sedi} sedeAttiva={sedeAttiva} notify={notify} LEX={LEX}/>}
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
-        {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi}/>}
+        {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
         {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
@@ -3258,7 +3258,7 @@ export default function Dashboard({
         {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
-        {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} orgId={orgId} LEX={LEX}/>}
+        {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} orgId={orgId} sedeId={sedeId} LEX={LEX}/>}
         {view==="magazzino"&&!isAllSedi&&<MagazzinoView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} logRif={logRif} setLogRif={setLogRif} logPrezzi={logPrezzi} onUpdatePrezzoIng={handleUpdatePrezzoIng} giornaliero={giornaliero} notify={notify} esclusi={esclusi} setEsclusi={setEsclusi} onImportPrezzi={handleImportPrezzi} onImportPrezziOCR={handleImportPrezziOCR} orgId={orgId} sedeId={sedeId} isDipendente={isDip} LEX={LEX}/>}
         {view==="giornaliero"&&!isAllSedi&&<ProduzioneGiornalieraView ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} giornaliero={giornaliero} setGiornaliero={setGiornaliero} notify={notify} sedi={sedi} sedeAttiva={sedeAttiva} orgId={orgId} sedeId={sedeId} isDipendente={isDip} nomeAttivita={nomeAttivita} LEX={LEX}/>}
         {view==="inventario-gusti"&&<InventarioSettimanaleView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} ricettario={ricettario} magazzino={magazzino} setMagazzino={setMagazzino} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} notify={notify}/>}

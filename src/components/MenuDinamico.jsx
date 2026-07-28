@@ -8,6 +8,7 @@ import Icon from './Icon'
 import { KPI, SH, PageHeader, Tip, C, fmt, fmtp } from '../views/_shared'
 import { labelPlurale } from '../lib/tipoRicetta'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
+import { useListinoSede, getRegSede } from '../lib/listinoSede'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
@@ -56,7 +57,7 @@ function popolaritaDalVenduto(chiusure, giorni = 60) {
 }
 
 /* ─── EDITOR ─────────────────────────────────────────────────────────── */
-function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems, isMobile, isTablet = false, LEX, ricavoFlatFor = () => null }) {
+function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems, isMobile, isTablet = false, LEX, ricavoFlatFor = () => null, listinoSede = null }) {
   const [search, setSearch] = useState("")
 
   const ricette = Object.values(ricettario?.ricette||{}).filter(r => {
@@ -71,7 +72,7 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
   // vendita (media €/kg), altrimenti sarebbero 0 e il margine mostrato in menu
   // uscirebbe insensato.
   function buildItem(ric) {
-    const reg = getR(ric.nome, ric)
+    const reg = getRegSede(ric.nome, ric, listinoSede)
     const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
     let prezzo, unita, ricavo
     if (reg.tipo === 'gusto') {
@@ -139,7 +140,7 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
       <div style={{ display:"grid", gridTemplateColumns: isMobile ? "1fr 1fr" : isTablet ? "repeat(3, 1fr)" : "repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
         {filtrate.map(r => {
           const sel = inMenu.has(r.nome)
-          const reg = getR(r.nome, r)
+          const reg = getRegSede(r.nome, r, listinoSede)
           return (
             <button key={r.nome} type="button" onClick={()=>toggleItem(r)}
               style={{
@@ -581,6 +582,8 @@ function BandaDiagnosi({ menuItems, popVenduto, isMobile, isTablet = false }) {
 export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, nomeAttivita, tipoAttivita, chiusure, orgId, sedeId }) {
   // Ricavo effettivo per gusti (gelateria): dal ricavoFlat dei Formati vendita.
   const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
+  // Listino per-sede: prezzi override della sede attiva.
+  const { listino: listinoSede } = useListinoSede(orgId, sedeId)
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
@@ -696,7 +699,7 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
             })}
           </div>
 
-          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems} isMobile={isMobile} isTablet={isTablet} LEX={LEX} ricavoFlatFor={ricavoFlatFor}/>}
+          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems} isMobile={isMobile} isTablet={isTablet} LEX={LEX} ricavoFlatFor={ricavoFlatFor} listinoSede={listinoSede}/>}
           {tab === "bcg"       && <BCGMatrix     menuItems={menuItems} popVenduto={popVenduto} hasStorico={hasStorico} isMobile={isMobile} isTablet={isTablet}/>}
           {tab === "anteprima" && <MenuPreview   menuItems={menuItems} setMenuItems={setMenuItems} nomeAttivita={nomeAttivita} isMobile={isMobile}/>}
         </>

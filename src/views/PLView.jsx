@@ -18,6 +18,7 @@ import {
 } from '../lib/foodcost'
 import { labelPlurale, labelSingolare, isGustoTipo } from '../lib/tipoRicetta'
 import { avgPrezzoPerKgCategoria, SK_FORMATI } from '../lib/formatiVendita'
+import { useListinoSede, applicaListinoAiFormati, getRegSede } from '../lib/listinoSede'
 import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
@@ -504,17 +505,18 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
+  // Listino per-sede: prezzi ricette/formati override per la sede attiva.
+  const { listino: listinoSede } = useListinoSede(orgId, sedeId)
   // Formati vendita (shared org): servono per stimare il ricavo/kg dei gusti
-  // (gelateria) — vedi RicettarioView per la logica base. I gusti CON ricavo
-  // stimabile vengono inclusi nel P&L; quelli SENZA (nessun formato per la
-  // categoria) restano esclusi e vanno nel banner "Configura formati".
-  const [formati, setFormati] = useState([])
+  // (gelateria) — applichiamo l'eventuale override sede sui prezzi.
+  const [formatiBase, setFormatiBase] = useState([])
   useEffect(() => {
     if (!orgId) return
     let alive = true
-    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormati(Array.isArray(v) ? v : []) })
+    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormatiBase(Array.isArray(v) ? v : []) })
     return () => { alive = false }
   }, [orgId])
+  const formati = useMemo(() => applicaListinoAiFormati(formatiBase, listinoSede), [formatiBase, listinoSede])
   const ricavoFlatByCategoria = useMemo(() => {
     const m = new Map()
     for (const r of Object.values(ricettario?.ricette || {})) {
@@ -562,7 +564,8 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const cardP = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
   const rows = ricette.map(ric => {
-    const reg = getR(ric.nome, ric)
+    // reg effettivo per la sede attiva (override o base).
+    const reg = getRegSede(ric.nome, ric, listinoSede)
     const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
     // Per i GUSTI (gelateria): ricavo = ricavoFlatKg × pesoKg (ingredienti
     // definiti per 1 kg finito → pesoKg tipicamente 1). "Unità" nel senso

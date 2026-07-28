@@ -12,6 +12,8 @@ import { lessico } from '../lib/lessico'
 import { labelPlurale, labelSingolare } from '../lib/tipoRicetta'
 import { avgPrezzoPerKgCategoria, SK_FORMATI } from '../lib/formatiVendita'
 import { sload } from '../lib/storage'
+import { useListinoSede, applicaListinoAiFormati, getRegSede } from '../lib/listinoSede'
+import PrezziPerSedeModal from '../components/PrezziPerSedeModal'
 import { exportRicettaPDF } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import Icon from '../components/Icon'
@@ -29,7 +31,7 @@ const PIE_COLORS = [C.red, '#E07040', '#D4A030', '#5B8FCE', '#7B7B7B', '#A0522D'
 // (gelateria/yogurt) hanno prezzo=0 sulla ricetta — il prezzo di vendita vive
 // sui formati (cono/coppetta/vaschetta), non sulla singola ricetta. Senza
 // questo valore il margine risulterebbe 0% (audit 2026-07-28).
-function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant = 'ricetta', ricavoFlatKg = null }) {
+function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant = 'ricetta', ricavoFlatKg = null, sedi = [], orgId = null, notify = null, listinoSede = null, sedeAttivaNome = null }) {
   // Audit 2026-06-22 CRITICAL: TUTTI gli hook DEVONO essere chiamati prima
   // dell'early return (regole React). Il vecchio codice metteva 3 useState +
   // 1 useEffect DOPO `if (reg.tipo === 'interno') return null` → hook order
@@ -42,12 +44,20 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // pieno con KPI inline + bottoni. Riduce "minestrone" visivo richiesto
   // dal design partner.
   const [expanded, setExpanded] = useState(false)
-  const reg = getR(ric.nome, ric)
+  // reg effettivo: se sedeAttiva ha override sul prezzo/unita di questa
+  // ricetta, li applica sopra il base. Se listinoSede e' null (vista "tutte
+  // le sedi") il reg e' il base org.
+  const reg = getRegSede(ric.nome, ric, listinoSede)
   const isSemi = variant === 'semilavorato' || reg.tipo === 'semilavorato'
+  // Segnale visivo: c'e' override attivo su questa sede? (usato per un
+  // piccolo badge accanto al bottone "Prezzi / sede")
+  const hasOverride = !!listinoSede?.ricette?.[ric.nome]
 
   const [editPrezzo, setEditPrezzo] = useState(reg.prezzo)
   const [editUnita, setEditUnita] = useState(reg.unita)
   const [exportingPdf, setExportingPdf] = useState(false)
+  const [prezziSedeOpen, setPrezziSedeOpen] = useState(false)
+  const hasMultiSede = Array.isArray(sedi) && sedi.filter(s => s?.attiva !== false).length > 1
   // Sort della Distinta costi - click sulle etichette dell'header riordina.
   // Default: alfabetico ascendente (richiesta utente 13/07/2026: più facile
   // trovare un ingrediente noto per nome che per costo).
@@ -373,6 +383,16 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               <Icon name="edit" size={13} /> Prezzo
             </button>
           )}
+          {/* Prezzi per sede: visibile solo se l'org ha 2+ sedi attive. Vale
+              per stampi/pezzi E gusti (i gusti fissano il prezzo/kg per sede).
+              Badge "•" se la sede attualmente selezionata ha un override. */}
+          {!isSemi && hasMultiSede && orgId && (
+            <button onClick={() => setPrezziSedeOpen(true)}
+              title={hasOverride ? `Prezzo override attivo per ${sedeAttivaNome || 'questa sede'}` : 'Prezzi diversi per sede'}
+              style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${hasOverride ? C.red : C.borderStr}`, background: hasOverride ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: hasOverride ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <Icon name="map" size={13} /> Prezzi / sede{hasOverride ? ' •' : ''}
+            </button>
+          )}
           {onEdit && (
             <button onClick={() => onEdit(ric.nome)}
               style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.red, color: C.white, fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
@@ -674,29 +694,47 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
         </div>
         )
       })()}
+      {prezziSedeOpen && (
+        <PrezziPerSedeModal
+          open={prezziSedeOpen}
+          onClose={() => setPrezziSedeOpen(false)}
+          orgId={orgId}
+          sedi={sedi}
+          target={{ kind: 'ricetta', ric }}
+          notify={notify}
+        />
+      )}
     </div>
   )
 }
 
 // ─── RicettarioView ──────────────────────────────────────────────────────────
-export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, orgId, LEX = lessico() }) {
+export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, orgId, sedi = [], sedeAttiva = null, notify = null, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
+  // Listino per-sede: se sedeAttiva e' impostata (non "tutte le sedi"), tutte
+  // le card usano i prezzi override; altrimenti i base.
+  const isAllSedi = sedeAttiva?._all === true
+  const sedeIdCorrente = isAllSedi ? null : (sedeAttiva?.id || null)
+  const { listino: listinoSede } = useListinoSede(orgId, sedeIdCorrente)
+
   const ricette = useMemo(() => Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato'), [ricettario])
   const semilavorati = useMemo(() => Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo === 'semilavorato'), [ricettario])
 
   // Formati vendita (shared org): servono ai GUSTI (gelateria) per stimare il
-  // ricavo flat €/kg. Se l'org non ne ha configurati, i gusti mostrano CTA.
-  const [formati, setFormati] = useState([])
+  // ricavo flat €/kg. Applichiamo l'eventuale override sede sui prezzi così
+  // il ricavo/kg riflette il listino locale (es. Milano vs Poggibonsi).
+  const [formatiBase, setFormatiBase] = useState([])
   useEffect(() => {
     if (!orgId) return
     let alive = true
-    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormati(Array.isArray(v) ? v : []) })
+    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormatiBase(Array.isArray(v) ? v : []) })
     return () => { alive = false }
   }, [orgId])
+  const formati = useMemo(() => applicaListinoAiFormati(formatiBase, listinoSede), [formatiBase, listinoSede])
   // Cache ricavo flat €/kg per categoria: così N gusti della stessa categoria
   // riusano lo stesso calcolo invece di ripeterlo N volte.
   const ricavoFlatByCategoria = useMemo(() => {
@@ -890,7 +928,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
-          {filtered.map(ric => <TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} ricavoFlatKg={ricavoFlatFor(ric)}/>)}
+          {filtered.map(ric => <TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} ricavoFlatKg={ricavoFlatFor(ric)} sedi={sedi} orgId={orgId} notify={notify} listinoSede={listinoSede} sedeAttivaNome={sedeAttiva?.nome}/>)}
         </div>
       ))}
 

@@ -18,6 +18,7 @@ import { color as T } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
+import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
 import ExportPdfButton from '../components/ExportPdfButton'
@@ -54,6 +55,8 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
   // nel menu engineering; altrimenti resta escluso (senza formati non ha senso
   // classificarlo per quadrante popolarità/margine).
   const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
+  // Listino per-sede: prezzo effettivo per la classifica.
+  const { listino: listinoSede } = useListinoSede(orgId, sedeId)
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [chiusure, setChiusure] = useState([])
@@ -104,7 +107,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
     if (ricette.length === 0) return []
     const ingCosti = buildIngCosti(ricettario?.ingredienti_costi || {})
     const arr = ricette.map(r => {
-      const reg = getR(r.nome, r)
+      const reg = getRegSede(r.nome, r, listinoSede)
       const { tot: fcPerPezzo } = calcolaFC(r, ingCosti, ricettario)
       // Per i GUSTI: prezzo unitario = ricavoFlatKg × pesoKg (per 1 "unità
       // venduta" convenzionalmente = 1 kg finito). Così margine, marginePct
@@ -138,7 +141,7 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
     return arr
   // ricavoFlatFor cambia se cambiano i formati vendita → riclassifica.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ricettario, venditeAggregate, ricavoFlatFor])
+  }, [ricettario, venditeAggregate, ricavoFlatFor, listinoSede])
 
   const itemsValidi = useMemo(() => items.filter(x => x.qtaVenduta > 0), [items])
 
