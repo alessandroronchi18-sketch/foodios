@@ -124,6 +124,29 @@ export function avgFCperGCategoria(categoria, ricettario, ingCosti) {
   return valori.reduce((s, v) => s + v, 0) / valori.length
 }
 
+// Prezzo medio di VENDITA (€/kg) dei gusti di una categoria, ricavato dai
+// Formati vendita. Serve per stimare il margine dei gusti (gelateria/yogurt)
+// che hanno prezzo=0 sulla ricetta perché il prezzo vive sui formati
+// (cono/coppetta/vaschetta) e non sulla singola ricetta.
+//
+// Calcolo: media semplice di (prezzoDefault / baseQtaG) × 1000 su tutti i
+// formati validi (baseQtaG > 0, prezzo > 0) di quella categoria. Ritorna null
+// se non c'e' nessun formato utile: la UI mostra CTA "Configura formati".
+export function avgPrezzoPerKgCategoria(categoria, formati) {
+  const cat = String(categoria || '').trim().toLowerCase()
+  if (!cat || !Array.isArray(formati)) return null
+  const valori = []
+  for (const f of formati) {
+    if (String(f?.categoria || '').trim().toLowerCase() !== cat) continue
+    const baseG = Number(f?.baseQtaG) || 0
+    const prezzo = Number(f?.prezzoDefault) || 0
+    if (baseG <= 0 || prezzo <= 0) continue
+    valori.push((prezzo / baseG) * 1000)
+  }
+  if (valori.length === 0) return null
+  return valori.reduce((s, v) => s + v, 0) / valori.length
+}
+
 // FC stimato (€) di UNA unità venduta di un formato.
 // = Σ (componente.qta × componente.costo) + baseQtaG × FC_medio_categoria
 export function fcStimatoFormato(formato, avgFCperG) {

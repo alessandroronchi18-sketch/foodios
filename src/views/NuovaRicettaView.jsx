@@ -231,9 +231,17 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         ...(ricettario || {}),
         ricette: { ...(ricettario?.ricette || {}), [nuovaRic.nome]: nuovaRic }
       };
+      // IMPORTANTE (audit 2026-07-28): azzeriamo il ref del dirty-guard PRIMA
+      // dell'await. handleSalvaRicetta di Dashboard fa setView('ricettario')
+      // dentro l'await → il wrapper setView legge isDirty(), confronta form
+      // (ancora "sporco") vs initialFormRef (empty) → apre il popup "Hai
+      // modifiche non salvate" anche se il save sta già andando a buon fine.
+      // Snapshottando qui il form corrente, isDirty ritorna false subito.
+      initialFormRef.current = { ...form };
       await onSave(nuovoRic, { [nuovaRic.nome]: { unita: form.unita, prezzo: form.prezzo, tipo: form.tipo } });
       setForm(empty); setEditMode(null); setOverwriteConf(null);
-      initialFormRef.current = empty; // dirty pulito dopo save
+      initialFormRef.current = empty;
+      notify(`Ricetta "${nuovaRic.nome}" salvata`);
     } finally {
       setSaving(false);
     }

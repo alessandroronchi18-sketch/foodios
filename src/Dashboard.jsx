@@ -3244,7 +3244,7 @@ export default function Dashboard({
             </label>
           </div>
         )}
-        {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} LEX={LEX}/>}
+        {ricettario&&view==="ricettario"&&<RicettarioView ricettario={ricettario} onUpdateRegola={handleUpdateRegola} onUpload={files=>handleFile(files)} onEditRicetta={(nome)=>{setEditingRicetta(nome);setView("nuova-ricetta");}} orgId={orgId} LEX={LEX}/>}
         {ricettario&&view==="semilavorati"&&<SemilavoratiView ricettario={ricettario} onSave={handleSalvaRicetta} notify={notify} tipoAttivita={tipoAttivita}/>}
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi}/>}
@@ -3326,10 +3326,15 @@ export default function Dashboard({
             <div style={{ fontSize: 13.5, color: "#4B3832", lineHeight: 1.55, marginBottom: 20 }}>
               Se esci ora perdi le modifiche fatte in questa pagina. Vuoi salvarle prima di cambiare pagina?
             </div>
-            <div style={{ display: "flex", gap: 8, flexDirection: isMobile ? "column-reverse" : "row", justifyContent: "flex-end", flexWrap: "wrap" }}>
+            {/* 3 bottoni su un'unica riga (audit 2026-07-28): niente flexWrap
+                che spingeva "Salva" a riga nuova su mobile. Su mobile i testi
+                si accorciano ("Resta" / "Non salvare" / "Salva ed esci") per
+                stare in una riga sola anche a 375px. Ordine visivo: azione
+                meno impegnativa a sinistra, primaria (rossa) a destra. */}
+            <div style={{ display: "flex", gap: isMobile ? 6 : 8, justifyContent: "flex-end", alignItems: "stretch" }}>
               <button onClick={() => setPendingNav(null)} disabled={savingBeforeNav}
-                style={{ padding: "10px 16px", minHeight: 42, background: "transparent", color: "#4B3832", border: "1px solid #E8DDD8", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: savingBeforeNav ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                Resta qui
+                style={{ flex: isMobile ? "1 1 0" : "0 0 auto", minWidth: 0, padding: isMobile ? "10px 6px" : "10px 16px", minHeight: 42, background: "transparent", color: "#4B3832", border: "1px solid #E8DDD8", borderRadius: 8, fontSize: isMobile ? 12 : 13, fontWeight: 600, cursor: savingBeforeNav ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                {isMobile ? "Resta" : "Resta qui"}
               </button>
               <button onClick={() => {
                 try { getUnsavedGuardCurrent()?.ref?.current?.discard?.() } catch {}
@@ -3337,8 +3342,8 @@ export default function Dashboard({
                 setPendingNav(null);
                 _setViewRaw(target);
               }} disabled={savingBeforeNav}
-                style={{ padding: "10px 16px", minHeight: 42, background: "transparent", color: "#991B1B", border: "1px solid #FECACA", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: savingBeforeNav ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                Esci senza salvare
+                style={{ flex: isMobile ? "1 1 0" : "0 0 auto", minWidth: 0, padding: isMobile ? "10px 6px" : "10px 16px", minHeight: 42, background: "transparent", color: "#991B1B", border: "1px solid #FECACA", borderRadius: 8, fontSize: isMobile ? 12 : 13, fontWeight: 700, cursor: savingBeforeNav ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                {isMobile ? "Non salvare" : "Esci senza salvare"}
               </button>
               <button onClick={async () => {
                 setSavingBeforeNav(true);
@@ -3347,14 +3352,14 @@ export default function Dashboard({
                   const target = pendingNav;
                   setPendingNav(null);
                   _setViewRaw(target);
-                } catch (e) {
+                } catch {
                   // save fallito: resto sulla view, notify passato dalla view stessa
                 } finally {
                   setSavingBeforeNav(false);
                 }
               }} disabled={savingBeforeNav}
-                style={{ padding: "10px 16px", minHeight: 42, background: savingBeforeNav ? "#CBD5E1" : "#6E0E1A", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: savingBeforeNav ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                {savingBeforeNav ? "Salvo…" : "Salva prima di uscire"}
+                style={{ flex: isMobile ? "1 1 0" : "0 0 auto", minWidth: 0, padding: isMobile ? "10px 8px" : "10px 16px", minHeight: 42, background: savingBeforeNav ? "#CBD5E1" : "#6E0E1A", color: "#fff", border: "none", borderRadius: 8, fontSize: isMobile ? 12 : 13, fontWeight: 700, cursor: savingBeforeNav ? "not-allowed" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                {savingBeforeNav ? "Salvo…" : (isMobile ? "Salva ed esci" : "Salva prima di uscire")}
               </button>
             </div>
           </div>

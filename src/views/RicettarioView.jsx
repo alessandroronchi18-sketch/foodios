@@ -10,6 +10,8 @@ import {
 import { ALLERGENI, ALLERGENE_COLORS } from '../lib/allergeni'
 import { lessico } from '../lib/lessico'
 import { labelPlurale, labelSingolare } from '../lib/tipoRicetta'
+import { avgPrezzoPerKgCategoria, SK_FORMATI } from '../lib/formatiVendita'
+import { sload } from '../lib/storage'
 import { exportRicettaPDF } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import Icon from '../components/Icon'
@@ -22,7 +24,12 @@ const fmtp = v => `${Number(v).toFixed(1)}%`
 const PIE_COLORS = [C.red, '#E07040', '#D4A030', '#5B8FCE', '#7B7B7B', '#A0522D']
 
 // ─── TortaCard ───────────────────────────────────────────────────────────────
-function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant = 'ricetta' }) {
+// `ricavoFlatKg` (opzionale, solo per tipo='gusto'): prezzo medio €/kg di vendita
+// stimato dai Formati vendita della categoria del gusto. Serve perché i gusti
+// (gelateria/yogurt) hanno prezzo=0 sulla ricetta — il prezzo di vendita vive
+// sui formati (cono/coppetta/vaschetta), non sulla singola ricetta. Senza
+// questo valore il margine risulterebbe 0% (audit 2026-07-28).
+function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant = 'ricetta', ricavoFlatKg = null }) {
   // Audit 2026-06-22 CRITICAL: TUTTI gli hook DEVONO essere chiamati prima
   // dell'early return (regole React). Il vecchio codice metteva 3 useState +
   // 1 useEffect DOPO `if (reg.tipo === 'interno') return null` → hook order
@@ -71,16 +78,27 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   }
 
   const { tot: fc, mancanti } = calcolaFC(ric, ingCosti, ricettario)
-  const ricavo = parseFloat((reg.unita * reg.prezzo).toFixed(2))
-  const margine = parseFloat((ricavo - fc).toFixed(2))
+  const pesoTotSemi = (ric.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
+  const costoGSemi = pesoTotSemi > 0 ? fc / pesoTotSemi : 0
+
+  // Per i GUSTI (gelateria): ricavo e margine si calcolano al KG usando il
+  // prezzo medio dei Formati vendita della categoria (ricavo flat uguale per
+  // tutti i gusti di quella categoria) e il food cost specifico del gusto
+  // (variabile, dipende dalla ricetta). Se ricavoFlatKg e' null, mostreremo
+  // una CTA "Configura formati vendita" invece del margine.
+  const isGusto = reg.tipo === 'gusto'
+  const fcPerKg = isGusto && pesoTotSemi > 0 ? (fc / pesoTotSemi) * 1000 : 0
+  const ricavoFlatOk = isGusto && Number(ricavoFlatKg) > 0
+  const ricavo = isGusto
+    ? (ricavoFlatOk ? Number(ricavoFlatKg) : 0)
+    : parseFloat((reg.unita * reg.prezzo).toFixed(2))
+  const foodCostForMarg = isGusto ? fcPerKg : fc
+  const margine = parseFloat((ricavo - foodCostForMarg).toFixed(2))
   const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0
   const fcUnita = reg.unita > 0 ? fc / reg.unita : 0
   const mrgUnita = reg.prezzo - fcUnita
   const mc = margColor(margPct)
   const mbg = margPct >= 60 ? C.greenLight : margPct >= 40 ? C.amberLight : C.redLight
-
-  const pesoTotSemi = (ric.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
-  const costoGSemi = pesoTotSemi > 0 ? fc / pesoTotSemi : 0
 
   const SEMI = { bg: '#FAF6FF', border: '#C9A4DC', accent: '#8E44AD', accentLight: '#F0E4FA', panel: '#F5F0FA', divider: '#E5D4F0' }
 
@@ -120,12 +138,21 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // Mostra solo: nome + badge qualità + 1 KPI chiave (Margine % per ricette,
   // Costo/kg per semilavorati) + chevron. Tap → espande l'header pieno.
   if (!expanded) {
+    // Per i gusti: se non abbiamo un ricavo flat stimato, mostriamo il food
+    // cost/kg come KPI primario (è il dato che c'è) e "Configura formati"
+    // come hint secondario. Se c'è il ricavo, mostriamo Margine% + Ricavo/kg.
     const kpiPrim = isSemi
       ? { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent }
-      : { lbl: 'Margine', val: fmtp(margPct), c: mc }
+      : (isGusto && !ricavoFlatOk)
+        ? { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red }
+        : { lbl: 'Margine', val: fmtp(margPct), c: mc }
     const kpiSec = isSemi
       ? { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text }
-      : { lbl: 'Ricavo', val: fmt(ricavo), c: C.text }
+      : (isGusto && !ricavoFlatOk)
+        ? { lbl: 'Ricavo/kg', val: 'Configura formati', c: C.textSoft }
+        : isGusto
+          ? { lbl: 'Ricavo / kg', val: fmt(ricavo), c: C.text }
+          : { lbl: 'Ricavo', val: fmt(ricavo), c: C.text }
     return (
       <div
         role="button"
@@ -242,8 +269,11 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               lunghezza del nome. */}
           {(!isSemi || mancanti.length > 0) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5, minHeight: 22 }}>
-              {!isSemi && (
-                <Tip text={`Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={260}>{margBadge(margPct)}</Tip>
+              {!isSemi && (isGusto && !ricavoFlatOk
+                ? <Badge label="Ricavo/kg da configurare" color="amber"/>
+                : <Tip text={isGusto
+                    ? `Margine ${fmtp(margPct)}: ricavo ${fmt(ricavo)}/kg (media formati) − costo ${fmt(fcPerKg)}/kg.`
+                    : `Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={280}>{margBadge(margPct)}</Tip>
               )}
               {mancanti.length > 0 && (
                 <Tip text="Alcuni ingredienti non hanno prezzo reale: FC calcolato su stime HoReCa." width={280}><Badge label={`${mancanti.length} prezzi stimati`} color="amber"/></Tip>
@@ -253,8 +283,10 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           <div style={{ fontSize: 11, color: C.textSoft, lineHeight: 1.4 }}>
             {isSemi
               ? `Base interna · ${pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`} per batch${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
-              : reg.tipo === 'gusto'
-                ? `Gusto · food cost ${fmt(fc)}/kg · prezzo su formati vendita`
+              : isGusto
+                ? (ricavoFlatOk
+                    ? `Gusto · costo ${fmt(fcPerKg)}/kg · ricavo medio ${fmt(ricavo)}/kg (dai formati)`
+                    : `Gusto · costo ${fmt(fcPerKg)}/kg · aggiungi formati vendita per stimare il margine`)
                 : `${reg.unita} ${labelPlurale(reg.tipo)} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`}
           </div>
           {(ric.allergeni || []).length > 0 && (
@@ -280,7 +312,22 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text, bg: SEMI.panel },
             { lbl: 'Costo batch', val: fmt(fc), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
             { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent, bg: SEMI.accentLight, bold: true },
-          ] : [
+          ] : isGusto ? (
+            // GUSTO gelateria: KPI ragionati sul kg. Se non c'e' ricavo flat
+            // stimato (nessun formato vendita configurato per la categoria),
+            // mostriamo solo costo/kg + hint dove sistemarlo.
+            ricavoFlatOk ? [
+              { lbl: 'Ricavo / kg', val: fmt(ricavo), c: C.text, bg: '#F8F4F2' },
+              { lbl: 'Margine / kg', val: fmt(margine), c: mc, bg: mbg, bold: true },
+              { lbl: 'Margine %', val: fmtp(margPct), c: mc, bg: mbg, bold: true },
+              { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red, bg: C.redLight },
+            ] : [
+              { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red, bg: C.redLight, bold: true },
+              { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text, bg: '#F8F4F2' },
+              { lbl: 'Ricavo / kg', val: 'n/d', c: C.textSoft, bg: '#F8F4F2' },
+              { lbl: 'Margine %', val: 'n/d', c: C.textSoft, bg: '#F8F4F2' },
+            ]
+          ) : [
             // Ordine (26/06): Ricavo, Margine, Margine %, Food cost a destra.
             { lbl: 'Ricavo', val: fmt(ricavo), c: C.text, bg: '#F8F4F2' },
             { lbl: 'Margine', val: fmt(margine), c: mc, bg: mbg, bold: true },
@@ -539,19 +586,47 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             </div>
           )}
 
-          {/* PANEL 4 - Per singola fetta/pezzo (stampi). Per gusti mostra solo food cost/kg
-              (il prezzo di vendita vive su Formati vendita). */}
+          {/* PANEL 4 - Conto economico al KG per gusto (gelateria). Il ricavo/kg
+              e' la media dei formati vendita della categoria: uguale per tutti
+              i gusti di quella categoria (ricavo flat). Il costo varia gusto per
+              gusto. Se non ci sono formati, mostriamo solo costo + CTA. */}
           {!isSemi && reg.tipo === 'gusto' && (
             <div style={PANEL_STYLE}>
               {PANEL_ACCENT}
-              <div style={PANEL_TITLE_STYLE}><Icon name="gift" size={14} /> Costo al kg</div>
-              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: '14px 12px', textAlign: 'center' }}>
-                <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, marginBottom: 4 }}>Food cost / kg</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: C.red, ...TNUM }}>{fmt(fc)}</div>
-                <div style={{ fontSize: 9.5, color: C.textSoft, marginTop: 6, lineHeight: 1.4 }}>
-                  Prezzo di vendita: vedi <b>Formati vendita</b> per cono/coppetta/vaschetta.
+              <div style={PANEL_TITLE_STYLE}><Icon name="gift" size={14} /> Conto economico al kg</div>
+              {ricavoFlatOk ? (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {[
+                      { lbl: 'Ricavo / kg',    val: fmt(ricavo),    c: C.green, bg: C.greenLight, brd: `${C.green}25` },
+                      { lbl: 'Food cost / kg', val: `−${fmt(fcPerKg)}`, c: C.red, bg: C.redLight, brd: `${C.red}20` },
+                      { lbl: 'Margine / kg',   val: fmt(margine),   c: mc,      bg: mbg,          brd: `${mc}25`, prominent: true },
+                      { lbl: 'Margine %',      val: fmtp(margPct),  c: mc,      bg: mbg,          brd: `${mc}25` },
+                    ].map((r, i) => (
+                      <div key={i} style={{
+                        padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
+                        display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', minHeight: 44, columnGap: 12,
+                      }}>
+                        <span style={{ fontSize: 12, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
+                        <span style={{ fontSize: 15, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 10, lineHeight: 1.45 }}>
+                    Ricavo/kg = prezzo medio dei <b>Formati vendita</b> della categoria &ldquo;{ric.categoria || 'Gelato'}&rdquo; (uguale per tutti i gusti). Il costo varia gusto per gusto.
+                  </div>
+                </>
+              ) : (
+                <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: '14px 12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                    <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft }}>Food cost / kg</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: C.red, ...TNUM }}>{fmt(fcPerKg)}</div>
+                  </div>
+                  <div style={{ padding: '10px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 7, fontSize: 11.5, color: '#92400E', lineHeight: 1.5 }}>
+                    Per stimare il margine di questo gusto, configura almeno un <b>Formato vendita</b> per la categoria &ldquo;{ric.categoria || 'Gelato'}&rdquo; (cono, coppetta, vaschetta) — trovi il pannello in Cassa → Formati vendita.
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
           {!isSemi && reg.tipo !== 'gusto' && (
@@ -604,7 +679,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
 }
 
 // ─── RicettarioView ──────────────────────────────────────────────────────────
-export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, LEX = lessico() }) {
+export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, onEditRicetta, orgId, LEX = lessico() }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -612,6 +687,30 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato'), [ricettario])
   const semilavorati = useMemo(() => Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo === 'semilavorato'), [ricettario])
+
+  // Formati vendita (shared org): servono ai GUSTI (gelateria) per stimare il
+  // ricavo flat €/kg. Se l'org non ne ha configurati, i gusti mostrano CTA.
+  const [formati, setFormati] = useState([])
+  useEffect(() => {
+    if (!orgId) return
+    let alive = true
+    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormati(Array.isArray(v) ? v : []) })
+    return () => { alive = false }
+  }, [orgId])
+  // Cache ricavo flat €/kg per categoria: così N gusti della stessa categoria
+  // riusano lo stesso calcolo invece di ripeterlo N volte.
+  const ricavoFlatByCategoria = useMemo(() => {
+    const m = new Map()
+    const cats = new Set(ricette.map(r => String(r.categoria || '').trim().toLowerCase()).filter(Boolean))
+    for (const cat of cats) {
+      m.set(cat, avgPrezzoPerKgCategoria(cat, formati))
+    }
+    return m
+  }, [ricette, formati])
+  const ricavoFlatFor = (ric) => {
+    const cat = String(ric?.categoria || '').trim().toLowerCase()
+    return cat ? (ricavoFlatByCategoria.get(cat) || null) : null
+  }
 
   const [search, setSearch] = useState('')
   // Default: alfabetico ascendente (richiesta utente 13/07/2026: più facile
@@ -772,7 +871,7 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
-          {filtered.map(ric => <TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta}/>)}
+          {filtered.map(ric => <TortaCard key={ric.nome} ric={ric} ingCosti={ingCosti} ricettario={ricettario} onUpdateRegola={onUpdateRegola} onEdit={onEditRicetta} ricavoFlatKg={ricavoFlatFor(ric)}/>)}
         </div>
       ))}
 
