@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
+import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
 import AiPageHero from '../components/AiPageHero'
@@ -36,6 +37,7 @@ export default function ReformulationView({ ricettario, orgId }) {
     () => (ricettario?.ricette ? Object.values(ricettario.ricette) : []),
     [ricettario]
   )
+  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
   const [ricSel, setRicSel] = useState('')
   const [fcTarget, setFcTarget] = useState('')
   const [loading, setLoading] = useState(false)
@@ -48,14 +50,28 @@ export default function ReformulationView({ ricettario, orgId }) {
     if (!ricCurrent) return null
     const ic = buildIngCosti(ricettario?.ingredienti_costi || {})
     const { tot: fcPezzo } = calcolaFC(ricCurrent, ic, ricettario)
-    const prezzo = Number(getR(ricCurrent.nome, ricCurrent).prezzo) || 0
+    const reg = getR(ricCurrent.nome, ricCurrent)
+    // Per i GUSTI: prezzo di riferimento = ricavoFlatKg × pesoKg (dai Formati
+    // vendita). Senza questo il prompt AI riceverebbe prezzo=0 e proporrebbe
+    // "pricing" senza senso (audit 2026-07-28).
+    let prezzo
+    if (reg.tipo === 'gusto') {
+      const rk = ricavoFlatFor(ricCurrent) || 0
+      const pesoG = (ricCurrent.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
+      const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+      prezzo = rk * pesoKg
+    } else {
+      prezzo = Number(reg.prezzo) || 0
+    }
     return {
       fcPezzo,
       prezzo,
       fcPct: prezzo > 0 ? (fcPezzo / prezzo) * 100 : 0,
       ingredienti: (ricCurrent.ingredienti || ricCurrent.composizione || []).slice(0, 30),
+      isGusto: reg.tipo === 'gusto',
     }
-  }, [ricCurrent, ricettario])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ricCurrent, ricettario, ricavoFlatFor])
 
   async function genera() {
     if (!ricCurrent || !fcTarget || !fcAttuale) return

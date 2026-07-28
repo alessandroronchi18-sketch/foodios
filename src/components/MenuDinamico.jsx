@@ -7,6 +7,7 @@ import { lessico } from '../lib/lessico'
 import Icon from './Icon'
 import { KPI, SH, PageHeader, Tip, C, fmt, fmtp } from '../views/_shared'
 import { labelPlurale } from '../lib/tipoRicetta'
+import { useRicavoFlat } from '../lib/useRicavoFlat'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
@@ -55,7 +56,7 @@ function popolaritaDalVenduto(chiusure, giorni = 60) {
 }
 
 /* ─── EDITOR ─────────────────────────────────────────────────────────── */
-function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems, isMobile, isTablet = false, LEX }) {
+function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuItems, isMobile, isTablet = false, LEX, ricavoFlatFor = () => null }) {
   const [search, setSearch] = useState("")
 
   const ricette = Object.values(ricettario?.ricette||{}).filter(r => {
@@ -66,12 +67,27 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
   const inMenu = new Set(menuItems.map(m=>m.nome))
 
   // Costruisce la voce di menù da una ricetta (prezzo, FC, margine, allergeni).
+  // Per i GUSTI (gelateria): prezzo/ricavo derivano dal ricavoFlat dei Formati
+  // vendita (media €/kg), altrimenti sarebbero 0 e il margine mostrato in menu
+  // uscirebbe insensato.
   function buildItem(ric) {
     const reg = getR(ric.nome, ric)
     const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
-    const ricavo = reg.unita * reg.prezzo
+    let prezzo, unita, ricavo
+    if (reg.tipo === 'gusto') {
+      const rk = ricavoFlatFor(ric) || 0
+      const pesoG = (ric.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
+      const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+      prezzo = rk
+      unita = pesoKg
+      ricavo = rk * pesoKg
+    } else {
+      prezzo = reg.prezzo
+      unita = reg.unita
+      ricavo = reg.unita * reg.prezzo
+    }
     return {
-      nome: ric.nome, prezzo: reg.prezzo, unita: reg.unita, tipo: reg.tipo,
+      nome: ric.nome, prezzo, unita, tipo: reg.tipo,
       fc, ricavo, margPct: ricavo>0 ? (ricavo-fc)/ricavo*100 : 0,
       allergeni: ric.allergeni||[], descrizione: "", visibile: true,
     }
@@ -563,6 +579,8 @@ function BandaDiagnosi({ menuItems, popVenduto, isMobile, isTablet = false }) {
 
 /* ─── MAIN WRAPPER ───────────────────────────────────────────────────── */
 export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, nomeAttivita, tipoAttivita, chiusure, orgId, sedeId }) {
+  // Ricavo effettivo per gusti (gelateria): dal ricavoFlat dei Formati vendita.
+  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const LEX = useMemo(() => lessico(tipoAttivita), [tipoAttivita])
@@ -678,7 +696,7 @@ export default function MenuDinamico({ ricettario, ingCosti, calcolaFC, getR, no
             })}
           </div>
 
-          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems} isMobile={isMobile} isTablet={isTablet} LEX={LEX}/>}
+          {tab === "editor"    && <MenuEditor    ricettario={ricettario} ingCosti={ingCosti} calcolaFC={calcolaFC} getR={getR} menuItems={menuItems} setMenuItems={setMenuItems} isMobile={isMobile} isTablet={isTablet} LEX={LEX} ricavoFlatFor={ricavoFlatFor}/>}
           {tab === "bcg"       && <BCGMatrix     menuItems={menuItems} popVenduto={popVenduto} hasStorico={hasStorico} isMobile={isMobile} isTablet={isTablet}/>}
           {tab === "anteprima" && <MenuPreview   menuItems={menuItems} setMenuItems={setMenuItems} nomeAttivita={nomeAttivita} isMobile={isMobile}/>}
         </>

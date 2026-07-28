@@ -28,6 +28,7 @@ import ReferralPanel from './ReferralPanel'
 import DeleteAccountModal from './DeleteAccountModal'
 
 import { getAllRese, getStoreRese, setResaIngrediente } from '../lib/rese'
+import { seedFormatiGelateriaSeMancano } from '../lib/formatiVendita'
 
 const SK_RESE = 'pasticceria-rese-v1' // stesso constant usato da Dashboard.jsx per persistere su localStorage
 
@@ -103,7 +104,16 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
       // (source of truth è organizations, ma alcuni legacy query potrebbero
       // ancora leggere sedi — evitiamo drift).
       await supabase.from('sedi').update({ metodo_produzione: target }).eq('organization_id', orgId)
-      notify?.('Metodo di produzione aggiornato. Ricarica la pagina per applicarlo ovunque.')
+      // Se sta passando a gelateria (inventario) e non ha ancora formati
+      // vendita: seed di 3 default (cono/coppetta/vaschetta) così i gusti
+      // partono con un ricavo/kg stimato. Idempotente.
+      let seeded = 0
+      if (target === 'inventario') {
+        try { const r = await seedFormatiGelateriaSeMancano(orgId); seeded = r?.seeded || 0 } catch {}
+      }
+      notify?.(seeded > 0
+        ? `Metodo aggiornato + ${seeded} formati vendita creati. Ricarica per applicare ovunque.`
+        : 'Metodo di produzione aggiornato. Ricarica la pagina per applicarlo ovunque.')
       setConfirm(null)
     } catch (e) {
       notify?.('Errore: ' + (e.message || 'salvataggio fallito'), false)

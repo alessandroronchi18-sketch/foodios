@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
 import { buildIngCosti, calcolaFCStorico, getR } from '../lib/foodcost'
+import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { C, KPI, SH, margColor, margBadge, fmt, fmt0, fmtp, ChartTip, Tip } from './_shared'
@@ -28,7 +29,11 @@ const yPCT = v => `${v}%`
 // k.slice(5) restituisce mesi 01-12 e parseInt('01') = 1.
 const MN = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
-export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], LEX = lessico() }) {
+export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], orgId, LEX = lessico() }) {
+  // Ricavo effettivo per gusti (gelateria): stimato dai Formati vendita.
+  // Prima di questo hook, i gusti nello storico avevano ricavo=0 e falsavano
+  // i margini periodici (audit 2026-07-28).
+  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const [vista, setVista]   = useState("giornaliero"); // "giornaliero" | "settimana" | "mese"
@@ -90,7 +95,17 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         const {tot:fc} = ric
           ? calcolaFCStorico(ric, ingCosti, ricettario, logPrezzi, sess.data + 'T12:00:00')
           : {tot:0};
-        const rv = prod.stampi*reg.unita*reg.prezzo;
+        // Per i GUSTI il ricavo/unità = ricavoFlatKg × pesoKg (dai Formati
+        // vendita, cono/coppetta/vaschetta). Per stampi/pezzi resta unita×prezzo.
+        let rv
+        if (reg.tipo === 'gusto' && ric) {
+          const rk = ricavoFlatFor(ric)
+          const pesoG = (ric.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
+          const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+          rv = prod.stampi * (Number(rk) || 0) * pesoKg
+        } else {
+          rv = prod.stampi*reg.unita*reg.prezzo;
+        }
         map[k].stampiTot  += prod.stampi;
         map[k].ricavoTot  += rv;
         map[k].fcTot      += prod.stampi*fc;
@@ -100,7 +115,9 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     return Object.values(map).sort((a,b)=>a.key.localeCompare(b.key)).map(p=>({
       ...p, margine:p.ricavoTot-p.fcTot, margPct:p.ricavoTot>0?((p.ricavoTot-p.fcTot)/p.ricavoTot*100):0, label:fmtKey(p.key)
     }));
-  }, [giornaliero, vista, ricettario, ingCosti, dateFrom, dateTo]);
+  // ricavoFlatFor cambia se cambiano i Formati vendita → storico gusti si aggiorna.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [giornaliero, vista, ricettario, ingCosti, dateFrom, dateTo, ricavoFlatFor]);
 
   // ── PERIODI VENDITE (da chiusure) ───────────────────────────────────────────
   const periodiVend = useMemo(()=>{

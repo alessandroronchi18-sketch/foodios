@@ -718,14 +718,30 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
   const [sortBy, setSortBy] = useState('nome_az')
   const [gridView, setGridView] = useState(false)
 
+  // Ricavo effettivo di una ricetta, coerente per stampi E gusti:
+  //   - stampi/pezzi: reg.unita × reg.prezzo (come prima)
+  //   - gusto: ricavoFlatKg × pesoStampoKg (dai formati vendita, uguale
+  //     per categoria) — se non stimabile, ricavo=0 → ricetta esclusa dai
+  //     KPI di sintesi (invece che avere margine 0% che inquina la media).
+  const ricavoEffettivo = (ric) => {
+    const reg = getR(ric.nome, ric)
+    if (reg.tipo === 'gusto') {
+      const rk = ricavoFlatFor(ric)
+      if (!rk || rk <= 0) return 0
+      const pesoG = (ric.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
+      if (pesoG <= 0) return 0
+      return rk * (pesoG / 1000)
+    }
+    return reg.unita * reg.prezzo
+  }
+
   const fcMedio = ricette.length === 0 ? 0 : (() => {
     let tot = 0, cnt = 0
     for (const ric of ricette) {
-      const reg = getR(ric.nome, ric)
-      if (!reg.unita || !reg.prezzo) continue
+      const ricavo = ricavoEffettivo(ric)
+      if (ricavo <= 0) continue
       const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
-      const ricavo = reg.unita * reg.prezzo
-      if (ricavo > 0) { tot += fc / ricavo; cnt++ }
+      tot += fc / ricavo; cnt++
     }
     return cnt > 0 ? tot / cnt : 0
   })()
@@ -735,20 +751,23 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     arr = [...arr].sort((a, b) => {
       if (sortBy === 'nome_az') return a.nome.localeCompare(b.nome)
       if (sortBy === 'nome_za') return b.nome.localeCompare(a.nome)
-      const ra = getR(a.nome, a), rb = getR(b.nome, b)
       const { tot: fca } = calcolaFC(a, ingCosti, ricettario), { tot: fcb } = calcolaFC(b, ingCosti, ricettario)
-      const fcpa = fca / (ra.unita * ra.prezzo || 1)
-      const fcpb = fcb / (rb.unita * rb.prezzo || 1)
+      const ricavA = ricavoEffettivo(a), ricavB = ricavoEffettivo(b)
+      const fcpa = ricavA > 0 ? fca / ricavA : Infinity
+      const fcpb = ricavB > 0 ? fcb / ricavB : Infinity
       if (sortBy === 'fc_asc')  return fcpa - fcpb
       if (sortBy === 'fc_desc') return fcpb - fcpa
-      const ma = ra.unita * ra.prezzo > 0 ? ((ra.unita * ra.prezzo - fca) / (ra.unita * ra.prezzo) * 100) : 0
-      const mb = rb.unita * rb.prezzo > 0 ? ((rb.unita * rb.prezzo - fcb) / (rb.unita * rb.prezzo) * 100) : 0
+      const ma = ricavA > 0 ? ((ricavA - fca) / ricavA * 100) : -Infinity
+      const mb = ricavB > 0 ? ((ricavB - fcb) / ricavB * 100) : -Infinity
       if (sortBy === 'margine_asc') return ma - mb
       if (sortBy === 'margine_desc') return mb - ma
       return a.nome.localeCompare(b.nome) // fallback: alfabetico
     })
     return arr
-  }, [ricette, search, sortBy, ingCosti, ricettario])
+  // ricavoFlatByCategoria è la nuova dipendenza: se cambiano i formati, il
+  // sort/fcMedio dei gusti si aggiornano.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ricette, search, sortBy, ingCosti, ricettario, ricavoFlatByCategoria])
 
   // Bottone Aggiorna come elemento riusabile: lo posizioniamo in alto a destra
   // (allineato visivamente con il sede selector nella topbar) E lo passiamo a

@@ -17,6 +17,7 @@ import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng,
 } from '../lib/foodcost'
 import { labelPlurale, labelSingolare, isGustoTipo } from '../lib/tipoRicetta'
+import { avgPrezzoPerKgCategoria, SK_FORMATI } from '../lib/formatiVendita'
 import { exportPLCompleto } from '../lib/exportPDF'
 import { gateExport, getExportCtx } from '../lib/exportGuard'
 import {
@@ -503,13 +504,42 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
-  // I gusti (gelateria) sono esclusi dal P&L: il ricavo per gusto è 0 perché il
-  // prezzo di vendita vive su FormatiVendita (cono/coppetta/vaschetta). Includerli
-  // inquinerebbe totRicavo/totMargine e avgMarg. Contati a parte per il banner.
+  // Formati vendita (shared org): servono per stimare il ricavo/kg dei gusti
+  // (gelateria) — vedi RicettarioView per la logica base. I gusti CON ricavo
+  // stimabile vengono inclusi nel P&L; quelli SENZA (nessun formato per la
+  // categoria) restano esclusi e vanno nel banner "Configura formati".
+  const [formati, setFormati] = useState([])
+  useEffect(() => {
+    if (!orgId) return
+    let alive = true
+    sload(SK_FORMATI, orgId, null).then(v => { if (alive) setFormati(Array.isArray(v) ? v : []) })
+    return () => { alive = false }
+  }, [orgId])
+  const ricavoFlatByCategoria = useMemo(() => {
+    const m = new Map()
+    for (const r of Object.values(ricettario?.ricette || {})) {
+      const cat = String(r?.categoria || '').trim().toLowerCase()
+      if (cat && !m.has(cat)) m.set(cat, avgPrezzoPerKgCategoria(cat, formati))
+    }
+    return m
+  }, [ricettario, formati])
+  const ricavoFlatFor = (ric) => {
+    const cat = String(ric?.categoria || '').trim().toLowerCase()
+    return cat ? (ricavoFlatByCategoria.get(cat) || null) : null
+  }
+
   const tutteLeRicette = Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato')
-  const gustiCount = tutteLeRicette.filter(r => isGustoTipo(getR(r.nome, r).tipo)).length
-  const ricette = tutteLeRicette.filter(r => !isGustoTipo(getR(r.nome, r).tipo))
+  // Gusti SENZA ricavo flat stimabile: esclusi dal P&L (mostrano il banner).
+  // Gusti con ricavo flat: INCLUSI (il calc `rows` usa ricavoFlatKg × pesoKg).
+  const gustiSenzaRicavo = tutteLeRicette.filter(r =>
+    isGustoTipo(getR(r.nome, r).tipo) && (!(Number(ricavoFlatFor(r)) > 0))
+  ).length
+  const ricette = tutteLeRicette.filter(r => {
+    const t = getR(r.nome, r).tipo
+    if (!isGustoTipo(t)) return true
+    return Number(ricavoFlatFor(r)) > 0
+  })
 
   // Costi aziendali extra-food (consumabili, manutenzione, utenze, ammortamenti)
   // - vengono sottratti per ottenere il margine NETTO mensile/annuale.
@@ -534,16 +564,42 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   const rows = ricette.map(ric => {
     const reg = getR(ric.nome, ric)
     const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
-    const ricavo = parseFloat((reg.unita * reg.prezzo).toFixed(2))
+    // Per i GUSTI (gelateria): ricavo = ricavoFlatKg × pesoKg (ingredienti
+    // definiti per 1 kg finito → pesoKg tipicamente 1). "Unità" nel senso
+    // del P&L = kg finito, prezzo/unità = ricavoFlatKg. Coerente col resto
+    // dei calcoli (fcUnita/mrgUnita = per kg).
+    const isG = isGustoTipo(reg.tipo)
+    let ricavo, fcUnita, mrgUnita, prezzoUnita, unitaEff
+    if (isG) {
+      const rk = ricavoFlatFor(ric) || 0
+      const pesoG = (ric.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
+      const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+      ricavo = parseFloat((rk * pesoKg).toFixed(2))
+      unitaEff = parseFloat(pesoKg.toFixed(3))
+      prezzoUnita = rk
+      fcUnita = pesoKg > 0 ? fc / pesoKg : 0
+      mrgUnita = prezzoUnita - fcUnita
+    } else {
+      ricavo = parseFloat((reg.unita * reg.prezzo).toFixed(2))
+      unitaEff = reg.unita
+      prezzoUnita = reg.prezzo
+      fcUnita = reg.unita > 0 ? fc / reg.unita : 0
+      mrgUnita = reg.prezzo - fcUnita
+    }
     const margine = parseFloat((ricavo - fc).toFixed(2))
     const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0
     const fcPct = ricavo > 0 ? (fc / ricavo * 100) : 0
-    const fcUnita = reg.unita > 0 ? fc / reg.unita : 0
-    const mrgUnita = reg.prezzo - fcUnita
+    // regEff: view-model che unifica gusti e stampi (le formule di rendering
+    // usano reg.prezzo/reg.unita per etichette e edit inline — per i gusti
+    // sostituiamo con i valori "per kg" così tutto scorre senza branch).
+    const regEff = isG
+      ? { ...reg, unita: unitaEff, prezzo: prezzoUnita }
+      : reg
     return {
       nome: ric.nome,
       short: ric.nome.replace(/^TORTA (DI |AL |ALLE? )/, '').split(' ').map(w => w[0] + w.slice(1).toLowerCase()).join(' '),
-      reg, fc, ricavo, margine, margPct, fcPct, fcUnita, mrgUnita,
+      reg: regEff, fc, ricavo, margine, margPct, fcPct, fcUnita, mrgUnita,
+      isGusto: isG,
     }
   }).sort((a, b) => b.margPct - a.margPct)
 
@@ -762,10 +818,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
         }
       />
 
-      {gustiCount > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, fontSize: 11.5, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      {gustiSenzaRicavo > 0 && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, fontSize: 11.5, color: '#92400E', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <Icon name="bulb" size={13} />
-          <span><b>{gustiCount} gusti gelateria</b> non appaiono in questo P&L: il prezzo di vendita vive su <b>Formati vendita</b> (cono/coppetta/vaschetta), quindi il conto economico dei gusti si costruisce dal mix di formati venduti in cassa, non dalla ricetta.</span>
+          <span><b>{gustiSenzaRicavo} gusti gelateria</b> senza formato vendita di riferimento non appaiono in questo P&amp;L. Configura almeno un formato (cono/coppetta/vaschetta) per la loro categoria in <b>Cassa → Formati vendita</b> e verranno inclusi con ricavo/kg stimato.</span>
         </div>
       )}
 

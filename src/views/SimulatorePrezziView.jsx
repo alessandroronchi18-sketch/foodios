@@ -34,9 +34,12 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
   const isTablet = useIsTablet()
 
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
-  // I gusti (gelateria) sono esclusi dal simulatore prezzi: il prezzo di vendita
-  // vive su FormatiVendita (cono/coppetta/vaschetta), non sulla ricetta gusto.
-  // Il simulatore muove `reg.prezzo` — per un gusto è sempre 0 e non ha senso.
+  // I gusti (gelateria) sono esclusi dal SIMULATORE PREZZI di proposito: il
+  // simulatore muove `reg.prezzo` della ricetta per fare what-if sui listini,
+  // ma per un gusto il prezzo non vive sulla ricetta — vive sui Formati
+  // vendita. Simulare qui produrrebbe una leva senza effetto pratico
+  // (audit 2026-07-28). I gusti ora hanno margine visibile nel Ricettario
+  // e nel P&L via ricavo flat: il banner rimanda lì.
   const tutteLeRicette = useMemo(() => Object.values(ricettario?.ricette || {})
     .filter(r => isRicettaValida(r.nome) && getR(r.nome, r).tipo !== 'interno' && getR(r.nome, r).tipo !== 'semilavorato'),
     [ricettario])
@@ -251,7 +254,7 @@ export default function SimulatorePrezziView({ ricettario, giornaliero, tipoAtti
       {gustiCount > 0 && (
         <div style={{ marginBottom: 16, padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, fontSize: 11.5, color: '#1E3A8A', lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <Icon name="bulb" size={13} />
-          <span><b>{gustiCount} gusti gelateria</b> non appaiono qui: il prezzo di vendita si simula in <b>Formati vendita</b> (cono/coppetta/vaschetta).</span>
+          <span><b>{gustiCount} gusti gelateria</b> non appaiono qui: il loro prezzo di vendita non è sulla ricetta ma sui <b>Formati vendita</b> (cono/coppetta/vaschetta). Il margine dei gusti è visibile nel <b>Ricettario</b> e nel <b>P&amp;L</b>, calcolato dal ricavo/kg medio dei formati.</span>
         </div>
       )}
 

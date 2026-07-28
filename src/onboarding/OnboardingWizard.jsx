@@ -16,6 +16,7 @@ import { parseRicettario } from '../lib/parseRicettario'
 import { ssave } from '../lib/storage'
 import { lessico } from '../lib/lessico'
 import { seedDemoData } from '../lib/demoSeed'
+import { seedFormatiGelateriaSeMancano } from '../lib/formatiVendita'
 import Icon from '../components/Icon'
 import useIsMobile from '../lib/useIsMobile'
 
@@ -206,6 +207,13 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
           is_sede_produzione: true,
           metodo_produzione: metodo,
         }).eq('id', sediRow.id)
+      }
+      // Se e' gelateria (inventario): seed 3 formati vendita default (cono/
+      // coppetta/vaschetta) così i gusti nascono con un ricavo/kg stimato
+      // invece del vuoto "Configura formati" nel Ricettario. Idempotente
+      // (se l'utente ne ha già uno, non tocca nulla).
+      if (metodo === 'inventario') {
+        try { await seedFormatiGelateriaSeMancano(orgId) } catch {}
       }
       setMetodoProduzione(metodo)
     } catch {

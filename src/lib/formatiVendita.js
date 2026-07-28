@@ -24,8 +24,61 @@
 // avessero un singolo componente {nome:'Contenitore', qta:1, costo:N}.
 
 import { calcolaFC, getR, isRicettaValida, normIng } from './foodcost'
+import { sload, ssave } from './storage'
 
 export const SK_FORMATI = 'pasticceria-formati-vendita-v1' // shared
+
+// Preset base per gelaterie: 3 formati che coprono il 90% dei casi (cono
+// piccolo, coppetta media, vaschetta take-away). Categoria "Gusto" per
+// matchare la categoria default delle ricette gelato (vedi NuovaRicettaView
+// per gelateria). Prezzi e componenti da media di mercato IT 2026 — l'utente
+// li adatta dal pannello Formati vendita.
+export const FORMATI_GELATERIA_DEFAULT = [
+  {
+    nome: 'Cono piccolo', alias: ['piccolo', 'cono'], categoria: 'Gusto',
+    baseQtaG: 80, prezzoDefault: 2.50,
+    componenti: [
+      { nome: 'Cono cialda', qta: 1, costo: 0.06 },
+      { nome: 'Fazzoletto', qta: 1, costo: 0.01 },
+    ],
+  },
+  {
+    nome: 'Coppetta media', alias: ['media', 'coppetta'], categoria: 'Gusto',
+    baseQtaG: 150, prezzoDefault: 3.50,
+    componenti: [
+      { nome: 'Coppetta', qta: 1, costo: 0.10 },
+      { nome: 'Cucchiaino', qta: 1, costo: 0.02 },
+    ],
+  },
+  {
+    nome: 'Vaschetta 500g', alias: ['vaschetta', 'asporto', 'da asporto'], categoria: 'Gusto',
+    baseQtaG: 500, prezzoDefault: 10.00,
+    componenti: [
+      { nome: 'Vaschetta 500g', qta: 1, costo: 0.30 },
+      { nome: 'Coperchio', qta: 1, costo: 0.10 },
+    ],
+  },
+]
+
+// Seed idempotente dei formati default per una gelateria. Chiamalo quando
+// l'utente sceglie metodo='inventario' (onboarding o cambio da Impostazioni):
+// se l'org non ha ANCORA nessun formato vendita, ne crea 3 sensati così i
+// gusti nascono con un ricavo stimato invece del vuoto "Configura formati".
+// Se l'utente ne ha già almeno uno, non tocca nulla (l'utente ha già
+// personalizzato la sua lista).
+export async function seedFormatiGelateriaSeMancano(orgId) {
+  if (!orgId) return { seeded: 0, giaPresenti: 0 }
+  const attuali = await sload(SK_FORMATI, orgId, null)
+  const arr = Array.isArray(attuali) ? attuali : []
+  if (arr.length > 0) return { seeded: 0, giaPresenti: arr.length }
+  const now = Date.now()
+  const nuovi = FORMATI_GELATERIA_DEFAULT.map((f, i) => ({
+    id: `fmt-${now}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+    ...f,
+  }))
+  await ssave(SK_FORMATI, nuovi, orgId, null)
+  return { seeded: nuovi.length, giaPresenti: 0 }
+}
 
 // Normalizza un nome per il matching (uppercase, solo alfanumerico).
 function nrm(s) {
@@ -129,21 +182,24 @@ export function avgFCperGCategoria(categoria, ricettario, ingCosti) {
 // che hanno prezzo=0 sulla ricetta perché il prezzo vive sui formati
 // (cono/coppetta/vaschetta) e non sulla singola ricetta.
 //
-// Calcolo: media semplice di (prezzoDefault / baseQtaG) × 1000 su tutti i
-// formati validi (baseQtaG > 0, prezzo > 0) di quella categoria. Ritorna null
-// se non c'e' nessun formato utile: la UI mostra CTA "Configura formati".
+// Calcolo: media semplice di (prezzoDefault / baseQtaG) × 1000 sui formati
+// validi (baseQtaG > 0, prezzo > 0). Prima cerca formati con categoria
+// esatta; se non ne trova (comune in gelateria dove cono/coppetta valgono
+// per TUTTE le sotto-categorie di gusti — Crema, Frutta, Cioccolato…) fa
+// fallback su TUTTI i formati validi. Ritorna null se non c'è alcun formato
+// utile: la UI mostra CTA "Configura formati".
 export function avgPrezzoPerKgCategoria(categoria, formati) {
+  if (!Array.isArray(formati)) return null
+  const validi = formati.filter(f =>
+    Number(f?.baseQtaG) > 0 && Number(f?.prezzoDefault) > 0
+  )
+  if (validi.length === 0) return null
   const cat = String(categoria || '').trim().toLowerCase()
-  if (!cat || !Array.isArray(formati)) return null
-  const valori = []
-  for (const f of formati) {
-    if (String(f?.categoria || '').trim().toLowerCase() !== cat) continue
-    const baseG = Number(f?.baseQtaG) || 0
-    const prezzo = Number(f?.prezzoDefault) || 0
-    if (baseG <= 0 || prezzo <= 0) continue
-    valori.push((prezzo / baseG) * 1000)
-  }
-  if (valori.length === 0) return null
+  const perCategoria = cat
+    ? validi.filter(f => String(f?.categoria || '').trim().toLowerCase() === cat)
+    : []
+  const src = perCategoria.length > 0 ? perCategoria : validi
+  const valori = src.map(f => (Number(f.prezzoDefault) / Number(f.baseQtaG)) * 1000)
   return valori.reduce((s, v) => s + v, 0) / valori.length
 }
 

@@ -17,6 +17,7 @@ import { sload } from '../lib/storage'
 import { color as T } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
+import { useRicavoFlat } from '../lib/useRicavoFlat'
 import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
 import ExportPdfButton from '../components/ExportPdfButton'
@@ -48,6 +49,11 @@ function classifica(popolarita, margine, mediaPop, mediaMarg) {
 }
 
 export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAttiva }) {
+  // Ricavo effettivo per gusti (gelateria): riceve prezzo/kg dai Formati vendita.
+  // Vedi useRicavoFlat: se il gusto ha ricavoFlat stimabile viene incluso
+  // nel menu engineering; altrimenti resta escluso (senza formati non ha senso
+  // classificarlo per quadrante popolarità/margine).
+  const { ricavoFlatFor } = useRicavoFlat(orgId, ricettario)
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const [chiusure, setChiusure] = useState([])
@@ -98,25 +104,41 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
     if (ricette.length === 0) return []
     const ingCosti = buildIngCosti(ricettario?.ingredienti_costi || {})
     const arr = ricette.map(r => {
+      const reg = getR(r.nome, r)
       const { tot: fcPerPezzo } = calcolaFC(r, ingCosti, ricettario)
-      const prezzo = Number(getR(r.nome, r).prezzo) || 0
-      const margine = prezzo - fcPerPezzo
+      // Per i GUSTI: prezzo unitario = ricavoFlatKg × pesoKg (per 1 "unità
+      // venduta" convenzionalmente = 1 kg finito). Così margine, marginePct
+      // e classifica popolarità/margine restano coerenti col resto del sistema.
+      let prezzo, fcUnit
+      if (reg.tipo === 'gusto') {
+        const rk = ricavoFlatFor(r) || 0
+        const pesoG = (r.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
+        const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+        prezzo = rk * pesoKg
+        fcUnit = fcPerPezzo // fc su 1 kg finito = fc totale della ricetta gusto
+      } else {
+        prezzo = Number(reg.prezzo) || 0
+        fcUnit = fcPerPezzo
+      }
+      const margine = prezzo - fcUnit
       const nome = (r.nome || '').toUpperCase().trim()
       const ven = venditeAggregate[nome] || { qta: 0, ricavo: 0 }
       return {
         ricetta: r,
         nome,
         prezzo,
-        fcPerPezzo,
+        fcPerPezzo: fcUnit,
         margine,
         marginePct: prezzo > 0 ? (margine / prezzo) * 100 : 0,
         qtaVenduta: ven.qta,
         ricavoTot: ven.ricavo,
         margineTot: ven.qta * margine,
       }
-    }).filter(x => x.prezzo > 0)
+    }).filter(x => x.prezzo > 0) // esclude ricette senza prezzo utile (gusti senza formato compreso)
     return arr
-  }, [ricettario, venditeAggregate])
+  // ricavoFlatFor cambia se cambiano i formati vendita → riclassifica.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ricettario, venditeAggregate, ricavoFlatFor])
 
   const itemsValidi = useMemo(() => items.filter(x => x.qtaVenduta > 0), [items])
 
