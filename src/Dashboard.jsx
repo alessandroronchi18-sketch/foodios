@@ -1163,6 +1163,31 @@ const DIPENDENTE_VIEWS = new Set([
   'impostazioni',    // solo il proprio account (nome, cambio password, 2FA) - vista role-aware
 ]);
 
+// Viste dove il SedeSelector va NASCOSTO (audit 2026-07-29): dati SHARED
+// (ricettario, formati vendita, azioni, ecc.) oppure org-level (impostazioni,
+// integrazioni, ecc.) — cambiare sede qui non ha effetto sui dati mostrati e
+// confonde l'utente. Confronto-sedi e trasferimenti restano fuori perché
+// operano cross-sede (già gestiti a parte).
+const NO_SEDE_SELECTOR = new Set([
+  // Ricettario shared (sede_id=null)
+  'nuova-ricetta', 'semilavorati', 'scheda-allergeni',
+  // Azioni + previsioni ricette (shared)
+  'azioni', 'previsione',
+  // Configurazione org-level
+  'impostazioni', 'importa-dati', 'formati-vendita',
+  'integrazioni', 'marketplace', 'ai-hub', 'whatsapp',
+  'documentary', 'ricette-ai', 'recensioni', 'changelog',
+  // Landing dipendente (già in sedeAttiva forzata su tablet)
+  'home-dipendente',
+  // Cross-sede: gestiscono la sede internamente
+  'confronto-sedi', 'trasferimenti',
+])
+
+// Il ricettario mostra i prezzi effettivi per la sede attiva (con override
+// per-sede), quindi il selettore ha senso SOLO se l'org ha ≥2 sedi. Su
+// singola sede il selettore è muto e va nascosto per non confondere.
+const SEDE_SELECTOR_MULTI_ONLY = new Set(['ricettario'])
+
 // Viste operative che SCRIVONO dati per-sede: in "Tutte le sedi" (vista aggregata)
 // richiedono di scegliere prima una sede specifica.
 const SEDE_RICHIESTA = new Set(['giornaliero','chiusura','magazzino','sprechi-omaggi','trasferimenti']);
@@ -2701,7 +2726,7 @@ export default function Dashboard({
             </button>
             )}
 
-            {!['confronto-sedi','trasferimenti'].includes(view) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />}
+            {!NO_SEDE_SELECTOR.has(view) && !(SEDE_SELECTOR_MULTI_ONLY.has(view) && (sedi || []).filter(s => s?.attiva !== false).length < 2) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} />}
 
             {/* Search nel menu - filtra le voci della sidebar in tempo reale.
                 Input glass con bordo brand su focus. Min-height 38 per touch
@@ -3158,7 +3183,7 @@ export default function Dashboard({
                   animation:'_fos_title_rise .45s cubic-bezier(.32,.72,0,1) both',
                 }}>{label}</h1>
               </div>
-              {(sedi||[]).length>0 && !['confronto-sedi','trasferimenti'].includes(view) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} variant="topbar" />}
+              {(sedi||[]).length>0 && !NO_SEDE_SELECTOR.has(view) && !(SEDE_SELECTOR_MULTI_ONLY.has(view) && (sedi || []).filter(s => s?.attiva !== false).length < 2) && <SedeSelector sedi={sedi} sedeAttiva={sedeAttiva} onSelect={onSetSedeAttiva} variant="topbar" />}
             </div>
           );
         })()}
