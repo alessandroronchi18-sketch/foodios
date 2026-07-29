@@ -187,7 +187,7 @@ export function avgFCperGCategoria(categoria, ricettario, ingCosti) {
 //   1. formati con la categoria esatta (es. "Crema")
 //   2. formati con categoria "gusto" o "gelato" (generici per gelateria)
 //   3. TUTTI i formati validi (ultimo fallback)
-// Cosi' un'org mista pasticceria + gelateria non usa formati "Torta 8 fette"
+// Così un'org mista pasticceria + gelateria non usa formati "Torta 8 fette"
 // per stimare un gusto in categoria "Sorbetto" — cade prima sul generico.
 // Ritorna null se non c'è alcun formato utile.
 export function avgPrezzoPerKgCategoria(categoria, formati) {

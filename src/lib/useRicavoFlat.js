@@ -18,8 +18,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { sload } from './storage'
-import { SK_FORMATI, avgPrezzoPerKgCategoria, applicaListinoAiFormati } from './formatiVendita'
-import { SK_LISTINO_SEDE } from './listinoSede'
+import { SK_FORMATI, avgPrezzoPerKgCategoria } from './formatiVendita'
+import { SK_LISTINO_SEDE, applicaListinoAiFormati } from './listinoSede'
 import { getR, isRicettaValida } from './foodcost'
 
 export function useRicavoFlat(orgId, ricettario, sedeId = null) {
