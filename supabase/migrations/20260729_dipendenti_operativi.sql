@@ -606,3 +606,163 @@ begin
   return v_nuova;
 end;
 $$;
+
+-- ── 10) RPC trasferimenti: tracciano il dipendente operativo ─────────────────
+-- Audit 2026-07-29 MEDIO 2: senza questo, un trasferimento inviato da Marco e
+-- ricevuto da Anna risultava nel Registro come "Marco" perche' la UPDATE su
+-- stato='ricevuto' non toccava la colonna dipendente_operativo_id. Estendiamo
+-- le 3 RPC per accettare p_dipendente_op (nullable) e propagare la colonna.
+create or replace function public.trasferimento_invia(p_id uuid, p_dipendente_op uuid default null)
+returns public.trasferimenti
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_t public.trasferimenti;
+  v_org uuid;
+  v_disponibile numeric;
+begin
+  select * into v_t from public.trasferimenti where id = p_id;
+  if not found then raise exception 'Trasferimento non trovato'; end if;
+
+  v_org := public.get_user_org_id();
+  if v_t.organization_id <> v_org then
+    raise exception 'Trasferimento non appartiene alla organizzazione corrente';
+  end if;
+
+  if v_t.stato not in ('bozza') then
+    raise exception 'Stato non valido per invio: %', v_t.stato;
+  end if;
+
+  if v_t.quantita <= 0 then
+    raise exception 'Quantita deve essere positiva';
+  end if;
+
+  if v_t.tipo = 'prodotto' then
+    select coalesce(quantita, 0) into v_disponibile
+      from public.stock_prodotti_finiti
+      where organization_id = v_t.organization_id
+        and sede_id = v_t.sede_da
+        and prodotto_nome = v_t.prodotto;
+
+    if v_disponibile < v_t.quantita then
+      raise exception 'Quantita insufficiente in sede di partenza (disponibile: %, richiesto: %)',
+        v_disponibile, v_t.quantita;
+    end if;
+
+    perform public.applica_delta_stock_pf(
+      v_t.organization_id, v_t.sede_da, v_t.prodotto, -v_t.quantita, v_t.unita, p_dipendente_op
+    );
+
+    insert into public.movimenti_stock_pf (organization_id, sede_id, prodotto_nome, delta, causale, trasferimento_id)
+    values (v_t.organization_id, v_t.sede_da, v_t.prodotto, -v_t.quantita, 'trasferimento_invio', v_t.id);
+  end if;
+
+  update public.trasferimenti
+    set stato = 'inviato',
+        stock_applicato = (v_t.tipo = 'prodotto'),
+        data_invio = now(),
+        dipendente_operativo_id = coalesce(p_dipendente_op, dipendente_operativo_id)
+    where id = p_id
+    returning * into v_t;
+
+  return v_t;
+end;
+$$;
+
+create or replace function public.trasferimento_ricevi(
+  p_id uuid,
+  p_quantita_ricevuta numeric default null,
+  p_scarto_note text default null,
+  p_dipendente_op uuid default null
+)
+returns public.trasferimenti
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_t public.trasferimenti;
+  v_qty_ric numeric;
+  v_scarto numeric;
+begin
+  select * into v_t from public.trasferimenti where id = p_id;
+  if not found then raise exception 'Trasferimento non trovato'; end if;
+  if v_t.organization_id <> public.get_user_org_id() then
+    raise exception 'Trasferimento non appartiene alla organizzazione corrente';
+  end if;
+
+  if v_t.stato not in ('inviato') then
+    raise exception 'Stato non valido per ricezione: %', v_t.stato;
+  end if;
+
+  v_qty_ric := coalesce(p_quantita_ricevuta, v_t.quantita);
+  if v_qty_ric < 0 then raise exception 'Quantita ricevuta negativa'; end if;
+  if v_qty_ric > v_t.quantita then
+    raise exception 'Quantita ricevuta (%) maggiore di inviata (%)', v_qty_ric, v_t.quantita;
+  end if;
+  v_scarto := v_t.quantita - v_qty_ric;
+
+  if v_t.tipo = 'prodotto' and v_qty_ric > 0 then
+    perform public.applica_delta_stock_pf(
+      v_t.organization_id, v_t.sede_a, v_t.prodotto, v_qty_ric, v_t.unita, p_dipendente_op
+    );
+
+    insert into public.movimenti_stock_pf (organization_id, sede_id, prodotto_nome, delta, causale, trasferimento_id, note)
+    values (v_t.organization_id, v_t.sede_a, v_t.prodotto, v_qty_ric, 'trasferimento_ricezione', v_t.id, p_scarto_note);
+  end if;
+
+  if v_scarto > 0 and v_t.tipo = 'prodotto' then
+    insert into public.movimenti_stock_pf (organization_id, sede_id, prodotto_nome, delta, causale, trasferimento_id, note)
+    values (v_t.organization_id, v_t.sede_da, v_t.prodotto, 0, 'scarto', v_t.id, p_scarto_note);
+  end if;
+
+  update public.trasferimenti
+    set stato = 'ricevuto',
+        quantita_ricevuta = v_qty_ric,
+        scarto_qty = v_scarto,
+        scarto_note = p_scarto_note,
+        data_ricezione = now(),
+        dipendente_operativo_id = coalesce(p_dipendente_op, dipendente_operativo_id)
+    where id = p_id
+    returning * into v_t;
+
+  return v_t;
+end;
+$$;
+
+create or replace function public.trasferimento_annulla(p_id uuid, p_dipendente_op uuid default null)
+returns public.trasferimenti
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_t public.trasferimenti;
+begin
+  select * into v_t from public.trasferimenti where id = p_id;
+  if not found then raise exception 'Trasferimento non trovato'; end if;
+  if v_t.organization_id <> public.get_user_org_id() then
+    raise exception 'Trasferimento non appartiene alla organizzazione corrente';
+  end if;
+
+  if v_t.stato = 'annullato' then return v_t; end if;
+  if v_t.stato = 'ricevuto' then
+    raise exception 'Impossibile annullare un trasferimento gia ricevuto. Crea una rettifica.';
+  end if;
+
+  if v_t.stato = 'inviato' and v_t.stock_applicato and v_t.tipo = 'prodotto' then
+    perform public.applica_delta_stock_pf(
+      v_t.organization_id, v_t.sede_da, v_t.prodotto, v_t.quantita, v_t.unita, p_dipendente_op
+    );
+    insert into public.movimenti_stock_pf (organization_id, sede_id, prodotto_nome, delta, causale, trasferimento_id, note)
+    values (v_t.organization_id, v_t.sede_da, v_t.prodotto, v_t.quantita, 'annullo_trasferimento', v_t.id, 'Rollback per annullamento');
+  end if;
+
+  update public.trasferimenti
+    set stato = 'annullato',
+        stock_applicato = false,
+        dipendente_operativo_id = coalesce(p_dipendente_op, dipendente_operativo_id)
+    where id = p_id
+    returning * into v_t;
+  return v_t;
+end;
+$$;

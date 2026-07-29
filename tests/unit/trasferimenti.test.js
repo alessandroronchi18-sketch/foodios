@@ -156,7 +156,7 @@ describe('creaTrasferimento — validazione input', () => {
     await creaTrasferimento({
       orgId: 'o', sedeDa: 'A', sedeA: 'B', prodotto: 'X', quantita: 5, autoInvia: true,
     })
-    expect(supabase.rpc).toHaveBeenCalledWith('trasferimento_invia', { p_id: 't1' })
+    expect(supabase.rpc).toHaveBeenCalledWith('trasferimento_invia', { p_id: 't1', p_dipendente_op: null })
   })
 })
 
@@ -165,13 +165,13 @@ describe('transizioni stato RPC', () => {
 
   it('inviaTrasferimento → RPC trasferimento_invia', async () => {
     await inviaTrasferimento('t1')
-    expect(supabase.rpc).toHaveBeenCalledWith('trasferimento_invia', { p_id: 't1' })
+    expect(supabase.rpc).toHaveBeenCalledWith('trasferimento_invia', { p_id: 't1', p_dipendente_op: null })
   })
 
   it('riceviTrasferimento default args', async () => {
     await riceviTrasferimento('t1')
     expect(supabase.rpc).toHaveBeenCalledWith('trasferimento_ricevi', {
-      p_id: 't1', p_quantita_ricevuta: null, p_scarto_note: null,
+      p_id: 't1', p_quantita_ricevuta: null, p_scarto_note: null, p_dipendente_op: null,
     })
   })
 
@@ -184,7 +184,7 @@ describe('transizioni stato RPC', () => {
 
   it('annullaTrasferimento → RPC trasferimento_annulla', async () => {
     await annullaTrasferimento('t1')
-    expect(supabase.rpc).toHaveBeenCalledWith('trasferimento_annulla', { p_id: 't1' })
+    expect(supabase.rpc).toHaveBeenCalledWith('trasferimento_annulla', { p_id: 't1', p_dipendente_op: null })
   })
 
   it('RPC error → throw', async () => {

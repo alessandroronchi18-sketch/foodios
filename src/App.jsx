@@ -370,6 +370,12 @@ export default function App() {
   )
 
   if (auth.isLaboratorioAccount) {
+    // Guard: la sede fissata al laboratorio e' stata disattivata dal titolare.
+    // Non facciamo lavorare il dipendente su una sede sbagliata: mostriamo
+    // errore e lo invitiamo a contattare il titolare.
+    if (auth.laboratorioSedeError) {
+      return <LaboratorioSedeDisattivataPage onSignOut={auth.signOut}/>
+    }
     return (
       <DipendenteOperativoProvider userScope={auth.user?.id} enabled={true}>
         <LaboratorioShell auth={auth}>{dashboard}</LaboratorioShell>
@@ -377,6 +383,47 @@ export default function App() {
     )
   }
   return dashboard
+}
+
+function LaboratorioSedeDisattivataPage({ onSignOut }) {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(180deg, #0B0408 0%, #1C0A0A 100%)',
+      color: '#FFF',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: 24,
+    }}>
+      <div style={{ maxWidth: 420, width: '100%', textAlign: 'center' }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: '50%',
+          background: 'rgba(220,38,38,0.18)', border: '1px solid rgba(220,38,38,0.40)',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 20,
+        }}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FECACA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/>
+          </svg>
+        </div>
+        <h1 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 800, color: '#FFF' }}>
+          Sede laboratorio non attiva
+        </h1>
+        <p style={{ margin: '0 0 24px', fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
+          La sede fisica associata a questo laboratorio e' stata disattivata dal titolare. Non puoi lavorare finche' non viene riattivata o non viene assegnato il tablet a un'altra sede.
+        </p>
+        <p style={{ margin: '0 0 28px', fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>
+          Contatta il titolare per verificare.
+        </p>
+        <button onClick={onSignOut} style={{
+          padding: '12px 22px', minHeight: 44,
+          background: 'rgba(255,255,255,0.08)',
+          border: '1px solid rgba(255,255,255,0.18)',
+          color: '#FFF', fontSize: 14, fontWeight: 600,
+          borderRadius: 10, cursor: 'pointer',
+        }}>Esci</button>
+      </div>
+    </div>
+  )
 }
 
 // LaboratorioShell — dentro il Provider, decide se mostrare la schermata

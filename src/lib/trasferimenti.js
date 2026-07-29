@@ -87,7 +87,10 @@ export async function creaTrasferimento({
 // ── Transizioni stato (RPC atomiche) ───────────────────────────────────────
 
 export async function inviaTrasferimento(id) {
-  const { data, error } = await supabase.rpc('trasferimento_invia', { p_id: id })
+  const { data, error } = await supabase.rpc('trasferimento_invia', {
+    p_id: id,
+    p_dipendente_op: readDipendenteOpId(),
+  })
   if (error) throw error
   return data
 }
@@ -97,13 +100,17 @@ export async function riceviTrasferimento(id, { quantitaRicevuta = null, scartoN
     p_id: id,
     p_quantita_ricevuta: quantitaRicevuta,
     p_scarto_note: scartoNote,
+    p_dipendente_op: readDipendenteOpId(),
   })
   if (error) throw error
   return data
 }
 
 export async function annullaTrasferimento(id) {
-  const { data, error } = await supabase.rpc('trasferimento_annulla', { p_id: id })
+  const { data, error } = await supabase.rpc('trasferimento_annulla', {
+    p_id: id,
+    p_dipendente_op: readDipendenteOpId(),
+  })
   if (error) throw error
   return data
 }

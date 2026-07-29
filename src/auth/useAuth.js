@@ -14,6 +14,10 @@ export function useAuth() {
   const [sedeAttiva, setSedeAttivaState] = useState(null)
   const [loading, setLoading] = useState(true)
   const [profileError, setProfileError] = useState(null)
+  // Set true se il laboratorio ha laboratorio_sede_id ma la sede risulta
+  // disattivata (attiva=false) → non possiamo lasciare il dipendente lavorare
+  // su una sede sbagliata: mostriamo errore.
+  const [laboratorioSedeError, setLaboratorioSedeError] = useState(false)
   // Ref per tracciare l'ultimo userId profilato: usato per evitare che un
   // SIGNED_IN ripetuto (browser tab visibility change) ri-chiami loadProfile
   // resettando sedeAttiva al default.
@@ -133,12 +137,23 @@ export function useAuth() {
         // Priorita' laboratorio: se l'account e' di tipo laboratorio, la sede
         // e' fissata (il tablet vive fisicamente in una sede specifica).
         const labSedeId = prof?.is_laboratorio_account === true ? prof?.laboratorio_sede_id : null
-        const defaultSede = (labSedeId && (sediData || []).find(s => s.id === labSedeId))
-                         || (sediData || []).find(s => s.id === savedId)
-                         || (sediData || []).find(s => s.is_default)
-                         || (sediData || [])[0]
-                         || null
-        setSedeAttivaState(defaultSede)
+        const labSedeFound = labSedeId && (sediData || []).find(s => s.id === labSedeId)
+        // Audit 2026-07-29 MEDIO 3: se il laboratorio ha una sede assegnata ma
+        // quella sede risulta disattivata (o inesistente), NON facciamo fallback
+        // silenzioso su un'altra sede — sarebbe grave imputare operazioni a una
+        // sede sbagliata. Alziamo un flag e App mostra un errore.
+        if (prof?.is_laboratorio_account === true && labSedeId && !labSedeFound) {
+          setLaboratorioSedeError(true)
+          setSedeAttivaState(null)
+        } else {
+          setLaboratorioSedeError(false)
+          const defaultSede = labSedeFound
+                           || (sediData || []).find(s => s.id === savedId)
+                           || (sediData || []).find(s => s.is_default)
+                           || (sediData || [])[0]
+                           || null
+          setSedeAttivaState(defaultSede)
+        }
 
         // Applica codice referral se presente e non ancora usato
         if (orgData && !orgData.referral_code_usato) {
@@ -311,6 +326,7 @@ export function useAuth() {
     isDipendente,
     isLaboratorioAccount,
     laboratorioSedeId,
+    laboratorioSedeError,
     inAttesa,
     orgInAttesa,
     orgCancellata,

@@ -44,12 +44,28 @@ function writeToStorage(dip) {
 export function DipendenteOperativoProvider({ userScope, enabled, children }) {
   // enabled = true solo per account laboratorio. Titolari e dipendenti "vecchio
   // stile" (col loro auth.users) non passano da qui.
-  const [dip, setDip] = useState(() => enabled ? readFromStorage(userScope) : null)
-
-  // Reset se cambia lo scope (user Supabase diverso).
-  useEffect(() => {
-    if (!enabled) { setDip(null); return }
+  const [dip, setDip] = useState(() => {
+    if (!enabled) return null
     const stored = readFromStorage(userScope)
+    // Se non c'e' scope match, pulisci lo storage per non far leggere id stale
+    // agli helper client-side (stockPF.js, trasferimenti.js, ecc.).
+    if (!stored) writeToStorage(null)
+    return stored
+  })
+
+  // Reset se cambia lo scope (user Supabase diverso) o se enabled diventa false.
+  // Audit 2026-07-29 CRITICO: fondamentale scrivere null in localStorage quando
+  // enabled=false, altrimenti un titolare che entra dopo un dipendente vede le
+  // sue operazioni loggate a nome del dipendente precedente (readDipendenteOpId
+  // in stockPF.js/venditeB2B.js/haccp.jsx legge foodios_dip_op ciecamente).
+  useEffect(() => {
+    if (!enabled) {
+      writeToStorage(null)
+      setDip(null)
+      return
+    }
+    const stored = readFromStorage(userScope)
+    if (!stored) writeToStorage(null)  // scope mismatch: pulisci
     setDip(stored)
   }, [enabled, userScope])
 
