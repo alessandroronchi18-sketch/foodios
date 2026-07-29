@@ -210,52 +210,96 @@ export default function AbbonamentoPanel({ org, notify, isInline = false }) {
         )}
       </div>
 
-      {/* Piani */}
+      {/* Piani: layout a grid con card flex-column così i bottoni "Abbonati"
+          finiscono tutti alla stessa altezza in fondo, indipendentemente da
+          quante feature ci sono. La prima feature "Tutto di X +" diventa un
+          chip separatore per rendere chiara la struttura incrementale. */}
       <div style={{
         display:'grid',
         gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
         gap: isTablet ? 14 : 16,
+        alignItems: 'stretch',
       }}>
         {PIANI.map(p => {
           const isCurrent = isPagante && (
             (p.id === 'pro' && org?.piano === 'pro') ||
             (p.id === 'chain' && org?.piano === 'enterprise')
           )
+          // La feature "Tutto di X +" (se presente) fa da chip separatore in
+          // testa alla lista, non è una spunta come le altre.
+          const inheritsFeature = (p.features || []).find(f => /^Tutto di /.test(String(f)))
+          const otherFeatures = (p.features || []).filter(f => f !== inheritsFeature)
           return (
             <div key={p.id} style={{
-              background:T.bgCard,
+              background: T.bgCard,
               border: p.highlight ? `2px solid ${T.brand}` : `1px solid ${T.border}`,
-              borderRadius:R.xl, padding: isMobile ? '18px 16px' : isTablet ? '18px 18px' : '20px 22px',
-              position:'relative',
+              borderRadius: R.xl, padding: isMobile ? '18px 16px' : isTablet ? '18px 18px' : '22px 22px 20px',
+              position: 'relative',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: p.highlight ? `0 12px 28px ${T.brand}18` : S.sm,
             }}>
               {p.highlight && (
                 <span style={{
-                  position:'absolute', top:-10, left:18, padding:'3px 10px',
-                  borderRadius:999, background:T.brand, color:'#FFF',
-                  fontSize:10, fontWeight:800, letterSpacing:'0.04em', textTransform:'uppercase',
+                  position: 'absolute', top: -10, left: 18, padding: '3px 10px',
+                  borderRadius: 999, background: T.brand, color: '#FFF',
+                  fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase',
                 }}>Consigliato</span>
               )}
-              <div style={{ fontSize:16, fontWeight:800, color:T.text }}>{p.label}</div>
-              <div style={{ fontSize:13, color:T.textSoft, marginTop:4, marginBottom:12, lineHeight:1.4 }}>{p.desc}</div>
-              <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:16 }}>
-                <span style={{ fontSize:28, fontWeight:900, color:T.text, letterSpacing:'-0.02em' }}>{p.prezzo}</span>
-                <span style={{ fontSize:13, color:T.textSoft }}>{p.periodo}</span>
+
+              {/* Header: nome + descrizione */}
+              <div style={{ fontSize: 16, fontWeight: 800, color: T.text, letterSpacing: '-0.01em' }}>{p.label}</div>
+              <div style={{ fontSize: 13, color: T.textSoft, marginTop: 4, marginBottom: 14, lineHeight: 1.45, minHeight: isMobile ? 'auto' : 36 }}>{p.desc}</div>
+
+              {/* Prezzo */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 16 }}>
+                <span style={{ fontSize: 30, fontWeight: 900, color: T.text, letterSpacing: '-0.02em', lineHeight: 1 }}>{p.prezzo}</span>
+                <span style={{ fontSize: 13, color: T.textSoft }}>{p.periodo}</span>
               </div>
-              <ul style={{ listStyle:'none', padding:0, margin:'0 0 18px', fontSize:13, color:T.textMid, lineHeight:1.7 }}>
-                {p.features.map(f => (
-                  <li key={f} style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
-                    <span style={{ color:T.green, flexShrink:0, marginTop:2 }}>✓</span>{f}
+
+              {/* Chip separatore per il piano che eredita ("Tutto di Bottega +") */}
+              {inheritsFeature && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+                  padding: '5px 10px', marginBottom: 12,
+                  background: T.brandLight || '#FEF0EE', color: T.brand,
+                  borderRadius: 999, fontSize: 11, fontWeight: 700,
+                  letterSpacing: '0.01em',
+                }}>
+                  <span aria-hidden="true">↑</span>
+                  {inheritsFeature}
+                </div>
+              )}
+
+              {/* Feature list: flex:1 così spinge il bottone in fondo */}
+              <ul style={{
+                listStyle: 'none', padding: 0, margin: '0 0 18px',
+                fontSize: 13, color: T.textMid, lineHeight: 1.55,
+                display: 'flex', flexDirection: 'column', gap: 8,
+                flex: 1,
+              }}>
+                {otherFeatures.map(f => (
+                  <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <span aria-hidden="true" style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 16, height: 16, marginTop: 2, flexShrink: 0,
+                      borderRadius: '50%', background: (T.greenLight || '#DCFCE7'),
+                      color: T.green, fontSize: 11, fontWeight: 900, lineHeight: 1,
+                    }}>✓</span>
+                    <span style={{ minWidth: 0 }}>{f}</span>
                   </li>
                 ))}
               </ul>
+
+              {/* Bottone: sempre in basso grazie al flex:1 dell'ul sopra */}
               <button onClick={() => abbonati(p.id)} disabled={loading===p.id || isCurrent}
                 style={{
-                  width:'100%', height:44, borderRadius:R.md, border:'none',
+                  width: '100%', height: 46, borderRadius: R.md, border: 'none',
                   background: isCurrent ? T.bgSubtle : (p.highlight ? T.brand : T.text),
                   color: isCurrent ? T.textSoft : '#FFF',
-                  fontSize:14, fontWeight:800, cursor: (loading===p.id||isCurrent)?'not-allowed':'pointer',
-                  letterSpacing:'-0.005em',
+                  fontSize: 14, fontWeight: 800, cursor: (loading===p.id||isCurrent) ? 'not-allowed' : 'pointer',
+                  letterSpacing: '-0.005em',
                   boxShadow: (isCurrent || !p.highlight) ? 'none' : `0 4px 12px ${T.brand}44`,
+                  marginTop: 'auto',
                 }}>
                 {loading===p.id ? '…' : isCurrent ? 'Piano attivo' : 'Abbonati'}
               </button>

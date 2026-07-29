@@ -116,6 +116,14 @@ const ALIAS = {
   trendDownUp: 'trendUp', cake: 'gift', cupcake: 'gift',
   boltSm: 'bolt',          // piccolo fulmine → stesso glyph di bolt
   checkCirc: 'checkCircle', // typo storico → alias all'icona corretta
+  // Convenienze semantiche: usiamo nomi più naturali dove serve (es. la
+  // sezione "Metodo di produzione" in Impostazioni si aspetta icon: 'settings'
+  // ma noi teniamo il glyph in 'gear'). Prima dell'alias l'Icon cadeva sul
+  // fallback pallino → in sidebar sembrava che l'icona mancasse.
+  settings: 'gear',
+  chart: 'barChart',
+  pie: 'barChart',
+  creditCard: 'card',
 }
 
 const FILLED = new Set(['dot', 'star', 'bolt', 'party', 'play', 'sparkles'])

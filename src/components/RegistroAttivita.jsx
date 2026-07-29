@@ -39,14 +39,21 @@ const opPalette = (op) => OP_META[op] || { label: op || 'AZIONE', fg: C.textMid,
 
 // Mapping table → label user-friendly + icona
 const TABLE_META = {
-  user_data:     { label: 'Dati operativi',  icon: 'barChart' },
-  profiles:      { label: 'Profili utente',  icon: 'user' },
-  sedi:          { label: 'Sedi',            icon: 'building' },
-  organizations: { label: 'Azienda',         icon: 'bank' },
-  dipendenti:    { label: 'Dipendenti',      icon: 'users' },
-  turni:         { label: 'Turni',           icon: 'calendar' },
-  fatture_passive:{ label: 'Fatture',        icon: 'receipt' },
-  fornitori:     { label: 'Fornitori',       icon: 'truck' },
+  user_data:        { label: 'Dati operativi',  icon: 'barChart' },
+  profiles:         { label: 'Profili utente',  icon: 'user' },
+  sedi:             { label: 'Sedi',            icon: 'building' },
+  organizations:    { label: 'Azienda',         icon: 'bank' },
+  dipendenti:       { label: 'Dipendenti',      icon: 'users' },
+  turni:            { label: 'Turni',           icon: 'calendar' },
+  fatture_passive:  { label: 'Fatture',         icon: 'receipt' },
+  fornitori:        { label: 'Fornitori',       icon: 'truck' },
+  // Operative del laboratorio (loggano dipendente_operativo_id):
+  stock_prodotti_finiti:  { label: 'Produzione',       icon: 'package' },
+  trasferimenti:          { label: 'Trasferimenti',    icon: 'truck' },
+  haccp_temperature:      { label: 'HACCP · Temp.',    icon: 'clipboard' },
+  haccp_checklist_log:    { label: 'HACCP · Check',    icon: 'checkCircle' },
+  vendite_b2b:            { label: 'Vendite B2B',      icon: 'receipt' },
+  inventario_produzione:  { label: 'Inventario gusti', icon: 'package' },
 }
 const tableMeta = (t) => TABLE_META[t] || { label: t || 'Altro', icon: null }
 
@@ -145,6 +152,10 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
   const [dataDa,  setDataDa]  = useState(sevenAgo)
   const [dataA,   setDataA]   = useState(today)
   const [q,       setQ]       = useState('')
+  // Filtro per dipendente operativo (utile su account laboratorio dove più
+  // dipendenti si alternano — permette di vedere "cosa ha fatto Marco oggi").
+  // Valore = id dipendente da dipMap, '' = tutti.
+  const [dipendente, setDipendente] = useState('')
 
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(true)
@@ -198,6 +209,42 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
       })
   }, [orgId])
 
+  // Riepilogo attivita' di OGGI per dipendente (widget in cima al Registro).
+  // Query aggregata separata dalla paginazione principale: prende tutte le
+  // righe audit_log del giorno con dipendente_operativo_id valorizzato, poi
+  // aggrega client-side per dipendente + tabella. Refresh ogni volta che si
+  // aggiungono nuove attivita' (dep su rows.length così si aggiorna quando
+  // arrivano nuovi eventi).
+  const [riepilogoOggi, setRiepilogoOggi] = useState({})
+  useEffect(() => {
+    if (!orgId) return
+    let alive = true
+    const oggi = new Date().toISOString().slice(0, 10)
+    supabase.from('audit_log')
+      .select('dipendente_operativo_id,table_name')
+      .eq('organization_id', orgId)
+      .not('dipendente_operativo_id', 'is', null)
+      .gte('created_at', `${oggi}T00:00:00`)
+      .lte('created_at', `${oggi}T23:59:59`)
+      .limit(2000)
+      .then(({ data }) => {
+        if (!alive) return
+        const agg = {}
+        for (const r of data || []) {
+          const id = r.dipendente_operativo_id
+          if (!agg[id]) agg[id] = { total: 0, byTable: {} }
+          agg[id].total++
+          const t = r.table_name || 'altro'
+          agg[id].byTable[t] = (agg[id].byTable[t] || 0) + 1
+        }
+        setRiepilogoOggi(agg)
+      })
+    return () => { alive = false }
+    // rows.length: quando arrivano nuovi eventi in audit_log, il widget
+    // riepilogativo si aggiorna senza refresh manuale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, rows.length])
+
   // Carica righe + stats
   useEffect(() => {
     if (!orgId) return
@@ -212,6 +259,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
       .range(from, to)
     if (utente)  qb = qb.eq('user_id', utente)
     if (tabella) qb = qb.eq('table_name', tabella)
+    if (dipendente) qb = qb.eq('dipendente_operativo_id', dipendente)
     if (dataDa)  qb = qb.gte('created_at', `${dataDa}T00:00:00`)
     if (dataA)   qb = qb.lte('created_at', `${dataA}T23:59:59`)
 
@@ -241,10 +289,10 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     // come stringa primitiva uguale, quindi Object.is gestisce - ma per
     // sicurezza lo escludiamo pure.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, utente, tabella, dataDa, dataA, sedeId, q, page])
+  }, [orgId, utente, tabella, dipendente, dataDa, dataA, sedeId, q, page])
 
   // Reset pagination al cambio filtro
-  useEffect(() => { setPage(0) }, [utente, tabella, dataDa, dataA, sedeId, q])
+  useEffect(() => { setPage(0) }, [utente, tabella, dipendente, dataDa, dataA, sedeId, q])
 
   // Calcola stats sui rows attualmente caricati
   useEffect(() => {
@@ -307,9 +355,9 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     URL.revokeObjectURL(url)
   }
 
-  const hasActiveFilters = utente || tabella || sedeId || q.trim()
+  const hasActiveFilters = utente || tabella || sedeId || dipendente || q.trim()
   const resetFiltri = () => {
-    setUtente(''); setTabella(''); setSedeId(''); setQ('')
+    setUtente(''); setTabella(''); setSedeId(''); setDipendente(''); setQ('')
     applicaPeriodo('7gg')
   }
 
@@ -361,6 +409,65 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
           ))}
         </div>
       </div>
+
+      {/* RIEPILOGO OGGI PER DIPENDENTE — visibile solo su account laboratorio
+          dove più dipendenti si alternano. Mostra "quante operazioni ha fatto
+          ognuno oggi" così il titolare vede a colpo d'occhio l'attività del
+          turno senza dover filtrare riga per riga. Etichetta tabelle mappata
+          in italiano semplice (non "stock_prodotti_finiti" ma "Produzione"). */}
+      {Object.keys(riepilogoOggi).length > 0 && (
+        <div style={{ marginBottom: 18, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, padding: isMobile ? '14px 14px' : '16px 18px', boxShadow: S.sm }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Oggi in laboratorio</div>
+              <div style={{ fontSize: 13, color: T.textMid, marginTop: 3 }}>
+                Riepilogo attività per dipendente (ultime {Object.values(riepilogoOggi).reduce((s, x) => s + x.total, 0)} operazioni)
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+            {Object.entries(riepilogoOggi)
+              .map(([id, agg]) => ({ id, ...agg, dip: dipMap[id] || { nome: '(sconosciuto)', cognome: '' } }))
+              .sort((a, b) => b.total - a.total)
+              .map(({ id, total, byTable, dip }) => {
+                const nomeCompleto = [dip.nome, dip.cognome].filter(Boolean).join(' ') || '—'
+                const iniziali = ((dip.nome?.[0] || '') + (dip.cognome?.[0] || '')).toUpperCase() || '?'
+                const topTables = Object.entries(byTable).sort((a, b) => b[1] - a[1]).slice(0, 3)
+                return (
+                  <button key={id} onClick={() => setDipendente(id)}
+                    title={`Filtra il registro per ${nomeCompleto}`}
+                    style={{
+                      textAlign: 'left', padding: '12px 14px', borderRadius: R.md,
+                      background: dipendente === id ? T.brandLight : T.bgSubtle,
+                      border: `1px solid ${dipendente === id ? T.brand : T.borderSoft}`,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                      display: 'flex', gap: 12, alignItems: 'flex-start',
+                    }}>
+                    <span style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: T.brand, color: '#FFF',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 800, flexShrink: 0,
+                    }}>{iniziali}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nomeCompleto}</span>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: T.brand, ...tnum, flexShrink: 0 }}>{total.toLocaleString('it-IT')}</span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.45, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {topTables.map(([t, n]) => (
+                          <span key={t} style={{ background: T.bgCard, padding: '1px 7px', borderRadius: 999, border: `1px solid ${T.borderSoft}` }}>
+                            {tableMeta(t).label} · {n}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+          </div>
+        </div>
+      )}
 
       {/* QUICK FILTERS - pill periodo + search */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -457,6 +564,25 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
               style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="">Tutte le sedi</option>
               {sedi.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+            </select>
+          </div>
+        )}
+        {/* Filtro dipendente operativo: visibile solo se l'org ha dipendenti in
+            rubrica (dipMap popolato). Su account laboratorio permette al
+            titolare di vedere "cosa ha fatto Marco oggi". */}
+        {Object.keys(dipMap).length > 0 && (
+          <div>
+            <label style={{ fontSize: 9.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, display: 'block' }}>Dipendente</label>
+            <select value={dipendente} onChange={e => setDipendente(e.target.value)}
+              style={{ width: '100%', padding: '8px 11px', borderRadius: R.md, border: `1px solid ${T.border}`, fontSize: 12.5, color: T.text, background: T.bgCard, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', cursor: 'pointer' }}>
+              <option value="">Tutti i dipendenti</option>
+              {Object.entries(dipMap)
+                .sort((a, b) => (a[1].cognome || '').localeCompare(b[1].cognome || ''))
+                .map(([id, d]) => (
+                  <option key={id} value={id}>
+                    {[d.nome, d.cognome].filter(Boolean).join(' ') || '(senza nome)'}
+                  </option>
+                ))}
             </select>
           </div>
         )}

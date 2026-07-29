@@ -438,8 +438,8 @@ function AccountSection({ auth, notify }) {
   )
 }
 
-// Zona pericolosa: cancellazione account self-service con flusso multi-step
-// (motivo → alternativa → feedback → conferma typing nome). Soft-delete.
+// Cancellazione account: flusso multi-step (motivo → alternativa → feedback →
+// conferma typing nome). Soft-delete, reversibile per 90 giorni.
 function DangerZoneCard({ auth, notify }) {
   const [open, setOpen] = useState(false)
   return (
@@ -449,7 +449,7 @@ function DangerZoneCard({ auth, notify }) {
         border: '1px solid #FECACA', boxShadow: S.sm, marginBottom: 16,
       }}>
         <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#991B1B', letterSpacing: '-0.01em' }}>
-          Zona pericolosa
+          Cancellazione account
         </h3>
         <p style={{ margin: '6px 0 14px', fontSize: 13, color: T.textSoft, lineHeight: 1.55 }}>
           Cancellare l'account è reversibile per 90 giorni: contattaci entro quel termine e ripristiniamo tutto.
@@ -638,10 +638,19 @@ function PacchettiAIPanel({ auth, notify }) {
   }, 0)
 
   const PACKS_CATALOG = [
-    { id: 'foto_50',   prezzo: '€5',  calls: 50,   per_call: '10¢', best: false },
-    { id: 'foto_200',  prezzo: '€15', calls: 200,  per_call: '7,5¢', best: true },
-    { id: 'foto_1000', prezzo: '€60', calls: 1000, per_call: '6¢',  best: false },
+    { id: 'foto_50',   prezzo: '€5',  euro: 5,   calls: 50,   per_call: '10¢',  perCallCents: 10 },
+    { id: 'foto_200',  prezzo: '€15', euro: 15,  calls: 200,  per_call: '7,5¢', perCallCents: 7.5, best: true },
+    { id: 'foto_1000', prezzo: '€60', euro: 60,  calls: 1000, per_call: '6¢',   perCallCents: 6 },
   ]
+  // Risparmio % rispetto al pacchetto più piccolo (baseline €0.10/foto).
+  // Aiuta l'utente a capire il valore incrementale dei pacchetti grandi.
+  const baselinePrezzoPerFoto = 10 // ¢
+  const packWithSavings = PACKS_CATALOG.map(p => ({
+    ...p,
+    saving: p.perCallCents < baselinePrezzoPerFoto
+      ? Math.round((1 - p.perCallCents / baselinePrezzoPerFoto) * 100)
+      : 0,
+  }))
 
   async function compra(packType) {
     setBusy(true)
@@ -679,34 +688,53 @@ function PacchettiAIPanel({ auth, notify }) {
         </div>
       </div>
 
-      {/* Catalogo */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-        {PACKS_CATALOG.map(p => (
+      {/* Catalogo: card con gerarchia chiara (quante foto → prezzo → €/foto →
+          risparmio %) e bottone sempre allineato in basso grazie a flex-column
+          + marginTop:auto sul button. Il pacchetto consigliato ha bordo brand
+          + badge, gli altri restano sobri. */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 20, alignItems: 'stretch' }}>
+        {packWithSavings.map(p => (
           <div key={p.id} style={{
-            padding: 16, borderRadius: 12,
+            padding: '18px 18px 16px', borderRadius: 14,
             background: p.best ? '#FEF2F2' : '#FFF',
             border: `2px solid ${p.best ? '#6E0E1A' : '#E2E8F0'}`,
             position: 'relative',
             display: 'flex', flexDirection: 'column',
-            minHeight: 140,
+            boxShadow: p.best ? '0 8px 24px rgba(110,14,26,0.10)' : '0 1px 2px rgba(15,23,42,0.04)',
           }}>
             {p.best && (
-              <div style={{ position: 'absolute', top: -10, right: 12, background: '#6E0E1A', color: '#FFF', padding: '2px 10px', borderRadius: 99, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>
-                CONSIGLIATO
+              <div style={{ position: 'absolute', top: -10, left: 18, background: '#6E0E1A', color: '#FFF', padding: '3px 10px', borderRadius: 999, fontSize: 10, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                Consigliato
               </div>
             )}
-            <div style={{ fontSize: isMobile ? 26 : 28, fontWeight: 900, color: '#1C0A0A', fontVariantNumeric: 'tabular-nums' }}>{p.prezzo}</div>
-            <div style={{ fontSize: 13, color: '#1C0A0A', fontWeight: 700, marginTop: 4 }}>{p.calls.toLocaleString('it-IT')} foto AI</div>
-            <div style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>{p.per_call} a foto</div>
+            {/* Titolo: quante foto AI (informazione principale) */}
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#1C0A0A', letterSpacing: '-0.01em', marginBottom: 2 }}>
+              {p.calls.toLocaleString('it-IT')} foto AI
+            </div>
+            {/* Prezzo grande sotto il titolo */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, marginBottom: 10 }}>
+              <span style={{ fontSize: isMobile ? 30 : 34, fontWeight: 900, color: '#1C0A0A', letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{p.prezzo}</span>
+              <span style={{ fontSize: 12, color: '#64748B' }}>una tantum</span>
+            </div>
+            {/* Divisore + €/foto + eventuale risparmio */}
+            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 11.5, color: '#64748B', marginBottom: 12 }}>
+              <span>{p.per_call} a foto</span>
+              {p.saving > 0 && (
+                <span style={{ background: '#DCFCE7', color: '#065F46', padding: '2px 8px', borderRadius: 999, fontSize: 10.5, fontWeight: 800, letterSpacing: '0.02em' }}>
+                  −{p.saving}%
+                </span>
+              )}
+            </div>
             <button onClick={() => compra(p.id)} disabled={busy}
               style={{
-                marginTop: 'auto', paddingTop: 0, width: '100%',
-                padding: '11px 14px', minHeight: 44, borderRadius: 8,
+                marginTop: 'auto', width: '100%',
+                padding: '12px 14px', minHeight: 46, borderRadius: 10,
                 background: p.best ? '#6E0E1A' : '#FFF',
                 color: p.best ? '#FFF' : '#6E0E1A',
                 border: `1px solid #6E0E1A`,
-                fontSize: 13, fontWeight: 700, cursor: busy ? 'wait' : 'pointer',
+                fontSize: 13.5, fontWeight: 800, cursor: busy ? 'wait' : 'pointer',
                 opacity: busy ? 0.6 : 1,
+                letterSpacing: '-0.005em',
               }}>
               {busy ? 'Apertura…' : 'Compra'}
             </button>

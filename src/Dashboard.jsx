@@ -1332,12 +1332,17 @@ export default function Dashboard({
   // dalla schermata "Chi sei?" post-login. Vale solo per is_laboratorio_account.
   const dipOp = useDipendenteOperativo();
   const isLaboratorioAccount = auth?.isLaboratorioAccount === true;
-  // Auto-timeout identita' operativa: dopo 30 min di inattivita' torna alla
-  // schermata "Chi sei?" (NON fa signOut Supabase). Attivo solo per account
-  // laboratorio con dipendente selezionato.
+  // Dipendente su account personale legacy (pre-migration laboratorio): resta
+  // il vecchio comportamento — signOut Supabase completo dopo 30min di
+  // inattivita', così un dipendente che ha lasciato il tablet aperto non
+  // rimane loggato indefinitamente. Su account laboratorio invece si torna
+  // solo a "Chi sei?" (l'account resta loggato).
+  const isLegacyDip = isDip && !isLaboratorioAccount
   useAutoLogoutDipendente({
-    enabled: isLaboratorioAccount && dipOp.isSelezionato,
-    onTimeout: dipOp.deseleziona,
+    enabled: (isLaboratorioAccount && dipOp.isSelezionato) || isLegacyDip,
+    onTimeout: isLegacyDip
+      ? () => { try { onSignOut?.() } catch { /* noop */ } }
+      : dipOp.deseleziona,
   });
   // Defense-in-depth: se un dipendente finisce su una vista non consentita (es.
   // ripristinata da sessionStorage o via link), riportalo alla produzione.
