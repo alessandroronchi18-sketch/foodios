@@ -15,10 +15,24 @@ import React from 'react'
 import { render, act, cleanup, renderHook } from '@testing-library/react'
 
 // Mock Supabase RPC prima di importare il modulo (che chiude sulla ref).
+// Router per nome della RPC: valida (opens session), termina (closes), check.
 const rpcMock = vi.fn()
 vi.mock('../../src/lib/supabase', () => ({
-  supabase: { rpc: (name, args) => rpcMock(name, args) },
+  supabase: {
+    rpc: (name, args) => rpcMock(name, args),
+  },
 }))
+
+// Helper: setup default per il session_check che gira al mount del Provider
+// quando c'è già una sessione in storage. Se il test vuole testare uno
+// scenario diverso (sessione stale), sovrascrive.
+function mockSessionCheckOk() {
+  rpcMock.mockImplementation((name) => {
+    if (name === 'dipendente_operativo_session_check') return Promise.resolve({ data: { ok: true }, error: null })
+    if (name === 'dipendente_operativo_termina') return Promise.resolve({ data: null, error: null })
+    return Promise.resolve({ data: null, error: null })
+  })
+}
 
 // Import DOPO il mock così il modulo raccoglie la versione mockata.
 const { DipendenteOperativoProvider, useDipendenteOperativo } = await import('../../src/hooks/useDipendenteOperativo.jsx')
@@ -48,8 +62,10 @@ describe('DipendenteOperativoProvider — persistenza e scope safety', () => {
   })
 
   it('storage con scope match: dip caricato', () => {
+    mockSessionCheckOk()
     localStorage.setItem(LS_KEY, JSON.stringify({
       id: 'dip-1', nome: 'Marco', cognome: 'Rossi', ruolo: 'produzione',
+      sessionId: 'sess-1',
       at: Date.now(), userScope: 'user-1',
     }))
     const { result } = renderHook(() => useDipendenteOperativo(), {
@@ -92,13 +108,29 @@ describe('DipendenteOperativoProvider — persistenza e scope safety', () => {
 })
 
 describe('seleziona() — validazione RPC e persistenza', () => {
-  beforeEach(() => { try { localStorage.clear() } catch {} ; rpcMock.mockReset() })
+  beforeEach(() => {
+    try { localStorage.clear() } catch {}
+    rpcMock.mockReset()
+    // Default: qualsiasi RPC ritorna una Promise che risolve a null. I test
+    // che vogliono specifici comportamenti sovrascrivono con mockImplementation
+    // o mockResolvedValueOnce, ma il default previene il crash "Cannot read
+    // properties of undefined (reading 'then')" quando il Provider al mount
+    // fa `session_check` senza che il test l'abbia esplicitamente moccato.
+    rpcMock.mockResolvedValue({ data: null, error: null })
+  })
   afterEach(() => { cleanup() })
 
-  it('RPC ok: setta dip in state + storage con userScope', async () => {
-    rpcMock.mockResolvedValueOnce({
-      data: { ok: true, id: 'dip-10', nome: 'Sara', cognome: 'Bianchi', ruolo: 'banco' },
-      error: null,
+  it('RPC ok: setta dip in state + storage con userScope + sessionId', async () => {
+    // Sia valida (che ritorna il dip) sia il check post-seleziona (che
+    // conferma la sessione attiva). Se il check risponde ok=false, il
+    // Provider farebbe deseleziona automatica.
+    rpcMock.mockImplementation((name) => {
+      if (name === 'dipendente_operativo_valida') return Promise.resolve({
+        data: { ok: true, id: 'dip-10', nome: 'Sara', cognome: 'Bianchi', ruolo: 'banco', session_id: 'sess-xyz' },
+        error: null,
+      })
+      if (name === 'dipendente_operativo_session_check') return Promise.resolve({ data: { ok: true }, error: null })
+      return Promise.resolve({ data: null, error: null })
     })
     const { result } = renderHook(() => useDipendenteOperativo(), {
       wrapper: wrapperFactory({ userScope: 'lab-X', enabled: true }),
@@ -108,10 +140,12 @@ describe('seleziona() — validazione RPC e persistenza', () => {
     expect(rpcMock).toHaveBeenCalledWith('dipendente_operativo_valida', { p_codice: '1234' })
     expect(ret).toMatchObject({ ok: true })
     expect(result.current.dipendente?.id).toBe('dip-10')
+    expect(result.current.dipendente?.sessionId).toBe('sess-xyz')
     expect(result.current.isSelezionato).toBe(true)
     const stored = JSON.parse(localStorage.getItem(LS_KEY))
     expect(stored.userScope).toBe('lab-X')
     expect(stored.id).toBe('dip-10')
+    expect(stored.sessionId).toBe('sess-xyz')
   })
 
   it('RPC error: dip resta null, errore ritornato', async () => {
@@ -150,24 +184,91 @@ describe('seleziona() — validazione RPC e persistenza', () => {
   })
 })
 
-describe('deseleziona() — torna a "Chi sei?" senza signOut', () => {
-  beforeEach(() => { try { localStorage.clear() } catch {} ; rpcMock.mockReset() })
+describe('deseleziona() — chiude sessione server-side + pulisce locale', () => {
+  beforeEach(() => {
+    try { localStorage.clear() } catch {}
+    rpcMock.mockReset()
+    // Default: qualsiasi RPC ritorna una Promise che risolve a null. I test
+    // che vogliono specifici comportamenti sovrascrivono con mockImplementation
+    // o mockResolvedValueOnce, ma il default previene il crash "Cannot read
+    // properties of undefined (reading 'then')" quando il Provider al mount
+    // fa `session_check` senza che il test l'abbia esplicitamente moccato.
+    rpcMock.mockResolvedValue({ data: null, error: null })
+  })
   afterEach(() => { cleanup() })
 
-  it('pulisce state + storage, dip torna null', async () => {
-    rpcMock.mockResolvedValueOnce({
-      data: { ok: true, id: 'dip-20', nome: 'Tommaso', cognome: 'Gialli' },
-      error: null,
+  it('pulisce state + storage + chiama RPC termina con sessionId', async () => {
+    rpcMock.mockImplementation((name) => {
+      if (name === 'dipendente_operativo_valida') return Promise.resolve({ data: { ok: true, id: 'dip-20', nome: 'Tommaso', cognome: 'Gialli', session_id: 'sess-abc' }, error: null })
+      if (name === 'dipendente_operativo_session_check') return Promise.resolve({ data: { ok: true }, error: null })
+      if (name === 'dipendente_operativo_termina') return Promise.resolve({ data: null, error: null })
+      return Promise.resolve({ data: null, error: null })
     })
     const { result } = renderHook(() => useDipendenteOperativo(), {
       wrapper: wrapperFactory({ userScope: 'lab-Z', enabled: true }),
     })
     await act(async () => { await result.current.seleziona('5678') })
     expect(result.current.isSelezionato).toBe(true)
-    act(() => { result.current.deseleziona() })
+    await act(async () => { await result.current.deseleziona() })
     expect(result.current.dipendente).toBeNull()
     expect(result.current.isSelezionato).toBe(false)
     expect(localStorage.getItem(LS_KEY)).toBeNull()
+    // Verifica che l'RPC termina sia stata chiamata con la session_id giusta
+    expect(rpcMock).toHaveBeenCalledWith('dipendente_operativo_termina', { p_session_id: 'sess-abc' })
+  })
+})
+
+describe('session check al mount — sessione stale invalidata dal server', () => {
+  beforeEach(() => {
+    try { localStorage.clear() } catch {}
+    rpcMock.mockReset()
+    // Default: qualsiasi RPC ritorna una Promise che risolve a null. I test
+    // che vogliono specifici comportamenti sovrascrivono con mockImplementation
+    // o mockResolvedValueOnce, ma il default previene il crash "Cannot read
+    // properties of undefined (reading 'then')" quando il Provider al mount
+    // fa `session_check` senza che il test l'abbia esplicitamente moccato.
+    rpcMock.mockResolvedValue({ data: null, error: null })
+  })
+  afterEach(() => { cleanup() })
+
+  it('server dice session_not_active → pulisce localStorage + state', async () => {
+    // Utente crede di avere sessione ma il server dice di no (es. deploy,
+    // scadenza 12h, disattivazione codice, session_id manomessa). Il
+    // Provider deve azzerare la sessione locale al mount.
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      id: 'dip-stale', nome: 'Vecchio', cognome: 'Dip',
+      sessionId: 'sess-stale',
+      at: Date.now(), userScope: 'lab-K',
+    }))
+    rpcMock.mockImplementation((name) => {
+      if (name === 'dipendente_operativo_session_check') return Promise.resolve({ data: { ok: false, error: 'session_not_active' }, error: null })
+      return Promise.resolve({ data: null, error: null })
+    })
+    const { result } = renderHook(() => useDipendenteOperativo(), {
+      wrapper: wrapperFactory({ userScope: 'lab-K', enabled: true }),
+    })
+    // Aspetta che il check async al mount finisca (act flusha lo state).
+    await act(async () => { await new Promise(r => setTimeout(r, 20)) })
+    expect(result.current.dipendente).toBeNull()
+    expect(localStorage.getItem(LS_KEY)).toBeNull()
+  })
+
+  it('server dice ok=true → sessione locale conservata', async () => {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      id: 'dip-live', nome: 'Attivo', cognome: 'Dip',
+      sessionId: 'sess-live',
+      at: Date.now(), userScope: 'lab-K',
+    }))
+    rpcMock.mockImplementation((name) => {
+      if (name === 'dipendente_operativo_session_check') return Promise.resolve({ data: { ok: true, dipendente_id: 'dip-live' }, error: null })
+      return Promise.resolve({ data: null, error: null })
+    })
+    const { result } = renderHook(() => useDipendenteOperativo(), {
+      wrapper: wrapperFactory({ userScope: 'lab-K', enabled: true }),
+    })
+    await act(async () => { await new Promise(r => setTimeout(r, 20)) })
+    expect(result.current.dipendente?.id).toBe('dip-live')
+    expect(result.current.isSelezionato).toBe(true)
   })
 })
 

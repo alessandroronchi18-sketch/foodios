@@ -2,18 +2,24 @@
 //
 // Modello: dopo il login del laboratorio (email condivisa + password condivisa)
 // il dipendente si identifica col suo codice a 4 cifre. Il codice viene
-// validato server-side (RPC dipendente_operativo_valida) e i dati del
-// dipendente vengono tenuti in Context + localStorage.
+// validato server-side (RPC dipendente_operativo_valida) che apre anche una
+// SESSIONE server-side (tabella dipendente_operativo_sessioni). Il session_id
+// viene salvato in localStorage col resto — un trigger BEFORE INSERT sulle 5
+// tabelle operative rifiuta le operazioni senza sessione attiva. Così non
+// basta modificare foodios_dip_op nel browser per loggare a nome altrui:
+// serve avere il codice per aprire davvero la sessione.
 //
-// Persistenza: localStorage 'foodios_dip_op' → { id, nome, cognome, at }.
-// Se cambio user Supabase (nuovo login), pulisco: la chiave e' scoped al
-// singolo laboratorio ma se un altro laboratorio si logga sul tablet lo
-// resetto per sicurezza (basato su user.id in userScope).
+// Persistenza: localStorage 'foodios_dip_op' → { id, nome, cognome, at, sessionId, userScope }.
 //
-// deseleziona() = torna alla schermata "Chi sei?" (chiamato da:
-//   - bottone "Cambia dipendente" nell'header Dashboard
-//   - useAutoLogoutDipendente dopo 30min inattivita')
-// NON fa signOut Supabase: la password laboratorio resta attiva.
+// deseleziona() = torna alla schermata "Chi sei?":
+//   - bottone "Cambia" nell'header Dashboard / drawer profilo
+//   - useAutoLogoutDipendente dopo 30min inattivita'
+// Chiama la RPC `dipendente_operativo_termina` che chiude la sessione
+// server-side. NON fa signOut Supabase (la password laboratorio resta attiva).
+//
+// Session check al mount: se il localStorage ha una sessione ma il server
+// dice che non è più attiva (deploy, scadenza 12h, disattivazione codice
+// dal titolare, sessione manomessa), pulisce e forza SelezionaDipendente.
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
@@ -47,8 +53,6 @@ export function DipendenteOperativoProvider({ userScope, enabled, children }) {
   const [dip, setDip] = useState(() => {
     if (!enabled) return null
     const stored = readFromStorage(userScope)
-    // Se non c'e' scope match, pulisci lo storage per non far leggere id stale
-    // agli helper client-side (stockPF.js, trasferimenti.js, ecc.).
     if (!stored) writeToStorage(null)
     return stored
   })
@@ -65,9 +69,31 @@ export function DipendenteOperativoProvider({ userScope, enabled, children }) {
       return
     }
     const stored = readFromStorage(userScope)
-    if (!stored) writeToStorage(null)  // scope mismatch: pulisci
+    if (!stored) writeToStorage(null)
     setDip(stored)
   }, [enabled, userScope])
+
+  // Session check server-side al mount: se il client crede di avere una
+  // sessione attiva ma il server dice di no (deploy che ha invalidato le
+  // sessioni, scadenza 12h, codice disattivato dal titolare mentre il tablet
+  // era spento, sessione manomessa), pulisce localStorage e forza il ritorno
+  // a "Chi sei?". Fix v2 sicurezza (migration 20260730).
+  useEffect(() => {
+    if (!enabled || !dip?.sessionId) return
+    let alive = true
+    supabase.rpc('dipendente_operativo_session_check', { p_session_id: dip.sessionId })
+      .then(({ data, error }) => {
+        if (!alive || error) return
+        if (!data?.ok) {
+          writeToStorage(null)
+          setDip(null)
+        }
+      })
+    return () => { alive = false }
+    // Solo al mount e ad ogni cambio di sessionId: non ri-eseguiamo ad ogni
+    // render (i props di dip cambiano poco ma cambiano — filtriamo su id).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, dip?.sessionId])
 
   const seleziona = useCallback(async (codice) => {
     if (!codice) return { ok: false, error: 'codice_mancante' }
@@ -79,6 +105,7 @@ export function DipendenteOperativoProvider({ userScope, enabled, children }) {
       nome: data.nome || '',
       cognome: data.cognome || '',
       ruolo: data.ruolo || null,
+      sessionId: data.session_id || null,
       at: Date.now(),
       userScope,
     }
@@ -87,13 +114,20 @@ export function DipendenteOperativoProvider({ userScope, enabled, children }) {
     return { ok: true, dipendente: next }
   }, [userScope])
 
-  const deseleziona = useCallback(() => {
+  const deseleziona = useCallback(async () => {
+    // Chiudi sessione server-side (fire-and-forget: se la rete cade il
+    // client-side pulisce comunque, la sessione scadrà da sola in 12h).
+    const sid = dip?.sessionId
+    if (sid) {
+      supabase.rpc('dipendente_operativo_termina', { p_session_id: sid })
+        .catch(() => { /* noop */ })
+    }
     writeToStorage(null)
     setDip(null)
-  }, [])
+  }, [dip?.sessionId])
 
   const value = useMemo(() => ({
-    dipendente: dip,           // { id, nome, cognome, ruolo, at } | null
+    dipendente: dip,           // { id, nome, cognome, ruolo, sessionId, at } | null
     isSelezionato: !!dip?.id,
     seleziona,
     deseleziona,
