@@ -375,8 +375,12 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             {open ? '▲ Chiudi' : '▼ Dettaglio'}
           </button>
           {/* Edit rapido prezzo/n°fette: solo per stampi. Per i gusti (gelateria)
-              il prezzo vive su Formati vendita, non sulla ricetta. */}
-          {!isSemi && reg.tipo !== 'gusto' && (
+              il prezzo vive su Formati vendita. Nascosto se la sede attiva ha
+              un OVERRIDE prezzo (audit 2026-07-31): il quick edit scriverebbe
+              su SK_RIC (base org-wide) sovrascrivendo il valore anche per le
+              altre sedi. Se c'è override, l'utente usa "Prezzi / sede" che
+              apre la modale batch multi-sede. */}
+          {!isSemi && reg.tipo !== 'gusto' && !hasOverride && (
             <button onClick={() => { setEditPrezzo(reg.prezzo); setEditUnita(reg.unita); setEditMode(e => !e) }}
               style={{ height: isMobile ? 40 : 34, padding: '0 12px', borderRadius: 7, border: `1px solid ${editMode ? C.red : C.borderStr}`, background: editMode ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: editMode ? C.red : C.textMid, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <Icon name="edit" size={13} /> Prezzo

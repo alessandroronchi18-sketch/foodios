@@ -10,6 +10,7 @@ import { color as T, motion as M } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateProdottoEN } from '../lib/foodcost'
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { caricoProduzionePF, scartoPF } from '../lib/stockPF'
+import { friendlyErrorMessage } from '../lib/errors'
 import { creaTrasferimento } from '../lib/trasferimenti'
 import { SK_GIOR, SK_MAG } from '../lib/storageKeys'
 import { exportProduzione } from '../lib/exportPDF'
@@ -179,7 +180,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         try {
           if (deltaPezzi > 0) await caricoProduzionePF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: deltaPezzi, unita: 'pz', note: `Modifica sessione del ${sess.data}` })
           else await scartoPF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: -deltaPezzi, note: `Modifica sessione del ${sess.data}` })
-        } catch (e) { stockErrors.push(`${nome}: ${e.message}`) }
+        } catch (e) { stockErrors.push(`${nome}: ${friendlyErrorMessage(e)}`) }
       }
     }
 
@@ -398,7 +399,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       try {
         await caricoProduzionePF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Sessione ${data}${sessNote ? ' · ' + sessNote : ''}` })
         caricati.push({ prodotto: prodottoKey, pezzi })
-      } catch (e) { stockErrors.push(`${r.nome}: ${e.message}`); continue }
+      } catch (e) { stockErrors.push(`${r.nome}: ${friendlyErrorMessage(e)}`); continue }
       if (sedeDest) {
         try {
           await creaTrasferimento({ orgId, sedeDa: sedeProduttiva, sedeA: sedeDest, tipo: 'prodotto', prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Da produzione del ${data}`, autoInvia: true })
@@ -512,7 +513,7 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
         const prodottoKey = r.nome.toUpperCase().trim()
         try {
           await caricoProduzionePF({ sedeId: sedeProduttiva, prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Sessione ${data}${sess.note ? ' · ' + sess.note : ''}` })
-        } catch (e) { stockErrors.push(`${r.nome}: ${e.message}`); continue }
+        } catch (e) { stockErrors.push(`${r.nome}: ${friendlyErrorMessage(e)}`); continue }
         if (sedeDest) {
           try {
             await creaTrasferimento({ orgId, sedeDa: sedeProduttiva, sedeA: sedeDest, tipo: 'prodotto', prodotto: prodottoKey, quantita: pezzi, unita: 'pz', note: `Da produzione del ${data}`, autoInvia: true })

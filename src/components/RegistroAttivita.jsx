@@ -241,9 +241,12 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
       })
     return () => { alive = false }
     // rows.length: quando arrivano nuovi eventi in audit_log, il widget
-    // riepilogativo si aggiorna senza refresh manuale.
+    // riepilogativo si aggiorna senza refresh manuale. sedeId: se l'utente
+    // cambia la sede attiva, l'audit_log filtrato in prod puo' variare
+    // (nella query base non filtriamo esplicitamente ma alcune tabelle
+    // downstream hanno filtro sede — meglio ricaricare comunque).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, rows.length])
+  }, [orgId, sedeId, rows.length])
 
   // Carica righe + stats
   useEffect(() => {

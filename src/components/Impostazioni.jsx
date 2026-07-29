@@ -148,11 +148,26 @@ function MetodoProduzioneSection({ orgId, metodoProduzione, notify }) {
   async function cancellaRichiesta(id) {
     setSaving(true)
     try {
+      // La RLS permette l'update a 'cancelled' solo se status='pending' (policy
+      // metodo_req_cancel_own). Se nel frattempo l'admin ha approvato/rifiutato,
+      // l'update NON errora ma non impatta righe (RLS le nasconde per l'update).
+      // Verifichiamo sempre lo stato reale dopo per non lasciare UI incoerente.
       const { error } = await supabase.from('metodo_change_requests')
         .update({ status: 'cancelled' }).eq('id', id)
       if (error) throw error
-      setRichiesteRecenti(r => r.map(x => x.id === id ? { ...x, status: 'cancelled' } : x))
-      notify?.('Richiesta annullata.')
+      // Reload da DB per riflettere lo stato reale (potrebbe essere approved/
+      // rejected se l'admin ha agito nel frattempo).
+      const { data: fresh } = await supabase.from('metodo_change_requests')
+        .select('id, from_metodo, to_metodo, status, motivazione, admin_note, created_at, decided_at, decided_by')
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (fresh) setRichiesteRecenti(fresh)
+      // Notifica coerente col vero stato attuale.
+      const cur = (fresh || []).find(x => x.id === id)
+      if (cur?.status === 'cancelled') notify?.('Richiesta annullata.')
+      else if (cur?.status === 'approved') notify?.('Nel frattempo la richiesta è stata approvata dall\'admin.')
+      else if (cur?.status === 'rejected') notify?.('Nel frattempo la richiesta è stata rifiutata dall\'admin.')
     } catch (e) {
       notify?.('Errore: ' + (e.message || 'annullamento fallito'), false)
     } finally {
