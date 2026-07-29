@@ -78,8 +78,18 @@ export function DipendenteOperativoProvider({ userScope, enabled, children }) {
   // sessioni, scadenza 12h, codice disattivato dal titolare mentre il tablet
   // era spento, sessione manomessa), pulisce localStorage e forza il ritorno
   // a "Chi sei?". Fix v2 sicurezza (migration 20260730).
+  //
+  // Caso legacy: dip presente ma sessionId=null (selezione fatta con la
+  // RPC v1 prima della migration 20260730). Non possiamo validare, ma il
+  // trigger server-side ora blocca ogni insert senza sessione — quindi
+  // meglio pulire subito e forzare re-seleziona con RPC nuova.
   useEffect(() => {
-    if (!enabled || !dip?.sessionId) return
+    if (!enabled || !dip) return
+    if (!dip.sessionId) {
+      writeToStorage(null)
+      setDip(null)
+      return
+    }
     let alive = true
     supabase.rpc('dipendente_operativo_session_check', { p_session_id: dip.sessionId })
       .then(({ data, error }) => {
@@ -90,8 +100,6 @@ export function DipendenteOperativoProvider({ userScope, enabled, children }) {
         }
       })
     return () => { alive = false }
-    // Solo al mount e ad ogni cambio di sessionId: non ri-eseguiamo ad ogni
-    // render (i props di dip cambiano poco ma cambiano — filtriamo su id).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, dip?.sessionId])
 
