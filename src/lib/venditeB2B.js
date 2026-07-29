@@ -122,6 +122,8 @@ export async function salvaVenditaB2B({ orgId, sedeId, clienteId, clienteNome, d
     if (old) await ripristinaStock(old, 'Annullo B2B (modifica)')
   }
 
+  let dipOpId = null
+  try { dipOpId = JSON.parse(localStorage.getItem('foodios_dip_op') || 'null')?.id || null } catch {}
   const row = {
     organization_id: orgId,
     sede_id: sedeId || null,
@@ -132,6 +134,7 @@ export async function salvaVenditaB2B({ orgId, sedeId, clienteId, clienteNome, d
     stato: 'consegnata',
     stock_scaricato: !!sedeId,
     note: note?.trim() || null,
+    dipendente_operativo_id: dipOpId,
   }
 
   let venditaId = id

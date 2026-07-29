@@ -152,6 +152,9 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
   const [page, setPage]       = useState(0)
   const [utenti, setUtenti]   = useState([])
   const [stats,  setStats]    = useState({ total: 0, oggi: 0, topUser: null, topTable: null })
+  // Mappa id dipendente operativo -> {nome, cognome}. Serve a mostrare "Marco
+  // Rossi" al posto dell'email account laboratorio nelle righe di audit_log.
+  const [dipMap, setDipMap] = useState({})
 
   // `notify` arriva dal parent ricreato ad ogni render del Dashboard:
   // non possiamo metterlo nelle deps degli effect (riaccende la query in loop
@@ -181,6 +184,20 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
       .then(({ data }) => setUtenti(data || []))
   }, [orgId])
 
+  // Carica rubrica dipendenti operativi (per mostrare nome+cognome al posto
+  // dell'email account laboratorio quando l'operazione ha dipendente_operativo_id)
+  useEffect(() => {
+    if (!orgId) return
+    supabase.from('dipendenti')
+      .select('id,nome,cognome')
+      .eq('organization_id', orgId)
+      .then(({ data }) => {
+        const m = {}
+        for (const d of data || []) m[d.id] = { nome: d.nome || '', cognome: d.cognome || '' }
+        setDipMap(m)
+      })
+  }, [orgId])
+
   // Carica righe + stats
   useEffect(() => {
     if (!orgId) return
@@ -189,7 +206,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
     const from = page * PAGE
     const to   = from + PAGE - 1
     let qb = supabase.from('audit_log')
-      .select('id,created_at,user_id,user_email,table_name,operation,new_data,row_id', { count: 'exact' })
+      .select('id,created_at,user_id,user_email,table_name,operation,new_data,row_id,dipendente_operativo_id', { count: 'exact' })
       .eq('organization_id', orgId)
       .order('created_at', { ascending: false })
       .range(from, to)
@@ -488,9 +505,21 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
                   const nd = r.new_data || {}
                   const sedeNome = nd.sede_id ? (sediMap[nd.sede_id]?.nome || null) : null
                   const det = dettagliFromRow(r)
-                  const initial = userInitial(r.user_email)
-                  const ucolor  = userColor(r.user_email)
-                  const isDip   = nd.ruolo === 'dipendente'
+                  // Se l'operazione ha un dipendente operativo (Marco Rossi), lo
+                  // mostro al posto dell'email account laboratorio. Altrimenti
+                  // fallback su user_email (operazioni titolare o legacy).
+                  const dipOp = r.dipendente_operativo_id ? dipMap[r.dipendente_operativo_id] : null
+                  const displayName = dipOp
+                    ? [dipOp.nome, dipOp.cognome].filter(Boolean).join(' ') || (r.user_email || 'Sistema')
+                    : (r.user_email || 'Sistema')
+                  const avatarKey = dipOp
+                    ? ((dipOp.nome || '') + (dipOp.cognome || '') || r.user_email || '?')
+                    : (r.user_email || '?')
+                  const initial = dipOp
+                    ? (((dipOp.nome?.[0] || '') + (dipOp.cognome?.[0] || '')).toUpperCase() || userInitial(r.user_email))
+                    : userInitial(r.user_email)
+                  const ucolor  = userColor(avatarKey)
+                  const isDip   = nd.ruolo === 'dipendente' || !!dipOp
 
                   return (
                     <div key={r.id} style={{
@@ -512,7 +541,7 @@ export default function RegistroAttivita({ orgId, sedi = [], notify }) {
                         {/* Riga 1: utente · ora · chip operazione · chip tipo */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
                           <span style={{ fontSize: 12.5, fontWeight: 600, color: T.text, letterSpacing: '-0.005em' }}>
-                            {r.user_email || 'Sistema'}
+                            {displayName}
                           </span>
                           {isDip && (
                             <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 4,

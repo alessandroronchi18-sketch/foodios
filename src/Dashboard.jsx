@@ -21,6 +21,7 @@ import { sload as _sload, ssave as _ssave, isSharedKey, sloadAllSedi } from './l
 import { callAi as _callAi, parseAiJson as _parseAiJson } from './lib/aiClient'
 import SplashScreen from './components/SplashScreen'
 import { useAutoLogoutDipendente } from './auth/useAutoLogoutDipendente'
+import { useDipendenteOperativo } from './hooks/useDipendenteOperativo'
 import { mergeArr as _mergeArr, mergeMag as _mergeMag } from './lib/multiSediMerge'
 import { analizzaFotoAI } from './lib/analizzaFotoAI'
 import { supabase } from './lib/supabase'
@@ -1327,8 +1328,17 @@ export default function Dashboard({
   // Ruolo utente. Il dipendente vede solo le viste operative (DIPENDENTE_VIEWS).
   const ruolo = auth?.ruolo || 'titolare';
   const isDip = ruolo === 'dipendente';
-  // Auto-logout dopo 30 min di inattivita' (tablet condiviso in laboratorio).
-  useAutoLogoutDipendente({ ruolo });
+  // Identita' operativa dentro un account laboratorio: dipendente selezionato
+  // dalla schermata "Chi sei?" post-login. Vale solo per is_laboratorio_account.
+  const dipOp = useDipendenteOperativo();
+  const isLaboratorioAccount = auth?.isLaboratorioAccount === true;
+  // Auto-timeout identita' operativa: dopo 30 min di inattivita' torna alla
+  // schermata "Chi sei?" (NON fa signOut Supabase). Attivo solo per account
+  // laboratorio con dipendente selezionato.
+  useAutoLogoutDipendente({
+    enabled: isLaboratorioAccount && dipOp.isSelezionato,
+    onTimeout: dipOp.deseleziona,
+  });
   // Defense-in-depth: se un dipendente finisce su una vista non consentita (es.
   // ripristinata da sessionStorage o via link), riportalo alla produzione.
   useEffect(() => {
@@ -2297,6 +2307,37 @@ export default function Dashboard({
           {/* AI Suggestions bell - campanella suggerimenti proattivi */}
           <AISuggestionsBell orgId={orgId} onNavigate={(v)=>setView(v)} />
 
+          {/* Badge dipendente operativo attivo (solo su account laboratorio) */}
+          {isLaboratorioAccount && dipOp.isSelezionato && (
+            <div style={{
+              display:"inline-flex",alignItems:"center",gap:8,padding:"4px 10px 4px 12px",
+              background:"rgba(255,255,255,0.06)",border:`1px solid ${T.borderOnDarkStr}`,
+              borderRadius:999,fontSize:12,color:"#F4ECE3",fontWeight:600,
+              maxWidth:220,
+            }}>
+              <span aria-hidden style={{
+                width:20,height:20,borderRadius:"50%",background:"rgba(255,231,199,0.18)",
+                display:"inline-flex",alignItems:"center",justifyContent:"center",
+                fontSize:10,fontWeight:800,color:"#FFE7C7",flexShrink:0,
+              }}>
+                {(dipOp.dipendente?.nome?.[0] || '').toUpperCase()}{(dipOp.dipendente?.cognome?.[0] || '').toUpperCase()}
+              </span>
+              <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,minWidth:0}}>
+                {[dipOp.dipendente?.nome, dipOp.dipendente?.cognome].filter(Boolean).join(' ')}
+              </span>
+              <button onClick={dipOp.deseleziona} aria-label="Cambia dipendente"
+                title="Cambia dipendente"
+                style={{
+                  background:"transparent",border:"none",cursor:"pointer",
+                  color:"rgba(255,231,199,0.75)",padding:2,display:"inline-flex",
+                  alignItems:"center",justifyContent:"center",flexShrink:0,
+                  fontSize:11,fontWeight:600,textDecoration:"underline",
+                }}>
+                Cambia
+              </button>
+            </div>
+          )}
+
           {/* Profilo (dx) con dropdown */}
           <div style={{position:"relative",flexShrink:0}}>
             <button onClick={()=>setProfileOpen(o=>!o)} aria-label="Menu profilo"
@@ -2820,6 +2861,38 @@ export default function Dashboard({
             {/* Footer: avatar + online + 2 azioni (Notifiche / Esci) come row */}
             <div style={{padding:"12px 14px 14px",borderTop:"1px solid rgba(255,255,255,0.06)",
               background:"linear-gradient(180deg, rgba(255,255,255,0.025) 0%, rgba(0,0,0,0.18) 100%)"}}>
+              {/* Attivo (account laboratorio): mostra chi ha inserito il codice + Cambia */}
+              {isLaboratorioAccount && dipOp.isSelezionato && (
+                <div style={{
+                  display:"flex",alignItems:"center",gap:10,padding:"10px 12px",marginBottom:10,
+                  background:"rgba(255,231,199,0.08)",
+                  border:"1px solid rgba(255,231,199,0.20)",
+                  borderRadius:12,
+                }}>
+                  <span aria-hidden style={{
+                    width:32,height:32,borderRadius:"50%",background:"rgba(255,231,199,0.18)",
+                    display:"inline-flex",alignItems:"center",justifyContent:"center",
+                    fontSize:12,fontWeight:800,color:"#FFE7C7",flexShrink:0,
+                  }}>
+                    {(dipOp.dipendente?.nome?.[0] || '').toUpperCase()}{(dipOp.dipendente?.cognome?.[0] || '').toUpperCase()}
+                  </span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:11.5,color:"rgba(255,231,199,0.65)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Attivo</div>
+                    <div style={{fontSize:13,color:"#FFF",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      {[dipOp.dipendente?.nome, dipOp.dipendente?.cognome].filter(Boolean).join(' ')}
+                    </div>
+                  </div>
+                  <button onClick={dipOp.deseleziona}
+                    aria-label="Cambia dipendente"
+                    style={{
+                      background:"transparent",border:"1px solid rgba(255,231,199,0.30)",
+                      borderRadius:8,color:"#FFE7C7",padding:"6px 10px",fontSize:11.5,
+                      fontWeight:600,cursor:"pointer",flexShrink:0,minHeight:32,
+                    }}>
+                    Cambia
+                  </button>
+                </div>
+              )}
               {auth?.user?.email&&(
                 <div style={{display:"flex",alignItems:"center",gap:11,padding:"6px 4px 12px",overflow:"hidden"}}>
                   {/* Avatar circolare con badge online pulsante */}
@@ -3285,7 +3358,7 @@ export default function Dashboard({
         {view==="menu-engineering"&&<MenuEngineeringView orgId={orgId} sedeId={sedeId} ricettario={ricettario} sedeAttiva={sedeAttiva}/>}
         {view==="cashflow"&&<CashflowView orgId={orgId} sedeId={sedeId} notify={notify}/>}
         {view==="forecast"&&<ForecastView orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} setView={setView}/>}
-        {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} notify={notify}/>}
+        {view==="reformulation"&&<ReformulationView ricettario={ricettario} orgId={orgId} sedeId={sedeId} notify={notify}/>}
         {view==="ordini-ai"&&<OrdiniAiView orgId={orgId} sedeId={sedeId} notify={notify}/>}
         {view==="competitor-pricing"&&<CompetitorPricingView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {view==="ai-brain"&&(canAccessView("ai-brain",piano,auth?.user?.email)?<BrainView orgId={orgId} sedeId={sedeId} user={auth?.user} nomeAttivita={nomeAttivita}/>:<UpgradeGate view="ai-brain" onUpgrade={goToUpgrade}/>)}

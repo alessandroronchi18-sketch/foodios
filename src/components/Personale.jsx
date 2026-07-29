@@ -4,8 +4,6 @@ import '@xyflow/react/dist/style.css'
 import { supabase } from '../lib/supabase'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
-import AddDipendenteDialog from './AddDipendenteDialog'
-import SetCodiceDialog from './SetCodiceDialog'
 import { sload, ssave, sloadAllSedi } from '../lib/storage'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { SkeletonList } from './Skeleton'
@@ -1543,43 +1541,81 @@ function OrganigrammaTab({ orgId, notify, isMobile, adminNome }) {
   )
 }
 
-// ── Accessi: il titolare invita (per email), attiva, disattiva ed elimina gli
-// account dipendente. Solo le email pre-autorizzate qui possono entrare nell'org
-// (vedi handle_new_user in 20260607c). Un dipendente non attivo = accesso ZERO.
+// ═══════════════════════════════════════════════════════════════════════════
+// Accessi tab: due sotto-sezioni.
+//   1) Laboratori: account condivisi (email + password) su tablet fisici. Il
+//      titolare crea uno per sede. Chi entra col login del laboratorio poi
+//      deve identificarsi col codice personale (schermata "Chi sei?").
+//   2) Rubrica dipendenti: persone (nome+cognome) + codice a 4 cifre. Ogni
+//      operazione fatta dal tablet e' tracciata sul codice inserito.
+// ═══════════════════════════════════════════════════════════════════════════
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-function AccessiTab({ orgId, notify, isMobile, nomeAttivita }) {
-  const [meId, setMeId] = useState(null)
-  const [dipendenti, setDipendenti] = useState([])   // profiles ruolo='dipendente'
+const CODICE_OP_RX = /^[0-9]{4}$/
+
+const btnStyle = (bg, color, border) => ({
+  padding: '8px 12px', borderRadius: 8, border: border || 'none',
+  background: bg, color, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+})
+
+function AccessiTab({ orgId, sedi, notify, isMobile, nomeAttivita }) {
+  const [sub, setSub] = useState('laboratori')
+  return (
+    <div style={{ maxWidth: 820 }}>
+      <div role="tablist" aria-label="Sezione accessi" style={{
+        display: 'inline-flex', gap: 4, padding: 4, background: C.bgSubtle,
+        borderRadius: 10, marginBottom: 18, border: `1px solid ${C.border}`,
+      }}>
+        {[
+          ['laboratori', 'Laboratori', 'building'],
+          ['rubrica', 'Rubrica dipendenti', 'users'],
+        ].map(([id, label, ic]) => (
+          <button key={id} role="tab" aria-selected={sub === id}
+            onClick={() => setSub(id)}
+            style={{
+              padding: '8px 14px', border: 'none', borderRadius: 7,
+              background: sub === id ? C.white : 'transparent',
+              color: sub === id ? C.text : C.textMid,
+              fontSize: 12.5, fontWeight: sub === id ? 700 : 500, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              boxShadow: sub === id ? '0 1px 3px rgba(15,23,42,0.06)' : 'none',
+            }}>
+            <Icon name={ic} size={12} />{label}
+          </button>
+        ))}
+      </div>
+      {sub === 'laboratori' && <LaboratoriSection orgId={orgId} sedi={sedi} notify={notify} isMobile={isMobile} nomeAttivita={nomeAttivita} />}
+      {sub === 'rubrica' && <RubricaDipendentiSection orgId={orgId} notify={notify} isMobile={isMobile} />}
+    </div>
+  )
+}
+
+// ── Laboratori: account condivisi su tablet fisici ─────────────────────────
+function LaboratoriSection({ orgId, sedi, notify, isMobile, nomeAttivita }) {
+  const [laboratori, setLaboratori] = useState([])
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(null)             // id in lavorazione
-  const [delConf, setDelConf] = useState(null)       // dipendente in conferma eliminazione
-  const [codiceTarget, setCodiceTarget] = useState(null) // dipendente per cui aprire SetCodiceDialog
-  const [addOpen, setAddOpen] = useState(false)      // AddDipendenteDialog
+  const [busy, setBusy] = useState(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState(null)
+  const [delConf, setDelConf] = useState(null)
 
   async function carica() {
     if (!orgId) return
-    let userRes, dip
-    try {
-      [userRes, dip] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.rpc('fos_dipendenti_org'),
-      ])
-    } catch (e) {
-      notify?.('Errore caricamento personale: ' + (e?.message || 'rete'), false)
+    const { data, error } = await supabase.rpc('fos_dipendenti_org')
+    if (error) {
+      notify?.('Impossibile caricare la lista laboratori: ' + error.message, false)
       setLoading(false)
       return
     }
-    const user = userRes?.data?.user || null
-    setMeId(user?.id || null)
-    if (dip?.error) {
-      notify?.('Impossibile caricare la lista dipendenti: ' + (dip.error.message || 'errore RPC'), false)
-    }
-    setDipendenti(Array.isArray(dip?.data) ? dip.data : [])
+    // Ora fos_dipendenti_org restituisce anche is_laboratorio_account.
+    // Filtro solo gli account laboratorio (gli altri account dipendente
+    // "personali" del modello vecchio non li mostro qui — se ne esistono
+    // ancora sono legacy, appariranno nell'ex sezione Accessi).
+    const labs = (data || []).filter(r => r.is_laboratorio_account === true)
+    setLaboratori(labs)
     setLoading(false)
   }
   useEffect(() => { setLoading(true); carica() }, [orgId])
-  // Auto-aggiorna quando torni sulla pagina (es. dopo che il dipendente si è
-  // registrato in un'altra scheda) → vedi subito il nuovo account da attivare.
   useEffect(() => {
     if (!orgId) return
     const reload = () => { if (document.visibilityState === 'visible') carica() }
@@ -1588,9 +1624,6 @@ function AccessiTab({ orgId, notify, isMobile, nomeAttivita }) {
     return () => { window.removeEventListener('focus', reload); document.removeEventListener('visibilitychange', reload) }
   }, [orgId])
 
-  // Azioni sul profilo di UN ALTRO utente (attiva/disattiva/elimina): la RLS non
-  // consente al titolare l'update cross-user lato client (no-op silenzioso) →
-  // passano dall'endpoint server con service key.
   async function azioneAccesso(targetUserId, azione) {
     const { data: { session } } = await supabase.auth.getSession()
     const res = await fetch('/api/dipendente-accesso', {
@@ -1603,125 +1636,545 @@ function AccessiTab({ orgId, notify, isMobile, nomeAttivita }) {
     return j
   }
 
-  async function setApprovato(dipId, val) {
-    setBusy(dipId)
+  async function setApprovato(id, val) {
+    setBusy(id)
     try {
-      await azioneAccesso(dipId, val ? 'attiva' : 'disattiva')
-      notify?.(val ? 'Dipendente attivato' : 'Dipendente disattivato')
-    } catch (e) {
-      notify?.('Operazione fallita: ' + e.message, false)
-    } finally {
-      setBusy(null); carica()
-    }
+      await azioneAccesso(id, val ? 'attiva' : 'disattiva')
+      notify?.(val ? 'Laboratorio attivato' : 'Laboratorio sospeso')
+    } catch (e) { notify?.('Operazione fallita: ' + e.message, false) }
+    finally { setBusy(null); carica() }
   }
 
-  async function elimina(dip) {
-    setBusy(dip.id)
+  async function elimina(lab) {
+    setBusy(lab.id)
     try {
-      await azioneAccesso(dip.id, 'elimina')
-      notify?.('Account eliminato')
-    } catch (err) {
-      notify?.('Eliminazione fallita: ' + err.message, false)
-    } finally {
-      setBusy(null); setDelConf(null); carica()
-    }
+      await azioneAccesso(lab.id, 'elimina')
+      notify?.('Laboratorio eliminato')
+    } catch (err) { notify?.('Eliminazione fallita: ' + err.message, false) }
+    finally { setBusy(null); setDelConf(null); carica() }
   }
 
   if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
 
-  const btn = (bg, color, border) => ({ padding: '8px 12px', borderRadius: 8, border: border || 'none', background: bg, color, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 })
-
   return (
-    <div style={{ maxWidth: 760 }}>
+    <div>
       <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
-        Il dipendente entra dal tablet con la <b>sua email</b> e un <b>codice a 6 cifre</b> che scegli tu. Ogni operazione (produzione, chiusura cassa, spreco…) resta tracciata a suo nome.
+        Un laboratorio è un tablet fisico dove più dipendenti si alternano nel turno. Crei un solo account (email + password) per sede: chi entra fa login qui e poi si identifica col proprio <b>codice a 4 cifre personale</b>.
       </div>
       <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55, marginBottom: 16, padding: '10px 12px', background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 8 }}>
-        <b>Consiglio:</b> usa un'email di lavoro dedicata (es. <em>mario.laboratorio@tuodominio.it</em>) — non l'email personale del dipendente. Il codice comuniclielo <b>a voce sul posto</b>: non lo mandiamo nell'email per sicurezza.
+        <b>Consiglio:</b> email dedicata al laboratorio, non personale. Esempio: <em>laboratorio-torino@tuodominio.it</em>. La password comuniclila a voce ai colleghi che usano quel tablet.
       </div>
 
-      {/* Aggiungi nuovo dipendente */}
       <div style={{ marginBottom: 20 }}>
         <button onClick={() => setAddOpen(true)}
-          style={{ ...btn(C.red, C.white), padding: isMobile ? '12px 18px' : '10px 18px', fontWeight: 800 }}>
-          <Icon name="plus" size={14} />Nuovo dipendente
+          style={{ ...btnStyle(C.red, C.white), padding: isMobile ? '12px 18px' : '10px 18px', fontWeight: 800 }}>
+          <Icon name="plus" size={14} />Nuovo laboratorio
         </button>
       </div>
 
-      {/* Account dipendente esistenti */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Account dipendente</div>
-        <button onClick={carica} title="Aggiorna" style={{ ...btn(C.white, C.textMid, `1px solid ${C.border}`), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Laboratori attivi</div>
+        <button onClick={carica} title="Aggiorna" style={{ ...btnStyle(C.white, C.textMid, `1px solid ${C.border}`), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
       </div>
-      {dipendenti.length === 0 && <div style={{ fontSize: 12, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>Nessun account dipendente ancora.</div>}
+      {laboratori.length === 0 && (
+        <div style={{ fontSize: 12, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>
+          Nessun laboratorio ancora. Crea il primo per far accedere i dipendenti dal tablet della sede.
+        </div>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-        {dipendenti.map(d => {
-          const codiceSet = !!d.dipendente_codice_set_at
+        {laboratori.map(d => {
           const lastLogin = d.dipendente_last_login_at
             ? new Date(d.dipendente_last_login_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })
             : null
           return (
-          <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
-              <div style={{ fontSize: 11, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {d.email}
-                {lastLogin && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastLogin}</span>}
+            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.nome_completo || d.email}</div>
+                <div style={{ fontSize: 11, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {d.email}
+                  {d.laboratorio_sede_nome && <span style={{ marginLeft: 8 }}>· sede: <b style={{ color: C.textMid }}>{d.laboratorio_sede_nome}</b></span>}
+                  {lastLogin && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastLogin}</span>}
+                </div>
               </div>
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.approvato ? C.green : C.amber, background: d.approvato ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Icon name={d.approvato ? 'checkCircle' : 'hourglass'} size={11} />{d.approvato ? 'Attivo' : 'Sospeso'}
+              </span>
+              <button onClick={() => setEditTarget(d)} disabled={busy === d.id}
+                title="Cambia nome, sede o password"
+                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>
+                <Icon name="edit" size={12} />Modifica
+              </button>
+              {d.approvato
+                ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Sospendi</button>
+                : <button onClick={() => setApprovato(d.id, true)} disabled={busy === d.id} style={btnStyle(C.green, C.white)}><Icon name="check" size={12} />Attiva</button>}
+              <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Elimina account" style={btnStyle(C.white, C.red, `1px solid ${C.red}40`)}><Icon name="trash" size={12} /></button>
             </div>
-            <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.approvato ? C.green : C.amber, background: d.approvato ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <Icon name={d.approvato ? 'checkCircle' : 'hourglass'} size={11} />{d.approvato ? 'Attivo' : 'Sospeso'}
-            </span>
-            <button onClick={() => setCodiceTarget(d)} disabled={busy === d.id}
-              title="Cambia il codice a 6 cifre"
-              style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>
-              <Icon name="key" size={12} />{codiceSet ? 'Cambia codice' : 'Imposta codice'}
-            </button>
-            {d.approvato
-              ? <button onClick={() => setApprovato(d.id, false)} disabled={busy === d.id} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Sospendi</button>
-              : <button onClick={() => setApprovato(d.id, true)} disabled={busy === d.id} style={btn(C.green, C.white)}><Icon name="check" size={12} />Attiva</button>}
-            <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Elimina account" style={btn(C.white, C.red, `1px solid ${C.red}40`)}><Icon name="trash" size={12} /></button>
-          </div>
           )
         })}
       </div>
 
-      {/* AddDipendenteDialog: crea nuovo accesso (email + nome + codice) */}
       {addOpen && (
-        <AddDipendenteDialog
+        <LaboratorioFormDialog
+          orgId={orgId}
+          sedi={sedi}
           nomeAttivita={nomeAttivita}
           onClose={() => setAddOpen(false)}
           onDone={() => { setAddOpen(false); carica() }}
           notify={notify}
         />
       )}
-
-      {/* SetCodiceDialog: cambia codice a un dipendente esistente */}
-      {codiceTarget && (
-        <SetCodiceDialog
-          dipendente={codiceTarget}
+      {editTarget && (
+        <LaboratorioFormDialog
+          orgId={orgId}
+          sedi={sedi}
           nomeAttivita={nomeAttivita}
-          onClose={() => setCodiceTarget(null)}
-          onDone={() => carica()}
+          existing={editTarget}
+          onClose={() => setEditTarget(null)}
+          onDone={() => { setEditTarget(null); carica() }}
           notify={notify}
         />
       )}
-
-      {/* Conferma eliminazione */}
       {delConf && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setDelConf(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 380, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>Eliminare l'accesso?</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>Eliminare il laboratorio?</div>
             <div style={{ fontSize: 13, color: C.textMid, lineHeight: 1.55, marginBottom: 18 }}>
-              L'account <b>{delConf.email}</b> verrà rimosso definitivamente e non potrà più accedere. L'azione non è reversibile.
+              L'account <b>{delConf.email}</b> verra' rimosso definitivamente. I dipendenti che usavano quel tablet dovranno passare da un altro laboratorio. L'azione non e' reversibile.
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDelConf(null)} style={btn(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
-              <button onClick={() => elimina(delConf)} disabled={busy === delConf.id} style={btn(C.red, C.white)}><Icon name="trash" size={12} />Elimina definitivamente</button>
+              <button onClick={() => setDelConf(null)} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
+              <button onClick={() => elimina(delConf)} disabled={busy === delConf.id} style={btnStyle(C.red, C.white)}><Icon name="trash" size={12} />Elimina definitivamente</button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// Form crea/modifica laboratorio (inline dialog)
+function LaboratorioFormDialog({ orgId, sedi, nomeAttivita, existing = null, onClose, onDone, notify }) {
+  const isEdit = !!existing
+  const [nome, setNome] = useState(existing?.nome_completo || '')
+  const [email, setEmail] = useState(existing?.email || '')
+  const [sedeId, setSedeId] = useState(existing?.laboratorio_sede_id || (sedi?.[0]?.id || ''))
+  const [password, setPassword] = useState('')
+  const [changePwd, setChangePwd] = useState(!isEdit) // in create sempre true
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
+
+  function pwdValida(p) {
+    return p.length >= 8 && /[A-Za-z]/.test(p) && /[0-9]/.test(p)
+  }
+
+  async function salva() {
+    setErr(null)
+    if (nome.trim().length < 2) return setErr('Dai un nome al laboratorio (es. "Laboratorio Torino")')
+    if (!EMAIL_RX.test(email.trim())) return setErr('Email non valida')
+    if (!sedeId) return setErr('Seleziona la sede fisica')
+    if (changePwd && !pwdValida(password)) {
+      return setErr('La password deve avere almeno 8 caratteri con lettere e numeri')
+    }
+    setSaving(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const body = {
+        email: email.trim().toLowerCase(),
+        nome: nome.trim(),
+        sede_id: sedeId,
+        nomeAttivita,
+      }
+      if (changePwd) body.password = password
+      const res = await fetch('/api/laboratorio-crea', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify(body),
+      })
+      const j = await res.json().catch(() => null)
+      if (!res.ok || !j?.ok) throw new Error(j?.error || `errore (${res.status})`)
+      notify?.(isEdit ? 'Laboratorio aggiornato' : 'Laboratorio creato')
+      onDone?.()
+    } catch (e) {
+      setErr(e.message || 'Errore imprevisto')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 460, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 6 }}>
+          {isEdit ? 'Modifica laboratorio' : 'Nuovo laboratorio'}
+        </div>
+        <div style={{ fontSize: 12.5, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
+          Un account condiviso per il tablet della sede. I dipendenti si loggano con email + password, poi mettono il proprio codice a 4 cifre.
+        </div>
+
+        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Nome laboratorio</label>
+        <input value={nome} onChange={e => setNome(e.target.value)}
+          placeholder="Es. Laboratorio Torino"
+          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14 }} />
+
+        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Email account</label>
+        <input value={email} onChange={e => setEmail(e.target.value)}
+          type="email" autoComplete="off" disabled={isEdit}
+          placeholder="laboratorio-torino@tuodominio.it"
+          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: isEdit ? 4 : 14, background: isEdit ? C.bgSubtle : C.white, color: isEdit ? C.textSoft : C.text }} />
+        {isEdit && <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14 }}>L'email non e' modificabile.</div>}
+
+        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Sede fisica</label>
+        <select value={sedeId} onChange={e => setSedeId(e.target.value)}
+          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14, background: C.white }}>
+          {(sedi || []).map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+        </select>
+
+        {isEdit && (
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.textMid, marginBottom: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={changePwd} onChange={e => setChangePwd(e.target.checked)} />
+            Cambia password del laboratorio
+          </label>
+        )}
+        {changePwd && (
+          <>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Password</label>
+            <input value={password} onChange={e => setPassword(e.target.value)}
+              type="text" autoComplete="new-password"
+              placeholder="Almeno 8 caratteri con lettere e numeri"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6 }} />
+            <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
+              La comunichi <b>a voce</b> ai dipendenti che usano questo tablet. Non viene inviata via email in chiaro.
+            </div>
+          </>
+        )}
+
+        {err && <div style={{ fontSize: 12, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
+          <button onClick={onClose} disabled={saving} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
+          <button onClick={salva} disabled={saving} style={btnStyle(C.red, C.white)}>
+            {saving ? 'Salvataggio…' : (isEdit ? 'Salva modifiche' : 'Crea laboratorio')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Rubrica dipendenti operativi (codici 4 cifre) ──────────────────────────
+function RubricaDipendentiSection({ orgId, notify, isMobile }) {
+  const [lista, setLista] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState(null)
+  const [codiceTarget, setCodiceTarget] = useState(null)
+  const [delConf, setDelConf] = useState(null)
+
+  async function carica() {
+    if (!orgId) return
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/dipendenti-operativi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ azione: 'lista' }),
+    })
+    const j = await res.json().catch(() => null)
+    if (!res.ok || !j?.ok) {
+      notify?.('Impossibile caricare la rubrica: ' + (j?.error || `errore ${res.status}`), false)
+      setLoading(false)
+      return
+    }
+    setLista(j.dipendenti || [])
+    setLoading(false)
+  }
+  useEffect(() => { setLoading(true); carica() }, [orgId])
+
+  async function chiamaApi(azione, extra = {}) {
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/dipendenti-operativi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ azione, ...extra }),
+    })
+    const j = await res.json().catch(() => null)
+    if (!res.ok || !j?.ok) throw new Error(j?.error || `errore ${res.status}`)
+    return j
+  }
+
+  async function toggleCodice(d) {
+    setBusy(d.id)
+    try {
+      await chiamaApi('toggle_codice', { id: d.id, attivo: !d.codice_attivo })
+      notify?.(d.codice_attivo ? 'Codice sospeso' : 'Codice riattivato')
+    } catch (e) { notify?.('Operazione fallita: ' + e.message, false) }
+    finally { setBusy(null); carica() }
+  }
+
+  async function elimina(d) {
+    setBusy(d.id)
+    try {
+      await chiamaApi('elimina', { id: d.id })
+      notify?.('Dipendente rimosso dalla rubrica')
+    } catch (e) { notify?.('Eliminazione fallita: ' + e.message, false) }
+    finally { setBusy(null); setDelConf(null); carica() }
+  }
+
+  if (loading) return <div style={{ color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
+        Le persone che lavorano nei tuoi laboratori. Ognuna ha un <b>codice a 4 cifre</b> che digita sul tablet dopo il login. Le sue operazioni vengono tracciate a suo nome nel <b>Registro attivita'</b>.
+      </div>
+      <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.55, marginBottom: 16, padding: '10px 12px', background: `${C.amber}12`, border: `1px solid ${C.amber}30`, borderRadius: 8 }}>
+        <b>Consiglio:</b> il codice va <b>comunicato a voce</b> al dipendente. Non lo mandiamo via email per sicurezza.
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <button onClick={() => setAddOpen(true)}
+          style={{ ...btnStyle(C.red, C.white), padding: isMobile ? '12px 18px' : '10px 18px', fontWeight: 800 }}>
+          <Icon name="plus" size={14} />Nuovo dipendente
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rubrica</div>
+        <button onClick={carica} title="Aggiorna" style={{ ...btnStyle(C.white, C.textMid, `1px solid ${C.border}`), padding: '5px 10px' }}><Icon name="refresh" size={12} />Aggiorna</button>
+      </div>
+      {lista.length === 0 && (
+        <div style={{ fontSize: 12, color: C.textSoft, fontStyle: 'italic', marginBottom: 18 }}>
+          Nessun dipendente ancora. Aggiungi il primo per iniziare a tracciare chi fa cosa.
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+        {lista.map(d => {
+          const lastUsed = d.codice_last_used_at
+            ? new Date(d.codice_last_used_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })
+            : null
+          return (
+            <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {[d.nome, d.cognome].filter(Boolean).join(' ') || '—'}
+                </div>
+                <div style={{ fontSize: 11, color: C.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {d.ruolo && <span>{d.ruolo}</span>}
+                  {lastUsed && <span style={{ marginLeft: 8 }}>· ultimo accesso {lastUsed}</span>}
+                </div>
+              </div>
+              <span style={{ fontSize: 15, fontWeight: 800, color: C.text, background: C.bgSubtle, padding: '4px 12px', borderRadius: 8, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.15em' }}>
+                {d.codice_operativo || '—'}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 9px', borderRadius: 999, color: d.codice_attivo ? C.green : C.amber, background: d.codice_attivo ? `${C.green}14` : `${C.amber}18`, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Icon name={d.codice_attivo ? 'checkCircle' : 'hourglass'} size={11} />{d.codice_attivo ? 'Attivo' : 'Sospeso'}
+              </span>
+              <button onClick={() => setCodiceTarget(d)} disabled={busy === d.id}
+                title="Cambia il codice a 4 cifre"
+                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>
+                <Icon name="key" size={12} />Cambia codice
+              </button>
+              <button onClick={() => setEditTarget(d)} disabled={busy === d.id}
+                title="Modifica nome/cognome/ruolo"
+                style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>
+                <Icon name="edit" size={12} />Modifica
+              </button>
+              {d.codice_attivo
+                ? <button onClick={() => toggleCodice(d)} disabled={busy === d.id} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Sospendi</button>
+                : <button onClick={() => toggleCodice(d)} disabled={busy === d.id} style={btnStyle(C.green, C.white)}><Icon name="check" size={12} />Riattiva</button>}
+              <button onClick={() => setDelConf(d)} disabled={busy === d.id} title="Rimuovi dalla rubrica" style={btnStyle(C.white, C.red, `1px solid ${C.red}40`)}><Icon name="trash" size={12} /></button>
+            </div>
+          )
+        })}
+      </div>
+
+      {addOpen && (
+        <DipendenteOperativoFormDialog
+          orgId={orgId}
+          onClose={() => setAddOpen(false)}
+          onDone={() => { setAddOpen(false); carica() }}
+          notify={notify}
+        />
+      )}
+      {editTarget && (
+        <DipendenteOperativoFormDialog
+          orgId={orgId}
+          existing={editTarget}
+          soloAnagrafica
+          onClose={() => setEditTarget(null)}
+          onDone={() => { setEditTarget(null); carica() }}
+          notify={notify}
+        />
+      )}
+      {codiceTarget && (
+        <CambiaCodiceDialog
+          existing={codiceTarget}
+          onClose={() => setCodiceTarget(null)}
+          onDone={() => { setCodiceTarget(null); carica() }}
+          notify={notify}
+        />
+      )}
+      {delConf && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={() => setDelConf(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 380, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>Rimuovere dalla rubrica?</div>
+            <div style={{ fontSize: 13, color: C.textMid, lineHeight: 1.55, marginBottom: 18 }}>
+              <b>{[delConf.nome, delConf.cognome].filter(Boolean).join(' ')}</b> non potrà più inserire il suo codice sui tablet. Lo storico delle sue operazioni resta nel registro.
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setDelConf(null)} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
+              <button onClick={() => elimina(delConf)} disabled={busy === delConf.id} style={btnStyle(C.red, C.white)}><Icon name="trash" size={12} />Rimuovi</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Form crea/modifica dipendente operativo
+function DipendenteOperativoFormDialog({ orgId, existing = null, soloAnagrafica = false, onClose, onDone, notify }) {
+  const isEdit = !!existing
+  const [nome, setNome] = useState(existing?.nome || '')
+  const [cognome, setCognome] = useState(existing?.cognome || '')
+  const [ruolo, setRuolo] = useState(existing?.ruolo || '')
+  const [codice, setCodice] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
+
+  async function salva() {
+    setErr(null)
+    if (nome.trim().length < 2) return setErr('Nome mancante (minimo 2 caratteri)')
+    if (cognome.trim().length < 2) return setErr('Cognome mancante (minimo 2 caratteri)')
+    if (!isEdit && !CODICE_OP_RX.test(codice)) return setErr('Codice: 4 cifre esatte (es. 0834)')
+    setSaving(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const body = isEdit
+        ? { azione: 'aggiorna', id: existing.id, nome: nome.trim(), cognome: cognome.trim(), ruolo: ruolo.trim() || null }
+        : { azione: 'crea', nome: nome.trim(), cognome: cognome.trim(), ruolo: ruolo.trim() || null, codice }
+      const res = await fetch('/api/dipendenti-operativi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify(body),
+      })
+      const j = await res.json().catch(() => null)
+      if (!res.ok || !j?.ok) throw new Error(j?.error || `errore ${res.status}`)
+      notify?.(isEdit ? 'Dipendente aggiornato' : 'Dipendente aggiunto alla rubrica')
+      onDone?.()
+    } catch (e) { setErr(e.message || 'Errore imprevisto') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 440, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 6 }}>
+          {isEdit ? 'Modifica dipendente' : 'Nuovo dipendente'}
+        </div>
+        <div style={{ fontSize: 12.5, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
+          {isEdit
+            ? 'Cambia nome, cognome o ruolo. Il codice a 4 cifre si cambia da "Cambia codice".'
+            : 'Aggiungi una persona alla rubrica. Il codice a 4 cifre lo scegli tu e glielo dici a voce.'}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Nome</label>
+            <input value={nome} onChange={e => setNome(e.target.value)}
+              placeholder="Marco"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8 }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Cognome</label>
+            <input value={cognome} onChange={e => setCognome(e.target.value)}
+              placeholder="Rossi"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8 }} />
+          </div>
+        </div>
+
+        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Ruolo (opzionale)</label>
+        <select value={ruolo} onChange={e => setRuolo(e.target.value)}
+          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 14, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 14, background: C.white }}>
+          <option value="">— non specificato —</option>
+          <option value="dipendente">Dipendente</option>
+          <option value="capo-turno">Capo turno</option>
+          <option value="responsabile">Responsabile</option>
+          <option value="altro">Altro</option>
+        </select>
+
+        {!isEdit && !soloAnagrafica && (
+          <>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.textMid, marginBottom: 6 }}>Codice a 4 cifre</label>
+            <input value={codice} onChange={e => setCodice(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+              inputMode="numeric" maxLength={4} autoComplete="off"
+              placeholder="Es. 0834"
+              style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', minHeight: 40, fontSize: 18, letterSpacing: '0.4em', fontWeight: 700, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }} />
+            <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
+              Scegli 4 cifre che il dipendente ricordera' (evita 0000, 1234, ecc.). Comunicaglielo <b>a voce</b>: non lo mandiamo via email.
+            </div>
+          </>
+        )}
+
+        {err && <div style={{ fontSize: 12, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
+          <button onClick={onClose} disabled={saving} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
+          <button onClick={salva} disabled={saving} style={btnStyle(C.red, C.white)}>
+            {saving ? 'Salvataggio…' : (isEdit ? 'Salva modifiche' : 'Aggiungi dipendente')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Dialog dedicato per cambiare il codice di un dipendente esistente
+function CambiaCodiceDialog({ existing, onClose, onDone, notify }) {
+  const [codice, setCodice] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState(null)
+
+  async function salva() {
+    setErr(null)
+    if (!CODICE_OP_RX.test(codice)) return setErr('Codice: 4 cifre esatte (es. 0834)')
+    setSaving(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/dipendenti-operativi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ azione: 'set_codice', id: existing.id, codice }),
+      })
+      const j = await res.json().catch(() => null)
+      if (!res.ok || !j?.ok) throw new Error(j?.error || `errore ${res.status}`)
+      notify?.('Codice aggiornato')
+      onDone?.()
+    } catch (e) { setErr(e.message || 'Errore imprevisto') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 14, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 6 }}>Cambia codice</div>
+        <div style={{ fontSize: 12.5, color: C.textSoft, marginBottom: 18, lineHeight: 1.55 }}>
+          Nuovo codice a 4 cifre per <b>{[existing.nome, existing.cognome].filter(Boolean).join(' ')}</b>. Il codice vecchio smette di funzionare subito.
+        </div>
+        <input value={codice} onChange={e => setCodice(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+          inputMode="numeric" maxLength={4} autoComplete="off"
+          placeholder="Es. 0834"
+          autoFocus
+          style={{ width: '100%', boxSizing: 'border-box', padding: '12px 12px', minHeight: 48, fontSize: 22, letterSpacing: '0.4em', fontWeight: 700, border: `1px solid ${C.border}`, borderRadius: 8, marginBottom: 6, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }} />
+        <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 14, lineHeight: 1.5 }}>
+          Comunicagli il nuovo codice <b>a voce</b>.
+        </div>
+        {err && <div style={{ fontSize: 12, color: C.red, background: `${C.red}12`, padding: '8px 12px', borderRadius: 8, marginBottom: 12 }}>{err}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
+          <button onClick={onClose} disabled={saving} style={btnStyle(C.white, C.textMid, `1px solid ${C.border}`)}>Annulla</button>
+          <button onClick={salva} disabled={saving} style={btnStyle(C.red, C.white)}>
+            {saving ? 'Salvataggio…' : 'Salva nuovo codice'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -1770,7 +2223,7 @@ export default function Personale({ orgId, sedeId, sedi = [], notify, adminNome,
       </div>
 
       {tab === "dipendenti" && <DipendentiTab orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
-      {tab === "accessi"    && <AccessiTab    orgId={orgId} notify={notify} isMobile={isMobile} nomeAttivita={nomeAttivita}/>}
+      {tab === "accessi"    && <AccessiTab    orgId={orgId} sedi={sedi} notify={notify} isMobile={isMobile} nomeAttivita={nomeAttivita}/>}
       {tab === "turni"      && <TurniTab      orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} isMobile={isMobile} isTablet={isTablet}/>}
       {tab === "organigramma" && <OrganigrammaTab orgId={orgId} notify={notify} isMobile={isMobile} adminNome={adminNome}/>}
       {tab === "analisi"    && <AnalisiCostoTab orgId={orgId} isMobile={isMobile} isTablet={isTablet}/>}

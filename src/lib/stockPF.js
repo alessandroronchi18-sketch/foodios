@@ -3,6 +3,18 @@
 // RPC: stock_pf_carico_produzione, stock_pf_scarico_vendita, stock_pf_scarto
 import { supabase } from './supabase'
 
+// Identita' operativa attiva letta da localStorage (impostata dal Context
+// useDipendenteOperativo). Se null → operazione loggata sull'account che ha
+// fatto login (titolare o account laboratorio senza selezione).
+function readDipendenteOpId() {
+  try {
+    const raw = localStorage.getItem('foodios_dip_op')
+    if (!raw) return null
+    const j = JSON.parse(raw)
+    return j?.id || null
+  } catch { return null }
+}
+
 // ── Letture ────────────────────────────────────────────────────────────────
 
 // Stock di una singola sede. Ritorna array di righe.
@@ -52,50 +64,52 @@ export async function loadMovimentiPF(orgId, sedeId, { limit = 100 } = {}) {
 
 // ── Scritture (via RPC, atomiche) ──────────────────────────────────────────
 
-// Carico da produzione su sede stessa.
-export async function caricoProduzionePF({ sedeId, prodotto, quantita, unita = 'pz', note = null }) {
+// Carico da produzione su sede stessa. Il dipendenteOpId puo' essere passato
+// esplicitamente (override) o viene letto da localStorage (dip operativo attivo).
+export async function caricoProduzionePF({ sedeId, prodotto, quantita, unita = 'pz', note = null, dipendenteOpId }) {
+  const dipOp = dipendenteOpId !== undefined ? dipendenteOpId : readDipendenteOpId()
   const { data, error } = await supabase.rpc('stock_pf_carico_produzione', {
     p_sede: sedeId,
     p_prodotto: prodotto,
     p_quantita: quantita,
     p_unita: unita,
     p_note: note,
+    p_dipendente_op: dipOp,
   })
   if (error) throw error
   return data
 }
 
 // Scarico per vendita (chiusura giornaliera). Permette negativo → alert UI.
-// Audit 2026-06-17 LOW: guard su quantita<=0 lato client per evitare silenzioso
-// no-op (la RPC server raise exception ma se chiamata con 0 esplicito client
-// non vedeva errore).
-export async function scaricoVenditaPF({ sedeId, prodotto, quantita, unita = 'pz', note = null }) {
+export async function scaricoVenditaPF({ sedeId, prodotto, quantita, unita = 'pz', note = null, dipendenteOpId }) {
   if (!(Number(quantita) > 0)) {
     throw new Error('scaricoVenditaPF: quantita deve essere > 0')
   }
+  const dipOp = dipendenteOpId !== undefined ? dipendenteOpId : readDipendenteOpId()
   const { data, error } = await supabase.rpc('stock_pf_scarico_vendita', {
     p_sede: sedeId,
     p_prodotto: prodotto,
     p_quantita: quantita,
     p_unita: unita,
     p_note: note,
+    p_dipendente_op: dipOp,
   })
   if (error) throw error
   return data
 }
 
 // Rettifica scarto manuale.
-export async function scartoPF({ sedeId, prodotto, quantita, note = null }) {
-  // Audit 2026-07-01 LOW: stesso guard di scaricoVenditaPF/caricoProduzionePF
-  // applicato in audit 17 giu - mancava qui.
+export async function scartoPF({ sedeId, prodotto, quantita, note = null, dipendenteOpId }) {
   if (!Number.isFinite(quantita) || quantita <= 0) {
     throw new Error('Quantita scarto deve essere > 0')
   }
+  const dipOp = dipendenteOpId !== undefined ? dipendenteOpId : readDipendenteOpId()
   const { data, error } = await supabase.rpc('stock_pf_scarto', {
     p_sede: sedeId,
     p_prodotto: prodotto,
     p_quantita: quantita,
     p_note: note,
+    p_dipendente_op: dipOp,
   })
   if (error) throw error
   return data
@@ -104,7 +118,7 @@ export async function scartoPF({ sedeId, prodotto, quantita, note = null }) {
 // ── Utility: applica un batch di carichi (es. fine sessione produzione) ────
 // items = [{ prodotto, quantita, unita }]
 // Ritorna { ok, errors: [...] }.
-export async function caricoBatchPF(sedeId, items) {
+export async function caricoBatchPF(sedeId, items, dipendenteOpId = null) {
   const errors = []
   for (const it of items || []) {
     if (!it?.prodotto || !(it.quantita > 0)) continue
@@ -115,6 +129,7 @@ export async function caricoBatchPF(sedeId, items) {
         quantita: it.quantita,
         unita: it.unita || 'pz',
         note: it.note || null,
+        dipendenteOpId,
       })
     } catch (e) {
       errors.push({ prodotto: it.prodotto, message: e.message })

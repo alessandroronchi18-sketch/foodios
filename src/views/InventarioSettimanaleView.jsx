@@ -749,6 +749,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 if (!agg[k]) agg[k] = { sedeId: r.sedeId, cliente: r.cliente, dataIso: r.dataIso, pagamento: r.pagamento, righe: [], totale: 0 }
                 agg[k].righe.push({ prodotto: r.gusto, qta: r.qta, unita: 'kg', prezzo: 0, totale: 0 })
               }
+              let dipOpId = null
+              try { dipOpId = JSON.parse(localStorage.getItem('foodios_dip_op') || 'null')?.id || null } catch {}
               for (const v of Object.values(agg)) {
                 try {
                   const { error } = await supabase.from('vendite_b2b').insert({
@@ -759,6 +761,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                     totale: v.totale,
                     stato: 'consegnata',
                     note: `${v.cliente}${v.pagamento ? ' · ' + v.pagamento : ''} (import)`,
+                    dipendente_operativo_id: dipOpId,
                   })
                   if (error) throw error
                   okB2b++

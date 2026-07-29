@@ -25,6 +25,8 @@ import AbbonamentoPanel from './components/AbbonamentoPanel'
 import AppBanner from './components/AppBanner'
 import FloatingActions from './components/FloatingActions'
 import { supabase } from './lib/supabase'
+import { DipendenteOperativoProvider, useDipendenteOperativo } from './hooks/useDipendenteOperativo'
+import SelezionaDipendente from './auth/SelezionaDipendente'
 
 function TrialScadutoPage({ org, onSignOut }) {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -344,7 +346,9 @@ export default function App() {
   }
 
   // Dashboard - wrap con banner globale (annunci admin) e bottone feedback.
-  return (
+  // Se e' un account laboratorio, avvolgo tutto in DipendenteOperativoProvider e
+  // interpongo il gate SelezionaDipendente (schermata "Chi sei?" post-login).
+  const dashboard = (
     <>
       <AppBanner />
       <Dashboard
@@ -364,5 +368,31 @@ export default function App() {
       <FloatingActions />
     </>
   )
+
+  if (auth.isLaboratorioAccount) {
+    return (
+      <DipendenteOperativoProvider userScope={auth.user?.id} enabled={true}>
+        <LaboratorioShell auth={auth}>{dashboard}</LaboratorioShell>
+      </DipendenteOperativoProvider>
+    )
+  }
+  return dashboard
+}
+
+// LaboratorioShell — dentro il Provider, decide se mostrare la schermata
+// "Chi sei?" o la Dashboard vera. Vive qui perché deve chiamare l'hook
+// del contesto (che vive dentro il Provider).
+function LaboratorioShell({ auth, children }) {
+  const { isSelezionato } = useDipendenteOperativo()
+  if (!isSelezionato) {
+    return (
+      <SelezionaDipendente
+        nomeLaboratorio={auth.profile?.nome_completo || 'Laboratorio'}
+        nomeSede={auth.sedeAttiva?.nome}
+        onSignOut={auth.signOut}
+      />
+    )
+  }
+  return children
 }
 // test Lun 11 Mag 2026 23:41:57 HST

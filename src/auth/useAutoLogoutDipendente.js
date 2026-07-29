@@ -1,39 +1,42 @@
-// useAutoLogoutDipendente — auto-logout dopo inattivita' per sessioni dipendente.
+// useAutoLogoutDipendente — timeout inattivita' per l'identita' dipendente
+// dentro un account laboratorio.
 //
-// Motivazione: il tablet in laboratorio e' condiviso tra più dipendenti. Se
-// uno chiude il turno senza fare logout, il successivo potrebbe agire con
-// l'account precedente. Timeout di 30 minuti senza attivita' → signOut +
-// redirect a login.
+// Motivazione: il tablet in laboratorio è condiviso tra più dipendenti. Se
+// Marco fa il turno del mattino e va via senza cambiare identita', al pomeriggio
+// Anna arriva e le operazioni verrebbero loggate a nome di Marco.
 //
-// Attiva SOLO per ruolo=='dipendente'. Il titolare non viene disconnesso
-// automaticamente (lavora da desktop suo, non condiviso).
+// Semantica (nuova, cambiata 2026-07-28): dopo 30 minuti di inattivita' il
+// tablet NON fa signOut Supabase — resta loggato l'account laboratorio (email
+// + password condivisa). Chiama solo `deseleziona()` sul Context, tornando
+// alla schermata "Chi sei?". Chi arriva dopo mette solo il proprio codice
+// personale (4 cifre), senza dover rifare login con la password del laboratorio.
 //
+// Attiva SOLO se: enabled=true (passato solo per account laboratorio).
 // Attivita' considerate: mousemove, keydown, touchstart, click, scroll.
 
 import { useEffect, useRef } from 'react'
-import { supabase } from '../lib/supabase'
 
 const INACTIVITY_MS = 30 * 60 * 1000   // 30 minuti
 const CHECK_INTERVAL_MS = 60 * 1000    // check ogni minuto
 const EVENTS = ['mousemove', 'keydown', 'touchstart', 'click', 'scroll']
 
-export function useAutoLogoutDipendente({ ruolo, enabled = true }) {
+export function useAutoLogoutDipendente({ enabled, onTimeout }) {
   const lastActivityRef = useRef(Date.now())
 
   useEffect(() => {
     if (!enabled) return
-    if (ruolo !== 'dipendente') return
 
     const bump = () => { lastActivityRef.current = Date.now() }
     for (const ev of EVENTS) {
       window.addEventListener(ev, bump, { passive: true })
     }
 
-    const checkId = setInterval(async () => {
+    const checkId = setInterval(() => {
       const idleMs = Date.now() - lastActivityRef.current
       if (idleMs >= INACTIVITY_MS) {
-        try { await supabase.auth.signOut() } catch { /* fail-open */ }
-        // Il signOut triggera onAuthStateChange in useAuth → AuthPage.
+        try { onTimeout?.() } catch { /* noop */ }
+        // Reset per evitare chiamate ripetute finche' l'utente non riparte
+        lastActivityRef.current = Date.now()
       }
     }, CHECK_INTERVAL_MS)
 
@@ -43,5 +46,5 @@ export function useAutoLogoutDipendente({ ruolo, enabled = true }) {
       }
       clearInterval(checkId)
     }
-  }, [ruolo, enabled])
+  }, [enabled, onTimeout])
 }

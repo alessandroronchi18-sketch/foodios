@@ -318,6 +318,8 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
     // o esplicito qui, per audit reale (operatore campo testo libero non basta).
     let createdBy = null
     try { createdBy = (await supabase.auth.getUser()).data?.user?.id || null } catch {}
+    let dipOpId = null
+    try { dipOpId = JSON.parse(localStorage.getItem('foodios_dip_op') || 'null')?.id || null } catch {}
     const { error } = await supabase.from('haccp_temperature').insert({
       organization_id: orgId, sede_id: sedeId || null,
       apparecchio_id: formLog.apparecchio_id,
@@ -326,6 +328,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
       note: formLog.note.trim() || null,
       fuori_range: fuoriRange,
       created_by: createdBy,
+      dipendente_operativo_id: dipOpId,
     })
     setSaving(false)
     if (error) return notify?.(error.message, false)
@@ -506,9 +509,12 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
   }
 
   async function eseguiTpl(id) {
+    let dipOpId = null
+    try { dipOpId = JSON.parse(localStorage.getItem('foodios_dip_op') || 'null')?.id || null } catch {}
     await supabase.from('haccp_checklist_log').insert({
       organization_id: orgId, sede_id: sedeId || null,
       template_id: id, operatore: operatore.trim() || null,
+      dipendente_operativo_id: dipOpId,
     })
     notify?.('Esecuzione registrata')
     carica(); onChanged?.()

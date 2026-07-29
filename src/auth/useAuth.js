@@ -130,7 +130,11 @@ export function useAuth() {
         // l'accesso (profileError) pur con sessione e profilo validi.
         let savedId = null
         try { savedId = localStorage.getItem(`sede_attiva_${prof.organization_id}`) } catch {}
-        const defaultSede = (sediData || []).find(s => s.id === savedId)
+        // Priorita' laboratorio: se l'account e' di tipo laboratorio, la sede
+        // e' fissata (il tablet vive fisicamente in una sede specifica).
+        const labSedeId = prof?.is_laboratorio_account === true ? prof?.laboratorio_sede_id : null
+        const defaultSede = (labSedeId && (sediData || []).find(s => s.id === labSedeId))
+                         || (sediData || []).find(s => s.id === savedId)
                          || (sediData || []).find(s => s.is_default)
                          || (sediData || [])[0]
                          || null
@@ -268,6 +272,12 @@ export function useAuth() {
   // Il dipendente ha accesso solo alle viste operative (vedi Dashboard).
   const ruolo          = profile?.ruolo || 'titolare'
   const isDipendente   = ruolo === 'dipendente'
+  // Account laboratorio: e' un account condiviso su un tablet fisico. Post-login
+  // richiede al dipendente di identificarsi con un codice a 4 cifre personale.
+  const isLaboratorioAccount = isDipendente && profile?.is_laboratorio_account === true
+  // Sede fissa del laboratorio: sedeAttiva forzata a questa quando l'account e'
+  // di tipo laboratorio (il tablet e' FISICAMENTE in quella sede).
+  const laboratorioSedeId = isLaboratorioAccount ? (profile?.laboratorio_sede_id || null) : null
   // Dipendente non ancora attivato (o disattivato) dal titolare: accesso negato a
   // livello DB (get_user_org_id ritorna null). L'app mostra una schermata "in attesa".
   const inAttesa       = isDipendente && profile?.approvato !== true
@@ -299,6 +309,8 @@ export function useAuth() {
     isAdmin,
     ruolo,
     isDipendente,
+    isLaboratorioAccount,
+    laboratorioSedeId,
     inAttesa,
     orgInAttesa,
     orgCancellata,

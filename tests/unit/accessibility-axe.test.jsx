@@ -56,9 +56,9 @@ describe('Accessibility (axe-core) — form pubblici e onboarding', () => {
     expect(results).toHaveNoViolations()
   })
 
-  it('EmployeeLoginPad non ha violation strutturali a11y', async () => {
-    const { default: Pad } = await import('../../src/auth/EmployeeLoginPad')
-    const { container } = render(<Pad onBack={() => {}} onSuccess={() => {}} />)
+  it('SelezionaDipendente non ha violation strutturali a11y', async () => {
+    const { default: Pad } = await import('../../src/auth/SelezionaDipendente')
+    const { container } = render(<Pad nomeLaboratorio="Laboratorio Torino" nomeSede="Torino Centro" onSignOut={() => {}} />)
     const results = await axe(container, {
       rules: { 'color-contrast': { enabled: false } },
     })

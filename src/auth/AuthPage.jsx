@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import FoodosLogo from '../components/FoodosLogo'
 import COMUNI_ITALIANI from '../lib/comuniItaliani'
-import EmployeeLoginPad from './EmployeeLoginPad'
 
 const T = {
   cream:      '#FBF8F4',
@@ -532,20 +531,8 @@ export function ResetPasswordPage({ onDone }) {
 
 export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '', initialMode = null }) {
   const isMobile = useIsMobile()
-  // mode: 'login' | 'registrati' | 'reset-request' | 'reset-password' | 'pin-login'
+  // mode: 'login' | 'registrati' | 'reset-request' | 'reset-password'
   const [mode, setMode] = useState(initialMode || (initialReferralCode ? 'registrati' : 'login'))
-
-  // Se il dipendente ha già usato il PIN su questo device, mostra entry PIN
-  // come default (è la modalità preferita su tablet condiviso).
-  useEffect(() => {
-    try {
-      const lastPinOrg = localStorage.getItem('foodios_dip_org')
-      const lastPinAt = parseInt(localStorage.getItem('foodios_dip_pin_last') || '0', 10)
-      const recentlyUsed = lastPinAt && (Date.now() - lastPinAt) < 30 * 24 * 60 * 60 * 1000  // 30gg
-      if (lastPinOrg && recentlyUsed && !initialMode) setMode('pin-login')
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
   const [regStep, setRegStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [errore, setErrore] = useState('')
@@ -839,11 +826,6 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
   const isReset = mode === 'reset-request' || mode === 'reset-password'
 
-  // Modalita' Dipendente PWA: login email + codice (tema scuro), bypass layout normale.
-  if (mode === 'pin-login') {
-    return <EmployeeLoginPad onBack={() => setMode('login')} />
-  }
-
   return (
     <div style={{
       minHeight: '100vh', background: T.cream,
@@ -972,19 +954,6 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
                   fontFamily: SANS, fontSize: 13, borderBottom: `1px solid ${T.red}`,
                 }}>
                   Registrati gratis
-                </button>
-              </div>
-
-              {/* Entry alternativo: PIN login per dipendenti su tablet condiviso */}
-              <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px dashed ${T.border}`, textAlign: 'center' }}>
-                <button type="button" onClick={() => { setMode('pin-login'); clear() }}
-                  style={{
-                    background: 'transparent', border: 'none', cursor: 'pointer', padding: '10px 14px', minHeight: 40,
-                    color: T.textMid, fontFamily: SANS, fontSize: 13, fontWeight: 600,
-                    display: 'inline-flex', alignItems: 'center', gap: 8,
-                  }}>
-                  <Icon name="key" size={14} color={T.textMid}/>
-                  Sono un dipendente - entra col codice
                 </button>
               </div>
             </form>

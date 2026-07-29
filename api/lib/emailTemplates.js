@@ -105,35 +105,35 @@ export function templateScadenzaTrial() {
   }
 }
 
-// ── 4b. Accesso dipendente creato / codice cambiato ──────────────────────
-// Il titolare ha creato l'accesso (o cambiato il codice) del dipendente.
-// L'email al dipendente NON contiene il codice in chiaro: lo comunica il
-// titolare a voce sul posto di lavoro. Qui diamo solo l'istruzione di
-// come accedere.
-export function templateAccessoDipendente({ nomeDipendente, nomeAttivita, tipo }) {
-  const isCambio = tipo === 'codice_cambiato'
+// ── 4b. Accesso laboratorio creato / password cambiata ──────────────────
+// Il titolare ha creato (o aggiornato) l'account laboratorio: email + password
+// condivisa tra i colleghi che usano lo stesso tablet. L'email NON contiene
+// la password in chiaro: la comunica il titolare a voce. Dopo il login,
+// ogni dipendente si identifica col proprio codice a 4 cifre personale.
+export function templateAccessoLaboratorio({ nomeLaboratorio, nomeAttivita, nomeSede, tipo }) {
+  const isCambio = tipo === 'password_cambiata'
   const subject = isCambio
-    ? `Il tuo codice Foodos e' stato aggiornato`
-    : `Il tuo accesso Foodos e' pronto`
-  const titolo = isCambio ? 'Codice aggiornato' : 'Accesso pronto'
+    ? `Password aggiornata: ${escapeHtml(nomeLaboratorio || 'laboratorio')}`
+    : `Accesso pronto: ${escapeHtml(nomeLaboratorio || 'laboratorio')}`
+  const titolo = isCambio ? 'Password aggiornata' : 'Accesso laboratorio pronto'
   const corpo = isCambio
-    ? `${escapeHtml(nomeDipendente || 'Ciao')}, ${escapeHtml(nomeAttivita || 'la tua attivita\'')} ha aggiornato il tuo codice personale di accesso a Foodos. Il nuovo codice te lo comunica direttamente il titolare.`
-    : `${escapeHtml(nomeDipendente || 'Ciao')}, ${escapeHtml(nomeAttivita || 'la tua attivita\'')} ti ha creato un accesso a Foodos, il gestionale per la ristorazione. Il tuo codice personale (6 cifre) te lo dice direttamente il titolare.`
+    ? `${escapeHtml(nomeAttivita || 'La tua attivita\'')} ha aggiornato la password dell'account laboratorio <strong>${escapeHtml(nomeLaboratorio)}</strong>${nomeSede ? ` (sede: ${escapeHtml(nomeSede)})` : ''}. La nuova password te la comunica il titolare a voce.`
+    : `${escapeHtml(nomeAttivita || 'La tua attivita\'')} ha creato un account Foodos per il laboratorio <strong>${escapeHtml(nomeLaboratorio)}</strong>${nomeSede ? ` (sede: ${escapeHtml(nomeSede)})` : ''}. La password te la comunica direttamente il titolare.`
   return {
     subject,
     html: frame(`
       <h1 style="color:#1C0A0A;font-size:22px;margin:0 0 8px;">${titolo}</h1>
       <p style="color:#6B4C44;font-size:15px;line-height:1.7;margin:0 0 18px;">${corpo}</p>
       <p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 22px;">
-        Come si accede:
+        Come si accede dal tablet del laboratorio:
       </p>
       <ol style="color:#6B4C44;font-size:14px;line-height:1.8;margin:0 0 22px;padding-left:22px;">
-        <li>Apri Foodos dal tablet del laboratorio</li>
-        <li>Tocca <strong>Sono un dipendente</strong></li>
-        <li>Inserisci la tua email <strong>e</strong> il codice a 6 cifre</li>
+        <li>Apri Foodos e fai login con questa email e la password che ti ha dato il titolare</li>
+        <li>Compare la schermata "Inserisci il tuo codice"</li>
+        <li>Ogni dipendente digita il proprio codice a 4 cifre personale (te lo comunica il titolare)</li>
       </ol>
       <p style="color:#9C7B76;font-size:13px;line-height:1.6;margin:0 0 6px;">
-        <strong>Regola:</strong> il codice e' tuo e va tenuto riservato. Ogni operazione fatta con il tuo codice viene tracciata a tuo nome.
+        <strong>Regola:</strong> la password del laboratorio e' condivisa fra i colleghi che usano lo stesso tablet, ma il codice 4 cifre e' personale. Ogni operazione viene tracciata a nome della persona che ha inserito il proprio codice.
       </p>`),
   }
 }

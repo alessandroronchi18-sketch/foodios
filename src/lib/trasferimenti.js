@@ -7,6 +7,16 @@
 //   - tipo='semilavorato'  → solo log per ora
 import { supabase } from './supabase'
 
+// Legge l'identita' operativa attiva (impostata da useDipendenteOperativo).
+function readDipendenteOpId() {
+  try {
+    const raw = localStorage.getItem('foodios_dip_op')
+    if (!raw) return null
+    const j = JSON.parse(raw)
+    return j?.id || null
+  } catch { return null }
+}
+
 // ── Letture ────────────────────────────────────────────────────────────────
 
 export async function loadTrasferimenti(orgId, { sedeAttivaId = null, scope = 'tutti', limit = 200 } = {}) {
@@ -62,6 +72,7 @@ export async function creaTrasferimento({
     note,
     data: data || new Date().toISOString().slice(0, 10),
     stato: 'bozza',
+    dipendente_operativo_id: readDipendenteOpId(),
   }
   const { data: row, error } = await supabase.from('trasferimenti').insert(payload).select().single()
   if (error) throw error
