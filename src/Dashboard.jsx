@@ -2086,15 +2086,20 @@ export default function Dashboard({
         // un hub-landing (view 'ai-hub'). Click sulla section-header AI
         // → atterra sull'hub (gestito via headerView property).
         const showMultiSede = (auth?.user?.email === 'demo@maradeiboschi.com') || multiSede
+        // Menu riorganizzato 2026-07-30: 7 macro-sezioni per affinità
+        // funzionale + frequenza d'uso. "Inventario gusti" mostrato sempre
+        // come "Produzione" (route interna resta invariata).
         const NAV = [
+          // 1) OGGI — le 4 azioni giornaliere più frequenti
           { id:"oggi", label:"Oggi", items:[
             ...(isMetodoInventario
-              ? [{id:"inventario-gusti",label:"Inventario gusti",icon:"layers"}]
+              ? [{id:"inventario-gusti",label:"Produzione",icon:"cal",alert:!hasProdOggi&&new Date().getHours()>=6}]
               : [{id:"giornaliero",label:"Produzione",icon:"cal",alert:!hasProdOggi&&new Date().getHours()>=6}]),
             {id:"chiusura",label:"Cassa",icon:"creditCard",alert:cassaMancante},
+            {id:"magazzino",label:"Magazzino",icon:"pkg",badge:criticeMag,alert:criticeMag>0},
             {id:"calendario",label:"Calendario",icon:"cal"},
-            {id:"eventi",label:"Eventi",icon:"cal"},
           ]},
+          // 2) RICETTE & MENÙ — invariato
           { id:"ricette", label:"Ricette & Menù", items:[
             {id:"ricettario",label:LEX.Ricettario,icon:"book"},
             {id:"semilavorati",label:"Semilavorati",icon:"layers"},
@@ -2103,13 +2108,14 @@ export default function Dashboard({
             {id:"scheda-allergeni",label:"Allergeni",icon:"shield"},
             {id:"menu",label:"Menù del giorno",icon:"menu"},
           ]},
-          { id:"acquisti", label:"Magazzino & Fornitori", badge:criticeMag, items:[
-            {id:"magazzino",label:"Magazzino",icon:"pkg",badge:criticeMag,alert:criticeMag>0},
+          // 3) ACQUISTI & FORNITORI — magazzino sale in Oggi, resta il "back office"
+          { id:"acquisti", label:"Acquisti & Fornitori", items:[
             {id:"sprechi-omaggi",label:"Perdite & cessioni",icon:"sparkles"},
             {id:"scadenzario",label:"Scadenzario fatture",icon:"fileText"},
             {id:"fornitori",label:"Fornitori",icon:"truck"},
             {id:"importa-dati",label:"Importa dati",icon:"download"},
           ]},
+          // 4) ANALISI & NUMERI — Vendite B2B esce (va in Vendite & Clienti)
           { id:"numeri", label:"Analisi & Numeri", items:[
             {id:"pl",label:"Profitti (P&L)",icon:"trendUp"},
             {id:"costi-aziendali",label:"Costi aziendali",icon:"coins"},
@@ -2117,9 +2123,15 @@ export default function Dashboard({
             ...(isMetodoInventario ? [{id:"quadratura-inventario",label:"Quadratura inventario",icon:"check"}] : []),
             {id:"simulatore",label:"Food Cost simulatore",icon:"barChart"},
             {id:"previsione",label:"Previsione domanda",icon:"forecast"},
-            {id:"vendite-b2b",label:"Vendite B2B",icon:"building"},
           ]},
-          { id:"azienda", label:"Azienda & Team", items:[
+          // 5) VENDITE & CLIENTI — nuova: dove arrivano i soldi che non sono cassa
+          { id:"clienti", label:"Vendite & Clienti", items:[
+            {id:"vendite-b2b",label:"Vendite B2B",icon:"building"},
+            {id:"eventi",label:"Eventi",icon:"cal"},
+            {id:"recensioni",label:"Recensioni",icon:"sparkles"},
+          ]},
+          // 6) SEDI & TEAM — Integrazioni esce (va in Impostazioni)
+          { id:"team", label:"Sedi & Team", items:[
             ...(showMultiSede
               ? [{id:"confronto-sedi",label:"Confronto sedi",icon:"building"},
                  {id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"}]
@@ -2127,26 +2139,16 @@ export default function Dashboard({
             {id:"personale",label:"Personale & stipendi",icon:"users"},
             {id:"haccp",label:"HACCP",icon:"shield"},
             {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
-            {id:"integrazioni",label:"Integrazioni",icon:"check"},
           ]},
-          // ── SEZIONE AI: tutte le 23 funzioni AI raggruppate ───────────────
-          // headerView: cliccando il titolo della sezione si va a 'ai-hub'.
-          // chainBadge dinamico nelle item: calcolato lato render da
-          // canAccessView, non flag statico.
+          // 7) AI — Recensioni esce (va in Vendite & Clienti). Congelate a parte.
           { id:"ai", label:"AI", headerView:"ai-hub", badge:azioniAperte, items:[
             {id:"ai-hub",label:"Panoramica AI",icon:"sparkles"},
             {id:"ai-brain",label:"Foodos Brain (chat)",icon:"sparkles"},
             {id:"forecast",label:"Forecast vendite 7gg",icon:"forecast"},
             {id:"cashflow",label:"Cashflow predittivo",icon:"trendUp"},
             {id:"menu-engineering",label:"Menu engineering",icon:"barChart"},
-            // Audit 2026-06-25: nascoste dal menu su richiesta utente (congelate, riattivabili).
-            // {id:"competitor-pricing",label:"Pricing vs competitor",icon:"money"},
             {id:"ordini-ai",label:"Ordini AI consigliati",icon:"truck"},
-            // {id:"reformulation",label:"Ottimizza ricetta AI",icon:"sparkles"},
-            // {id:"ricette-ai",label:"Inventa ricetta AI",icon:"lightbulb"},
-            {id:"recensioni",label:"Recensioni AI",icon:"sparkles"},
             {id:"whatsapp",label:"WhatsApp Bot",icon:"bell"},
-            // {id:"marketplace",label:"Marketplace fornitori",icon:"truck"},
             {id:"documentary",label:"Documentary AI",icon:"barChart"},
             {id:"azioni",label:"Azioni consigliate",icon:"sparkles",badge:azioniAperte},
           ]},
@@ -2807,17 +2809,21 @@ export default function Dashboard({
                   azzerando lo scroll del menu (bug "torna in cima") e ri-animando. */}
               {/* Sidebar allineata 1:1 con NAV topbar (2026-06-13 v2) */}
 
+              {/* Sidebar allineata 1:1 al NAV topbar (riorganizzazione 2026-07-30) */}
+
+              {/* 1) OGGI — 4 azioni giornaliere principali */}
               {Group({ id:"oggi", iconKey:"today", label:"Oggi",
-                alert:(!hasProdOggi && new Date().getHours()>=6) || cassaMancante,
+                alert:(!hasProdOggi && new Date().getHours()>=6) || cassaMancante || criticeMag>0,
                 children:[
                   ...(((sedi||[]).find(s=>s.id===sedeAttiva?.id)?.is_sede_produzione && isMetodoInv) || view === 'inventario-gusti'
-                    ? [navItem("inventario-gusti","layers","Inventario gusti")]
+                    ? [navItem("inventario-gusti","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)]
                     : [navItem("giornaliero","cal","Produzione",0,!hasProdOggi&&new Date().getHours()>=6)]),
                   navItem("chiusura","creditCard","Cassa",0,cassaMancante),
+                  navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0),
                   navItem("calendario","cal","Calendario"),
-                  navItem("eventi","cal","Eventi"),
                 ] })}
 
+              {/* 2) RICETTE & MENÙ */}
               {Group({ id:"ricette", iconKey:"chefHat", label:"Ricette & Menù",
                 children:[
                   navItem("ricettario","book",LEX.Ricettario),
@@ -2828,16 +2834,16 @@ export default function Dashboard({
                   navItem("menu","menu","Menù del giorno"),
                 ] })}
 
-              {Group({ id:"acquisti", iconKey:"shopping", label:"Magazzino & Fornitori",
-                badge:criticeMag, alert:criticeMag>0,
+              {/* 3) ACQUISTI & FORNITORI — magazzino sale in Oggi */}
+              {Group({ id:"acquisti", iconKey:"shopping", label:"Acquisti & Fornitori",
                 children:[
-                  navItem("magazzino","pkg","Magazzino",criticeMag,criticeMag>0),
                   navItem("sprechi-omaggi","sparkles","Perdite & cessioni"),
                   navItem("scadenzario","fileText","Scadenzario fatture"),
                   navItem("fornitori","truck","Fornitori"),
                   navItem("importa-dati","download","Importa dati"),
                 ] })}
 
+              {/* 4) ANALISI & NUMERI — Vendite B2B esce (va in Vendite & Clienti) */}
               {Group({ id:"numeri", iconKey:"coins", label:"Analisi & Numeri",
                 children:[
                   navItem("pl","trendUp","Profitti (P&L)"),
@@ -2847,20 +2853,27 @@ export default function Dashboard({
                     ? [navItem("quadratura-inventario","check","Quadratura inventario")] : []),
                   navItem("simulatore","barChart","Food Cost simulatore"),
                   navItem("previsione","forecast","Previsione domanda"),
-                  navItem("vendite-b2b","building","Vendite B2B"),
                 ] })}
 
-              {Group({ id:"azienda", iconKey:"briefcase", label:"Azienda & Team",
+              {/* 5) VENDITE & CLIENTI — nuova sezione */}
+              {Group({ id:"clienti", iconKey:"users", label:"Vendite & Clienti",
+                children:[
+                  navItem("vendite-b2b","building","Vendite B2B"),
+                  navItem("eventi","cal","Eventi"),
+                  navItem("recensioni","sparkles","Recensioni"),
+                ] })}
+
+              {/* 6) SEDI & TEAM — Integrazioni esce (va in Impostazioni) */}
+              {Group({ id:"team", iconKey:"briefcase", label:"Sedi & Team",
                 children:[
                   ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("confronto-sedi","building","Confronto sedi"),
                   ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("trasferimenti","truck","Trasferimenti tra sedi"),
                   navItem("personale","users","Personale & stipendi"),
                   navItem("haccp","shield","HACCP"),
                   navItem("registro-attivita","fileText","Registro attività"),
-                  navItem("integrazioni","plug","Integrazioni"),
                 ] })}
 
-              {/* Sezione AI: 14 voci raggruppate, prima voce e' Panoramica (hub) */}
+              {/* 7) AI — Recensioni esce (va in Vendite & Clienti) */}
               {Group({ id:"ai", iconKey:"sparkles", label:"AI",
                 badge:azioniAperte,
                 children:[
@@ -2869,14 +2882,8 @@ export default function Dashboard({
                   navItem("forecast","sun","Forecast vendite 7gg"),
                   navItem("cashflow","trendUp","Cashflow predittivo"),
                   navItem("menu-engineering","barChart","Menu engineering"),
-                  // Audit 2026-06-25: nascoste dal menu su richiesta utente.
-                  // navItem("competitor-pricing","money","Pricing vs competitor"),
                   navItem("ordini-ai","truck","Ordini AI consigliati"),
-                  // navItem("reformulation","sparkles","Ottimizza ricetta AI"),
-                  // navItem("ricette-ai","lightbulb","Inventa ricetta AI", 0, false, true),
-                  navItem("recensioni","sparkles","Recensioni AI"),
                   navItem("whatsapp","bell","WhatsApp Bot", 0, false, true),
-                  // navItem("marketplace","truck","Marketplace fornitori", 0, false, true),
                   navItem("documentary","barChart","Documentary AI", 0, false, true),
                   navItem("azioni","sparkles","Azioni consigliate",azioniAperte),
                 ] })}
@@ -3009,13 +3016,16 @@ export default function Dashboard({
             const sFull = (sedi||[]).find(s=>s.id===sedeAttiva?.id) || sedeAttiva
             const isInv = (sFull?.is_sede_produzione && isMetodoInv)
               || view === 'inventario-gusti'
+            // Bottom nav mobile allineata alla nuova sezione "Oggi" del NAV:
+            // 4 azioni (Produzione, Cassa, Magazzino, Calendario) + "Altro".
+            // "Inventario gusti" → label "Produzione" per uniformità.
             const BOTTOM_NAV = [
-              {id:"home",        icon:"home",       label:"Oggi"},
               isInv
-                ? {id:"inventario-gusti", icon:"layers", label:"Inventario"}
+                ? {id:"inventario-gusti", icon:"cal", label:"Produzione", alert:!hasProdOggi&&new Date().getHours()>=6}
                 : {id:"giornaliero", icon:"cal", label:"Produzione", alert:!hasProdOggi&&new Date().getHours()>=6},
               {id:"chiusura",    icon:"creditCard", label:"Cassa",      alert:cassaMancante},
               {id:"magazzino",   icon:"pkg",        label:"Magazzino",  badge:criticeMag},
+              {id:"calendario",  icon:"cal",        label:"Calendario"},
               {id:"__more",      icon:"menu",       label:"Altro"},
             ].filter(item => item.id === "__more" || !isDip || DIPENDENTE_VIEWS.has(item.id) || item.id === 'inventario-gusti');
             return (
@@ -3094,7 +3104,7 @@ export default function Dashboard({
             grigia" che resta in alto. Nascosta sulla home (l'hero fa da intestazione). */}
         {!isMobile&&view!=="home"&&(()=>{
           const VIEW_LABELS = {
-            home:"Dashboard", giornaliero:"Produzione", "inventario-gusti":"Inventario gusti",
+            home:"Dashboard", giornaliero:"Produzione", "inventario-gusti":"Produzione",
             "quadratura-inventario":"Quadratura inventario",
             chiusura:"Cassa", eventi:"Eventi",
             ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,
@@ -3190,7 +3200,7 @@ export default function Dashboard({
         {/* Mobile topbar - sticky, flat */}
         {isMobile&&(()=>{
           const MOBILE_LABELS = {
-            home:"Oggi", giornaliero:"Produzione", "inventario-gusti":"Inventario gusti",
+            home:"Oggi", giornaliero:"Produzione", "inventario-gusti":"Produzione",
             "quadratura-inventario":"Quadratura",
             chiusura:"Cassa", eventi:"Eventi",
             ricettario:LEX.Ricettario, semilavorati:"Semilavorati", "nuova-ricetta":LEX.nuovaRicetta,

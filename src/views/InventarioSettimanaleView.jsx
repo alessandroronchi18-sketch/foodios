@@ -678,7 +678,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       )}
 
       <div style={{ marginTop: 14, fontSize: 11.5, color: C.textSoft, lineHeight: 1.55, maxWidth: 720 }}>
-        Quantità in <strong>grammi</strong>. Salvataggio automatico uscendo dal campo (Tab o clic fuori).
+        Quantità in <strong>{unitaDisplay === 'kg' ? 'chilogrammi' : 'grammi'}</strong>. Salvataggio automatico uscendo dal campo (Tab o clic fuori).
       </div>
 
       {importDlg && (
