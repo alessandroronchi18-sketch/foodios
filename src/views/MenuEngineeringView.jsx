@@ -16,7 +16,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { sload } from '../lib/storage'
 import { color as T } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
+import { buildIngCosti, calcolaFC, getR, resaGrammi } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import Icon from '../components/Icon'
@@ -116,8 +116,10 @@ export default function MenuEngineeringView({ orgId, sedeId, ricettario, sedeAtt
       let prezzo, fcUnit
       if (reg.tipo === 'gusto') {
         const rk = ricavoFlatFor(r) || 0
-        const pesoG = (r.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
-        const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+        // Resa dichiarata (ric.resa_g) o fallback somma ingredienti — tiene
+        // conto di evaporazione/overrun per i gusti gelateria.
+        const resaG = resaGrammi(r)
+        const pesoKg = resaG > 0 ? resaG / 1000 : 1
         prezzo = rk * pesoKg
         fcUnit = fcPerPezzo // fc su 1 kg finito = fc totale della ricetta gusto
       } else {

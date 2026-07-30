@@ -732,6 +732,28 @@ export const isSemilavorato = (nome, ricettario) => {
   return false
 }
 
+// Somma in grammi degli ingredienti di una ricetta (peso lordo teorico).
+// Non tiene conto di perdite di evaporazione / overrun / spillover.
+export function pesoIngredientiG(ric) {
+  return (ric?.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
+}
+
+// RESA REALE in grammi della ricetta (peso del prodotto finito). Serve per:
+//   - gusti gelateria: 1 kg finito potrebbe richiedere 1010g di ingredienti
+//     (perdita evaporazione) o 950g (overrun aria montata). Il food cost/kg
+//     va calcolato sulla RESA dichiarata, non sulla somma ingredienti.
+//   - stampi/pezzi: informazione utile ma NON impatta i calcoli finanziari
+//     (fc per stampo = fc totale ingredienti, indipendente dal peso finito).
+// Priorita': `ric.resa_g` esplicito > fallback somma ingredienti.
+// Per gusto senza né resa né ingredienti, fallback a 1000g (evita div/0).
+export function resaGrammi(ric) {
+  const r = Number(ric?.resa_g)
+  if (Number.isFinite(r) && r > 0) return r
+  const sum = pesoIngredientiG(ric)
+  if (sum > 0) return sum
+  return ric?.tipo === 'gusto' ? 1000 : 0
+}
+
 // ─── FOOD COST CALCULATION ───────────────────────────────────────────────────
 // Costruisce la mappa ingrediente→{costoKg, costoG, isStima} unendo PREZZI_HORECA
 // con il file caricato dall'utente (priorità all'utente).

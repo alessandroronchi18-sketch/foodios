@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
-import { buildIngCosti, calcolaFCStorico, getR } from '../lib/foodcost'
+import { buildIngCosti, calcolaFCStorico, getR, resaGrammi } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
 import { lessico } from '../lib/lessico'
@@ -106,8 +106,9 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         let rv
         if (reg.tipo === 'gusto' && ric) {
           const rk = ricavoFlatFor(ric)
-          const pesoG = (ric.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
-          const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+          // Resa dichiarata (o fallback somma ingredienti) per gusti gelateria.
+          const resaG = resaGrammi(ric)
+          const pesoKg = resaG > 0 ? resaG / 1000 : 1
           rv = prod.stampi * (Number(rk) || 0) * pesoKg
         } else {
           rv = prod.stampi*reg.unita*reg.prezzo;

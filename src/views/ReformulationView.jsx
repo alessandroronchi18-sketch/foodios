@@ -16,7 +16,7 @@ import React, { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { color as T } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { buildIngCosti, calcolaFC, getR } from '../lib/foodcost'
+import { buildIngCosti, calcolaFC, getR, resaGrammi } from '../lib/foodcost'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
 import { callAi } from '../lib/aiClient'
 import Icon from '../components/Icon'
@@ -58,8 +58,9 @@ export default function ReformulationView({ ricettario, orgId, sedeId }) {
     let prezzo
     if (reg.tipo === 'gusto') {
       const rk = ricavoFlatFor(ricCurrent) || 0
-      const pesoG = (ricCurrent.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
-      const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+      // Resa dichiarata per gusti (o fallback somma ingredienti).
+      const resaG = resaGrammi(ricCurrent)
+      const pesoKg = resaG > 0 ? resaG / 1000 : 1
       prezzo = rk * pesoKg
     } else {
       prezzo = Number(reg.prezzo) || 0

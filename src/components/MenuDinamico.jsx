@@ -8,6 +8,7 @@ import Icon from './Icon'
 import { KPI, SH, PageHeader, Tip, C, fmt, fmtp } from '../views/_shared'
 import { labelPlurale } from '../lib/tipoRicetta'
 import { useRicavoFlat } from '../lib/useRicavoFlat'
+import { resaGrammi } from '../lib/foodcost'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
@@ -77,8 +78,9 @@ function MenuEditor({ ricettario, ingCosti, calcolaFC, getR, menuItems, setMenuI
     let prezzo, unita, ricavo
     if (reg.tipo === 'gusto') {
       const rk = ricavoFlatFor(ric) || 0
-      const pesoG = (ric.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
-      const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+      // Resa dichiarata per gusti (o fallback somma ingredienti).
+      const resaG = resaGrammi(ric)
+      const pesoKg = resaG > 0 ? resaG / 1000 : 1
       prezzo = rk
       unita = pesoKg
       ricavo = rk * pesoKg

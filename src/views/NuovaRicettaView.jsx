@@ -90,8 +90,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   // sono per 1 kg di gusto finito), prezzo 0 (vive su Formati vendita), tipo "gusto" —
   // così `elencoGusti` continua a includerla (esclude solo semilavorato/interno).
   const empty = isGelateria
-    ? { nome: "", categoria: "Gusto", unita: 1, prezzo: 0, tipo: "gusto", note: "", ingredienti: [], congelabile: false, allergeniManual: [] }
-    : { nome: "", categoria: "", unita: 8, prezzo: 4, tipo: "fetta", note: "", ingredienti: [], congelabile: false, allergeniManual: [] };
+    ? { nome: "", categoria: "Gusto", unita: 1, prezzo: 0, tipo: "gusto", note: "", ingredienti: [], congelabile: false, allergeniManual: [], resa_g: null }
+    : { nome: "", categoria: "", unita: 8, prezzo: 4, tipo: "fetta", note: "", ingredienti: [], congelabile: false, allergeniManual: [], resa_g: null };
   const [form, setForm] = useState(empty);
   // isGusto è dinamico sul form corrente (loadForEdit può caricare tipo != 'gusto').
   const isGusto = form.tipo === 'gusto'
@@ -186,7 +186,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const ings = r.ingredienti.map(i => ({ ...i }));
     const auto = detectAllergeniFromIngredienti(ings);
     const manual = (r.allergeni || []).filter(a => !auto.includes(a));
-    const loaded = { nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual };
+    const loaded = { nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual, resa_g: (typeof r.resa_g === 'number' && r.resa_g > 0) ? r.resa_g : null };
     setForm(loaded);
     initialFormRef.current = loaded; // reset dirty
     setEditMode(nome);
@@ -225,6 +225,10 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         congelabile: form.congelabile || false,
         allergeni: effectiveAllergeni,
         categoria: (form.categoria || "").trim() || undefined,
+        // resa_g: null → fallback su somma ingredienti (comportamento legacy).
+        // Se l'utente dichiara resa esplicita, la salviamo per l'uso nei calc
+        // fc/kg (gusti) e come "peso stampo dichiarato" (stampi/pezzi).
+        resa_g: (typeof form.resa_g === 'number' && Number.isFinite(form.resa_g) && form.resa_g > 0) ? form.resa_g : null,
       };
       const nuovoRic = {
         ingredienti_costi: ricettario?.ingredienti_costi || {},
@@ -761,6 +765,87 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </div>
             </details>
           </div>
+
+          {/* Resa dichiarata — gestisce il caso reale in cui gli ingredienti
+              pesati sommano diverso dal peso finito (evaporazione, overrun,
+              perdita spillover). Per i GUSTI (gelateria) impatta il food
+              cost/kg finito: la ricetta diventa quindi coerente sul lungo
+              periodo (100 batch → dati esatti, non spanciamento cumulativo).
+              Per stampi/pezzi è informativo (peso stampo/pezzo dichiarato). */}
+          {form.tipo !== 'interno' && form.tipo !== 'semilavorato' && (() => {
+            const sommaG = (form.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
+            const resaDefault = isGusto ? 1000 : sommaG
+            const resaEff = (typeof form.resa_g === 'number' && form.resa_g > 0) ? form.resa_g : (resaDefault || 0)
+            const scartoAssoluto = Math.abs(sommaG - resaEff)
+            const scartoPct = sommaG > 0 ? (scartoAssoluto / sommaG) * 100 : 0
+            const scartoRilevante = sommaG > 0 && resaEff > 0 && scartoPct > 5
+            const labelResa = isGusto ? 'Resa 1 kg finito (g)' : (form.tipo === 'fetta' ? 'Peso stampo/torta (g)' : 'Peso pezzo (g)')
+            const sub = isGusto
+              ? 'Quanti grammi di prodotto finito ottieni da questi ingredienti. Cambia se cè evaporazione (pastorizzazione) o overrun (aria montata) — il food cost/kg si adegua di conseguenza.'
+              : 'Peso reale dello stampo o pezzo prodotto. Utile come referenza ma non impatta il food cost per stampo.'
+            const normalizza = () => {
+              if (!sommaG || !resaEff) return
+              const ratio = resaEff / sommaG
+              setForm(f => ({
+                ...f,
+                ingredienti: (f.ingredienti || []).map(ing => ({
+                  ...ing,
+                  qty1stampo: Number((Number(ing.qty1stampo || 0) * ratio).toFixed(2)),
+                })),
+              }))
+            }
+            return (
+              <div style={cardStyle}>
+                <PanelHead icon={<Icon name="package" size={18} />} title="Resa" sub={sub} />
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '180px 1fr', gap: 12, alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={fieldLabel}>{labelResa}</div>
+                    <input type="number" inputMode="decimal" step="1" min="1"
+                      value={form.resa_g == null ? '' : form.resa_g}
+                      onChange={e => {
+                        const v = e.target.value === '' ? null : Number(e.target.value)
+                        setForm(f => ({ ...f, resa_g: v }))
+                      }}
+                      placeholder={String(Math.round(resaDefault))}
+                      style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
+                    <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 4 }}>
+                      Default: <b>{Math.round(resaDefault)} g</b>{form.resa_g == null ? ' (auto)' : ''}
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '10px 12px',
+                    background: scartoRilevante ? '#FFFBEB' : '#F8FAFC',
+                    border: `1px solid ${scartoRilevante ? '#FDE68A' : '#E2E8F0'}`,
+                    borderRadius: 8,
+                    fontSize: 12, color: scartoRilevante ? '#92400E' : C.textMid, lineHeight: 1.5,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                      <span>Somma ingredienti</span>
+                      <b style={{ ...TNUM }}>{sommaG.toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} g</b>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: scartoRilevante ? 10 : 0 }}>
+                      <span>Resa dichiarata</span>
+                      <b style={{ ...TNUM }}>{Math.round(resaEff).toLocaleString('it-IT')} g</b>
+                    </div>
+                    {scartoRilevante && (
+                      <>
+                        <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                          Scarto {scartoPct.toFixed(1)}% ({sommaG > resaEff ? '+' : '−'}{scartoAssoluto.toLocaleString('it-IT', { maximumFractionDigits: 1 })} g).
+                          {isGusto
+                            ? " Verifica: perdita evaporazione? overrun d'aria? errore quantità?"
+                            : ' Il peso stampo dichiarato differisce dalla somma ingredienti.'}
+                        </div>
+                        <button type="button" onClick={normalizza}
+                          style={{ padding: '7px 12px', borderRadius: 7, border: '1px solid #F59E0B', background: '#FFF', color: '#92400E', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          Normalizza ingredienti a {Math.round(resaEff)} g
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* 3. Allergeni - auto-rilevati */}
           <div style={cardStyle}>

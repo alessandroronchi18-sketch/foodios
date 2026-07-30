@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
-  buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, REGOLE,
+  buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, REGOLE, resaGrammi,
 } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS } from '../lib/allergeni'
 import { lessico } from '../lib/lessico'
@@ -90,13 +90,17 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const pesoTotSemi = (ric.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
   const costoGSemi = pesoTotSemi > 0 ? fc / pesoTotSemi : 0
 
-  // Per i GUSTI (gelateria): ricavo e margine si calcolano al KG usando il
-  // prezzo medio dei Formati vendita della categoria (ricavo flat uguale per
-  // tutti i gusti di quella categoria) e il food cost specifico del gusto
-  // (variabile, dipende dalla ricetta). Se ricavoFlatKg e' null, mostreremo
-  // una CTA "Configura formati vendita" invece del margine.
+  // Per i GUSTI (gelateria): ricavo e margine si calcolano al KG finito
+  // usando (a) il prezzo medio dei Formati vendita della categoria (ricavo
+  // flat uguale per tutti i gusti di quella categoria) e (b) il food cost
+  // specifico del gusto per kg finito (fc totale ingredienti / resa in kg).
+  // La resa è quella DICHIARATA dall'utente (ric.resa_g) — copre il caso
+  // reale in cui gli ingredienti pesano 1010g per 1 kg finito (evaporazione)
+  // o 950g (overrun d'aria montata). Fallback su somma ingredienti se resa
+  // non specificata (ricette pregresse).
   const isGusto = reg.tipo === 'gusto'
-  const fcPerKg = isGusto && pesoTotSemi > 0 ? (fc / pesoTotSemi) * 1000 : 0
+  const resaG = resaGrammi(ric)
+  const fcPerKg = isGusto && resaG > 0 ? (fc / resaG) * 1000 : 0
   const ricavoFlatOk = isGusto && Number(ricavoFlatKg) > 0
   const ricavo = isGusto
     ? (ricavoFlatOk ? Number(ricavoFlatKg) : 0)
@@ -747,9 +751,9 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     if (reg.tipo === 'gusto') {
       const rk = ricavoFlatFor(ric)
       if (!rk || rk <= 0) return 0
-      const pesoG = (ric.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
-      if (pesoG <= 0) return 0
-      return rk * (pesoG / 1000)
+      const resaG = resaGrammi(ric)
+      if (resaG <= 0) return 0
+      return rk * (resaG / 1000)
     }
     return reg.unita * reg.prezzo
   }

@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { sload } from './storage'
 import { SK_FORMATI, avgPrezzoPerKgCategoria } from './formatiVendita'
 import { SK_LISTINO_SEDE, applicaListinoAiFormati } from './listinoSede'
-import { getR, isRicettaValida } from './foodcost'
+import { getR, isRicettaValida, resaGrammi } from './foodcost'
 
 export function useRicavoFlat(orgId, ricettario, sedeId = null) {
   const [formatiBase, setFormatiBase] = useState([])
@@ -73,19 +73,22 @@ export function useRicavoFlat(orgId, ricettario, sedeId = null) {
   }, [byCategoria])
 
   // Ricavo TOTALE in € della ricetta, unificando gusti e stampi.
-  //  - gusto: ricavoFlatKg × pesoKg (pesoKg = somma ingredienti in kg,
-  //           default a 1 se pesoStampo=0 — un gusto è definito per 1 kg finito)
-  //  - stampi/pezzi: reg.unita × reg.prezzo (comportamento standard)
-  // Ritorna 0 se il gusto non ha ricavo stimabile (invitare a configurare formati).
+  //  - gusto: ricavoFlatKg × resaKg (resaKg = ric.resa_g dichiarata, oppure
+  //           somma ingredienti/1000, oppure 1kg di fallback). La resa
+  //           dichiarata copre il caso reale in cui gli ingredienti pesano
+  //           1010g per 1 kg finito (evaporazione) o viceversa (overrun).
+  //  - stampi/pezzi: reg.unita × reg.prezzo (comportamento standard,
+  //           il peso stampo non impatta il ricavo).
+  // Ritorna 0 se il gusto non ha ricavo stimabile.
   const ricavoEffettivo = useCallback((ric) => {
     if (!ric || !isRicettaValida(ric.nome)) return 0
     const reg = getR(ric.nome, ric)
     if (reg.tipo === 'gusto') {
       const rk = ricavoFlatFor(ric)
       if (!rk) return 0
-      const pesoG = (ric.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
-      const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
-      return rk * pesoKg
+      const resaG = resaGrammi(ric)
+      const resaKg = resaG > 0 ? resaG / 1000 : 1
+      return rk * resaKg
     }
     return (Number(reg.unita) || 0) * (Number(reg.prezzo) || 0)
   }, [ricavoFlatFor])

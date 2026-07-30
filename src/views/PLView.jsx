@@ -14,7 +14,7 @@ import {
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
-  buildIngCosti, calcolaFC, getR, isRicettaValida, normIng,
+  buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, resaGrammi,
 } from '../lib/foodcost'
 import { labelPlurale, labelSingolare, isGustoTipo } from '../lib/tipoRicetta'
 import { useListinoSede, getRegSede } from '../lib/listinoSede'
@@ -556,8 +556,10 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
     let ricavo, fcUnita, mrgUnita, prezzoUnita, unitaEff
     if (isG) {
       const rk = ricavoFlatFor(ric) || 0
-      const pesoG = (ric.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
-      const pesoKg = pesoG > 0 ? pesoG / 1000 : 1
+      // Resa dichiarata dall'utente (o fallback somma ingredienti). Copre
+      // il caso reale gelateria: 1010g ingredienti per 1 kg finito.
+      const resaG = resaGrammi(ric)
+      const pesoKg = resaG > 0 ? resaG / 1000 : 1
       ricavo = parseFloat((rk * pesoKg).toFixed(2))
       unitaEff = parseFloat(pesoKg.toFixed(3))
       prezzoUnita = rk
