@@ -1,5 +1,7 @@
 // jsPDF + autoTable caricati lazy SOLO quando l'utente clicca un export.
 // Senza questo lazy-load il chunk pdf (649KB) veniva fetchato al mount.
+import { resaGrammi, pesoIngredientiG } from './foodcost'
+
 let _jsPDF = null
 let _autoTable = null
 async function ensurePdf() {
@@ -165,13 +167,24 @@ export async function exportRicettaPDF(ricetta, foodCost, ingCosti, nomeAttivita
   }, 0)
   const fcTot = foodCost?.tot ?? foodCost?.costo ?? totaleCalcolato
 
-  // Info box
+  // Info box — include somma ingredienti + resa dichiarata (utile quando
+  // c'è evaporazione/overrun: chi legge il PDF sa qual è il target del
+  // finito). Mostra la resa solo se differisce dalla somma o è esplicita.
+  const sommaG = pesoIngredientiG(ricetta)
+  const resaG = resaGrammi(ricetta)
+  const fmtGrammi = (g) => g >= 1000
+    ? `${(g / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`
+    : `${Math.round(g).toLocaleString('it-IT')} g`
   const info = [
     ['Categoria', ricetta.categoria || '-'],
     ['Porzioni', String(ricetta.porzioni || ricetta.unita || 1)],
     ['Prezzo di vendita', fmt(ricetta.prezzo)],
     ['Food cost %', foodCost?.perc != null ? `${Number(foodCost.perc).toFixed(1)}%` : '-'],
   ]
+  if (sommaG > 0) info.push(['Somma ingredienti', fmtGrammi(sommaG)])
+  if (resaG > 0 && Math.abs(resaG - sommaG) > 0.5) {
+    info.push(['Resa dichiarata', fmtGrammi(resaG)])
+  }
   autoTable(doc, {
     startY,
     head: [],

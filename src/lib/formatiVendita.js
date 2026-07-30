@@ -23,7 +23,7 @@
 // Retrocompat: i formati legacy con `costoContenitore: N` vengono trattati come
 // avessero un singolo componente {nome:'Contenitore', qta:1, costo:N}.
 
-import { calcolaFC, getR, isRicettaValida, normIng } from './foodcost'
+import { calcolaFC, getR, isRicettaValida, normIng, resaGrammi } from './foodcost'
 import { sload, ssave } from './storage'
 
 export const SK_FORMATI = 'pasticceria-formati-vendita-v1' // shared
@@ -163,12 +163,17 @@ function ricetteDiCategoria(categoria, ricettario) {
   })
 }
 
-// FC medio (€/grammo) dei gusti di una categoria. null se non calcolabile.
+// FC medio (€/grammo finito) dei gusti di una categoria. null se non calcolabile.
+// Usa `resaGrammi(r)` (resa dichiarata dall'utente o fallback su somma
+// ingredienti): coerente col resto del sistema che calcola ricavo/kg su base
+// resa. Prima usava `pesoStampo(r)` (somma ingredienti) → incoerenza per gusti
+// con overrun/evaporazione (audit 2026-07-30). Ora un gusto con resa=1000g e
+// ingredienti=1010g ha fc/g calcolato su 1000g, come il ricavo.
 export function avgFCperGCategoria(categoria, ricettario, ingCosti) {
   const ricette = ricetteDiCategoria(categoria, ricettario)
   const valori = []
   for (const r of ricette) {
-    const peso = pesoStampo(r)
+    const peso = resaGrammi(r)
     if (peso <= 0) continue
     const { tot: fc } = calcolaFC(r, ingCosti, ricettario)
     if (Number.isFinite(fc) && fc > 0) valori.push(fc / peso)

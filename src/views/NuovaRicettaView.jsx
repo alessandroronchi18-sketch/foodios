@@ -781,7 +781,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             const scartoRilevante = sommaG > 0 && resaEff > 0 && scartoPct > 5
             const labelResa = isGusto ? 'Resa 1 kg finito (g)' : (form.tipo === 'fetta' ? 'Peso stampo/torta (g)' : 'Peso pezzo (g)')
             const sub = isGusto
-              ? 'Quanti grammi di prodotto finito ottieni da questi ingredienti. Cambia se cè evaporazione (pastorizzazione) o overrun (aria montata) — il food cost/kg si adegua di conseguenza.'
+              ? 'Quanti grammi di prodotto finito ottieni da questi ingredienti. Cambia se c\'è evaporazione (pastorizzazione) o overrun (aria montata) — il food cost/kg si adegua di conseguenza.'
               : 'Peso reale dello stampo o pezzo prodotto. Utile come referenza ma non impatta il food cost per stampo.'
             const normalizza = () => {
               if (!sommaG || !resaEff) return
