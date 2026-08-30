@@ -74,7 +74,7 @@ export default function DeleteAccountModal({ open, onClose, auth, notify }) {
   const [submitting, setSubmitting] = useState(false)
 
   const nomeAttivita = auth?.org?.nome || auth?.organization?.nome || ''
-  const supportEmail = (typeof window !== 'undefined' && window.__SUPPORT_EMAIL__) || 'supporto@foodios.it'
+  const supportEmail = (typeof window !== 'undefined' && window.__SUPPORT_EMAIL__) || 'supporto@foodos.it'
 
   function reset() {
     setStep(1); setMotivo(null); setFeedback(''); setConfermaNome(''); setSubmitting(false)

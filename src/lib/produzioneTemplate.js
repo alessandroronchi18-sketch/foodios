@@ -20,8 +20,8 @@ import { isRicettaValida, getR } from './foodcost'
 import { todayLocal } from './dateLocal'
 
 function nomeFile(nomeAttivita) {
-  const slug = String(nomeAttivita || 'foodios').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'foodios'
+  const slug = String(nomeAttivita || 'foodos').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'foodos'
   return `modello-produzione-${slug}-${todayLocal()}.xlsx`
 }
 

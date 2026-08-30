@@ -21,9 +21,9 @@ const PLAN_PRICE_MAP = {
 // l'utente target a una URL arbitraria. Whitelist dura per evitare l'apertura
 // del flusso a host non nostri.
 const ALLOWED_ORIGINS = new Set([
-  'https://foodios.it',
-  'https://www.foodios.it',
-  'https://foodios-rose.vercel.app',
+  'https://foodos.it',
+  'https://www.foodos.it',
+  'https://foodos-rose.vercel.app',
 ])
 function origin(req) {
   const h = req.headers
@@ -31,20 +31,20 @@ function origin(req) {
   if (raw) {
     const o = raw.replace(/\/$/, '').split('/').slice(0, 3).join('/')
     if (ALLOWED_ORIGINS.has(o)) return o
-    // Preview Vercel: hostname *.vercel.app accettato SOLO se prefisso 'foodios-'
+    // Preview Vercel: hostname *.vercel.app accettato SOLO se prefisso 'foodos-'
     // (audit 2026-06-17 LOW: prima accettava qualsiasi *.vercel.app, anche di repo
-    // altrui), e *.foodios.it ok per sottodomini interni.
+    // altrui), e *.foodos.it ok per sottodomini interni.
     try {
       const u = new URL(o)
       if (
-        u.hostname.endsWith('.foodios.it') ||
-        (u.hostname.endsWith('.vercel.app') && u.hostname.startsWith('foodios-'))
+        u.hostname.endsWith('.foodos.it') ||
+        (u.hostname.endsWith('.vercel.app') && u.hostname.startsWith('foodos-'))
       ) {
         return o
       }
     } catch {}
   }
-  return 'https://foodios.it'
+  return 'https://foodos.it'
 }
 
 export default async function handler(req, res) {
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
     console.error('[stripe-checkout] prezzo non trovato', { plan, envVar, envSet: !!PLAN_PRICE_MAP[plan], lookupErr })
     return res.status(400).json({
       error: `Prezzo non configurato per il piano ${plan}`,
-      hint: 'Configurazione prezzo mancante. Contatta support@foodios.it.',
+      hint: 'Configurazione prezzo mancante. Contatta support@foodos.it.',
     })
   }
 

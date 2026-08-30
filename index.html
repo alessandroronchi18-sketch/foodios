@@ -9,12 +9,12 @@
     <meta property="og:title" content="Foodos — Gestionale Food Cost" />
     <meta property="og:description" content="Calcola il food cost di ricette, gusti, pizze e piatti. Magazzino, P&L, multi-sede. Prova gratuita 3 mesi." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://foodios.it" />
+    <meta property="og:url" content="https://foodos.it" />
     <meta name="twitter:title" content="Foodos — Gestionale Food Cost" />
     <meta name="twitter:description" content="Gestionale food cost per pasticcerie, gelaterie, pizzerie e ristoranti italiani. Prova gratis 3 mesi." />
-    <meta property="og:image" content="https://foodios-rose.vercel.app/logo.svg" />
+    <meta property="og:image" content="https://foodos-rose.vercel.app/logo.svg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://foodios-rose.vercel.app/logo.svg" />
+    <meta name="twitter:image" content="https://foodos-rose.vercel.app/logo.svg" />
     <!-- PWA + mobile-app -->
     <meta name="theme-color" content="#6E0E1A" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -318,7 +318,7 @@
                 return caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); });
               } } catch(e){}
             }).finally(function(){
-              try { sessionStorage.removeItem('foodios_sw_reload_ts'); } catch(e){}
+              try { sessionStorage.removeItem('foodos_sw_reload_ts'); } catch(e){}
               try { sessionStorage.removeItem('foodos_chunk_reload_ts'); } catch(e){}
               window.location.reload();
             });

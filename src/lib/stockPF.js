@@ -2,13 +2,14 @@
 // Tabella SQL: public.stock_prodotti_finiti
 // RPC: stock_pf_carico_produzione, stock_pf_scarico_vendita, stock_pf_scarto
 import { supabase } from './supabase'
+import { throwIfError } from './errors'
 
 // Identita' operativa attiva letta da localStorage (impostata dal Context
 // useDipendenteOperativo). Se null → operazione loggata sull'account che ha
 // fatto login (titolare o account laboratorio senza selezione).
 function readDipendenteOpId() {
   try {
-    const raw = localStorage.getItem('foodios_dip_op')
+    const raw = localStorage.getItem('foodos_dip_op')
     if (!raw) return null
     const j = JSON.parse(raw)
     return j?.id || null
@@ -76,7 +77,7 @@ export async function caricoProduzionePF({ sedeId, prodotto, quantita, unita = '
     p_note: note,
     p_dipendente_op: dipOp,
   })
-  if (error) throw error
+  throwIfError(error)
   return data
 }
 
@@ -94,7 +95,7 @@ export async function scaricoVenditaPF({ sedeId, prodotto, quantita, unita = 'pz
     p_note: note,
     p_dipendente_op: dipOp,
   })
-  if (error) throw error
+  throwIfError(error)
   return data
 }
 
@@ -111,7 +112,7 @@ export async function scartoPF({ sedeId, prodotto, quantita, note = null, dipend
     p_note: note,
     p_dipendente_op: dipOp,
   })
-  if (error) throw error
+  throwIfError(error)
   return data
 }
 

@@ -21,7 +21,7 @@ function mkFetchReq(headers = {}) {
 
 describe('getCorsHeaders', () => {
   it('include Allow-Methods/Headers/Max-Age/Vary di base', () => {
-    const h = getCorsHeaders(mkReq({ origin: 'https://foodios.it' }))
+    const h = getCorsHeaders(mkReq({ origin: 'https://foodos.it' }))
     expect(h['Access-Control-Allow-Methods']).toContain('GET')
     expect(h['Access-Control-Allow-Methods']).toContain('POST')
     expect(h['Access-Control-Allow-Methods']).toContain('OPTIONS')
@@ -33,13 +33,13 @@ describe('getCorsHeaders', () => {
   })
 
   it('NON include header server-to-server in Allow-Headers (audit 2026-06-17 LOW)', () => {
-    const h = getCorsHeaders(mkReq({ origin: 'https://foodios.it' }))
+    const h = getCorsHeaders(mkReq({ origin: 'https://foodos.it' }))
     expect(h['Access-Control-Allow-Headers']).not.toContain('x-internal-secret')
     expect(h['Access-Control-Allow-Headers']).not.toContain('x-zucchetti-secret')
   })
 
   it('origin whitelisted → setta Allow-Origin', () => {
-    for (const o of ['https://foodios.it', 'https://www.foodios.it', 'https://foodios-rose.vercel.app', 'http://localhost:5173', 'http://localhost:3000']) {
+    for (const o of ['https://foodos.it', 'https://www.foodos.it', 'https://foodos-rose.vercel.app', 'http://localhost:5173', 'http://localhost:3000']) {
       const h = getCorsHeaders(mkReq({ origin: o }))
       expect(h['Access-Control-Allow-Origin']).toBe(o)
     }
@@ -50,20 +50,20 @@ describe('getCorsHeaders', () => {
     expect(h['Access-Control-Allow-Origin']).toBeUndefined()
   })
 
-  it('origin pattern preview Vercel foodios-*-team accettato', () => {
-    const origin = 'https://foodios-abc123-alessandroronchi18-7807s-projects.vercel.app'
+  it('origin pattern preview Vercel foodos-*-team accettato', () => {
+    const origin = 'https://foodos-abc123-alessandroronchi18-7807s-projects.vercel.app'
     const h = getCorsHeaders(mkReq({ origin }))
     expect(h['Access-Control-Allow-Origin']).toBe(origin)
   })
 
-  it('altri *.vercel.app non foodios- non accettati', () => {
+  it('altri *.vercel.app non foodos- non accettati', () => {
     const h = getCorsHeaders(mkReq({ origin: 'https://attacker.vercel.app' }))
     expect(h['Access-Control-Allow-Origin']).toBeUndefined()
   })
 
   it('legge origin anche da headers.get (Fetch API)', () => {
-    const h = getCorsHeaders(mkFetchReq({ origin: 'https://foodios.it' }))
-    expect(h['Access-Control-Allow-Origin']).toBe('https://foodios.it')
+    const h = getCorsHeaders(mkFetchReq({ origin: 'https://foodos.it' }))
+    expect(h['Access-Control-Allow-Origin']).toBe('https://foodos.it')
   })
 
   it('origin mancante / null → no Allow-Origin, ma altri header presenti', () => {
@@ -80,19 +80,19 @@ describe('getCorsHeaders', () => {
 
 describe('handleOptions', () => {
   it('ritorna Response status 204', () => {
-    const res = handleOptions(mkReq({ origin: 'https://foodios.it' }))
+    const res = handleOptions(mkReq({ origin: 'https://foodos.it' }))
     expect(res).toBeInstanceOf(Response)
     expect(res.status).toBe(204)
   })
 
   it('include headers CORS', () => {
-    const res = handleOptions(mkReq({ origin: 'https://foodios.it' }))
-    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://foodios.it')
+    const res = handleOptions(mkReq({ origin: 'https://foodos.it' }))
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://foodos.it')
     expect(res.headers.get('Vary')).toBe('Origin')
   })
 
   it('body vuoto (null)', async () => {
-    const res = handleOptions(mkReq({ origin: 'https://foodios.it' }))
+    const res = handleOptions(mkReq({ origin: 'https://foodos.it' }))
     const txt = await res.text()
     expect(txt).toBe('')
   })
@@ -113,8 +113,8 @@ describe('json', () => {
   })
 
   it('include CORS headers se req fornito', () => {
-    const res = json({ ok: true }, 200, mkReq({ origin: 'https://foodios.it' }))
-    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://foodios.it')
+    const res = json({ ok: true }, 200, mkReq({ origin: 'https://foodos.it' }))
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://foodos.it')
   })
 
   it('extraHeaders mergeati', () => {

@@ -42,10 +42,10 @@ Totale: **15 sistemi cassa italiani direttamente supportati** + parser fallback 
 
 ```
 Setup iniziale (15 min, una tantum):
-  1. Apri https://foodios-rose.vercel.app/ → Integrazioni → [scegli cassa]
+  1. Apri https://foodos-rose.vercel.app/ → Integrazioni → [scegli cassa]
   2. Genera SECRET (FoodOS te lo mostra)
   3. Vai sul pannello cassa → Impostazioni → Webhook esterni
-  4. URL:     https://foodios-rose.vercel.app/api/webhook-pos
+  4. URL:     https://foodos-rose.vercel.app/api/webhook-pos
      Headers:
        x-pos-provider: tilby  (o cassainCloud / zucchetti / etc.)
        x-pos-secret: <secret-generato>
@@ -103,7 +103,7 @@ Tempo: 3-5 minuti.
 
 ## Endpoint webhook universale
 
-`POST https://foodios-rose.vercel.app/api/webhook-pos`
+`POST https://foodos-rose.vercel.app/api/webhook-pos`
 
 ### Headers richiesti
 

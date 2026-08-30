@@ -11,7 +11,7 @@
 // Lo registriamo separatamente su document; tutti gli altri restano su window.
 const WIN_EVENTS = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'wheel']
 const DOC_EVENTS = ['visibilitychange']
-const LS_KEY = 'foodios_last_activity_ts'
+const LS_KEY = 'foodos_last_activity_ts'
 // Persistiamo l'ultimo timestamp in localStorage così:
 //  - se l'utente apre più tab, l'attività in una tiene viva l'altra
 //  - se ricarica la pagina, ricomincia da dove eravamo (non da capo)

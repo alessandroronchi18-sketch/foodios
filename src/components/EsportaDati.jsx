@@ -118,7 +118,7 @@ export default function EsportaDati({ orgId, sedi, nomeAttivita }) {
       }
 
       const nome = (nomeAttivita || 'attivita').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-      downloadJSON(backup, `foodios-backup-${nome}-${fmtDate()}.json`)
+      downloadJSON(backup, `foodos-backup-${nome}-${fmtDate()}.json`)
       notify('Backup scaricato')
     } catch (e) {
       notify('Errore export: ' + supabaseErrMsg(e), false)

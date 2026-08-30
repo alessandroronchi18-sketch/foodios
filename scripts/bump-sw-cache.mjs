@@ -28,11 +28,11 @@ function getVersion() {
   try {
     const sha = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim()
     const date = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-    return `foodios-${date}-${sha}`
+    return `foodos-${date}-${sha}`
   } catch {
     // Fallback: senza git (es. Vercel preview senza checkout completo).
     // Timestamp ms al secondo → unico ad ogni build.
-    return `foodios-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}`
+    return `foodos-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}`
   }
 }
 

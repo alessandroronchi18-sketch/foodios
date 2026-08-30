@@ -50,7 +50,7 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return
         try {
-          const k = 'foodios_sw_reload_ts'
+          const k = 'foodos_sw_reload_ts'
           const last = Number(sessionStorage.getItem(k)) || 0
           if (Date.now() - last < 60_000) return // anti-loop hard 60s
           sessionStorage.setItem(k, String(Date.now()))

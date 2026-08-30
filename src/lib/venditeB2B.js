@@ -123,7 +123,7 @@ export async function salvaVenditaB2B({ orgId, sedeId, clienteId, clienteNome, d
   }
 
   let dipOpId = null
-  try { dipOpId = JSON.parse(localStorage.getItem('foodios_dip_op') || 'null')?.id || null } catch {}
+  try { dipOpId = JSON.parse(localStorage.getItem('foodos_dip_op') || 'null')?.id || null } catch {}
   const row = {
     organization_id: orgId,
     sede_id: sedeId || null,

@@ -24,7 +24,7 @@ const SUPA_URL = process.env.SUPABASE_URL
 const SUPA_KEY = process.env.SUPABASE_SERVICE_KEY
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@foodios.it'
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@foodos.it'
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET || process.env.CRON_SECRET
 
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     title,
     body: msgBody || '',
     url: url || '/',
-    tag: tag || 'foodios-generic',
+    tag: tag || 'foodos-generic',
     data: data || {},
   })
 

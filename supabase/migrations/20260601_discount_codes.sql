@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS discount_codes (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  codice                TEXT NOT NULL UNIQUE,                 -- es. FOODIOS2026
+  codice                TEXT NOT NULL UNIQUE,                 -- es. FOODOS2026
   descrizione           TEXT,                                 -- nota interna admin
   stripe_coupon_id      TEXT,                                 -- coup_xxx
   stripe_promo_code_id  TEXT,                                 -- promo_xxx

@@ -1318,7 +1318,7 @@ async function _sendLinkEmail({ to, subject, link, body }) {
     <p style="color:#6B4C44;font-size:14px;line-height:1.7;margin:0 0 18px">${body}</p>
     ${link ? `<p style="margin:0 0 24px"><a href="${link}" style="display:inline-block;padding:12px 22px;background:#C0392B;color:#FFF;border-radius:8px;font-weight:700;text-decoration:none;font-size:14px">Apri link</a></p><p style="font-size:11px;color:#9C7B76">Il link e' valido una sola volta e scade tra 1 ora.</p>` : ''}
   </div>`
-  await resend.emails.send({ from: 'FoodOS <noreply@foodios.it>', to, subject, html })
+  await resend.emails.send({ from: 'FoodOS <noreply@foodos.it>', to, subject, html })
 }
 
 async function azImpersona(supabase, orgId, adminEmail) {
@@ -1347,7 +1347,7 @@ async function azImpersona(supabase, orgId, adminEmail) {
     await _sendLinkEmail({
       to: prof.email,
       subject: 'Accesso admin al tuo account FoodOS',
-      body: `Per esigenze di supporto, il team FoodOS (${adminEmail}) ha richiesto un accesso temporaneo al tuo account il ${new Date().toLocaleString('it-IT')}. Se questa richiesta non e' attesa, scrivici subito a support@foodios.it.`,
+      body: `Per esigenze di supporto, il team FoodOS (${adminEmail}) ha richiesto un accesso temporaneo al tuo account il ${new Date().toLocaleString('it-IT')}. Se questa richiesta non e' attesa, scrivici subito a support@foodos.it.`,
     })
   } catch (e) { console.warn('owner alert email failed:', e.message) }
 
@@ -1385,12 +1385,12 @@ async function azInviaEmail(req, body, supabase) {
   if (!validateEmail(destinatario)) throw new Error('Email destinatario non valida')
   if (!oggetto || !messaggio) throw new Error('Oggetto e messaggio obbligatori')
 
-  // Whitelist: solo a profili registrati in foodios (audit 2026-06: prima
+  // Whitelist: solo a profili registrati in foodos (audit 2026-06: prima
   // l'admin poteva inviare a qualsiasi indirizzo → vettore phishing se
   // account admin compromesso).
   // SECURITY (audit 2026-07-01 HIGH): `.ilike` interpreta `%` e `_` come
-  // wildcard SQL. Un attaccante che registra `admin@foodios%` viene matchato
-  // dal destinatario `admin@foodios.it`. Escapare PRIMA del confronto.
+  // wildcard SQL. Un attaccante che registra `admin@foodos%` viene matchato
+  // dal destinatario `admin@foodos.it`. Escapare PRIMA del confronto.
   const destLow = destinatario.toLowerCase()
   const destEscaped = destLow.replace(/([%_\\])/g, '\\$1')
   const { data: profileMatch } = await supabase
@@ -1877,10 +1877,10 @@ export async function getUsageStats(supabase, days = 30) {
 // Audit 2026-06-14 PM: il pattern `e2e+%` matchava alias Gmail di utenti
 // reali (es. e2e+team@gmail.com). Restretto al dominio dedicato test.
 //
-// IMPORTANTE: il dominio @foodios-e2e.test è un dominio NON registrabile
+// IMPORTANTE: il dominio @foodos-e2e.test è un dominio NON registrabile
 // (TLD .test riservato per testing, RFC 2606). Nessun utente reale può
 // averla. Sicuro al 100%.
-const E2E_EMAIL_PATTERNS = ['%@foodios-e2e.test']
+const E2E_EMAIL_PATTERNS = ['%@foodos-e2e.test']
 
 async function findE2EOrgs(supabase) {
   // Pesca tutti i profili con email matchante pattern E2E, poi resolve org_id.
@@ -2861,7 +2861,7 @@ export default async function handler(req) {
           status: 200,
           headers: {
             'Content-Type': 'text/csv; charset=utf-8',
-            'Content-Disposition': `attachment; filename="clienti_foodios_${new Date().toISOString().slice(0,10)}.csv"`,
+            'Content-Disposition': `attachment; filename="clienti_foodos_${new Date().toISOString().slice(0,10)}.csv"`,
             ...getCorsHeaders(req),
           },
         })
@@ -2981,7 +2981,7 @@ export default async function handler(req) {
           break
         case 'cleanup_e2e':
           // Audit 2026-07-01 HIGH: passa expectedCount dal preview (UI).
-          // Batch cleanup di tutti gli account test E2E (email @foodios-e2e.test, e2e+*, e2e-acc-titolare-*).
+          // Batch cleanup di tutti gli account test E2E (email @foodos-e2e.test, e2e+*, e2e-acc-titolare-*).
           // Doppia conferma stringa CLEANUP_E2E richiesta.
           result = { ok: true, ...(await azCleanupE2E(supabase, sanitizeStrict(body.conferma || '', 20), body.expectedCount)) }
           break

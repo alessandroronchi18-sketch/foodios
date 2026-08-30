@@ -8,7 +8,7 @@
 
 import { test, expect, request } from '@playwright/test'
 
-const BASE = process.env.E2E_BASE_URL || process.env.BASE_URL || 'https://foodios-rose.vercel.app'
+const BASE = process.env.E2E_BASE_URL || process.env.BASE_URL || 'https://foodos-rose.vercel.app'
 
 test.describe('Stripe webhook — sicurezza firma', () => {
   test('evento NON firmato → mai accettato (400 o 503, mai 200)', async () => {

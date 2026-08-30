@@ -118,7 +118,7 @@ async function handler() {
 ## Layout cartelle
 
 ```
-foodios/
+foodos/
 ├── src/
 │   ├── App.jsx                     # Routing minimale path-based + auth gating
 │   ├── Dashboard.jsx               # Layout principale (2934 righe — in calo)

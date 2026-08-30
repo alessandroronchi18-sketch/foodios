@@ -6,10 +6,10 @@
 // SESSIONE server-side (tabella dipendente_operativo_sessioni). Il session_id
 // viene salvato in localStorage col resto — un trigger BEFORE INSERT sulle 5
 // tabelle operative rifiuta le operazioni senza sessione attiva. Così non
-// basta modificare foodios_dip_op nel browser per loggare a nome altrui:
+// basta modificare foodos_dip_op nel browser per loggare a nome altrui:
 // serve avere il codice per aprire davvero la sessione.
 //
-// Persistenza: localStorage 'foodios_dip_op' → { id, nome, cognome, at, sessionId, userScope }.
+// Persistenza: localStorage 'foodos_dip_op' → { id, nome, cognome, at, sessionId, userScope }.
 //
 // deseleziona() = torna alla schermata "Chi sei?":
 //   - bottone "Cambia" nell'header Dashboard / drawer profilo
@@ -24,7 +24,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const LS_KEY = 'foodios_dip_op'
+const LS_KEY = 'foodos_dip_op'
 
 const DipendenteOperativoContext = createContext(null)
 
@@ -61,7 +61,7 @@ export function DipendenteOperativoProvider({ userScope, enabled, children }) {
   // Audit 2026-07-29 CRITICO: fondamentale scrivere null in localStorage quando
   // enabled=false, altrimenti un titolare che entra dopo un dipendente vede le
   // sue operazioni loggate a nome del dipendente precedente (readDipendenteOpId
-  // in stockPF.js/venditeB2B.js/haccp.jsx legge foodios_dip_op ciecamente).
+  // in stockPF.js/venditeB2B.js/haccp.jsx legge foodos_dip_op ciecamente).
   useEffect(() => {
     if (!enabled) {
       writeToStorage(null)

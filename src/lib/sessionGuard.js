@@ -7,7 +7,7 @@
 
 import { supabase } from './supabase'
 
-const SK_FP = 'foodios_session_fp_v1'
+const SK_FP = 'foodos_session_fp_v1'
 
 async function makeFingerprint() {
   const ua = navigator.userAgent || ''

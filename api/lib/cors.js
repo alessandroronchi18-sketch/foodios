@@ -1,15 +1,15 @@
 const ALLOWED_ORIGINS = [
-  'https://foodios-rose.vercel.app',
-  'https://foodios.it',
-  'https://www.foodios.it',
+  'https://foodos-rose.vercel.app',
+  'https://foodos.it',
+  'https://www.foodos.it',
   'http://localhost:5173',
   'http://localhost:3000',
 ]
 
 // Anche i preview deploy Vercel devono poter chiamare l'API.
-// Pattern: https://foodios-<sha>-<team>.vercel.app — è ammesso solo se di nostro account.
+// Pattern: https://foodos-<sha>-<team>.vercel.app — è ammesso solo se di nostro account.
 const ALLOWED_ORIGIN_PATTERNS = [
-  /^https:\/\/foodios-[a-z0-9]+-alessandroronchi18-7807s-projects\.vercel\.app$/,
+  /^https:\/\/foodos-[a-z0-9]+-alessandroronchi18-7807s-projects\.vercel\.app$/,
 ]
 
 function isAllowedOrigin(origin) {

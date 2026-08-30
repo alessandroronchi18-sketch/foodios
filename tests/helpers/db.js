@@ -38,7 +38,7 @@ export async function signInClient(email, password) {
 export async function createEphemeralOrg(svc, label = 'e2e') {
   // unicità senza Date.now() condiviso: combiniamo timestamp + random
   const uniq = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
-  const email = `e2e-${label}-${uniq}@foodios-e2e.test`
+  const email = `e2e-${label}-${uniq}@foodos-e2e.test`
   const password = `E2e!${uniq}Aa1`
 
   const { data, error } = await svc.auth.admin.createUser({
@@ -81,7 +81,7 @@ export async function createEphemeralOrg(svc, label = 'e2e') {
 // autenticato col token del dipendente (RLS attive come lato client reale).
 export async function createDipendenteIn(svc, orgId, label = 'dip') {
   const uniq = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
-  const email = `e2e-${label}-${uniq}@foodios-e2e.test`
+  const email = `e2e-${label}-${uniq}@foodos-e2e.test`
   const password = `E2e!${uniq}Aa1`
 
   const { data, error } = await svc.auth.admin.createUser({

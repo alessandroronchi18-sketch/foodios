@@ -117,7 +117,7 @@ async function sendBriefEmail({ to, subject, html, replyTo }) {
   const { Resend } = await import('resend')
   const resend = new Resend(process.env.RESEND_API_KEY)
   return await resend.emails.send({
-    from: 'FoodOS <noreply@foodios.it>',
+    from: 'FoodOS <noreply@foodos.it>',
     to, subject, html,
     ...(replyTo ? { reply_to: replyTo } : {}),
   })
@@ -142,7 +142,7 @@ async function sendBriefPush({ appUrl, orgId, title, body }) {
         title,
         body: (body || '').slice(0, 140),
         url: '/',
-        tag: 'foodios-daily-brief',
+        tag: 'foodos-daily-brief',
       }),
     })
     if (!r.ok) return { error: `http_${r.status}` }
@@ -162,7 +162,7 @@ export default async function handler(req) {
   const supabase = await getSupabase()
   const today = new Date().toISOString().slice(0, 10)
   const appUrl = (() => {
-    try { return new URL(req.url).origin } catch { return 'https://foodios-rose.vercel.app' }
+    try { return new URL(req.url).origin } catch { return 'https://foodos-rose.vercel.app' }
   })()
 
   // Lista organizzazioni candidate: attive (no trial scaduto) e non già processate oggi.
@@ -312,7 +312,7 @@ export default async function handler(req) {
 
       // 6) Push notifications best-effort. Rispetta settings.push === false
       // (canale disattivabile separato da email). Idempotente per giorno: il
-      // service-worker dedup via tag 'foodios-daily-brief'.
+      // service-worker dedup via tag 'foodos-daily-brief'.
       let pushSent = null
       if (settings.push !== false) {
         const pr = await sendBriefPush({

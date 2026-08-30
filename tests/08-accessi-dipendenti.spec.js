@@ -37,7 +37,7 @@ test.describe('Accessi dipendenti — invito, attesa, attivazione', () => {
 
       // ── 1) Registrazione SENZA invito → org propria, ruolo titolare ───────────
       const uniqX = `x${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
-      const estraneoEmail = `e2e-estraneo-${uniqX}@foodios-e2e.test`
+      const estraneoEmail = `e2e-estraneo-${uniqX}@foodos-e2e.test`
       const estraneoPwd = `E2e!${uniqX}Aa1`
       const { data: exU } = await svc.auth.admin.createUser({ email: estraneoEmail, password: estraneoPwd, email_confirm: true })
       effimeri.push(exU.user.id)
@@ -49,7 +49,7 @@ test.describe('Accessi dipendenti — invito, attesa, attivazione', () => {
 
       // ── 2) Il titolare invita un'email → registrazione con QUELLA email ───────
       const uniqD = `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
-      const dipEmail = `e2e-dip-${uniqD}@foodios-e2e.test`
+      const dipEmail = `e2e-dip-${uniqD}@foodos-e2e.test`
       const dipPwd = `E2e!${uniqD}Aa1`
       const ins = await svc.from('org_inviti').insert({ organization_id: titolare.orgId, email: dipEmail, ruolo: 'dipendente', invited_by: titolare.userId })
       expect(ins.error).toBeFalsy()

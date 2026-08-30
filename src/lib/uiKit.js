@@ -1,4 +1,4 @@
-// Foodios UI kit - stili condivisi per garantire allineamento e coerenza visiva
+// Foodos UI kit - stili condivisi per garantire allineamento e coerenza visiva
 // fra tutti i componenti. Importare come:
 //   import { uiCard, uiInput, uiBtn, uiLabel, uiTable } from '../lib/uiKit'
 //

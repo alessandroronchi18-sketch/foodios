@@ -182,7 +182,7 @@ function drawSection(doc, section, yStart, autoTableFn) {
 }
 
 export async function buildAndDownloadPdf({
-  fileName = 'foodios-report.pdf',
+  fileName = 'foodos-report.pdf',
   title,
   subtitle,
   periodo,

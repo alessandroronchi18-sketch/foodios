@@ -364,7 +364,7 @@ describe('fattureInCloud', () => {
       // Payment list importo = 89 * 1.22 = 108.58
       expect(body.data.payments_list[0].amount).toBeCloseTo(108.58, 2)
       expect(body.data.payments_list[0].status).toBe('paid')
-      expect(body.data.items_list[0].code).toBe('FOODIOS-SUB')
+      expect(body.data.items_list[0].code).toBe('FOODOS-SUB')
       expect(body.data.items_list[0].vat.id).toBe(7)
       expect(body.data.notes).toContain('in_X')
     })

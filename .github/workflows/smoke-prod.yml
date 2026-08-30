@@ -1,4 +1,4 @@
-# Smoke test post-deploy: pinga gli endpoint critici di foodios-rose.vercel.app
+# Smoke test post-deploy: pinga gli endpoint critici di foodos-rose.vercel.app
 # (alias prod) e verifica che siano vivi. Triggered:
 #   - dopo che vercel-deploy.yml completa con successo su main
 #   - manualmente (workflow_dispatch)
@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     env:
-      BASE_URL: https://foodios-rose.vercel.app
+      BASE_URL: https://foodos-rose.vercel.app
     steps:
       - name: Health endpoint (200 + status:ok)
         run: |

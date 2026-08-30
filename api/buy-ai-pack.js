@@ -70,7 +70,7 @@ export default async function handler(req) {
   const { data: org } = await supabase.from('organizations')
     .select('stripe_customer_id, nome').eq('id', profile.organization_id).maybeSingle()
 
-  const APP_URL = req.headers.get('origin') || 'https://foodios-rose.vercel.app'
+  const APP_URL = req.headers.get('origin') || 'https://foodos-rose.vercel.app'
 
   try {
     const session = await stripe.checkout.sessions.create({

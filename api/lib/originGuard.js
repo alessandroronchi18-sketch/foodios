@@ -4,12 +4,12 @@
 // return_url. Centralizziamo qui per evitare drift.
 
 export const ALLOWED_ORIGINS = new Set([
-  'https://foodios.it',
-  'https://www.foodios.it',
-  'https://foodios-rose.vercel.app',
+  'https://foodos.it',
+  'https://www.foodos.it',
+  'https://foodos-rose.vercel.app',
 ])
 
-export function safeOrigin(req, fallback = 'https://foodios.it') {
+export function safeOrigin(req, fallback = 'https://foodos.it') {
   const h = req.headers || {}
   const raw = (h.origin || h.referer || '').toString()
   if (!raw) return fallback
@@ -18,8 +18,8 @@ export function safeOrigin(req, fallback = 'https://foodios.it') {
   try {
     const u = new URL(o)
     if (
-      u.hostname.endsWith('.foodios.it') ||
-      (u.hostname.endsWith('.vercel.app') && u.hostname.startsWith('foodios-'))
+      u.hostname.endsWith('.foodos.it') ||
+      (u.hostname.endsWith('.vercel.app') && u.hostname.startsWith('foodos-'))
     ) {
       return o
     }

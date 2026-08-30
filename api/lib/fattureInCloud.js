@@ -7,7 +7,7 @@
 //
 // Env vars richieste:
 //   FATTUREINCLOUD_API_TOKEN     → token statico Bearer
-//   FATTUREINCLOUD_COMPANY_ID    → id numerico della company "Foodios SRL"
+//   FATTUREINCLOUD_COMPANY_ID    → id numerico della company "Foodos SRL"
 //
 // Senza queste env vars il modulo lancia errore appena si chiama qualunque
 // funzione (fail-closed, non blocca la build).
@@ -156,7 +156,7 @@ export async function emettiFatturaElettronica({
       },
       items_list: [{
         product_id: null,
-        code: 'FOODIOS-SUB',
+        code: 'FOODOS-SUB',
         name: 'Abbonamento FoodOS',
         description: descrizione,
         qty: 1,

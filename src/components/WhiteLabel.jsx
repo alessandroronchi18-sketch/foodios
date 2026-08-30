@@ -97,7 +97,7 @@ export default function WhiteLabel({ orgId, piano, notify }) {
           style={{ padding: '10px 22px', minHeight: touchH, background: '#6E0E1A', color: '#FFF', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
           Passa al piano Chain
         </button>
-        <a href="mailto:support@foodios.it?subject=Personalizzazione%20Foodos"
+        <a href="mailto:support@foodos.it?subject=Personalizzazione%20Foodos"
           style={{ padding: '10px 18px', minHeight: touchH, background: '#FFF', color: '#6E0E1A', border: '1px solid #6E0E1A', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: isMobile ? '1 1 100%' : '0 0 auto' }}>
           Parla con noi prima
         </a>

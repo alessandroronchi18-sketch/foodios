@@ -128,7 +128,7 @@ describe('VIEW_LABELS — niente chiavi duplicate', () => {
   it('VIEW_LABELS object non ha chiavi duplicate (audit 2026-06-22)', async () => {
     // Trick: leggi il file e cerca chiavi sospette
     const fs = await import('node:fs')
-    const content = fs.readFileSync('/Users/aler/foodios/src/Dashboard.jsx', 'utf8')
+    const content = fs.readFileSync('/Users/aler/foodos/src/Dashboard.jsx', 'utf8')
     // Estrai il blocco VIEW_LABELS = { ... } via regex
     const m = content.match(/const VIEW_LABELS\s*=\s*\{([\s\S]*?)\};/)
     if (!m) {

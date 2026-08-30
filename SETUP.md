@@ -15,7 +15,7 @@ Installa se non li hai già:
 ## 2. Installa le dipendenze
 
 ```bash
-cd foodios
+cd foodos
 npm install
 ```
 
@@ -25,7 +25,7 @@ npm install
 
 ### 3a. Crea il progetto
 1. Vai su [supabase.com](https://supabase.com) → **New project**
-2. Scegli un nome (es. `foodios`) e una password sicura per il database
+2. Scegli un nome (es. `foodos`) e una password sicura per il database
 3. Seleziona la regione **West EU (Ireland)** — più vicina all'Italia
 4. Aspetta ~2 minuti che il progetto si avvii
 
@@ -81,7 +81,7 @@ Registrati con la tua email admin (`alessandroar@maradeiboschi.com`) per acceder
 ```bash
 npm install -g vercel
 vercel login
-vercel  # segui le istruzioni (seleziona "foodios" come nome progetto)
+vercel  # segui le istruzioni (seleziona "foodos" come nome progetto)
 ```
 
 Oppure:
@@ -124,12 +124,12 @@ vercel --prod
 ## 8. Configura il dominio custom (opzionale)
 
 ```bash
-vercel domains add foodios.it
+vercel domains add foodos.it
 ```
 Poi aggiorna i record DNS del tuo dominio seguendo le istruzioni di Vercel.
 
 Aggiorna anche Supabase:
-- **Authentication** → **URL Configuration** → aggiungi `https://foodios.it` ai redirect
+- **Authentication** → **URL Configuration** → aggiungi `https://foodos.it` ai redirect
 
 ---
 
@@ -156,7 +156,7 @@ Aggiorna anche Supabase:
 ## Struttura del progetto
 
 ```
-foodios/
+foodos/
 ├── src/
 │   ├── App.jsx                  # Root: routing auth/dashboard/admin
 │   ├── Dashboard.jsx            # Dashboard principale (~408KB, logica originale)
@@ -187,4 +187,4 @@ foodios/
 
 ## Supporto
 
-Per qualsiasi problema: [support@foodios.it](mailto:support@foodios.it)
+Per qualsiasi problema: [support@foodos.it](mailto:support@foodos.it)

@@ -524,7 +524,7 @@ function NuovoCodiceScontoModal({ onClose, onCreato }) {
         <div>
           <label style={lbl}>Codice</label>
           <input value={codice} onChange={e => setCodice(e.target.value)}
-            placeholder="Es. FOODIOS2026"
+            placeholder="Es. FOODOS2026"
             style={{ ...inp, fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.06em' }}/>
           <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 4 }}>
             {codNorm ? `Sarà salvato come: ${codNorm}` : 'Solo lettere, numeri, - e _'}
@@ -1934,14 +1934,14 @@ export default function AdminPage() {
       const previewRes = await apiCall('/api/admin?action=cleanup_e2e_preview')
       const preview = await previewRes.json()
       const n = preview.orgs_count || 0
-      if (n === 0) { toast.info('Nessun account E2E test trovato (pattern @foodios-e2e.test)'); return }
+      if (n === 0) { toast.info('Nessun account E2E test trovato (pattern @foodos-e2e.test)'); return }
       // 2) Conferma esplicita con lista email (audit 2026-06-14 PM: prima
       // c'era solo count, ora mostriamo le prime 20 email così l'admin verifica
       // visivamente che non ci sia mai un'email reale).
       const orgs = preview.orgs || []
       const sampleEmails = orgs.slice(0, 20).flatMap(o => o.emails || []).slice(0, 20)
       const ok = confirm(
-        `Stai per cancellare ${n} account test E2E (email @foodios-e2e.test).\n\n` +
+        `Stai per cancellare ${n} account test E2E (email @foodos-e2e.test).\n\n` +
         `Esempi delle email che verranno eliminate:\n` +
         sampleEmails.map(e => `  • ${e}`).join('\n') +
         (orgs.length > 20 ? `\n  ... e altre ${orgs.length - 20} org` : '') +
@@ -2506,7 +2506,7 @@ export default function AdminPage() {
               ▲ Vercel →
             </Btn>
             <Btn kind="danger" onClick={handleCleanupE2E}
-              title="Cancella in batch tutti gli account creati dai test Playwright (email @foodios-e2e.test, e2e+*, e2e-acc-titolare-*). Mostra preview prima della conferma.">
+              title="Cancella in batch tutti gli account creati dai test Playwright (email @foodos-e2e.test, e2e+*, e2e-acc-titolare-*). Mostra preview prima della conferma.">
               <Icon name="broom" size={14} /> Pulisci account E2E test
             </Btn>
           </div>

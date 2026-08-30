@@ -163,7 +163,7 @@ function exportTeamSystemXML(corrispettivi, fatturePassive, ivaPct, sediMap, yea
   lines.push('  </FatturePassive>')
   lines.push('</RegistroIVA>')
 
-  downloadBlob(lines.join('\n'), `foodios_teamsystem_${yearMonth}.xml`, 'application/xml')
+  downloadBlob(lines.join('\n'), `foodos_teamsystem_${yearMonth}.xml`, 'application/xml')
 }
 
 async function exportCommercialistaXLSX(corrispettivi, fatturePassive, ivaPct, sediMap, yearMonth, orgNome) {

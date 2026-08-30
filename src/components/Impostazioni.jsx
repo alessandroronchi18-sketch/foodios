@@ -11,7 +11,7 @@
 // Tutti i sub-componenti esistenti (AbbonamentoPanel, MfaSection, ImpostazioniSedi, etc.)
 // vengono usati come building blocks senza modifiche.
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import useIsMobile from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
@@ -28,6 +28,11 @@ import ReferralPanel from './ReferralPanel'
 import DeleteAccountModal from './DeleteAccountModal'
 
 import { getAllRese, getStoreRese, setResaIngrediente } from '../lib/rese'
+import { lazyWithReload } from '../lib/lazyWithReload'
+
+// Integrazioni caricata lazy (bundle ~35KB): solo se l'utente apre la
+// sezione da Impostazioni → Notifiche & Integrazioni.
+const IntegrazioniLazy = lazyWithReload(() => import('./Integrazioni'))
 
 const SK_RESE = 'pasticceria-rese-v1' // stesso constant usato da Dashboard.jsx per persistere su localStorage
 
@@ -956,7 +961,7 @@ function PianoBadge({ piano, approvato }) {
 
 // ─── Sezioni registry ────────────────────────────────────────────────────────
 
-function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'stampi', piano, orgId, sedi, onImportPrezzi, notify, onChangelogOpen }) {
+function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'stampi', piano, orgId, sedi, sedeId, onImportPrezzi, notify, onChangelogOpen }) {
   // ─── DIPENDENTE: solo il proprio account, niente roba aziendale ───
   if (auth?.isDipendente) {
     return [
@@ -1043,6 +1048,17 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'st
           summary: 'Dashboard a schermo intero per il locale',
           render: () => <ImpostazioniTv orgId={orgId} sedi={sedi || []} notify={notify}/>,
         },
+        {
+          id: 'integrazioni', label: 'Integrazioni', icon: 'plug',
+          summary: 'Casse POS, WhatsApp, altri servizi',
+          render: () => (
+            <Suspense fallback={<div style={{ padding: 30, textAlign: 'center', color: T.textSoft, fontSize: 12 }}>Caricamento…</div>}>
+              {/* sedeId: usa quella attiva dal Dashboard (coerente col resto
+                  dell'app). Fallback su prima sede se nessuna attiva selezionata. */}
+              <IntegrazioniLazy orgId={orgId} sedeId={sedeId || (sedi || [])[0]?.id || null} notify={notify}/>
+            </Suspense>
+          ),
+        },
       ],
     },
     {
@@ -1097,7 +1113,7 @@ function buildSezioni({ auth, nomeAttivita, tipoAttivita, metodoProduzione = 'st
 
 export default function Impostazioni(props) {
   const isMobile = useIsMobile()
-  const sezioni = useMemo(() => buildSezioni(props), [props.auth, props.nomeAttivita, props.tipoAttivita, props.metodoProduzione, props.piano, props.orgId, props.sedi])
+  const sezioni = useMemo(() => buildSezioni(props), [props.auth, props.nomeAttivita, props.tipoAttivita, props.metodoProduzione, props.piano, props.orgId, props.sedi, props.sedeId])
   const allItems = useMemo(() => sezioni.flatMap(s => s.items.map(it => ({ ...it, _group: s.label, _groupId: s.id }))), [sezioni])
 
   // Active item via URL hash (#section=xyz) per deep-link + back button

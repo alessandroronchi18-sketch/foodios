@@ -60,7 +60,7 @@ export async function verificaToken(req, options = {}) {
       if (!org.approvato) {
         const trialEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : null
         if (!trialEnd || trialEnd < new Date()) {
-          return { user: null, profile: null, error: 'Trial scaduto. Contatta support@foodios.it per attivare l\'abbonamento.', status: 402 }
+          return { user: null, profile: null, error: 'Trial scaduto. Contatta support@foodos.it per attivare l\'abbonamento.', status: 402 }
         }
       }
     }

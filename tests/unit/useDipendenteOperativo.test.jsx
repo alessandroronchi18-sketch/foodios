@@ -37,7 +37,7 @@ function mockSessionCheckOk() {
 // Import DOPO il mock così il modulo raccoglie la versione mockata.
 const { DipendenteOperativoProvider, useDipendenteOperativo } = await import('../../src/hooks/useDipendenteOperativo.jsx')
 
-const LS_KEY = 'foodios_dip_op'
+const LS_KEY = 'foodos_dip_op'
 
 function wrapperFactory(props) {
   return ({ children }) => (
@@ -101,7 +101,7 @@ describe('DipendenteOperativoProvider — persistenza e scope safety', () => {
     expect(result.current.dipendente).toBeNull()
     expect(result.current.enabled).toBe(false)
     // Fix critico dal recap: se un titolare entra dopo un dipendente, il
-    // suo `enabled=false` DEVE azzerare `foodios_dip_op` altrimenti le
+    // suo `enabled=false` DEVE azzerare `foodos_dip_op` altrimenti le
     // sue operazioni verrebbero loggate a nome del dipendente precedente.
     expect(localStorage.getItem(LS_KEY)).toBeNull()
   })

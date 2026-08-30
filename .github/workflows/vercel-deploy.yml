@@ -78,7 +78,7 @@ jobs:
           echo "deploy_url=$URL" >> $GITHUB_OUTPUT
           echo "Deployed: $URL"
 
-      - name: Promote alias foodios-rose.vercel.app
+      - name: Promote alias foodos-rose.vercel.app
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -86,12 +86,12 @@ jobs:
           DEPLOY_URL="${{ steps.deploy.outputs.deploy_url }}"
           # Estrai hostname dal URL completo (rimuove https://)
           HOST="${DEPLOY_URL#https://}"
-          vercel alias set "$HOST" foodios-rose.vercel.app --token=$VERCEL_TOKEN
+          vercel alias set "$HOST" foodos-rose.vercel.app --token=$VERCEL_TOKEN
 
       - name: Summary
         run: |
           echo "## ✅ Deploy completato" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**URL**: ${{ steps.deploy.outputs.deploy_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Alias prod**: https://foodios-rose.vercel.app" >> $GITHUB_STEP_SUMMARY
+          echo "**Alias prod**: https://foodos-rose.vercel.app" >> $GITHUB_STEP_SUMMARY
           echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

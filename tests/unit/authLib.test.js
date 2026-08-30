@@ -280,13 +280,13 @@ describe('verificaAdmin', () => {
   })
 
   it('senza Authorization header → no_bearer', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const res = await mod.verificaAdmin(mkReq({}), mkSupabase())
     expect(res.reason).toBe('no_bearer')
   })
 
   it('header lowercase "authorization" funziona', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({ user: { id: 'u1', email: 'other@x.it' } })
     const res = await mod.verificaAdmin(
       mkReq({ authorization: 'Bearer ' + mkJwt({ aal: 'aal1' }) }),
@@ -297,7 +297,7 @@ describe('verificaAdmin', () => {
   })
 
   it('Bearer prefix ma token vuoto → empty_token', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const res = await mod.verificaAdmin(
       mkReq({ Authorization: 'Bearer ' }),
       mkSupabase(),
@@ -306,7 +306,7 @@ describe('verificaAdmin', () => {
   })
 
   it('getUser error → getUser_error:<msg>', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({ authError: { message: 'jwt malformed' } })
     const res = await mod.verificaAdmin(
       mkReq({ Authorization: 'Bearer ' + mkJwt({ aal: 'aal2' }) }),
@@ -316,7 +316,7 @@ describe('verificaAdmin', () => {
   })
 
   it('getUser ritorna user=null senza error → no_user', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase()
     supa.auth.getUser = vi.fn(async () => ({
       data: { user: null },
@@ -330,7 +330,7 @@ describe('verificaAdmin', () => {
   })
 
   it('email utente diversa da ADMIN_EMAIL → not_admin:<email>', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({ user: { id: 'u1', email: 'mario@x.it' } })
     const res = await mod.verificaAdmin(
       mkReq({ Authorization: 'Bearer ' + mkJwt({ aal: 'aal2' }) }),
@@ -340,9 +340,9 @@ describe('verificaAdmin', () => {
   })
 
   it('email match (case-insensitive) + aal2 → ok', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'Admin@FoodIOS.it' },
+      user: { id: 'admin-id', email: 'Admin@FoodOS.it' },
     })
     const res = await mod.verificaAdmin(
       mkReq({ Authorization: 'Bearer ' + mkJwt({ aal: 'aal2' }) }),
@@ -353,9 +353,9 @@ describe('verificaAdmin', () => {
   })
 
   it('aal!=aal2 + no factors verificati → mfa_not_enrolled', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
       factors: [],
     })
     const res = await mod.verificaAdmin(
@@ -367,9 +367,9 @@ describe('verificaAdmin', () => {
   })
 
   it('aal!=aal2 + factor "verified" presente → mfa_required', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
       factors: [{ status: 'verified', id: 'f1', factor_type: 'totp' }],
     })
     const res = await mod.verificaAdmin(
@@ -380,9 +380,9 @@ describe('verificaAdmin', () => {
   })
 
   it('aal!=aal2 + factor non verified → mfa_not_enrolled', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
       factors: [{ status: 'unverified', id: 'f1' }],
     })
     const res = await mod.verificaAdmin(
@@ -393,9 +393,9 @@ describe('verificaAdmin', () => {
   })
 
   it('listFactors throw → mfa_check_transient', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
       listFactorsThrow: true,
     })
     const res = await mod.verificaAdmin(
@@ -406,9 +406,9 @@ describe('verificaAdmin', () => {
   })
 
   it('listFactors restituisce error strutturato → mfa_check_transient', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
       listFactorsError: { message: 'transient' },
     })
     const res = await mod.verificaAdmin(
@@ -420,11 +420,11 @@ describe('verificaAdmin', () => {
 
   it('DISABLE_ADMIN_MFA=true + isLocalDev → ok_mfa_disabled_dev_only', async () => {
     process.env.DISABLE_ADMIN_MFA = 'true'
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     // loadModule resetta DISABLE_ADMIN_MFA → ri-settiamo dopo il load
     process.env.DISABLE_ADMIN_MFA = 'true'
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
     })
     const res = await mod.verificaAdmin(
       mkReq({ Authorization: 'Bearer ' + mkJwt({ aal: 'aal1' }) }),
@@ -434,11 +434,11 @@ describe('verificaAdmin', () => {
   })
 
   it('VERCEL_ENV=production → DISABLE_ADMIN_MFA ignorato (no bypass)', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     process.env.VERCEL_ENV = 'production'
     process.env.DISABLE_ADMIN_MFA = 'true'
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
       factors: [],
     })
     const res = await mod.verificaAdmin(
@@ -449,11 +449,11 @@ describe('verificaAdmin', () => {
   })
 
   it('VERCEL_URL set → isLocalDev=false → bypass disabilitato', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
-    process.env.VERCEL_URL = 'foodios-rose.vercel.app'
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
+    process.env.VERCEL_URL = 'foodos-rose.vercel.app'
     process.env.DISABLE_ADMIN_MFA = 'true'
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
       factors: [{ status: 'verified', id: 'f1' }],
     })
     const res = await mod.verificaAdmin(
@@ -464,11 +464,11 @@ describe('verificaAdmin', () => {
   })
 
   it('ADMIN_MFA_WHITELIST + dev locale → ok_mfa_whitelisted_dev_only', async () => {
-    process.env.ADMIN_MFA_WHITELIST = 'admin@foodios.it,other@x.it'
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
-    process.env.ADMIN_MFA_WHITELIST = 'admin@foodios.it,other@x.it'
+    process.env.ADMIN_MFA_WHITELIST = 'admin@foodos.it,other@x.it'
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
+    process.env.ADMIN_MFA_WHITELIST = 'admin@foodos.it,other@x.it'
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
     })
     const res = await mod.verificaAdmin(
       mkReq({ Authorization: 'Bearer ' + mkJwt({ aal: 'aal1' }) }),
@@ -478,10 +478,10 @@ describe('verificaAdmin', () => {
   })
 
   it('ADMIN_MFA_WHITELIST + email NON whitelisted → cade su MFA check', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     process.env.ADMIN_MFA_WHITELIST = 'someone-else@x.it'
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
       factors: [],
     })
     const res = await mod.verificaAdmin(
@@ -492,9 +492,9 @@ describe('verificaAdmin', () => {
   })
 
   it('exception nel try (es. token JWT malformato → atob throw) → exception:<msg>', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
     })
     // forziamo un throw dentro auth.getUser per innescare il catch esterno
     supa.auth.getUser = vi.fn(async () => {
@@ -509,9 +509,9 @@ describe('verificaAdmin', () => {
   })
 
   it('JWT con payload non base64 valido → aal=null → cade su MFA check', async () => {
-    const mod = await loadModule({ adminEmail: 'admin@foodios.it' })
+    const mod = await loadModule({ adminEmail: 'admin@foodos.it' })
     const supa = mkSupabase({
-      user: { id: 'admin-id', email: 'admin@foodios.it' },
+      user: { id: 'admin-id', email: 'admin@foodos.it' },
       factors: [],
     })
     // token con 3 parti ma payload spazzatura → JSON.parse failure → claim null

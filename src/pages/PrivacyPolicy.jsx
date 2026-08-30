@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
       <LegalH2>1. Titolare del trattamento</LegalH2>
       <LegalP>
         <strong>[RAGIONE SOCIALE]</strong> - sede legale: [INDIRIZZO COMPLETO], C.F./P.IVA [INSERIRE].<br />
-        Email del titolare: <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.<br />
+        Email del titolare: <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.<br />
         Non e' nominato un DPO obbligatorio ai sensi dell'art. 37 GDPR. Per richieste relative
         ai dati personali contatta il titolare all'indirizzo email indicato.
       </LegalP>
@@ -61,7 +61,7 @@ export default function PrivacyPolicy() {
         <><strong>Revoca del consenso</strong> (art. 7.3) - in qualsiasi momento, senza pregiudicare la liceita' del trattamento precedente.</>,
       ]} />
       <LegalP>
-        Per esercitare i tuoi diritti: <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.
+        Per esercitare i tuoi diritti: <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.
         Rispondiamo entro 30 giorni (estensibili a 60 in casi complessi). Hai inoltre il diritto di proporre
         reclamo al <LegalLink href="https://www.garanteprivacy.it" target="_blank">Garante per la Protezione dei Dati Personali</LegalLink>.
       </LegalP>
@@ -115,7 +115,7 @@ export default function PrivacyPolicy() {
       <LegalH2>11. Contatti</LegalH2>
       <LegalP>
         Per qualsiasi domanda relativa alla presente Privacy Policy o al trattamento dei tuoi dati
-        scrivi a <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.
+        scrivi a <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.
       </LegalP>
     </LegalLayout>
   )

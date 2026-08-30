@@ -1,7 +1,7 @@
 // @ts-check
 import { defineConfig, devices } from '@playwright/test'
 
-const BASE_URL = process.env.BASE_URL || 'https://foodios-rose.vercel.app'
+const BASE_URL = process.env.BASE_URL || 'https://foodos-rose.vercel.app'
 
 export default defineConfig({
   testDir: './tests',

@@ -125,7 +125,7 @@ Audit completo di `api/`, `src/lib/`, `src/components/`, `vercel.json` e schema 
 
 ### A1. HTML injection nelle email transazionali
 **Bug**: in `send-email.js` (approvazione, benvenuto) e `cron-report-mensile.js`, i campi `prof.nome_completo`, `org.nome`, `nomeAttivita` venivano interpolati in HTML tramite `sanitize()` — che è un anti-XSS debole (rimuove `<script>` e `javascript:` ma non `<a href>`, `<img>`, `<style>`).
-**Conseguenza**: un utente che registra account con nome `<a href="http://phishing">Vinci €100</a>` riceve la propria email "personalizzata" con phishing link cliccabile inviata dal `noreply@foodios.it` ufficiale.
+**Conseguenza**: un utente che registra account con nome `<a href="http://phishing">Vinci €100</a>` riceve la propria email "personalizzata" con phishing link cliccabile inviata dal `noreply@foodos.it` ufficiale.
 
 **Fix**: tutti i campi user-controlled in HTML email passano ora attraverso `escapeHtml()` (vera entity escape: `&<>"'`).
 
@@ -200,7 +200,7 @@ React non lo richiede direttamente, ma alcuni snippet `<script>` inline in `inde
 L'admin può generare magic link per qualunque utente. **Mitigazione**: tutte le impersonation finiscono in `admin_log` con email admin + IP + UA + timestamp. Non eliminabile come funzione (serve per supporto), solo loggabile.
 
 ### R5. Spam email "benvenuto"
-`send-email.js` con `tipo: 'benvenuto'` può essere chiamato da chiunque (con rate limit 5/h IP). Un attaccante distribuito può inviare email FROM `noreply@foodios.it` a destinatari arbitrari, ma il **content** è hardcoded (template benvenuto FoodOS) e l'unica vittima sono email-bombing dei target. Non implementabile gate auth perché lo chiamiamo subito dopo signUp quando l'utente non ha ancora session token. **Mitigazione**: rate limit 5/h per IP attivo, no API key esposta, content non controllabile dall'attacker (no phishing arbitrario).
+`send-email.js` con `tipo: 'benvenuto'` può essere chiamato da chiunque (con rate limit 5/h IP). Un attaccante distribuito può inviare email FROM `noreply@foodos.it` a destinatari arbitrari, ma il **content** è hardcoded (template benvenuto FoodOS) e l'unica vittima sono email-bombing dei target. Non implementabile gate auth perché lo chiamiamo subito dopo signUp quando l'utente non ha ancora session token. **Mitigazione**: rate limit 5/h per IP attivo, no API key esposta, content non controllabile dall'attacker (no phishing arbitrario).
 
 ### R6. cron-notifiche.js usa schema obsoleto
 Il file legge `key='magazzino'` ma la chiave reale è `data_key='pasticceria-magazzino-v1'`. Il cron è **funzionalmente rotto** ma non è una vuln di sicurezza — semplicemente non manda alert. Da fixare separatamente.

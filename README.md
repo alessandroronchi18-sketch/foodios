@@ -1,7 +1,7 @@
 # FoodOS
 
 SPA React + Vite, backend Supabase (Postgres + Auth + RLS), deploy su Vercel
-(produzione: `foodios-rose.vercel.app`).
+(produzione: `foodos-rose.vercel.app`).
 
 ## Test E2E (Playwright)
 
@@ -32,7 +32,7 @@ Il workflow `.github/workflows/playwright.yml` gira su push a `main` e via
 
 | Nome | Descrizione |
 |------|-------------|
-| `TEST_EMAIL` | Email dell'account di test dedicato (es. `playwright-e2e@foodios-internal.com`). |
+| `TEST_EMAIL` | Email dell'account di test dedicato (es. `playwright-e2e@foodos-internal.com`). |
 | `TEST_PASSWORD` | Password dell'account di test. |
 | `SUPABASE_URL` | URL del progetto Supabase (lo stesso valore di `VITE_SUPABASE_URL`). |
 | `SUPABASE_SERVICE_KEY` | **service_role** key Supabase — usata solo da `global-setup.js` per seminare i dati. Non esporre mai lato client. |
@@ -41,8 +41,8 @@ Il workflow `.github/workflows/playwright.yml` gira su push a `main` e via
 
 | Nome | Default | Descrizione |
 |------|---------|-------------|
-| `BASE_URL` | `https://foodios-rose.vercel.app` | URL da testare. Opzionale: override per ambienti di staging. |
-| `TEST_SIGNUP_DOMAIN` | `foodios-e2e.test` | Dominio per le email effimere generate dal test di signup. |
+| `BASE_URL` | `https://foodos-rose.vercel.app` | URL da testare. Opzionale: override per ambienti di staging. |
+| `TEST_SIGNUP_DOMAIN` | `foodos-e2e.test` | Dominio per le email effimere generate dal test di signup. |
 
 > Nota: il test di signup (`02`) genera account effimeri ma su run ripetuti
 > Supabase applica un rate-limit email a livello di progetto ("Troppi

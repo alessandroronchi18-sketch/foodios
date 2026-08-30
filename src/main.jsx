@@ -49,7 +49,7 @@ function scrubUrl(url) {
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
-  release: import.meta.env.VITE_RELEASE || 'foodios@local',
+  release: import.meta.env.VITE_RELEASE || 'foodos@local',
   tracesSampleRate: 0.1,
   enabled: import.meta.env.PROD && !!import.meta.env.VITE_SENTRY_DSN,
   sendDefaultPii: false,

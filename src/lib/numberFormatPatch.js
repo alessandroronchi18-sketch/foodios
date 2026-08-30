@@ -23,7 +23,7 @@ try {
     if (typeof Number === 'undefined' || !Number.prototype.toLocaleString) return
     // Idempotenza: se già patchato (es. doppio import / hot reload) skip per
     // evitare orig=patched (recursion).
-    if (Number.prototype._foodios_locale_patched) return
+    if (Number.prototype._foodos_locale_patched) return
 
     // Verifica che il runtime supporti useGrouping:'always' senza throw.
     try {
@@ -49,7 +49,7 @@ try {
     // Sentinel anti-doppio-import. configurable:true così test/hot-reload può
     // re-installare la patch senza throw.
     try {
-      Object.defineProperty(Number.prototype, '_foodios_locale_patched', {
+      Object.defineProperty(Number.prototype, '_foodos_locale_patched', {
         value: true, enumerable: false, configurable: true, writable: true,
       })
       Number.prototype.toLocaleString = patched

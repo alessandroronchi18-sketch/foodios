@@ -113,7 +113,7 @@ const INTEGRAZIONI_CFG = [
     categoria: 'Cassa',
     descrizione: 'POS leader nel food artigianale italiano. Real-time webhook + export CSV.',
     istruzioni: [
-      'Per webhook real-time (consigliato): Tilby Web → Impostazioni → Integrazioni → Webhook esterni → URL: https://foodios-rose.vercel.app/api/webhook-pos · Headers: x-pos-provider: tilby · x-pos-secret: <chiedi a Foodos>',
+      'Per webhook real-time (consigliato): Tilby Web → Impostazioni → Integrazioni → Webhook esterni → URL: https://foodos-rose.vercel.app/api/webhook-pos · Headers: x-pos-provider: tilby · x-pos-secret: <chiedi a Foodos>',
       'Per import manuale CSV: Tilby Web → Report → Esporta vendite (CSV)',
       'Carica il file qui - l\'AI auto-rileva il formato',
     ],
@@ -285,7 +285,7 @@ const INTEGRAZIONI_CFG = [
     istruzioni: [
       'Esporta CSV/TXT dalla tua cassa con la funzione standard',
       'Carica il file qui - Foodos prova 10 parser e usa quello che matcha',
-      'Se l\'AI non lo riconosce, vedrai un avviso e puoi scriverci a support@foodios.it per aggiungere il tuo formato',
+      'Se l\'AI non lo riconosce, vedrai un avviso e puoi scriverci a support@foodos.it per aggiungere il tuo formato',
     ],
     tipoFile: '.csv,.txt',
     tipoLabel: 'CSV/TXT auto-detect',
@@ -1004,7 +1004,7 @@ export default function Integrazioni({ orgId, sedeId }) {
               Scrivici e attiviamo la sincronizzazione: di solito serve un file CSV/Excel campione o le credenziali API.
               Le integrazioni con catena distributiva &amp; gestionali italiani sono in alta priorità.
             </div>
-            <a href={`mailto:support@foodios.it?subject=${encodeURIComponent('Richiesta integrazione Foodos')}&body=${encodeURIComponent('Vorrei attivare l\'integrazione con:\n\n[Nome software/fornitore]\n\nUso questo software per:\n- ...\n\nVolume previsto (transazioni/mese):\n- ...\n')}`}
+            <a href={`mailto:support@foodos.it?subject=${encodeURIComponent('Richiesta integrazione Foodos')}&body=${encodeURIComponent('Vorrei attivare l\'integrazione con:\n\n[Nome software/fornitore]\n\nUso questo software per:\n- ...\n\nVolume previsto (transazioni/mese):\n- ...\n')}`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: C.red, color: '#FFF', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
               <Icon name="mail" size={13} /> Richiedi una nuova integrazione
             </a>

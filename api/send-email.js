@@ -6,8 +6,8 @@ import { sanitize, sanitizeStrict, validateEmail } from './lib/validate.js'
 import { verifyRawSecret } from './lib/cryptoCompare.js'
 import { safeError } from './lib/safeError.js'
 
-const FROM = 'FoodOS <noreply@foodios.it>'
-const SUPPORT = 'support@foodios.it'
+const FROM = 'FoodOS <noreply@foodos.it>'
+const SUPPORT = 'support@foodos.it'
 // ADMIN_EMAIL deve essere configurato su Vercel. Nessun default hardcoded.
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || '').toLowerCase()
 
@@ -200,7 +200,7 @@ export default async function handler(req) {
                 Ciao ${escapeHtml(prof.nome_completo || '')},<br>
                 il tuo account per <strong>${escapeHtml(org?.nome || 'la tua attività')}</strong> è stato attivato.
               </p>
-              <a href="https://foodios.it"
+              <a href="https://foodos.it"
                  style="display:inline-block;padding:12px 28px;background:#C0392B;color:#FFF;
                         border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">
                 Vai alla dashboard →
@@ -224,8 +224,8 @@ export default async function handler(req) {
       // come profili nel DB. Impedisce uso come gateway phishing in caso di
       // account admin compromesso. Il match e' case-insensitive.
       // Audit 2026-07-01 HIGH: escape `%`/`_` (wildcard SQL ilike) prima del
-      // match — altrimenti un profilo `admin@foodios%` matcherebbe ogni email
-      // che inizia per `admin@foodios`. Stesso bug di azInviaEmail.
+      // match — altrimenti un profilo `admin@foodos%` matcherebbe ogni email
+      // che inizia per `admin@foodos`. Stesso bug di azInviaEmail.
       const emailLow = email.toLowerCase()
       const emailEscaped = emailLow.replace(/([%_\\])/g, '\\$1')
       const { data: profileMatch } = await supabase

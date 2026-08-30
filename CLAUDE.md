@@ -20,7 +20,7 @@ Pre-revenue, design-partner-driven. **Mara dei Boschi** (Torino) e' il primo des
 - **Email**: Resend
 - **AI**: Claude API (Anthropic) via `api/ai.js`
 
-Live: `foodios-rose.vercel.app` (dominio custom `foodios.it` ancora da agganciare — vedi `NEXT_STEPS.md`).
+Live: `foodos-rose.vercel.app` (dominio custom `foodos.it` ancora da agganciare — vedi `NEXT_STEPS.md`).
 
 ---
 

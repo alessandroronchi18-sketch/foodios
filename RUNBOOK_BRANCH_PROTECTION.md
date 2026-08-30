@@ -1,7 +1,7 @@
 # Runbook — Branch protection main
 
-Procedura **una tantum** da fare una sola volta sul repo GitHub `foodios`
-(alessandroronchi18-sketch/foodios). Tempo: 5 minuti. Effetto: nessun merge
+Procedura **una tantum** da fare una sola volta sul repo GitHub `foodos`
+(alessandroronchi18-sketch/foodos). Tempo: 5 minuti. Effetto: nessun merge
 diretto su `main` senza PR + CI verde + 1 review (anche del proprietario).
 
 Tutela contro: **deploy rotto perché merge frettoloso bypassa CI**, push
@@ -9,7 +9,7 @@ diretto a main accidentale, force-push storico.
 
 ## Step 1 — Vai su GitHub → Settings → Branches
 
-URL diretto: https://github.com/alessandroronchi18-sketch/foodios/settings/branches
+URL diretto: https://github.com/alessandroronchi18-sketch/foodos/settings/branches
 
 Clicca **Add branch protection rule** (o **Add rule** se è la prima).
 
@@ -54,7 +54,7 @@ Quando ti convinci che funziona, chiudi la PR e cancella il branch.
 
 Se hai l'app Vercel GitHub installata, ogni PR riceve auto-commento con URL
 del preview deploy. Verifica su:
-https://vercel.com/alessandroronchi18-7807s-projects/foodios/git
+https://vercel.com/alessandroronchi18-7807s-projects/foodos/git
 
 Se il bot Vercel non commenta sulle PR:
 1. Vercel Dashboard → Project → Settings → Git → "Pull Request Comments" → ON
@@ -103,7 +103,7 @@ Branch protection riabilitata immediatamente dopo.
 Da terminale:
 
 ```bash
-gh api repos/alessandroronchi18-sketch/foodios/branches/main/protection \
+gh api repos/alessandroronchi18-sketch/foodos/branches/main/protection \
   --jq '.required_pull_request_reviews.required_approving_review_count, .required_status_checks.contexts'
 ```
 

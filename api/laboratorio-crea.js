@@ -27,7 +27,7 @@ import { checkRateLimit } from './lib/rateLimit.js'
 import { validateEmail } from './lib/validate.js'
 import { templateAccessoLaboratorio } from './lib/emailTemplates.js'
 
-const FROM = 'Foodos <noreply@foodios.it>'
+const FROM = 'Foodos <noreply@foodos.it>'
 const PWD_MIN = 8
 
 async function sendEmail({ to, subject, html }) {

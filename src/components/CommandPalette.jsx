@@ -71,7 +71,7 @@ export default function CommandPalette({ open, onClose, onNavigate, orgId }) {
         e.preventDefault()
         // L'apertura e' controllata dal parent (Dashboard) via setter.
         // Emettiamo un custom event globale che Dashboard ascolta.
-        window.dispatchEvent(new CustomEvent('foodios:cmdk'))
+        window.dispatchEvent(new CustomEvent('foodos:cmdk'))
       }
       if (e.key === 'Escape' && open) onClose?.()
     }

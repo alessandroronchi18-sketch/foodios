@@ -10,7 +10,7 @@
 ## STATO DEPLOY (22 giu 2026)
 
 - Vercel **Pro** attivo. Autodeploy su push a `main` (~1-2 min).
-- Prod live: `foodios-rose.vercel.app` allineata a `main` HEAD `a482316`.
+- Prod live: `foodos-rose.vercel.app` allineata a `main` HEAD `a482316`.
 - **Test suite 1296/1297 verdi** (71 file, 52s) — ESLint clean.
 - **Lighthouse CI** attivo (su PR + cron settimanale lunedi 08:00).
 - Migration applicate in prod Supabase **fino a 20260707_plan_pricing_meta** (incluse: PIN lockout, push subs, RPC pin_status, email_blocklist, manual_approval_gate, ai_credit_packs, plan_pricing_meta).
@@ -21,18 +21,18 @@
 
 ## 🔴 Bloccanti per il primo pagante reale
 
-### 1. Dominio `foodios.it` agganciato
-- [ ] Registrare `foodios.it` (Aruba/Namecheap/Cloudflare ~€15/anno)
-- [ ] Vercel → Settings → Domains → Add `foodios.it` + `www.foodios.it`
+### 1. Dominio `foodos.it` agganciato
+- [ ] Registrare `foodos.it` (Aruba/Namecheap/Cloudflare ~€15/anno)
+- [ ] Vercel → Settings → Domains → Add `foodos.it` + `www.foodos.it`
 - [ ] Aggiungere i record DNS suggeriti da Vercel (A/CNAME)
-- [ ] Verifica: aprire `https://foodios.it` deve mostrare la landing in HTTPS
+- [ ] Verifica: aprire `https://foodos.it` deve mostrare la landing in HTTPS
 
-**Perche'**: le email partono da `noreply@foodios.it` e i link nei template puntano a `foodios.it`. Senza dominio agganciato, DKIM fallisce → spam.
+**Perche'**: le email partono da `noreply@foodos.it` e i link nei template puntano a `foodos.it`. Senza dominio agganciato, DKIM fallisce → spam.
 
 ---
 
 ### 2. Resend domain verification
-- [ ] Account Resend (resend.com) → Add Domain `foodios.it`
+- [ ] Account Resend (resend.com) → Add Domain `foodos.it`
 - [ ] Copiare i record DNS proposti (SPF + DKIM + DMARC) sul registrar/Vercel DNS
 - [ ] Verificare il dominio dal pannello Resend (status: verified)
 - [ ] Su Vercel → Env Vars → `RESEND_API_KEY` (Production) gia' configurato? verifica con `POST /api/send-email` di benvenuto
@@ -51,7 +51,7 @@
   - `STRIPE_BOTTEGA_PRICE_ID` = `price_...`
   - `STRIPE_MAESTRO_PRICE_ID` = `price_...`
   - `STRIPE_INSEGNA_PRICE_ID` = `price_...`
-- [ ] Stripe Dashboard → Webhooks → Add endpoint `https://foodios.it/api/stripe-webhook`
+- [ ] Stripe Dashboard → Webhooks → Add endpoint `https://foodos.it/api/stripe-webhook`
   - Eventi: `checkout.session.completed`, `customer.updated`, `customer.subscription.{created,updated,deleted}`, `invoice.payment_{succeeded,failed}`
   - Copiare il `signing secret` → `STRIPE_WEBHOOK_SECRET`
 - [ ] Pacchetti foto AI: 3 Products one-shot (€5/€15/€60) + price_id su env (`STRIPE_PRICE_FOTO_{50,200,1000}`) — vedi `api/buy-ai-pack.js`
@@ -105,9 +105,9 @@ Il bypass temporaneo `ADMIN_PROD_MFA_BYPASS=true` + `ADMIN_PROD_MFA_BYPASS_EMAIL
 ---
 
 ### 8. Inbox email reale
-- [ ] Creare `support@foodios.it`, `hello@foodios.it`, `legal@foodios.it`
+- [ ] Creare `support@foodos.it`, `hello@foodos.it`, `legal@foodos.it`
   - Google Workspace (~€6/mese/casella) o forward Cloudflare → tua personale
-- [ ] Verificare `noreply@foodios.it` "verified sender" su Resend
+- [ ] Verificare `noreply@foodos.it` "verified sender" su Resend
 
 ---
 

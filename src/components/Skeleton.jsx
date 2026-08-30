@@ -13,7 +13,7 @@
 import React, { useEffect } from 'react'
 import { color as T } from '../lib/theme'
 
-const SHIMMER_ID = '__foodios_skel_kf'
+const SHIMMER_ID = '__foodos_skel_kf'
 
 function ensureKeyframes() {
   if (typeof document === 'undefined') return

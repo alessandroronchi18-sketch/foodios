@@ -30,7 +30,7 @@ const STRIPE_KEY = process.env.STRIPE_TEST_SECRET_KEY || ''
 const PRICE_MAESTRO = process.env.STRIPE_TEST_MAESTRO_PRICE_ID || ''
 const PRICE_BOTTEGA = process.env.STRIPE_TEST_BOTTEGA_PRICE_ID || ''
 const WEBHOOK_SECRET = process.env.STRIPE_TEST_WEBHOOK_SECRET || ''
-const APP_URL = process.env.BASE_URL || 'https://foodios-rose.vercel.app'
+const APP_URL = process.env.BASE_URL || 'https://foodos-rose.vercel.app'
 
 const hasStripeEnv = !!(STRIPE_KEY && (PRICE_MAESTRO || PRICE_BOTTEGA) && WEBHOOK_SECRET)
 

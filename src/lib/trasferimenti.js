@@ -10,7 +10,7 @@ import { supabase } from './supabase'
 // Legge l'identita' operativa attiva (impostata da useDipendenteOperativo).
 function readDipendenteOpId() {
   try {
-    const raw = localStorage.getItem('foodios_dip_op')
+    const raw = localStorage.getItem('foodos_dip_op')
     if (!raw) return null
     const j = JSON.parse(raw)
     return j?.id || null

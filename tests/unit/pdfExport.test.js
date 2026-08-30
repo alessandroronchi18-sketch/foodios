@@ -55,7 +55,7 @@ describe('buildAndDownloadPdf', () => {
 
   it('smoke: chiamata minima non crasha e salva file con default name', async () => {
     await mod.buildAndDownloadPdf({})
-    expect(docCalls.save).toEqual(['foodios-report.pdf'])
+    expect(docCalls.save).toEqual(['foodos-report.pdf'])
   })
 
   it('usa fileName custom', async () => {

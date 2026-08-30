@@ -1,6 +1,6 @@
 # FoodOS — E2E tests (Playwright)
 
-Suite Playwright sui 5 flussi critici di FoodOS, eseguita contro l ambiente production (`https://foodios-rose.vercel.app`) o un BASE_URL custom.
+Suite Playwright sui 5 flussi critici di FoodOS, eseguita contro l ambiente production (`https://foodos-rose.vercel.app`) o un BASE_URL custom.
 
 ## Setup locale
 
@@ -29,8 +29,8 @@ Workflow `.github/workflows/playwright.yml` esegue la suite ad ogni push su `mai
 - `TEST_PASSWORD` — password account di test
 
 **Variables opzionali**:
-- `BASE_URL` — override del default `https://foodios-rose.vercel.app`
-- `TEST_SIGNUP_DOMAIN` — dominio per le email del signup test (default `foodios-e2e.test`)
+- `BASE_URL` — override del default `https://foodos-rose.vercel.app`
+- `TEST_SIGNUP_DOMAIN` — dominio per le email del signup test (default `foodos-e2e.test`)
 
 ## I 5 test
 

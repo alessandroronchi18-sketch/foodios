@@ -27,7 +27,7 @@ function makeInternalReq(realUrl, path) {
     headers: {
       // Riusa il CRON_SECRET — i sub-handler lo verificano con verifyBearerSecret
       Authorization: `Bearer ${process.env.CRON_SECRET || ''}`,
-      'user-agent': 'foodios-cron-giornaliero',
+      'user-agent': 'foodos-cron-giornaliero',
     },
   })
 }
@@ -198,7 +198,7 @@ export default async function handler(req) {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              from: 'FoodOS <noreply@foodios.it>',
+              from: 'FoodOS <noreply@foodos.it>',
               to: process.env.ADMIN_EMAIL,
               subject: `⚠️ Cron FoodOS — ${stepsFalliti.length} step falliti`,
               html,

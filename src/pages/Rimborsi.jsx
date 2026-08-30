@@ -12,7 +12,7 @@ export default function Rimborsi() {
 
       <LegalCallout title="Come chiedere un rimborso">
         Scrivi a{' '}
-        <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>{' '}
+        <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>{' '}
         con: numero fattura, data del problema, descrizione. Rispondiamo entro
         5 giorni lavorativi. Se approvato, il rimborso arriva sul metodo
         originale entro 10 giorni lavorativi.

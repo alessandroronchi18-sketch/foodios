@@ -5,7 +5,7 @@ import { getCorsHeaders, handleOptions, json, getClientIP } from './lib/cors.js'
 import { sanitizeStrict } from './lib/validate.js'
 import { safeError } from './lib/safeError.js'
 
-const APP_URL = 'https://foodios-rose.vercel.app'
+const APP_URL = 'https://foodos-rose.vercel.app'
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')

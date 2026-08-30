@@ -17,7 +17,7 @@ export default function Contatti() {
 
       <LegalCallout title="Il modo più veloce">
         Per qualsiasi cosa scrivi a{' '}
-        <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.
+        <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.
         Se sei già utente, il bottone <strong>Feedback</strong> in basso a destra
         dentro l'app va direttamente a chi sviluppa - più rapido dell'email.
       </LegalCallout>
@@ -25,7 +25,7 @@ export default function Contatti() {
       <LegalH2>Supporto tecnico</LegalH2>
       <LegalP>
         Bug, domande sull'utilizzo, richieste di funzionalita':{' '}
-        <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.
+        <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.
         Rispondiamo entro 24 ore lavorative (lun-ven, 9-19).
       </LegalP>
 
@@ -33,13 +33,13 @@ export default function Contatti() {
       <LegalP>
         Sei una pasticceria, gelateria, bar o rete di locali e vuoi vedere Foodos
         dal vivo? Vuoi proporre un'integrazione?{' '}
-        <LegalLink href="mailto:hello@foodios.it">hello@foodios.it</LegalLink>.
+        <LegalLink href="mailto:hello@foodos.it">hello@foodos.it</LegalLink>.
       </LegalP>
 
       <LegalH2>Richieste legali e privacy</LegalH2>
       <LegalP>
         GDPR, diritti dell'interessato, questioni contrattuali:{' '}
-        <LegalLink href="mailto:legal@foodios.it">legal@foodios.it</LegalLink>.
+        <LegalLink href="mailto:legal@foodos.it">legal@foodos.it</LegalLink>.
         Se non sai a chi rivolgerti, scrivi a support@ e giriamo noi.
       </LegalP>
 
@@ -58,7 +58,7 @@ export default function Contatti() {
         Foodos e' costruito col feedback di chi lavora al banco tutti i giorni.
         Se sei disposto a raccontarci come lo usi con una call ogni tanto,
         ti diamo <strong>12 mesi gratis</strong>. Scrivi a{' '}
-        <LegalLink href="mailto:hello@foodios.it">hello@foodios.it</LegalLink>{' '}
+        <LegalLink href="mailto:hello@foodos.it">hello@foodos.it</LegalLink>{' '}
         con oggetto "Design Partner".
       </LegalP>
     </LegalLayout>

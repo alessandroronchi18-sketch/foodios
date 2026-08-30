@@ -319,7 +319,7 @@ function TemperatureTab({ orgId, sedeId, isMobile, notify, onChanged }) {
     let createdBy = null
     try { createdBy = (await supabase.auth.getUser()).data?.user?.id || null } catch {}
     let dipOpId = null
-    try { dipOpId = JSON.parse(localStorage.getItem('foodios_dip_op') || 'null')?.id || null } catch {}
+    try { dipOpId = JSON.parse(localStorage.getItem('foodos_dip_op') || 'null')?.id || null } catch {}
     const { error } = await supabase.from('haccp_temperature').insert({
       organization_id: orgId, sede_id: sedeId || null,
       apparecchio_id: formLog.apparecchio_id,
@@ -510,7 +510,7 @@ function PulizieTab({ orgId, sedeId, isMobile, notify, onChanged }) {
 
   async function eseguiTpl(id) {
     let dipOpId = null
-    try { dipOpId = JSON.parse(localStorage.getItem('foodios_dip_op') || 'null')?.id || null } catch {}
+    try { dipOpId = JSON.parse(localStorage.getItem('foodos_dip_op') || 'null')?.id || null } catch {}
     await supabase.from('haccp_checklist_log').insert({
       organization_id: orgId, sede_id: sedeId || null,
       template_id: id, operatore: operatore.trim() || null,

@@ -10,7 +10,7 @@ exports[`Email templates — snapshot per non-regressione > approvazione 2`] = `
         Ciao Mara Rossi,<br>
         il tuo account per <strong>Mara dei Boschi SRL</strong> è stato attivato.
       </p>
-      <a href="https://foodios.it"
+      <a href="https://foodos.it"
          style="display:inline-block;padding:12px 28px;background:#C0392B;color:#FFF;
                 border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">
         Vai alla dashboard →
@@ -18,7 +18,7 @@ exports[`Email templates — snapshot per non-regressione > approvazione 2`] = `
       <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
       <p style="color:#9C7B76;font-size:12px;">
         Notifica automatica FoodOS · scrivici a
-        <a href="mailto:support@foodios.it" style="color:#C0392B;">support@foodios.it</a>
+        <a href="mailto:support@foodos.it" style="color:#C0392B;">support@foodos.it</a>
       </p>
     </div>"
 `;
@@ -40,7 +40,7 @@ exports[`Email templates — snapshot per non-regressione > benvenuto 2`] = `
       <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
       <p style="color:#9C7B76;font-size:12px;">
         Notifica automatica FoodOS · scrivici a
-        <a href="mailto:support@foodios.it" style="color:#C0392B;">support@foodios.it</a>
+        <a href="mailto:support@foodos.it" style="color:#C0392B;">support@foodos.it</a>
       </p>
     </div>"
 `;
@@ -78,7 +78,7 @@ exports[`Email templates — snapshot per non-regressione > magazzino_sotto_sogl
       <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
       <p style="color:#9C7B76;font-size:12px;">
         Notifica automatica FoodOS · scrivici a
-        <a href="mailto:support@foodios.it" style="color:#C0392B;">support@foodios.it</a>
+        <a href="mailto:support@foodos.it" style="color:#C0392B;">support@foodos.it</a>
       </p>
     </div>"
 `;
@@ -107,7 +107,7 @@ exports[`Email templates — snapshot per non-regressione > report_mensile — c
       <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
       <p style="color:#9C7B76;font-size:12px;">
         Notifica automatica FoodOS · scrivici a
-        <a href="mailto:support@foodios.it" style="color:#C0392B;">support@foodios.it</a>
+        <a href="mailto:support@foodos.it" style="color:#C0392B;">support@foodos.it</a>
       </p>
     </div>"
 `;
@@ -122,7 +122,7 @@ exports[`Email templates — snapshot per non-regressione > scadenza_trial 2`] =
         La tua prova gratuita di FoodOS scade tra <strong>7 giorni</strong>.<br>
         I tuoi dati saranno conservati, ma non potrai accedervi senza un abbonamento attivo.
       </p>
-      <a href="mailto:support@foodios.it?subject=Attivazione%20abbonamento%20FoodOS"
+      <a href="mailto:support@foodos.it?subject=Attivazione%20abbonamento%20FoodOS"
          style="display:inline-block;padding:12px 28px;background:#C0392B;color:#FFF;
                 border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">
         Attiva ora →
@@ -130,7 +130,7 @@ exports[`Email templates — snapshot per non-regressione > scadenza_trial 2`] =
       <hr style="border:none;border-top:1px solid #E8DDD8;margin:24px 0;">
       <p style="color:#9C7B76;font-size:12px;">
         Notifica automatica FoodOS · scrivici a
-        <a href="mailto:support@foodios.it" style="color:#C0392B;">support@foodios.it</a>
+        <a href="mailto:support@foodos.it" style="color:#C0392B;">support@foodos.it</a>
       </p>
     </div>"
 `;

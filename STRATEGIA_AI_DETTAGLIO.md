@@ -624,7 +624,7 @@ Per ognuna trovi: **Obiettivo · UX · Stack · Effort · Metriche · Rischi · 
 ### D3. Open API HORECA (leadgen organico)
 **Implementazione**:
 - Espongo `/api/public/horeca-prices?ingrediente=pistacchio` gratis
-- Landing SEO-friendly su foodios.it/api
+- Landing SEO-friendly su foodos.it/api
 - Documenta su Postman + ProductHunt launch
 - Sotto: registrazione per "non perdere mai aggiornamenti prezzi" → email funnel
 

@@ -124,11 +124,11 @@ Dopo ogni rotazione di un secret server-side, esegui:
 
 ```bash
 # 1) Health check
-curl https://foodios-rose.vercel.app/api/health
+curl https://foodos-rose.vercel.app/api/health
 # atteso: { "status": "ok", "db": true }
 
 # 2) Verifica admin (richiede tuo Bearer admin)
-curl https://foodios-rose.vercel.app/api/admin?action=lista \
+curl https://foodos-rose.vercel.app/api/admin?action=lista \
   -H "Authorization: Bearer <YOUR_TOKEN>"
 # atteso: 200 con elenco clienti
 ```

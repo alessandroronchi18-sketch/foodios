@@ -5,21 +5,21 @@
 // PREREQUISITI:
 //   - Installa k6: brew install k6  (o https://k6.io/docs/get-started/installation/)
 //   - Env var richieste:
-//       BASE_URL                  default: https://foodios-rose.vercel.app
+//       BASE_URL                  default: https://foodos-rose.vercel.app
 //       VITE_SUPABASE_URL         es: https://xxx.supabase.co
 //       VITE_SUPABASE_ANON_KEY    chiave pubblica anon Supabase
-//       K6_TEST_EMAIL             email di un account E2E reale (es. e2e-load@foodios-e2e.test)
+//       K6_TEST_EMAIL             email di un account E2E reale (es. e2e-load@foodos-e2e.test)
 //       K6_TEST_PASSWORD          password dell'account E2E
 //
 // COMANDI:
 //   # Smoke (1 VU, 30s) — verifica che lo script gira
-//   k6 run tests/load/foodios.k6.js -e BASE_URL=... -e K6_TEST_EMAIL=... -e K6_TEST_PASSWORD=...
+//   k6 run tests/load/foodos.k6.js -e BASE_URL=... -e K6_TEST_EMAIL=... -e K6_TEST_PASSWORD=...
 //
 //   # Carico realistico (50 VU per 5min, dopo ramp-up)
-//   k6 run --vus 50 --duration 5m tests/load/foodios.k6.js -e ...
+//   k6 run --vus 50 --duration 5m tests/load/foodos.k6.js -e ...
 //
 //   # Stress test (push fino al breakdown)
-//   k6 run --stage 2m:50,5m:200,2m:0 tests/load/foodios.k6.js -e ...
+//   k6 run --stage 2m:50,5m:200,2m:0 tests/load/foodos.k6.js -e ...
 //
 // ATTENZIONE:
 //   - Non eseguire contro prod live con > 20 VU senza testare prima su staging.
@@ -34,17 +34,17 @@ import http from 'k6/http'
 import { sleep, check, group } from 'k6'
 import { Trend, Rate } from 'k6/metrics'
 
-const BASE_URL = __ENV.BASE_URL || 'https://foodios-rose.vercel.app'
+const BASE_URL = __ENV.BASE_URL || 'https://foodos-rose.vercel.app'
 const SUPABASE_URL = __ENV.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON = __ENV.VITE_SUPABASE_ANON_KEY || ''
 const EMAIL = __ENV.K6_TEST_EMAIL || ''
 const PASSWORD = __ENV.K6_TEST_PASSWORD || ''
 
 // Custom metrics — utili per dashboard Grafana o report finale.
-const loginDuration = new Trend('foodios_login_duration')
-const healthDuration = new Trend('foodios_health_duration')
-const dashboardLoadDuration = new Trend('foodios_dashboard_load_duration')
-const errorRate = new Rate('foodios_error_rate')
+const loginDuration = new Trend('foodos_login_duration')
+const healthDuration = new Trend('foodos_health_duration')
+const dashboardLoadDuration = new Trend('foodos_dashboard_load_duration')
+const errorRate = new Rate('foodos_error_rate')
 
 export const options = {
   // Default: smoke (1 VU per 30s). Override con --vus/--duration/--stage.
@@ -55,14 +55,14 @@ export const options = {
   thresholds: {
     http_req_failed: ['rate<0.02'],            // <2% errori HTTP
     http_req_duration: ['p(95)<2000'],         // p95 < 2s
-    foodios_login_duration: ['p(95)<1500'],    // login p95 < 1.5s
-    foodios_health_duration: ['p(95)<500'],    // health p95 < 500ms
-    foodios_dashboard_load_duration: ['p(95)<3000'],
-    foodios_error_rate: ['rate<0.02'],
+    foodos_login_duration: ['p(95)<1500'],    // login p95 < 1.5s
+    foodos_health_duration: ['p(95)<500'],    // health p95 < 500ms
+    foodos_dashboard_load_duration: ['p(95)<3000'],
+    foodos_error_rate: ['rate<0.02'],
   },
 
   // Tag globali per filtrare in Grafana.
-  tags: { service: 'foodios', env: __ENV.ENV || 'prod' },
+  tags: { service: 'foodos', env: __ENV.ENV || 'prod' },
 }
 
 // ── Setup: login una volta, riusa il token ───────────────────────────────

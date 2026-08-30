@@ -3,7 +3,7 @@
 --
 -- MOTIVAZIONE (backlog recap 2026-07-29, "v2 sicurezza sessione server-side"):
 -- Il flusso originale tiene l'id del dipendente in localStorage
--- (foodios_dip_op). Un dipendente A potrebbe fare
+-- (foodos_dip_op). Un dipendente A potrebbe fare
 --   `select id from dipendenti where cognome='Rossi'`
 -- (RLS dipendenti_own lo permette), sostituire l'id in localStorage con
 -- quello di Marco Rossi, e loggare le sue operazioni a nome di Marco.
@@ -238,7 +238,7 @@ revoke all on function public.dipendente_operativo_termina(uuid) from public, an
 grant execute on function public.dipendente_operativo_termina(uuid) to authenticated;
 
 -- 7) RPC dipendente_operativo_session_check — verifica sessione attiva ────
--- Chiamata dal Provider al mount: se il client ha `foodios_dip_op` in
+-- Chiamata dal Provider al mount: se il client ha `foodos_dip_op` in
 -- localStorage ma non c'è sessione server per quella coppia
 -- (auth_user_id, dipendente_id), qualcosa è andato storto (deploy che
 -- ha invalidato tutto, sessione scaduta, session_id manomessa) → il

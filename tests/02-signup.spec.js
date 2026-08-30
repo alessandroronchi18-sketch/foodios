@@ -6,7 +6,7 @@ import { SEED_OK } from './helpers/auth.js'
 function tempEmail() {
   const ts = Date.now()
   const rnd = Math.random().toString(36).slice(2, 8)
-  const domain = process.env.TEST_SIGNUP_DOMAIN || 'foodios-e2e.test'
+  const domain = process.env.TEST_SIGNUP_DOMAIN || 'foodos-e2e.test'
   return `e2e+${ts}-${rnd}@${domain}`
 }
 

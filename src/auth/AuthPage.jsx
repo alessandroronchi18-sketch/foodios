@@ -543,10 +543,10 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
   const [loginPwd, setLoginPwd]     = useState('')
 
   const [loginAttempts, setLoginAttempts] = useState(() => {
-    try { return parseInt(localStorage.getItem('foodios-login-attempts') || '0', 10) } catch { return 0 }
+    try { return parseInt(localStorage.getItem('foodos-login-attempts') || '0', 10) } catch { return 0 }
   })
   const [lockoutUntil, setLockoutUntil] = useState(() => {
-    try { return parseInt(localStorage.getItem('foodios-lockout-until') || '0', 10) } catch { return 0 }
+    try { return parseInt(localStorage.getItem('foodos-lockout-until') || '0', 10) } catch { return 0 }
   })
 
   const [resetEmail, setResetEmail] = useState('')
@@ -616,8 +616,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
         body: JSON.stringify({ action: 'success', email: loginEmail }),
       }).catch(() => {})
       setLoginAttempts(0); setLockoutUntil(0)
-      localStorage.removeItem('foodios-login-attempts')
-      localStorage.removeItem('foodios-lockout-until')
+      localStorage.removeItem('foodos-login-attempts')
+      localStorage.removeItem('foodos-lockout-until')
     } catch (err) {
       // Log fail server-side (fire-and-forget). Soglia raggiunta = notifica email al titolare.
       fetch('/api/login-guard', {
@@ -628,7 +628,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
 
       const next = loginAttempts + 1
       setLoginAttempts(next)
-      try { localStorage.setItem('foodios-login-attempts', String(next)) } catch {}
+      try { localStorage.setItem('foodos-login-attempts', String(next)) } catch {}
       let blockMs = 0
       if (next >= 10) blockMs = 60 * 60 * 1000
       else if (next >= 5) blockMs = 15 * 60 * 1000
@@ -636,7 +636,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
       if (blockMs > 0) {
         const until = Date.now() + blockMs
         setLockoutUntil(until)
-        try { localStorage.setItem('foodios-lockout-until', String(until)) } catch {}
+        try { localStorage.setItem('foodos-lockout-until', String(until)) } catch {}
         setErrore(getLockoutMessage(until))
       } else {
         setErrore(err.message)
@@ -648,7 +648,7 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
     e.preventDefault(); clear(); setLoading(true)
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: 'https://foodios-rose.vercel.app',
+        redirectTo: 'https://foodos-rose.vercel.app',
       })
       if (error) throw error
       setMsg(`Link di reset inviato a ${resetEmail}. Controlla la posta.`)
@@ -1240,8 +1240,8 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
             marginTop: 22, lineHeight: 1.6,
           }}>
             Problemi con l'accesso? Scrivici a{' '}
-            <a href="mailto:support@foodios.it" style={{ color: T.red, fontWeight: 600, textDecoration: 'none' }}>
-              support@foodios.it
+            <a href="mailto:support@foodos.it" style={{ color: T.red, fontWeight: 600, textDecoration: 'none' }}>
+              support@foodos.it
             </a>
           </p>
         </div>

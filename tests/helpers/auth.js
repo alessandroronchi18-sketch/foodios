@@ -37,16 +37,16 @@ const LABEL_TO_VIEW = {
 
 // Init script (gira a ogni navigazione): sopprime l'onboarding, apre i gruppi
 // sidebar e — se passato — imposta la view attiva via sessionStorage (la nav
-// del Dashboard legge `foodios_view_<orgId>` al mount).
+// del Dashboard legge `foodos_view_<orgId>` al mount).
 async function primeLocalStorage(page, viewId = null) {
   const orgId = seedOrgId()
   await page.addInitScript(({ oid, view }) => {
     try {
       if (oid) localStorage.setItem(`onboarding_seen_${oid}`, '1')
-      localStorage.setItem('foodios-sidebar-sec', JSON.stringify({
+      localStorage.setItem('foodos-sidebar-sec', JSON.stringify({
         oggi: true, ricette: true, numeri: true, acquisti: true, azienda: true, strumenti: true,
       }))
-      if (oid && view) sessionStorage.setItem(`foodios_view_${oid}`, view)
+      if (oid && view) sessionStorage.setItem(`foodos_view_${oid}`, view)
     } catch {}
   }, { oid: orgId, view: viewId })
 }

@@ -62,7 +62,7 @@ function TrialScadutoPage({ org, onSignOut }) {
         <div style={{ textAlign: 'center', marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
           <div style={{ fontSize: 13, color: '#6B4C44' }}>
             Hai una domanda prima di decidere?{' '}
-            <a href="mailto:support@foodios.it" style={{ color: '#6E0E1A', fontWeight: 600 }}>
+            <a href="mailto:support@foodos.it" style={{ color: '#6E0E1A', fontWeight: 600 }}>
               Scrivici
             </a>
             , rispondiamo subito.
@@ -292,7 +292,7 @@ export default function App() {
           <div style={{ fontSize:14, color:'#6B4C44', lineHeight:1.6, marginBottom:22 }}>
             Hai cancellato l'account il {auth.org?.deleted_at ? new Date(auth.org.deleted_at).toLocaleDateString('it-IT') : '-'}. I dati sono conservati per <b>90 giorni</b>.
             <br/><br/>
-            Hai cambiato idea? Scrivici a <a href="mailto:supporto@foodios.it?subject=Recupero%20account" style={{ color:'#6E0E1A', fontWeight:700 }}>supporto@foodios.it</a> e ripristiniamo tutto.
+            Hai cambiato idea? Scrivici a <a href="mailto:supporto@foodos.it?subject=Recupero%20account" style={{ color:'#6E0E1A', fontWeight:700 }}>supporto@foodos.it</a> e ripristiniamo tutto.
           </div>
           <button onClick={() => auth.signOut()} style={{ padding:'10px 20px', background:'transparent', color:'#6B4C44', border:'1px solid #E8DDD8', borderRadius:10, fontSize:13, cursor:'pointer' }}>
             Esci
@@ -318,7 +318,7 @@ export default function App() {
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8, fontSize:12, color:'#94785D', marginBottom:24, background:'#FBF6F1', borderRadius:10, padding:'14px 16px', textAlign:'left' }}>
             <div><strong style={{ color:'#3F2D29' }}>Hai dubbi o vuoi velocizzare?</strong></div>
-            <div>Scrivici a <a href="mailto:supporto@foodios.it" style={{ color:'#6E0E1A', fontWeight:700 }}>supporto@foodios.it</a> raccontando della tua attività.</div>
+            <div>Scrivici a <a href="mailto:supporto@foodos.it" style={{ color:'#6E0E1A', fontWeight:700 }}>supporto@foodos.it</a> raccontando della tua attività.</div>
           </div>
           <button onClick={() => auth.signOut()} style={{ padding:'10px 20px', background:'transparent', color:'#6B4C44', border:'1px solid #E8DDD8', borderRadius:10, fontSize:13, cursor:'pointer' }}>
             Esci

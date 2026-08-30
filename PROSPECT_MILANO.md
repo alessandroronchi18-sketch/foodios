@@ -331,7 +331,7 @@ reali prima — così vedi il TUO food cost, non una demo generica.
 Mar 1° lug 16:00 o Gio 3 lug 17:00?
 
 Greg
-[link calendly] · greg@foodios.it
+[link calendly] · greg@foodos.it
 ```
 
 **Regola Milano**:
@@ -356,7 +356,7 @@ riformulazioni sui TUOI prodotti reali, non template astratti.
 Ti configuro l'app con 3 tuoi prodotti prima della demo (10 min via Meet).
 Martedì 1° o giovedì 3 alle 17:00?
 
-[tel] · foodios.it
+[tel] · foodos.it
 ```
 
 ### C. **Visita in presenza** (solo per i Tier S + chi ha già risposto positivo)

@@ -10,7 +10,7 @@
 
 // IMPORTANT: bumpa questa versione ad ogni deploy con cambi UI/UX.
 // Altrimenti i client con SW attivo vedono il vecchio shell HTML/CSS.
-const CACHE_VERSION = 'foodios-2026-07-30-264ee2d';
+const CACHE_VERSION = 'foodos-2026-08-30-7350600';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -137,7 +137,7 @@ self.addEventListener('push', (event) => {
     body: payload.body || '',
     icon: payload.icon || '/favicon.svg',
     badge: payload.badge || '/favicon.svg',
-    tag: payload.tag || 'foodios-generic',
+    tag: payload.tag || 'foodos-generic',
     data: { url: payload.url || '/', ...(payload.data || {}) },
     requireInteraction: !!payload.requireInteraction,
     silent: false,

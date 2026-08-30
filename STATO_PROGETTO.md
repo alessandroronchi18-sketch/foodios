@@ -14,9 +14,9 @@
 
 | Risorsa | URL / Valore |
 |---|---|
-| **App live (produzione)** | https://foodios-rose.vercel.app |
-| **Repository GitHub** | https://github.com/alessandroronchi18-sketch/foodios |
-| **Vercel dashboard** | https://vercel.com/alessandroronchi18-7807s-projects/foodios |
+| **App live (produzione)** | https://foodos-rose.vercel.app |
+| **Repository GitHub** | https://github.com/alessandroronchi18-sketch/foodos |
+| **Vercel dashboard** | https://vercel.com/alessandroronchi18-7807s-projects/foodos |
 | **Supabase dashboard** | https://supabase.com/dashboard/project/rmecvymnwzgrfigljlid |
 | **Supabase URL** | https://rmecvymnwzgrfigljlid.supabase.co |
 | **Admin email** | alessandroar@maradeiboschi.com |
@@ -25,7 +25,7 @@
 
 ## 🔑 Variabili d'Ambiente
 
-File locale: `~/Desktop/foodios/.env.local`
+File locale: `~/Desktop/foodos/.env.local`
 
 ```
 VITE_SUPABASE_URL=https://rmecvymnwzgrfigljlid.supabase.co
@@ -53,7 +53,7 @@ Su **Vercel** queste stesse variabili vanno aggiunte in Settings → Environment
 ## 📁 Struttura File Chiave
 
 ```
-foodios/
+foodos/
 ├── src/
 │   ├── App.jsx                    # Router principale, gestisce auth state
 │   ├── Dashboard.jsx              # App principale (6700+ righe) — tutto il UI
@@ -291,7 +291,7 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 ### Deploy
 - [x] Vercel deploy manuale (`vercel --prod`) funzionante
 - [x] GitHub → Vercel autodeploy connesso e funzionante (verificato)
-- [x] Dominio: `foodios-rose.vercel.app`
+- [x] Dominio: `foodos-rose.vercel.app`
 
 ---
 
@@ -331,7 +331,7 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 
 ```bash
 # Sviluppo locale
-cd ~/Desktop/foodios
+cd ~/Desktop/foodos
 npm run dev          # http://localhost:5173
 
 # Deploy

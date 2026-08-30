@@ -46,7 +46,7 @@ export default function ChiSiamo() {
       <LegalP>
         Siamo piccoli, italiani, con esperienza nella ristorazione e nello sviluppo software.
         Vuoi conoscerci? Scrivi a{' '}
-        <LegalLink href="mailto:hello@foodios.it">hello@foodios.it</LegalLink>.
+        <LegalLink href="mailto:hello@foodos.it">hello@foodos.it</LegalLink>.
       </LegalP>
 
       <LegalH2>Trasparenza</LegalH2>

@@ -22,3 +22,18 @@ export function friendlyErrorMessage(err) {
   }
   return err.message || String(err) || 'Errore'
 }
+
+// Helper: se l'errore Supabase è di sessione operativa, rilancia un Error
+// con messaggio user-friendly (il catch a monte notify col message pulito).
+// Se è un altro errore, rilancia l'originale (comportamento standard).
+// Se nessun errore, no-op. Uso pattern: `throwIfError(error)` invece di
+// `if (error) throw error` nelle chiamate RPC critiche.
+export function throwIfError(error) {
+  if (!error) return
+  if (isSessionOperativaError(error)) {
+    const e = new Error(friendlyErrorMessage(error))
+    e.original = error
+    throw e
+  }
+  throw error
+}

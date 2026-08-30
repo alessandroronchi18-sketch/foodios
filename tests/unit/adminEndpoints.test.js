@@ -211,7 +211,7 @@ describe('getHealthSnapshot', () => {
     process.env.VERCEL_ENV = 'production'
     process.env.VERCEL_GIT_COMMIT_SHA = 'abc1234567'
     process.env.VERCEL_GIT_COMMIT_REF = 'main'
-    process.env.VERCEL_URL = 'foodios-rose.vercel.app'
+    process.env.VERCEL_URL = 'foodos-rose.vercel.app'
     try {
       const supa = makeSupabase({
         daily_briefs: [], ai_suggestions: [], forecast_giornaliero: [], documentary_snapshots: [],
@@ -221,7 +221,7 @@ describe('getHealthSnapshot', () => {
       expect(snap.build.vercel_env).toBe('production')
       expect(snap.build.git_commit).toBe('abc1234')  // slice(0,7)
       expect(snap.build.git_branch).toBe('main')
-      expect(snap.build.deploy_url).toBe('foodios-rose.vercel.app')
+      expect(snap.build.deploy_url).toBe('foodos-rose.vercel.app')
     } finally { process.env = prev }
   })
 

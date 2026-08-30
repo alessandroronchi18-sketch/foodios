@@ -11,7 +11,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 
 beforeAll(async () => {
   // Pulisci eventuale patch da test precedenti
-  try { delete Number.prototype._foodios_locale_patched } catch {}
+  try { delete Number.prototype._foodos_locale_patched } catch {}
   await import('../../src/lib/numberFormatPatch.js')
 })
 
@@ -28,8 +28,8 @@ describe('numberFormatPatch — Number.prototype.toLocaleString', () => {
     expect(after).toBe(before)
   })
 
-  it('marca sentinel _foodios_locale_patched', () => {
-    expect(Number.prototype._foodios_locale_patched).toBe(true)
+  it('marca sentinel _foodos_locale_patched', () => {
+    expect(Number.prototype._foodos_locale_patched).toBe(true)
   })
 
   it('aggiunge separatore migliaia su locale it-IT senza opzioni', () => {

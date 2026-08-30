@@ -107,7 +107,7 @@ export default function MarketplaceView() {
           <div style={{ marginTop: 10, fontSize: 14, fontWeight: 700, color: TXT }}>Marketplace in fase iniziale</div>
           <div style={{ fontSize: 12, marginTop: 6 }}>
             Stiamo onboardando i fornitori HORECA italiani.<br/>
-            Se vuoi suggerire un fornitore, scrivici a <a href="mailto:support@foodios.it" style={{ color: BRAND }}>support@foodios.it</a>
+            Se vuoi suggerire un fornitore, scrivici a <a href="mailto:support@foodos.it" style={{ color: BRAND }}>support@foodos.it</a>
           </div>
         </div>
       ) : (
@@ -146,7 +146,7 @@ export default function MarketplaceView() {
       )}
 
       <div style={{ marginTop: 24, fontSize: 11, color: SOFT, textAlign: 'center', lineHeight: 1.5 }}>
-        Il marketplace cresce con i suggerimenti della community. Vuoi un fornitore aggiunto? <a href="mailto:support@foodios.it" style={{ color: BRAND }}>support@foodios.it</a>
+        Il marketplace cresce con i suggerimenti della community. Vuoi un fornitore aggiunto? <a href="mailto:support@foodos.it" style={{ color: BRAND }}>support@foodos.it</a>
       </div>
     </div>
   )

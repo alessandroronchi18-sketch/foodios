@@ -9,7 +9,7 @@
 // terracotta/cream, max-width 560px) per consistenza visuale.
 
 const FROM_NAME = 'FoodOS'
-const SUPPORT_EMAIL = 'support@foodios.it'
+const SUPPORT_EMAIL = 'support@foodos.it'
 
 // Escape HTML minimale (idem a send-email.js).
 export function escapeHtml(s) {
@@ -60,7 +60,7 @@ export function templateApprovazione({ nomeOrg, nomeCompleto }) {
         Ciao ${escapeHtml(nomeCompleto || '')},<br>
         il tuo account per <strong>${escapeHtml(nomeOrg || 'la tua attività')}</strong> è stato attivato.
       </p>
-      <a href="https://foodios.it"
+      <a href="https://foodos.it"
          style="display:inline-block;padding:12px 28px;background:#C0392B;color:#FFF;
                 border-radius:8px;font-weight:700;text-decoration:none;font-size:14px;">
         Vai alla dashboard →

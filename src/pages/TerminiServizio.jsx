@@ -144,7 +144,7 @@ export default function TerminiServizio() {
       <LegalH2>16. Contatti</LegalH2>
       <LegalP>
         Per richieste contrattuali, commerciali o di supporto:{' '}
-        <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.
+        <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.
       </LegalP>
     </LegalLayout>
   )

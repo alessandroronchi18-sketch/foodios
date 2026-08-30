@@ -96,10 +96,10 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // Onboarding al primo accesso: localStorage flag per non rimostrarlo dopo.
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (typeof window === 'undefined') return false
-    try { return !localStorage.getItem('foodios_inventario_onboarding_v1') } catch { return false }
+    try { return !localStorage.getItem('foodos_inventario_onboarding_v1') } catch { return false }
   })
   const chiudiOnboarding = () => {
-    try { localStorage.setItem('foodios_inventario_onboarding_v1', '1') } catch {}
+    try { localStorage.setItem('foodos_inventario_onboarding_v1', '1') } catch {}
     setShowOnboarding(false)
   }
   // Ordinamento gusti: di default alfabetico ascendente. Click sui label di
@@ -115,12 +115,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // Unita' di visualizzazione: 'g' (default) o 'kg'. Persistita in localStorage.
   const [unitaDisplay, setUnitaDisplay] = useState(() => {
     if (typeof window === 'undefined') return 'g'
-    try { return localStorage.getItem('foodios_inventario_unita_v1') || 'g' } catch { return 'g' }
+    try { return localStorage.getItem('foodos_inventario_unita_v1') || 'g' } catch { return 'g' }
   })
   const toggleUnita = () => {
     setUnitaDisplay(u => {
       const next = u === 'g' ? 'kg' : 'g'
-      try { localStorage.setItem('foodios_inventario_unita_v1', next) } catch {}
+      try { localStorage.setItem('foodos_inventario_unita_v1', next) } catch {}
       return next
     })
   }
@@ -750,7 +750,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 agg[k].righe.push({ prodotto: r.gusto, qta: r.qta, unita: 'kg', prezzo: 0, totale: 0 })
               }
               let dipOpId = null
-              try { dipOpId = JSON.parse(localStorage.getItem('foodios_dip_op') || 'null')?.id || null } catch {}
+              try { dipOpId = JSON.parse(localStorage.getItem('foodos_dip_op') || 'null')?.id || null } catch {}
               for (const v of Object.values(agg)) {
                 try {
                   const { error } = await supabase.from('vendite_b2b').insert({

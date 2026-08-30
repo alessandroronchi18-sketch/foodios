@@ -1140,7 +1140,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 {[
                   ['Nessun lock-in', 'Esporti tutto in Excel/PDF in qualsiasi momento.'],
                   ['Dati in Italia', 'Server EU, conformi GDPR. Niente training di AI esterne.'],
-                  ['Linea diretta', 'Scrivi al fondatore: alessandro@foodios.it'],
+                  ['Linea diretta', 'Scrivi al fondatore: alessandro@foodos.it'],
                 ].map(([t, d], i) => (
                   <div key={i}>
                     <div style={{
@@ -1340,7 +1340,7 @@ export default function LandingPage({ onLogin, onRegister }) {
             </div>
 
             <div style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: T.textSoft, padding: '0 16px' }}>
-              Esigenze custom o on-premise? <a href="mailto:support@foodios.it" style={{ color: T.ink, fontWeight: 600, textDecoration: 'none', borderBottom: `1px solid ${T.ink}` }}>Scrivici per il piano Enterprise →</a>
+              Esigenze custom o on-premise? <a href="mailto:support@foodos.it" style={{ color: T.ink, fontWeight: 600, textDecoration: 'none', borderBottom: `1px solid ${T.ink}` }}>Scrivici per il piano Enterprise →</a>
             </div>
           </Reveal>
         </div>
@@ -1375,8 +1375,8 @@ export default function LandingPage({ onLogin, onRegister }) {
 
           <div style={{ textAlign: 'center', marginTop: 40, fontSize: 14, color: T.textMid }}>
             Altre domande?{' '}
-            <a href="mailto:support@foodios.it" style={{ color: T.ink, fontWeight: 600, textDecoration: 'none', borderBottom: `1px solid ${T.ink}` }}>
-              Scrivici a support@foodios.it →
+            <a href="mailto:support@foodos.it" style={{ color: T.ink, fontWeight: 600, textDecoration: 'none', borderBottom: `1px solid ${T.ink}` }}>
+              Scrivici a support@foodos.it →
             </a>
           </div>
         </div>
@@ -1459,7 +1459,7 @@ export default function LandingPage({ onLogin, onRegister }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <a href="/contatti" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Contatti</a>
                   <a href="/chi-siamo" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>Chi siamo</a>
-                  <a href="mailto:support@foodios.it" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>support@foodios.it</a>
+                  <a href="mailto:support@foodos.it" style={{ fontSize: 13, color: 'rgba(244,236,227,0.7)', textDecoration: 'none' }}>support@foodos.it</a>
                 </div>
               </div>
 

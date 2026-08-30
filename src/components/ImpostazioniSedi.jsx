@@ -605,7 +605,7 @@ function DialogCambioMetodo({ info, onAnnulla, onConferma }) {
         }}>
           <strong>Nessun dato verrà cancellato.</strong>&nbsp;
           Se hai dubbi prima di confermare,&nbsp;
-          <a href="mailto:support@foodios.it" style={{ color: '#92400E', textDecoration: 'underline', fontWeight: 600 }}>
+          <a href="mailto:support@foodos.it" style={{ color: '#92400E', textDecoration: 'underline', fontWeight: 600 }}>
             contatta il supporto
           </a>.
         </div>

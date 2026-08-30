@@ -3,7 +3,7 @@
 
 import { verifyBearerSecret } from './lib/cryptoCompare.js'
 
-const FROM = 'FoodOS <noreply@foodios.it>'
+const FROM = 'FoodOS <noreply@foodos.it>'
 const MESI_IT = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
 
 async function getSupabase() {
@@ -306,7 +306,7 @@ async function elaboraOrg(supabase, org, { anno, mese, label }) {
           <hr style="border:none;border-top:1px solid #E8DDD8;margin:20px 0;">
           <p style="color:#9C7B76;font-size:11px;">
             Generato automaticamente da FoodOS &mdash;
-            <a href="https://foodios.it" style="color:#C0392B;">foodios.it</a>
+            <a href="https://foodos.it" style="color:#C0392B;">foodos.it</a>
           </p>
         </div>
       `,

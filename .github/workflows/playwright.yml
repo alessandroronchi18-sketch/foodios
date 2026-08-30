@@ -27,7 +27,7 @@ jobs:
 
       - name: Run Playwright tests
         env:
-          BASE_URL: ${{ vars.BASE_URL || 'https://foodios-rose.vercel.app' }}
+          BASE_URL: ${{ vars.BASE_URL || 'https://foodos-rose.vercel.app' }}
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
           TEST_SIGNUP_DOMAIN: ${{ vars.TEST_SIGNUP_DOMAIN }}

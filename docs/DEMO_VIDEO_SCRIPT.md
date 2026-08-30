@@ -4,7 +4,7 @@
 > **Tono**: rilassato, autentico, "founder che spiega al suo migliore amico pasticcere"
 > **Asset finale**: video Loom o YouTube embed, sostituire placeholder in `src/pages/LandingPage.jsx:852`
 > **Equipment**: solo screen recorder (Loom è perfetto, OBS gratuito) + iPhone per foto scontrino
-> **Quando registrare**: dopo aver attivato il dominio `foodios.it` (l'URL nei video deve essere quello finale)
+> **Quando registrare**: dopo aver attivato il dominio `foodos.it` (l'URL nei video deve essere quello finale)
 
 ---
 
@@ -135,7 +135,7 @@ E in **180 secondi** completi deve volere:
 ---
 
 ### **[2:55 – 3:00] CALL TO ACTION** (5s)
-**Visual**: pulsante grande "Inizia gratis" su sfondo bordeaux brand. URL `foodios.it`.
+**Visual**: pulsante grande "Inizia gratis" su sfondo bordeaux brand. URL `foodos.it`.
 
 **Voice over**:
 > "FoodOS punto IT. Ci vediamo dentro."
@@ -153,7 +153,7 @@ E in **180 secondi** completi deve volere:
 | 85-115 | Multi-sede → Personale → HACCP | "Tutto in italiano, tutto qui" |
 | 115-145 | Tabella concorrenti | "€89/mese, 3 mesi gratis" |
 | 145-175 | Pasticceria reale + testimonial | "+€1.800/mese reali" |
-| 175-180 | CTA + URL | "foodios.it" |
+| 175-180 | CTA + URL | "foodos.it" |
 
 ---
 
@@ -184,7 +184,7 @@ E in **180 secondi** completi deve volere:
 ### Errori da evitare
 - **Audio sporco**: rumore ambiente, eco. Registra in stanza con tappeti/tende, lontano da finestre aperte.
 - **Schermo lento**: chiudi 50 tab Chrome, disattiva notifiche, registra Dashboard FoodOS appena dopo il login (no spinner).
-- **URL temporaneo**: aspetta che `foodios.it` sia live. Mostrare `foodios-rose.vercel.app` riduce trust.
+- **URL temporaneo**: aspetta che `foodos.it` sia live. Mostrare `foodos-rose.vercel.app` riduce trust.
 - **Voce piatta**: ascolta i video di Cassa in Cloud / Fatture in Cloud → noiosi. Tu sei un founder appassionato, fallo sentire.
 - **Troppo lungo**: 3 minuti netti. Se ne fai 5, dividi in 2 video ("demo" + "deep dive").
 
@@ -233,7 +233,7 @@ Stesso script ma compresso:
 ### V2 — "30 secondi social"
 - 0-5s: foto pasticceria + voice "Quanto costa la tua torta?"
 - 5-25s: demo food cost veloce
-- 25-30s: "Provala gratis. foodios.it"
+- 25-30s: "Provala gratis. foodos.it"
 
 ### V3 — "GIF/clip 8 secondi" (per email)
 Solo la dashboard food cost che si anima, badge verde "Margine 87%", senza audio. GIF a 8 secondi loop.

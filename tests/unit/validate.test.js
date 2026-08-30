@@ -20,7 +20,7 @@ describe('sanitize', () => {
 describe('validateEmail', () => {
   it('accetta email valide', () => {
     expect(validateEmail('a@b.it')).toBe(true)
-    expect(validateEmail('mario.rossi@foodios.it')).toBe(true)
+    expect(validateEmail('mario.rossi@foodos.it')).toBe(true)
   })
   it('rifiuta non valide', () => {
     for (const e of ['', 'a@b', 'a b@c.it', 'no-at.it', '@b.it', 123, null]) {
@@ -49,7 +49,7 @@ describe('validateAmount', () => {
 
 describe('validateUrl', () => {
   it('solo http/https', () => {
-    expect(validateUrl('https://foodios.it')).toBe(true)
+    expect(validateUrl('https://foodos.it')).toBe(true)
     expect(validateUrl('http://x.it')).toBe(true)
   })
   it('rifiuta schemi pericolosi e input invalidi', () => {

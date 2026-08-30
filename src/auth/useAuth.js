@@ -205,7 +205,7 @@ export function useAuth() {
       password,
       options: {
         data: meta,
-        emailRedirectTo: 'https://foodios-rose.vercel.app',
+        emailRedirectTo: 'https://foodos-rose.vercel.app',
       }
     })
     if (error) {
@@ -252,7 +252,7 @@ export function useAuth() {
         const k = localStorage.key(i)
         if (!k) continue
         if (
-          k.startsWith('foodios') ||
+          k.startsWith('foodos') ||
           k.startsWith('sede_attiva') ||
           k.startsWith('pasticceria') ||
           k === 'referral_code_pendente'

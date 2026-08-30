@@ -146,8 +146,8 @@ async function _flushPendingSaves() {
 // anche sedeId per evitare che switchare sede sovrascriva i backup dell'altra.
 function _bkKey(orgId, sedeId, key) {
   return isSharedKey(key)
-    ? `foodios_bk_${orgId}_${key}`
-    : `foodios_bk_${orgId}_${sedeId || 'null'}_${key}`;
+    ? `foodos_bk_${orgId}_${key}`
+    : `foodos_bk_${orgId}_${sedeId || 'null'}_${key}`;
 }
 function bkWriteLS(key, val, orgId, sedeId) {
   if (!orgId) return;
@@ -924,7 +924,7 @@ function ImpostazioniView({ auth, nomeAttivita, tipoAttivita, piano, orgId, sedi
               <strong>Email:</strong> {auth?.user?.email || "-"}
             </div>
             <div style={{ fontSize:12, color:C.textSoft, marginTop:6 }}>
-              Per cambiare email o password contatta <a href="mailto:support@foodios.it" style={{color:C.red}}>support@foodios.it</a>
+              Per cambiare email o password contatta <a href="mailto:support@foodos.it" style={{color:C.red}}>support@foodos.it</a>
             </div>
           </div>
 
@@ -1249,7 +1249,7 @@ export default function Dashboard({
   const [esclusi,setEsclusi]=useState(new Set());
   const [view,_setViewRaw]=useState(() => {
     try {
-      const stored = sessionStorage.getItem(`foodios_view_${orgId||'_'}`);
+      const stored = sessionStorage.getItem(`foodos_view_${orgId||'_'}`);
       if (stored) return stored;
       // Default: 'home' titolare, 'home-dipendente' dipendente.
       // Nota: auth.ruolo è disponibile a questo punto perché useAuth risolve prima del mount Dashboard.
@@ -1276,7 +1276,7 @@ export default function Dashboard({
     _setViewRaw(v);
   }, [view]);
   useEffect(() => {
-    try { sessionStorage.setItem(`foodios_view_${orgId||'_'}`, view); } catch {}
+    try { sessionStorage.setItem(`foodos_view_${orgId||'_'}`, view); } catch {}
   }, [view, orgId]);
 
   // ─── HISTORY API per back button ────────────────────────────────────────
@@ -1295,20 +1295,20 @@ export default function Dashboard({
     // creiamo storia "fantasma" prima dell'interazione utente).
     try {
       const cur = window.history.state;
-      if (!cur || cur.foodios_view !== view) {
-        if (cur && typeof cur.foodios_view === 'string') {
-          // C'è già un foodios_view in history → l'utente sta navigando → push.
-          window.history.pushState({ foodios_view: view }, '', window.location.pathname);
+      if (!cur || cur.foodos_view !== view) {
+        if (cur && typeof cur.foodos_view === 'string') {
+          // C'è già un foodos_view in history → l'utente sta navigando → push.
+          window.history.pushState({ foodos_view: view }, '', window.location.pathname);
         } else {
-          // Primo cambio o state senza foodios_view → replace per non gonfiare.
-          window.history.replaceState({ foodios_view: view }, '', window.location.pathname);
+          // Primo cambio o state senza foodos_view → replace per non gonfiare.
+          window.history.replaceState({ foodos_view: view }, '', window.location.pathname);
         }
       }
     } catch { /* history API non disponibile, skip */ }
   }, [view]);
   useEffect(() => {
     const onPop = (e) => {
-      const v = e.state && typeof e.state.foodios_view === 'string' ? e.state.foodios_view : null;
+      const v = e.state && typeof e.state.foodos_view === 'string' ? e.state.foodos_view : null;
       if (v && v !== view) {
         _navIsPopstateRef.current = true;
         setView(v);
@@ -1328,9 +1328,9 @@ export default function Dashboard({
   // Zoom globale del sito (persistente): l'utente può rimpicciolire/ingrandire tutto.
   const ZOOM_STEPS = [0.7, 0.8, 0.9, 1, 1.1, 1.25];
   const [zoom, setZoom] = useState(() => {
-    try { const z = parseFloat(localStorage.getItem('foodios-zoom')); return ZOOM_STEPS.includes(z) ? z : 1; } catch { return 1; }
+    try { const z = parseFloat(localStorage.getItem('foodos-zoom')); return ZOOM_STEPS.includes(z) ? z : 1; } catch { return 1; }
   });
-  useEffect(() => { try { localStorage.setItem('foodios-zoom', String(zoom)); } catch {} }, [zoom]);
+  useEffect(() => { try { localStorage.setItem('foodos-zoom', String(zoom)); } catch {} }, [zoom]);
   const stepZoom = (dir) => setZoom(z => { const i = ZOOM_STEPS.indexOf(z); const ni = Math.max(0, Math.min(ZOOM_STEPS.length - 1, (i < 0 ? 3 : i) + dir)); return ZOOM_STEPS[ni]; });
   // Navigazione orizzontale in topbar (desktop): sezione con mega-menu aperto + dropdown profilo.
   const [hoverSec, setHoverSec] = useState(null);
@@ -1346,8 +1346,8 @@ export default function Dashboard({
   }, []);
   useEffect(() => {
     function onOpen() { setCmdkOpen(true) }
-    window.addEventListener('foodios:cmdk', onOpen)
-    return () => window.removeEventListener('foodios:cmdk', onOpen)
+    window.addEventListener('foodos:cmdk', onOpen)
+    return () => window.removeEventListener('foodos:cmdk', onOpen)
   }, []);
 
   // Ruolo utente. Il dipendente vede solo le viste operative (DIPENDENTE_VIEWS).
@@ -1394,14 +1394,14 @@ export default function Dashboard({
   const [showNovita, setShowNovita] = useState(false);
   const [sidebarSec, setSidebarSec] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('foodios-sidebar-sec') || 'null')
+      const saved = JSON.parse(localStorage.getItem('foodos-sidebar-sec') || 'null')
       if (saved && typeof saved === 'object') return saved
     } catch {}
     return { oggi:true, ricette:true, numeri:false, acquisti:false, azienda:false, strumenti:false }
   });
   // Persisti aperto/chiuso dei gruppi della sidebar
   useEffect(() => {
-    try { localStorage.setItem('foodios-sidebar-sec', JSON.stringify(sidebarSec)) } catch {}
+    try { localStorage.setItem('foodos-sidebar-sec', JSON.stringify(sidebarSec)) } catch {}
   }, [sidebarSec]);
   const toggleSec = (id) => setSidebarSec(s => ({ ...s, [id]: !s[id] }));
 
@@ -1667,7 +1667,7 @@ export default function Dashboard({
     if(!ready) return;
     try {
       const ULTIMA = CHANGELOG[0]?.versione;
-      if (ULTIMA) localStorage.setItem('foodios-changelog-vista', ULTIMA);
+      if (ULTIMA) localStorage.setItem('foodos-changelog-vista', ULTIMA);
     } catch { /* localStorage non disponibile, silente */ }
   },[ready]);
 
@@ -3095,7 +3095,7 @@ export default function Dashboard({
 
       {/* Novità modal */}
       <React.Suspense fallback={null}><BackgroundToast /></React.Suspense>
-      {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}}} onVediTutte={()=>{setShowNovita(false);try{localStorage.setItem('foodios-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}setView('changelog');}}/>}
+      {showNovita&&<NovitaModal onClose={()=>{setShowNovita(false);try{localStorage.setItem('foodos-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}}} onVediTutte={()=>{setShowNovita(false);try{localStorage.setItem('foodos-changelog-vista',CHANGELOG[0]?.versione||'')}catch{}setView('changelog');}}/>}
 
       {/* CONTENT */}
       <div style={{marginLeft:0,marginTop:isMobile?0:52,flex:1,padding:0,paddingBottom:isMobile?0:28,overflowX:"auto",minHeight:"100vh",boxSizing:"border-box",display:"flex",flexDirection:"column"}}>
@@ -3378,7 +3378,7 @@ export default function Dashboard({
         {view==="quadratura-inventario"&&<QuadraturaInventarioView orgId={orgId} sedeId={sedeId} sedi={sedi} sedeAttiva={sedeAttiva} chiusure={chiusure} metodoProduzione={metodoProduzione} onNavigate={setView}/>}
         {view==="costi-aziendali"&&<CostiAziendaliView orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
-        {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} piano={piano} orgId={orgId} sedi={sedi} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
+        {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} piano={piano} orgId={orgId} sedi={sedi} sedeId={sedeId} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
         {view==="importa-dati"&&<ImportaDatiView
           onImportRicettario={handleFile}
           onImportPrezzi={handleImportPrezzi}

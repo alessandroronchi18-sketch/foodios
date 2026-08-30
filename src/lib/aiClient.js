@@ -91,7 +91,7 @@ export function friendlyAiError(err, status) {
 // Telemetry locale (no fetch al server, solo localStorage per debug founder).
 function logTelemetry(feature, ok, ms) {
   try {
-    const KEY = 'foodios_ai_telemetry'
+    const KEY = 'foodos_ai_telemetry'
     const arr = JSON.parse(localStorage.getItem(KEY) || '[]')
     arr.push({ feature, ok, ms, ts: Date.now() })
     // Mantieni solo ultime 200 entries
@@ -192,7 +192,7 @@ export async function callAi(opts) {
 // Telemetry reader per dashboard admin (ultimi N call).
 export function readAiTelemetry(limit = 50) {
   try {
-    const arr = JSON.parse(localStorage.getItem('foodios_ai_telemetry') || '[]')
+    const arr = JSON.parse(localStorage.getItem('foodos_ai_telemetry') || '[]')
     return arr.slice(-limit)
   } catch {
     return []

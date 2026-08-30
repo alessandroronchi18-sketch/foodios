@@ -8,7 +8,7 @@
  *   node scripts/create-test-user.mjs
  *
  * Opzionali (con default):
- *   TEST_USER_EMAIL=test@foodios-internal.com
+ *   TEST_USER_EMAIL=test@foodos-internal.com
  *   TEST_USER_PASSWORD=<auto-generata se non fornita>
  *
  * Output: stampa email e password alla fine, da copiare nei GitHub Secrets.
@@ -25,7 +25,7 @@ import { randomBytes } from 'node:crypto'
 
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY
-const EMAIL = process.env.TEST_USER_EMAIL || 'test@foodios-internal.com'
+const EMAIL = process.env.TEST_USER_EMAIL || 'test@foodos-internal.com'
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   console.error('❌ SUPABASE_URL e SUPABASE_SERVICE_KEY sono obbligatori.')

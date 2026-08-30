@@ -67,7 +67,7 @@ export default function CookiePolicy() {
       <LegalH2>7. Contatti</LegalH2>
       <LegalP>
         Per domande sulla Cookie Policy o sul trattamento dei dati:{' '}
-        <LegalLink href="mailto:support@foodios.it">support@foodios.it</LegalLink>.
+        <LegalLink href="mailto:support@foodos.it">support@foodos.it</LegalLink>.
       </LegalP>
     </LegalLayout>
   )
