@@ -3,7 +3,11 @@
 // nei primi 7 giorni. Progress bar + dismiss permanente quando finito.
 //
 // Stato salvato in user_data sotto chiave 'primi-passi-v1':
-//   { dismissed: bool, completati: { [task_id]: ISO_date } }
+//   { dismissed: bool, completati: { [task_id]: ISO_date }, first_seen_at: ISO_date }
+//
+// Auto-hide: dopo HIDE_AFTER_DAYS giorni dalla prima apparizione la card sparisce
+// da sola, anche se i task non sono tutti completati (non deve restare ingombrante
+// per sempre in home).
 //
 // I check sono DERIVATI dai dati reali (no chiamata extra al DB):
 //   - ricettario_ok = ricettario ha >= 3 ricette
@@ -22,6 +26,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 
 const SK_PRIMI_PASSI = 'primi-passi-v1'
+const HIDE_AFTER_DAYS = 7
 
 const TASKS = [
   {
@@ -78,7 +83,7 @@ const TASKS = [
 export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giornaliero, chiusure, onNavigate }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
-  const [state, setState] = useState({ dismissed: false, completati: {} })
+  const [state, setState] = useState({ dismissed: false, completati: {}, first_seen_at: null })
   // Audit 2026-06-24: default collassato. L'utente atterra sulla home
   // e vede solo l'header con progress bar - cliccando si espande.
   const [open, setOpen] = useState(false)
@@ -89,7 +94,11 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
     let alive = true
     sload(SK_PRIMI_PASSI, orgId, null).then(v => {
       if (!alive) return
-      if (v && typeof v === 'object') setState({ dismissed: !!v.dismissed, completati: v.completati || {} })
+      if (v && typeof v === 'object') setState({
+        dismissed: !!v.dismissed,
+        completati: v.completati || {},
+        first_seen_at: v.first_seen_at || null,
+      })
       setLoaded(true)
     })
     return () => { alive = false }
@@ -114,7 +123,7 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
       }
     }
     if (dirty) {
-      const next = { dismissed: state.dismissed, completati: updated }
+      const next = { dismissed: state.dismissed, completati: updated, first_seen_at: state.first_seen_at }
       setState(next)
       ssave(SK_PRIMI_PASSI, next, orgId, null).catch(() => {})
     }
@@ -127,12 +136,27 @@ export default function PrimiPassi({ orgId, sedeId, ricettario, magazzino, giorn
   const allDone = completati === totale
 
   async function dismiss() {
-    const next = { dismissed: true, completati: state.completati }
+    const next = { dismissed: true, completati: state.completati, first_seen_at: state.first_seen_at }
     setState(next)
     try { await ssave(SK_PRIMI_PASSI, next, orgId, null) } catch {}
   }
 
+  // Setta first_seen_at alla prima apparizione (una tantum), così partono i 7 giorni.
+  useEffect(() => {
+    if (!orgId || !loaded || state.dismissed || state.first_seen_at) return
+    const now = new Date().toISOString()
+    const next = { dismissed: false, completati: state.completati, first_seen_at: now }
+    setState(next)
+    ssave(SK_PRIMI_PASSI, next, orgId, null).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, orgId])
+
   if (!loaded || state.dismissed) return null
+  // Auto-hide dopo HIDE_AFTER_DAYS giorni dalla prima apparizione.
+  if (state.first_seen_at) {
+    const ageMs = Date.now() - new Date(state.first_seen_at).getTime()
+    if (ageMs > HIDE_AFTER_DAYS * 24 * 3600 * 1000) return null
+  }
   // Auto-hide se tutto fatto da > 24h (post celebration UX).
   if (allDone) {
     const dates = Object.values(state.completati)
