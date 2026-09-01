@@ -21,7 +21,8 @@ import { loadXLSX } from '../lib/xlsx'
 import { parseWorkbook, getSamples, fileToArrayBuffer } from '../lib/importParse'
 import { IMPORT_SCHEMAS, getEntitySchema, listEntities } from '../lib/importSchemas'
 import { validateRows, findMissingRequired, getLookupFields } from '../lib/importValidateCore'
-import { callImportMap, saveImportMapping } from '../lib/importAiMap'
+import { callImportMap, callImportDetectFormat, saveImportMapping } from '../lib/importAiMap'
+import { applyUnpivot } from '../lib/importUnpivot'
 
 const BATCH_SIZE = 200
 const MAX_PREVIEW_ROWS = 10
@@ -34,6 +35,7 @@ export default function ImportWizard({ orgId, onClose, notify }) {
   const [entity, setEntity] = useState('')
   const [file, setFile] = useState(null)
   const [parsedSheet, setParsedSheet] = useState(null)
+  const [detectInfo, setDetectInfo] = useState(null)
   const [mapping, setMapping] = useState({})
   const [aiNotes, setAiNotes] = useState('')
   const [activeConversions, setActiveConversions] = useState(new Set())
@@ -45,7 +47,7 @@ export default function ImportWizard({ orgId, onClose, notify }) {
 
   const schema = useMemo(() => (entity ? getEntitySchema(entity) : null), [entity])
 
-  // ── STEP 1 → STEP 2: parsea file e chiama AI mapping ─────────────
+  // ── STEP 1 → STEP 2: parsea file, detect formato (LONG/WIDE), unpivot se serve, mapping AI
   async function goToStep2() {
     if (!file || !entity) { setError('Scegli tipo dato e carica il file.'); return }
     setError(''); setLoading(true)
@@ -53,12 +55,59 @@ export default function ImportWizard({ orgId, onClose, notify }) {
       const XLSX = await loadXLSX()
       const buf = await fileToArrayBuffer(file)
       const wb = parseWorkbook(buf, XLSX)
-      const sheet = wb.firstSheet
-      if (sheet.rows.length === 0) throw new Error('Il file non contiene righe di dati.')
-      setParsedSheet(sheet)
+      const sheetCount = wb.sheetNames.length
 
-      const samples = getSamples(sheet, 5)
-      const aiRes = await callImportMap({ entity, headers: sheet.headers, sampleRows: samples })
+      let detected = null
+      const looksComplex = sheetCount > 1 || !!schema?.wideFormatWarning
+      if (looksComplex) {
+        // Payload detect: primi 20 righe RAW per ogni sheet.
+        const sheetsPayload = {}
+        for (const name of wb.sheetNames) {
+          const raw = wb.rawSheets[name] || []
+          sheetsPayload[name] = raw.slice(0, 20)
+        }
+        try {
+          detected = await callImportDetectFormat({ entity, sheets: sheetsPayload })
+        } catch (e) {
+          detected = { format: 'long', unpivot_config: null, notes: `Riconoscimento fallito: ${e?.message || 'errore'}. Provo come formato semplice.` }
+        }
+      }
+
+      let sheetForMapping = null
+      if (detected?.format === 'wide' && detected.unpivot_config) {
+        const { rows: longRows, per_sheet, warnings } = applyUnpivot(wb.rawSheets, detected.unpivot_config)
+        if (longRows.length === 0) {
+          throw new Error('Formato WIDE riconosciuto ma nessuna riga estratta. Controlla il file o dimmi come è organizzato.')
+        }
+        const headers = Array.from(longRows.reduce((acc, r) => {
+          for (const k of Object.keys(r)) acc.add(k)
+          return acc
+        }, new Set()))
+        sheetForMapping = { headers, rows: longRows, sheetName: `(unpivot LONG da ${sheetCount} sheet)` }
+        setDetectInfo({
+          format: 'wide',
+          unpivot_config: detected.unpivot_config,
+          notes: detected.notes,
+          sheetCount,
+          unpivotStats: { total: longRows.length, per_sheet, warnings },
+        })
+      } else {
+        const sheet = wb.firstSheet
+        if (sheet.rows.length === 0) throw new Error('Il file non contiene righe di dati.')
+        sheetForMapping = sheet
+        setDetectInfo(detected ? {
+          format: detected.format || 'long',
+          unpivot_config: null,
+          notes: detected.notes,
+          sheetCount,
+          unpivotStats: null,
+        } : null)
+      }
+
+      setParsedSheet(sheetForMapping)
+
+      const samples = getSamples(sheetForMapping, 5)
+      const aiRes = await callImportMap({ entity, headers: sheetForMapping.headers, sampleRows: samples })
       setMapping(aiRes.mapping || {})
       setAiNotes(aiRes.notes || '')
       setStep(2)
@@ -132,9 +181,9 @@ export default function ImportWizard({ orgId, onClose, notify }) {
   }
 
   function reset() {
-    setStep(1); setEntity(''); setFile(null); setParsedSheet(null); setMapping({})
-    setAiNotes(''); setActiveConversions(new Set()); setValidationResult(null)
-    setProgress({ done: 0, total: 0 })
+    setStep(1); setEntity(''); setFile(null); setParsedSheet(null); setDetectInfo(null)
+    setMapping({}); setAiNotes(''); setActiveConversions(new Set())
+    setValidationResult(null); setProgress({ done: 0, total: 0 })
     setInsertResult(null); setError(''); setLoading(false)
   }
 
@@ -184,6 +233,7 @@ export default function ImportWizard({ orgId, onClose, notify }) {
               schema={schema}
               headers={parsedSheet.headers}
               sampleRows={parsedSheet.rows.slice(0, 5)}
+              detectInfo={detectInfo}
               mapping={mapping} setMapping={setMapping}
               activeConversions={activeConversions} setActiveConversions={setActiveConversions}
               aiNotes={aiNotes}
@@ -191,7 +241,7 @@ export default function ImportWizard({ orgId, onClose, notify }) {
               onBack={() => setStep(1)}
               onNext={goToStep3}
               isMobile={isMobile}
-              T={{ TXT, SOFT, BRAND, BORDER, RED, AMBER, AMBER_BG }}
+              T={{ TXT, SOFT, BRAND, BORDER, RED, AMBER, AMBER_BG, GREEN }}
             />
           )}
           {step === 3 && schema && validationResult && (
@@ -364,7 +414,7 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
 
 // ── STEP 2: mapping editabile ─────────────────────────────────────
 
-function StepMapping({ schema, headers, sampleRows, mapping, setMapping, activeConversions, setActiveConversions, aiNotes, loading, onBack, onNext, isMobile, T }) {
+function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapping, activeConversions, setActiveConversions, aiNotes, loading, onBack, onNext, isMobile, T }) {
   function changeMap(fieldName, headerOrEmpty) {
     setMapping(prev => {
       const next = { ...prev }
@@ -387,6 +437,21 @@ function StepMapping({ schema, headers, sampleRows, mapping, setMapping, activeC
 
   return (
     <div>
+      {detectInfo?.format === 'wide' && detectInfo.unpivotStats && (
+        <div style={{
+          background: '#F0FDF4', border: `1px solid ${T.GREEN}`,
+          borderRadius: 10, padding: 12, marginBottom: 14,
+          display: 'flex', gap: 10, alignItems: 'flex-start',
+        }}>
+          <Icon name="check" size={16} color={T.GREEN}/>
+          <div style={{ fontSize: 13, color: '#14532D', lineHeight: 1.5 }}>
+            <b>Formato riconosciuto: registro WIDE con {detectInfo.sheetCount} tab.</b>{' '}
+            Ho estratto <b>{detectInfo.unpivotStats.total.toLocaleString('it-IT')} righe</b> pronte da caricare.
+            {detectInfo.notes && <div style={{ marginTop: 4, color: '#166534', fontSize: 12 }}>{detectInfo.notes}</div>}
+          </div>
+        </div>
+      )}
+
       <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 6 }}>
         Rivedi la mappatura
       </div>

@@ -67,11 +67,13 @@ export function parseWorkbook(arrayBuffer, XLSX) {
   if (sheetNames.length === 0) throw new Error('Nessun sheet trovato nel file')
 
   const sheets = {}
+  const rawSheets = {}
   for (const name of sheetNames) {
     const ws = wb.Sheets[name]
     if (!ws) continue
     const raw = sheetToRawRows(ws, XLSX)
     sheets[name] = normalizeSheet(raw)
+    rawSheets[name] = raw
   }
 
   const firstSheetName = sheetNames[0]
@@ -80,6 +82,7 @@ export function parseWorkbook(arrayBuffer, XLSX) {
     firstSheetName,
     firstSheet: sheets[firstSheetName] || { headers: [], rows: [] },
     sheets,
+    rawSheets,  // 2D arrays crudi, utili per unpivot WIDE→LONG
   }
 }
 

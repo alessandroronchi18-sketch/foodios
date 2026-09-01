@@ -19,6 +19,7 @@ import * as XLSX from 'xlsx'
 
 import { getEntitySchema } from '../src/lib/importSchemas.js'
 import { validateRows, findMissingRequired, getLookupFields } from '../src/lib/importValidateCore.js'
+import { applyUnpivot, defaultGelateriaWideConfig } from '../src/lib/importUnpivot.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -248,6 +249,70 @@ function testProduzioneNoConversion() {
   console.log('  ✓ Test produzione senza conversione PASSED')
 }
 
+// ── Test 6: Unpivot WIDE gelateria (formato Mara) ──────────────
+
+function testUnpivotWideGelateria() {
+  console.log('\n=== TEST 6: unpivot WIDE gelateria stile Mara ===')
+
+  const sedeBerthollet = [
+    [null, null, 'venerdì', null, 'sabato', null, 'VENDUTO SETTIMANA 1'],
+    ['GUSTI', null, 1, null, 2, null, null],
+    [null, 'Rimanenza', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', null],
+    ['FIOR DI PANNA', 8900, null, 4700, 8800, 8000, 14900],
+    ['STRACCIATELLA', 6200, 4000, 5000, 4000, 3700, 13500],
+    ['TOTALE ', 15100, 4000, 9700, 12800, 11700, 28400],
+  ]
+  const sedeCarlina = [
+    [null, null, 'venerdì', null, 'sabato', null, 'VENDUTO SETTIMANA 1'],
+    ['GUSTI', null, 1, null, 2, null, null],
+    [null, 'Rimanenza', 'PROD', 'RIMAN.', 'PROD', 'RIMAN.', null],
+    ['NOCCIOLA', 3000, 5000, 2000, 4000, 1500, 6500],
+    ['TOTALE ', 3000, 5000, 2000, 4000, 1500, 6500],
+  ]
+
+  const rawSheets = {
+    ' BERTHOLLET': sedeBerthollet,
+    ' CARLINA': sedeCarlina,
+    'TOTALI': [['TOTALI'], [null]],
+  }
+
+  const config = {
+    ...defaultGelateriaWideConfig('2026-05'),
+    sheets_to_process: ['BERTHOLLET', 'CARLINA'],
+    sheets_to_skip: ['TOTALI'],
+  }
+
+  const { rows, per_sheet, warnings } = applyUnpivot(rawSheets, config)
+
+  console.log(`  Righe estratte: ${rows.length}`)
+  console.log(`  Per sheet:`, per_sheet)
+  if (warnings.length > 0) console.log('  Warnings:', warnings)
+
+  // Attese:
+  // BERTHOLLET FIOR DI PANNA g1: RIMAN=4700 → 1 riga
+  // BERTHOLLET FIOR DI PANNA g2: PROD=8800+RIMAN=8000 → 1 riga
+  // BERTHOLLET STRACCIATELLA g1: PROD=4000+RIMAN=5000 → 1 riga
+  // BERTHOLLET STRACCIATELLA g2: PROD=4000+RIMAN=3700 → 1 riga
+  // CARLINA NOCCIOLA g1: PROD=5000+RIMAN=2000 → 1 riga
+  // CARLINA NOCCIOLA g2: PROD=4000+RIMAN=1500 → 1 riga
+  // Totale: 6 righe
+  if (rows.length !== 6) throw new Error(`rows=${rows.length}, atteso 6`)
+
+  const g2 = rows.find(r => r.sede === 'BERTHOLLET' && r.gusto_nome === 'FIOR DI PANNA' && r.data === '2026-05-02')
+  if (!g2) throw new Error('Non trovato Berthollet FIOR DI PANNA 02/05')
+  if (g2.produzione_g !== 8800) throw new Error(`produzione_g=${g2.produzione_g}, atteso 8800`)
+  if (g2.rimanenza_g !== 8000) throw new Error(`rimanenza_g=${g2.rimanenza_g}, atteso 8000`)
+
+  if (!rows.every(r => ['BERTHOLLET', 'CARLINA'].includes(r.sede))) {
+    throw new Error('Sede non popolata correttamente')
+  }
+  if (rows.some(r => r.gusto_nome && r.gusto_nome.startsWith('TOTALE'))) {
+    throw new Error('Trovata riga TOTALE non skippata')
+  }
+
+  console.log('  ✓ Test unpivot WIDE PASSED')
+}
+
 // ── Run ─────────────────────────────────────────────────────────
 
 try {
@@ -256,6 +321,7 @@ try {
   testMissingRequired()
   testProduzioneLookup()
   testProduzioneNoConversion()
+  testUnpivotWideGelateria()
   console.log('\n🎉 TUTTI I TEST PASSATI')
 } catch (e) {
   console.error(`\n❌ TEST FALLITO: ${e.message}`)

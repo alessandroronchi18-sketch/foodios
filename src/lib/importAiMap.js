@@ -14,6 +14,7 @@ import { supabase } from './supabase'
 
 const ENDPOINT = '/api/import-map'
 const ENDPOINT_SAVE = '/api/import-mapping-save'
+const ENDPOINT_DETECT = '/api/import-detect-format'
 const DEFAULT_TIMEOUT_MS = 30_000
 const MAX_SAMPLES = 5
 
@@ -86,6 +87,54 @@ export async function callImportMap({ entity, headers, sampleRows = [], timeoutM
     }
   } catch (e) {
     if (e?.name === 'AbortError') throw new Error('Timeout: la mappatura ha impiegato troppo. Riprova.')
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Chiede al server di riconoscere il formato (LONG vs WIDE) del file e
+ * proporre una config di unpivot. Solo i primi 20 righe per sheet vanno
+ * al server; il resto del file resta nel browser.
+ *
+ * @param {Object} args
+ * @param {string} args.entity
+ * @param {Record<string, Array<Array<any>>>} args.sheets - Map: sheet name → 2D array (prime N righe)
+ * @param {number} [args.timeoutMs]
+ * @returns {Promise<{ format: string, unpivot_config: Object|null, notes: string, source: string }>}
+ */
+export async function callImportDetectFormat({ entity, sheets, timeoutMs = DEFAULT_TIMEOUT_MS }) {
+  const session = await supabase.auth.getSession()
+  const token = session?.data?.session?.access_token
+  if (!token) throw new Error('Sessione non valida — rifai login')
+
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(ENDPOINT_DETECT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ entity, sheets }),
+      signal: ctrl.signal,
+    })
+    if (!res.ok) {
+      let msg = `Errore server (${res.status})`
+      try { const b = await res.json(); if (b?.error) msg = b.error } catch { /* */ }
+      throw new Error(msg)
+    }
+    const data = await res.json()
+    return {
+      format: data.format || 'unknown',
+      unpivot_config: data.unpivot_config || null,
+      notes: typeof data.notes === 'string' ? data.notes : '',
+      source: data.source || 'ai',
+    }
+  } catch (e) {
+    if (e?.name === 'AbortError') throw new Error('Timeout riconoscimento formato.')
     throw e
   } finally {
     clearTimeout(timer)
