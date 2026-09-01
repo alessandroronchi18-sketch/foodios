@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os'
 import * as XLSX from 'xlsx'
 
 import { getEntitySchema } from '../src/lib/importSchemas.js'
-import { validateRows, findMissingRequired } from '../src/lib/importValidateCore.js'
+import { validateRows, findMissingRequired, getLookupFields } from '../src/lib/importValidateCore.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -178,12 +178,84 @@ function testMissingRequired() {
   console.log('  ✓ Test findMissingRequired PASSED')
 }
 
+// ── Test 4: produzione — lookup sede_id + conversione kg→g ──────
+
+function testProduzioneLookup() {
+  console.log('\n=== TEST 4: produzione_inventario — lookup + kg→g ===')
+
+  const schema = getEntitySchema('produzione_inventario')
+  if (!schema) throw new Error('Schema produzione_inventario non trovato')
+
+  const lookupFields = getLookupFields(schema)
+  if (lookupFields.length !== 1) throw new Error(`Attesi 1 lookup field, ho ${lookupFields.length}`)
+  if (lookupFields[0].name !== 'sede_id') throw new Error(`Atteso sede_id, ho ${lookupFields[0].name}`)
+
+  const rows = [
+    { 'Giorno': '2026-03-01', 'Sede': 'Torino Centro', 'Gusto': 'Nocciola',   'Kg':   '2,5' },
+    { 'Giorno': '2026-03-01', 'Sede': 'Torino Centro', 'Gusto': 'Pistacchio', 'Kg':   '3'   },
+    { 'Giorno': '2026-03-01', 'Sede': 'Milano Nord',    'Gusto': 'Fiordilatte','Kg':  '4'   },
+    // Sede non esistente → invalid
+    { 'Giorno': '2026-03-02', 'Sede': 'Roma Sud',      'Gusto': 'Cioccolato', 'Kg':  '2'   },
+  ]
+
+  const mapping = { data: 'Giorno', sede_id: 'Sede', gusto_nome: 'Gusto', produzione_g: 'Kg' }
+
+  // Lookup mock: solo Torino Centro e Milano Nord esistono
+  const lookups = {
+    sede_id: new Map([
+      ['torino centro', 'uuid-torino'],
+      ['milano nord', 'uuid-milano'],
+    ]),
+  }
+
+  // Conversione kg→g attiva
+  const activeConversions = new Set(['I miei numeri sono in kg (convertili in grammi)'])
+
+  const { valid_rows, invalid_rows, stats } = validateRows(rows, mapping, schema, { lookups, activeConversions })
+  console.log(`  Stats: total=${stats.total} valid=${stats.valid} invalid=${stats.invalid}`)
+  console.log(`  Attese: 3 valide (Torino x2 + Milano) · 1 invalida (Roma Sud sconosciuta)`)
+
+  if (stats.valid !== 3) throw new Error(`valid=${stats.valid}, atteso 3. Errori: ${JSON.stringify(invalid_rows.map(r => r.errors))}`)
+  if (stats.invalid !== 1) throw new Error(`invalid=${stats.invalid}, atteso 1`)
+
+  const nocciola = valid_rows[0]
+  if (nocciola.sede_id !== 'uuid-torino') throw new Error(`sede_id mismatch: ${nocciola.sede_id}`)
+  if (nocciola.produzione_g !== 2500) throw new Error(`produzione_g=${nocciola.produzione_g}, atteso 2500 (2.5 kg × 1000)`)
+
+  const romaErr = invalid_rows[0]
+  if (!romaErr.errors.some(e => e.includes('Roma Sud'))) throw new Error(`Atteso errore Roma Sud, ho: ${romaErr.errors.join(',')}`)
+
+  console.log('  ✓ Test produzione lookup+conversion PASSED')
+}
+
+// ── Test 5: produzione — senza conversione (grammi diretti) ────
+
+function testProduzioneNoConversion() {
+  console.log('\n=== TEST 5: produzione_inventario — grammi diretti (no conversione) ===')
+
+  const schema = getEntitySchema('produzione_inventario')
+  const rows = [
+    { 'Giorno': '2026-03-01', 'Sede': 'Torino Centro', 'Gusto': 'Nocciola', 'Grammi': '2500' },
+  ]
+  const mapping = { data: 'Giorno', sede_id: 'Sede', gusto_nome: 'Gusto', produzione_g: 'Grammi' }
+  const lookups = { sede_id: new Map([['torino centro', 'uuid-torino']]) }
+  const activeConversions = new Set() // NESSUNA conversione
+
+  const { valid_rows, stats } = validateRows(rows, mapping, schema, { lookups, activeConversions })
+  if (stats.valid !== 1) throw new Error(`valid=${stats.valid}, atteso 1`)
+  if (valid_rows[0].produzione_g !== 2500) throw new Error(`produzione_g=${valid_rows[0].produzione_g}, atteso 2500 (senza conversione)`)
+
+  console.log('  ✓ Test produzione senza conversione PASSED')
+}
+
 // ── Run ─────────────────────────────────────────────────────────
 
 try {
   testFornitori()
   testDipendenti()
   testMissingRequired()
+  testProduzioneLookup()
+  testProduzioneNoConversion()
   console.log('\n🎉 TUTTI I TEST PASSATI')
 } catch (e) {
   console.error(`\n❌ TEST FALLITO: ${e.message}`)

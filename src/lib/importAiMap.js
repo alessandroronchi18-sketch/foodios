@@ -13,6 +13,7 @@
 import { supabase } from './supabase'
 
 const ENDPOINT = '/api/import-map'
+const ENDPOINT_SAVE = '/api/import-mapping-save'
 const DEFAULT_TIMEOUT_MS = 30_000
 const MAX_SAMPLES = 5
 
@@ -78,7 +79,9 @@ export async function callImportMap({ entity, headers, sampleRows = [], timeoutM
       unmapped_columns: Array.isArray(data.unmapped_columns) ? data.unmapped_columns : [],
       missing_required: Array.isArray(data.missing_required) ? data.missing_required : [],
       notes: typeof data.notes === 'string' ? data.notes : '',
-      model: data.model || 'unknown',
+      source: data.source || 'ai',
+      model: data.model || null,
+      library_id: data.library_id || null,
       duration_ms: Number(data.duration_ms) || 0,
     }
   } catch (e) {
@@ -86,5 +89,36 @@ export async function callImportMap({ entity, headers, sampleRows = [], timeoutM
     throw e
   } finally {
     clearTimeout(timer)
+  }
+}
+
+/**
+ * Salva un mapping confermato dal cliente nella library cross-cliente.
+ * Chiamata fire-and-forget dopo un insert riuscito. Silenzia errori: se la
+ * library non risponde, l'utente non vede errori perché i dati sono
+ * comunque stati importati con successo.
+ *
+ * @param {Object} args
+ * @param {string} args.entity
+ * @param {string[]} args.headers
+ * @param {Record<string,string>} args.mapping
+ */
+export async function saveImportMapping({ entity, headers, mapping }) {
+  try {
+    const session = await supabase.auth.getSession()
+    const token = session?.data?.session?.access_token
+    if (!token) return
+    await fetch(ENDPOINT_SAVE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ entity, headers, mapping }),
+      // Fire-and-forget: se la rete e' lenta, non blocchiamo il flusso.
+      keepalive: true,
+    })
+  } catch {
+    // Silenzia: non e' un errore utente-facing.
   }
 }

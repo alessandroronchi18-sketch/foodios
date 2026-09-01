@@ -66,12 +66,17 @@ export function coerceDate(v) {
  * Valida una singola riga dopo aver applicato il mapping.
  * @param {Object} row - Riga input (chiavi = nomi colonne file)
  * @param {Record<string,string>} mapping - {field_target -> nome_colonna_input}
- * @param {Object} schema - EntitySchema da import-schemas.js
+ * @param {Object} schema - EntitySchema
+ * @param {Object} [opts]
+ * @param {Record<string, Map<string, *>>} [opts.lookups]  - Per field type='lookup':
+ *   mappa da valore-cliente (lowercase trim) → chiave DB.
+ * @param {Set<string>} [opts.activeConversions] - unitConversions attivate
  * @returns {{ ok: true, data: Object } | { ok: false, errors: string[], data: Object }}
  */
-export function validateRow(row, mapping, schema) {
+export function validateRow(row, mapping, schema, opts = {}) {
   const errors = []
   const data = {}
+  const lookups = opts.lookups || {}
   for (const field of schema.fields) {
     const inputCol = mapping[field.name]
     const raw = inputCol ? row[inputCol] : undefined
@@ -87,6 +92,21 @@ export function validateRow(row, mapping, schema) {
     if (raw == null || String(raw).trim() === '') continue
 
     switch (field.type) {
+      case 'lookup': {
+        const key = String(raw).trim().toLowerCase()
+        const lookupMap = lookups[field.name]
+        if (!lookupMap) {
+          errors.push(`"${field.name}" non risolvibile: manca la tabella di lookup`)
+          break
+        }
+        const resolved = lookupMap.get(key)
+        if (!resolved) {
+          errors.push(`"${field.name}" = "${raw}" non trovato tra le ${lookupMap.size} opzioni disponibili`)
+          break
+        }
+        data[field.name] = resolved
+        break
+      }
       case 'string': {
         const s = coerceString(raw)
         if (!s) { if (field.required) errors.push(`"${field.name}" vuoto dopo trim`); continue }
@@ -133,14 +153,32 @@ export function validateRow(row, mapping, schema) {
         errors.push(`Tipo schema sconosciuto: ${field.type}`)
     }
   }
+
+  // unitConversions attive: applica dopo il parsing dei numeri.
+  const activeConv = opts.activeConversions
+  if (activeConv && activeConv.size > 0 && Array.isArray(schema.unitConversions)) {
+    for (const conv of schema.unitConversions) {
+      if (!activeConv.has(conv.label)) continue
+      for (const f of (conv.fields || [])) {
+        if (data[f] != null && typeof data[f] === 'number') {
+          data[f] = Math.round(data[f] * (conv.factor || 1))
+        }
+      }
+    }
+  }
+
   return errors.length === 0 ? { ok: true, data } : { ok: false, errors, data }
 }
 
 /**
  * Valida un batch di rows applicando il mapping.
- * @returns {{ valid_rows: Object[], invalid_rows: Array<{row_index:number, errors:string[], row_data:Object}>, stats: {total:number, valid:number, invalid:number} }}
+ * @param {Object[]} rows
+ * @param {Record<string,string>} mapping
+ * @param {Object} schema
+ * @param {Object} [opts] - Vedi validateRow: {lookups, activeConversions}
+ * @returns {{ valid_rows, invalid_rows, stats }}
  */
-export function validateRows(rows, mapping, schema) {
+export function validateRows(rows, mapping, schema, opts = {}) {
   const valid_rows = []
   const invalid_rows = []
   for (let i = 0; i < rows.length; i++) {
@@ -149,7 +187,7 @@ export function validateRows(rows, mapping, schema) {
       invalid_rows.push({ row_index: i, errors: ['riga non e un oggetto'], row_data: row })
       continue
     }
-    const res = validateRow(row, mapping, schema)
+    const res = validateRow(row, mapping, schema, opts)
     if (res.ok) valid_rows.push(res.data)
     else invalid_rows.push({ row_index: i, errors: res.errors, row_data: row })
   }
@@ -158,6 +196,16 @@ export function validateRows(rows, mapping, schema) {
     invalid_rows,
     stats: { total: rows.length, valid: valid_rows.length, invalid: invalid_rows.length },
   }
+}
+
+/**
+ * Estrae i field type='lookup' da uno schema.
+ * @returns {Array<{name: string, resolver: Object}>}
+ */
+export function getLookupFields(schema) {
+  return (schema.fields || [])
+    .filter(f => f.type === 'lookup' && f.resolver)
+    .map(f => ({ name: f.name, resolver: f.resolver }))
 }
 
 /**

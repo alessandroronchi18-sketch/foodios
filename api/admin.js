@@ -2834,6 +2834,47 @@ export default async function handler(req) {
         return json({ piani }, 200, req)
       }
 
+      if (action === 'import_health') {
+        // Aggregati sulla mapping library cross-cliente: NO payload dei clienti,
+        // solo metriche (count, top entities, mapping più confermati).
+        // Serve al founder per capire quando smettere di fare founder-assist
+        // e quando la library "impara" sui propri passi.
+        const { data: allMaps } = await supabase
+          .from('import_mappings_library')
+          .select('entity, confirmed_count, headers_json, mapping, last_used_at, first_used_at')
+          .order('confirmed_count', { ascending: false })
+          .limit(500)
+        const list = Array.isArray(allMaps) ? allMaps : []
+        // Aggregati per entity
+        const byEntity = {}
+        let totalConfirmations = 0
+        for (const m of list) {
+          const e = m.entity || 'unknown'
+          byEntity[e] = byEntity[e] || { entity: e, unique_mappings: 0, total_confirmations: 0 }
+          byEntity[e].unique_mappings += 1
+          byEntity[e].total_confirmations += (m.confirmed_count || 0)
+          totalConfirmations += (m.confirmed_count || 0)
+        }
+        const topEntities = Object.values(byEntity).sort((a, b) => b.total_confirmations - a.total_confirmations)
+        const topMappings = list.slice(0, 20).map(m => ({
+          entity: m.entity,
+          confirmed_count: m.confirmed_count,
+          header_count: Array.isArray(m.headers_json) ? m.headers_json.length : 0,
+          mapped_fields: m.mapping ? Object.keys(m.mapping).length : 0,
+          last_used_at: m.last_used_at,
+        }))
+        await logAdmin(supabase, user.email, 'import_health', null, ip, ua)
+        return json({
+          totals: {
+            unique_mappings: list.length,
+            total_confirmations: totalConfirmations,
+            entities_covered: Object.keys(byEntity).length,
+          },
+          by_entity: topEntities,
+          top_mappings: topMappings,
+        }, 200, req)
+      }
+
       if (action === 'esporta_csv') {
         await logAdmin(supabase, user.email, 'esporta_csv', null, ip, ua)
         const clienti = await getClienti(supabase)

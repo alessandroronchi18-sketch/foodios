@@ -130,6 +130,55 @@ export default async function handler(req) {
     ? sampleRows.slice(0, MAX_SAMPLE_ROWS)
     : []
 
+  // ── LIBRARY LOOKUP ────────────────────────────────────────────
+  // Prima di chiamare Claude: cerca in import_mappings_library con hash headers.
+  // Se un altro cliente ha già importato lo STESSO formato (stessi header set)
+  // e lo ha confermato, usiamo quel mapping (gratis + istantaneo).
+  //
+  // Normalizzazione: lower + trim + sort alfabetico + join con "|".
+  // L hash md5 lo calcola Postgres (evita dipendenze crypto in Edge).
+  try {
+    const normalized = cleanHeaders
+      .map(h => h.toLowerCase().trim())
+      .filter(Boolean)
+      .sort()
+      .join('|')
+    const { data: libRows } = await supabase
+      .rpc('lookup_import_mapping', { p_entity: entity, p_normalized: normalized })
+      .maybeSingle()
+    if (libRows && libRows.mapping && typeof libRows.mapping === 'object') {
+      // Verifica mapping valido rispetto allo schema + headers correnti
+      const validFields = new Set(schema.fields.map(f => f.name))
+      const validCols = new Set(cleanHeaders)
+      const cleanFromLib = {}
+      const confFromLib = {}
+      for (const [field, col] of Object.entries(libRows.mapping)) {
+        if (!validFields.has(field)) continue
+        if (typeof col !== 'string' || !validCols.has(col)) continue
+        cleanFromLib[field] = col
+        confFromLib[field] = 1.0  // library = certezza (conferma di altri clienti)
+      }
+      // Solo se il mapping copre almeno tutti i required
+      const missingReq = schema.fields
+        .filter(f => f.required && !cleanFromLib[f.name])
+        .map(f => f.name)
+      if (Object.keys(cleanFromLib).length > 0 && missingReq.length === 0) {
+        await rallentaSeNecessario(start, MIN_MS)
+        return json({
+          entity,
+          mapping: cleanFromLib,
+          confidence: confFromLib,
+          unmapped_columns: cleanHeaders.filter(h => !Object.values(cleanFromLib).includes(h)),
+          missing_required: [],
+          notes: `Formato riconosciuto dalla library (${libRows.confirmed_count} conferme di altri clienti).`,
+          source: 'library',
+          library_id: libRows.id,
+          duration_ms: Date.now() - start,
+        }, 200, req)
+      }
+    }
+  } catch { /* library lookup opzionale: se fallisce, fallback a Claude */ }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return json({ error: 'ANTHROPIC_API_KEY non configurata' }, 503, req)
   }
@@ -219,6 +268,7 @@ export default async function handler(req) {
     unmapped_columns,
     missing_required,
     notes,
+    source: 'ai',
     model: MODEL,
     duration_ms: Date.now() - start,
   }, 200, req)

@@ -15,24 +15,44 @@
 //     helper per costruire il payload prima dell'ssave).
 
 /**
+ * @typedef {Object} ResolverSpec
+ * @property {string} table       - Tabella su cui cercare (es. 'sedi')
+ * @property {string} match_col   - Colonna dove cercare il valore-cliente (es. 'nome')
+ * @property {string} target_col  - Colonna da restituire (es. 'id')
+ * @property {'org'|'global'} scope - Se 'org' filtra per organization_id
+ */
+
+/**
  * @typedef {Object} FieldSpec
  * @property {string} name        - Nome del field target (deve matchare colonna SQL o chiave JSON blob)
- * @property {'string'|'number'|'boolean'|'date'|'email'|'phone'} type
- * @property {boolean} required   - Se true, riga senza questo field va scartata
- * @property {string} hint        - Descrizione umana per l'AI mapping (Claude legge questo per capire cosa mappare)
- * @property {string[]} [aliases] - Nomi comuni che il cliente potrebbe usare per questa colonna (es. "Ragione Sociale" per nome fornitore). Aiuta il mapping deterministico prima di ricorrere all'AI.
- * @property {*} [default]        - Valore default se assente
- * @property {number} [minValue]  - Per type='number'
- * @property {number} [maxValue]  - Per type='number'
+ * @property {'string'|'number'|'boolean'|'date'|'email'|'phone'|'lookup'} type
+ * @property {boolean} required
+ * @property {string} hint
+ * @property {string[]} [aliases]
+ * @property {*} [default]
+ * @property {number} [minValue]
+ * @property {number} [maxValue]
+ * @property {ResolverSpec} [resolver] - Per type='lookup': come risolvere valore-cliente → chiave DB
+ */
+
+/**
+ * @typedef {Object} UnitConversionSpec
+ * @property {string} label       - Nome umano (es. "kg → grammi")
+ * @property {string[]} fields    - Field target su cui applicare la conversione
+ * @property {number} factor      - Fattore moltiplicativo
+ * @property {boolean} [optional] - Se true, l'utente sceglie se attivarla nel wizard
  */
 
 /**
  * @typedef {Object} EntitySchema
- * @property {string} table        - Nome tabella Supabase (public schema)
- * @property {string} label        - Etichetta umana per UI/CLI
- * @property {string} description  - Descrizione + esempio (mostrato a Claude nel prompt)
- * @property {FieldSpec[]} fields  - Field target
- * @property {string[]} uniqueOn   - Nomi field che identificano un duplicato (per dedup / upsert)
+ * @property {string} table
+ * @property {string} label
+ * @property {string} description
+ * @property {FieldSpec[]} fields
+ * @property {string[]} uniqueOn
+ * @property {boolean} [upsertOn]                    - Se true, la tabella ha unique constraint
+ * @property {UnitConversionSpec[]} [unitConversions]
+ * @property {string} [wideFormatWarning]            - Warning UI se il file sembra WIDE
  */
 
 /** @type {Record<string, EntitySchema>} */
@@ -79,6 +99,86 @@ export const IMPORT_SCHEMAS = {
       },
     ],
     uniqueOn: ['nome'],
+  },
+
+  produzione_inventario: {
+    table: 'inventario_produzione',
+    label: 'Produzione gelateria (metodo inventario)',
+    description: 'Registrazione produzione+rimanenza per gusto/sede/giorno. Formato LONG: una riga per combinazione (data, sede, gusto).',
+    upsertOn: true,
+    wideFormatWarning: 'Se hai le colonne per gusto (es. "Nocciola", "Pistacchio" ecc.) va prima "esploso" in righe: una riga per gusto+giorno. Nella prossima release lo faremo in automatico.',
+    unitConversions: [
+      {
+        label: 'I miei numeri sono in kg (convertili in grammi)',
+        fields: ['produzione_g', 'rimanenza_g', 'scarto_g'],
+        factor: 1000,
+        optional: true,
+      },
+    ],
+    fields: [
+      {
+        name: 'data',
+        type: 'date',
+        required: true,
+        hint: 'Data della produzione, formato YYYY-MM-DD o DD/MM/YYYY',
+        aliases: ['giorno', 'day', 'date', 'giornata'],
+      },
+      {
+        name: 'sede_id',
+        type: 'lookup',
+        required: true,
+        hint: 'Nome della sede/punto vendita/laboratorio dove è stato prodotto',
+        aliases: ['sede', 'punto vendita', 'filiale', 'negozio', 'laboratorio'],
+        resolver: {
+          table: 'sedi',
+          match_col: 'nome',
+          target_col: 'id',
+          scope: 'org',
+        },
+      },
+      {
+        name: 'gusto_nome',
+        type: 'string',
+        required: true,
+        hint: 'Nome del gusto/prodotto (es. "Nocciola", "Fiordilatte")',
+        aliases: ['gusto', 'sapore', 'prodotto', 'ricetta', 'nome'],
+      },
+      {
+        name: 'produzione_g',
+        type: 'number',
+        required: false,
+        default: 0,
+        minValue: 0,
+        hint: 'Grammi prodotti. Se lavori in kg attiva la conversione automatica.',
+        aliases: ['produzione', 'prodotti', 'kg', 'kg prodotti', 'grammi prodotti', 'quantita'],
+      },
+      {
+        name: 'rimanenza_g',
+        type: 'number',
+        required: false,
+        default: 0,
+        minValue: 0,
+        hint: 'Grammi rimasti a fine giornata',
+        aliases: ['rimanenza', 'residuo', 'avanzo', 'kg rimasti'],
+      },
+      {
+        name: 'scarto_g',
+        type: 'number',
+        required: false,
+        default: 0,
+        minValue: 0,
+        hint: 'Grammi scartati (rotti, scaduti)',
+        aliases: ['scarto', 'buttato', 'kg scartati'],
+      },
+      {
+        name: 'note',
+        type: 'string',
+        required: false,
+        hint: 'Note libere sulla giornata',
+        aliases: ['annotazioni', 'commento'],
+      },
+    ],
+    uniqueOn: ['sede_id', 'gusto_nome', 'data'],
   },
 
   dipendenti: {

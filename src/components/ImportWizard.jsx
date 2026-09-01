@@ -20,8 +20,8 @@ import Icon from './Icon'
 import { loadXLSX } from '../lib/xlsx'
 import { parseWorkbook, getSamples, fileToArrayBuffer } from '../lib/importParse'
 import { IMPORT_SCHEMAS, getEntitySchema, listEntities } from '../lib/importSchemas'
-import { validateRows, findMissingRequired } from '../lib/importValidateCore'
-import { callImportMap } from '../lib/importAiMap'
+import { validateRows, findMissingRequired, getLookupFields } from '../lib/importValidateCore'
+import { callImportMap, saveImportMapping } from '../lib/importAiMap'
 
 const BATCH_SIZE = 200
 const MAX_PREVIEW_ROWS = 10
@@ -33,12 +33,13 @@ export default function ImportWizard({ orgId, onClose, notify }) {
   const [step, setStep] = useState(1)
   const [entity, setEntity] = useState('')
   const [file, setFile] = useState(null)
-  const [parsedSheet, setParsedSheet] = useState(null) // { headers, rows }
+  const [parsedSheet, setParsedSheet] = useState(null)
   const [mapping, setMapping] = useState({})
   const [aiNotes, setAiNotes] = useState('')
-  const [validationResult, setValidationResult] = useState(null) // { valid_rows, invalid_rows, stats }
+  const [activeConversions, setActiveConversions] = useState(new Set())
+  const [validationResult, setValidationResult] = useState(null)
   const [progress, setProgress] = useState({ done: 0, total: 0 })
-  const [insertResult, setInsertResult] = useState(null) // { inserted, failed }
+  const [insertResult, setInsertResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -67,17 +68,37 @@ export default function ImportWizard({ orgId, onClose, notify }) {
   }
 
   // ── STEP 2 → STEP 3: valida tutte le righe con il mapping ────────
-  function goToStep3() {
+  async function goToStep3() {
     if (!parsedSheet || !schema) return
     const missing = findMissingRequired(mapping, schema)
     if (missing.length > 0) {
       setError(`Devi mappare i campi obbligatori: ${missing.join(', ')}`)
       return
     }
-    setError('')
-    const res = validateRows(parsedSheet.rows, mapping, schema)
-    setValidationResult(res)
-    setStep(3)
+    setError(''); setLoading(true)
+    try {
+      // Se lo schema ha field lookup, carica le opzioni disponibili dal DB.
+      const lookupFields = getLookupFields(schema)
+      const lookups = {}
+      for (const lf of lookupFields) {
+        const { table, match_col, target_col, scope } = lf.resolver
+        let q = supabase.from(table).select(`${target_col}, ${match_col}`)
+        if (scope === 'org') q = q.eq('organization_id', orgId)
+        const { data, error: e } = await q
+        if (e) { throw new Error(`Errore lookup ${table}: ${e.message}`) }
+        const map = new Map()
+        for (const row of (data || [])) {
+          const k = String(row[match_col] || '').trim().toLowerCase()
+          if (k) map.set(k, row[target_col])
+        }
+        lookups[lf.name] = map
+      }
+      const res = validateRows(parsedSheet.rows, mapping, schema, { lookups, activeConversions })
+      setValidationResult(res)
+      setStep(3)
+    } catch (e) {
+      setError(e?.message || 'Errore nel caricamento delle opzioni.')
+    } finally { setLoading(false) }
   }
 
   // ── STEP 3 → STEP 4: insert diretto su Supabase ─────────────────
@@ -102,11 +123,18 @@ export default function ImportWizard({ orgId, onClose, notify }) {
     setInsertResult({ inserted: insertedCount, failed: failedBatches, total: prepared.length })
     setLoading(false)
     if (insertedCount > 0 && notify) notify(`Caricate ${insertedCount} righe in ${schema.label}.`, 'success')
+
+    // Salva il mapping confermato nella library cross-cliente (fire-and-forget).
+    // Se ha portato beneficio a questo cliente, servira' anche ai prossimi.
+    if (insertedCount > 0 && parsedSheet?.headers?.length > 0) {
+      saveImportMapping({ entity, headers: parsedSheet.headers, mapping })
+    }
   }
 
   function reset() {
     setStep(1); setEntity(''); setFile(null); setParsedSheet(null); setMapping({})
-    setAiNotes(''); setValidationResult(null); setProgress({ done: 0, total: 0 })
+    setAiNotes(''); setActiveConversions(new Set()); setValidationResult(null)
+    setProgress({ done: 0, total: 0 })
     setInsertResult(null); setError(''); setLoading(false)
   }
 
@@ -157,7 +185,9 @@ export default function ImportWizard({ orgId, onClose, notify }) {
               headers={parsedSheet.headers}
               sampleRows={parsedSheet.rows.slice(0, 5)}
               mapping={mapping} setMapping={setMapping}
+              activeConversions={activeConversions} setActiveConversions={setActiveConversions}
               aiNotes={aiNotes}
+              loading={loading}
               onBack={() => setStep(1)}
               onNext={goToStep3}
               isMobile={isMobile}
@@ -334,12 +364,21 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
 
 // ── STEP 2: mapping editabile ─────────────────────────────────────
 
-function StepMapping({ schema, headers, sampleRows, mapping, setMapping, aiNotes, onBack, onNext, isMobile, T }) {
+function StepMapping({ schema, headers, sampleRows, mapping, setMapping, activeConversions, setActiveConversions, aiNotes, loading, onBack, onNext, isMobile, T }) {
   function changeMap(fieldName, headerOrEmpty) {
     setMapping(prev => {
       const next = { ...prev }
       if (!headerOrEmpty) delete next[fieldName]
       else next[fieldName] = headerOrEmpty
+      return next
+    })
+  }
+
+  function toggleConversion(label) {
+    setActiveConversions(prev => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
       return next
     })
   }
@@ -405,6 +444,40 @@ function StepMapping({ schema, headers, sampleRows, mapping, setMapping, aiNotes
         })}
       </div>
 
+      {Array.isArray(schema.unitConversions) && schema.unitConversions.length > 0 && (
+        <div style={{
+          background: '#F0F9FF', border: '1px solid #BAE6FD',
+          borderRadius: 10, padding: 12, marginBottom: 18,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#075985', marginBottom: 8 }}>
+            Opzioni di conversione (opzionale)
+          </div>
+          {schema.unitConversions.map(conv => (
+            <label key={conv.label} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 0', fontSize: 13, color: '#0C4A6E', cursor: 'pointer',
+            }}>
+              <input type="checkbox"
+                checked={activeConversions.has(conv.label)}
+                onChange={() => toggleConversion(conv.label)}
+                style={{ width: 18, height: 18, cursor: 'pointer' }}
+              />
+              <span>{conv.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {schema.wideFormatWarning && (
+        <div style={{
+          background: T.AMBER_BG, color: T.AMBER,
+          border: '1px solid #FCD34D', borderRadius: 10,
+          padding: 12, marginBottom: 12, fontSize: 12, lineHeight: 1.5,
+        }}>
+          <b>Nota:</b> {schema.wideFormatWarning}
+        </div>
+      )}
+
       {aiNotes && (
         <div style={{
           background: T.AMBER_BG, color: T.AMBER,
@@ -415,7 +488,8 @@ function StepMapping({ schema, headers, sampleRows, mapping, setMapping, aiNotes
         </div>
       )}
 
-      <BackNext onBack={onBack} onNext={onNext} isMobile={isMobile} T={T} nextLabel="Avanti"/>
+      <BackNext onBack={onBack} onNext={onNext} isMobile={isMobile} T={T}
+        nextLabel={loading ? 'Preparo…' : 'Avanti'} nextDisabled={loading}/>
     </div>
   )
 }
