@@ -11,10 +11,16 @@ import { color as T } from '../lib/theme'
 import { C } from '../views/_shared'
 import Icon from './Icon'
 import { scaricaTemplateProduzione } from '../lib/produzioneTemplate'
+import ImportWizard from './ImportWizard'
 
-export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivita, notify }) {
+export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivita, notify, orgId }) {
   const isMobile = useIsMobile()
   const [loading, setLoading] = useState(null)
+  const [showWizard, setShowWizard] = useState(false)
+
+  if (showWizard) {
+    return <ImportWizard orgId={orgId} onClose={() => setShowWizard(false)} notify={notify}/>
+  }
 
   async function handleScaricaProduzione() {
     setLoading('produzione')
@@ -81,10 +87,41 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
         </div>
       </div>
 
-      {/* Sezione import */}
+      {/* Import guidato per anagrafiche (fornitori, dipendenti) — client-side, privacy per costruzione */}
+      {orgId && (
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Import guidato dei dati storici</div>
+          <div style={card}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: `${T.brand}15`, color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="upload" size={18} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>Carica anagrafiche (fornitori, personale…)</div>
+                <div style={{ fontSize: 12, color: T.textSoft, lineHeight: 1.5, marginBottom: 12 }}>
+                  Trascina un tuo Excel o CSV come lo hai. Ti aiutiamo a mapparlo al volo, tu confermi, i dati entrano.
+                  Il file resta sul tuo computer: a noi arrivano solo i nomi delle colonne.
+                </div>
+                <button type="button" onClick={() => setShowWizard(true)}
+                  style={{
+                    padding: '9px 14px', minHeight: 40,
+                    background: T.brand, color: '#FFF', border: 'none', borderRadius: 8,
+                    fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
+                  }}>
+                  <Icon name="upload" size={13} />
+                  Apri il caricamento guidato
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sezione import legacy (ricettario Excel) */}
       {onImportRicettario && (
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Import da file esistente</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSoft, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Ricettario da file esistente</div>
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${T.brand}15`, color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

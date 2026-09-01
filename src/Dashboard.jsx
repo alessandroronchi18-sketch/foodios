@@ -3380,6 +3380,7 @@ export default function Dashboard({
         {view==="azioni"&&<AzioniView actions={actions} onUpdate={handleUpdAct} onDelete={handleDelAct} ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} magazzino={magazzino} nomeAttivita={auth?.org?.nome} tipoAttivita={tipoAttivita}/>}
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} piano={piano} orgId={orgId} sedi={sedi} sedeId={sedeId} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
         {view==="importa-dati"&&<ImportaDatiView
+          orgId={orgId}
           onImportRicettario={handleFile}
           onImportPrezzi={handleImportPrezzi}
           onImportDelivery={handleImportDeliveryGlobal}

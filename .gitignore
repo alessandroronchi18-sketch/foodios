@@ -19,3 +19,8 @@ coverage/
 
 # Worktrees creati per gli agenti Claude Code (mai committare)
 .claude/worktrees/
+
+# Import bulk clienti — file crudi (ricette segrete!) e log per-cliente.
+# Non committare mai. Solo il .gitkeep resta versionato.
+import-data/*
+!import-data/.gitkeep
