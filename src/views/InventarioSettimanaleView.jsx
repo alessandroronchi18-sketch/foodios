@@ -1894,9 +1894,7 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
     const mesi = []
     const oggi = new Date()
     const inizioD = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1)
-    // Ordine INVERSO (dal più recente al più vecchio): l'utente vede subito
-    // il mese corrente e i precedenti senza dover scrollare a destra.
-    for (let i = 5; i >= 0; i--) {
+    for (let i = 0; i < 6; i++) {
       const d = new Date(inizioD.getFullYear(), inizioD.getMonth() + i, 1)
       mesi.push({
         key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
@@ -2001,7 +1999,7 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
         </table>
       </div>
       <div style={{ marginTop: 12, fontSize: 11, color: C.textSoft, lineHeight: 1.5 }}>
-        Quantità in kg. Le barre rossastre danno il peso visivo del mese più alto per ogni gusto. Il mese più recente è a sinistra; scorri a destra per vedere quelli più vecchi.
+        Quantità in kg. Le barre rossastre danno il peso visivo del mese più alto per ogni gusto. Scrolla orizzontalmente per i mesi precedenti.
       </div>
     </div>
   )
