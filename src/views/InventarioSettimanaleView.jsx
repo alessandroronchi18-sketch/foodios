@@ -204,6 +204,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id')
       .eq('organization_id', orgId).in('sede_id', sediProdIds)
       .gte('data', inizio).lt('data', fine)
+      .limit(100000)  // evita il default supabase-js di 1000 → tagliava dati con molte sedi/gusti
       .then(({ data }) => {
         // Aggrega per (gusto, data) se isAllSedi (somma sedi)
         if (isAllSedi) {
@@ -234,6 +235,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       .eq('organization_id', orgId).in('sede_id', sediProdIds)
       .gte('data', inizio)
       .order('data')
+      .limit(100000)  // evita il default supabase-js di 1000 (con 3 sedi × 6 mesi supera facile)
       .then(({ data }) => {
         if (isAllSedi) {
           // Aggreghiamo per (gusto, data) sommando sedi. La logica del venduto
@@ -1962,7 +1964,7 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
                 </th>
               ))}
               <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}>
-                Totale
+                Totale venduto
               </th>
             </tr>
           </thead>
