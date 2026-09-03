@@ -637,6 +637,16 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         </div>
       )}
 
+      {/* Mini KPI banner: solo Settimana e Mese, mai su Oggi (che e' la vista dei
+          dipendenti). 3 numeri compatti, colori tenui: non deve dominare la pagina. */}
+      {!loading && (vista === 'settimana' || vista === 'mese') && (
+        <KpiCompactBar
+          rows={vista === 'settimana' ? righe : (meseData?.righe || [])}
+          periodo={vista === 'settimana' ? 'questa settimana' : 'questo mese'}
+          unita={unitaDisplay}
+        />
+      )}
+
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
       ) : vista === 'oggi' ? (
@@ -1968,10 +1978,51 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
     return { mesi, idx, totProd, totScarto }
   }, [gusti, righeStorico])
 
+  async function esportaXlsx() {
+    try {
+      const XLSX = await loadXLSX()
+      const header = ['Gusto', ...data.mesi.map(m => m.label), 'Tot. prodotto', 'Tot. venduto', 'Tot. scarto']
+      const rows = [header]
+      for (const { nome } of (gusti || [])) {
+        const k = normGusto(nome)
+        const arr = data.idx[k] || data.mesi.map(() => 0)
+        const tot = arr.reduce((s, v) => s + v, 0)
+        const toUnit = (g) => unita === 'kg' ? Number((g / 1000).toFixed(2)) : g
+        rows.push([
+          nome,
+          ...arr.map(toUnit),
+          toUnit(data.totProd[k] || 0),
+          toUnit(tot),
+          toUnit(data.totScarto[k] || 0),
+        ])
+      }
+      const ws = XLSX.utils.aoa_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, `Storico ${unita}`)
+      const ts = new Date().toISOString().slice(0, 10)
+      XLSX.writeFile(wb, `storico-produzione-${ts}.xlsx`)
+    } catch (e) {
+      console.error('Export xlsx fallito:', e)
+    }
+  }
+
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-      <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-        Storico vendite (kg) · Ultimi 6 mesi
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 12, color: C.textSoft, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Storico vendite ({unita}) · Ultimi 6 mesi
+        </div>
+        <button onClick={esportaXlsx}
+          title="Scarica lo storico in Excel"
+          style={{
+            padding: '8px 14px', minHeight: 36,
+            background: '#FFFFFF', color: T.brand, border: `1px solid ${T.brand}55`, borderRadius: 8,
+            fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
+          }}>
+          <Icon name="download" size={13} color={T.brand}/>
+          Esporta Excel
+        </button>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
@@ -2036,6 +2087,120 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
       </div>
       <div style={{ marginTop: 12, fontSize: 11, color: C.textSoft, lineHeight: 1.5 }}>
         Quantità in kg. Le barre rossastre danno il peso visivo del mese più alto per ogni gusto. Scrolla orizzontalmente per i mesi precedenti.
+      </div>
+    </div>
+  )
+}
+
+// ── KpiCompactBar: mini-banner con 3 numeri sintetici per il titolare ─────
+// Su Settimana e Mese. Volutamente compatto (~52px altezza), colori tenui:
+// il dipendente che apre Produzione non deve essere sommerso di numeri.
+// Deep dive analitici stanno in P&L, Confronto sedi, Storico.
+function KpiCompactBar({ rows, periodo, unita = 'g' }) {
+  const stats = useMemo(() => {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { prod: 0, venduto: 0, scarto: 0, scartoPct: 0, gustiN: 0, gustiRimanAlta: [] }
+    }
+    let prod = 0, scarto = 0
+    // Aggreghiamo per gusto: prod totale, scarto totale, rimanenza finale.
+    const perG = {}
+    for (const r of rows) {
+      const p = Number(r.produzione_g) || 0
+      const s = Number(r.scarto_g) || 0
+      const rm = Number(r.rimanenza_g) || 0
+      prod += p; scarto += s
+      const g = r.gusto_nome
+      if (!perG[g]) perG[g] = { prod: 0, scarto: 0, rimanFin: 0, rimanFinData: null }
+      perG[g].prod += p
+      perG[g].scarto += s
+      if (!perG[g].rimanFinData || r.data > perG[g].rimanFinData) {
+        perG[g].rimanFinData = r.data
+        perG[g].rimanFin = rm
+      }
+    }
+    // Alert "rimanenza alta": rimanenza finale > 100% della produzione totale
+    // del periodo per quel gusto = probabilmente venditure lente.
+    const gustiRimanAlta = Object.entries(perG)
+      .filter(([, v]) => v.prod > 0 && v.rimanFin > v.prod)
+      .map(([g]) => g)
+    const rimanFinale = Object.values(perG).reduce((s, v) => s + v.rimanFin, 0)
+    const venduto = Math.max(0, prod - scarto - rimanFinale)
+    const scartoPct = prod > 0 ? (scarto / prod) * 100 : 0
+    return { prod, venduto, scarto, scartoPct, gustiN: Object.keys(perG).length, gustiRimanAlta }
+  }, [rows])
+
+  const fmt = (g) => {
+    if (g <= 0) return '0'
+    return unita === 'kg'
+      ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
+      : g.toLocaleString('it-IT')
+  }
+  const scartoColor = stats.scartoPct >= 5 ? '#B91C1C' : stats.scartoPct >= 2 ? '#B45309' : '#166534'
+  const scartoBg = stats.scartoPct >= 5 ? '#FEF2F2' : stats.scartoPct >= 2 ? '#FEF9EB' : '#F0FDF4'
+
+  const hasAlerts = stats.scartoPct >= 5 || stats.gustiRimanAlta.length > 0
+  return (
+    <div style={{
+      background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+      padding: 8, marginBottom: 14,
+    }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: 8,
+      }}>
+        <KpiTile label={`Prodotto ${periodo}`} value={fmt(stats.prod)} unit={unita} color={C.text} bg="#F8FAFC"/>
+        <KpiTile label="Venduto stimato" value={fmt(stats.venduto)} unit={unita} color={T.brand} bg="#FEF9EB"/>
+        <KpiTile label={`Scarto ${stats.scartoPct > 0 ? '(' + stats.scartoPct.toFixed(1) + '%)' : ''}`.trim()} value={fmt(stats.scarto)} unit={unita} color={scartoColor} bg={scartoBg}/>
+      </div>
+      {hasAlerts && (
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: 6,
+          marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.borderSoft || '#F1F5F9'}`,
+        }}>
+          {stats.scartoPct >= 5 && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              background: '#FEF2F2', color: '#B91C1C',
+              border: '1px solid #FCA5A5', borderRadius: 999,
+              padding: '3px 10px', fontSize: 11, fontWeight: 700,
+            }} title="Lo scarto e' oltre il 5% del prodotto: probabilmente stai producendo piu di quanto vendi.">
+              ⚠ Scarto sopra il 5%
+            </span>
+          )}
+          {stats.gustiRimanAlta.length > 0 && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              background: '#FEF9EB', color: '#B45309',
+              border: '1px solid #FCD34D', borderRadius: 999,
+              padding: '3px 10px', fontSize: 11, fontWeight: 700,
+            }} title={`Gusti con rimanenza superiore alla produzione del periodo: ${stats.gustiRimanAlta.slice(0, 8).join(', ')}`}>
+              ⚠ {stats.gustiRimanAlta.length} gust{stats.gustiRimanAlta.length === 1 ? 'o' : 'i'} con rimanenza alta
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function KpiTile({ label, value, unit, color, bg }) {
+  return (
+    <div style={{
+      background: bg, borderRadius: 10, padding: '10px 12px',
+      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+      minHeight: 52,
+    }}>
+      <div style={{
+        fontSize: 10, fontWeight: 700, color: C.textSoft,
+        textTransform: 'uppercase', letterSpacing: '0.06em',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>{label}</div>
+      <div style={{
+        fontSize: 18, fontWeight: 800, color, ...TNUM, marginTop: 2,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {value} <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>{unit}</span>
       </div>
     </div>
   )
