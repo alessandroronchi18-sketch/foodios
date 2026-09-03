@@ -125,6 +125,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // sort.dir: 'asc' | 'desc'
   const [sort, setSort] = useState({ by: 'nome', dir: 'asc' })
   const [showImportWizard, setShowImportWizard] = useState(false)
+  const [drilldownGusto, setDrilldownGusto] = useState(null)
   // Stato dialog spedizione kg → sede destinazione. null = chiuso.
   const [shipDlg, setShipDlg] = useState(null)
   // Unita' di visualizzazione: 'g' (default) o 'kg'. Persistita in localStorage.
@@ -401,7 +402,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 
   // Copia produzione (SOLO campo produzione_g) dalla settimana precedente in
   // questa settimana. Applica solo alle celle attualmente vuote (produzione_g=0
-  // o null) per non sovrascrivere lavoro gia' inserito dal dipendente.
+  // o null) per non sovrascrivere lavoro già inserito dal dipendente.
   async function ripetiSettimanaScorsa() {
     if (!orgId || !sedeId || isAllSedi) return
     try {
@@ -424,7 +425,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         return
       }
       const conferma = window.confirm(
-        `Copio i valori di PRODUZIONE della settimana ${fmtRange(lunediScorso)} in questa settimana?\n\nCelle da copiare: ${totCells}.\nLe celle gia' compilate non verranno toccate.`
+        `Copio i valori di PRODUZIONE della settimana ${fmtRange(lunediScorso)} in questa settimana?\n\nCelle da copiare: ${totCells}.\nLe celle già compilate non verranno toccate.`
       )
       if (!conferma) return
 
@@ -452,7 +453,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       }
       notify?.(
         `Copiate ${scritte} celle di produzione da settimana scorsa.` +
-        (skip > 0 ? ` ${skip} salt${skip === 1 ? 'ata' : 'ate'} (gia' compilate o errore).` : ''),
+        (skip > 0 ? ` ${skip} salt${skip === 1 ? 'ata' : 'ate'} (già compilate o errore).` : ''),
         true
       )
     } catch (e) {
@@ -528,6 +529,19 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             onClose={() => setShowImportWizard(false)}
           />
         </div>
+      )}
+
+      {drilldownGusto && (
+        <DrilldownGustoModal
+          gusto={drilldownGusto}
+          orgId={orgId}
+          sedeId={sedeId}
+          isAllSedi={isAllSedi}
+          sediProdIds={sediProdIds}
+          unita={unitaDisplay}
+          ricettario={ricettario}
+          onClose={() => setDrilldownGusto(null)}
+        />
       )}
 
       {isAllSedi && (
@@ -741,6 +755,29 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         />
       )}
 
+      {/* Suggerimento su mobile per la vista Settimana: 16 colonne su 375px
+          sono scomode da compilare — invitiamo a passare a Oggi. */}
+      {!loading && isMobile && vista === 'settimana' && (
+        <div style={{
+          background: '#EFF6FF', border: '1px solid #BFDBFE',
+          borderRadius: 10, padding: 12, marginBottom: 12,
+          display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
+        }}>
+          <div style={{ fontSize: 12.5, color: '#1E3A8A', flex: 1, lineHeight: 1.45 }}>
+            Sul cellulare la tabella settimanale scorre in orizzontale. Per compilare in fretta usa <b>Oggi</b>.
+          </div>
+          <button onClick={() => setVista('oggi')}
+            style={{
+              padding: '10px 16px', minHeight: 40,
+              background: '#1D4ED8', color: '#FFFFFF',
+              border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 700,
+              cursor: 'pointer',
+            }}>
+            Vai a Oggi
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
       ) : vista === 'oggi' ? (
@@ -750,9 +787,9 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           unita={unitaDisplay}
         />
       ) : vista === 'mese' ? (
-        <VistaMese gusti={gustiOrdinati} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} />
+        <VistaMese gusti={gustiOrdinati} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
       ) : vista === 'storico' ? (
-        <VistaStorico gusti={gustiOrdinati} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} unita={unitaDisplay} />
+        <VistaStorico gusti={gustiOrdinati} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
       ) : (
         // Settimana × 7 giorni × 2 colonne (PROD/RIMAN) + GUSTO + TOT = 16 colonne.
         // Su 375px non ci stanno, quindi tabella scrolla orizzontalmente e
@@ -814,7 +851,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 return (
                   <tr key={gustoKey} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
                     <td style={tdGusto}>
-                      <NomeGustoConFlag nome={nome} orfano={orfano} />
+                      <NomeGustoConFlag nome={nome} orfano={orfano} onClick={onClickGusto} />
                     </td>
                     {GIORNI.map((_, i) => {
                       const dIso = addDays(lunediIso, i)
@@ -1228,9 +1265,19 @@ function IconaOrfano() {
 // Nome a sinistra, icona di alert a destra della cella. Usa justify-content:
 // space-between così l'icona resta sempre allineata al margine destro
 // indipendentemente dalla lunghezza del nome.
-function NomeGustoConFlag({ nome, orfano }) {
+function NomeGustoConFlag({ nome, orfano, onClick }) {
+  const clickable = typeof onClick === 'function'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%' }}>
+    <div
+      onClick={clickable ? () => onClick(nome) : undefined}
+      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(nome) } } : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      title={clickable ? 'Clicca per vedere lo storico di questo gusto' : undefined}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%',
+        cursor: clickable ? 'pointer' : 'default',
+      }}>
       <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nome}</span>
       {orfano && <IconaOrfano />}
     </div>
@@ -1240,7 +1287,7 @@ function NomeGustoConFlag({ nome, orfano }) {
 // ── VistaMese: settimane in colonna, kg venduti per gusto/settimana + totale
 // Calcoliamo il venduto da righeMese (riman_prev + prod - riman - scarto)
 // raggruppato per settimana ISO del mese.
-function VistaMese({ gusti, righeMese, lunediIso, unita = 'g' }) {
+function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
   const fmtVal = (g) => {
     if (g <= 0) return '-'
     if (unita === 'kg') {
@@ -1324,7 +1371,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g' }) {
               return (
                 <tr key={k} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
                   <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: C.text }}>
-                    <NomeGustoConFlag nome={nome} orfano={orfano} />
+                    <NomeGustoConFlag nome={nome} orfano={orfano} onClick={onClickGusto} />
                   </td>
                   {r.per_sett.map((v, i) => (
                     <td key={i} style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: v > 0 ? C.text : C.textSoft, fontSize: 12.5 }}>
@@ -1351,7 +1398,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g' }) {
 }
 
 // ── VistaStorico: timeline scorrevole multi-mese (ultimi 6 mesi) ──────────
-function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
+function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto }) {
   const fmtTot = (g) => {
     if (g <= 0) return '-'
     return unita === 'kg'
@@ -1495,7 +1542,7 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
               return (
                 <tr key={k} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
                   <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: C.text, position: 'sticky', left: 0, background: C.bgCard, minWidth: 180 }}>
-                    <NomeGustoConFlag nome={nome} orfano={orfano} />
+                    <NomeGustoConFlag nome={nome} orfano={orfano} onClick={onClickGusto} />
                   </td>
                   {arr.map((v, i) => (
                     <td key={i} style={{ padding: '4px 8px', textAlign: 'right', ...TNUM, color: v > 0 ? C.text : C.textSoft, fontSize: 12, position: 'relative' }}>
@@ -1535,6 +1582,164 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
 // Su Settimana e Mese. Volutamente compatto (~52px altezza), colori tenui:
 // il dipendente che apre Produzione non deve essere sommerso di numeri.
 // Deep dive analitici stanno in P&L, Confronto sedi, Storico.
+// ── DrilldownGustoModal: dettaglio storico 90 giorni di un singolo gusto ──
+// Aperto quando l'utente clicca sul nome di un gusto in Settimana/Mese/Storico.
+// Compact: 4 KPI + sparkline giornaliera + note ricettario. Non e' un editor.
+function DrilldownGustoModal({ gusto, orgId, sedeId, isAllSedi, sediProdIds, unita = 'g', ricettario, onClose }) {
+  const [rows, setRows] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!orgId || !gusto) return
+    let alive = true
+    setLoading(true)
+    const oggi = new Date()
+    const from = new Date(oggi.getFullYear(), oggi.getMonth(), oggi.getDate() - 90).toISOString().slice(0, 10)
+    let q = supabase.from('inventario_produzione')
+      .select('data, produzione_g, rimanenza_g, scarto_g, sede_id')
+      .eq('organization_id', orgId)
+      .eq('gusto_nome', gusto)
+      .gte('data', from)
+      .order('data')
+      .limit(100000)
+    const sediSet = (isAllSedi && Array.isArray(sediProdIds) && sediProdIds.length > 0) ? sediProdIds : (sedeId ? [sedeId] : [])
+    if (sediSet.length > 0) q = q.in('sede_id', sediSet)
+    q.then(({ data }) => {
+      if (!alive) return
+      // Aggrega per data (somma cross-sede se piu di una)
+      const perData = {}
+      for (const r of (data || [])) {
+        if (!perData[r.data]) perData[r.data] = { data: r.data, prod: 0, riman: 0, scarto: 0 }
+        perData[r.data].prod += Number(r.produzione_g) || 0
+        perData[r.data].riman += Number(r.rimanenza_g) || 0
+        perData[r.data].scarto += Number(r.scarto_g) || 0
+      }
+      const arr = Object.values(perData).sort((a, b) => a.data.localeCompare(b.data))
+      setRows(arr); setLoading(false)
+    }).catch(() => { if (alive) { setRows([]); setLoading(false) } })
+    return () => { alive = false }
+  }, [orgId, gusto, sedeId, isAllSedi, sediProdIds])
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const stats = useMemo(() => {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { prod: 0, venduto: 0, scarto: 0, giorni: 0, avgProd: 0, prodByDay: [] }
+    }
+    let prod = 0, scarto = 0
+    let rimanPrev = 0, prevD = null, venduto = 0
+    for (const r of rows) {
+      const d = new Date(r.data)
+      if (prevD !== null) {
+        const diff = Math.round((d - prevD) / 86400000)
+        if (diff !== 1) rimanPrev = 0
+      }
+      const v = Math.max(0, rimanPrev + r.prod - r.riman - r.scarto)
+      venduto += v
+      rimanPrev = r.riman; prevD = d
+      prod += r.prod; scarto += r.scarto
+    }
+    const giorni = rows.length
+    const avgProd = giorni > 0 ? prod / giorni : 0
+    return { prod, venduto, scarto, giorni, avgProd, prodByDay: rows.map(r => r.prod) }
+  }, [rows])
+
+  const fmt = (g) => {
+    if (g <= 0) return '0'
+    return unita === 'kg'
+      ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
+      : g.toLocaleString('it-IT')
+  }
+  const noteRicettario = useMemo(() => {
+    if (!ricettario?.ricette) return null
+    const gU = String(gusto || '').trim().toUpperCase()
+    const r = Object.values(ricettario.ricette).find(x => String(x.nome || '').trim().toUpperCase() === gU)
+    return r?.note || null
+  }, [ricettario, gusto])
+
+  const maxProd = Math.max(1, ...stats.prodByDay)
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label={`Dettaglio ${gusto}`}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999, padding: 16,
+      }}>
+      <div style={{
+        background: '#FFFFFF', borderRadius: 16, maxWidth: 620, width: '100%',
+        maxHeight: '90vh', overflowY: 'auto',
+        boxShadow: '0 20px 60px rgba(15,23,42,0.30)',
+        padding: '22px 24px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Dettaglio gusto · Ultimi 90 giorni
+            </div>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>{gusto}</h2>
+          </div>
+          <button onClick={onClose} aria-label="Chiudi"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: C.textSoft, width: 40, height: 40, borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="x" size={18}/>
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ padding: 30, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+        ) : stats.giorni === 0 ? (
+          <div style={{ padding: 30, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Nessun dato nei 90 giorni.</div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
+              <KpiTile label="Prodotto" value={fmt(stats.prod)} unit={unita} color={C.text} bg="#F8FAFC"/>
+              <KpiTile label="Venduto stimato" value={fmt(stats.venduto)} unit={unita} color={T.brand} bg="#FEF9EB"/>
+              <KpiTile label="Scarto" value={fmt(stats.scarto)} unit={unita} color={stats.scarto > 0 ? '#B91C1C' : C.textSoft} bg={stats.scarto > 0 ? '#FEF2F2' : '#F8FAFC'}/>
+              <KpiTile label="Media giornaliera" value={fmt(stats.avgProd)} unit={unita} color="#166534" bg="#F0FDF4"/>
+            </div>
+
+            {/* Sparkline giornaliera semplice: divs colorate */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                Andamento produzione ({stats.giorni} giorni con dati)
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'flex-end', gap: 1,
+                height: 60, background: '#F8FAFC', borderRadius: 8, padding: 6,
+              }}>
+                {stats.prodByDay.map((v, i) => (
+                  <div key={i} title={`${rows[i]?.data}: ${fmt(v)} ${unita}`}
+                    style={{
+                      flex: 1, minWidth: 2,
+                      height: `${(v / maxProd) * 100}%`,
+                      background: v > 0 ? T.brand : 'transparent',
+                      borderRadius: 1, opacity: 0.9,
+                    }}/>
+                ))}
+              </div>
+            </div>
+
+            {noteRicettario && (
+              <div style={{
+                background: '#F8FAFC', border: `1px solid ${C.border}`,
+                borderRadius: 10, padding: 12, marginBottom: 8, fontSize: 12.5, color: C.text, lineHeight: 1.5,
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Note dal ricettario</div>
+                {noteRicettario}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function KpiCompactBar({ rows, periodo, unita = 'g' }) {
   const stats = useMemo(() => {
     if (!Array.isArray(rows) || rows.length === 0) {
