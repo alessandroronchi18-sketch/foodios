@@ -1905,10 +1905,14 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
         year: d.getFullYear(),
       })
     }
-    // Indicizza venduto per gusto+mese.
+    // Indicizza venduto per gusto+mese + totali prodotto/scarto per gusto.
     const idx = {}
+    const totProd = {}
+    const totScarto = {}
     for (const { nome } of (gusti || [])) {
       idx[normGusto(nome)] = mesi.map(() => 0)
+      totProd[normGusto(nome)] = 0
+      totScarto[normGusto(nome)] = 0
     }
     // Calcolo venduto per riga: (riman_prev + prod - riman - scarto). Iteriamo
     // ordinato per gusto+data.
@@ -1926,7 +1930,6 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
         const prod = Number(r.produzione_g) || 0
         const riman = Number(r.rimanenza_g) || 0
         const scarto = Number(r.scarto_g) || 0
-        // Se data non e' il giorno dopo prevDataDay -> reset rimanPrev (gap).
         const d = new Date(r.data)
         if (prevDataDay !== null) {
           const diffGg = Math.round((d - prevDataDay) / 86400000)
@@ -1941,9 +1944,11 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
           idx[k] = idx[k] || mesi.map(() => 0)
           idx[k][meseIdx] += venduto
         }
+        totProd[k] = (totProd[k] || 0) + prod
+        totScarto[k] = (totScarto[k] || 0) + scarto
       }
     }
-    return { mesi, idx }
+    return { mesi, idx, totProd, totScarto }
   }, [gusti, righeStorico])
 
   return (
@@ -1963,8 +1968,14 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
                   {m.label}
                 </th>
               ))}
+              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#F0FDF4' }}>
+                Tot. prodotto
+              </th>
               <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}>
-                Totale venduto
+                Tot. venduto
+              </th>
+              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#B91C1C', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF2F2' }}>
+                Tot. scarto
               </th>
             </tr>
           </thead>
@@ -1991,8 +2002,14 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g' }) {
                       </span>
                     </td>
                   ))}
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: '#166534', fontWeight: 800, fontSize: 13, background: '#F0FDF4' }}>
+                    {fmtTot(data.totProd[k] || 0)} {unita}
+                  </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 800, fontSize: 13, background: '#FEF9EB' }}>
                     {fmtTot(tot)} {unita}
+                  </td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: '#B91C1C', fontWeight: 800, fontSize: 13, background: '#FEF2F2' }}>
+                    {fmtTot(data.totScarto[k] || 0)} {unita}
                   </td>
                 </tr>
               )
