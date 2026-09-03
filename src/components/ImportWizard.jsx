@@ -408,7 +408,7 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
         }}>
         <Icon name={file ? 'check' : 'download'} size={20} color={file ? '#16A34A' : T.SOFT}/>
         <div style={{ marginTop: 8, fontSize: 14, fontWeight: 700, color: T.TXT }}>
-          {file ? file.name : 'Trascina qui il file oppure clicca per sceglierlo'}
+          {file ? file.name : 'Trascina qui il tuo file, oppure clicca per sceglierlo dal computer'}
         </div>
         <div style={{ marginTop: 4, fontSize: 12, color: T.SOFT }}>
           Excel (.xlsx, .xls) o CSV — max 5.000 righe
@@ -428,7 +428,7 @@ function StepFile({ entity, setEntity, file, setFile, loading, onNext, isMobile,
             cursor: (!file || !entity || loading) ? 'not-allowed' : 'pointer',
             minHeight: 44,
           }}>
-          {loading ? 'Analizzo il file…' : 'Avanti'}
+          {loading ? 'Sto leggendo il file, dammi un attimo…' : 'Avanti'}
         </button>
       </div>
     </div>
@@ -811,7 +811,7 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
     return (
       <div style={{ padding: '30px 0', textAlign: 'center' }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 12 }}>
-          Caricamento in corso…
+          Sto caricando i tuoi dati, un attimo…
         </div>
         <div style={{
           height: 10, background: '#F1F5F9', borderRadius: 999,
@@ -845,21 +845,22 @@ function StepInsert({ loading, progress, result, schema, onFinish, onAnother, is
           <Icon name={successAll ? 'check' : 'info'} size={26}/>
         </div>
         <div style={{ fontSize: 18, fontWeight: 800, color: T.TXT, textAlign: 'center' }}>
-          {successAll ? 'Fatto.' : 'Caricamento completato con alcuni errori.'}
+          {successAll ? 'Tutto caricato!' : 'Caricamento fatto, con qualche intoppo.'}
         </div>
-        <div style={{ fontSize: 14, color: T.SOFT, textAlign: 'center' }}>
-          {`Ho caricato ${result.inserted.toLocaleString('it-IT')} righe in ${schema.label}.`}
-          {failedCount > 0 && ` ${failedCount} lotto/i non è passato.`}
+        <div style={{ fontSize: 14, color: T.SOFT, textAlign: 'center', maxWidth: 480, lineHeight: 1.5 }}>
+          {`Ho salvato ${result.inserted.toLocaleString('it-IT')} righe in ${schema.label}.`}
+          {failedCount > 0 && ` Alcuni gruppi (${failedCount}) non sono passati — controlla sotto.`}
         </div>
       </div>
 
       {failedCount > 0 && (
         <div style={{
           background: '#FEE2E2', border: `1px solid #FCA5A5`,
-          borderRadius: 10, padding: 12, marginBottom: 18, fontSize: 12, color: '#7F1D1D',
+          borderRadius: 10, padding: 12, marginBottom: 18, fontSize: 12.5, color: '#7F1D1D', lineHeight: 1.5,
         }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Dettaglio degli intoppi:</div>
           {result.failed.slice(0, 5).map((f, i) => (
-            <div key={i}>Lotto a partire da riga {f.batch_start + 1}: {f.error}</div>
+            <div key={i}>Partendo dalla riga {(f.batch_start + 1).toLocaleString('it-IT')}: {f.error}</div>
           ))}
         </div>
       )}
