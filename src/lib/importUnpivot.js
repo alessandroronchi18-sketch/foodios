@@ -87,7 +87,7 @@ export function applyUnpivot(sheetsRaw, config) {
   } = config
 
   if (format === 'long') {
-    // Il file e' gia' LONG: ogni sheet e' una tabella {colonna: valore}.
+    // Il file è già LONG: ogni sheet è una tabella {colonna: valore}.
     // Non fa unpivot: appiattisce le rows di ogni sheet inclusi.
     for (const [name, raw] of Object.entries(sheetsRaw)) {
       if (matchSheet(name, sheets_to_skip)) continue

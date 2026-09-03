@@ -26,11 +26,11 @@ Riceverai:
 - SCHEMA TARGET dell'entita' Foodos (nomi field attesi).
 - SHEETS del file: nome + prime 20 righe (2D array di celle).
 
-Il tuo compito: capire se il file e' gia' LONG oppure WIDE, e proporre una config JSON che il codice applichera' per esplodere le colonne.
+Il tuo compito: capire se il file è già LONG oppure WIDE, e proporre una config JSON che il codice applichera' per esplodere le colonne.
 
 CATEGORIE FORMATO:
 
-1. **LONG**: una riga per ogni combinazione (gia' pronta per il DB). Esempio:
+1. **LONG**: una riga per ogni combinazione (già pronta per il DB). Esempio:
    data | sede | gusto | produzione_g
    2026-05-01 | Torino | Nocciola | 2500
 
