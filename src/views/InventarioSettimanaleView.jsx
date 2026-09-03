@@ -381,6 +381,27 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   const settimanaPrec = () => setLunediIso(addDays(lunediIso, -7))
   const settimanaSucc = () => setLunediIso(addDays(lunediIso, 7))
   const oggi = () => setLunediIso(lunediDellaSettimana())
+  const mesePrec = () => {
+    const d = new Date(lunediIso)
+    const primo = new Date(d.getFullYear(), d.getMonth() - 1, 1)
+    setLunediIso(primo.toISOString().slice(0, 10))
+  }
+  const meseSucc = () => {
+    const d = new Date(lunediIso)
+    const primo = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+    setLunediIso(primo.toISOString().slice(0, 10))
+  }
+  const meseCorrente = () => {
+    const d = new Date()
+    const primo = new Date(d.getFullYear(), d.getMonth(), 1)
+    setLunediIso(primo.toISOString().slice(0, 10))
+  }
+  const meseLabel = () => {
+    const d = new Date(lunediIso)
+    const nomi = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+                  'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+    return `${nomi[d.getMonth()].charAt(0).toUpperCase() + nomi[d.getMonth()].slice(1)} ${d.getFullYear()}`
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────
 
@@ -558,6 +579,40 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             <button onClick={settimanaSucc}
               style={{ padding: '10px 8px', minHeight: 44, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: C.textMid }}>
               Sett. succ. →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toolbar navigazione mese - simmetrica a quella settimana, così l'utente
+          può scorrere anche i mesi precedenti/successivi. */}
+      {vista === 'mese' && (
+        <div style={{
+          display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'stretch' : 'center', gap: 12, marginBottom: 20,
+          background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12,
+          padding: isMobile ? '12px 14px' : '12px 16px',
+          boxSizing: 'border-box',
+        }}>
+          <div style={{ flex: 1, textAlign: isMobile ? 'left' : 'center', order: isMobile ? 0 : 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: C.textSoft }}>Mese</div>
+            <div style={{ fontSize: isMobile ? 16 : 15, fontWeight: 800, color: C.text, letterSpacing: '-0.01em' }}>{meseLabel()}</div>
+          </div>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6,
+            order: isMobile ? 1 : 0,
+          }}>
+            <button onClick={mesePrec}
+              style={{ padding: '10px 8px', minHeight: 44, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: C.textMid }}>
+              ← Mese prec.
+            </button>
+            <button onClick={meseCorrente}
+              style={{ padding: '10px 8px', minHeight: 44, background: '#F8FAFC', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: T.brand }}>
+              Questo mese
+            </button>
+            <button onClick={meseSucc}
+              style={{ padding: '10px 8px', minHeight: 44, background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: C.textMid }}>
+              Mese succ. →
             </button>
           </div>
         </div>
