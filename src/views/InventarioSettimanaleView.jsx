@@ -398,6 +398,69 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   const settimanaPrec = () => setLunediIso(addDays(lunediIso, -7))
   const settimanaSucc = () => setLunediIso(addDays(lunediIso, 7))
   const oggi = () => setLunediIso(lunediDellaSettimana())
+
+  // Copia produzione (SOLO campo produzione_g) dalla settimana precedente in
+  // questa settimana. Applica solo alle celle attualmente vuote (produzione_g=0
+  // o null) per non sovrascrivere lavoro gia' inserito dal dipendente.
+  async function ripetiSettimanaScorsa() {
+    if (!orgId || !sedeId || isAllSedi) return
+    try {
+      const lunediScorso = addDays(lunediIso, -7)
+      const scorsa = await caricaSettimana(orgId, sedeId, lunediScorso)
+      // Mappa: (gusto, dayOffset 0-6) → produzione_g scorsa
+      const prodByGustoOffset = {}
+      for (const r of (scorsa || [])) {
+        const diffGg = Math.round(
+          (new Date(r.data).getTime() - new Date(lunediScorso).getTime()) / 86400000
+        )
+        if (diffGg < 0 || diffGg > 6) continue
+        const p = Number(r.produzione_g) || 0
+        if (p <= 0) continue
+        prodByGustoOffset[`${r.gusto_nome}|${diffGg}`] = p
+      }
+      const totCells = Object.keys(prodByGustoOffset).length
+      if (totCells === 0) {
+        notify?.('La settimana scorsa non aveva nessuna produzione da copiare.', true)
+        return
+      }
+      const conferma = window.confirm(
+        `Copio i valori di PRODUZIONE della settimana ${fmtRange(lunediScorso)} in questa settimana?\n\nCelle da copiare: ${totCells}.\nLe celle gia' compilate non verranno toccate.`
+      )
+      if (!conferma) return
+
+      // Trova le celle vuote in this week e copia il PROD scorso.
+      // Iteriamo per gusto+offset. Se righeDb attuale ha produzione_g=0 su
+      // quella coppia, salviamo.
+      const righeDbNow = righe || []
+      const idxNow = new Map()
+      for (const r of righeDbNow) {
+        idxNow.set(`${r.gusto_nome}|${r.data}`, r)
+      }
+      let scritte = 0, skip = 0
+      for (const [key, prodScorsa] of Object.entries(prodByGustoOffset)) {
+        const [gusto, offStr] = key.split('|')
+        const off = Number(offStr)
+        const dataIso = addDays(lunediIso, off)
+        const nowKey = `${gusto}|${dataIso}`
+        const rNow = idxNow.get(nowKey)
+        const prodNow = Number(rNow?.produzione_g) || 0
+        if (prodNow > 0) { skip++; continue }
+        try {
+          await handleSave(gusto, dataIso, 'produzione_g', prodScorsa)
+          scritte++
+        } catch { skip++ }
+      }
+      notify?.(
+        `Copiate ${scritte} celle di produzione da settimana scorsa.` +
+        (skip > 0 ? ` ${skip} salt${skip === 1 ? 'ata' : 'ate'} (gia' compilate o errore).` : ''),
+        true
+      )
+    } catch (e) {
+      console.error('ripetiSettimanaScorsa', e)
+      notify?.('Errore nel copiare la settimana scorsa.', false)
+    }
+  }
+
   const mesePrec = () => {
     const d = new Date(lunediIso)
     const primo = new Date(d.getFullYear(), d.getMonth() - 1, 1)
@@ -494,21 +557,21 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                     return next
                   })}
                   style={{
-                    padding: '6px 12px', minHeight: 32,
+                    padding: '8px 14px', minHeight: 40,
                     border: `1px solid ${sel ? '#1D4ED8' : '#BFDBFE'}`,
                     background: sel ? '#1D4ED8' : '#FFFFFF',
                     color: sel ? '#FFFFFF' : '#1E3A8A',
-                    borderRadius: 16, fontSize: 12, fontWeight: 600,
+                    borderRadius: 20, fontSize: 12.5, fontWeight: 600,
                     cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                   }}>
-                  {sel && <Icon name="check" size={11} color="#FFFFFF" />}{s.nome}
+                  {sel && <Icon name="check" size={12} color="#FFFFFF" />}{s.nome}
                 </button>
               )
             })}
             {sediProduttive.length > 1 && sediFiltro && sediFiltro.size < sediProduttive.length && (
               <button onClick={() => setSediFiltro(new Set(sediProduttive.map(s => s.id)))}
-                style={{ padding: '4px 10px', minHeight: 28, fontSize: 11, fontWeight: 600, color: '#1E3A8A', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                style={{ padding: '8px 12px', minHeight: 40, fontSize: 12, fontWeight: 600, color: '#1E3A8A', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                 Seleziona tutte
               </button>
             )}
@@ -551,6 +614,24 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           <Icon name="upload" size={14} color="#FFFFFF" />
           Carica foglio produzione
         </button>
+
+        {vista === 'settimana' && !isAllSedi && (
+          <button onClick={ripetiSettimanaScorsa}
+            disabled={saving}
+            title="Copia i valori di PRODUZIONE dalla settimana scorsa in questa settimana. Sovrascrive solo le celle vuote."
+            style={{
+              padding: '8px 16px', minHeight: 40,
+              background: '#FFFFFF', color: T.brand,
+              border: `1px solid ${T.brand}`, borderRadius: 8,
+              fontSize: 12.5, fontWeight: 700,
+              cursor: saving ? 'wait' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              opacity: saving ? 0.6 : 1,
+            }}>
+            <Icon name="clock" size={14} color={T.brand} />
+            Ripeti settimana scorsa
+          </button>
+        )}
 
         {!isAllSedi && (sedi || []).filter(s => s.id !== sedeId && s.attiva !== false).length > 0 && (
           <button onClick={() => setShipDlg({ gusto: '', kg: '', destSedeId: '' })}
