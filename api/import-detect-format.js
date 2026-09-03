@@ -88,6 +88,12 @@ REGOLE:
 4. Se il formato non e' riconosciuto o e' misto/ambiguo, ritorna { "format": "unknown", "unpivot_config": null, "notes": "spiegazione" }.
 5. Per registri produzione gelateria italiana: quasi sempre WIDE multi-header con coppie (PROD, RIMAN.), separatori VENDUTO SETTIMANA, riga TOTALE. Applica il pattern se vedi indizi.
 
+REGOLA IMPORTANTE SU "notes":
+Il campo "notes" verra' mostrato a un pasticcere/gelataio 60enne poco pratico di internet. NON usare gergo tecnico ("row_dimension", "unpivot", "column_groups", "aggregati calcolati", ecc.). Scrivi 1-2 frasi corte, italiano semplice, tipo:
+- "Il file ha 3 sedi (Berthollet, Carlina, De Gasperi) e i giorni sul lato. Ho lasciato fuori i riepiloghi del mese."
+- "Non riesco a capire di che mese sono i dati: te lo chiedero' io tra un attimo."
+Massimo 250 caratteri. Nessun elenco puntato.
+
 Nessun testo prima o dopo il JSON.`
 }
 

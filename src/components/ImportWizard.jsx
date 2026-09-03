@@ -75,7 +75,30 @@ export default function ImportWizard({ orgId, onClose, notify }) {
 
       let sheetForMapping = null
       if (detected?.format === 'wide' && detected.unpivot_config) {
-        const { rows: longRows, per_sheet, warnings } = applyUnpivot(wb.rawSheets, detected.unpivot_config)
+        // Fix month_iso mancante: prima prova dal nome del file, poi chiede all'utente.
+        const cfg = detected.unpivot_config
+        if (Array.isArray(cfg.column_groups)) {
+          for (const g of cfg.column_groups) {
+            if (!g.month_iso || g.month_iso === 'null' || g.month_iso === null) {
+              const fromFilename = guessMonthIsoFromFilename(file?.name || '')
+              if (fromFilename) {
+                g.month_iso = fromFilename
+              } else {
+                // Prompt utente (formato YYYY-MM). Se annulla, throw.
+                const suggested = new Date().toISOString().slice(0, 7)
+                const answer = window.prompt(
+                  'Non riesco a capire di che mese sono questi dati. Scrivilo tu nel formato ANNO-MESE (es. 2026-05 per maggio 2026):',
+                  suggested
+                )
+                if (!answer || !/^\d{4}-\d{2}$/.test(answer.trim())) {
+                  throw new Error('Formato mese non valido. Deve essere ANNO-MESE, es. 2026-05.')
+                }
+                g.month_iso = answer.trim()
+              }
+            }
+          }
+        }
+        const { rows: longRows, per_sheet, warnings } = applyUnpivot(wb.rawSheets, cfg)
         if (longRows.length === 0) {
           throw new Error('Formato WIDE riconosciuto ma nessuna riga estratta. Controlla il file o dimmi come è organizzato.')
         }
@@ -440,24 +463,24 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
       {detectInfo?.format === 'wide' && detectInfo.unpivotStats && (
         <div style={{
           background: '#F0FDF4', border: `1px solid ${T.GREEN}`,
-          borderRadius: 10, padding: 12, marginBottom: 14,
-          display: 'flex', gap: 10, alignItems: 'flex-start',
+          borderRadius: 10, padding: 14, marginBottom: 14,
+          display: 'flex', gap: 12, alignItems: 'flex-start',
         }}>
-          <Icon name="check" size={16} color={T.GREEN}/>
-          <div style={{ fontSize: 13, color: '#14532D', lineHeight: 1.5 }}>
-            <b>Formato riconosciuto: registro WIDE con {detectInfo.sheetCount} tab.</b>{' '}
-            Ho estratto <b>{detectInfo.unpivotStats.total.toLocaleString('it-IT')} righe</b> pronte da caricare.
-            {detectInfo.notes && <div style={{ marginTop: 4, color: '#166534', fontSize: 12 }}>{detectInfo.notes}</div>}
+          <Icon name="check" size={18} color={T.GREEN}/>
+          <div style={{ fontSize: 14, color: '#14532D', lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 700, marginBottom: 2 }}>Ho letto il tuo file.</div>
+            Ho trovato <b>{detectInfo.unpivotStats.total.toLocaleString('it-IT')} righe di produzione</b>
+            {' '}nei tuoi {detectInfo.sheetCount} fogli. Ora dimmi solo che riga corrisponde a cosa.
           </div>
         </div>
       )}
 
       <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 6 }}>
-        Rivedi la mappatura
+        Controlla che sia tutto giusto
       </div>
       <div style={{ fontSize: 13, color: T.SOFT, marginBottom: 16, lineHeight: 1.5 }}>
-        Per ogni campo di Foodos, scegli da quale colonna del tuo file prendere il valore.
-        L abbiamo pre-compilato per te, ma puoi cambiarlo.
+        A sinistra i campi di Foodos, a destra le tue colonne. Se qualcosa non torna,
+        scegli la colonna giusta dal menù a tendina.
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
@@ -559,6 +582,27 @@ function StepMapping({ schema, headers, sampleRows, detectInfo, mapping, setMapp
   )
 }
 
+// Prova a estrarre "YYYY-MM" dal nome del file, se contiene un mese italiano
+// (es. "FOGLIO PRODUZIONE MAGGIO 2026.xlsx" → "2026-05"). Ritorna null se non
+// riesce a capirlo.
+function guessMonthIsoFromFilename(name) {
+  if (!name || typeof name !== 'string') return null
+  const s = name.toLowerCase()
+  const months = {
+    gennaio: '01', febbraio: '02', marzo: '03', aprile: '04',
+    maggio: '05', giugno: '06', luglio: '07', agosto: '08',
+    settembre: '09', ottobre: '10', novembre: '11', dicembre: '12',
+  }
+  let month = null
+  for (const [name, mm] of Object.entries(months)) {
+    if (s.includes(name)) { month = mm; break }
+  }
+  if (!month) return null
+  const yearMatch = s.match(/20\d{2}/)
+  if (!yearMatch) return null
+  return `${yearMatch[0]}-${month}`
+}
+
 function headerSampleValue(rows, col) {
   for (const r of rows) {
     const v = r?.[col]
@@ -572,23 +616,40 @@ function headerSampleValue(rows, col) {
 function StepValidate({ schema, result, onBack, onNext, isMobile, T }) {
   const { valid_rows, invalid_rows, stats } = result
   const [showErrors, setShowErrors] = useState(false)
+  const problem = summarizeErrors(invalid_rows)
+  const allBad = stats.valid === 0 && stats.invalid > 0
   return (
     <div>
       <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 6 }}>
-        Ecco cosa carichiamo
+        Ecco cosa ho capito dai tuoi dati
       </div>
       <div style={{ fontSize: 13, color: T.SOFT, marginBottom: 16, lineHeight: 1.5 }}>
-        Abbiamo controllato i tuoi dati riga per riga. Ecco il riepilogo.
+        Ho letto tutte le righe e controllato che i valori siano nel formato giusto.
+        Qui vedi il riepilogo, prima di caricare per davvero.
       </div>
+
+      {allBad && problem && (
+        <div style={{
+          background: '#FEF3C7', border: '1px solid #F59E0B',
+          borderRadius: 10, padding: 14, marginBottom: 16,
+          display: 'flex', gap: 12, alignItems: 'flex-start',
+        }}>
+          <Icon name="info" size={18} color="#B45309"/>
+          <div style={{ fontSize: 13.5, color: '#78350F', lineHeight: 1.55 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>{problem.title}</div>
+            <div>{problem.hint}</div>
+          </div>
+        </div>
+      )}
 
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr',
         gap: 10, marginBottom: 20,
       }}>
-        <StatBox label="Totali" value={stats.total} T={T}/>
-        <StatBox label="Da caricare" value={stats.valid} color={T.GREEN} T={T}/>
-        <StatBox label="Con errori" value={stats.invalid} color={stats.invalid > 0 ? T.RED : T.SOFT} T={T}/>
+        <StatBox label="Righe lette" value={stats.total} T={T}/>
+        <StatBox label="Pronte da caricare" value={stats.valid} color={T.GREEN} T={T}/>
+        <StatBox label="Da rivedere" value={stats.invalid} color={stats.invalid > 0 ? T.RED : T.SOFT} T={T}/>
       </div>
 
       {valid_rows.length > 0 && (
@@ -636,11 +697,11 @@ function StepValidate({ schema, result, onBack, onNext, isMobile, T }) {
             style={{
               background: '#FEE2E2', color: '#7F1D1D',
               border: `1px solid #FCA5A5`, borderRadius: 10,
-              padding: '10px 14px', fontSize: 13, fontWeight: 700,
+              padding: '12px 14px', fontSize: 13, fontWeight: 700,
               cursor: 'pointer', width: '100%', textAlign: 'left',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
-            <span>Righe con errori: {invalid_rows.length} (non verranno caricate)</span>
+            <span>Vedi i dettagli delle {invalid_rows.length.toLocaleString('it-IT')} righe da rivedere</span>
             <Icon name={showErrors ? 'chevU' : 'chevD'} size={12}/>
           </button>
           {showErrors && (
@@ -671,11 +732,52 @@ function StepValidate({ schema, result, onBack, onNext, isMobile, T }) {
         onBack={onBack}
         onNext={onNext}
         nextDisabled={valid_rows.length === 0}
-        nextLabel={valid_rows.length === 0 ? 'Nessuna riga da caricare' : `Carica ${valid_rows.length} righe`}
+        nextLabel={valid_rows.length === 0 ? 'Non posso caricare, torna indietro' : `Carica ${valid_rows.length.toLocaleString('it-IT')} righe`}
         isMobile={isMobile} T={T}
       />
     </div>
   )
+}
+
+// Riconosce pattern ricorrenti negli errori di validazione e li spiega
+// all'utente in linguaggio semplice, con un suggerimento pratico.
+function summarizeErrors(invalidRows) {
+  if (!Array.isArray(invalidRows) || invalidRows.length === 0) return null
+  // Raggruppa per pattern principale
+  let dateNull = 0, dateBad = 0, sedeNotFound = 0, numberBad = 0, requiredEmpty = 0
+  for (const inv of invalidRows) {
+    const s = (inv.errors || []).join(' ').toLowerCase()
+    if (s.includes('null-') || s.includes('"null-')) dateNull++
+    else if (s.includes('data') && s.includes('non') && s.includes('valida')) dateBad++
+    else if (s.includes('sede_id') && s.includes('non trovato')) sedeNotFound++
+    else if (s.includes('non') && s.includes('numero') && s.includes('valido')) numberBad++
+    else if (s.includes('obbligatorio') && s.includes('vuoto')) requiredEmpty++
+  }
+  const tot = invalidRows.length
+  const winner = Math.max(dateNull, dateBad, sedeNotFound, numberBad, requiredEmpty)
+  if (winner === 0 || winner / tot < 0.5) return null
+
+  if (dateNull === winner) return {
+    title: 'Non ho capito di che mese sono questi dati',
+    hint: 'Torna indietro, ricarica il file e quando ti chiedo il mese scrivi ANNO-MESE (es. 2026-05 per maggio 2026).',
+  }
+  if (sedeNotFound === winner) return {
+    title: 'I nomi delle sedi non corrispondono a quelli che hai in Foodos',
+    hint: 'Le sedi del file (es. "BERTHOLLET") devono esistere in Foodos con lo stesso nome. Vai in Impostazioni → Sedi e controlla come sono scritte.',
+  }
+  if (dateBad === winner) return {
+    title: 'Le date non sono in un formato che riesco a leggere',
+    hint: 'Serve il formato GG/MM/AAAA (es. 15/05/2026) o AAAA-MM-GG (es. 2026-05-15). Controlla la colonna delle date nel tuo Excel.',
+  }
+  if (numberBad === winner) return {
+    title: 'Ci sono valori che non riesco a leggere come numeri',
+    hint: 'Nelle colonne dei numeri (grammi, kg…) ci sono lettere o testi. Rimuovi il testo e lascia solo il numero.',
+  }
+  if (requiredEmpty === winner) return {
+    title: 'Mancano dati importanti in molte righe',
+    hint: 'Alcuni campi obbligatori (data, sede, gusto) sono vuoti. Torna al passo precedente e verifica di aver scelto le colonne giuste dai menù a tendina.',
+  }
+  return null
 }
 
 function StatBox({ label, value, color, T }) {

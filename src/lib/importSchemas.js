@@ -106,7 +106,7 @@ export const IMPORT_SCHEMAS = {
     label: 'Produzione gelateria (metodo inventario)',
     description: 'Registrazione produzione+rimanenza per gusto/sede/giorno. Formato LONG: una riga per combinazione (data, sede, gusto).',
     upsertOn: true,
-    wideFormatWarning: 'Se hai le colonne per gusto (es. "Nocciola", "Pistacchio" ecc.) va prima "esploso" in righe: una riga per gusto+giorno. Nella prossima release lo faremo in automatico.',
+    wideFormatWarning: 'Se il tuo foglio ha una colonna per ogni giorno o per ogni gusto va bene lo stesso: carica come lo tieni, ci pensiamo noi a riorganizzarlo.',
     unitConversions: [
       {
         label: 'I miei numeri sono in kg (convertili in grammi)',
