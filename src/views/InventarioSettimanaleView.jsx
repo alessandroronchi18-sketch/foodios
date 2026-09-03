@@ -24,6 +24,7 @@ import { color as T, radius as R, shadow as S } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { C, TNUM, PageHeader } from './_shared'
+import ImportWizard from '../components/ImportWizard'
 import { ssave } from '../lib/storage'
 import { SK_MAG } from '../lib/storageKeys'
 import {
@@ -109,7 +110,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // sort.dir: 'asc' | 'desc'
   const [sort, setSort] = useState({ by: 'nome', dir: 'asc' })
   // Stato dialog import file (multi-step). null = chiuso.
-  const [importDlg, setImportDlg] = useState(null)
+  const [importDlg, setImportDlg] = useState(null)  // legacy dialog (deprecated, non piu' aperto — codice tenuto per fallback)
+  const [showImportWizard, setShowImportWizard] = useState(false)
   // Stato dialog spedizione kg → sede destinazione. null = chiuso.
   const [shipDlg, setShipDlg] = useState(null)
   // Unita' di visualizzazione: 'g' (default) o 'kg'. Persistita in localStorage.
@@ -436,6 +438,21 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       <PageHeader subtitle="Registra produzione e rimanenza giornaliere. Il venduto si calcola da sé: rimanenza ieri + produzione oggi − rimanenza oggi − scarto." />
 
       {showOnboarding && !isAllSedi && <OnboardingInventario onClose={chiudiOnboarding} />}
+      {showImportWizard && (
+        <div role="dialog" aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowImportWizard(false) }}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+            zIndex: 9998, overflowY: 'auto', padding: 0,
+          }}>
+          <ImportWizard
+            orgId={orgId}
+            initialEntity="produzione_inventario"
+            notify={notify}
+            onClose={() => setShowImportWizard(false)}
+          />
+        </div>
+      )}
 
       {isAllSedi && (
         <div style={{
@@ -506,9 +523,9 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             )
           })}
         </div>
-        <button onClick={() => setImportDlg({ step: 'pick' })}
+        <button onClick={() => setShowImportWizard(true)}
           disabled={isAllSedi}
-          title={isAllSedi ? 'Per importare, seleziona prima una sede specifica' : undefined}
+          title={isAllSedi ? 'Per importare, seleziona prima una sede specifica' : 'Apri il caricamento guidato per fogli di produzione'}
           style={{
             padding: '8px 16px', minHeight: 40,
             background: isAllSedi ? '#94A3B8' : T.brand,
@@ -518,8 +535,8 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             display: 'inline-flex', alignItems: 'center', gap: 6,
             opacity: isAllSedi ? 0.6 : 1,
           }}>
-          <Icon name="download" size={14} color="#FFFFFF" />
-          Importa file
+          <Icon name="upload" size={14} color="#FFFFFF" />
+          Carica foglio produzione
         </button>
 
         {!isAllSedi && (sedi || []).filter(s => s.id !== sedeId && s.attiva !== false).length > 0 && (

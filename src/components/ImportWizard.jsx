@@ -27,12 +27,12 @@ import { applyUnpivot } from '../lib/importUnpivot'
 const BATCH_SIZE = 200
 const MAX_PREVIEW_ROWS = 10
 
-export default function ImportWizard({ orgId, onClose, notify }) {
+export default function ImportWizard({ orgId, onClose, notify, initialEntity = '' }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
 
   const [step, setStep] = useState(1)
-  const [entity, setEntity] = useState('')
+  const [entity, setEntity] = useState(initialEntity || '')
   const [file, setFile] = useState(null)
   const [parsedSheet, setParsedSheet] = useState(null)
   const [detectInfo, setDetectInfo] = useState(null)
