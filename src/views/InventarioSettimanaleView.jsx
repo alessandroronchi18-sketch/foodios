@@ -911,49 +911,41 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
             try {
               const qtaG = Math.round(Number(kg) * 1000)
               const oggiIso = new Date().toISOString().slice(0, 10)
-              // 1) scarico sede origine: somma a SPEDITO_G (NON scarto_g): la
-              // spedizione interna è kg "consumati" della disponibilità di
-              // origine ma NON sono spreco. Tenere spedito separato evita di
-               // drogare la quadratura cassa con un drift fittizio. Audit
-              // 2026-06-17 CRITICAL.
+              const sedeOrigineNome = (sedi || []).find(s => s.id === sedeId)?.nome || 'sede origine'
+              // 1) scarico sede origine: somma a SPEDITO_G (NON scarto_g)
               const cella = (righe || []).find(r => r.gusto_nome === gusto && r.data === oggiIso)
+              const destSede = (sedi || []).find(s => s.id === destSedeId)
+              const destInventario = !!destSede?.is_sede_produzione
+              const notaOrigine = `Spediti ${Number(kg).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg a ${destSede?.nome || 'altra sede'}`
+              const notaOrigineTot = cella?.note ? `${cella.note} · ${notaOrigine}` : notaOrigine
               await salvaCella(orgId, sedeId, gusto, oggiIso, {
                 produzione_g: cella?.produzione_g || 0,
                 rimanenza_g: cella?.rimanenza_g || 0,
                 scarto_g: cella?.scarto_g || 0,
                 spedito_g: (cella?.spedito_g || 0) + qtaG,
+                note: notaOrigineTot,
               })
-              const destSede = (sedi || []).find(s => s.id === destSedeId)
-              const destInventario = !!destSede?.is_sede_produzione
               // 2) carico destinazione
               if (destInventario) {
-                // Sede dest in modalita' inventario: la quantita' diventa PROD
-                // di oggi su quella sede (sommata a se esistente).
                 const { data: cellDest } = await supabase.from('inventario_produzione')
-                  .select('produzione_g, rimanenza_g, scarto_g, spedito_g')
+                  .select('produzione_g, rimanenza_g, scarto_g, spedito_g, note')
                   .eq('organization_id', orgId).eq('sede_id', destSedeId)
                   .eq('gusto_nome', gusto).eq('data', oggiIso)
                   .maybeSingle()
-                // Audit 2026-07-01 HIGH: la spedizione verso una sede in modalita'
-                // inventario somma a `produzione_g` della dest MA non scala il magazzino
-                // MP della dest (il prodotto e' GIÀ stato pesato sulla sede origine).
-                // Trattare come INCREMENTO di RIMANENZA (carico) e' più onesto:
-                // produzione = quanto e' stato prodotto OGGI; spedito da altra sede e'
-                // PRODOTTO PRONTO che entra in vetrina, non produzione locale.
+                const notaDest = `Ricevuti ${Number(kg).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg da ${sedeOrigineNome}`
+                const notaDestTot = cellDest?.note ? `${cellDest.note} · ${notaDest}` : notaDest
                 await salvaCella(orgId, destSedeId, gusto, oggiIso, {
                   produzione_g: cellDest?.produzione_g || 0,
                   rimanenza_g: (cellDest?.rimanenza_g || 0) + qtaG,
                   scarto_g: cellDest?.scarto_g || 0,
                   spedito_g: cellDest?.spedito_g || 0,
+                  note: notaDestTot,
                 })
               } else {
-                // Sede dest in modalita' stampi: carichiamo stock_prodotti_finiti
-                // tramite RPC. Convertiamo i grammi in "unita" usando l'unita'
-                // 'g' (la RPC accetta unita opzionale, default 'pz').
                 await caricoProduzionePF({
                   sedeId: destSedeId, prodotto: gusto,
                   quantita: qtaG, unita: 'g',
-                  note: `Trasferimento da ${destSede?.nome || 'altra sede'}`,
+                  note: `Trasferimento da ${sedeOrigineNome}`,
                 })
               }
               // Refresh righe della sede attiva.
@@ -973,15 +965,40 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 }
 
 // ── Dialog spedizione kg → sede destinazione ─────────────────────────────
+// Audit 2026-09-03: aggiunto controllo disponibilità + preview kg nel dropdown
+// + warning se richiesto > disponibile + copy corretto (era "scarto" invece di
+// "spedito", frase ingannevole).
 function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOggi, onConferma }) {
   const update = (k, v) => setState(s => ({ ...s, [k]: v }))
   const close = () => setState(null)
   const sediDest = (sedi || []).filter(s => s.id !== sedeOrigineId && s.attiva !== false)
-  const gustiOggi = (gusti || []).filter(g =>
-    righeOggi.some(r => r.gusto_nome === (g.nome || '').toUpperCase().trim())
-  )
-  const gustiBase = gustiOggi.length > 0 ? gustiOggi : (gusti || [])
-  const canConferma = state.gusto && Number(state.kg) > 0 && state.destSedeId
+
+  // Calcola disponibile OGGI per ogni gusto:
+  //   disponibile = produzione_g − scarto_g − spedito_g
+  // (Non include la rimanenza del giorno precedente perche' non l'abbiamo qui:
+  //  quella e' la vetrina "gia' esposta", che tecnicamente potresti anche spedire
+  //  ma tipicamente e' meno onesto. Se serve, l'utente aggiunge a mano.)
+  const dispPerGusto = useMemo(() => {
+    const m = {}
+    for (const r of (righeOggi || [])) {
+      const d = (Number(r.produzione_g) || 0) - (Number(r.scarto_g) || 0) - (Number(r.spedito_g) || 0)
+      m[r.gusto_nome] = Math.max(0, d)
+    }
+    return m
+  }, [righeOggi])
+
+  const gustiConDati = (gusti || []).filter(g => {
+    const key = (g.nome || '').toUpperCase().trim()
+    return (dispPerGusto[key] || 0) > 0
+  })
+  const gustiBase = gustiConDati.length > 0 ? gustiConDati : (gusti || [])
+
+  const dispGrammi = dispPerGusto[state.gusto] || 0
+  const dispKg = dispGrammi / 1000
+  const kgRichiesti = Number(state.kg) || 0
+  const oltreDisp = kgRichiesti > 0 && kgRichiesti > dispKg
+  const canConferma = state.gusto && kgRichiesti > 0 && state.destSedeId
+
   return (
     <div role="dialog" aria-modal="true"
       onClick={(e) => { if (e.target === e.currentTarget) close() }}
@@ -992,24 +1009,52 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: C.text }}>Spedisci kg a un'altra sede</h2>
         </div>
         <p style={{ margin: '0 0 16px', fontSize: 12.5, color: C.textSoft, lineHeight: 1.5 }}>
-          La quantità verrà sottratta dalla sede attuale (somma a "scarto" di oggi) e caricata
-          sulla destinazione (inventario o stock vetrina in base al metodo della sede).
+          I chili spediti vengono sottratti dalla disponibilità di oggi della sede attuale
+          (colonna interna &quot;spedito&quot;, non scarto). La sede destinataria li riceve come
+          rimanenza (se in metodo inventario) o come stock vetrina (se in metodo stampi).
         </p>
 
         <div style={{ marginBottom: 12 }}>
           <label style={lblForm}>Gusto</label>
           <select value={state.gusto} onChange={e => update('gusto', e.target.value)} style={inpForm}>
             <option value="">- Seleziona -</option>
-            {gustiBase.map(g => (
-              <option key={g.nome} value={normGusto(g.nome)}>{g.nome}</option>
-            ))}
+            {gustiBase.map(g => {
+              const key = normGusto(g.nome)
+              const disp = (dispPerGusto[key] || 0) / 1000
+              const suffix = disp > 0 ? ` — ${disp.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg disponibili` : ' — nessuna disponibilità oggi'
+              return (
+                <option key={g.nome} value={key}>{g.nome}{suffix}</option>
+              )
+            })}
           </select>
+          {state.gusto && (
+            <div style={{ fontSize: 11.5, color: C.textSoft, marginTop: 6 }}>
+              Disponibile oggi: <b style={{ color: dispKg > 0 ? '#166534' : '#B45309' }}>
+                {dispKg.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg
+              </b>
+            </div>
+          )}
         </div>
         <div style={{ marginBottom: 12 }}>
           <label style={lblForm}>Quantità (kg)</label>
           <input type="number" min="0" step="0.1" value={state.kg}
             onChange={e => update('kg', e.target.value)}
-            placeholder="es. 2.5" style={inpForm} />
+            placeholder="es. 2.5"
+            style={{
+              ...inpForm,
+              borderColor: oltreDisp ? '#FCA5A5' : inpForm.border,
+            }} />
+          {oltreDisp && (
+            <div style={{
+              marginTop: 8, padding: '8px 10px',
+              background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8,
+              fontSize: 12, color: '#7F1D1D', lineHeight: 1.45,
+            }}>
+              ⚠ Stai spedendo <b>{kgRichiesti.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg</b>
+              {' '}ma la sede oggi ne ha solo <b>{dispKg.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg</b> disponibili.
+              Puoi comunque procedere se sai di avere rimanenza del giorno prima da spedire.
+            </div>
+          )}
         </div>
         <div style={{ marginBottom: 18 }}>
           <label style={lblForm}>Sede destinazione</label>
@@ -1026,9 +1071,22 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button onClick={close} style={btnSecondary}>Annulla</button>
           <button disabled={!canConferma}
-            onClick={() => onConferma(state)}
-            style={{ ...btnPrimary, opacity: canConferma ? 1 : 0.5, cursor: canConferma ? 'pointer' : 'not-allowed' }}>
-            Spedisci
+            onClick={() => {
+              if (oltreDisp) {
+                const conferma = window.confirm(
+                  `Attenzione: stai spedendo ${kgRichiesti.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg ma la sede oggi ne ha solo ${dispKg.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg disponibili.\n\nProcedi solo se sai che hai rimanenza del giorno prima o altre giacenze.\n\nConfermi la spedizione?`
+                )
+                if (!conferma) return
+              }
+              onConferma(state)
+            }}
+            style={{
+              ...btnPrimary,
+              opacity: canConferma ? 1 : 0.5,
+              cursor: canConferma ? 'pointer' : 'not-allowed',
+              background: oltreDisp && canConferma ? '#B45309' : btnPrimary.background,
+            }}>
+            {oltreDisp ? 'Spedisci comunque' : 'Spedisci'}
           </button>
         </div>
       </div>
