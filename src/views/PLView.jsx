@@ -7,6 +7,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react'
 import { sload, ssave } from '../lib/storage'
+import { supabase } from '../lib/supabase'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -501,7 +502,7 @@ function SensTable({ rows, euro, pct }) {
 // ─── PLView ──────────────────────────────────────────────────────────────────
 const SK_PL_COSTI = 'pl-costi-fissi-v1' // per-sede: { affitto, utenze, altro, personale }
 
-export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpdateRegola, notify }) {
+export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metodoProduzione = 'stampi', onUpdateRegola, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
@@ -701,6 +702,92 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
   // eslint-disable-next-line react-hooks/exhaustive-deps -- aggRange/prevRange sono pure closures stabili sui props (chiusure) già in deps
   }, [chiusure, dateFrom, dateTo, costi])
 
+  // ═══ P&L METODO INVENTARIO DIFFERENZIALE (gelaterie con gusti) ══════════
+  // Attivo solo se organizations.metodo_produzione = 'inventario'. Legge dalla
+  // tabella inventario_produzione filtrata per periodo e sede, calcola per gusto:
+  //   venduto_g = riman_prev + prod - riman - scarto (residuo differenziale)
+  //   ricavo €  = venduto_kg × ricavoFlatFor(gusto)   (€/kg medio formati)
+  //   fc €      = costo ingredienti/kg × prod_kg      (dal ricettario)
+  //   margine € = ricavo - fc
+  // Il conto standard chiusure-cassa qui sotto resta invariato per compat.
+  const [invRows, setInvRows] = useState([])
+  useEffect(() => {
+    if (metodoProduzione !== 'inventario' || !orgId || !sedeId) { setInvRows([]); return }
+    let alive = true
+    supabase.from('inventario_produzione')
+      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g')
+      .eq('organization_id', orgId).eq('sede_id', sedeId)
+      .gte('data', dateFrom).lte('data', dateTo)
+      .order('data')
+      .limit(100000)
+      .then(({ data }) => { if (alive) setInvRows(data || []) })
+      .catch(() => { if (alive) setInvRows([]) })
+    return () => { alive = false }
+  }, [metodoProduzione, orgId, sedeId, dateFrom, dateTo])
+
+  const inventarioPL = useMemo(() => {
+    if (metodoProduzione !== 'inventario' || invRows.length === 0) return null
+    // Aggreghiamo per gusto: prod, scarto, venduto (differenziale).
+    const perGusto = {}
+    for (const r of invRows) {
+      const g = r.gusto_nome
+      if (!perGusto[g]) perGusto[g] = { rows: [] }
+      perGusto[g].rows.push(r)
+    }
+    // Match gusti col ricettario per calcolare ricavo/fc.
+    const ricByName = {}
+    for (const ric of Object.values(ricettario?.ricette || {})) {
+      ricByName[String(ric.nome || '').trim().toUpperCase()] = ric
+    }
+    const rows = []
+    let totProd = 0, totVend = 0, totScart = 0, totRic = 0, totFc = 0
+    for (const [gusto, { rows: rr }] of Object.entries(perGusto)) {
+      rr.sort((a, b) => a.data.localeCompare(b.data))
+      let rimanPrev = 0, prevD = null
+      let prodTot = 0, scartoTot = 0, vendTot = 0
+      for (const r of rr) {
+        const prod = Number(r.produzione_g) || 0
+        const riman = Number(r.rimanenza_g) || 0
+        const scarto = Number(r.scarto_g) || 0
+        const d = new Date(r.data)
+        if (prevD !== null) {
+          const diffGg = Math.round((d - prevD) / 86400000)
+          if (diffGg !== 1) rimanPrev = 0
+        }
+        const vend = Math.max(0, rimanPrev + prod - riman - scarto)
+        rimanPrev = riman; prevD = d
+        prodTot += prod; scartoTot += scarto; vendTot += vend
+      }
+      const ric = ricByName[String(gusto).trim().toUpperCase()]
+      const ricavoKg = ric ? (Number(ricavoFlatFor(ric)) || 0) : 0
+      const fcInfo = ric ? calcolaFC(ric, ricettario) : null
+      // calcolaFC ritorna costo per stampo. Per gusti (resa 1 kg), = €/kg.
+      const fcKg = fcInfo?.foodCost || 0
+      const prodKg = prodTot / 1000
+      const vendKg = vendTot / 1000
+      const scartoKg = scartoTot / 1000
+      const ricavo = vendKg * ricavoKg
+      const fc = prodKg * fcKg
+      const margine = ricavo - fc
+      const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0
+      rows.push({
+        gusto, prodKg, vendKg, scartoKg,
+        ricavoKg, fcKg, ricavo, fc, margine, margPct,
+        haRicavo: ricavoKg > 0, haFc: fcKg > 0,
+      })
+      totProd += prodKg; totVend += vendKg; totScart += scartoKg
+      totRic += ricavo; totFc += fc
+    }
+    rows.sort((a, b) => b.ricavo - a.ricavo)
+    const totMarg = totRic - totFc
+    const totMargPct = totRic > 0 ? (totMarg / totRic * 100) : 0
+    return {
+      rows, totProd, totVend, totScart, totRic, totFc, totMarg, totMargPct,
+      nMappati: rows.filter(r => r.haRicavo && r.haFc).length,
+      nNonMappati: rows.filter(r => !r.haRicavo || !r.haFc).length,
+    }
+  }, [metodoProduzione, invRows, ricettario, ricavoFlatFor])
+
   // Top ingredienti per costo (aggregato, riusato per PDF export)
   const topIngredienti = useMemo(() => {
     const ingMap = {}
@@ -866,6 +953,16 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
               style={{ padding: '11px 16px', minHeight: 44, borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard, fontSize: 13, color: T.textMid, cursor: 'pointer' }}>Annulla</button>
           </div>
         </div>
+      )}
+
+      {/* ═══ Sezione dedicata: P&L da produzione a inventario differenziale ═══ */}
+      {metodoProduzione === 'inventario' && inventarioPL && (
+        <PLInventarioSection
+          data={inventarioPL}
+          rangeLabel={rangeLabel(dateFrom, dateTo)}
+          cardP={cardP}
+          isMobile={isMobile}
+        />
       )}
 
       {plMese.cur.giorni === 0 ? (
@@ -1209,6 +1306,102 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, onUpd
         </div>
       </div>
       </>)}
+    </div>
+  )
+}
+
+// ── Sezione P&L da produzione a inventario differenziale (gelaterie) ──────
+// Attiva quando organizations.metodo_produzione = 'inventario'. Mostra:
+//   1) 4 KPI: prodotto kg / venduto stimato kg / ricavo € / margine € (%)
+//   2) Tabella per gusto (Prodotto, Venduto, Scarto, Ricavo, Food cost, Margine)
+//   3) Nota se ci sono gusti senza mapping ricetta (ricavo/fc = 0)
+function PLInventarioSection({ data, rangeLabel: rangeLbl, cardP, isMobile }) {
+  const euro = (n) => (Number(n) || 0).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €'
+  const fmtKg = (v) => v > 0
+    ? v.toLocaleString('it-IT', { maximumFractionDigits: 1 })
+    : '-'
+  const fmtPct = (v) => (Number(v) || 0).toFixed(1) + '%'
+  return (
+    <div style={{ ...cardP, marginBottom: 28 }}>
+      <SH sub="Il tuo P&L specifico per il metodo inventario differenziale: quanto hai prodotto, quanto hai venduto (calcolato dai residui giornalieri), quanto costano gli ingredienti e quanto ti resta.">
+        Produzione a inventario · {rangeLbl}
+      </SH>
+      {/* 4 KPI principali */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+        gap: isMobile ? 10 : 14, marginBottom: 16,
+      }}>
+        <BoxKpi label="Prodotto" value={`${fmtKg(data.totProd)} kg`} color={C.text}/>
+        <BoxKpi label="Venduto stimato" value={`${fmtKg(data.totVend)} kg`} color={T.brand}/>
+        <BoxKpi label="Ricavo stimato" value={euro(data.totRic)} color={C.green} highlight={data.totRic > 0}/>
+        <BoxKpi label={`Margine lordo (${fmtPct(data.totMargPct)})`} value={euro(data.totMarg)} color={data.totMarg >= 0 ? C.green : T.brand} highlight={data.totMarg > 0}/>
+      </div>
+      {/* Nota gusti non mappati */}
+      {data.nNonMappati > 0 && (
+        <div style={{
+          background: '#FEF9EB', border: '1px solid #FCD34D', borderRadius: 10,
+          padding: 10, marginBottom: 14, fontSize: 12, color: '#78350F', lineHeight: 1.5,
+        }}>
+          <b>Attenzione:</b> {data.nNonMappati} {data.nNonMappati === 1 ? 'gusto non è collegato' : 'gusti non sono collegati'} al ricettario o non ha ricavo €/kg impostato — per {data.nNonMappati === 1 ? 'questo' : 'questi'} il ricavo e il costo ingredienti sono a zero. Sistema la ricetta e i formati vendita per averli nel conto.
+        </div>
+      )}
+      {/* Tabella per gusto */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800, fontSize: 12.5 }}>
+          <thead>
+            <tr style={{ background: '#F8FAFC' }}>
+              <TH style={{ position: 'sticky', left: 0, background: '#F8FAFC', minWidth: 180 }}>Gusto</TH>
+              <TH style={{ textAlign: 'right' }}>Prod. kg</TH>
+              <TH style={{ textAlign: 'right' }}>Venduto kg</TH>
+              <TH style={{ textAlign: 'right' }}>Scarto kg</TH>
+              <TH style={{ textAlign: 'right' }}>€/kg</TH>
+              <TH style={{ textAlign: 'right', background: '#FEF9EB' }}>Ricavo</TH>
+              <TH style={{ textAlign: 'right' }}>Food cost</TH>
+              <TH style={{ textAlign: 'right', background: '#F0FDF4' }}>Margine</TH>
+              <TH style={{ textAlign: 'right' }}>Marg. %</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((r) => (
+              <tr key={r.gusto} style={{ borderTop: `1px solid ${C.borderSoft || '#F1F5F9'}` }}>
+                <TD style={{ position: 'sticky', left: 0, background: C.bgCard, fontWeight: 700, color: C.text }}>
+                  {r.gusto}
+                  {(!r.haRicavo || !r.haFc) && (
+                    <span title="Ricavo o food cost non calcolabile: manca la ricetta o il listino"
+                      style={{ display: 'inline-block', marginLeft: 6, color: '#B45309', fontSize: 10 }}>⚠</span>
+                  )}
+                </TD>
+                <TD style={{ textAlign: 'right', ...TNUM }}>{fmtKg(r.prodKg)}</TD>
+                <TD style={{ textAlign: 'right', ...TNUM }}>{fmtKg(r.vendKg)}</TD>
+                <TD style={{ textAlign: 'right', ...TNUM, color: r.scartoKg > 0 ? '#B91C1C' : C.textSoft }}>{r.scartoKg > 0 ? fmtKg(r.scartoKg) : '-'}</TD>
+                <TD style={{ textAlign: 'right', ...TNUM, color: C.textSoft }}>{r.ricavoKg > 0 ? euro(r.ricavoKg) : '-'}</TD>
+                <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 700, background: '#FEF9EB' }}>{r.ricavo > 0 ? euro(r.ricavo) : '-'}</TD>
+                <TD style={{ textAlign: 'right', ...TNUM, color: '#B91C1C' }}>{r.fc > 0 ? euro(r.fc) : '-'}</TD>
+                <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: r.margine >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>
+                  {r.ricavo > 0 || r.fc > 0 ? euro(r.margine) : '-'}
+                </TD>
+                <TD style={{ textAlign: 'right', ...TNUM, color: margColor(r.margPct) }}>
+                  {r.ricavo > 0 ? fmtPct(r.margPct) : '-'}
+                </TD>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: '#F8FAFC', borderTop: `2px solid ${C.border}` }}>
+              <TD style={{ position: 'sticky', left: 0, background: '#F8FAFC', fontWeight: 800, color: C.text }}>Totale</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800 }}>{fmtKg(data.totProd)}</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800 }}>{fmtKg(data.totVend)}</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: data.totScart > 0 ? '#B91C1C' : C.textSoft }}>{data.totScart > 0 ? fmtKg(data.totScart) : '-'}</TD>
+              <TD/>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, background: '#FEF9EB' }}>{euro(data.totRic)}</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: '#B91C1C' }}>{euro(data.totFc)}</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: data.totMarg >= 0 ? '#166534' : '#B91C1C', background: '#F0FDF4' }}>{euro(data.totMarg)}</TD>
+              <TD style={{ textAlign: 'right', ...TNUM, fontWeight: 800, color: margColor(data.totMargPct) }}>{fmtPct(data.totMargPct)}</TD>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   )
 }

@@ -110,7 +110,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // sort.dir: 'asc' | 'desc'
   const [sort, setSort] = useState({ by: 'nome', dir: 'asc' })
   // Stato dialog import file (multi-step). null = chiuso.
-  const [importDlg, setImportDlg] = useState(null)  // legacy dialog (deprecated, non piu' aperto — codice tenuto per fallback)
+  const [importDlg, setImportDlg] = useState(null)  // legacy dialog (deprecated, non più aperto — codice tenuto per fallback)
   const [showImportWizard, setShowImportWizard] = useState(false)
   // Stato dialog spedizione kg → sede destinazione. null = chiuso.
   const [shipDlg, setShipDlg] = useState(null)
@@ -1617,14 +1617,24 @@ function SortableHeader({ label, onClick, active, dir, style }) {
 }
 
 function SortChip({ label, color, active, dir, onClick }) {
+  const handleKey = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick && onClick()
+    }
+  }
   return (
-    <span onClick={onClick} title="Clicca per ordinare i gusti su questa colonna"
+    <span onClick={onClick} onKeyDown={handleKey}
+      role="button" tabIndex={0}
+      aria-label={`Ordina per ${label}${active ? (dir === 'asc' ? ' (crescente)' : ' (decrescente)') : ''}`}
+      title="Clicca (o premi Invio) per ordinare i gusti su questa colonna"
       style={{
         cursor: 'pointer', userSelect: 'none',
         fontSize: 9, color: active ? T.brand : color, fontWeight: 700,
         padding: '2px 4px', borderRadius: 4,
         background: active ? '#FEE2E2' : 'transparent',
         display: 'inline-flex', alignItems: 'center', gap: 2,
+        outlineOffset: 2,
       }}>
       {label}
       {active && <span style={{ fontSize: 8 }}>{dir === 'asc' ? '▲' : '▼'}</span>}
