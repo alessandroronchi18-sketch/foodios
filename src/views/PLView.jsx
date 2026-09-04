@@ -8,6 +8,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
+import { fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -714,13 +715,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   useEffect(() => {
     if (metodoProduzione !== 'inventario' || !orgId || !sedeId) { setInvRows([]); return }
     let alive = true
-    supabase.from('inventario_produzione')
-      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g')
-      .eq('organization_id', orgId).eq('sede_id', sedeId)
-      .gte('data', dateFrom).lte('data', dateTo)
-      .order('data')
-      .limit(100000)
-      .then(({ data }) => { if (alive) setInvRows(data || []) })
+    // Paginato: Supabase PostgREST ha db-max-rows=1000, quindi .limit() del
+    // client viene cappato lato server. Serve range() iterato.
+    fetchAllInventarioProduzione(orgId, {
+      sedeIds: sedeId, dataFrom, dataTo,
+      columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g',
+    })
+      .then(data => { if (alive) setInvRows(data || []) })
       .catch(() => { if (alive) setInvRows([]) })
     return () => { alive = false }
   }, [metodoProduzione, orgId, sedeId, dateFrom, dateTo])

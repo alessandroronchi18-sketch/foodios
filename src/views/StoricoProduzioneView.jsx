@@ -1,6 +1,7 @@
 // StoricoProduzioneView - Storico produzioni con grafici. Estratta da Dashboard.jsx.
 import React, { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
 import AnalisiInventarioSection from './AnalisiInventarioSection'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
@@ -72,18 +73,18 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     const prevTo = new Date(dFrom.getTime() - 86400000).toISOString().slice(0, 10)
     const prevFrom = new Date(dFrom.getTime() - durata * 86400000).toISOString().slice(0, 10)
 
+    // Paginato: il server Supabase (PostgREST) ha db-max-rows=1000 quindi
+    // .limit() non basta - serve range() iterato via fetchAllInventarioProduzione.
     Promise.all([
-      supabase.from('inventario_produzione')
-        .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id')
-        .eq('organization_id', orgId).eq('sede_id', sedeId)
-        .gte('data', from).lte('data', to)
-        .order('data').limit(100000),
-      supabase.from('inventario_produzione')
-        .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id')
-        .eq('organization_id', orgId).eq('sede_id', sedeId)
-        .gte('data', prevFrom).lte('data', prevTo)
-        .order('data').limit(100000),
-    ]).then(([{ data: cur }, { data: prev }]) => {
+      fetchAllInventarioProduzione(orgId, {
+        sedeIds: sedeId, dataFrom: from, dataTo: to,
+        columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id',
+      }),
+      fetchAllInventarioProduzione(orgId, {
+        sedeIds: sedeId, dataFrom: prevFrom, dataTo: prevTo,
+        columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id',
+      }),
+    ]).then(([cur, prev]) => {
       if (!alive) return
       setInvRows(cur || [])
       setInvRowsPrev(prev || [])

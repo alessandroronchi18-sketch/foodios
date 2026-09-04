@@ -473,24 +473,64 @@ export function inventarioASessioni(righeInventario) {
     }))
 }
 
+// Fetch paginato di inventario_produzione. Il progetto Supabase ha
+// `db-max-rows: 1000` a livello di PostgREST, quindi qualsiasi `.limit()`
+// del client viene cappato lato server. Per prendere davvero tutti i dati
+// bisogna iterare con `.range(offset, offset+999)` finche' la pagina non
+// torna vuota.
+//
+// opts:
+//   sedeIds:   uuid singolo o array di uuid (in) - opzionale
+//   dataFrom:  ISO date (>= data) - opzionale
+//   dataTo:    ISO date (<= data) - opzionale
+//   gustoNome: filtro gusto esatto - opzionale
+//   columns:   colonne SELECT (default include sede_id per aggregazione)
+export async function fetchAllInventarioProduzione(orgId, opts = {}) {
+  if (!orgId) return []
+  const { supabase } = await import('./supabase')
+  const columns = opts.columns || 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id'
+  const CHUNK = 1000
+  const all = []
+  let offset = 0
+  // Safety hard cap per evitare loop infiniti su bug di server: 500k righe
+  // sono ~6 anni di 3 sedi con 30 gusti/giorno, ben oltre lo scenario reale.
+  while (offset < 500000) {
+    let q = supabase.from('inventario_produzione').select(columns).eq('organization_id', orgId)
+    if (opts.sedeIds !== undefined && opts.sedeIds !== null) {
+      if (Array.isArray(opts.sedeIds)) {
+        if (opts.sedeIds.length === 0) return []
+        q = q.in('sede_id', opts.sedeIds)
+      } else {
+        q = q.eq('sede_id', opts.sedeIds)
+      }
+    }
+    if (opts.gustoNome) q = q.eq('gusto_nome', opts.gustoNome)
+    if (opts.dataFrom) q = q.gte('data', opts.dataFrom)
+    if (opts.dataTo) q = q.lte('data', opts.dataTo)
+    q = q.order('data').range(offset, offset + CHUNK - 1)
+    const { data, error } = await q
+    if (error) { console.error('fetchAllInventarioProduzione page:', error); return all }
+    if (!data || data.length === 0) break
+    all.push(...data)
+    if (data.length < CHUNK) break
+    offset += CHUNK
+  }
+  return all
+}
+
 export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
   if (!orgId || !sedeId) return []
-  const { supabase } = await import('./supabase')
   const monthsBack = opts.monthsBack || 12
   const inizio = new Date()
   inizio.setMonth(inizio.getMonth() - monthsBack)
   inizio.setDate(1)
   const inizioIso = inizio.toISOString().slice(0, 10)
-  const { data, error } = await supabase
-    .from('inventario_produzione')
-    .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g')
-    .eq('organization_id', orgId)
-    .eq('sede_id', sedeId)
-    .gte('data', inizioIso)
-    .order('data')
-    .limit(200000)  // evita il default supabase-js di 1000 (con 12 mesi × 3 sedi × 25 gusti supera facile)
-  if (error) { console.error('caricaSessioniDaInventario:', error); return [] }
-  return inventarioASessioni(data || [])
+  const rows = await fetchAllInventarioProduzione(orgId, {
+    sedeIds: sedeId,
+    dataFrom: inizioIso,
+    columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g',
+  })
+  return inventarioASessioni(rows)
 }
 
 // ── Helper date: lunedi della settimana che contiene `dateIso` ────────────

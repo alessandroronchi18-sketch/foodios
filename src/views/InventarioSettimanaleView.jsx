@@ -31,6 +31,7 @@ import {
   elencoGusti, caricaSettimana, salvaCella, calcolaVendutoSettimana,
   totaliVenduti, lunediDellaSettimana, normGusto,
   scaloMagazzinoPerGusto, ricettaDelGusto,
+  fetchAllInventarioProduzione,
 } from '../lib/inventarioProduzione'
 import { loadXLSX } from '../lib/xlsx'
 import { supabase } from '../lib/supabase'
@@ -220,65 +221,68 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // Caricamento dati MESE quando si seleziona la vista mese.
   useEffect(() => {
     if (vista !== 'mese' || !orgId || sediProdIds.length === 0) return
+    let alive = true
     const d = new Date(lunediIso)
     const inizio = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
     const fine = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString().slice(0, 10)
-    supabase.from('inventario_produzione')
-      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id')
-      .eq('organization_id', orgId).in('sede_id', sediProdIds)
-      .gte('data', inizio).lt('data', fine)
-      .limit(100000)  // evita il default supabase-js di 1000 → tagliava dati con molte sedi/gusti
-      .then(({ data }) => {
-        // Aggrega per (gusto, data) se isAllSedi (somma sedi)
-        if (isAllSedi) {
-          const map = {}
-          for (const r of (data || [])) {
-            const k = `${r.gusto_nome}|${r.data}`
-            if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
-            map[k].produzione_g += Number(r.produzione_g) || 0
-            map[k].rimanenza_g += Number(r.rimanenza_g) || 0
-            map[k].scarto_g += Number(r.scarto_g) || 0
-            map[k].spedito_g += Number(r.spedito_g) || 0
-          }
-          setMeseData({ righe: Object.values(map), inizio, fine })
-        } else {
-          setMeseData({ righe: data || [], inizio, fine })
+    // fine e' esclusivo → sottraggo 1 giorno per usare lte
+    const fineIncl = new Date(new Date(fine).getTime() - 86400000).toISOString().slice(0, 10)
+    fetchAllInventarioProduzione(orgId, {
+      sedeIds: sediProdIds,
+      dataFrom: inizio,
+      dataTo: fineIncl,
+    }).then(data => {
+      if (!alive) return
+      if (isAllSedi) {
+        const map = {}
+        for (const r of (data || [])) {
+          const k = `${r.gusto_nome}|${r.data}`
+          if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
+          map[k].produzione_g += Number(r.produzione_g) || 0
+          map[k].rimanenza_g += Number(r.rimanenza_g) || 0
+          map[k].scarto_g += Number(r.scarto_g) || 0
+          map[k].spedito_g += Number(r.spedito_g) || 0
         }
-      })
+        setMeseData({ righe: Object.values(map), inizio, fine })
+      } else {
+        setMeseData({ righe: data || [], inizio, fine })
+      }
+    }).catch(e => { if (alive) console.error('fetch mese:', e) })
+    return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vista, orgId, sediKey, lunediIso, isAllSedi])
 
   // Caricamento dati STORICO (ultimi 6 mesi) quando si apre vista storico.
   useEffect(() => {
     if (vista !== 'storico' || !orgId || sediProdIds.length === 0) return
+    let alive = true
     const oggi = new Date()
     const inizio = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1).toISOString().slice(0, 10)
-    supabase.from('inventario_produzione')
-      .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id')
-      .eq('organization_id', orgId).in('sede_id', sediProdIds)
-      .gte('data', inizio)
-      .order('data')
-      .limit(100000)  // evita il default supabase-js di 1000 (con 3 sedi × 6 mesi supera facile)
-      .then(({ data }) => {
-        if (isAllSedi) {
-          // Aggreghiamo per (gusto, data) sommando sedi. La logica del venduto
-          // poi e' calcolata in VistaStorico (richiede continuita' giornaliera);
-          // sommare RIMAN cross-sede e' coerente perché RIMAN(N-1)+PROD(N)-RIMAN(N)
-          // sommato per sede e' uguale a (sum RIMAN_prev) + (sum PROD) - (sum RIMAN).
-          const map = {}
-          for (const r of (data || [])) {
-            const k = `${r.gusto_nome}|${r.data}`
-            if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
-            map[k].produzione_g += Number(r.produzione_g) || 0
-            map[k].rimanenza_g += Number(r.rimanenza_g) || 0
-            map[k].scarto_g += Number(r.scarto_g) || 0
-            map[k].spedito_g += Number(r.spedito_g) || 0
-          }
-          setStoricoData({ righe: Object.values(map), inizio })
-        } else {
-          setStoricoData({ righe: data || [], inizio })
+    fetchAllInventarioProduzione(orgId, {
+      sedeIds: sediProdIds,
+      dataFrom: inizio,
+    }).then(data => {
+      if (!alive) return
+      if (isAllSedi) {
+        // Aggreghiamo per (gusto, data) sommando sedi. La logica del venduto
+        // poi e' calcolata in VistaStorico (richiede continuita' giornaliera);
+        // sommare RIMAN cross-sede e' coerente perché RIMAN(N-1)+PROD(N)-RIMAN(N)
+        // sommato per sede e' uguale a (sum RIMAN_prev) + (sum PROD) - (sum RIMAN).
+        const map = {}
+        for (const r of (data || [])) {
+          const k = `${r.gusto_nome}|${r.data}`
+          if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
+          map[k].produzione_g += Number(r.produzione_g) || 0
+          map[k].rimanenza_g += Number(r.rimanenza_g) || 0
+          map[k].scarto_g += Number(r.scarto_g) || 0
+          map[k].spedito_g += Number(r.spedito_g) || 0
         }
-      })
+        setStoricoData({ righe: Object.values(map), inizio })
+      } else {
+        setStoricoData({ righe: data || [], inizio })
+      }
+    }).catch(e => { if (alive) console.error('fetch storico:', e) })
+    return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vista, orgId, sediKey, isAllSedi])
 
@@ -1711,23 +1715,6 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, 
       ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
       : g.toLocaleString('it-IT')
   }
-  // Diagnostica: distribuzione righe per mese sui dati grezzi caricati.
-  // Serve a distinguere "il DB non ha lug/ago" da "il DB ha lug/ago ma il
-  // calcolo li ignora". Se un mese ha 0 righe → dato mancante lato server;
-  // se ha righe ma venduto=0 → problema di calcolo differenziale (es.
-  // rimanenza uguale a produzione).
-  const diagPerMese = useMemo(() => {
-    const per = {}
-    for (const r of (righeStorico || [])) {
-      const m = (r.data || '').slice(0, 7)
-      if (!per[m]) per[m] = { righe: 0, prod: 0, riman: 0 }
-      per[m].righe += 1
-      per[m].prod += Number(r.produzione_g) || 0
-      per[m].riman += Number(r.rimanenza_g) || 0
-    }
-    return per
-  }, [righeStorico])
-
   const data = useMemo(() => {
     const mesi = []
     const oggi = new Date()
@@ -1843,43 +1830,8 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, 
     }
   }
 
-  // Banner diagnostico: elenca le righe caricate dal DB per ognuno dei 6
-  // mesi mostrati. Righe=0 → il DB non ha dati per quel mese. Righe>0 ma
-  // venduto=0 → problema di calcolo differenziale, non di caricamento.
-  const totRighe = (righeStorico || []).length
-
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
-      <div style={{
-        background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10,
-        padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#1E3A8A',
-      }}>
-        <div style={{ fontWeight: 800, marginBottom: 6 }}>
-          Diagnostica caricamento · {totRighe.toLocaleString('it-IT')} righe totali dal DB
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontVariantNumeric: 'tabular-nums' }}>
-          {(() => {
-            const oggi = new Date()
-            const inizioD = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1)
-            return Array.from({ length: 6 }, (_, i) => {
-              const d = new Date(inizioD.getFullYear(), inizioD.getMonth() + i, 1)
-              const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-              const s = diagPerMese[k] || { righe: 0, prod: 0, riman: 0 }
-              const vuoto = s.righe === 0
-              return (
-                <div key={k} style={{
-                  padding: '6px 10px', borderRadius: 8,
-                  background: vuoto ? '#FEE2E2' : '#DBEAFE',
-                  color: vuoto ? '#991B1B' : '#1E3A8A',
-                  fontWeight: 700,
-                }}>
-                  {MESI_LABEL[d.getMonth()].slice(0, 3)} '{String(d.getFullYear()).slice(2)}: {s.righe} righe, {(s.prod / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg prod
-                </div>
-              )
-            })
-          })()}
-        </div>
-      </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 12, color: C.textSoft, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Storico vendite ({unita}) · Ultimi 6 mesi
