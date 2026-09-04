@@ -49,7 +49,35 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const [tab, setTab]       = useState("produzione"); // "produzione" | "vendite" | "confronto"
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo,   setDateTo]   = useState("");
+  // Modalita' di confronto per KPI e delta "vs periodo prec.":
+  //   'periodoPrec' = intervallo precedente di uguale durata (default, es. ultimi 30 gg vs 30 gg prima)
+  //   'annoPrec'    = stesso intervallo dell'anno prima (es. ago '26 vs ago '25). Se non ci sono dati, delta parte da 0.
+  //   'nessuno'     = niente confronto (più pulito, meno rumore)
+  const [confronto, setConfronto] = useState('periodoPrec')
   const isMetodoInv = metodoProduzione === 'inventario'
+
+  // Preset periodo rapidi: 1 click imposta dateFrom/dateTo
+  const applicaPreset = (id) => {
+    const oggi = new Date()
+    const y = oggi.getFullYear(), m = oggi.getMonth(), d = oggi.getDate()
+    const iso = (dt) => dt.toISOString().slice(0, 10)
+    let from, to
+    if (id === 'oggi')          { from = to = iso(oggi) }
+    else if (id === 'ieri')     { const dt = new Date(y, m, d - 1); from = to = iso(dt) }
+    else if (id === '7gg')      { from = iso(new Date(y, m, d - 6)); to = iso(oggi) }
+    else if (id === '30gg')     { from = iso(new Date(y, m, d - 29)); to = iso(oggi) }
+    else if (id === '90gg')     { from = iso(new Date(y, m, d - 89)); to = iso(oggi) }
+    else if (id === 'meseCorr') { from = iso(new Date(y, m, 1)); to = iso(oggi) }
+    else if (id === 'mesePrec') { from = iso(new Date(y, m - 1, 1)); to = iso(new Date(y, m, 0)) }
+    else if (id === 'sett')     {
+      // Lunedi della settimana corrente (ISO): 1=lun ... 7=dom
+      const dow = oggi.getDay() || 7
+      from = iso(new Date(y, m, d - (dow - 1)))
+      to = iso(oggi)
+    }
+    else if (id === 'annoCorr') { from = iso(new Date(y, 0, 1)); to = iso(oggi) }
+    if (from) { setDateFrom(from); setDateTo(to) }
+  }
 
   // ═══ Metodo inventario differenziale (gelaterie): fetch produzione da
   // public.inventario_produzione per il periodo selezionato + il periodo
@@ -74,24 +102,38 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     const defTo = oggi.toISOString().slice(0, 10)
     const from = dateFrom || defFrom
     const to = dateTo || defTo
-    // Range precedente della stessa durata
+    // Range di confronto:
+    //   'periodoPrec' → stessa durata subito prima (es. 30gg vs 30gg precedenti)
+    //   'annoPrec'    → stesso intervallo dell'anno prima
+    //   'nessuno'     → non fa fetch del precedente
     const dFrom = new Date(from + 'T12:00:00')
     const dTo = new Date(to + 'T12:00:00')
-    const durata = Math.round((dTo - dFrom) / 86400000) + 1
-    const prevTo = new Date(dFrom.getTime() - 86400000).toISOString().slice(0, 10)
-    const prevFrom = new Date(dFrom.getTime() - durata * 86400000).toISOString().slice(0, 10)
+    let prevFrom = null, prevTo = null
+    if (confronto === 'periodoPrec') {
+      const durata = Math.round((dTo - dFrom) / 86400000) + 1
+      prevTo = new Date(dFrom.getTime() - 86400000).toISOString().slice(0, 10)
+      prevFrom = new Date(dFrom.getTime() - durata * 86400000).toISOString().slice(0, 10)
+    } else if (confronto === 'annoPrec') {
+      const pyFrom = new Date(dFrom); pyFrom.setFullYear(pyFrom.getFullYear() - 1)
+      const pyTo   = new Date(dTo);   pyTo.setFullYear(pyTo.getFullYear() - 1)
+      prevFrom = pyFrom.toISOString().slice(0, 10)
+      prevTo   = pyTo.toISOString().slice(0, 10)
+    }
 
     // Paginato: il server Supabase (PostgREST) ha db-max-rows=50000, quindi
     // .limit() del client viene comunque cappato. Serve range() iterato.
+    const prevPromise = prevFrom
+      ? fetchAllInventarioProduzione(orgId, {
+          sedeIds: sediProdIdsPL, dataFrom: prevFrom, dataTo: prevTo,
+          columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id',
+        })
+      : Promise.resolve([])
     Promise.all([
       fetchAllInventarioProduzione(orgId, {
         sedeIds: sediProdIdsPL, dataFrom: from, dataTo: to,
         columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id',
       }),
-      fetchAllInventarioProduzione(orgId, {
-        sedeIds: sediProdIdsPL, dataFrom: prevFrom, dataTo: prevTo,
-        columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id',
-      }),
+      prevPromise,
     ]).then(([cur, prev]) => {
       if (!alive) return
       // Se aggreghiamo più sedi, sommiamo per (gusto, data): coerente con il
@@ -115,7 +157,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     }).catch(() => { if (alive) { setInvRows([]); setInvRowsPrev([]) } })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMetodoInv, orgId, sediKeyPL, dateFrom, dateTo])
+  }, [isMetodoInv, orgId, sediKeyPL, dateFrom, dateTo, confronto])
 
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
 
@@ -592,6 +634,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           rowsPrev={invRowsPrev}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          confronto={confronto}
           ricettario={ricettario}
           orgId={orgId}
           sedeId={sedeId}
@@ -599,6 +642,12 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           onBack={onNavigate ? () => onNavigate('giornaliero') : null}
         />
       )}
+
+      {/* Sezioni legacy (metodo=stampi): tab Produzione/Vendite/Confronto +
+          DIAGNOSI dark + tabelle sessioni. Per metodo=inventario tutto questo
+          non ha senso (i dati vivono in inventario_produzione e sono già
+          analizzati sopra) → mostriamo solo AnalisiInventarioSection. */}
+      {!isMetodoInv && (<>
 
       {/* Tab principali - centrali, larghe e ben visibili */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
@@ -626,27 +675,77 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
         </div>
       </div>
 
-      {/* ─── FILTRI DATA ─── */}
-      <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap",
-        padding:isMobile?"12px 14px":"12px 16px",background:C.bgCard,borderRadius:12,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(15,23,42,0.04)",
-        flexDirection:isMobile?'column':'row',alignItems:isMobile?'stretch':'center',boxSizing:'border-box',width:'100%'}}>
-        <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:C.textSoft,alignSelf:isMobile?'flex-start':'auto'}}>Periodo</span>
-        <div style={{display:'flex',gap:8,alignItems:'center',flex:1,flexWrap:'wrap',width:isMobile?'100%':'auto'}}>
-          <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} aria-label="Data inizio"
-            style={{padding:"10px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:13,color:C.text,background:C.white,flex:1,minWidth:isMobile?'45%':140,boxSizing:'border-box'}}/>
-          <span style={{fontSize:12,color:C.textSoft,fontWeight:600}} aria-hidden="true">→</span>
-          <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} aria-label="Data fine"
-            style={{padding:"10px 12px",minHeight:40,borderRadius:8,border:`1px solid ${C.borderStr}`,fontSize:isMobile?16:13,color:C.text,background:C.white,flex:1,minWidth:isMobile?'45%':140,boxSizing:'border-box'}}/>
+      {/* ─── FILTRI PERIODO ─── preset + date custom + modalita' confronto */}
+      <div style={{
+        display:'flex', flexDirection:'column', gap:12, marginBottom:18,
+        padding:isMobile?"12px 14px":"14px 16px",
+        background:C.bgCard, borderRadius:12, border:`1px solid ${C.border}`,
+        boxShadow:"0 1px 2px rgba(15,23,42,0.04)", boxSizing:'border-box', width:'100%',
+      }}>
+        {/* Preset rapidi: 1 click → dateFrom/dateTo. Copre giornaliero, settimanale,
+            mensile, trimestrale, YTD. Da un giorno singolo alla stagione intera. */}
+        <div style={{display:'flex', gap:8, flexWrap:'wrap', alignItems:'center'}}>
+          <span style={{fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft, marginRight:4}}>Preset</span>
+          {[
+            ['oggi', 'Oggi'],
+            ['ieri', 'Ieri'],
+            ['sett', 'Sett. in corso'],
+            ['7gg', 'Ultimi 7 gg'],
+            ['30gg', 'Ultimi 30 gg'],
+            ['90gg', 'Ultimi 90 gg'],
+            ['meseCorr', 'Mese corr.'],
+            ['mesePrec', 'Mese prec.'],
+            ['annoCorr', "Anno corr."],
+          ].map(([id, lbl]) => (
+            <button key={id} onClick={() => applicaPreset(id)} type="button"
+              style={{
+                padding:'6px 12px', minHeight:32,
+                background:'#F8FAFC', color:C.textMid,
+                border:`1px solid ${C.border}`, borderRadius:999,
+                fontSize:12, fontWeight:600, cursor:'pointer',
+              }}>{lbl}</button>
+          ))}
         </div>
-        {(dateFrom||dateTo)&&<div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',width:isMobile?'100%':'auto'}}>
-          <button onClick={()=>{setDateFrom("");setDateTo("");}} aria-label="Azzera filtro periodo"
-            style={{padding:"8px 14px",minHeight:40,borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.textSoft,fontSize:12,fontWeight:600,cursor:"pointer",display:'inline-flex',alignItems:'center',gap:6}}>
-            <Icon name="x" size={12}/>Reset
-          </button>
-          <span style={{fontSize:11,color:C.amber,fontWeight:600,display:"inline-flex",alignItems:"center",gap:4,whiteSpace:'nowrap'}}>
-            <Icon name="search" size={11} />{[dateFrom&&`Da ${dateFrom}`,dateTo&&`a ${dateTo}`].filter(Boolean).join(" ")}
-          </span>
-        </div>}
+
+        {/* Date custom + modalita' confronto sulla stessa riga (impilate su mobile) */}
+        <div style={{display:'flex', gap:12, flexWrap:'wrap', alignItems:isMobile?'stretch':'center', flexDirection:isMobile?'column':'row'}}>
+          <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
+            <span style={{fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>Da</span>
+            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} aria-label="Data inizio"
+              style={{padding:"10px 12px", minHeight:40, borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:isMobile?16:13, color:C.text, background:C.white, boxSizing:'border-box'}}/>
+            <span style={{fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>A</span>
+            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} aria-label="Data fine"
+              style={{padding:"10px 12px", minHeight:40, borderRadius:8, border:`1px solid ${C.borderStr}`, fontSize:isMobile?16:13, color:C.text, background:C.white, boxSizing:'border-box'}}/>
+            {(dateFrom || dateTo) && (
+              <button onClick={()=>{setDateFrom("");setDateTo("");}} type="button" aria-label="Azzera filtro periodo"
+                style={{padding:"8px 12px", minHeight:36, borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.textSoft, fontSize:12, fontWeight:600, cursor:"pointer", display:'inline-flex', alignItems:'center', gap:6}}>
+                <Icon name="x" size={12}/>Reset
+              </button>
+            )}
+          </div>
+          <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginLeft:isMobile?0:'auto'}}>
+            <span style={{fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:C.textSoft}}>Confronta con</span>
+            <div style={{display:'inline-flex', background:'#F1F5F9', borderRadius:8, padding:3, gap:2}}>
+              {[
+                ['periodoPrec', 'Periodo prec.'],
+                ['annoPrec',    'Anno prec.'],
+                ['nessuno',     'Nessuno'],
+              ].map(([id, lbl]) => {
+                const sel = confronto === id
+                return (
+                  <button key={id} onClick={() => setConfronto(id)} type="button"
+                    style={{
+                      padding:'7px 12px', minHeight:34, borderRadius:6, border:'none',
+                      background: sel ? C.white : 'transparent',
+                      color: sel ? C.red : C.textMid,
+                      boxShadow: sel ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
+                      fontSize:12, fontWeight:700, cursor:'pointer',
+                    }}>{lbl}</button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ─── BANDA DIAGNOSI (sempre visibile, sul periodo selezionato) ─── */}
@@ -1374,6 +1473,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
           })()}
         </>
       )}
+      </>)}
     </div>
   );
 }

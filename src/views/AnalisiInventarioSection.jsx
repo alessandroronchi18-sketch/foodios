@@ -45,7 +45,7 @@ import { useRicavoFlat } from '../lib/useRicavoFlat'
  * @param {Function} props.onBack - Callback per tornare alla Produzione
  */
 export default function AnalisiInventarioSection({
-  rows = [], rowsPrev = [], dateFrom, dateTo,
+  rows = [], rowsPrev = [], dateFrom, dateTo, confronto = 'periodoPrec',
   ricettario, orgId, sedeId, sedi = [],
   onBack,
 }) {
@@ -55,6 +55,11 @@ export default function AnalisiInventarioSection({
   const [vista, setVista] = useState('giornaliero')  // giornaliero | settimana | mese
   const [sortBy, setSortBy] = useState('ricavo')
   const [sortDir, setSortDir] = useState('desc')
+
+  // Etichetta del delta % nei KPI: dipende dalla modalita' scelta nel container.
+  const deltaLabelText = confronto === 'annoPrec' ? 'vs anno prec.'
+                       : confronto === 'nessuno'  ? ''
+                       : 'vs periodo prec.'
 
   // Aggregato per gusto: prod, venduto (residuo differenziale), scarto,
   // ricavo €, food cost €, margine €, margine %.
@@ -118,6 +123,7 @@ export default function AnalisiInventarioSection({
   // Serie temporale per il grafico (aggregazione per giorno/settimana/mese)
   const trend = useMemo(() => {
     if (rows.length === 0) return []
+    const MESI_ABBR = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic']
     const key = (dataStr) => {
       if (vista === 'giornaliero') return dataStr
       if (vista === 'mese') return dataStr.slice(0, 7)
@@ -130,19 +136,29 @@ export default function AnalisiInventarioSection({
       const week = Math.floor(diffDays / 7) + 1
       return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`
     }
+    // Label leggibile per il tooltip e l'asse: "15/07", "Sett 30 '26", "Lug '26"
+    const labelOf = (k) => {
+      if (vista === 'giornaliero') {
+        const [y, m, d] = k.split('-')
+        return `${d}/${m}`
+      }
+      if (vista === 'mese') {
+        const [y, m] = k.split('-')
+        return `${MESI_ABBR[parseInt(m, 10) - 1]} '${y.slice(2)}`
+      }
+      const [y, w] = k.split('-W')
+      return `Sett ${w} '${y.slice(2)}`
+    }
     const bucket = {}
-    // Per il venduto ci serve il differenziale, non semplice somma → riuso perGusto
-    // ma ripartendo per periodo. Approssimazione: distribuiamo il venduto proporzionalmente
-    // ai prod di ciascun giorno. Per il chart e' accettabile (KPI totali dal perGusto).
     for (const r of rows) {
       const k = key(r.data)
-      if (!bucket[k]) bucket[k] = { label: k, prod: 0, scarto: 0 }
+      if (!bucket[k]) bucket[k] = { key: k, label: labelOf(k), prod: 0, scarto: 0 }
       bucket[k].prod += (Number(r.produzione_g) || 0) / 1000
       bucket[k].scarto += (Number(r.scarto_g) || 0) / 1000
     }
     // Approssimazione venduto: prod - scarto (semplificato per il chart)
     return Object.values(bucket)
-      .sort((a, b) => a.label.localeCompare(b.label))
+      .sort((a, b) => a.key.localeCompare(b.key))
       .map(v => ({
         ...v,
         vend: Math.max(0, v.prod - v.scarto),
@@ -275,10 +291,10 @@ export default function AnalisiInventarioSection({
 
       {/* 4 KPI con confronto periodo precedente */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14, marginBottom: 16 }}>
-        <KpiCell label="Prodotto" value={`${kg(totali.prod)} kg`} delta={deltaPct(totali.prod, totaliPrev?.prod)} highlight={false} color={C.text}/>
-        <KpiCell label="Venduto stimato" value={`${kg(totali.vend)} kg`} delta={deltaPct(totali.vend, totaliPrev?.vend)} highlight color={T.brand}/>
-        <KpiCell label="Ricavo stimato" value={eur(totali.ricavo)} delta={deltaPct(totali.ricavo, totaliPrev?.ricavo)} highlight color="#166534"/>
-        <KpiCell label={`Margine (${pct(totali.margPct)})`} value={eur(totali.margine)} delta={deltaPct(totali.margine, totaliPrev?.margine)} highlight color={totali.margine >= 0 ? '#166534' : '#B91C1C'}/>
+        <KpiCell label="Prodotto" value={`${kg(totali.prod)} kg`} delta={deltaPct(totali.prod, totaliPrev?.prod)} deltaLabel={deltaLabelText} highlight={false} color={C.text}/>
+        <KpiCell label="Venduto stimato" value={`${kg(totali.vend)} kg`} delta={deltaPct(totali.vend, totaliPrev?.vend)} deltaLabel={deltaLabelText} highlight color={T.brand}/>
+        <KpiCell label="Ricavo stimato" value={eur(totali.ricavo)} delta={deltaPct(totali.ricavo, totaliPrev?.ricavo)} deltaLabel={deltaLabelText} highlight color="#166534"/>
+        <KpiCell label={`Margine (${pct(totali.margPct)})`} value={eur(totali.margine)} delta={deltaPct(totali.margine, totaliPrev?.margine)} deltaLabel={deltaLabelText} highlight color={totali.margine >= 0 ? '#166534' : '#B91C1C'}/>
       </div>
 
       {nNonMappati > 0 && (
@@ -399,7 +415,7 @@ export default function AnalisiInventarioSection({
   )
 }
 
-function KpiCell({ label, value, delta, highlight, color }) {
+function KpiCell({ label, value, delta, deltaLabel = 'vs periodo prec.', highlight, color }) {
   const deltaColor = delta == null ? T.textSoft : delta > 0 ? '#166534' : delta < 0 ? '#B91C1C' : T.textSoft
   const deltaSymbol = delta == null ? '' : delta > 0 ? '↑' : delta < 0 ? '↓' : '='
   return (
@@ -411,9 +427,9 @@ function KpiCell({ label, value, delta, highlight, color }) {
     }}>
       <div style={{ fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 800, color, ...TNUM, lineHeight: 1.1 }}>{value}</div>
-      {delta != null && (
+      {delta != null && deltaLabel && (
         <div style={{ fontSize: 11, color: deltaColor, fontWeight: 700, marginTop: 4, ...TNUM }}>
-          {deltaSymbol} {Math.abs(delta).toFixed(1)}% vs periodo prec.
+          {deltaSymbol} {Math.abs(delta).toFixed(1)}% {deltaLabel}
         </div>
       )}
     </div>

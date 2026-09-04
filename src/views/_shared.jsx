@@ -231,6 +231,38 @@ export function KPI({ label, value, sub, color, highlight, icon, onClick }) {
   )
 }
 
+// Format valore per tooltip Recharts: sceglie l'unita' e i decimali in
+// base al nome della serie. Copre i casi tipici di FoodOS (€, %, kg, g)
+// senza dover configurare ogni <Bar unit=...> a mano.
+//
+// Regole (allineate a CLAUDE.md → "Formattazione numeri"):
+// - € : arrotondato all'unita' se |n|>=100 (i box grandi non hanno decimali),
+//       2 decimali sotto (per l'accuratezza sui piccoli importi)
+// - % : sempre 1 decimale
+// - kg: 1 decimale se |n|<100, intero sopra (Mara produce ~2000 kg/mese)
+// - g : intero, separatore migliaia IT
+// - fallback: intero IT (evita "2126.4300000000026")
+export function formatChartValue(value, name) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return String(value ?? '')
+  const s = String(name || '').toLowerCase()
+  if (s.includes('€') || /\b(ricavo|fatturato|costo|margine\s*€)\b/.test(s)) {
+    if (Math.abs(n) >= 100) return `${Math.round(n).toLocaleString('it-IT')} €`
+    return `${n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+  }
+  if (s.includes('%') || /\b(percent|margine\s*%)\b/.test(s)) {
+    return `${n.toLocaleString('it-IT', { maximumFractionDigits: 1 })}%`
+  }
+  if (s.includes('kg')) {
+    if (Math.abs(n) >= 100) return `${Math.round(n).toLocaleString('it-IT')} kg`
+    return `${n.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg`
+  }
+  if (/\bg\b|grammi/.test(s)) {
+    return `${Math.round(n).toLocaleString('it-IT')} g`
+  }
+  return Math.round(n).toLocaleString('it-IT')
+}
+
 // Tooltip Recharts condiviso (era inline in Dashboard.jsx).
 // Importato da StoricoProduzioneView, PLView, ecc. - senza questo modulo dedicato
 // le view post-code-split sbattevano contro `ChartTip is not defined`.
@@ -247,7 +279,9 @@ export const ChartTip = ({ active, payload, label }) => {
           ordine variabile in payload) - prima key={i} swappava i colori al
           riordino interno di Recharts. */}
       {payload.map((p, i) => (
-        <div key={p.dataKey || p.name || i} style={{ color: p.color || C.red }}>{p.name}: <b>{p.value}</b></div>
+        <div key={p.dataKey || p.name || i} style={{ color: p.color || C.red }}>
+          {p.name}: <b style={{ fontVariantNumeric: 'tabular-nums' }}>{formatChartValue(p.value, p.name || p.dataKey)}</b>
+        </div>
       ))}
     </div>
   )
