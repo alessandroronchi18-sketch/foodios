@@ -1711,6 +1711,23 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, 
       ? (g / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })
       : g.toLocaleString('it-IT')
   }
+  // Diagnostica: distribuzione righe per mese sui dati grezzi caricati.
+  // Serve a distinguere "il DB non ha lug/ago" da "il DB ha lug/ago ma il
+  // calcolo li ignora". Se un mese ha 0 righe → dato mancante lato server;
+  // se ha righe ma venduto=0 → problema di calcolo differenziale (es.
+  // rimanenza uguale a produzione).
+  const diagPerMese = useMemo(() => {
+    const per = {}
+    for (const r of (righeStorico || [])) {
+      const m = (r.data || '').slice(0, 7)
+      if (!per[m]) per[m] = { righe: 0, prod: 0, riman: 0 }
+      per[m].righe += 1
+      per[m].prod += Number(r.produzione_g) || 0
+      per[m].riman += Number(r.rimanenza_g) || 0
+    }
+    return per
+  }, [righeStorico])
+
   const data = useMemo(() => {
     const mesi = []
     const oggi = new Date()
@@ -1826,8 +1843,43 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, 
     }
   }
 
+  // Banner diagnostico: elenca le righe caricate dal DB per ognuno dei 6
+  // mesi mostrati. Righe=0 → il DB non ha dati per quel mese. Righe>0 ma
+  // venduto=0 → problema di calcolo differenziale, non di caricamento.
+  const totRighe = (righeStorico || []).length
+
   return (
     <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)' }}>
+      <div style={{
+        background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10,
+        padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#1E3A8A',
+      }}>
+        <div style={{ fontWeight: 800, marginBottom: 6 }}>
+          Diagnostica caricamento · {totRighe.toLocaleString('it-IT')} righe totali dal DB
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontVariantNumeric: 'tabular-nums' }}>
+          {(() => {
+            const oggi = new Date()
+            const inizioD = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1)
+            return Array.from({ length: 6 }, (_, i) => {
+              const d = new Date(inizioD.getFullYear(), inizioD.getMonth() + i, 1)
+              const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+              const s = diagPerMese[k] || { righe: 0, prod: 0, riman: 0 }
+              const vuoto = s.righe === 0
+              return (
+                <div key={k} style={{
+                  padding: '6px 10px', borderRadius: 8,
+                  background: vuoto ? '#FEE2E2' : '#DBEAFE',
+                  color: vuoto ? '#991B1B' : '#1E3A8A',
+                  fontWeight: 700,
+                }}>
+                  {MESI_LABEL[d.getMonth()].slice(0, 3)} '{String(d.getFullYear()).slice(2)}: {s.righe} righe, {(s.prod / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg prod
+                </div>
+              )
+            })
+          })()}
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 12, color: C.textSoft, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Storico vendite ({unita}) · Ultimi 6 mesi
