@@ -343,6 +343,32 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     return gustiOrdinati.filter(g => gustiCompilatiSet.has(normGusto(g.nome)))
   }, [soloCompilati, gustiOrdinati, gustiCompilatiSet])
 
+  // Totali di colonna per la vista Settimana: per ogni giorno la somma dei
+  // PROD e delle RIMAN su tutti i gusti attualmente visibili, più il totale
+  // di VENDUTO SETT. Segue gustiVisibili, quindi se filtro "Solo compilati"
+  // e' attivo i totali riflettono solo i gusti in lista.
+  const totaliColonnaSettimana = useMemo(() => {
+    const perGiorno = {}
+    for (let i = 0; i < 7; i++) {
+      perGiorno[addDays(lunediIso, i)] = { prod: 0, riman: 0 }
+    }
+    let venduto = 0
+    for (const g of gustiVisibili) {
+      const key = normGusto(g.nome)
+      const byData = matrice[key] || {}
+      for (let i = 0; i < 7; i++) {
+        const dIso = addDays(lunediIso, i)
+        const c = byData[dIso]
+        if (c) {
+          perGiorno[dIso].prod += Number(c.prod) || 0
+          perGiorno[dIso].riman += Number(c.riman) || 0
+        }
+      }
+      venduto += Number(totali[key]) || 0
+    }
+    return { perGiorno, venduto }
+  }, [gustiVisibili, matrice, totali, lunediIso])
+
   // Toggle sort: se key e' uguale a quella attuale, inverte direzione; altrimenti
   // imposta nuova key con direzione 'desc' (numerici) o 'asc' (nome).
   const toggleSort = (key) => {
@@ -993,6 +1019,58 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 )
               })}
             </tbody>
+            {/* Riga totali di colonna: PROD e RIMAN sommati per giorno su
+                tutti i gusti visibili, più totale VENDUTO SETT. Nasconde se
+                non ci sono gusti (empty state gestito sopra). */}
+            {gustiVisibili.length > 0 && (
+              <tfoot>
+                <tr style={{ background: '#F1F5F9', borderTop: `2px solid ${C.borderStr}` }}>
+                  <td style={{
+                    ...tdGusto,
+                    background: '#F1F5F9',
+                    fontSize: 11, fontWeight: 800,
+                    color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em',
+                  }}>
+                    Totali {soloCompilati ? '(filtrati)' : ''}
+                  </td>
+                  {GIORNI.map((_, i) => {
+                    const dIso = addDays(lunediIso, i)
+                    const c = totaliColonnaSettimana.perGiorno[dIso] || { prod: 0, riman: 0 }
+                    const suffix = unitaDisplay === 'kg' ? ' kg' : ' g'
+                    return (
+                      <React.Fragment key={dIso}>
+                        <td style={{
+                          padding: '10px 6px', textAlign: 'center',
+                          fontSize: 12.5, fontWeight: 800, color: '#0369A1',
+                          background: '#F1F5F9',
+                          borderLeft: `1px solid ${C.border}`,
+                          fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'",
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {c.prod ? `${fmtUnita(c.prod)}${suffix}` : '—'}
+                        </td>
+                        <td style={{
+                          padding: '10px 6px', textAlign: 'center',
+                          fontSize: 12.5, fontWeight: 800, color: '#B45309',
+                          background: '#F1F5F9',
+                          fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'",
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {c.riman ? `${fmtUnita(c.riman)}${suffix}` : '—'}
+                        </td>
+                      </React.Fragment>
+                    )
+                  })}
+                  <td style={{
+                    ...tdTot,
+                    borderLeft: `2px solid ${C.borderStr}`,
+                    background: '#FDE68A', fontWeight: 900, fontSize: 14,
+                  }}>
+                    {fmtUnita(totaliColonnaSettimana.venduto || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       )}
@@ -1451,6 +1529,16 @@ function NomeGustoConFlag({ nome, orfano, onClick }) {
 // Calcoliamo il venduto da righeMese (riman_prev + prod - riman - scarto)
 // raggruppato per settimana ISO del mese.
 function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
+  // Sort locale: cliccando l'header di una colonna (settimana, tot venduto,
+  // tot prodotto) i gusti si riordinano. Default: nome A->Z.
+  const [sort, setSort] = useState({ by: 'nome', dir: 'asc' })
+  const toggleSort = (key) => {
+    setSort(prev => {
+      const same = JSON.stringify(prev.by) === JSON.stringify(key)
+      if (same) return { by: key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      return { by: key, dir: key === 'nome' ? 'asc' : 'desc' }
+    })
+  }
   const fmtVal = (g) => {
     if (g <= 0) return '-'
     if (unita === 'kg') {
@@ -1499,6 +1587,32 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
     return out
   }, [gusti, righeMese, lunediIso])
 
+  // Applica il sort scelto dall'utente. Nome usa localeCompare IT; per le
+  // colonne numeriche pesca dai risultati calcolati in m (per_sett / totVend /
+  // totProd). Gusti senza dati restano visibili con valori 0.
+  const gustiOrdinati = useMemo(() => {
+    const arr = [...(gusti || [])]
+    const key = sort.by
+    const sgn = sort.dir === 'asc' ? 1 : -1
+    arr.sort((a, b) => {
+      const an = (a.nome || '').toUpperCase()
+      const bn = (b.nome || '').toUpperCase()
+      if (key === 'nome') return sgn * an.localeCompare(bn, 'it')
+      const ak = normGusto(a.nome); const bk = normGusto(b.nome)
+      const ra = m[ak] || { per_sett: [0,0,0,0,0], totProd: 0, totVend: 0 }
+      const rb = m[bk] || { per_sett: [0,0,0,0,0], totProd: 0, totVend: 0 }
+      let av = 0, bv = 0
+      if (key === 'totVend') { av = ra.totVend; bv = rb.totVend }
+      else if (key === 'totProd') { av = ra.totProd; bv = rb.totProd }
+      else if (key && key.tipo === 'w') {
+        av = ra.per_sett[key.settimana] || 0
+        bv = rb.per_sett[key.settimana] || 0
+      }
+      return sgn * (av - bv)
+    })
+    return arr
+  }, [gusti, sort, m])
+
   const meseLabel = (() => {
     const d = new Date(lunediIso)
     return `${MESI_LABEL[d.getMonth()]} ${d.getFullYear()}`
@@ -1513,22 +1627,40 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
           <thead>
             <tr style={{ background: '#F8FAFC' }}>
-              <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Gusto</th>
-              {[1,2,3,4,5].map(w => (
-                <th key={w} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  W{w}
-                </th>
-              ))}
-              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}>
-                Tot. venduto
-              </th>
-              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Tot. prodotto
-              </th>
+              <SortableHeader
+                label="Gusto"
+                onClick={() => toggleSort('nome')}
+                active={sort.by === 'nome'} dir={sort.dir}
+                style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+              />
+              {[1,2,3,4,5].map(w => {
+                const key = { tipo: 'w', settimana: w - 1 }
+                const active = sort.by?.tipo === 'w' && sort.by?.settimana === w - 1
+                return (
+                  <SortableHeader key={w}
+                    label={`W${w}`}
+                    onClick={() => toggleSort(key)}
+                    active={active} dir={sort.dir}
+                    style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                  />
+                )
+              })}
+              <SortableHeader
+                label="Tot. venduto"
+                onClick={() => toggleSort('totVend')}
+                active={sort.by === 'totVend'} dir={sort.dir}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}
+              />
+              <SortableHeader
+                label="Tot. prodotto"
+                onClick={() => toggleSort('totProd')}
+                active={sort.by === 'totProd'} dir={sort.dir}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+              />
             </tr>
           </thead>
           <tbody>
-            {(gusti || []).map(({ nome, orfano }) => {
+            {gustiOrdinati.map(({ nome, orfano }) => {
               const k = normGusto(nome)
               const r = m[k] || { per_sett: [0,0,0,0,0], totProd: 0, totVend: 0 }
               return (
@@ -1562,6 +1694,15 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
 
 // ── VistaStorico: timeline scorrevole multi-mese (ultimi 6 mesi) ──────────
 function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, onOpenReport }) {
+  // Sort locale: header cliccabili su Gusto, ciascun mese, e i 3 totali.
+  const [sort, setSort] = useState({ by: 'nome', dir: 'asc' })
+  const toggleSort = (key) => {
+    setSort(prev => {
+      const same = JSON.stringify(prev.by) === JSON.stringify(key)
+      if (same) return { by: key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      return { by: key, dir: key === 'nome' ? 'asc' : 'desc' }
+    })
+  }
   const fmtTot = (g) => {
     if (g <= 0) return '-'
     return unita === 'kg'
@@ -1626,6 +1767,34 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, 
     }
     return { mesi, idx, totProd, totScarto }
   }, [gusti, righeStorico])
+
+  // Ordina i gusti in base al sort scelto: 'nome' (localeCompare IT), un
+  // singolo mese (chiave YYYY-MM), 'totProd', 'totVend' (= somma su mesi),
+  // 'totScarto'.
+  const gustiOrdinati = useMemo(() => {
+    const arr = [...(gusti || [])]
+    const key = sort.by
+    const sgn = sort.dir === 'asc' ? 1 : -1
+    const sumArr = (a) => (a || []).reduce((s, v) => s + v, 0)
+    arr.sort((a, b) => {
+      const an = (a.nome || '').toUpperCase()
+      const bn = (b.nome || '').toUpperCase()
+      if (key === 'nome') return sgn * an.localeCompare(bn, 'it')
+      const ak = normGusto(a.nome); const bk = normGusto(b.nome)
+      const arrA = data.idx[ak] || []
+      const arrB = data.idx[bk] || []
+      let av = 0, bv = 0
+      if (key === 'totProd') { av = data.totProd[ak] || 0; bv = data.totProd[bk] || 0 }
+      else if (key === 'totScarto') { av = data.totScarto[ak] || 0; bv = data.totScarto[bk] || 0 }
+      else if (key === 'totVend') { av = sumArr(arrA); bv = sumArr(arrB) }
+      else if (key && key.tipo === 'mese') {
+        const i = data.mesi.findIndex(m => m.key === key.meseKey)
+        if (i >= 0) { av = arrA[i] || 0; bv = arrB[i] || 0 }
+      }
+      return sgn * (av - bv)
+    })
+    return arr
+  }, [gusti, sort, data])
 
   async function esportaXlsx() {
     try {
@@ -1692,27 +1861,46 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, 
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
           <thead>
             <tr style={{ background: '#F8FAFC' }}>
-              <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', position: 'sticky', left: 0, background: '#F8FAFC' }}>
-                Gusto
-              </th>
-              {data.mesi.map(m => (
-                <th key={m.key} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 80 }}>
-                  {m.label}
-                </th>
-              ))}
-              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#F0FDF4' }}>
-                Tot. prodotto
-              </th>
-              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}>
-                Tot. venduto
-              </th>
-              <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#B91C1C', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF2F2' }}>
-                Tot. scarto
-              </th>
+              <SortableHeader
+                label="Gusto"
+                onClick={() => toggleSort('nome')}
+                active={sort.by === 'nome'} dir={sort.dir}
+                style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', position: 'sticky', left: 0, background: '#F8FAFC' }}
+              />
+              {data.mesi.map(m => {
+                const key = { tipo: 'mese', meseKey: m.key }
+                const active = sort.by?.tipo === 'mese' && sort.by?.meseKey === m.key
+                return (
+                  <SortableHeader key={m.key}
+                    label={m.label}
+                    onClick={() => toggleSort(key)}
+                    active={active} dir={sort.dir}
+                    style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 80 }}
+                  />
+                )
+              })}
+              <SortableHeader
+                label="Tot. prodotto"
+                onClick={() => toggleSort('totProd')}
+                active={sort.by === 'totProd'} dir={sort.dir}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#F0FDF4' }}
+              />
+              <SortableHeader
+                label="Tot. venduto"
+                onClick={() => toggleSort('totVend')}
+                active={sort.by === 'totVend'} dir={sort.dir}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}
+              />
+              <SortableHeader
+                label="Tot. scarto"
+                onClick={() => toggleSort('totScarto')}
+                active={sort.by === 'totScarto'} dir={sort.dir}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#B91C1C', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF2F2' }}
+              />
             </tr>
           </thead>
           <tbody>
-            {(gusti || []).map(({ nome, orfano }) => {
+            {gustiOrdinati.map(({ nome, orfano }) => {
               const k = normGusto(nome)
               const arr = data.idx[k] || data.mesi.map(() => 0)
               const tot = arr.reduce((s, v) => s + v, 0)
