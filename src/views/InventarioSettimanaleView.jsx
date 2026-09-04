@@ -274,6 +274,19 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
 
   const matrice = useMemo(() => calcolaVendutoSettimana(righe, lunediIso), [righe, lunediIso])
   const totali = useMemo(() => totaliVenduti(matrice), [matrice])
+  // Totale PROD settimanale per gusto (somma dei 7 giorni). Serve alla colonna
+  // "Tot. prodotto" della vista Settimana, uniformata con Mese e Storico.
+  const totaliProdSettimana = useMemo(() => {
+    const out = {}
+    for (const key of Object.keys(matrice || {})) {
+      let sum = 0
+      for (const cell of Object.values(matrice[key] || {})) {
+        sum += Number(cell?.prod) || 0
+      }
+      out[key] = sum
+    }
+    return out
+  }, [matrice])
 
   // Gusti ordinati secondo `sort`. Lo applichiamo SOLO alla lista per il
   // rendering, non ai dati sottostanti (matrice resta indicizzata per nome).
@@ -289,6 +302,9 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       if (key === 'venduto') {
         return sgn * ((totali[ak] || 0) - (totali[bk] || 0))
       }
+      if (key === 'totProd') {
+        return sgn * ((totaliProdSettimana[ak] || 0) - (totaliProdSettimana[bk] || 0))
+      }
       // { tipo: 'prod'|'riman', giorno }
       const dIso = (() => { const d = new Date(lunediIso); d.setDate(d.getDate() + key.giorno); return d.toISOString().slice(0, 10) })()
       const av = (matrice[ak]?.[dIso] || {})[key.tipo === 'prod' ? 'prod' : 'riman'] || 0
@@ -296,7 +312,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       return sgn * (av - bv)
     })
     return arr
-  }, [gusti, sort, matrice, totali, lunediIso])
+  }, [gusti, sort, matrice, totali, totaliProdSettimana, lunediIso])
 
   // Insieme dei nomi (normalizzati) dei gusti con almeno un dato compilato nel
   // periodo attualmente visualizzato. Un gusto e' "compilato" se, per la vista
@@ -969,11 +985,20 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                     </th>
                   )
                 })}
+                {/* Totali sticky-right: sempre visibili senza scrollare fino
+                    in fondo. Uso gli stessi nomi delle viste Mese/Storico
+                    per uniformita' (Tot. prodotto / Tot. venduto). */}
                 <SortableHeader
-                  label="VENDUTO SETT."
+                  label="Tot. prodotto"
+                  onClick={() => toggleSort('totProd')}
+                  active={sort.by === 'totProd'} dir={sort.dir}
+                  style={{ ...thTot, borderLeft: `2px solid ${C.borderStr}`, position: 'sticky', right: 120, zIndex: 3, background: '#F0FDF4', color: '#166534', boxShadow: '-2px 0 0 rgba(15,23,42,0.04)' }}
+                />
+                <SortableHeader
+                  label="Tot. venduto"
                   onClick={() => toggleSort('venduto')}
                   active={sort.by === 'venduto'} dir={sort.dir}
-                  style={{ ...thTot, borderLeft: `2px solid ${C.borderStr}` }}
+                  style={{ ...thTot, position: 'sticky', right: 0, zIndex: 3 }}
                 />
               </tr>
             </thead>
@@ -1014,7 +1039,12 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                         </React.Fragment>
                       )
                     })}
-                    <td style={{ ...tdTot, borderLeft: `2px solid ${C.borderStr}` }}>
+                    {/* Totali sticky-right: la cella prodotto e' verde,
+                        la venduto ambra (coerente con Storico). */}
+                    <td style={{ ...tdTot, borderLeft: `2px solid ${C.borderStr}`, position: 'sticky', right: 120, zIndex: 1, background: '#F0FDF4', color: '#166534', boxShadow: '-2px 0 0 rgba(15,23,42,0.04)' }}>
+                      {fmtUnita(totaliProdSettimana[gustoKey] || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
+                    </td>
+                    <td style={{ ...tdTot, position: 'sticky', right: 0, zIndex: 1 }}>
                       {fmtUnita(totali[gustoKey] || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
                     </td>
                   </tr>
@@ -1063,13 +1093,35 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                       </React.Fragment>
                     )
                   })}
-                  <td style={{
-                    ...tdTot,
-                    borderLeft: `2px solid ${C.borderStr}`,
-                    background: '#FDE68A', fontWeight: 900, fontSize: 14,
-                  }}>
-                    {fmtUnita(totaliColonnaSettimana.venduto || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
-                  </td>
+                  {(() => {
+                    // Totali di riga: sommo PROD e VENDUTO su tutti i giorni della settimana
+                    // per tutti i gusti visibili → usati nelle celle sticky-right del tfoot.
+                    let totProdSett = 0
+                    for (const g of gustiVisibili) {
+                      totProdSett += Number(totaliProdSettimana[normGusto(g.nome)]) || 0
+                    }
+                    return (
+                      <>
+                        <td style={{
+                          ...tdTot,
+                          borderLeft: `2px solid ${C.borderStr}`,
+                          position: 'sticky', right: 120, zIndex: 2,
+                          background: '#BBF7D0', color: '#166534',
+                          fontWeight: 900, fontSize: 14,
+                          boxShadow: '-2px 0 0 rgba(15,23,42,0.04)',
+                        }}>
+                          {fmtUnita(totProdSett)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
+                        </td>
+                        <td style={{
+                          ...tdTot,
+                          position: 'sticky', right: 0, zIndex: 2,
+                          background: '#FDE68A', fontWeight: 900, fontSize: 14,
+                        }}>
+                          {fmtUnita(totaliColonnaSettimana.venduto || 0)}{unitaDisplay === 'kg' ? ' kg' : ' g'}
+                        </td>
+                      </>
+                    )
+                  })()}
                 </tr>
               </tfoot>
             )}
@@ -1647,17 +1699,19 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
                   />
                 )
               })}
+              {/* Ordine colonne totali uniformato a Settimana e Storico:
+                  prima Tot. prodotto (verde), poi Tot. venduto (ambra). */}
+              <SortableHeader
+                label="Tot. prodotto"
+                onClick={() => toggleSort('totProd')}
+                active={sort.by === 'totProd'} dir={sort.dir}
+                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#F0FDF4' }}
+              />
               <SortableHeader
                 label="Tot. venduto"
                 onClick={() => toggleSort('totVend')}
                 active={sort.by === 'totVend'} dir={sort.dir}
                 style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}
-              />
-              <SortableHeader
-                label="Tot. prodotto"
-                onClick={() => toggleSort('totProd')}
-                active={sort.by === 'totProd'} dir={sort.dir}
-                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em' }}
               />
             </tr>
           </thead>
@@ -1675,11 +1729,11 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
                       {fmtVal(v)}
                     </td>
                   ))}
+                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: '#166534', fontWeight: 800, fontSize: 13, background: '#F0FDF4' }}>
+                    {fmtVal(r.totProd)}
+                  </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 800, fontSize: 13, background: '#FEF9EB' }}>
                     {fmtVal(r.totVend)}
-                  </td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: C.textMid, fontSize: 12.5 }}>
-                    {fmtVal(r.totProd)}
                   </td>
                 </tr>
               )
@@ -1884,12 +1938,8 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
                 active={sort.by === 'totVend'} dir={sort.dir}
                 style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.brand, textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF9EB' }}
               />
-              <SortableHeader
-                label="Tot. scarto"
-                onClick={() => toggleSort('totScarto')}
-                active={sort.by === 'totScarto'} dir={sort.dir}
-                style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#B91C1C', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#FEF2F2' }}
-              />
+              {/* Tot. scarto nascosta per ora: la colonna esiste ancora nei
+                  dati e viene esportata in Excel, ma non e' mostrata in UI. */}
             </tr>
           </thead>
           <tbody>
@@ -1920,9 +1970,6 @@ function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpe
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: T.brand, fontWeight: 800, fontSize: 13, background: '#FEF9EB' }}>
                     {fmtTot(tot)} {unita}
-                  </td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', ...TNUM, color: '#B91C1C', fontWeight: 800, fontSize: 13, background: '#FEF2F2' }}>
-                    {fmtTot(data.totScarto[k] || 0)} {unita}
                   </td>
                 </tr>
               )
