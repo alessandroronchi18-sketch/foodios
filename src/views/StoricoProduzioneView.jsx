@@ -1,5 +1,7 @@
 // StoricoProduzioneView - Storico produzioni con grafici. Estratta da Dashboard.jsx.
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+import AnalisiInventarioSection from './AnalisiInventarioSection'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, ReferenceLine } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T } from '../lib/theme'
@@ -30,7 +32,7 @@ const yPCT = v => `${v}%`
 // k.slice(5) restituisce mesi 01-12 e parseInt('01') = 1.
 const MN = ['', 'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 
-export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], orgId, sedeId, LEX = lessico() }) {
+export default function StoricoProduzioneView({ ricettario, giornaliero, chiusure, logPrezzi = [], orgId, sedeId, sedi = [], metodoProduzione = 'stampi', onNavigate, LEX = lessico() }) {
   // Ricavo effettivo per gusti (gelateria): stimato dai Formati vendita.
   // Prima di questo hook, i gusti nello storico avevano ricavo=0 e falsavano
   // i margini periodici (audit 2026-07-28).
@@ -46,6 +48,49 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   const [tab, setTab]       = useState("produzione"); // "produzione" | "vendite" | "confronto"
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo,   setDateTo]   = useState("");
+  const isMetodoInv = metodoProduzione === 'inventario'
+
+  // ═══ Metodo inventario differenziale (gelaterie): fetch produzione da
+  // public.inventario_produzione per il periodo selezionato + il periodo
+  // precedente di uguale durata (per il confronto vs periodo prec.).
+  // Se metodo=stampi, restiamo sul flusso legacy (giornaliero da localStorage).
+  const [invRows, setInvRows] = useState([])
+  const [invRowsPrev, setInvRowsPrev] = useState([])
+  useEffect(() => {
+    if (!isMetodoInv || !orgId || !sedeId) { setInvRows([]); setInvRowsPrev([]); return }
+    let alive = true
+    // Range corrente: se dateFrom/dateTo non settati, usa ultimi 90gg
+    const oggi = new Date()
+    const defFrom = new Date(oggi.getFullYear(), oggi.getMonth() - 2, oggi.getDate()).toISOString().slice(0, 10)
+    const defTo = oggi.toISOString().slice(0, 10)
+    const from = dateFrom || defFrom
+    const to = dateTo || defTo
+    // Range precedente della stessa durata
+    const dFrom = new Date(from + 'T12:00:00')
+    const dTo = new Date(to + 'T12:00:00')
+    const durata = Math.round((dTo - dFrom) / 86400000) + 1
+    const prevTo = new Date(dFrom.getTime() - 86400000).toISOString().slice(0, 10)
+    const prevFrom = new Date(dFrom.getTime() - durata * 86400000).toISOString().slice(0, 10)
+
+    Promise.all([
+      supabase.from('inventario_produzione')
+        .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id')
+        .eq('organization_id', orgId).eq('sede_id', sedeId)
+        .gte('data', from).lte('data', to)
+        .order('data').limit(100000),
+      supabase.from('inventario_produzione')
+        .select('gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id')
+        .eq('organization_id', orgId).eq('sede_id', sedeId)
+        .gte('data', prevFrom).lte('data', prevTo)
+        .order('data').limit(100000),
+    ]).then(([{ data: cur }, { data: prev }]) => {
+      if (!alive) return
+      setInvRows(cur || [])
+      setInvRowsPrev(prev || [])
+    }).catch(() => { if (alive) { setInvRows([]); setInvRowsPrev([]) } })
+    return () => { alive = false }
+  }, [isMetodoInv, orgId, sedeId, dateFrom, dateTo])
+
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
 
   // Filtra sessioni per data range
@@ -511,6 +556,24 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
   return (
     <div style={{maxWidth:1200, margin:'0 auto', boxSizing:'border-box', width:'100%'}}>
+      {/* ═══ Sezione dedicata metodo INVENTARIO (gelaterie/yogurterie/pasta) ═══
+          Appare SOLO se organizations.metodo_produzione='inventario'. Le tab
+          Produzione/Vendite/Confronto sotto restano funzionanti sulle chiusure
+          cassa (parte cassa e' comune ai 2 metodi). */}
+      {isMetodoInv && (
+        <AnalisiInventarioSection
+          rows={invRows}
+          rowsPrev={invRowsPrev}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          ricettario={ricettario}
+          orgId={orgId}
+          sedeId={sedeId}
+          sedi={sedi}
+          onBack={onNavigate ? () => onNavigate('giornaliero') : null}
+        />
+      )}
+
       {/* Tab principali - centrali, larghe e ben visibili */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
         <div style={{display:"flex",gap:4,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:14,padding:4,width:"100%",maxWidth:540,boxSizing:'border-box'}}>

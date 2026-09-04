@@ -56,7 +56,7 @@ function fmtG(n) {
   return Number(n).toLocaleString('it-IT')
 }
 
-export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAttiva, ricettario, magazzino, setMagazzino, tipoAttivita, metodoProduzione = 'stampi', notify }) {
+export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAttiva, ricettario, magazzino, setMagazzino, tipoAttivita, metodoProduzione = 'stampi', notify, onNavigate }) {
   // "Tutte le sedi" attivo: vista AGGREGATA read-only. Somma PROD/RIMAN di
   // tutte le sedi produttive dell'org (il metodo e' org-level, quindi tutte
   // le sedi produttive di questa org hanno lo stesso metodo). Niente save,
@@ -789,7 +789,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       ) : vista === 'mese' ? (
         <VistaMese gusti={gustiOrdinati} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
       ) : vista === 'storico' ? (
-        <VistaStorico gusti={gustiOrdinati} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
+        <VistaStorico gusti={gustiOrdinati} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} unita={unitaDisplay} onClickGusto={setDrilldownGusto} onOpenReport={onNavigate ? () => onNavigate('storico') : null} />
       ) : (
         // Settimana × 7 giorni × 2 colonne (PROD/RIMAN) + GUSTO + TOT = 16 colonne.
         // Su 375px non ci stanno, quindi tabella scrolla orizzontalmente e
@@ -1456,7 +1456,7 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
 }
 
 // ── VistaStorico: timeline scorrevole multi-mese (ultimi 6 mesi) ──────────
-function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto }) {
+function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, onOpenReport }) {
   const fmtTot = (g) => {
     if (g <= 0) return '-'
     return unita === 'kg'
@@ -1556,17 +1556,32 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto }
         <div style={{ fontSize: 12, color: C.textSoft, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Storico vendite ({unita}) · Ultimi 6 mesi
         </div>
-        <button onClick={esportaXlsx}
-          title="Scarica lo storico in Excel"
-          style={{
-            padding: '8px 14px', minHeight: 36,
-            background: '#FFFFFF', color: T.brand, border: `1px solid ${T.brand}55`, borderRadius: 8,
-            fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-            display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
-          }}>
-          <Icon name="download" size={13} color={T.brand}/>
-          Esporta Excel
-        </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {onOpenReport && (
+            <button onClick={onOpenReport}
+              title="Apri il report analitico completo con KPI, grafici e trend"
+              style={{
+                padding: '8px 14px', minHeight: 36,
+                background: T.brand, color: '#FFFFFF', border: 'none', borderRadius: 8,
+                fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
+              }}>
+              <Icon name="barChart" size={13} color="#FFFFFF"/>
+              Report analitico completo
+            </button>
+          )}
+          <button onClick={esportaXlsx}
+            title="Scarica lo storico in Excel"
+            style={{
+              padding: '8px 14px', minHeight: 36,
+              background: '#FFFFFF', color: T.brand, border: `1px solid ${T.brand}55`, borderRadius: 8,
+              fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
+            }}>
+            <Icon name="download" size={13} color={T.brand}/>
+            Esporta Excel
+          </button>
+        </div>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
