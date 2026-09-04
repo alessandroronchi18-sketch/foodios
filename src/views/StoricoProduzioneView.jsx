@@ -57,8 +57,16 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
   // Se metodo=stampi, restiamo sul flusso legacy (giornaliero da localStorage).
   const [invRows, setInvRows] = useState([])
   const [invRowsPrev, setInvRowsPrev] = useState([])
+  // In modalita' "Tutte le sedi" sedeId e' null: prendiamo TUTTE le sedi
+  // produttive dell'org, altrimenti solo quella attiva. Le non-produttive
+  // (uffici, magazzini centrali) non entrano nell'aggregato inventario.
+  const sediProdIdsPL = useMemo(() => {
+    if (sedeId) return [sedeId]
+    return (sedi || []).filter(s => s.is_sede_produzione !== false && s.attiva !== false).map(s => s.id)
+  }, [sedeId, sedi])
+  const sediKeyPL = sediProdIdsPL.join(',')
   useEffect(() => {
-    if (!isMetodoInv || !orgId || !sedeId) { setInvRows([]); setInvRowsPrev([]); return }
+    if (!isMetodoInv || !orgId || sediProdIdsPL.length === 0) { setInvRows([]); setInvRowsPrev([]); return }
     let alive = true
     // Range corrente: se dateFrom/dateTo non settati, usa ultimi 90gg
     const oggi = new Date()
@@ -73,24 +81,41 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
     const prevTo = new Date(dFrom.getTime() - 86400000).toISOString().slice(0, 10)
     const prevFrom = new Date(dFrom.getTime() - durata * 86400000).toISOString().slice(0, 10)
 
-    // Paginato: il server Supabase (PostgREST) ha db-max-rows=1000 quindi
-    // .limit() non basta - serve range() iterato via fetchAllInventarioProduzione.
+    // Paginato: il server Supabase (PostgREST) ha db-max-rows=50000, quindi
+    // .limit() del client viene comunque cappato. Serve range() iterato.
     Promise.all([
       fetchAllInventarioProduzione(orgId, {
-        sedeIds: sedeId, dataFrom: from, dataTo: to,
+        sedeIds: sediProdIdsPL, dataFrom: from, dataTo: to,
         columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id',
       }),
       fetchAllInventarioProduzione(orgId, {
-        sedeIds: sedeId, dataFrom: prevFrom, dataTo: prevTo,
+        sedeIds: sediProdIdsPL, dataFrom: prevFrom, dataTo: prevTo,
         columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, sede_id',
       }),
     ]).then(([cur, prev]) => {
       if (!alive) return
-      setInvRows(cur || [])
-      setInvRowsPrev(prev || [])
+      // Se aggreghiamo più sedi, sommiamo per (gusto, data): coerente con il
+      // calcolo differenziale del venduto (RIMAN(N-1)+PROD(N)-RIMAN(N) sommato
+      // per sede = sum RIMAN_prev + sum PROD - sum RIMAN).
+      const aggrega = (rows) => {
+        if (sediProdIdsPL.length <= 1) return rows || []
+        const map = new Map()
+        for (const r of (rows || [])) {
+          const k = `${r.gusto_nome}|${r.data}`
+          let v = map.get(k)
+          if (!v) { v = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }; map.set(k, v) }
+          v.produzione_g += Number(r.produzione_g) || 0
+          v.rimanenza_g += Number(r.rimanenza_g) || 0
+          v.scarto_g += Number(r.scarto_g) || 0
+        }
+        return [...map.values()]
+      }
+      setInvRows(aggrega(cur))
+      setInvRowsPrev(aggrega(prev))
     }).catch(() => { if (alive) { setInvRows([]); setInvRowsPrev([]) } })
     return () => { alive = false }
-  }, [isMetodoInv, orgId, sedeId, dateFrom, dateTo])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMetodoInv, orgId, sediKeyPL, dateFrom, dateTo])
 
   const ingCosti = useMemo(()=>buildIngCosti(ricettario?.ingredienti_costi||{}), [ricettario]);
 

@@ -489,7 +489,10 @@ export async function fetchAllInventarioProduzione(orgId, opts = {}) {
   if (!orgId) return []
   const { supabase } = await import('./supabase')
   const columns = opts.columns || 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g, spedito_g, sede_id'
-  const CHUNK = 1000
+  // CHUNK deve stare <= db-max-rows di PostgREST (default Supabase 1000).
+  // Il progetto Foodos e' stato alzato a 50000 il 2026-09-04. Se abbassano
+  // di nuovo il setting, questo valore va tenuto in sync.
+  const CHUNK = 50000
   const all = []
   let offset = 0
   // Safety hard cap per evitare loop infiniti su bug di server: 500k righe
@@ -516,6 +519,73 @@ export async function fetchAllInventarioProduzione(orgId, opts = {}) {
     offset += CHUNK
   }
   return all
+}
+
+// Aggregato mensile per gusto: prova la RPC storico_inventario_per_mese
+// (aggregazione lato DB, veloce anche su anni di dati). Se la funzione
+// non esiste ancora (migration 20260904 non applicata) o errora,
+// fallback a fetch paginato + aggregazione client-side coerente con
+// la regola differenziale usata in VistaStorico.
+//
+// Ritorna: { source: 'rpc'|'client', perMese: [{gusto_nome, mese, prod_g, venduto_g, scarto_g}] }
+//   mese formato 'YYYY-MM'
+export async function caricaStoricoMensile(orgId, sedeIds, dataFrom, dataTo) {
+  if (!orgId) return { source: 'rpc', perMese: [] }
+  const { supabase } = await import('./supabase')
+  const arr = Array.isArray(sedeIds) ? sedeIds : (sedeIds ? [sedeIds] : null)
+  const { data, error } = await supabase.rpc('storico_inventario_per_mese', {
+    p_org_id: orgId,
+    p_sede_ids: arr,
+    p_data_from: dataFrom,
+    p_data_to: dataTo,
+  })
+  if (!error && Array.isArray(data)) return { source: 'rpc', perMese: data }
+  // Fallback client-side
+  const righe = await fetchAllInventarioProduzione(orgId, {
+    sedeIds: arr, dataFrom, dataTo,
+    columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g',
+  })
+  // Aggrega per (gusto, data): somma cross-sede prima del calcolo differenziale.
+  const perGD = new Map()
+  for (const r of righe) {
+    const k = `${r.gusto_nome}|${r.data}`
+    let v = perGD.get(k)
+    if (!v) { v = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0 }; perGD.set(k, v) }
+    v.produzione_g += Number(r.produzione_g) || 0
+    v.rimanenza_g += Number(r.rimanenza_g) || 0
+    v.scarto_g += Number(r.scarto_g) || 0
+  }
+  // Raggruppa per gusto ordinato per data e calcola venduto.
+  const perGusto = new Map()
+  for (const r of perGD.values()) {
+    let arr = perGusto.get(r.gusto_nome)
+    if (!arr) { arr = []; perGusto.set(r.gusto_nome, arr) }
+    arr.push(r)
+  }
+  const perMese = new Map()  // key = `${gusto}|${YYYY-MM}`
+  for (const [gusto, list] of perGusto.entries()) {
+    list.sort((a, b) => a.data.localeCompare(b.data))
+    let rimanPrev = 0
+    let dataPrev = null
+    for (const r of list) {
+      const d = new Date(r.data)
+      if (dataPrev !== null) {
+        const gap = Math.round((d - dataPrev) / 86400000)
+        if (gap !== 1) rimanPrev = 0
+      }
+      const venduto = Math.max(0, rimanPrev + r.produzione_g - r.rimanenza_g - r.scarto_g)
+      rimanPrev = r.rimanenza_g
+      dataPrev = d
+      const mese = r.data.slice(0, 7)
+      const k = `${gusto}|${mese}`
+      let bucket = perMese.get(k)
+      if (!bucket) { bucket = { gusto_nome: gusto, mese, prod_g: 0, venduto_g: 0, scarto_g: 0 }; perMese.set(k, bucket) }
+      bucket.prod_g += r.produzione_g
+      bucket.venduto_g += venduto
+      bucket.scarto_g += r.scarto_g
+    }
+  }
+  return { source: 'client', perMese: [...perMese.values()] }
 }
 
 export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {

@@ -31,7 +31,7 @@ import {
   elencoGusti, caricaSettimana, salvaCella, calcolaVendutoSettimana,
   totaliVenduti, lunediDellaSettimana, normGusto,
   scaloMagazzinoPerGusto, ricettaDelGusto,
-  fetchAllInventarioProduzione,
+  fetchAllInventarioProduzione, caricaStoricoMensile,
 } from '../lib/inventarioProduzione'
 import { loadXLSX } from '../lib/xlsx'
 import { supabase } from '../lib/supabase'
@@ -253,35 +253,21 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   }, [vista, orgId, sediKey, lunediIso, isAllSedi])
 
   // Caricamento dati STORICO (ultimi 6 mesi) quando si apre vista storico.
+  // Usa la RPC storico_inventario_per_mese quando disponibile (aggregazione
+  // lato DB, veloce anche su anni di dati); fallback trasparente a fetch
+  // paginato + aggregazione client-side se la migration non e' applicata.
   useEffect(() => {
     if (vista !== 'storico' || !orgId || sediProdIds.length === 0) return
     let alive = true
     const oggi = new Date()
     const inizio = new Date(oggi.getFullYear(), oggi.getMonth() - 5, 1).toISOString().slice(0, 10)
-    fetchAllInventarioProduzione(orgId, {
-      sedeIds: sediProdIds,
-      dataFrom: inizio,
-    }).then(data => {
-      if (!alive) return
-      if (isAllSedi) {
-        // Aggreghiamo per (gusto, data) sommando sedi. La logica del venduto
-        // poi e' calcolata in VistaStorico (richiede continuita' giornaliera);
-        // sommare RIMAN cross-sede e' coerente perché RIMAN(N-1)+PROD(N)-RIMAN(N)
-        // sommato per sede e' uguale a (sum RIMAN_prev) + (sum PROD) - (sum RIMAN).
-        const map = {}
-        for (const r of (data || [])) {
-          const k = `${r.gusto_nome}|${r.data}`
-          if (!map[k]) map[k] = { gusto_nome: r.gusto_nome, data: r.data, produzione_g: 0, rimanenza_g: 0, scarto_g: 0, spedito_g: 0 }
-          map[k].produzione_g += Number(r.produzione_g) || 0
-          map[k].rimanenza_g += Number(r.rimanenza_g) || 0
-          map[k].scarto_g += Number(r.scarto_g) || 0
-          map[k].spedito_g += Number(r.spedito_g) || 0
-        }
-        setStoricoData({ righe: Object.values(map), inizio })
-      } else {
-        setStoricoData({ righe: data || [], inizio })
-      }
-    }).catch(e => { if (alive) console.error('fetch storico:', e) })
+    const fineIso = oggi.toISOString().slice(0, 10)
+    caricaStoricoMensile(orgId, sediProdIds, inizio, fineIso)
+      .then(({ perMese }) => {
+        if (!alive) return
+        setStoricoData({ perMese: perMese || [], inizio })
+      })
+      .catch(e => { if (alive) console.error('caricaStoricoMensile:', e) })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vista, orgId, sediKey, isAllSedi])
@@ -327,7 +313,17 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     } else if (vista === 'mese') {
       source = meseData?.righe || []
     } else if (vista === 'storico') {
-      source = storicoData?.righe || []
+      // storicoData ora e' aggregato per mese: ogni riga ha prod/venduto/scarto>0
+      // se il gusto ha dati in quel mese. Un gusto e' "compilato" se compare in
+      // almeno una riga aggregata (con qualunque valore positivo).
+      const setSt = new Set()
+      for (const r of (storicoData?.perMese || [])) {
+        const p = Number(r.prod_g) || 0
+        const v = Number(r.venduto_g) || 0
+        const s = Number(r.scarto_g) || 0
+        if (p > 0 || v > 0 || s > 0) setSt.add(normGusto(r.gusto_nome))
+      }
+      return setSt
     }
     for (const r of source) {
       const p = Number(r.produzione_g) || 0
@@ -926,7 +922,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
       ) : vista === 'mese' ? (
         <VistaMese gusti={gustiVisibili} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
       ) : vista === 'storico' ? (
-        <VistaStorico gusti={gustiVisibili} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} unita={unitaDisplay} onClickGusto={setDrilldownGusto} onOpenReport={onNavigate ? () => onNavigate('storico') : null} />
+        <VistaStorico gusti={gustiVisibili} perMese={storicoData?.perMese || []} inizio={storicoData?.inizio} unita={unitaDisplay} onClickGusto={setDrilldownGusto} onOpenReport={onNavigate ? () => onNavigate('storico') : null} />
       ) : (
         // Settimana × 7 giorni × 2 colonne (PROD/RIMAN) + GUSTO + TOT = 16 colonne.
         // Su 375px non ci stanno, quindi tabella scrolla orizzontalmente e
@@ -1699,7 +1695,10 @@ function VistaMese({ gusti, righeMese, lunediIso, unita = 'g', onClickGusto }) {
 }
 
 // ── VistaStorico: timeline scorrevole multi-mese (ultimi 6 mesi) ──────────
-function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, onOpenReport }) {
+// perMese = array di { gusto_nome, mese ('YYYY-MM'), prod_g, venduto_g, scarto_g }
+// pre-aggregato dal DB (RPC storico_inventario_per_mese) o dal client come
+// fallback. VistaStorico si limita a costruire la griglia gusto x mese.
+function VistaStorico({ gusti, perMese, inizio, unita = 'g', onClickGusto, onOpenReport }) {
   // Sort locale: header cliccabili su Gusto, ciascun mese, e i 3 totali.
   const [sort, setSort] = useState({ by: 'nome', dir: 'asc' })
   const toggleSort = (key) => {
@@ -1728,57 +1727,44 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, 
         year: d.getFullYear(),
       })
     }
-    // Indicizza venduto per gusto+mese + totali prodotto/scarto per gusto.
+    // perMese e' già aggregato: solo conversione in indice per gusto/mese.
+    // Include anche gusti "orfani" (nel DB ma non nel ricettario) accodandoli
+    // in fondo alla lista visibile — così i dati storici non spariscono se
+    // qualcuno elimina la ricetta.
     const idx = {}
     const totProd = {}
     const totScarto = {}
+    const nomiGusti = new Set()
     for (const { nome } of (gusti || [])) {
-      idx[normGusto(nome)] = mesi.map(() => 0)
-      totProd[normGusto(nome)] = 0
-      totScarto[normGusto(nome)] = 0
+      const k = normGusto(nome)
+      idx[k] = mesi.map(() => 0)
+      totProd[k] = 0
+      totScarto[k] = 0
+      nomiGusti.add(k)
     }
-    // Calcolo venduto per riga: (riman_prev + prod - riman - scarto). Iteriamo
-    // ordinato per gusto+data.
-    const perGusto = {}
-    for (const r of (righeStorico || [])) {
-      const k = r.gusto_nome
-      perGusto[k] = perGusto[k] || []
-      perGusto[k].push(r)
-    }
-    for (const [k, righe] of Object.entries(perGusto)) {
-      righe.sort((a, b) => a.data.localeCompare(b.data))
-      let rimanPrev = 0
-      let prevDataDay = null
-      for (const r of righe) {
-        const prod = Number(r.produzione_g) || 0
-        const riman = Number(r.rimanenza_g) || 0
-        const scarto = Number(r.scarto_g) || 0
-        const d = new Date(r.data)
-        if (prevDataDay !== null) {
-          const diffGg = Math.round((d - prevDataDay) / 86400000)
-          if (diffGg !== 1) rimanPrev = 0
-        }
-        const venduto = Math.max(0, rimanPrev + prod - riman - scarto)
-        rimanPrev = riman
-        prevDataDay = d
-        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        const meseIdx = mesi.findIndex(m => m.key === ym)
-        if (meseIdx >= 0) {
-          idx[k] = idx[k] || mesi.map(() => 0)
-          idx[k][meseIdx] += venduto
-        }
-        totProd[k] = (totProd[k] || 0) + prod
-        totScarto[k] = (totScarto[k] || 0) + scarto
+    const gustiOrfani = []
+    for (const r of (perMese || [])) {
+      const k = normGusto(r.gusto_nome)
+      if (!nomiGusti.has(k)) {
+        nomiGusti.add(k)
+        gustiOrfani.push({ nome: r.gusto_nome, orfano: true })
+        idx[k] = mesi.map(() => 0)
+        totProd[k] = 0
+        totScarto[k] = 0
       }
+      const meseIdx = mesi.findIndex(m => m.key === r.mese)
+      if (meseIdx >= 0) idx[k][meseIdx] += Number(r.venduto_g) || 0
+      totProd[k] += Number(r.prod_g) || 0
+      totScarto[k] += Number(r.scarto_g) || 0
     }
-    return { mesi, idx, totProd, totScarto }
-  }, [gusti, righeStorico])
+    return { mesi, idx, totProd, totScarto, gustiOrfani }
+  }, [gusti, perMese])
 
   // Ordina i gusti in base al sort scelto: 'nome' (localeCompare IT), un
   // singolo mese (chiave YYYY-MM), 'totProd', 'totVend' (= somma su mesi),
-  // 'totScarto'.
+  // 'totScarto'. Include gli orfani (nel DB ma non nel ricettario) in coda.
   const gustiOrdinati = useMemo(() => {
-    const arr = [...(gusti || [])]
+    const arr = [...(gusti || []), ...(data.gustiOrfani || [])]
     const key = sort.by
     const sgn = sort.dir === 'asc' ? 1 : -1
     const sumArr = (a) => (a || []).reduce((s, v) => s + v, 0)
@@ -1807,7 +1793,8 @@ function VistaStorico({ gusti, righeStorico, inizio, unita = 'g', onClickGusto, 
       const XLSX = await loadXLSX()
       const header = ['Gusto', ...data.mesi.map(m => m.label), 'Tot. prodotto', 'Tot. venduto', 'Tot. scarto']
       const rows = [header]
-      for (const { nome } of (gusti || [])) {
+      const tuttiGusti = [...(gusti || []), ...(data.gustiOrfani || [])]
+      for (const { nome } of tuttiGusti) {
         const k = normGusto(nome)
         const arr = data.idx[k] || data.mesi.map(() => 0)
         const tot = arr.reduce((s, v) => s + v, 0)
