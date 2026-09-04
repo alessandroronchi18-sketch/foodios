@@ -179,14 +179,75 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
   async function goToStep4() {
     if (!validationResult || validationResult.valid_rows.length === 0) return
     setError(''); setLoading(true)
-    setStep(4)
     const prepared = validationResult.valid_rows.map(r => ({ organization_id: orgId, ...r }))
+
+    // ═══ Check duplicati: se lo schema ha upsertOn e c'e' una colonna 'data',
+    // per ogni combinazione (sede_id, YYYY-MM) unica delle righe da inserire,
+    // conta quante righe esistono già nel DB. Se ≥1, chiedi conferma prima
+    // di procedere. Su conferma → uso upsert (sovrascrive). Su annulla → stop.
+    // Utile per: "hai già caricato luglio 2025 di Berthollet, sicuro di
+    // ricaricare?". Diverso da luglio 2026 (mese-anno differente → OK).
+    let useUpsert = false
+    if (schema.upsertOn && prepared.some(r => r.data)) {
+      const combos = new Set()
+      for (const r of prepared) {
+        if (!r.data || !r.sede_id) continue
+        const yyyymm = String(r.data).slice(0, 7)  // "2026-07"
+        combos.add(`${r.sede_id}|${yyyymm}`)
+      }
+      const dupPerCombo = []
+      for (const combo of combos) {
+        const [sedeId, ym] = combo.split('|')
+        const [year, month] = ym.split('-')
+        const dayFrom = `${ym}-01`
+        const nextMonth = new Date(Number(year), Number(month), 1).toISOString().slice(0, 10)
+        try {
+          const { count } = await supabase.from(schema.table)
+            .select('*', { count: 'exact', head: true })
+            .eq('organization_id', orgId)
+            .eq('sede_id', sedeId)
+            .gte('data', dayFrom).lt('data', nextMonth)
+          if ((count || 0) > 0) {
+            const sedeNome = combo.split('|')[0]  // uuid, sistemare label se si ha 'sedi' prop
+            dupPerCombo.push({ sedeId, sedeNome, ym, count: count || 0 })
+          }
+        } catch { /* fail-open: se il check non parte, procedi con insert normale */ }
+      }
+      if (dupPerCombo.length > 0) {
+        const list = dupPerCombo
+          .map(d => `- Mese ${d.ym}: ${d.count.toLocaleString('it-IT')} righe già presenti`)
+          .join('\n')
+        const conferma = window.confirm(
+          `Attenzione: hai già dei dati caricati per uno o più mesi che stai per importare:\n\n${list}\n\n` +
+          `Se procedi, i dati esistenti verranno SOVRASCRITTI con quelli del file.\n\n` +
+          `Vuoi comunque continuare?`
+        )
+        if (!conferma) {
+          setLoading(false)
+          setError('Caricamento annullato: dati esistenti per il mese scelto.')
+          return
+        }
+        useUpsert = true
+      }
+    }
+
+    setStep(4)
     setProgress({ done: 0, total: prepared.length })
     let insertedCount = 0
     const failedBatches = []
     for (let i = 0; i < prepared.length; i += BATCH_SIZE) {
       const chunk = prepared.slice(i, i + BATCH_SIZE)
-      const { data, error: insErr } = await supabase.from(schema.table).insert(chunk).select('id')
+      let queryBuilder = supabase.from(schema.table)
+      let insErr, data
+      if (useUpsert) {
+        // Costruisci onConflict dai campi uniqueOn dello schema
+        const onConflict = ['organization_id', ...(schema.uniqueOn || [])].join(',')
+        const resp = await queryBuilder.upsert(chunk, { onConflict }).select('id')
+        insErr = resp.error; data = resp.data
+      } else {
+        const resp = await queryBuilder.insert(chunk).select('id')
+        insErr = resp.error; data = resp.data
+      }
       if (insErr) {
         failedBatches.push({ batch_start: i, error: insErr.message })
       } else {
