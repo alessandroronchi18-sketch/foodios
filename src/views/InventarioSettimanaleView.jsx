@@ -88,9 +88,14 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
   // Stato dati per le viste estese (mese, storico)
   const [meseData, setMeseData] = useState(null)
   const [storicoData, setStoricoData] = useState(null)
+  // Toggle "Solo gusti compilati": nasconde le righe che nel periodo attivo
+  // non hanno mai avuto un dato (produzione / rimanenza / scarto / spedito).
+  // Non persistito: e' uno strumento di focus temporaneo, ogni ricarica
+  // riparte con tutti i gusti visibili.
+  const [soloCompilati, setSoloCompilati] = useState(false)
   // Onboarding al primo accesso.
   // Persistenza doppia: localStorage per il flash iniziale + user_data (Supabase)
-  // come source-of-truth. Cosi' sopravvive cambio device/browser/Safari private.
+  // come source-of-truth. Così sopravvive cambio device/browser/Safari private.
   // Chiave user_data: 'inventario-onboarding-visto-v1'.
   const SK_ONB_INV = 'inventario-onboarding-visto-v1'
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -300,6 +305,43 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
     })
     return arr
   }, [gusti, sort, matrice, totali, lunediIso])
+
+  // Insieme dei nomi (normalizzati) dei gusti con almeno un dato compilato nel
+  // periodo attualmente visualizzato. Un gusto e' "compilato" se, per la vista
+  // corrente, esiste almeno una riga in cui uno tra prod / riman / scarto /
+  // spedito e' > 0. Alimenta il toggle "Solo gusti compilati".
+  const gustiCompilatiSet = useMemo(() => {
+    const set = new Set()
+    let source = []
+    if (vista === 'oggi') {
+      const oggiIso = new Date().toISOString().slice(0, 10)
+      source = (righe || []).filter(r => r.data === oggiIso)
+    } else if (vista === 'settimana') {
+      source = righe || []
+    } else if (vista === 'mese') {
+      source = meseData?.righe || []
+    } else if (vista === 'storico') {
+      source = storicoData?.righe || []
+    }
+    for (const r of source) {
+      const p = Number(r.produzione_g) || 0
+      const rim = Number(r.rimanenza_g) || 0
+      const sc = Number(r.scarto_g) || 0
+      const sp = Number(r.spedito_g) || 0
+      if (p > 0 || rim > 0 || sc > 0 || sp > 0) {
+        set.add(normGusto(r.gusto_nome))
+      }
+    }
+    return set
+  }, [vista, righe, meseData, storicoData])
+
+  // Lista finale che finisce nelle sotto-viste: se il toggle e' spento,
+  // e' identica a gustiOrdinati; se acceso, tiene solo i gusti presenti nel
+  // set dei compilati per il periodo attivo.
+  const gustiVisibili = useMemo(() => {
+    if (!soloCompilati) return gustiOrdinati
+    return gustiOrdinati.filter(g => gustiCompilatiSet.has(normGusto(g.nome)))
+  }, [soloCompilati, gustiOrdinati, gustiCompilatiSet])
 
   // Toggle sort: se key e' uguale a quella attuale, inverte direzione; altrimenti
   // imposta nuova key con direzione 'desc' (numerici) o 'asc' (nome).
@@ -661,6 +703,45 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
           </button>
         )}
 
+        {/* Toggle "Solo gusti compilati": nasconde dal foglio i gusti che nel
+            periodo attivo non hanno alcun dato. Non tocca i dati, e' solo un
+            filtro visivo. Il numero accanto = quanti gusti resterebbero. */}
+        {(() => {
+          const totale = gustiOrdinati.length
+          const visibili = soloCompilati ? gustiVisibili.length : gustiCompilatiSet.size
+          const attivabile = totale > 0
+          return (
+            <button
+              onClick={() => setSoloCompilati(v => !v)}
+              disabled={!attivabile}
+              aria-pressed={soloCompilati}
+              title={soloCompilati
+                ? 'Mostra di nuovo tutti i gusti del ricettario'
+                : 'Nascondi i gusti senza alcun dato nel periodo visualizzato'}
+              style={{
+                padding: '8px 14px', minHeight: 40,
+                background: soloCompilati ? T.brand : '#FFFFFF',
+                color: soloCompilati ? '#FFFFFF' : C.textMid,
+                border: `1px solid ${soloCompilati ? T.brand : C.border}`,
+                borderRadius: 8,
+                fontSize: 12.5, fontWeight: 700,
+                cursor: attivabile ? 'pointer' : 'not-allowed',
+                opacity: attivabile ? 1 : 0.5,
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+              }}>
+              <Icon name="check" size={14} color={soloCompilati ? '#FFFFFF' : C.textMid} />
+              <span>Solo compilati</span>
+              <span style={{
+                fontSize: 11, fontWeight: 800,
+                padding: '2px 7px', borderRadius: 999,
+                background: soloCompilati ? 'rgba(255,255,255,0.22)' : C.bgSubtle,
+                color: soloCompilati ? '#FFFFFF' : C.textSoft,
+                fontVariantNumeric: 'tabular-nums',
+              }}>{visibili}/{totale}</span>
+            </button>
+          )
+        })()}
+
         {/* Toggle unita' visualizzazione: g <-> kg. Persistito in localStorage. */}
         <button onClick={toggleUnita}
           title={`Visualizza in ${unitaDisplay === 'g' ? 'kg' : 'g'}`}
@@ -778,18 +859,42 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
         </div>
       )}
 
+      {/* Empty state per il filtro "Solo compilati": se sto filtrando e non
+          resta nessun gusto, evito la tabella vuota e do all'utente una
+          scorciatoia per tornare alla lista completa. */}
+      {!loading && soloCompilati && gustiVisibili.length === 0 && (
+        <div style={{
+          background: C.bgCard, border: `1px dashed ${C.border}`, borderRadius: 12,
+          padding: '18px 20px', marginBottom: 16,
+          display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap',
+        }}>
+          <div style={{ fontSize: 13, color: C.textMid, flex: 1, lineHeight: 1.5 }}>
+            Nessun gusto ha dati nel periodo selezionato. Rimuovi il filtro per vedere tutta la lista o cambia periodo.
+          </div>
+          <button onClick={() => setSoloCompilati(false)}
+            style={{
+              padding: '8px 14px', minHeight: 36,
+              background: T.brand, color: '#FFFFFF',
+              border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 700,
+              cursor: 'pointer',
+            }}>
+            Mostra tutti i gusti
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: C.textSoft }}>Caricamento…</div>
       ) : vista === 'oggi' ? (
         <VistaOggi
-          gusti={gustiOrdinati} matrice={matrice} saving={saving}
+          gusti={gustiVisibili} matrice={matrice} saving={saving}
           onSave={handleSave} readOnly={isAllSedi}
           unita={unitaDisplay}
         />
       ) : vista === 'mese' ? (
-        <VistaMese gusti={gustiOrdinati} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
+        <VistaMese gusti={gustiVisibili} righeMese={meseData?.righe || []} lunediIso={lunediIso} unita={unitaDisplay} onClickGusto={setDrilldownGusto} />
       ) : vista === 'storico' ? (
-        <VistaStorico gusti={gustiOrdinati} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} unita={unitaDisplay} onClickGusto={setDrilldownGusto} onOpenReport={onNavigate ? () => onNavigate('storico') : null} />
+        <VistaStorico gusti={gustiVisibili} righeStorico={storicoData?.righe || []} inizio={storicoData?.inizio} unita={unitaDisplay} onClickGusto={setDrilldownGusto} onOpenReport={onNavigate ? () => onNavigate('storico') : null} />
       ) : (
         // Settimana × 7 giorni × 2 colonne (PROD/RIMAN) + GUSTO + TOT = 16 colonne.
         // Su 375px non ci stanno, quindi tabella scrolla orizzontalmente e
@@ -845,7 +950,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
               </tr>
             </thead>
             <tbody>
-              {gustiOrdinati.map(({ nome, orfano }) => {
+              {gustiVisibili.map(({ nome, orfano }) => {
                 const gustoKey = normGusto(nome)
                 const byData = matrice[gustoKey] || {}
                 return (
@@ -975,8 +1080,8 @@ function DialogSpedizione({ state, setState, gusti, sedi, sedeOrigineId, righeOg
 
   // Calcola disponibile OGGI per ogni gusto:
   //   disponibile = produzione_g − scarto_g − spedito_g
-  // (Non include la rimanenza del giorno precedente perche' non l'abbiamo qui:
-  //  quella e' la vetrina "gia' esposta", che tecnicamente potresti anche spedire
+  // (Non include la rimanenza del giorno precedente perché non l'abbiamo qui:
+  //  quella e' la vetrina "già esposta", che tecnicamente potresti anche spedire
   //  ma tipicamente e' meno onesto. Se serve, l'utente aggiunge a mano.)
   const dispPerGusto = useMemo(() => {
     const m = {}

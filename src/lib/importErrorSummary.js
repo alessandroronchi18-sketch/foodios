@@ -1,5 +1,5 @@
 // Riassume errori di validazione di un import bulk in un messaggio umano.
-// Riconosce i pattern piu' comuni e, quando >=50% degli errori appartiene
+// Riconosce i pattern più comuni e, quando >=50% degli errori appartiene
 // a una categoria, restituisce un titolo + hint suggerimento pratico.
 //
 // Usato dal wizard di import (StepValidate) per non travolgere l'utente con
