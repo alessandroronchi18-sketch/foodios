@@ -38,6 +38,8 @@ import { caricoProduzionePF } from '../lib/stockPF'
 
 const GIORNI = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom']
 const GIORNI_LUNGHI = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
+// Nomi lunghi dei mesi in italiano (VistaMese e VistaStorico usano indici 0..11).
+const MESI_LABEL = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
 
 function addDays(dateIso, n) {
   const d = new Date(dateIso); d.setDate(d.getDate() + n)
