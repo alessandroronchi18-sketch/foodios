@@ -488,6 +488,7 @@ export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
     .eq('sede_id', sedeId)
     .gte('data', inizioIso)
     .order('data')
+    .limit(200000)  // evita il default supabase-js di 1000 (con 12 mesi × 3 sedi × 25 gusti supera facile)
   if (error) { console.error('caricaSessioniDaInventario:', error); return [] }
   return inventarioASessioni(data || [])
 }
