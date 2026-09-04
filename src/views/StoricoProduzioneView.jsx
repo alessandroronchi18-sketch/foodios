@@ -624,58 +624,7 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
 
   return (
     <div style={{maxWidth:1200, margin:'0 auto', boxSizing:'border-box', width:'100%'}}>
-      {/* ═══ Sezione dedicata metodo INVENTARIO (gelaterie/yogurterie/pasta) ═══
-          Appare SOLO se organizations.metodo_produzione='inventario'. Le tab
-          Produzione/Vendite/Confronto sotto restano funzionanti sulle chiusure
-          cassa (parte cassa e' comune ai 2 metodi). */}
-      {isMetodoInv && (
-        <AnalisiInventarioSection
-          rows={invRows}
-          rowsPrev={invRowsPrev}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          confronto={confronto}
-          ricettario={ricettario}
-          orgId={orgId}
-          sedeId={sedeId}
-          sedi={sedi}
-          onBack={onNavigate ? () => onNavigate('giornaliero') : null}
-        />
-      )}
-
-      {/* Sezioni legacy (metodo=stampi): tab Produzione/Vendite/Confronto +
-          DIAGNOSI dark + tabelle sessioni. Per metodo=inventario tutto questo
-          non ha senso (i dati vivono in inventario_produzione e sono già
-          analizzati sopra) → mostriamo solo AnalisiInventarioSection. */}
-      {!isMetodoInv && (<>
-
-      {/* Tab principali - centrali, larghe e ben visibili */}
-      <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
-        <div style={{display:"flex",gap:4,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:14,padding:4,width:"100%",maxWidth:540,boxSizing:'border-box'}}>
-          {[["produzione","package","Produzione"],["vendite","money","Vendite"],["confronto","refresh","Confronto"]].map(([id,ic,lbl])=>(
-            <button key={id} onClick={()=>setTab(id)} aria-pressed={tab===id} aria-label={`Tab ${lbl}`}
-              style={{flex:1,padding:isMobile?"11px 8px":"13px 16px",minHeight:44,borderRadius:10,border:"none",cursor:"pointer",
-                fontWeight:700,fontSize:isMobile?12:14,background:tab===id?C.red:"transparent",
-                color:tab===id?C.white:C.textMid,boxShadow:tab===id?"0 2px 10px rgba(110,14,26,0.28)":"none",
-                transition:"all 0.15s",whiteSpace:"nowrap",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
-              <Icon name={ic} size={16} />{lbl}
-            </button>
-          ))}
-        </div>
-      </div>
-      {/* Vista temporale - centrata, secondaria */}
-      <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
-        <div style={{display:"flex",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:3,gap:2,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
-          {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
-            <button key={id} onClick={()=>setVista(id)} aria-pressed={vista===id}
-              style={{padding:"9px 18px",minHeight:40,borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
-              {lbl}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── FILTRI PERIODO ─── preset + date custom + modalita' confronto */}
+      {/* ─── FILTRI PERIODO (comuni a entrambi i metodi) ─── */}
       <div style={{
         display:'flex', flexDirection:'column', gap:12, marginBottom:18,
         padding:isMobile?"12px 14px":"14px 16px",
@@ -745,6 +694,57 @@ export default function StoricoProduzioneView({ ricettario, giornaliero, chiusur
               })}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ═══ Sezione dedicata metodo INVENTARIO (gelaterie/yogurterie/pasta) ═══
+          Appare SOLO se organizations.metodo_produzione='inventario'. Le tab
+          Produzione/Vendite/Confronto sotto restano funzionanti sulle chiusure
+          cassa (parte cassa e' comune ai 2 metodi). */}
+      {isMetodoInv && (
+        <AnalisiInventarioSection
+          rows={invRows}
+          rowsPrev={invRowsPrev}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          confronto={confronto}
+          ricettario={ricettario}
+          orgId={orgId}
+          sedeId={sedeId}
+          sedi={sedi}
+          onBack={onNavigate ? () => onNavigate('inventario-gusti') : null}
+        />
+      )}
+
+      {/* Sezioni legacy (metodo=stampi): tab Produzione/Vendite/Confronto +
+          DIAGNOSI dark + tabelle sessioni. Per metodo=inventario tutto questo
+          non ha senso (i dati vivono in inventario_produzione e sono già
+          analizzati sopra) → mostriamo solo AnalisiInventarioSection. */}
+      {!isMetodoInv && (<>
+
+      {/* Tab principali - centrali, larghe e ben visibili */}
+      <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
+        <div style={{display:"flex",gap:4,background:C.bgSubtle,border:`1px solid ${C.border}`,borderRadius:14,padding:4,width:"100%",maxWidth:540,boxSizing:'border-box'}}>
+          {[["produzione","package","Produzione"],["vendite","money","Vendite"],["confronto","refresh","Confronto"]].map(([id,ic,lbl])=>(
+            <button key={id} onClick={()=>setTab(id)} aria-pressed={tab===id} aria-label={`Tab ${lbl}`}
+              style={{flex:1,padding:isMobile?"11px 8px":"13px 16px",minHeight:44,borderRadius:10,border:"none",cursor:"pointer",
+                fontWeight:700,fontSize:isMobile?12:14,background:tab===id?C.red:"transparent",
+                color:tab===id?C.white:C.textMid,boxShadow:tab===id?"0 2px 10px rgba(110,14,26,0.28)":"none",
+                transition:"all 0.15s",whiteSpace:"nowrap",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+              <Icon name={ic} size={16} />{lbl}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Vista temporale - centrata, secondaria */}
+      <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
+        <div style={{display:"flex",background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:3,gap:2,boxShadow:"0 1px 2px rgba(15,23,42,0.04)"}}>
+          {[["giornaliero","Giorno"],["settimana","Settimana"],["mese","Mese"]].map(([id,lbl])=>(
+            <button key={id} onClick={()=>setVista(id)} aria-pressed={vista===id}
+              style={{padding:"9px 18px",minHeight:40,borderRadius:7,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,background:vista===id?C.redLight:"transparent",color:vista===id?C.red:C.textMid,transition:"all 0.15s"}}>
+              {lbl}
+            </button>
+          ))}
         </div>
       </div>
 
