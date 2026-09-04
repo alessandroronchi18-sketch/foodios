@@ -982,7 +982,7 @@ export default function InventarioSettimanaleView({ orgId, sedeId, sedi, sedeAtt
                 return (
                   <tr key={gustoKey} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
                     <td style={tdGusto}>
-                      <NomeGustoConFlag nome={nome} orfano={orfano} onClick={onClickGusto} />
+                      <NomeGustoConFlag nome={nome} orfano={orfano} onClick={setDrilldownGusto} />
                     </td>
                     {GIORNI.map((_, i) => {
                       const dIso = addDays(lunediIso, i)
