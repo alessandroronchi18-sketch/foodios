@@ -25,7 +25,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from '../components/Icon'
 import { C, TNUM, PageHeader } from './_shared'
 import ImportWizard from '../components/ImportWizard'
-import { ssave } from '../lib/storage'
+import { ssave, sload } from '../lib/storage'
 import { SK_MAG } from '../lib/storageKeys'
 import {
   elencoGusti, caricaSettimana, salvaCella, calcolaVendutoSettimana,
