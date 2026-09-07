@@ -36,7 +36,9 @@ create table if not exists public.chiusure_cassa (
   tot_foodcost     numeric(12,2) not null default 0,   -- kpi.totFC
   tot_margine      numeric(12,2) not null default 0,   -- kpi.totM
   tot_scarti       numeric(12,2) not null default 0,   -- kpi.totS
-  tot_materie      numeric(12,2) not null default 0,   -- kpi.totMP
+  -- kpi.totMP: e' la PERCENTUALE di margine (totM/totV*100), non le materie
+  -- prime. Il nome originale ingannava; vedi migration 20260907c.
+  margine_pct      numeric(12,2) not null default 0,
   scontrino_medio  numeric(12,4),                      -- kpi.avgST
 
   -- Dettaglio della giornata. Limitato per costruzione, resta jsonb.
@@ -102,7 +104,7 @@ create trigger trg_chiusure_touch
 -- sarebbero comunque invisibili al P&L.
 insert into public.chiusure_cassa (
   organization_id, sede_id, data,
-  tot_venduto, tot_foodcost, tot_margine, tot_scarti, tot_materie, scontrino_medio,
+  tot_venduto, tot_foodcost, tot_margine, tot_scarti, margine_pct, scontrino_medio,
   venduto, formati, extra, is_demo, legacy_id
 )
 select

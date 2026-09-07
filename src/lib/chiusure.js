@@ -16,7 +16,7 @@
 
 import { supabase } from './supabase'
 
-const COLONNE = 'id, data, tot_venduto, tot_foodcost, tot_margine, tot_scarti, tot_materie, scontrino_medio, venduto, formati, extra, is_demo, legacy_id'
+const COLONNE = 'id, data, tot_venduto, tot_foodcost, tot_margine, tot_scarti, margine_pct, scontrino_medio, venduto, formati, extra, is_demo, legacy_id'
 
 /** Riga di database → forma che i componenti si aspettano. */
 function rigaAOggetto(r) {
@@ -29,7 +29,7 @@ function rigaAOggetto(r) {
       totFC: Number(r.tot_foodcost) || 0,
       totM:  Number(r.tot_margine) || 0,
       totS:  Number(r.tot_scarti) || 0,
-      totMP: Number(r.tot_materie) || 0,
+      totMP: Number(r.margine_pct) || 0,
       avgST: r.scontrino_medio == null ? 0 : Number(r.scontrino_medio),
     },
     venduto: r.venduto || [],
@@ -51,7 +51,7 @@ function oggettoARiga(c, orgId, sedeId) {
     tot_foodcost:    Number(kpi?.totFC) || 0,
     tot_margine:     Number(kpi?.totM) || 0,
     tot_scarti:      Number(kpi?.totS) || 0,
-    tot_materie:     Number(kpi?.totMP) || 0,
+    margine_pct:     Number(kpi?.totMP) || 0,
     scontrino_medio: kpi?.avgST == null ? null : Number(kpi.avgST),
     venduto: venduto || [],
     formati: formati || [],

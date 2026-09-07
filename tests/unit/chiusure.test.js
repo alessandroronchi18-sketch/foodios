@@ -40,7 +40,7 @@ const RIGA_DB = {
   id: 'uuid-1',
   data: '2026-06-19',
   tot_venduto: '660.00', tot_foodcost: '191.00', tot_margine: '469.00',
-  tot_scarti: '17.00', tot_materie: '0.00', scontrino_medio: '0.9220',
+  tot_scarti: '17.00', margine_pct: '0.00', scontrino_medio: '0.9220',
   venduto: [{ nome: 'TORTA CAROTE', qta: 2, totale: 8.34, prezzoUnit: 4.17 }],
   formati: [],
   extra: { note: 'giornata di prova' },
