@@ -7,8 +7,29 @@
 
 const SW_PATH = '/sw.js'
 
+// Un aggiornamento non si applica da solo mentre l'utente sta lavorando.
+//
+// Prima bastava tornare sulla finestra per far scattare il controllo, trovare
+// un deploy nuovo e ricaricare la pagina all'istante. Chi passava da Chrome a
+// un'altra applicazione e tornava indietro si ritrovava buttato fuori da dove
+// era: sembrava un logout. Nei giorni con più pubblicazioni succedeva a ogni
+// cambio di finestra.
+//
+// Ora l'aggiornamento si applica da solo SOLO se la scheda è rimasta nascosta
+// abbastanza a lungo da far pensare che nessuno la stia usando. Sotto quella
+// soglia l'aggiornamento resta in attesa e viene proposto, non imposto.
+const AUTO_UPDATE_DOPO_MS = 30 * 60 * 1000   // 30 minuti in secondo piano
+// Non ha senso interrogare il CDN a ogni cambio di finestra: chi lavora
+// alternando due programmi lo farebbe decine di volte al minuto.
+const MIN_TRA_CONTROLLI_MS = 10 * 60 * 1000
+
 let _swReg = null
 let _updateAvailableCallback = null
+let _nascostaDa = null          // quando la scheda è passata in secondo piano
+let _ultimoControllo = 0
+// Al primissimo avvio l'applicazione non ha ancora nulla da perdere: se arriva
+// un aggiornamento in quel momento, applicarlo subito è la cosa giusta.
+let _autoUpdateConsentito = true
 
 export function registerServiceWorker({ onUpdateAvailable } = {}) {
   if (typeof window === 'undefined') return
@@ -24,6 +45,11 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
     try {
       const reg = await navigator.serviceWorker.register(SW_PATH, { scope: '/' })
       _swReg = reg
+
+      // Passato il primo minuto diamo per scontato che l'utente stia lavorando:
+      // da qui in poi un aggiornamento non si applica più da solo, viene
+      // proposto con l'avviso "Nuova versione disponibile · Aggiorna".
+      setTimeout(() => { _autoUpdateConsentito = false }, 60_000)
 
       // Notifica se c'è già un SW in waiting.
       if (reg.waiting) notifyUpdate()
@@ -49,6 +75,11 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
       let refreshing = false
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return
+        // Se l'utente sta lavorando, un ricaricamento improvviso lo butta fuori
+        // da dove era: la pagina torna all'inizio e sembra un logout. In quel
+        // caso l'aggiornamento resta pronto e viene solo proposto; si applica
+        // al prossimo avvio dell'app o quando l'utente accetta.
+        if (!_autoUpdateConsentito) { notifyUpdate(); return }
         try {
           const k = 'foodos_sw_reload_ts'
           const last = Number(sessionStorage.getItem(k)) || 0
@@ -80,12 +111,27 @@ export function registerServiceWorker({ onUpdateAvailable } = {}) {
         reg.update().catch(() => { /* silent, riproveremo */ })
       }, SW_POLL_MS)
 
-      // Update anche al rientro in foreground (Safari sospende il setInterval
-      // quando la PWA non e' visibile - al ritorno verifichiamo subito).
+      // Controllo al rientro in primo piano (Safari sospende il setInterval
+      // quando la PWA non è visibile), ma con due freni.
+      //
+      // 1. Non più di un controllo ogni 10 minuti: chi lavora alternando due
+      //    programmi cambia finestra decine di volte, e interrogare il CDN a
+      //    ogni passaggio è inutile.
+      // 2. L'aggiornamento si applica da solo solo se la scheda è rimasta
+      //    nascosta a lungo. Se sei appena andato su un'altra finestra e sei
+      //    tornato, l'aggiornamento resta in attesa e non ti sposta da dove sei.
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          reg.update().catch(() => {})
+        if (document.visibilityState === 'hidden') {
+          _nascostaDa = Date.now()
+          return
         }
+        const nascostaPer = _nascostaDa ? Date.now() - _nascostaDa : 0
+        _nascostaDa = null
+        _autoUpdateConsentito = nascostaPer >= AUTO_UPDATE_DOPO_MS
+
+        if (Date.now() - _ultimoControllo < MIN_TRA_CONTROLLI_MS) return
+        _ultimoControllo = Date.now()
+        reg.update().catch(() => {})
       })
     } catch (err) {
       // Fail-soft: la PWA degrada a app web normale.
