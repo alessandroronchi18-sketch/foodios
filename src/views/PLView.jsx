@@ -9,12 +9,14 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { sload, ssave } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { fetchAllInventarioProduzione } from '../lib/inventarioProduzione'
+import { foodcostNoto } from '../lib/chiusure'
+import { totaliPeriodo as usciteCassaPeriodo } from '../lib/primaNota'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 import {
   buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, resaGrammi,
 } from '../lib/foodcost'
@@ -612,6 +614,12 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   const [dateFrom, setDateFrom] = useState(() => _ymd(new Date(today.getFullYear(), today.getMonth(), 1)))
   const [dateTo, setDateTo] = useState(() => _ymd(today))
   const [costi, setCosti] = useState({ affitto: 0, utenze: 0, altro: 0, personale: 0 })
+  // Uscite di cassa del periodo (prima nota). Sono soldi usciti davvero dal
+  // cassetto — la frutta, la carta, la spesa al supermercato — e finora non
+  // entravano in nessun conto: restavano scritte da qualche parte e l'utile
+  // le ignorava. Vengono sommate nel database e non nel browser, perché un
+  // mese di prima nota sono centinaia di righe che qui non servono a nulla.
+  const [uscite, setUscite] = useState({ totale: 0, conFattura: 0, senzaFattura: 0, daVerificare: 0, numero: 0 })
   const [editCosti, setEditCosti] = useState(false)
   const [savingCosti, setSavingCosti] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
@@ -649,18 +657,31 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
 
   // Audit 2026-06-25: aggregazione su un range data->data (inclusivi).
   // Sostituisce aggMese(ym) mantenendo la stessa shape {ricavi, foodcost, giorni}.
+  //
+  // Le giornate registrate col solo totale conoscono l'incasso ma non quanto
+  // e' costata la merce. Sommare il loro food cost come zero e' l'errore più
+  // costoso che questa pagina possa fare: aggiunge tutto l'incasso al margine
+  // e mostra una redditivita' che non esiste. Per questo il conteggio tiene da
+  // parte i ricavi delle giornate di cui il costo si conosce: la percentuale
+  // di food cost si misura SU QUELLE, e quante restano fuori si dice a schermo.
   const aggRange = (from, to) => {
-    let ricavi = 0, foodcost = 0, giorni = 0
-    if (!from || !to) return { ricavi, foodcost, giorni }
+    let ricavi = 0, foodcost = 0, giorni = 0, ricaviConFc = 0, giorniSenzaFc = 0
+    if (!from || !to) return { ricavi, foodcost, giorni, ricaviConFc, giorniSenzaFc }
     for (const c of (chiusure || [])) {
       if (!c?.data) continue
       const d = c.data.slice(0, 10)
       if (d < from || d > to) continue
-      ricavi += Number(c.kpi?.totV) || 0
-      foodcost += Number(c.kpi?.totFC) || 0
+      const v = Number(c.kpi?.totV) || 0
+      ricavi += v
       giorni++
+      if (foodcostNoto(c)) {
+        foodcost += Number(c.kpi?.totFC) || 0
+        ricaviConFc += v
+      } else {
+        giorniSenzaFc++
+      }
     }
-    return { ricavi, foodcost, giorni }
+    return { ricavi, foodcost, giorni, ricaviConFc, giorniSenzaFc }
   }
   const meseLabel = (ym) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }) }
   // Range etichetta: "1 giu - 24 giu 2026" (compatta per UI).
@@ -692,16 +713,19 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     const costiFissi = (+costi.affitto || 0) + (+costi.utenze || 0) + (+costi.altro || 0)
     const personale = +costi.personale || 0
     const margineLordo = cur.ricavi - cur.foodcost
-    const utile = margineLordo - personale - costiFissi
-    const fcPct = cur.ricavi > 0 ? cur.foodcost / cur.ricavi * 100 : 0
+    const usciteCassa = Number(uscite?.totale) || 0
+    const utile = margineLordo - personale - costiFissi - usciteCassa
+    // Percentuale sui soli giorni misurati: e' la sola base su cui il numero
+    // significa qualcosa. Con zero giorni misurati non si stampa una stima.
+    const fcPct = cur.ricaviConFc > 0 ? cur.foodcost / cur.ricaviConFc * 100 : 0
     const lavPct = cur.ricavi > 0 ? personale / cur.ricavi * 100 : 0
     const margOpPct = cur.ricavi > 0 ? utile / cur.ricavi * 100 : 0
     const mcPct = cur.ricavi > 0 ? margineLordo / cur.ricavi : 0.7
     const breakeven = mcPct > 0 ? (personale + costiFissi) / mcPct : 0
     const utilePrev = (prev.ricavi - prev.foodcost) - personale - costiFissi
-    return { cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct, margOpPct, breakeven, utilePrev }
+    return { cur, prev, costiFissi, personale, margineLordo, utile, fcPct, lavPct, margOpPct, breakeven, utilePrev, usciteCassa }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- aggRange/prevRange sono pure closures stabili sui props (chiusure) già in deps
-  }, [chiusure, dateFrom, dateTo, costi])
+  }, [chiusure, dateFrom, dateTo, costi, uscite])
 
   // ═══ P&L METODO INVENTARIO DIFFERENZIALE (gelaterie con gusti) ══════════
   // Attivo solo se organizations.metodo_produzione = 'inventario'. Legge dalla
@@ -711,6 +735,15 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
   //   fc €      = costo ingredienti/kg × prod_kg      (dal ricettario)
   //   margine € = ricavo - fc
   // Il conto standard chiusure-cassa qui sotto resta invariato per compat.
+  useEffect(() => {
+    if (!orgId || !dateFrom || !dateTo) return
+    let vivo = true
+    usciteCassaPeriodo(orgId, sedeId, dateFrom, dateTo)
+      .then(t => { if (vivo) setUscite(t) })
+      .catch(() => { if (vivo) setUscite({ totale: 0, conFattura: 0, senzaFattura: 0, daVerificare: 0, numero: 0 }) })
+    return () => { vivo = false }
+  }, [orgId, sedeId, dateFrom, dateTo])
+
   const [invRows, setInvRows] = useState([])
   useEffect(() => {
     if (metodoProduzione !== 'inventario' || !orgId || !sedeId) { setInvRows([]); return }
@@ -972,12 +1005,53 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
         </div>
       ) : (
         <>
+          {/* Quello che di questo periodo NON sappiamo, detto prima dei numeri.
+              Da quando la chiusura col solo totale e' il modo più rapido di
+              registrare la cassa, molte giornate non hanno il costo delle
+              materie: tacerlo qui significherebbe far leggere un utile gonfiato
+              come se fosse un dato. */}
+          {plMese.cur.giorniSenzaFc > 0 && (
+            <div style={{
+              ...cardP, marginBottom: 14, padding: isMobile ? '13px 15px' : '14px 18px',
+              borderColor: T.amber, background: T.amberLight,
+            }}>
+              <div style={{ ...typo.small, fontWeight: 700, color: T.amber, marginBottom: 5, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="warning" size={13} />
+                {plMese.cur.giorniSenzaFc === plMese.cur.giorni
+                  ? 'Di questo periodo non conosciamo il costo delle materie'
+                  : `${plMese.cur.giorniSenzaFc} ${plMese.cur.giorniSenzaFc === 1 ? 'giornata' : 'giornate'} su ${plMese.cur.giorni} senza costo delle materie`}
+              </div>
+              <div style={{ ...typo.small, color: T.textMid, lineHeight: 1.55 }}>
+                {plMese.cur.giorniSenzaFc === plMese.cur.giorni ? (
+                  <>Sono chiusure registrate col solo totale: l’incasso c’è, quanto è costata la merce no.
+                  Il food cost qui sotto non viene mostrato in percentuale, e utile e margine contano l’incasso
+                  senza il costo della merce — quindi sono più alti del reale.</>
+                ) : (
+                  <>Sono chiusure registrate col solo totale. La percentuale di food cost è misurata sulle altre{' '}
+                  {plMese.cur.giorni - plMese.cur.giorniSenzaFc}, per {fmt0(plMese.cur.ricaviConFc)} di ricavi.
+                  Utile e margine, per le giornate senza costo, contano l’incasso senza il costo della merce:
+                  sono più alti del reale.</>
+                )}
+              </div>
+              <div style={{ ...typo.caption, color: T.textSoft, marginTop: 7, lineHeight: 1.5 }}>
+                Per sistemarle basta aprire la giornata nella pagina Cassa e scrivere quanto sono costate le materie prime.
+              </div>
+            </div>
+          )}
+
           {/* KPI diagnosi */}
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
             <KPI icon={<Icon name="barChart" size={18} />} label="Ricavi del periodo" value={fmt0(plMese.cur.ricavi)} sub={`${plMese.cur.giorni} giorni${plMese.prev.ricavi ? ` · ${plMese.cur.ricavi >= plMese.prev.ricavi ? '+' : ''}${fmt0(plMese.cur.ricavi - plMese.prev.ricavi)} vs periodo prec.` : ''}`} />
             <KPI icon={<Icon name="bulb" size={18} />} label="Utile del periodo" value={fmt0(plMese.utile)} highlight={plMese.utile >= 0} color={plMese.utile >= 0 ? undefined : T.brand}
               sub={`margine operativo ${pct(plMese.margOpPct)}`} />
-            <KPI icon={<Icon name="receipt" size={18} />} label="Food cost" value={pct(plMese.fcPct)} color={plMese.fcPct <= 30 ? T.green : plMese.fcPct <= 40 ? T.amber : T.brand} sub={fmt0(plMese.cur.foodcost)} />
+            <KPI icon={<Icon name="receipt" size={18} />} label="Food cost"
+              value={plMese.cur.ricaviConFc > 0 ? pct(plMese.fcPct) : 'non noto'}
+              color={plMese.cur.ricaviConFc === 0 ? T.textSoft : plMese.fcPct <= 30 ? T.green : plMese.fcPct <= 40 ? T.amber : T.brand}
+              sub={plMese.cur.ricaviConFc === 0
+                ? 'nessuna giornata col costo materie'
+                : plMese.cur.giorniSenzaFc > 0
+                  ? `${fmt0(plMese.cur.foodcost)} · su ${plMese.cur.giorni - plMese.cur.giorniSenzaFc} giorni di ${plMese.cur.giorni}`
+                  : fmt0(plMese.cur.foodcost)} />
             <KPI icon={<Icon name="users" size={18} />} label="Costo lavoro" value={pct(plMese.lavPct)} color={plMese.lavPct <= targetLavoro ? T.green : plMese.lavPct <= targetLavoro + 10 ? T.amber : T.brand} sub={`target ${targetLavoro}% · ${fmt0(plMese.personale)}`} />
           </div>
 
@@ -995,6 +1069,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                 foodcost_pct: plMese.fcPct,
                 costo_lavoro_eur: plMese.personale,
                 costo_lavoro_pct: plMese.lavPct,
+                uscite_cassa_eur: plMese.usciteCassa,
+                uscite_cassa_senza_fattura_eur: uscite.senzaFattura,
+                giornate_senza_foodcost: plMese.cur.giorniSenzaFc,
                 target_lavoro_pct: targetLavoro,
                 margine_operativo_pct: plMese.margOpPct,
                 utile: plMese.utile,
@@ -1023,6 +1100,9 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                         ['- Food cost', `(${fmt0(plMese.cur.foodcost)})`, pct(plMese.fcPct)],
                         ['= Margine lordo', fmt0(plMese.cur.ricavi - plMese.cur.foodcost), pct(100 - plMese.fcPct)],
                         ['- Costo lavoro', `(${fmt0(plMese.personale)})`, pct(plMese.lavPct)],
+                        ...(plMese.usciteCassa > 0
+                          ? [['- Uscite di cassa', `(${fmt0(plMese.usciteCassa)})`, pct(plMese.cur.ricavi > 0 ? plMese.usciteCassa / plMese.cur.ricavi * 100 : 0)]]
+                          : []),
                         ['= Margine operativo', fmt0(plMese.utile), pct(plMese.margOpPct)],
                       ],
                     },
@@ -1053,6 +1133,13 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
                   <Row label="Margine lordo" val={plMese.margineLordo} pctv={plMese.cur.ricavi > 0 ? plMese.margineLordo / plMese.cur.ricavi * 100 : 0} bold />
                   <Row label="Costo del personale" val={plMese.personale} pctv={plMese.lavPct} neg />
                   <Row label="Costi fissi (affitto, utenze, altro)" val={plMese.costiFissi} pctv={plMese.cur.ricavi > 0 ? plMese.costiFissi / plMese.cur.ricavi * 100 : 0} neg />
+                  {plMese.usciteCassa > 0 && (
+                    <Row label="Uscite di cassa (prima nota)" val={plMese.usciteCassa}
+                      pctv={plMese.cur.ricavi > 0 ? plMese.usciteCassa / plMese.cur.ricavi * 100 : 0}
+                      sub={uscite.senzaFattura > 0
+                        ? `${uscite.numero} voci · ${fmt0(uscite.senzaFattura)} senza fattura`
+                        : `${uscite.numero} voci`} neg />
+                  )}
                   <Row label={plMese.utile >= 0 ? 'UTILE DEL PERIODO' : 'PERDITA DEL PERIODO'} val={plMese.utile} pctv={plMese.margOpPct} strong />
                   <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
                     Break-even: servono <b style={{ color: T.text }}>{fmt0(plMese.breakeven)}</b> di ricavi/mese per coprire personale e costi fissi
