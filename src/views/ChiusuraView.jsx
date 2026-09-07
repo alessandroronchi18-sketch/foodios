@@ -7,12 +7,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { ssave as _ssave, sload } from '../lib/storage'
-import { salvaChiusure } from '../lib/chiusure'
+import { salvaChiusure, foodcostNoto } from '../lib/chiusure'
 import { backgroundManager, uploadManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
 import { callAi, parseAiJson } from '../lib/aiClient'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, typo } from '../lib/theme'
+import { color as T, typo, radius as R } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { useListinoSede, applicaListinoAiFormati, getRegSede } from '../lib/listinoSede'
@@ -27,6 +27,8 @@ import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
 import PrimaNotaCassa from '../components/PrimaNotaCassa'
+import { IntestazionePagina, FilaStat, NavGiorno, MiniBarre, capPrima } from '../components/PaginaUI'
+import { confrontoConSolito, isoWeekday, NOMI_GIORNO } from '../lib/ritmo'
 import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
 import { promptScontrino, categorieLette } from '../lib/promptScontrino'
 import { calcolaKpiChiusura, colorePerSellThrough } from '../lib/chiusuraKpi'
@@ -66,11 +68,15 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 // non saperlo che inventarlo: la chiusura viene marcata e il P&L esclude quel
 // giorno dal food cost invece di contarlo zero e gonfiare il margine.
 function ChiusuraSoloTotale({ dataFiltro, esistente, salvando, onSalva }) {
-  const [incasso, setIncasso] = useState(() =>
-    esistente?.kpi?.totV != null ? String(esistente.kpi.totV) : '')
-  const [pos, setPos] = useState(() => esistente?.kpi?.pos != null ? String(esistente.kpi.pos) : '')
-  const [contanti, setContanti] = useState(() => esistente?.kpi?.contanti != null ? String(esistente.kpi.contanti) : '')
-  const [delivery, setDelivery] = useState(() => esistente?.kpi?.delivery != null ? String(esistente.kpi.delivery) : '')
+  // I valori già salvati si mostrano come li scriverebbe un italiano: 418,30 e
+  // non "418.3". Il campo accetta entrambi in scrittura — `num()` più sotto
+  // converte la virgola — ma rileggere il punto in un prodotto italiano fa
+  // sembrare rotto il salvataggio.
+  const daSalvato = (v) => v == null ? '' : Number(v).toFixed(2).replace('.', ',')
+  const [incasso, setIncasso] = useState(() => daSalvato(esistente?.kpi?.totV))
+  const [pos, setPos] = useState(() => daSalvato(esistente?.kpi?.pos))
+  const [contanti, setContanti] = useState(() => daSalvato(esistente?.kpi?.contanti))
+  const [delivery, setDelivery] = useState(() => daSalvato(esistente?.kpi?.delivery))
   const [scontrini, setScontrini] = useState('')
   const [costoMaterie, setCostoMaterie] = useState('')
 
@@ -319,6 +325,9 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const [batchResults, setBatchResults] = useState([])
 
   const [importModal, setImportModal] = useState(null)
+  // Menu "Importa": due voci che prima erano due bottoni fissi in cima alla
+  // pagina, con lo stesso peso visivo dell'azione principale.
+  const [apriImporta, setApriImporta] = useState(false)
   const [importPiattaforma, setImportPiattaforma] = useState('deliveroo')
   const [importSistema, setImportSistema] = useState('cassaincloud')
   const [importPreview, setImportPreview] = useState(null)
@@ -327,7 +336,10 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const importFileRef = useRef(null)
 
   // Inserimento prodotti venduti: 'foto' (OCR scontrino) o 'manuale' (digitazione).
-  const [inputMode, setInputMode] = useState('foto')
+  // Si apre su "solo il totale": è la strada che basta a quasi tutti, e
+  // lasciare la foto come predefinita significava riproporre come prima scelta
+  // il flusso che nessuno usava.
+  const [inputMode, setInputMode] = useState('totale')
   const [manualRows, setManualRows] = useState([{ nome: '', qta: '', prezzo: '' }])
   // Ordinamento tabella Produzione vs Venduto (click sull'intestazione).
   const [confrSort, setConfrSort] = useState({ key: null, dir: 'desc' })
@@ -885,19 +897,154 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
       </div>
     )
   }
+  // ── com'è andata la giornata, in una frase ──────────────────────────────
+  //
+  // Prima la pagina apriva con "Chiudi la giornata - foto scontrino, import
+  // delivery o manuale": un elenco di come si fa, non una parola su com'è
+  // andata. E dopo il salvataggio non diceva niente: si digitava un numero e
+  // si otteneva lo stesso numero indietro, senza contesto.
+  //
+  // Il confronto con un giorno come quello è la cosa che trasforma
+  // l'inserimento dati in un'informazione: 420 € non dicono niente, "420 € su
+  // un giovedì che di solito fa 380" dice tutto.
+  const confrontoGiorno = useMemo(
+    () => (chiusuraSalvata ? confrontoConSolito(chiusure, dataFiltro) : null),
+    [chiusuraSalvata, chiusure, dataFiltro])
+
+  // Gli ultimi giorni uguali a questo. Servono PRIMA di scrivere il numero,
+  // non dopo: chi apre la pagina per registrare il lunedì vede subito quanto
+  // fanno di solito i lunedì, e se digita 90 al posto di 900 se ne accorge.
+  const simili = useMemo(() => {
+    const dow = isoWeekday(dataFiltro)
+    return (chiusure || [])
+      .filter(c => c?.data && c.data.slice(0, 10) < dataFiltro && isoWeekday(c.data) === dow)
+      .filter(c => (Number(c.kpi?.totV) || 0) > 0)
+      .sort((a, b) => b.data.localeCompare(a.data))
+      .slice(0, 5)
+  }, [chiusure, dataFiltro])
+
+  const incassoSalvato = chiusuraSalvata?.kpi?.totV
+  const fcNoto = chiusuraSalvata ? foodcostNoto(chiusuraSalvata) : false
+
+  // Margine e food cost della giornata: dalla chiusura SALVATA quando non c'è
+  // il dettaglio prodotti.
+  //
+  // `calcolaKpiChiusura` più sopra lavora su `confronto`, che esiste solo se si
+  // è caricato uno scontrino o digitati i prodotti. Su una chiusura registrata
+  // col solo totale — cioè quasi tutte, da quando è la strada principale —
+  // quei valori sono zero, e la fila statistiche mostrava "Margine 0 €, 0,0%
+  // dell'incasso" su una giornata che aveva il margine salvato. Un margine
+  // sbagliato è peggio di un margine assente.
+  const margineGiorno = (venduto && venduto.length > 0)
+    ? { m: totM, pct: totMP }
+    : {
+        m: Number(chiusuraSalvata?.kpi?.totM) || 0,
+        pct: Number(chiusuraSalvata?.kpi?.totMP) || 0,
+      }
+
+  const fraseGiornata = useMemo(() => {
+    if (!chiusuraSalvata) {
+      const quando = dataFiltro === today ? 'di oggi' : 'di questo giorno'
+      return sessione
+        ? `L'incasso ${quando} non è ancora registrato. La produzione c'è: ti serve solo il totale della cassa.`
+        : `L'incasso ${quando} non è ancora registrato. Basta il totale che leggi sullo scontrino di chiusura.`
+    }
+    const parti = [`Incassati ${fmt(incassoSalvato)}.`]
+    if (confrontoGiorno && confrontoGiorno.verso !== 'in linea') {
+      parti.push(`${confrontoGiorno.verso === 'sopra' ? 'Sopra' : 'Sotto'} la media di un ${confrontoGiorno.nome}, che di solito fa ${fmt0(confrontoGiorno.tipico)}.`)
+    } else if (confrontoGiorno) {
+      parti.push(`In linea con un ${confrontoGiorno.nome} normale.`)
+    }
+    if (!fcNoto) parti.push('Il costo delle materie di questa giornata non è noto, quindi il margine non si può calcolare.')
+    return parti.join(' ')
+  }, [chiusuraSalvata, incassoSalvato, confrontoGiorno, fcNoto, sessione, dataFiltro, today])
+
+  // I tre modi di registrare, dal più veloce al più minuzioso.
+  // Su mobile le etichette lunghe finivano in "Foto scont…" e "Prodotto p…":
+  // tre ellissi di fila non si leggono. Meglio la parola corta intera.
+  const MODI = isMobile ? [
+    ['totale', 'coins', 'Totale'],
+    ['foto', 'camera', 'Foto'],
+    ['manuale', 'edit', 'Dettaglio'],
+  ] : [
+    ['totale', 'coins', 'Solo il totale'],
+    ['foto', 'camera', 'Foto scontrino'],
+    ['manuale', 'edit', 'Prodotto per prodotto'],
+  ]
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      <PageHeader
-        subtitle="Chiudi la giornata - foto scontrino, import delivery o manuale"
-        action={
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={() => { setImportModal('delivery'); setImportPreview(null) }}
-              style={{ padding: isMobile ? '10px 14px' : '8px 14px', minHeight: isMobile ? 40 : 'auto', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: FS.small, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Importa delivery</button>
-            <button onClick={() => { setImportModal('cassa'); setImportPreview(null) }}
-              style={{ padding: isMobile ? '10px 14px' : '8px 14px', minHeight: isMobile ? 40 : 'auto', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: FS.small, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Sistema cassa</button>
+    <div style={{ maxWidth: 1240, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+
+      <IntestazionePagina
+        occhiello="Cassa"
+        titolo={dataFiltro === today
+          ? 'Oggi'
+          : capPrima(new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }))}
+        frase={fraseGiornata}
+        azioni={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <NavGiorno
+              data={dataFiltro}
+              max={today}
+              bloccata={isDipendente}
+              etichettaBloccata={`Oggi · ${new Date(today + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}`}
+              onCambia={(d) => { setDataFiltro(d); setVenduto(null); setPreview(null); setImg(null); setSalvato(false) }}
+            />
+            {!isDipendente && (
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setApriImporta(v => !v)} aria-expanded={apriImporta}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: isMobile ? 44 : 38,
+                    padding: '0 13px', borderRadius: R.md, cursor: 'pointer', fontFamily: 'inherit',
+                    background: C.bgCard, border: `1px solid ${T.borderStr}`, color: C.textMid,
+                    ...typo.small, fontWeight: 700,
+                  }}>
+                  <Icon name="download" size={14} />Importa
+                </button>
+                {apriImporta && (
+                  <div style={{
+                    position: 'absolute', top: '100%', right: 0, marginTop: 6, zIndex: 30,
+                    background: C.bgCard, border: `1px solid ${T.border}`, borderRadius: R.lg,
+                    boxShadow: '0 12px 32px rgba(15,23,42,0.14)', minWidth: 212, overflow: 'hidden',
+                  }}>
+                    {[
+                      ['scooter', 'Da una piattaforma delivery', 'delivery'],
+                      ['tv', 'Dal sistema di cassa', 'cassa'],
+                    ].map(([ic, testo, quale]) => (
+                      <button key={quale}
+                        onClick={() => { setImportModal(quale); setImportPreview(null); setApriImporta(false) }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 9, width: '100%', minHeight: 44,
+                          padding: '0 13px', background: 'transparent', border: 'none', cursor: 'pointer',
+                          ...typo.small, color: C.textMid, fontFamily: 'inherit', textAlign: 'left',
+                        }}>
+                        <Icon name={ic} size={15} />{testo}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         }
+        sotto={chiusuraSalvata && (
+          <FilaStat voci={[
+            { label: 'Incassato', valore: incassoSalvato, decimali: false,
+              sub: confrontoGiorno
+                ? `un ${confrontoGiorno.nome} fa ${fmt0(confrontoGiorno.tipico)}`
+                : 'registrato' },
+            (chiusuraSalvata.kpi?.pos != null || chiusuraSalvata.kpi?.contanti != null)
+              ? { label: 'Di cui in contanti', valore: Number(chiusuraSalvata.kpi?.contanti) || 0,
+                  sub: chiusuraSalvata.kpi?.pos != null ? `${fmt0(chiusuraSalvata.kpi.pos)} dal POS` : 'nel cassetto' }
+              : null,
+            { label: 'Margine', valore: fcNoto ? margineGiorno.m : 'non noto', unita: fcNoto ? '€' : '',
+              colore: fcNoto ? margColor(margineGiorno.pct) : C.textSoft,
+              sub: fcNoto ? `${fmtp(margineGiorno.pct)} dell'incasso` : 'manca il costo materie' },
+            { label: 'Scontrino medio', valore: chiusuraSalvata.kpi?.avgST > 0 ? Number(chiusuraSalvata.kpi.avgST) : '—',
+              unita: chiusuraSalvata.kpi?.avgST > 0 ? '€' : '', decimali: true,
+              sub: chiusuraSalvata.kpi?.avgST > 0 ? 'per scontrino battuto' : 'scontrini non indicati' },
+          ].filter(Boolean)} />
+        )}
       />
 
       {importModal === 'delivery' && (
@@ -1023,59 +1170,77 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
         </div>
       )}
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap', boxShadow: SHADOW_PREMIUM }}>
-        <div style={{ width: isMobile ? '100%' : 'auto' }}>
-          <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data chiusura</div>
-          {isDipendente ? (
-            // Il dipendente può registrare solo la chiusura di OGGI: niente giorni passati.
-            <div style={{ padding: '9px 14px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.bgSubtle, fontSize: isMobile ? 14 : 12, fontWeight: 700, color: C.text }}>
-              Oggi · {new Date(today + 'T12:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
+      {/* ── ENTRATO E USCITO, AFFIANCATI ───────────────────────────────────
+          Sono le due facce della stessa operazione: si conta il cassetto e si
+          togliono le spese di giornata. Prima stavano una sotto l'altra a
+          venti riquadri di distanza, e la seconda non la trovava nessuno. */}
+      <div style={{
+        display: 'grid', gap: isMobile ? 14 : 16, alignItems: 'start', marginBottom: 16,
+        gridTemplateColumns: (isMobile || isTablet) ? '1fr' : 'minmax(0, 1.15fr) minmax(0, 1fr)',
+      }}>
+
+        <div style={{
+          background: C.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, overflow: 'hidden',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between',
+            padding: isMobile ? '13px 14px' : '14px 18px', borderBottom: `1px solid ${T.borderSoft}`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <span style={{
+                width: 28, height: 28, borderRadius: R.md, background: T.greenLight, color: T.green,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <Icon name="receipt" size={14} />
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ ...typo.h3, color: C.text }}>Quanto è entrato</div>
+                <div style={{ ...typo.small, color: C.textSoft, marginTop: 2 }}>
+                  {chiusuraSalvata ? 'Registrato. Puoi correggerlo se serve.' : 'Basta il totale della giornata.'}
+                </div>
+              </div>
             </div>
-          ) : (
-            <input type="date" value={dataFiltro} onChange={e => { setDataFiltro(e.target.value); setVenduto(null); setPreview(null); setImg(null); setSalvato(false) }}
-              style={{ width: isMobile ? '100%' : 'auto', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, minHeight: isMobile ? 44 : 'auto' }}/>
-          )}
-        </div>
-        <div style={{ flex: 1, minWidth: isMobile ? 0 : 220 }}>
-          {sessione ? (
-            <div style={{ background: C.greenLight, border: `1px solid ${C.green}25`, borderRadius: 8, padding: '8px 14px' }}>
-              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={12} />Produzione trovata per questa data</div>
-              <div style={{ fontSize: FS.small, color: C.textMid, marginTop: 2, wordBreak: 'break-word' }}>{(sessione.prodotti || []).map(p => `${(Number(p.stampi)||0).toLocaleString('it-IT')}× ${p.nome}`).join(' · ') || '-'}</div>
-            </div>
-          ) : (
-            <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}25`, borderRadius: 8, padding: '8px 14px' }}>
-              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} />Nessuna produzione registrata per questa data</div>
-              <div style={{ fontSize: FS.small, color: C.textMid, marginTop: 2 }}>Il confronto prodotto/venduto non sarà disponibile, ma i ricavi verranno salvati.</div>
-            </div>
-          )}
-        </div>
-        {chiusuraSalvata && (
-          <div style={{ background: '#EEF8EE', border: `1px solid ${C.green}30`, borderRadius: 8, padding: '8px 14px', fontSize: FS.small, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
-            <Icon name="checkCircle" size={12} />Chiusura già salvata · {fmt0(chiusuraSalvata.kpi.totV)} ricavi
+            {chiusuraSalvata && (
+              <span style={{
+                ...typo.caption, fontWeight: 700, color: T.green, background: T.greenLight,
+                border: `1px solid ${T.green}33`, borderRadius: R.full, padding: '3px 9px',
+                display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0,
+              }}>
+                <Icon name="checkCircle" size={11} />fatto
+              </span>
+            )}
           </div>
-        )}
-      </div>
 
-      <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
-        <SectHead icon={<Icon name="receipt" size={16} />} title="Registra l'incassato"
-          sub="Basta il totale della giornata. Il dettaglio prodotto per prodotto è facoltativo." />
-        <div style={{ padding: '18px 20px' }}>
-        {/* Tre modi, dal più veloce al più minuzioso. "Solo totale" è primo
-            perché è quello che basta a quasi tutti: la quadratura confronta
-            l'incasso con la merce uscita e usa solo quel numero, e in metodo
-            inventario anche il food cost arriva dalla produzione. Il dettaglio
-            riga per riga serve a chi vuole il margine per singolo prodotto, e
-            fino a oggi era l'unica strada: mezz'ora di digitazione al giorno
-            per un dato che ne richiedeva dieci secondi. */}
-        <div style={{ display: 'flex', gap: 4, padding: 4, background: C.bgSubtle, borderRadius: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-          {[['totale', 'coins', 'Solo totale'], ['foto', 'camera', 'Foto scontrino'], ['manuale', 'edit', 'Dettaglio prodotti']].map(([id, ic, lbl]) => (
-            <button key={id} onClick={() => { setInputMode(id); setError(null) /* non azzerare venduto/salvato: i dati sotto restano visibili */ }}
-              style={{ flex: 1, minWidth: 120, padding: '10px 9px', minHeight: 42, borderRadius: 8, border: 'none', background: inputMode === id ? C.bgCard : 'transparent', color: inputMode === id ? C.red : C.textSoft, fontWeight: 700, fontSize: FS.body, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: inputMode === id ? '0 1px 3px rgba(15,23,42,0.08)' : 'none', transition: 'background 0.15s' }}>
-              <Icon name={ic} size={14} />{lbl}
-            </button>
-          ))}
-        </div>
-
+          <div style={{ padding: isMobile ? '14px' : '16px 18px' }}>
+            {/* I tre modi. "Solo il totale" è primo perché basta a quasi tutti:
+                la quadratura confronta l'incasso con la merce uscita e usa solo
+                quel numero. Il dettaglio riga per riga serve a chi vuole il
+                margine per singolo prodotto, e fino al 7 set era l'unica
+                strada: mezz'ora al giorno per un dato che ne chiede dieci
+                secondi. Resta, ma non è più il pedaggio d'ingresso. */}
+            <div role="tablist" aria-label="Come registrare l'incasso"
+              style={{ display: 'flex', gap: 3, padding: 3, background: C.bgSubtle, borderRadius: R.lg, marginBottom: 15 }}>
+              {MODI.map(([id, ic, lbl]) => {
+                const attivo = inputMode === id
+                return (
+                  <button key={id} role="tab" aria-selected={attivo}
+                    onClick={() => { setInputMode(id); setError(null) }}
+                    style={{
+                      flex: 1, minWidth: 0, minHeight: 40, padding: '0 8px', borderRadius: R.md,
+                      border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                      background: attivo ? C.bgCard : 'transparent',
+                      color: attivo ? C.text : C.textSoft,
+                      ...typo.small, fontWeight: 700,
+                      boxShadow: attivo ? '0 1px 3px rgba(15,23,42,0.08)' : 'none',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      transition: 'background 140ms ease',
+                    }}>
+                    <Icon name={ic} size={13} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lbl}</span>
+                  </button>
+                )
+              })}
+            </div>
         {inputMode === 'totale' ? (
           <ChiusuraSoloTotale
             key={dataFiltro}
@@ -1166,18 +1331,95 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
             </div>
             <div style={{ marginTop: 12 }}>{vendutoBox()}</div>
           </>
-        )}
+        )}          </div>
+        </div>
+
+        {/* Le uscite di giornata, accanto alle entrate e non venti riquadri
+            più in basso: si contano nello stesso momento, e prima di sapere se
+            la cassa quadra bisogna aver tolto i dieci euro di limoni. */}
+        <div style={{ display: 'grid', gap: isMobile ? 14 : 16, alignContent: 'start' }}>
+          <PrimaNotaCassa orgId={orgId} sedeId={sedeId} data={dataFiltro} notify={notify} />
+
+          {/* Il riferimento: com'è andato lo stesso giorno le volte prima.
+              Riempie una colonna che restava vuota, ma soprattutto arriva nel
+              momento in cui serve — prima di scrivere la cifra, non dopo. */}
+          {simili.length >= 2 && (
+            <div style={{
+              background: C.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl, overflow: 'hidden',
+            }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: isMobile ? '13px 14px' : '14px 18px', borderBottom: `1px solid ${T.borderSoft}`,
+              }}>
+                <span style={{
+                  width: 28, height: 28, borderRadius: R.md, background: C.bgSubtle, color: C.textMid,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  <Icon name="barChart" size={14} />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ ...typo.h3, color: C.text }}>
+                    Gli ultimi {NOMI_GIORNO[isoWeekday(dataFiltro) - 1]}
+                  </div>
+                  <div style={{ ...typo.small, color: C.textSoft, marginTop: 2 }}>
+                    {confrontoGiorno
+                      ? `Di solito questo giorno fa ${fmt0(confrontoGiorno.tipico)}.`
+                      : 'Un riferimento per capire se il numero che scrivi ha senso.'}
+                  </div>
+                </div>
+              </div>
+              <div style={{ padding: isMobile ? '14px' : '15px 18px' }}>
+                <MiniBarre voci={simili.slice().reverse().map(c => ({
+                  etichetta: new Date(c.data + 'T12:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'numeric' }),
+                  valore: Number(c.kpi?.totV) || 0,
+                  forte: false,
+                }))} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Le uscite di giornata. Stanno qui perché si contano nello stesso
-          momento in cui si conta il cassetto: prima di sapere se la cassa
-          quadra bisogna aver tolto i dieci euro di limoni. Il dipendente le
-          registra come registra l'incasso — sono soldi che ha visto uscire. */}
-      <PrimaNotaCassa orgId={orgId} sedeId={sedeId} data={dataFiltro} notify={notify} />
+      {/* Cosa si sa della produzione di questo giorno. Una riga, non un
+          riquadro giallo che occupa mezzo schermo per dire una cosa sola. */}
+      {!isDipendente && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap',
+          padding: '11px 14px', marginBottom: 16, borderRadius: R.lg,
+          background: C.bgSubtle, border: `1px solid ${T.borderSoft}`,
+        }}>
+          <Icon name={sessione ? 'checkCircle' : 'package'} size={14} color={sessione ? T.green : C.textSoft} />
+          <span style={{ ...typo.small, color: C.textMid, minWidth: 0 }}>
+            {sessione ? (
+              <>Produzione registrata: {(sessione.prodotti || []).length} {(sessione.prodotti || []).length === 1 ? 'prodotto' : 'prodotti'}. Il confronto con il venduto è qui sotto.</>
+            ) : isMetodoInventario ? (
+              <>Per questo giorno non c'è produzione registrata. Con il metodo a inventario il venduto si ricava dalle giacenze, non da qui.</>
+            ) : (
+              <>Per questo giorno non c'è produzione registrata: l'incasso si salva comunque, ma il confronto con la merce uscita non si può fare.</>
+            )}
+          </span>
+          {!sessione && onNavigate && (
+            <button onClick={() => onNavigate(isMetodoInventario ? 'inventario-gusti' : 'giornaliero')}
+              style={{
+                ...typo.small, fontWeight: 700, fontFamily: 'inherit', color: T.brand,
+                background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                textDecoration: 'underline', textUnderlineOffset: 3, marginLeft: 'auto',
+              }}>Vai alla produzione</button>
+          )}
+        </div>
+      )}
 
+      {/* ── SOTTO LA LINEA: l'analisi ────────────────────────────────────
+          Quello che sta qui non serve per registrare la giornata, serve per
+          capirla. La riga di stacco lo dice: sopra si fa, sotto si guarda.
+          Prima era tutto di seguito, con lo stesso peso, e chi entrava per
+          scrivere un numero scorreva sette riquadri prima di trovare il campo. */}
       {(confronto.length > 0 || formatiRiconc.righe.length > 0) && (
         <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '26px 0 16px' }}>
+            <span style={{ ...typo.overline, color: T.textSoft, whiteSpace: 'nowrap' }}>Com'è andata</span>
+            <span style={{ flex: 1, height: 1, background: T.border }} />
+          </div>
           {(() => {
             const matched = new Set([...matchedRecipeNames, ...formatiRiconc.nomiMatchati])
             const nonRic = (venduto || []).filter(v => !matched.has(v.nome))

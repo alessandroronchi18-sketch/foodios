@@ -31,6 +31,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Icon from './Icon'
+import { fmtp } from '../views/_shared'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 import { useIsTablet } from '../lib/useIsMobile'
@@ -39,6 +40,14 @@ import {
   caricaRegoleChiusura, giornoChiuso, motivoChiusura, regolaInVigore,
   impostaChiusuraRicorrente, aggiungiPeriodoChiuso, rimuoviPeriodiCheCoprono,
 } from '../lib/giorniChiusura'
+import {
+  perGiornoSettimana, frasiDelMese, confrontoConSolito, scalaCalore,
+  estremiSettimana, SIGLE_GIORNO,
+} from '../lib/ritmo'
+import {
+  IntestazionePagina, FilaStat, Sezione, MiniBarre, Cifra, Scostamento,
+  tintaCalore, num0, capPrima,
+} from './PaginaUI'
 
 const GIORNI  = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
 const MESI    = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
@@ -113,6 +122,10 @@ export default function CalendarioOperativo({
   const [apriChiusure, setApriChiusure] = useState(false)
   const [savingChiusure, setSavingChiusure] = useState(false)
   const [prodInventario, setProdInventario] = useState(null) // Set di date, o null
+  // Su mobile il mese futuro sta chiuso. Ventitré righe "in arrivo" fra oggi e
+  // il ritmo della settimana sono ventitré scorrimenti per arrivare a una cosa
+  // utile: i giorni che non sono ancora arrivati non hanno niente da dire.
+  const [mostraFuturi, setMostraFuturi] = useState(false)
 
   const isMetodoInventario = metodoProduzione === 'inventario'
 
@@ -188,10 +201,20 @@ export default function CalendarioOperativo({
   // entra nel giudizio. Se non c'è ancora niente di niente siamo in avvio, e
   // allora le chiediamo entrambe per guidare i primi passi.
   const usaCassa = useMemo(() => (chiusure || []).length > 0, [chiusure])
+  // Simmetrico, e mancava: la regola valeva solo per la cassa. Chi registra la
+  // cassa ogni giorno ma tiene la produzione su carta si vedeva OGNI giornata
+  // segnata "registrata a metà" — un pallino d'ambra su tutto il mese, per un
+  // modo di lavorare che non ha niente di sbagliato. Con la mappa di calore il
+  // difetto è diventato evidente: le giornate migliori del mese portavano tutte
+  // un segnale di allarme.
+  const usaProduzione = useMemo(
+    () => (giornaliero || []).length > 0 || !!prodInventario?.size,
+    [giornaliero, prodInventario])
   const inAvvio  = useMemo(
     () => (chiusure || []).length === 0 && (giornaliero || []).length === 0 && !prodInventario?.size,
     [chiusure, giornaliero, prodInventario])
   const cassaRichiesta = usaCassa || inAvvio
+  const produzioneRichiesta = usaProduzione || inAvvio
 
   // "In questo giorno si è prodotto?" — unica domanda che il calendario pone,
   // risposta da fonti diverse a seconda del metodo.
@@ -243,8 +266,9 @@ export default function CalendarioOperativo({
       if (isChiuso(k)) { chiusi++; continue }   // chiuso = fuori dal denominatore
       totPassati++
       const hp = haProduzione(k), hc = !!cassaMap[k]
-      // Se l'azienda non usa la cassa, "completo" vuol dire solo produzione.
-      if (hp && (hc || !cassaRichiesta)) completi++
+      // "Completo" vuol dire: c'è tutto quello che questa azienda registra
+      // davvero. Non tutto quello che il programma sa fare.
+      if ((hp || !produzioneRichiesta) && (hc || !cassaRichiesta)) completi++
       else if (hp && !hc) soloProd++
       else if (!hp && hc) soloCassa++
       else vuoti++
@@ -257,7 +281,7 @@ export default function CalendarioOperativo({
     for (let i = 0; i < 366; i++) {
       const k = toISO(day)
       if (k > oggiStr || isChiuso(k)) { day.setDate(day.getDate()-1); continue }
-      if (haProduzione(k) && (cassaMap[k] || !cassaRichiesta)) { streak++; day.setDate(day.getDate()-1) }
+      if ((haProduzione(k) || !produzioneRichiesta) && (cassaMap[k] || !cassaRichiesta)) { streak++; day.setDate(day.getDate()-1) }
       else if (k === oggiStr) { day.setDate(day.getDate()-1) } // oggi può essere in corso
       else break
     }
@@ -268,7 +292,7 @@ export default function CalendarioOperativo({
     // entrambi i moduli. Chi non fa la cassa in Foodos non ha 121 anomalie, ha
     // un modo di lavorare diverso.
     let anomalie = 0
-    if (cassaRichiesta) {
+    if (cassaRichiesta && produzioneRichiesta) {
       for (let d = 1; d <= daysInM; d++) {
         const k = `${anno}-${String(mese+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
         if (k >= oggiStr) break
@@ -278,7 +302,7 @@ export default function CalendarioOperativo({
     }
     const pct = totPassati > 0 ? Math.round(completi/totPassati*100) : 0
     return { completi, totPassati, soloProd, soloCassa, vuoti, anomalie, streak, pct, incasso, chiusi }
-  }, [haProduzione, cassaMap, anno, mese, oggiStr, oggi, isChiuso, cassaRichiesta])
+  }, [haProduzione, cassaMap, anno, mese, oggiStr, oggi, isChiuso, cassaRichiesta, produzioneRichiesta])
 
   const semaforo = diag.pct >= 80 ? T.green : diag.pct >= 50 ? T.amber : T.red
 
@@ -341,10 +365,10 @@ export default function CalendarioOperativo({
     if (isChiuso(k)) return 'chiuso'
     if (k > oggiStr) return 'futuro'
     const hp = haProduzione(k), hc = !!cassaMap[k]
-    if (hp && (hc || !cassaRichiesta)) return 'completo'
+    if ((hp || !produzioneRichiesta) && (hc || !cassaRichiesta)) return 'completo'
     if (hp || hc) return 'parziale'
     return 'vuoto'
-  }, [isChiuso, oggiStr, haProduzione, cassaMap, cassaRichiesta])
+  }, [isChiuso, oggiStr, haProduzione, cassaMap, cassaRichiesta, produzioneRichiesta])
 
   const selDetail = sel ? {
     haProd:    haProduzione(sel),
@@ -356,7 +380,7 @@ export default function CalendarioOperativo({
     isChiuso:  isChiuso(sel),
     // Anomalia solo su giornate concluse e solo se l'azienda usa entrambi i
     // moduli: coerente con il KPI qui sopra, che prima diceva un'altra cosa.
-    isAnomalia: cassaRichiesta && sel < oggiStr && !isChiuso(sel)
+    isAnomalia: cassaRichiesta && produzioneRichiesta && sel < oggiStr && !isChiuso(sel)
       && (haProduzione(sel) !== !!cassaMap[sel]),
   } : null
 
@@ -379,548 +403,615 @@ export default function CalendarioOperativo({
     if (st === 'chiuso') return `${data}: chiuso`
     if (st === 'futuro') return `${data}: in arrivo`
     const parti = []
-    parti.push(haProduzione(k) ? 'produzione registrata' : 'produzione mancante')
+    if (produzioneRichiesta) parti.push(haProduzione(k) ? 'produzione registrata' : 'produzione mancante')
     if (cassaRichiesta) parti.push(cassaMap[k] ? 'cassa registrata' : 'cassa mancante')
+    const inc = cassaMap[k]?.kpi?.totV
+    if (inc != null) parti.push(`${num0(inc)} euro incassati`)
     if (note[k]?.nota) parti.push('con nota')
     return `${data}: ${parti.join(', ')}`
-  }, [getStatus, haProduzione, cassaMap, note, cassaRichiesta])
+  }, [getStatus, haProduzione, cassaMap, note, cassaRichiesta, produzioneRichiesta])
+  // ── il ritmo: quanto vale ogni giorno della settimana ───────────────────
+  //
+  // Su tre mesi e non sul mese visibile. Con un solo mese un sabato di sagra
+  // sposta il "solito sabato" e il confronto diventa inaffidabile proprio nel
+  // momento in cui serve. Tre mesi sono il minimo per dire qualcosa di vero
+  // senza risalire a stagioni diverse.
+  const daTreMesi = useMemo(() => {
+    const d = new Date(meseA + 'T12:00')
+    d.setDate(d.getDate() - 84)
+    return d.toISOString().slice(0, 10)
+  }, [meseA])
 
-  // Pannello dettaglio: estratto in funzione perché su mobile va inserito
-  // INLINE subito sotto la card cliccata (audit 2026-06-24: prima compariva in
-  // fondo alla lista e non si capiva dove fosse). Su desktop resta laterale.
-  const renderDetail = (inline) => {
+  const ritmo = useMemo(
+    () => perGiornoSettimana(chiusure, { from: daTreMesi, to: meseA }),
+    [chiusure, daTreMesi, meseA])
+
+  const ritmoMax = useMemo(() => Math.max(0, ...ritmo.map(v => v.tipico)), [ritmo])
+
+  // Il giorno forte e quello debole si misurano sulla stessa finestra di tre
+  // mesi del ritmo, NON sul mese visibile. Sono un fatto sul negozio, non su
+  // settembre: nella prima settimana di un mese non esiste nemmeno un sabato
+  // ripetuto, e la frase spariva proprio quando la pagina si apriva.
+  const estremiRitmo = useMemo(
+    () => estremiSettimana(chiusure, { from: daTreMesi, to: meseA }),
+    [chiusure, daTreMesi, meseA])
+
+  // ── il mese in una frase ────────────────────────────────────────────────
+  const giorniAperti = useMemo(() => {
+    const daysInM = new Date(anno, mese + 1, 0).getDate()
+    let n = 0
+    for (let d = 1; d <= daysInM; d++) {
+      const k = `${anno}-${String(mese + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      if (k > oggiStr) break
+      if (!isChiuso(k)) n++
+    }
+    return n
+  }, [anno, mese, oggiStr, isChiuso])
+
+  const mesePanorama = useMemo(
+    () => frasiDelMese(chiusure, { from: meseDa, to: meseA, giorniAperti }),
+    [chiusure, meseDa, meseA, giorniAperti])
+
+  // La scala di calore si costruisce sul mese visibile: l'intensità dice
+  // "molto o poco PER QUESTO MESE", che è la domanda che si fa guardandolo.
+  const scala = useMemo(() => {
+    const valori = []
+    const daysInM = new Date(anno, mese + 1, 0).getDate()
+    for (let d = 1; d <= daysInM; d++) {
+      const k = `${anno}-${String(mese + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      const v = cassaMap[k]?.kpi?.totV
+      if (v != null) valori.push(Number(v) || 0)
+    }
+    return scalaCalore(valori)
+  }, [anno, mese, cassaMap])
+
+  // Il confronto del giorno selezionato con un giorno come quello.
+  const confrontoSel = useMemo(
+    () => (sel && cassaMap[sel] ? confrontoConSolito(chiusure, sel) : null),
+    [sel, cassaMap, chiusure])
+
+  const frase = useMemo(() => {
+    const p = mesePanorama
+    if (!usaCassa) {
+      // Chi tiene la cassa altrove non deve leggere "0 €": per lui questa
+      // pagina parla di produzione, e va detto invece di mostrargli un vuoto.
+      if (diag.totPassati === 0) return 'Questo mese non ha ancora giornate da registrare.'
+      const coda = diag.chiusi ? `, escluse le ${diag.chiusi} di chiusura` : ''
+      return diag.completi === 0
+        ? `Nessuna giornata di produzione registrata, su ${diag.totPassati} aperte${coda}.`
+        : `${diag.completi} giornate di produzione registrate su ${diag.totPassati}${coda}.`
+    }
+    if (p.giorni === 0) {
+      return p.daRegistrare > 0
+        ? `Di ${MESI[mese].toLowerCase()} non c'è ancora nessun incasso: ${p.daRegistrare} ${p.daRegistrare === 1 ? 'giornata aperta' : 'giornate aperte'} da registrare.`
+        : `Di ${MESI[mese].toLowerCase()} non c'è ancora nessun incasso registrato.`
+    }
+    const parti = [
+      `${num0(p.totale)} € in ${p.giorni} ${p.giorni === 1 ? 'giornata' : 'giornate'}, ${num0(p.media)} € al giorno in media.`,
+    ]
+    const e = estremiRitmo
+    if (e) {
+      const r = e.rapporto
+      const quanto = r >= 2.8 ? 'più del triplo' : r >= 1.8 ? 'il doppio' : r >= 1.35 ? 'una volta e mezza' : null
+      if (quanto) parti.push(`Il ${e.migliore.nome} incassa ${quanto} del ${e.peggiore.nome}.`)
+    }
+    if (p.daRegistrare > 0) {
+      parti.push(`${p.daRegistrare} ${p.daRegistrare === 1 ? 'giornata' : 'giornate'} da registrare.`)
+    }
+    return parti.join(' ')
+  }, [mesePanorama, mese, usaCassa, diag, estremiRitmo])
+
+  // ── il giorno: dettaglio ────────────────────────────────────────────────
+  // Su mobile va INLINE subito sotto la card toccata: in fondo alla lista non
+  // si capiva dove fosse finito. Su desktop è la colonna di destra, che resta
+  // sempre della stessa larghezza — riservarle lo spazio tiene la griglia
+  // immobile invece di farla restringere sotto il dito al clic.
+  const renderDetail = () => {
     if (!sel || !selDetail) return null
+    const cassa = selDetail.cassaD
+    const totale = cassa?.kpi?.totV
+    const kpi = cassa?.kpi || {}
+    const canali = [
+      ['POS', kpi.pos], ['Contanti', kpi.contanti], ['Delivery', kpi.delivery],
+    ].filter(([, v]) => v != null && Number(v) > 0)
+
     return (
       <div style={{
-        width: inline ? '100%' : (isMobile || isTablet ? '100%' : 288), flexShrink: 0,
-        background: T.bgCard, borderRadius: 16, border: `1px solid ${T.border}`,
-        boxShadow: SHADOW_PREMIUM,
-        padding: 20, position: (inline || isMobile || isTablet) ? 'static' : 'sticky', top: 24,
-        marginTop: inline ? 4 : (isMobile || isTablet ? 16 : 0),
-        marginBottom: inline ? 6 : 0,
-        animation: 'fos_calSlideIn 0.16s ease',
+        background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl,
+        overflow: 'hidden',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 8 }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8,
+          padding: isMobile ? '13px 14px' : '15px 17px', borderBottom: `1px solid ${T.borderSoft}`,
+        }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: FS.h3, fontWeight: 700, color: T.text, lineHeight: 1.3, textTransform: 'capitalize' }}>
-              {new Date(sel+'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+            <div style={{ ...typo.h3, color: T.text, lineHeight: 1.3 }}>
+              {capPrima(new Date(sel + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }))}
             </div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
-              {selDetail.isToday && <Badge color={T.brand} bg={T.brandLight}>OGGI</Badge>}
-              {selDetail.isFuture && <Badge color={T.textSoft} bg={T.bgSubtle}>IN ARRIVO</Badge>}
-              {selDetail.isChiuso && <Badge color={T.textMid} bg={T.bgSubtle}>CHIUSO</Badge>}
-              {selDetail.isAnomalia && (
-                <Badge color={T.amber} bg={T.amberLight}><Icon name="warning" size={12} /> ANOMALIA</Badge>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
+              {selDetail.isToday && <Badge color={T.brand} bg={T.brandLight}>oggi</Badge>}
+              {selDetail.isFuture && <Badge color={T.textSoft} bg={T.bgSubtle}>in arrivo</Badge>}
+              {selDetail.isChiuso && <Badge color={T.textMid} bg={T.bgSubtle}>chiuso</Badge>}
+              {selDetail.isAnomalia && <Badge color={T.amber} bg={T.amberLight}>a metà</Badge>}
             </div>
           </div>
-          <button aria-label="Chiudi dettaglio" onClick={()=>setSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textSoft, padding: 4, lineHeight: 1, display: 'inline-flex' }}>
-            <Icon name="x" size={16} />
+          <button aria-label="Chiudi il dettaglio" onClick={() => setSel(null)}
+            style={{
+              width: 32, height: 32, flexShrink: 0, borderRadius: R.md, cursor: 'pointer',
+              background: 'transparent', border: 'none', color: T.textSoft,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+            <Icon name="x" size={15} />
           </button>
         </div>
 
-        {/* Produzione / cassa. Su un giorno chiuso non ha senso chiederle. */}
-        {!selDetail.isChiuso && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-            {[
-              { icon: 'package', label: 'Produzione', has: selDetail.haProd,
-                view: isMetodoInventario ? 'inventario-gusti' : 'giornaliero',
-                sub: (!isMetodoInventario && selDetail.prodD)
-                  ? `${selDetail.prodD.prodotti?.length || 0} prodotti · ${eur0(selDetail.prodD.ricavoTot || 0)} stim.`
-                  : (selDetail.haProd ? 'registrata nel foglio produzione' : null) },
-              // La cassa compare solo se l'azienda la usa, oppure se quel
-              // giorno ce l'ha comunque: non si insegue chi tiene la cassa
-              // altrove con un riquadro rosso tutti i giorni.
-              ...((cassaRichiesta || selDetail.haCassa) ? [{
-                icon: 'receipt', label: 'Cassa', has: selDetail.haCassa, view: 'chiusura',
-                sub: selDetail.cassaD?.kpi?.totV != null
-                  ? `${eur2(selDetail.cassaD.kpi.totV)} incasso${selDetail.cassaD.kpi.totMP != null ? ` · margine ${(Number(selDetail.cassaD.kpi.totMP)||0).toFixed(1)}%` : ''}`
-                  : null }] : []),
-            ].map(({ icon, label, has, sub, view: v }) => {
-              const accent = has ? T.green : selDetail.isFuture ? T.textSoft : T.brand
-              const bg     = has ? T.greenLight : selDetail.isFuture ? T.bgSubtle : T.redLight
-              const bd     = has ? T.green+'33' : selDetail.isFuture ? T.border : T.red+'33'
-              return (
-                <div key={label} style={{
-                  display: 'flex', alignItems: 'center', gap: 11, padding: '11px 12px',
-                  borderRadius: 12, background: bg, border: `1px solid ${bd}`,
+        <div style={{ padding: isMobile ? '14px' : '16px 17px', display: 'grid', gap: 14 }}>
+
+          {/* L'incasso, se c'è: è il numero per cui si apre un giorno. */}
+          {totale != null && (
+            <div>
+              <div style={{ ...typo.small, color: T.textSoft, fontWeight: 600, marginBottom: 3 }}>Incassato</div>
+              <Cifra valore={totale} decimali size={isMobile ? typo.h1.fontSize : typo.display.fontSize} />
+              {confrontoSel && (
+                <div style={{ marginTop: 7 }}><Scostamento confronto={confrontoSel} /></div>
+              )}
+              {canali.length > 0 && (
+                <div style={{
+                  display: 'flex', gap: 0, marginTop: 12,
+                  border: `1px solid ${T.borderSoft}`, borderRadius: R.md, overflow: 'hidden',
                 }}>
-                  <span style={{ display: 'inline-flex', lineHeight: 1 }}><Icon name={icon} size={18} color={accent} /></span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: FS.body, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5, color: accent }}>
-                      {has ? <Icon name="checkCircle" size={14} /> : selDetail.isFuture ? <Icon name="clock" size={14} /> : <Icon name="xCircle" size={14} />} {label}
+                  {canali.map(([nome, v], i) => (
+                    <div key={nome} style={{
+                      flex: 1, minWidth: 0, padding: '8px 10px',
+                      borderLeft: i > 0 ? `1px solid ${T.borderSoft}` : 'none',
+                    }}>
+                      <div style={{ ...typo.caption, color: T.textSoft, minHeight: 15 }}>{nome}</div>
+                      <div style={{ minHeight: 19, marginTop: 2 }}>
+                        <Cifra valore={v} size={typo.small.fontSize} peso={700} />
+                      </div>
                     </div>
-                    {sub && <div style={{ fontSize: FS.small, color: T.textMid, marginTop: 3, ...tnum }}>{sub}</div>}
-                    {!sub && !has && !selDetail.isFuture && <div style={{ fontSize: FS.small, color: T.textSoft, marginTop: 3 }}>Non registrata</div>}
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Cos'è registrato e cosa manca. Su un giorno chiuso non si chiede. */}
+          {!selDetail.isChiuso && (
+            <div style={{ display: 'grid', gap: 7 }}>
+              {[
+                ...(produzioneRichiesta || selDetail.haProd ? [{ icona: 'package', nome: 'Produzione', ha: selDetail.haProd,
+                  vista: isMetodoInventario ? 'inventario-gusti' : 'giornaliero',
+                  nota: (!isMetodoInventario && selDetail.prodD)
+                    ? `${selDetail.prodD.prodotti?.length || 0} prodotti`
+                    : (selDetail.haProd ? 'registrata' : null) }] : []),
+                ...((cassaRichiesta || selDetail.haCassa) ? [{
+                  icona: 'receipt', nome: 'Cassa', ha: selDetail.haCassa, vista: 'chiusura',
+                  nota: kpi.totMP != null && selDetail.haCassa
+                    ? `margine ${fmtp(Number(kpi.totMP) || 0)}` : null,
+                }] : []),
+              ].map(({ icona, nome, ha, nota, vista }) => (
+                <div key={nome} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                  borderRadius: R.md, background: T.bgSubtle,
+                  border: `1px solid ${ha ? T.borderSoft : T.borderStr}`,
+                  borderStyle: ha || selDetail.isFuture ? 'solid' : 'dashed',
+                }}>
+                  <Icon name={icona} size={16} color={ha ? T.green : T.textSoft} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ ...typo.small, fontWeight: 700, color: T.text }}>{nome}</div>
+                    <div style={{ ...typo.caption, color: T.textSoft, marginTop: 1 }}>
+                      {ha ? (nota || 'registrata') : selDetail.isFuture ? 'in arrivo' : 'da registrare'}
+                    </div>
                   </div>
-                  {!has && !selDetail.isFuture && setView && (
-                    <button onClick={()=>setView(v)} style={{
-                      fontSize: FS.small, fontWeight: 700, color: T.brand, background: T.bgCard,
-                      border: `1px solid ${T.brand}`, borderRadius: 8, padding: '7px 11px',
-                      minHeight: 36, cursor: 'pointer', whiteSpace: 'nowrap',
-                    }}>Vai</button>
+                  {!ha && !selDetail.isFuture && setView && (
+                    <button onClick={() => setView(vista)}
+                      style={{
+                        ...typo.small, fontWeight: 700, color: T.brand, fontFamily: 'inherit',
+                        background: T.bgCard, border: `1px solid ${T.brand}`, borderRadius: R.md,
+                        padding: '0 12px', minHeight: 36, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                      }}>Registra</button>
                   )}
                 </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Con il metodo inventario il venduto si ricava dalle giacenze, quindi
-            la cassa non serve per sapere cosa è uscito. Serve per una cosa
-            sola, ma non banale: confrontare i soldi entrati con la merce
-            uscita. Lo diciamo come opportunità, non come colpa. */}
-        {!cassaRichiesta && !selDetail.isChiuso && !selDetail.isFuture && selDetail.haProd && !isDipendente && (
-          <div style={{
-            fontSize: FS.small, color: T.textMid, background: T.bgSubtle,
-            borderRadius: 10, padding: '9px 11px', marginBottom: 12, lineHeight: 1.5,
-          }}>
-            Registrando anche la cassa potresti confrontare l&apos;incasso con la merce
-            uscita dalle vaschette, e accorgerti degli scostamenti.
-          </div>
-        )}
-
-        {/* Perché questo giorno risulta chiuso: senza spiegazione l'utente non
-            capisce se l'ha deciso lui o se se l'è inventato il programma. */}
-        {selDetail.isChiuso && perchéChiuso(sel) && (
-          <div style={{
-            fontSize: FS.small, color: T.textMid, background: T.bgSubtle,
-            borderRadius: 10, padding: '9px 11px', marginBottom: 12, lineHeight: 1.5,
-          }}>
-            Risulta chiuso: {perchéChiuso(sel)}.
-          </div>
-        )}
-
-        {/* Chiusura straordinaria: solo su giorni non futuri e solo per il titolare. */}
-        {!isDipendente && (
-          <button
-            onClick={() => cambiaChiusuraGiorno(!selDetail.isChiuso)}
-            disabled={savingNota}
-            style={{
-              width: '100%', marginBottom: 14, padding: '9px 12px', minHeight: 40,
-              borderRadius: 10, cursor: 'pointer', fontSize: FS.small, fontWeight: 700,
-              border: `1px solid ${T.border}`, background: T.bgSubtle, color: T.textMid,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            }}>
-            <Icon name={selDetail.isChiuso ? 'checkCircle' : 'clock'} size={14} />
-            {selDetail.isChiuso
-              ? 'Togli la chiusura: eravamo aperti'
-              : 'Segna questo giorno come chiusura'}
-          </button>
-        )}
-
-        {/* Nota */}
-        <div>
-          <div style={{ fontSize: FS.small, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <Icon name="edit" size={13} /> Nota del giorno
-          </div>
-          {noteErr ? (
-            <div style={{ fontSize: FS.small, color: T.textMid, background: T.bgSubtle, borderRadius: 10, padding: '10px 12px', lineHeight: 1.5 }}>
-              Le note non sono disponibili in questo momento. Riprova più tardi.
+              ))}
             </div>
-          ) : (
-            <>
-              <textarea
-                value={notaEdit}
-                onChange={e => setNotaEdit(e.target.value)}
-                placeholder="Aggiungi una nota…"
-                rows={3}
-                aria-label="Nota del giorno"
-                style={{
-                  width: '100%', padding: '9px 11px', border: `1px solid ${T.border}`,
-                  borderRadius: 10, fontSize: isMobile || isTablet ? FS_INPUT_IOS : FS.body, resize: 'vertical', fontFamily: 'inherit',
-                  color: T.text, background: T.bgSubtle, boxSizing: 'border-box', lineHeight: 1.5,
-                }}
-              />
-              <button
-                onClick={() => salvaNota(notaEdit)}
+          )}
+
+          {/* Perché risulta chiuso: senza spiegazione sembra un errore. */}
+          {selDetail.isChiuso && (
+            <div style={{ ...typo.small, color: T.textMid, lineHeight: 1.5 }}>
+              Risulta chiuso — {perchéChiuso(sel) || 'chiusura programmata'}. Nei giorni di chiusura non ti chiediamo di registrare nulla, e non pesano sul conto del mese.
+            </div>
+          )}
+
+          {/* Chiusura straordinaria del singolo giorno, solo al titolare. */}
+          {!isDipendente && !selDetail.isFuture && (
+            <button onClick={() => cambiaChiusuraGiorno(!selDetail.isChiuso)} disabled={savingNota}
+              style={{
+                ...typo.small, fontWeight: 700, fontFamily: 'inherit', minHeight: 40,
+                background: 'transparent', border: `1px solid ${T.borderStr}`, borderRadius: R.md,
+                color: T.textMid, cursor: savingNota ? 'default' : 'pointer', padding: '0 13px',
+                justifySelf: 'start',
+              }}>
+              {selDetail.isChiuso ? 'Riapri questo giorno' : 'Segna come chiuso'}
+            </button>
+          )}
+
+          {/* Nota del giorno */}
+          <div>
+            <label htmlFor="fos-cal-nota" style={{ ...typo.small, color: T.textSoft, fontWeight: 600, display: 'block', marginBottom: 5 }}>
+              Nota del giorno
+            </label>
+            <textarea id="fos-cal-nota" value={notaEdit} onChange={e => setNotaEdit(e.target.value)}
+              placeholder="Sagra in piazza, forno rotto, ordine grosso…" rows={2}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '10px 11px', resize: 'vertical',
+                border: `1px solid ${T.borderStr}`, borderRadius: R.md, fontFamily: 'inherit',
+                fontSize: FS_INPUT_IOS, color: T.text, lineHeight: 1.45, background: T.bgCard,
+              }} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+              <button onClick={() => salvaNota(notaEdit)}
                 disabled={savingNota || notaEdit === (note[sel]?.nota || '')}
                 style={{
-                  marginTop: 8, width: '100%', padding: '10px 0', minHeight: 40,
-                  background: T.brand, color: '#FFF', border: 'none', borderRadius: 10,
-                  fontSize: FS.body, fontWeight: 700, cursor: 'pointer',
-                  opacity: (savingNota || notaEdit===(note[sel]?.nota || '')) ? 0.45 : 1,
-                  transition: `opacity ${M.durBase} ${M.ease}`,
+                  ...typo.small, fontWeight: 700, fontFamily: 'inherit', minHeight: 38, padding: '0 14px',
+                  borderRadius: R.md, border: 'none', cursor: 'pointer',
+                  background: (savingNota || notaEdit === (note[sel]?.nota || '')) ? T.bgMuted : T.brand,
+                  color: (savingNota || notaEdit === (note[sel]?.nota || '')) ? T.textSoft : T.textOnDark,
                 }}>
-                {savingNota ? 'Salvo…' : 'Salva nota'}
+                {savingNota ? 'Salvo…' : 'Salva la nota'}
               </button>
-            </>
-          )}
+              {noteErr && <span style={{ ...typo.caption, color: T.amber }}>Le note non si caricano.</span>}
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── una casella della griglia ───────────────────────────────────────────
+  //
+  // È il cuore del redesign. Prima ogni casella diceva lo stato di
+  // COMPILAZIONE — "OK", "Metà", "—" — che è la cosa meno interessante che si
+  // possa sapere di una giornata, e non dava nessun senso di grandezza: non si
+  // vedeva che il sabato vale il triplo del martedì.
+  //
+  // Ora il fondo è tanto più intenso quanto più si è incassato. Il mese si
+  // legge come una mappa, senza leggere una cifra. Lo stato di compilazione
+  // resta, ma come segno: il tratteggio vuol dire "da registrare", e il
+  // tratteggio si vede anche da chi non distingue i colori.
+  const Casella = ({ k, date, alta }) => {
+    const status = getStatus(k, true)
+    const isOggi = k === oggiStr
+    const isSel  = k === sel
+    const totale = cassaMap[k]?.kpi?.totV
+    const hasNota = !!note[k]?.nota
+    const peso = totale != null ? scala(totale) : 0
+    const tinta = tintaCalore(peso)
+    const daFare = status === 'vuoto' || status === 'parziale'
+    const chiuso = status === 'chiuso'
+    const futuro = status === 'futuro'
+
+    const coloreNumero = tinta.forte ? T.textOnDark
+      : chiuso ? T.textFaint
+      : futuro ? T.textSoft
+      : isOggi ? T.brand : T.text
+
+    return (
+      <button onClick={() => handleDay(k)}
+        aria-label={etichettaGiorno(k)} aria-pressed={isSel} title={etichettaGiorno(k)}
+        style={{
+          position: 'relative', width: '100%', minHeight: alta, padding: '7px 8px',
+          textAlign: 'left', font: 'inherit', cursor: 'pointer', boxSizing: 'border-box',
+          display: 'flex', flexDirection: 'column', borderRadius: R.lg,
+          background: chiuso ? T.bgSubtle : totale != null ? tinta.background : T.bgCard,
+          border: `1px ${daFare && !futuro ? 'dashed' : 'solid'} ${
+            isSel || isOggi ? T.brand : daFare && !futuro ? T.borderStr : T.borderSoft}`,
+          boxShadow: isSel ? `inset 0 0 0 1px ${T.brand}` : 'none',
+          transition: 'background 140ms ease, border-color 140ms ease',
+        }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+          <span style={{
+            ...tnum, ...typo.small, fontWeight: isOggi ? 800 : 700, color: coloreNumero,
+          }}>{date.getDate()}</span>
+          {hasNota && (
+            <span style={{ display: 'inline-flex', color: tinta.forte ? T.textOnDarkMid : T.amber, flexShrink: 0 }}>
+              <Icon name="edit" size={11} />
+            </span>
+          )}
+        </div>
+
+        <div style={{ marginTop: 'auto' }}>
+          {totale != null ? (
+            <span style={{
+              ...tnum, ...typo.small, fontWeight: 800,
+              color: tinta.forte ? T.textOnDark : T.text, letterSpacing: '-0.02em',
+            }}>{num0(totale)}<span style={{ fontWeight: 600, opacity: 0.7 }}> €</span></span>
+          ) : chiuso ? (
+            <span style={{ ...typo.caption, color: T.textFaint }}>chiuso</span>
+          ) : daFare ? (
+            <span style={{ ...typo.caption, color: T.textSoft }}>da fare</span>
+          ) : null}
+        </div>
+
+        {/* Mezza giornata registrata: segno in alto a destra, non un colore. */}
+        {status === 'parziale' && (
+          <span style={{
+            position: 'absolute', top: 6, right: hasNota ? 22 : 6,
+            width: 6, height: 6, borderRadius: '50%', background: T.amber,
+          }} />
+        )}
+      </button>
+    )
+  }
+
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ maxWidth: 1240, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
-      {/* ── ① BANDA DIAGNOSI (solo titolare) ──────────────────────────────── */}
-      {!isDipendente && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
-          gap: isMobile ? 10 : 16, marginBottom: isMobile ? 14 : 18,
-        }}>
-          <Kpi icon="checkCircle" label={`Giorni completi · ${MESI[mese]}`}
-            value={`${diag.completi}/${diag.totPassati}`} color={T.text}
-            sub={diag.totPassati > 0
-              ? `${cassaRichiesta ? 'produzione + cassa' : 'contati sulla produzione'}${diag.chiusi ? ` · ${diag.chiusi} gg di chiusura esclusi` : ''}`
-              : 'nessun giorno da registrare'} />
-          <Kpi icon="barChart" label="Copertura mese" value={`${diag.pct}%`} color={semaforo}
-            sub={diag.pct >= 80 ? 'sotto controllo' : diag.pct >= 50 ? 'da migliorare' : 'molti giorni scoperti'}
-            bar={diag.pct} barColor={semaforo} />
-          <Kpi icon="warning" label="Giorni con anomalie"
-            value={String(diag.anomalie)} color={diag.anomalie ? T.amber : T.green}
-            sub={diag.anomalie
-              ? `${diag.soloProd} senza cassa · ${diag.soloCassa} senza prod.`
-              : 'nessuna anomalia'} />
-          <Kpi icon="trendUp" label="Giorni di fila"
-            value={String(diag.streak)} highlight
-            sub={diag.streak >= 1 ? 'completi consecutivi' : 'chiudi oggi per ripartire'} />
-        </div>
-      )}
-
-      <div style={{ display: isMobile ? 'block' : 'flex', gap: isTablet ? 14 : 24, alignItems: 'flex-start', flexDirection: isTablet ? 'column' : 'row' }}>
-
-        {/* ── ② GRIGLIA CALENDARIO ───────────────────────────────────────── */}
-        <div style={{
-          flex: 1, minWidth: 0,
-          background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16,
-          boxShadow: SHADOW_PREMIUM, padding: isMobile ? 14 : 18,
-        }}>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 11, background: T.brandLight, color: T.brand, flexShrink: 0 }}>
-                <Icon name="calendar" size={18} />
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: FS.h3, fontWeight: 700, color: T.text, letterSpacing: '-0.015em' }}>{MESI[mese]} <span style={{ ...tnum }}>{anno}</span></div>
-                <div style={{ fontSize: FS.small, color: T.textSoft, ...tnum }}>
-                  {diag.incasso > 0 ? `${eur0(diag.incasso)} incassati nel mese` : 'registra produzione e cassa ogni giorno'}
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {!isMeseCorrente && (
-                <button onClick={goOggi} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: isMobile ? '8px 12px' : '6px 11px', minHeight: isMobile ? 40 : isTablet ? 44 : 34,
-                  borderRadius: R.md, border: `1px solid ${T.border}`, background: T.bgCard,
-                  fontSize: FS.small, fontWeight: 600, color: T.textMid, cursor: 'pointer', boxShadow: S.sm,
-                }}>
-                  <Icon name="clock" size={13} />Oggi
-                </button>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: R.lg, padding: 3 }}>
-                <button onClick={prev} style={{ ...NAV_BTN, width: isMobile ? 40 : isTablet ? 44 : 34, height: isMobile ? 40 : isTablet ? 44 : 34 }} aria-label="Mese precedente">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                </button>
-                <button onClick={next} style={{ ...NAV_BTN, width: isMobile ? 40 : isTablet ? 44 : 34, height: isMobile ? 40 : isTablet ? 44 : 34 }} aria-label="Mese successivo">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Giorni di chiusura ricorrenti. Sta qui e non nelle impostazioni
-              perché è qui che ci si accorge del problema: guardando i lunedì
-              tutti rossi. */}
-          {!isDipendente && (
-            <div style={{ marginBottom: 14 }}>
-              <button
-                onClick={() => setApriChiusure(v => !v)}
-                aria-expanded={apriChiusure}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36,
-                  padding: '7px 11px', borderRadius: R.md, cursor: 'pointer',
-                  border: `1px solid ${T.border}`, background: T.bgSubtle,
-                  fontSize: FS.small, fontWeight: 600, color: T.textMid,
-                }}>
-                <Icon name="calendar" size={13} />
-                {giorniChiusura.length > 0
-                  ? `Chiuso il ${giorniChiusura.slice().sort((a,b)=>a-b).map(n => GIORNI[n-1]).join(', ')}`
-                  : 'Imposta i giorni di chiusura'}
+      <IntestazionePagina
+        occhiello="Calendario"
+        titolo={`${MESI[mese]} ${anno}`}
+        frase={frase}
+        azioni={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {!isMeseCorrente && (
+              <button onClick={goOggi} style={{
+                ...typo.small, fontWeight: 700, fontFamily: 'inherit', minHeight: isMobile ? 44 : 38,
+                padding: '0 13px', borderRadius: R.md, cursor: 'pointer',
+                background: T.bgCard, border: `1px solid ${T.borderStr}`, color: T.textMid,
+              }}>Oggi</button>
+            )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={prev} aria-label="Mese precedente" style={navBtn(isMobile)}>
+                <Icon name="chevR" size={15} style={{ transform: 'rotate(180deg)' }} />
               </button>
-              {apriChiusure && (
-                <div style={{ marginTop: 9, padding: '12px 13px', background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 12 }}>
-                  <div style={{ fontSize: FS.small, color: T.textMid, marginBottom: 9, lineHeight: 1.5 }}>
-                    Nei giorni di chiusura non ti verrà chiesto di registrare nulla, e non peseranno sulla copertura del mese.
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {GIORNI.map((g, i) => {
-                      const iso = i + 1
-                      const attivo = giorniChiusura.includes(iso)
-                      return (
-                        <button key={g} disabled={savingChiusure}
-                          aria-pressed={attivo}
-                          onClick={() => salvaGiorniChiusura(
-                            attivo ? giorniChiusura.filter(n => n !== iso) : [...giorniChiusura, iso]
+              <button onClick={next} aria-label="Mese successivo" style={navBtn(isMobile)}>
+                <Icon name="chevR" size={15} />
+              </button>
+            </div>
+          </div>
+        }
+        sotto={!isDipendente && (
+          <FilaStat voci={[
+            usaCassa && { label: 'Incassato nel mese', valore: mesePanorama.totale, sub: mesePanorama.giorni > 0 ? `${mesePanorama.giorni} giornate registrate` : 'nessuna giornata' },
+            usaCassa && { label: 'Media al giorno', valore: mesePanorama.media, sub: mesePanorama.giorni > 0 ? 'sulle giornate registrate' : '—' },
+            usaCassa && mesePanorama.giornoMigliore
+              ? {
+                  label: 'Giornata migliore', valore: mesePanorama.giornoMigliore.incasso,
+                  sub: new Date(mesePanorama.giornoMigliore.data + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric' }),
+                  onClick: () => handleDay(mesePanorama.giornoMigliore.data),
+                }
+              : null,
+            {
+              label: 'Da registrare',
+              valore: usaCassa ? mesePanorama.daRegistrare : diag.totPassati - diag.completi,
+              unita: '',
+              colore: (usaCassa ? mesePanorama.daRegistrare : diag.totPassati - diag.completi) > 0 ? T.amber : T.green,
+              sub: diag.chiusi > 0 ? `${diag.chiusi} gg di chiusura esclusi` : 'giornate aperte senza dati',
+            },
+          ].filter(Boolean)} />
+        )}
+      />
+
+      <div style={{
+        display: 'grid', gap: isMobile ? 14 : 18, alignItems: 'start',
+        gridTemplateColumns: (isMobile || isTablet) ? '1fr' : 'minmax(0, 1fr) 320px',
+      }}>
+
+        {/* ── LA MAPPA DEL MESE ───────────────────────────────────────────── */}
+        <div style={{ minWidth: 0, display: 'grid', gap: isMobile ? 14 : 18 }}>
+          <div style={{
+            background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.xl,
+            padding: isMobile ? 13 : 17,
+          }}>
+            {isMobile ? (
+              /* Su mobile la griglia a sette colonne dà caselle da 40px:
+                 illeggibili e impossibili da centrare col dito. Lista, con la
+                 barra di calore a sinistra che fa lo stesso lavoro del fondo. */
+              <div style={{ display: 'grid', gap: 5 }}>
+                {(mostraFuturi ? mobileList : mobileList.filter(k => k <= oggiStr)).map(k => {
+                  const status = getStatus(k, true)
+                  const totale = cassaMap[k]?.kpi?.totV
+                  const peso = totale != null ? scala(totale) : 0
+                  const tinta = tintaCalore(peso)
+                  const isOggi = k === oggiStr
+                  const isSel = k === sel
+                  const d = new Date(k + 'T12:00')
+                  const daFare = status === 'vuoto' || status === 'parziale'
+                  return (
+                    <React.Fragment key={k}>
+                      <button onClick={() => handleDay(k)} aria-label={etichettaGiorno(k)} aria-pressed={isSel}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 11, width: '100%', minHeight: 52,
+                          padding: '9px 12px 9px 9px', borderRadius: R.lg, textAlign: 'left',
+                          font: 'inherit', cursor: 'pointer', boxSizing: 'border-box',
+                          background: isSel ? T.brandLight : T.bgCard,
+                          border: `1px ${daFare ? 'dashed' : 'solid'} ${isSel || isOggi ? T.brand : daFare ? T.borderStr : T.borderSoft}`,
+                        }}>
+                        <span style={{
+                          width: 5, alignSelf: 'stretch', borderRadius: R.full, flexShrink: 0,
+                          background: totale != null ? tinta.background : 'transparent',
+                          border: totale != null ? 'none' : `1px dashed ${T.borderStr}`,
+                        }} />
+                        <span style={{ width: 30, flexShrink: 0 }}>
+                          <span style={{ ...tnum, ...typo.bodyStrong, color: isOggi ? T.brand : T.text, display: 'block' }}>{d.getDate()}</span>
+                          <span style={{ ...typo.caption, color: T.textSoft, display: 'block' }}>{SIGLE_GIORNO[(d.getDay() + 6) % 7]}</span>
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          {totale != null ? (
+                            <Cifra valore={totale} size={typo.body.fontSize} />
+                          ) : (
+                            <span style={{ ...typo.small, color: T.textSoft }}>
+                              {status === 'chiuso' ? 'chiuso' : status === 'futuro' ? 'in arrivo' : 'da registrare'}
+                            </span>
                           )}
-                          style={{
-                            minWidth: 52, minHeight: 40, padding: '8px 10px', borderRadius: 10,
-                            cursor: 'pointer', fontSize: FS.small, fontWeight: 700,
-                            border: `1px solid ${attivo ? T.brand : T.border}`,
-                            background: attivo ? T.brandLight : T.bgCard,
-                            color: attivo ? T.brand : T.textMid,
-                          }}>
-                          {g}
-                        </button>
-                      )
-                    })}
-                  </div>
+                          {status === 'parziale' && (
+                            <span style={{ ...typo.caption, color: T.amber, display: 'block', marginTop: 1 }}>registrata a metà</span>
+                          )}
+                        </span>
+                        {!!note[k]?.nota && <Icon name="edit" size={12} color={T.amber} />}
+                      </button>
+                      {isSel && <div style={{ margin: '2px 0 6px' }}>{renderDetail()}</div>}
+                    </React.Fragment>
+                  )
+                })}
+                {!mostraFuturi && mobileList.some(k => k > oggiStr) && (
+                  <button onClick={() => setMostraFuturi(true)}
+                    style={{
+                      minHeight: 46, borderRadius: R.lg, cursor: 'pointer', fontFamily: 'inherit',
+                      background: T.bgCard, border: `1px dashed ${T.borderStr}`, color: T.textMid,
+                      ...typo.small, fontWeight: 700, marginTop: 3,
+                    }}>
+                    Mostra i {mobileList.filter(k => k > oggiStr).length} giorni che restano
+                  </button>
+                )}
+                {mostraFuturi && (
+                  <button onClick={() => setMostraFuturi(false)}
+                    style={{
+                      minHeight: 46, borderRadius: R.lg, cursor: 'pointer', fontFamily: 'inherit',
+                      background: T.bgCard, border: `1px dashed ${T.borderStr}`, color: T.textMid,
+                      ...typo.small, fontWeight: 700, marginTop: 3,
+                    }}>
+                    Nascondi i giorni futuri
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5, marginBottom: 7 }}>
+                  {GIORNI.map(g => (
+                    <div key={g} style={{
+                      ...typo.overline, textAlign: 'center', paddingBottom: 2,
+                      color: (g === 'Sab' || g === 'Dom') ? T.textMid : T.textSoft,
+                    }}>{g}</div>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5 }}>
+                  {grid.map(({ date, cur }, idx) => cur
+                    ? <Casella key={idx} k={toISO(date)} date={date} alta={isTablet ? 74 : 82} />
+                    : <div key={idx} style={{ minHeight: isTablet ? 74 : 82, borderRadius: R.lg, background: T.bgSubtle, opacity: 0.35 }} />
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Legenda: la scala di calore, non un elenco di stati. */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+              marginTop: 15, paddingTop: 13, borderTop: `1px solid ${T.borderSoft}`,
+            }}>
+              {usaCassa && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <span style={{ ...typo.caption, color: T.textSoft }}>poco</span>
+                  <span style={{ display: 'flex', gap: 2 }}>
+                    {[0.12, 0.35, 0.58, 0.8, 1].map(p => (
+                      <span key={p} style={{ width: 17, height: 11, borderRadius: 3, background: tintaCalore(p).background, border: `1px solid ${T.borderSoft}` }} />
+                    ))}
+                  </span>
+                  <span style={{ ...typo.caption, color: T.textSoft }}>molto incassato</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...typo.caption, color: T.textSoft }}>
+                <span style={{ width: 15, height: 11, borderRadius: 3, border: `1px dashed ${T.borderStr}` }} />
+                da registrare
+              </div>
+              {mobileList.some(k => getStatus(k, true) === 'parziale') && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...typo.caption, color: T.textSoft }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.amber }} />
+                  registrata a metà
                 </div>
               )}
             </div>
-          )}
-
-          {isMobile ? (
-            /* ── Lista mobile: tutti i giorni del mese selezionato ──
-                Dettaglio inserito INLINE subito sotto la card cliccata. */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {mobileList.map(k => {
-                const status  = getStatus(k, true)
-                const isOggi  = k === oggiStr
-                const isSel   = k === sel
-                const cassa   = cassaMap[k]
-                const totale  = cassa?.kpi?.totV
-                const hasNota = !!note[k]?.nota
-                const st      = STATUS[status]
-                const d = new Date(k+'T12:00')
-                return (
-                  <React.Fragment key={k}>
-                    <button onClick={() => handleDay(k)}
-                      aria-label={etichettaGiorno(k)}
-                      aria-pressed={isSel}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
-                        borderRadius: 12, minHeight: 48, width: '100%', textAlign: 'left',
-                        background: isSel ? T.brandLight : status === 'chiuso' ? T.bgSubtle : T.bgCard,
-                        border: isOggi || isSel ? `2px solid ${T.brand}` : `1px solid ${T.border}`,
-                        cursor: 'pointer', boxSizing: 'border-box', font: 'inherit',
-                      }}>
-                      <div style={{ width: 9, height: 9, borderRadius: '50%', background: st?.color || T.borderStr, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: FS.body, fontWeight: isOggi ? 800 : 600, color: isOggi ? T.brand : T.text }}>
-                          {d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          {isOggi && <span style={{ marginLeft: 6, fontSize: FS.small, fontWeight: 800, color: T.brand }}>· oggi</span>}
-                        </div>
-                        <div style={{ display: 'flex', gap: 5, marginTop: 4, flexWrap: 'wrap' }}>
-                          {status === 'chiuso'
-                            ? <Pill bg={T.bgSubtle} color={T.textMid}>Chiuso</Pill>
-                            : status === 'futuro'
-                              ? <Pill bg={T.bgSubtle} color={T.textSoft}>In arrivo</Pill>
-                              : <>
-                                  <Pill bg={haProduzione(k) ? T.greenLight : T.bgSubtle} color={haProduzione(k) ? T.green : T.textSoft}>
-                                    <Icon name="package" size={12} /> {haProduzione(k) ? 'Prod.' : 'No prod.'}
-                                  </Pill>
-                                  <Pill bg={cassa ? T.blueLight : T.bgSubtle} color={cassa ? T.blue : T.textSoft}>
-                                    <Icon name="receipt" size={12} /> {cassa ? 'Cassa' : 'No cassa'}
-                                  </Pill>
-                                </>}
-                          {hasNota && <Pill bg={T.amberLight} color={T.amber}><Icon name="edit" size={12} /> Nota</Pill>}
-                        </div>
-                      </div>
-                      {totale != null && (
-                        <div style={{ fontSize: FS.body, color: T.textMid, fontWeight: 700, flexShrink: 0, ...tnum }}>{eur0(totale)}</div>
-                      )}
-                    </button>
-                    {isSel && renderDetail(true)}
-                  </React.Fragment>
-                )
-              })}
-            </div>
-          ) : (
-            <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
-              {GIORNI.map(g => (
-                <div key={g} style={{
-                  textAlign: 'center', fontSize: FS.small, fontWeight: 700, padding: '4px 0',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                  color: (g==='Sab'||g==='Dom') ? T.brand : T.textSoft,
-                }}>
-                  {g}
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
-              {grid.map(({ date, cur }, idx) => {
-                const k = toISO(date)
-                const status   = getStatus(k, cur)
-                const isOggi   = k === oggiStr
-                const isWeek   = date.getDay()===0 || date.getDay()===6
-                const isSel    = k === sel
-                const cassa    = cassaMap[k]
-                const totale   = cassa?.kpi?.totV
-                const hasNota  = !!note[k]?.nota
-                const st       = status && status !== 'futuro' ? STATUS[status] : null
-                const accent   = st?.color || null
-
-                if (!cur) {
-                  return <div key={idx} style={{ borderRadius: 12, minHeight: 78, background: T.bgSubtle, opacity: 0.4 }} />
-                }
-                return (
-                  <button key={idx} onClick={() => handleDay(k)}
-                    aria-label={etichettaGiorno(k)}
-                    aria-pressed={isSel}
-                    title={etichettaGiorno(k)}
-                    style={{
-                      borderRadius: 12, padding: '8px 7px', minHeight: 78,
-                      textAlign: 'left', font: 'inherit', width: '100%',
-                      background: isSel ? T.brandLight : status === 'chiuso' ? T.bgSubtle : isWeek ? T.bgSubtle : T.bgCard,
-                      border: isOggi || isSel ? `2px solid ${T.brand}` : `1px solid ${T.border}`,
-                      borderLeft: accent && !isOggi && !isSel ? `3px solid ${accent}` : undefined,
-                      cursor: 'pointer',
-                      transition: `background ${M.durFast} ${M.ease}, border-color ${M.durFast} ${M.ease}`,
-                      position: 'relative', boxSizing: 'border-box',
-                      display: 'flex', flexDirection: 'column',
-                    }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: FS.body, fontWeight: isOggi ? 800 : 600, color: isOggi ? T.brand : T.text, ...tnum }}>
-                        {date.getDate()}
-                      </span>
-                      {accent && (
-                        <span style={{
-                          width: 8, height: 8, borderRadius: '50%', background: accent, flexShrink: 0,
-                          boxShadow: status==='completo' ? `0 0 5px ${T.green}88` : 'none',
-                        }} />
-                      )}
-                    </div>
-                    {/* Lo stato in parole: il colore da solo non basta. */}
-                    {st && (
-                      <div style={{ fontSize: FS.small, fontWeight: 600, color: accent, marginTop: 3, lineHeight: 1.2 }}>
-                        {st.breve}
-                      </div>
-                    )}
-                    {status === 'futuro' && (
-                      <div style={{ fontSize: FS.small, color: T.textSoft, marginTop: 3, lineHeight: 1.2 }}>·</div>
-                    )}
-                    {hasNota && (
-                      <div style={{ marginTop: 3, display: 'inline-flex', color: T.amber }}>
-                        <Icon name="edit" size={12} />
-                      </div>
-                    )}
-                    {totale != null && (
-                      <div style={{ fontSize: FS.small, color: T.textMid, fontWeight: 700, marginTop: 'auto', ...tnum }}>
-                        {eur0(totale)}
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-            </>
-          )}
-
-          {/* Legenda */}
-          <div style={{ display: 'flex', gap: 16, marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.border}`, flexWrap: 'wrap', alignItems: 'center' }}>
-            {['completo','parziale','vuoto','chiuso'].map(s => (
-              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: FS.small, color: T.textMid }}>
-                <div style={{ width: 9, height: 9, borderRadius: '50%', background: STATUS[s].color }} />
-                <span><strong style={{ fontWeight: 700 }}>{STATUS[s].breve}</strong> {STATUS[s].label.toLowerCase()}</span>
-              </div>
-            ))}
           </div>
+
+          {/* ── IL RITMO DELLA SETTIMANA ─────────────────────────────────────
+              La cosa che nessun gestionale del loro giro mostra, e che serve
+              ogni settimana: quanto vale ogni giorno. Da qui si decide quanto
+              produrre e chi mettere al banco. */}
+          {usaCassa && ritmoMax > 0 && (
+            <Sezione icona="barChart" titolo="Il ritmo della settimana"
+              sub="Incasso tipico di ogni giorno, sugli ultimi tre mesi. Serve a decidere quanto produrre e chi mettere al banco.">
+              <MiniBarre voci={ritmo.map(v => ({
+                etichetta: v.sigla,
+                valore: v.tipico,
+                forte: v.tipico === ritmoMax,
+              }))} />
+              <div style={{ ...typo.caption, color: T.textSoft, marginTop: 11, lineHeight: 1.5 }}>
+                È la mediana e non la media: una sagra o un Ferragosto non devono spostare quello che consideri un giorno normale.
+                {ritmo.some(v => v.giorni === 1) && ' I giorni con una sola giornata in archivio dicono ancora poco.'}
+              </div>
+            </Sezione>
+          )}
+
+          {/* Giorni di chiusura fissi. Stanno qui perché è guardando il
+              calendario che ci si accorge del problema. */}
+          {!isDipendente && (
+            <Sezione icona="calendar" apribile apertaDiDefault={false}
+              titolo={giorniChiusura.length > 0
+                ? `Chiuso il ${giorniChiusura.slice().sort((a, b) => a - b).map(n => GIORNI[n - 1]).join(', ')}`
+                : 'Giorni di chiusura'}
+              sub="Nei giorni di chiusura non ti chiediamo di registrare nulla e non pesano sul conto del mese.">
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                {GIORNI.map((g, i) => {
+                  const iso = i + 1
+                  const attivo = giorniChiusura.includes(iso)
+                  return (
+                    <button key={g} disabled={savingChiusure} aria-pressed={attivo}
+                      onClick={() => salvaGiorniChiusura(
+                        attivo ? giorniChiusura.filter(n => n !== iso) : [...giorniChiusura, iso])}
+                      style={{
+                        minWidth: 54, minHeight: 42, borderRadius: R.md, cursor: 'pointer',
+                        ...typo.small, fontWeight: 700, fontFamily: 'inherit',
+                        border: `1px solid ${attivo ? T.brand : T.borderStr}`,
+                        background: attivo ? T.brand : T.bgCard,
+                        color: attivo ? T.textOnDark : T.textMid,
+                      }}>{g}</button>
+                  )
+                })}
+              </div>
+              <div style={{ ...typo.caption, color: T.textSoft, marginTop: 10, lineHeight: 1.5 }}>
+                Vale da oggi in avanti: i mesi passati restano come erano, così il calendario di gennaio continua a raccontare come lavoravi a gennaio.
+              </div>
+            </Sezione>
+          )}
         </div>
 
-        {/* ── ③ DETTAGLIO GIORNO ─────────────────────────────────────────────
-            Su desktop la colonna è SEMPRE presente, anche vuota. Prima
-            compariva solo al clic e la griglia si restringeva di colpo: le
-            caselle cambiavano dimensione sotto il dito e si perdeva il punto in
-            cui si stava guardando. Riservare lo spazio costa una colonna e
-            tiene il calendario immobile.
-            Su tablet il layout è a colonne, quindi il problema non si pone.
-            Su mobile il dettaglio è già inline sotto la card toccata. */}
-        {isTablet && !isMobile && renderDetail(false)}
-
+        {/* ── IL GIORNO ───────────────────────────────────────────────────────
+            Su desktop la colonna esiste sempre, anche vuota. Prima il pannello
+            era in `position: fixed` in alto a destra, sganciato dal layout:
+            copriva il contenuto e non seguiva lo scorrimento. */}
+        {!isMobile && (
+          <div style={{ minWidth: 0, position: isTablet ? 'static' : 'sticky', top: 16 }}>
+            {sel ? renderDetail() : (
+              <div style={{
+                background: T.bgCard, border: `1px dashed ${T.borderStr}`, borderRadius: R.xl,
+                padding: '22px 18px', textAlign: 'center',
+              }}>
+                <div style={{ display: 'inline-flex', color: T.textFaint, marginBottom: 9 }}>
+                  <Icon name="calendar" size={22} />
+                </div>
+                <div style={{ ...typo.small, color: T.textMid, lineHeight: 1.5 }}>
+                  Tocca un giorno per vedere com'è andato, cosa manca e per lasciarci una nota.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-
-      {/* ── DETTAGLIO GIORNO SU DESKTOP: pannello che galleggia ─────────────
-          Due tentativi prima di questo, entrambi sbagliati. Metterlo dentro la
-          riga faceva restringere la griglia al clic: le caselle cambiavano
-          dimensione sotto il dito. Riservargli sempre la colonna teneva sì il
-          calendario fermo, ma lo lasciava schiacciato anche quando non serviva.
-          Fuori dal flusso il calendario resta largo e immobile in entrambi i
-          casi: il pannello si sovrappone e si chiude quando hai finito. */}
-      {!isMobile && !isTablet && sel && (
-        <div style={{
-          position: 'fixed', top: 84, right: 24, width: 320, zIndex: 40,
-          maxHeight: 'calc(100vh - 108px)', overflowY: 'auto',
-          animation: 'fos_calSlideIn 0.16s ease',
-          filter: 'drop-shadow(0 18px 40px rgba(15,23,42,0.18))',
-        }}>
-          {renderDetail(true)}
-        </div>
-      )}
-
-      <style>{`@keyframes fos_calSlideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}`}</style>
     </div>
   )
 }
+
+const navBtn = (isMobile) => ({
+  width: isMobile ? 44 : 38, height: isMobile ? 44 : 38, borderRadius: R.md,
+  background: T.bgCard, border: `1px solid ${T.borderStr}`, color: T.textMid,
+  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+})
 
 function Badge({ color, bg, children }) {
   return (
     <span style={{
-      fontSize: FS.small, fontWeight: 800, color, background: bg, borderRadius: 6,
-      padding: '3px 7px', letterSpacing: '0.03em',
-      display: 'inline-flex', alignItems: 'center', gap: 4,
+      ...typo.caption, fontWeight: 700, color, background: bg, borderRadius: R.full,
+      padding: '3px 9px', display: 'inline-flex', alignItems: 'center', gap: 4,
     }}>{children}</span>
   )
-}
-
-// KPI compatto della banda diagnosi - coerente con il KPI premium di _shared.
-function Kpi({ icon, label, value, sub, color, highlight, bar, barColor }) {
-  const accent = color || T.brand
-  return (
-    <div style={{
-      position: 'relative', overflow: 'hidden',
-      background: highlight ? T.brandGradient : T.bgCard,
-      border: `1px solid ${highlight ? T.brandDarker : T.border}`, borderRadius: 16,
-      padding: '16px 18px',
-      boxShadow: highlight ? '0 14px 34px rgba(110,14,26,0.30), inset 0 1px 0 rgba(255,255,255,0.18)' : SHADOW_PREMIUM,
-    }}>
-      <div style={{ position: 'absolute', top: -28, right: -28, width: 84, height: 84, borderRadius: '50%',
-        background: highlight ? 'rgba(255,255,255,0.07)' : `${accent}14`, opacity: 0.6, pointerEvents: 'none' }} />
-      <div style={{ position: 'relative', marginBottom: 11 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 11,
-          background: highlight ? 'rgba(255,255,255,0.14)' : 'rgba(110,14,26,0.10)', color: highlight ? '#fff' : accent }}>
-          <Icon name={icon} size={18} />
-        </span>
-      </div>
-      <div style={{ position: 'relative', fontSize: FS.small, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
-        color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6, lineHeight: 1.3,
-        minHeight: 30 }}>{label}</div>
-      <div style={{ position: 'relative', fontSize: FS.h1, fontWeight: 800, color: highlight ? T.textOnDark : accent,
-        letterSpacing: '-0.03em', lineHeight: 1.05, minHeight: 30, ...tnum }}>
-        {value}
-      </div>
-      {bar != null && (
-        <div style={{ position: 'relative', height: 5, borderRadius: 3, background: highlight ? 'rgba(255,255,255,0.2)' : T.bgSubtle, marginTop: 9, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, bar))}%`, background: barColor || accent, borderRadius: 3, transition: `width ${M.durSlow} ${M.ease}` }} />
-        </div>
-      )}
-      {sub
-        ? <div style={{ position: 'relative', fontSize: FS.small, color: highlight ? 'rgba(255,255,255,0.7)' : T.textSoft, marginTop: 7, fontWeight: 500, minHeight: 34, lineHeight: 1.4 }}>{sub}</div>
-        : <div style={{ minHeight: 34, marginTop: 7 }}/>
-      }
-    </div>
-  )
-}
-
-function Pill({ bg, color, children }) {
-  return (
-    <span style={{ fontSize: FS.small, padding: '3px 7px', background: bg, color, borderRadius: 6, fontWeight: 700, lineHeight: 1.4, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      {children}
-    </span>
-  )
-}
-
-const NAV_BTN = {
-  width: 34, height: 34, borderRadius: R.md, border: 'none',
-  background: 'transparent', cursor: 'pointer',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  color: T.textMid,
-  transition: `background ${M.durFast} ${M.ease}, color ${M.durFast} ${M.ease}`,
 }
