@@ -1,12 +1,17 @@
 # FoodOS — Stato del Progetto
-> Aggiornato: 2026-05-31 (post 7 wave audit — commit `ec51635`)
+> Aggiornato: 2026-09-07 — HEAD `49c683a` (4 set 2026), allineato a `origin/main`.
 >
-> **Δ ultimi 3 giorni**: 65+ bug/issue fixati. Bundle main JS: 1.155MB → **246KB** (-78%).
-> 0 bug CRITICAL/HIGH noti. WCAG AA ~85%. PWA-ready (manifest + theme-color).
-> 27 migration SQL applicate (ultime: audit_log GRANT, db_hardening con cleanup_audit_log).
+> **Repo di lavoro: `/Users/aler/foodos`.** La copia in `~/Desktop/foodos` e' ferma
+> al 1 set, sta dentro iCloud Drive (git lentissimo) e va ignorata.
 >
-> Architettura: code splitting completo (44 component lazy-loaded), tablet 3-tier
-> responsive, theme tokens centralizzati, ICONS modulo dedicato, safeStorage Safari-safe.
+> **Salute**: test 1511/1511 verdi (87 file, 46s), ESLint pulito su `src/` e `api/`,
+> build Vite 20s, grammar check OK.
+> 78 migration SQL in repo (ultima `20260904_storico_inventario_rpc`).
+>
+> Architettura: code splitting completo, tablet 3-tier responsive, theme tokens
+> centralizzati, ICONS modulo dedicato, safeStorage Safari-safe.
+> `Dashboard.jsx` sceso da ~6700 a **3488 righe** grazie allo scorporo in `src/views/`
+> (32 view estratte), `src/components/` (66), `src/lib/` (79 moduli), `api/` (45 endpoint).
 
 ---
 
@@ -16,6 +21,7 @@
 |---|---|
 | **App live (produzione)** | https://foodos-rose.vercel.app |
 | **Repository GitHub** | https://github.com/alessandroronchi18-sketch/foodos |
+| **Git remote effettivo** | `https://github.com/alessandroronchi18-sketch/foodios.git` (ancora il nome vecchio, funziona per redirect — da rinominare) |
 | **Vercel dashboard** | https://vercel.com/alessandroronchi18-7807s-projects/foodos |
 | **Supabase dashboard** | https://supabase.com/dashboard/project/rmecvymnwzgrfigljlid |
 | **Supabase URL** | https://rmecvymnwzgrfigljlid.supabase.co |
@@ -25,7 +31,7 @@
 
 ## 🔑 Variabili d'Ambiente
 
-File locale: `~/Desktop/foodos/.env.local`
+File locale: `/Users/aler/foodos/.env.local` (gitignored, va creato a mano da `.env.example`)
 
 ```
 VITE_SUPABASE_URL=https://rmecvymnwzgrfigljlid.supabase.co
@@ -84,24 +90,19 @@ foodos/
 
 ## 💶 Piani
 
-### Piano Pro — €89/mese
-- Sedi illimitate
-- Ricettario illimitato
-- Food cost automatico
-- AI Assistant
-- Export PDF
-- Scadenzario fatture
-- Supporto email
+Pricing 3-tier dal 24/06. Nome, prezzo e descrizione sono **dinamici dal pannello
+admin** (tabella `plan_pricing_meta`); i default sono in `api/pricing.js` e
+`src/lib/usePlanPricing.js`. Trial 3 mesi gratis senza carta.
 
-### Piano Chain — €149/mese
-- Tutto il piano Pro
-- Utenti multipli per sede (collaboratori)
-- API access
-- White label (logo personalizzato)
-- Supporto prioritario dedicato
-- SLA garantito
+| Piano (marketing) | Chiave DB | Prezzo | Posizionamento |
+|---|---|---|---|
+| **Bottega** | `base` | €69/mese | Una sede, l'essenziale. |
+| **Maestro** | `pro` | €149/mese | Sostituisce un controller part-time. |
+| **Insegna** | `chain` | €399/mese | Sostituisce 1 controller + IT contractor. |
 
-> Nessuna limitazione sul numero di sedi in alcun piano. La differenziazione tra Pro e Chain è su utenti multipli, integrazioni API, branding e livello di supporto.
+> Nessuna limitazione sul numero di sedi in alcun piano. La differenziazione e' su
+> utenti multipli, integrazioni API, branding e livello di supporto.
+> Il gating per feature sta in `src/lib/planAccess.js`.
 
 > DB: il valore della colonna `piano` è validato dal CHECK constraint `('trial','base','pro','enterprise')`. Il naming marketing "Chain" mappa internamente su `enterprise` (oppure si può aggiungere `chain` al constraint se si preferisce coerenza letterale).
 
@@ -288,6 +289,24 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 - [x] Azioni rapide nella modale: 🔑 impersona · 📧 email · 🎁 regala mesi · 🔁 reset password
 - [ ] Niente DB migration (riusa `user_data`, `sedi`, `audit_log`, `organizations`)
 
+### Import wizard multi-formato (1-3 set 2026 — commit `91e795c` → `e63fd5a`)
+- [x] **Wizard client-side privacy-first** (`src/components/ImportWizard.jsx`), 4 step: file → mapping AI → validazione → insert. L'insert va dal browser **direttamente** a Supabase con JWT+RLS: a Vercel arrivano solo gli header e 5 righe campione, i valori pieni (stipendi, dati sensibili) non transitano mai da Foodos.
+- [x] Moduli condivisi browser+node: `importSchemas.js` (schema dichiarativo), `importValidateCore.js`, `importParse.js` (SheetJS in-memory), `importAiMap.js`
+- [x] **Mapping library cross-cliente** (mig. `20260901`): tabella globale `import_mappings_library` + RPC `save_import_mapping` / `lookup_import_mapping`. Se un altro cliente ha gia' confermato quel mapping, match diretto a costo zero senza chiamare Claude. La base clienti diventa un asset che migliora crescendo.
+- [x] **Primitive per schemi complessi**: type `lookup` (valore cliente "Torino Centro" → uuid sede) e conversioni unita' opzionali via checkbox
+- [x] **Detect automatico WIDE/LONG** (`api/import-detect-format.js`) + engine unpivot puro (`src/lib/importUnpivot.js`). Nato dal file reale di Mara: registri Excel WIDE con header multi-riga, un tab per sede, coppie (PROD, RIMAN.), colonne "VENDUTO SETTIMANA" calcolate e riga TOTALE da ignorare. Pattern documentato come reference cross-cliente.
+- [x] Upsert per stesso mese/anno gia' caricato, per non raddoppiare le righe al secondo import (`1495e76`)
+- [x] CLI founder-assisted `scripts/import-any.mjs` per le prime importazioni (guida in `scripts/README-import.md`)
+
+### Metodo inventario in Produzione, Storico e P&L (3-4 set 2026 — commit `17a66cd` → `49c683a`)
+- [x] **Sezione dedicata metodo inventario** in Storico Produzione e in P&L: KPI, trend, top 10, tabella, export xlsx, deep-link Produzione↔Storico
+- [x] **RPC di aggregazione lato DB** `storico_inventario_per_mese` (mig. `20260904`) + indice composto `(organization_id, sede_id, data desc)`: il client non scarica piu' decine di migliaia di righe grezze per aggregarle in JS
+- [x] **Fetch paginato** per bypassare il `db-max-rows=1000` di PostgREST (il `.limit()` del client veniva cappato lato server)
+- [x] "Tutte le sedi" nello Storico, filtri periodo con preset, confronto flessibile, tooltip formattati
+- [x] Foglio produzione: toggle "Solo compilati", ripeti settimana scorsa, drilldown gusto con sparkline 90 giorni, KPI banner, alert rimanenza, sort
+- [x] Colonne totali uniformi nelle 3 viste (Settimana/Mese/Storico) con sticky-right
+- [x] Rimosse 519 righe di codice import legacy
+
 ### Deploy
 - [x] Vercel deploy manuale (`vercel --prod`) funzionante
 - [x] GitHub → Vercel autodeploy connesso e funzionante (verificato)
@@ -299,7 +318,16 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 
 ### Operativo / DB
 
-1. **Fix profilo utente `7aebcbe5-2b75-4a82-a1ec-9418433f7379`** — da eseguire su Supabase SQL editor:
+0. **Verificare la migration `20260904_storico_inventario_rpc` in prod** — indice
+   `idx_inv_prod_org_sede_data` + RPC `storico_inventario_per_mese`. Senza, lo
+   Storico inventario "Tutte le sedi" ricade sul fetch grezzo paginato e diventa
+   lento oltre le decine di migliaia di righe. Lancia `CHECK_MIGRATIONS_STATO.sql`
+   dal SQL Editor Supabase: dice da solo se e' applicata.
+
+1. **Fix profilo utente `7aebcbe5-2b75-4a82-a1ec-9418433f7379`** — voce aperta da
+   maggio, con ogni probabilita' gia' superata. Esegui prima il controllo
+   preventivo qui sotto: se ritorna una riga, cancella questa voce dal documento.
+   Da eseguire su Supabase SQL editor:
    ```sql
    INSERT INTO public.profiles (id, organization_id, email, ruolo, approvato)
    SELECT u.id, o.id, u.email, 'titolare', false
@@ -322,8 +350,10 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 3. **Approvazione admin** — il pannello admin ha già i bottoni, ma il workflow di notifica email all'admin quando si registra un nuovo utente non è completo
 4. **Piano Chain — gate feature premium** — sedi illimitate sono ora in tutti i piani. Da implementare: gate su utenti multipli, API access, white-label per il piano Chain (vedi sezione Piani)
 5. **Mobile responsive** — perfezionamenti residui (la maggior parte delle view usa già `useIsMobile`, ma alcune sezioni di Dashboard.jsx vanno ancora rifinite)
-6. **Dependabot triage** — 4 PR aperte (patch-deps, recharts 3.8.1, resend 6.12.3, supabase-js 2.106.1). Da valutare almeno supabase-js e resend che toccano integrazioni live.
-7. **Refactoring `Dashboard.jsx`** — monolitico ~6700 righe, in scorporo progressivo verso `src/views/` (es. `ChiusuraView.jsx` già estratta).
+6. **Dependabot triage** — elenco non verificato dal 31/05 (`gh` non è installato sulla macchina, controlla dal sito). `npm install` del 7/09 segnala vulnerabilità: lancia `npm audit` per il dettaglio. Da valutare con priorità `supabase-js` e `resend`, che toccano integrazioni live.
+7. **Refactoring `Dashboard.jsx`** — sceso da ~6700 a 3488 righe, scorporo verso `src/views/` ben avviato (32 view estratte). Resta layout + sidebar + switch view.
+8. **Import wizard v2** — le entità coperte sono `fornitori` e `dipendenti`. Da estendere a `ricettario`, `magazzino`, `chiusure` (richiedono adapter dedicati, vedi `scripts/README-import.md`). Limite noto v1: nessun upsert sulle anagrafiche, rilanciare un import raddoppia le righe (l'upsert per mese/anno esiste solo sulla produzione, commit `1495e76`).
+9. **Ripristinare le soglie coverage vitest** — abbassate a lines 30 / functions 50 / statements 30 / branches 60 quando il coverage ha iniziato a includere `src/components` e `src/views`. Risalire a 70/80/70/75 man mano che arrivano test mirati per view.
 
 ---
 
@@ -347,14 +377,20 @@ vercel --prod --yes 2>&1 | tail -5
 
 ## 🐛 Bug Noti
 
-- **Duplicate key warnings** nel build: oggetto prezzi ingredienti in Dashboard.jsx ha alcune chiavi duplicate (es. "philadelphia", "cream cheese"). Non bloccante, solo warning.
-- **Git author non configurato**: `git config --global user.name` e `user.email` non impostati — i commit mostrano il hostname invece del nome reale.
+- **Duplicate key warnings** nel build: oggetto prezzi ingredienti in Dashboard.jsx ha alcune chiavi duplicate (es. "philadelphia", "cream cheese"). Non bloccante, solo warning. Da riverificare dopo lo scorporo delle view.
+- ~~Git author non configurato~~ → risolto, i commit sono firmati `Alessandro Ronchi <alessandroar@maradeiboschi.com>`.
+
+### Risolti il 7 set 2026
+
+- **P&L andava in ReferenceError con metodo inventario** (`src/views/PLView.jsx`): la useEffect passava `{ dataFrom, dataTo }` in shorthand, ma le variabili di stato si chiamano `dateFrom`/`dateTo`. Colpiva esattamente le gelaterie con `metodo_produzione = 'inventario'`, cioe' il design partner. Trovato da ESLint (`no-undef`), non da un test.
+- **Suite di test rossa su `main`**: il mock Supabase di `tests/unit/inventarioProduzioneExt.test.js` non era stato aggiornato quando il 4/09 e' arrivata la paginazione (`.order().range()`).
+- **Pre-push hook mai installato**: `package.json` non aveva lo script `postinstall` che `scripts/install-hooks.sh` dichiara di avere. Senza gate, i due bug qui sopra sono finiti su `main`. Ripristinato, e il lint del hook ora copre anche `api/` (non solo `src/`).
 
 ---
 
 ## 📝 Note Architetturali
 
-- `Dashboard.jsx` è monolitico (~6700 righe). Tutti i sub-componenti (`MagazzinoView`, `ImpostazioniView`, `PLView`, ecc.) sono definiti nello stesso file. Funziona ma rende difficile la navigazione.
-- Il modello di storage usa variabili di modulo (`_ctx_orgId`, `_ctx_sedeId`) per evitare prop drilling. Queste vengono aggiornate a ogni render di Dashboard (righe 6487-6488).
+- `Dashboard.jsx` non è più monolitico: **3488 righe** (era ~6700). Le view sono state scorporate in `src/views/*.jsx` (32 file: `MagazzinoView`, `PLView`, `ChiusuraView`, `StoricoProduzioneView`, ecc.). Nel file restano layout, sidebar e switch delle view. Lo scorporo prosegue.
+- Il modello di storage usa variabili di modulo (`_ctx_orgId`, `_ctx_sedeId`) per evitare prop drilling. Vengono aggiornate a ogni render di Dashboard — cerca `_ctx_orgId =` invece di affidarti al numero di riga.
 - Il pannello admin (`AdminPage.jsx`) usa `/api/admin` che legge da Supabase lato server con service key.
 - Il reset password intercetta l'evento `PASSWORD_RECOVERY` in `App.jsx` (non in `AuthPage`) per gestire correttamente il caso in cui Supabase crea una sessione recovery prima che l'utente veda il form.

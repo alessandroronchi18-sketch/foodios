@@ -3,19 +3,28 @@
 > Questo documento elenca **solo le azioni che richiedono chiavi/account esterni, decisioni umane, soldi o tempo offline**.
 > Il codice e' allineato; gli step elencati qui non sono dentro git per loro natura.
 >
-> Aggiornato: **2026-06-22** dopo sess. audit 1/2/3/4.
+> Aggiornato: **2026-09-07**.
 
 ---
 
-## STATO DEPLOY (22 giu 2026)
+## STATO DEPLOY (7 set 2026)
 
 - Vercel **Pro** attivo. Autodeploy su push a `main` (~1-2 min).
-- Prod live: `foodos-rose.vercel.app` allineata a `main` HEAD `a482316`.
-- **Test suite 1296/1297 verdi** (71 file, 52s) — ESLint clean.
+- Prod live: `foodos-rose.vercel.app` (risponde 200), allineata a `main` HEAD `49c683a` del 4 set.
+- **Test suite 1511/1511 verdi** (87 file, 46s) — ESLint pulito su `src/` e `api/`, build Vite 20s.
 - **Lighthouse CI** attivo (su PR + cron settimanale lunedi 08:00).
-- Migration applicate in prod Supabase **fino a 20260707_plan_pricing_meta** (incluse: PIN lockout, push subs, RPC pin_status, email_blocklist, manual_approval_gate, ai_credit_packs, plan_pricing_meta).
+- Migration presenti in repo fino a **20260904_storico_inventario_rpc**.
+  Verificate applicate in prod fino a **20260901_import_mappings_library** (check del 1 set).
+  **La 20260904 non risulta ancora verificata**: lanciare `CHECK_MIGRATIONS_STATO.sql`
+  dal SQL Editor Supabase prima di considerare lo Storico multi-sede affidabile.
 - Env vars Vercel attive: VAPID×3, VITE_VAPID_PUBLIC_KEY, INTERNAL_SECRET, ADMIN_PROD_MFA_BYPASS (temporaneo).
 - Pricing 3-tier configurato: **Bottega €69 · Maestro €149 · Insegna €399**.
+
+### Nota su dove si lavora
+
+Esistono due copie del repo sul Mac. Quella buona e' **`/Users/aler/foodos`**
+(branch `main`, allineata a `origin/main`). La copia in `~/Desktop/foodos` e'
+ferma al 1 set, sta dentro iCloud Drive (git lentissimo) e va ignorata.
 
 ---
 

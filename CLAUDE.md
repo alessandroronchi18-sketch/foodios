@@ -64,7 +64,7 @@ Esempio: `ProduzioneGiornalieraView.handleConferma` (riga ~100).
 | File | Ruolo |
 |---|---|
 | `src/App.jsx` | Router minimale (path-based) + auth gating |
-| `src/Dashboard.jsx` | Layout principale (~2400 righe), sidebar, switch view |
+| `src/Dashboard.jsx` | Layout principale (~3500 righe), sidebar, switch view |
 | `src/auth/useAuth.js` | Hook auth (user, org, sedi, sedeAttiva) |
 | `src/auth/AuthPage.jsx` | Login + registrazione 2 step |
 | `src/admin/AdminPage.jsx` | Pannello admin (solo `VITE_ADMIN_EMAIL`) |
@@ -148,15 +148,27 @@ vercel dev                  # avvia anche le edge functions su :3000
 ## Test
 
 ```bash
-npm run test:e2e          # Playwright e2e (auth, signup, ricettario, food cost, chiusura)
+npm test                  # unit (vitest): 87 file, 1511 test, ~50s
+npm run test:coverage     # con coverage
+npm run test:e2e          # Playwright e2e (13 spec)
 npm run test:e2e:install  # installa Chromium (prima volta)
 npm run test:e2e:ui       # apre la UI di Playwright per debug
 ```
 
-Coverage attuale ~5% (5 spec). **Priorita' test da scrivere**:
-1. RLS isolation (cliente A non vede dati cliente B)
-2. Stock PF (carico produzione + scarico vendita)
-3. Stripe webhook (subscription lifecycle)
+**I test unitari richiedono le env Vite.** Senza `.env.local` (o senza
+`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` esportate) 5 file falliscono
+all'import con un errore fuorviante che non c'entra col test. Valori fittizi
+bastano:
+
+```bash
+VITE_SUPABASE_URL=https://test.supabase.co VITE_SUPABASE_ANON_KEY=test npm test
+```
+
+Le tre priorita' storiche (RLS isolation, Stock PF, Stripe webhook) sono coperte:
+`tests/06-rls-isolation.spec.js`, `08-stock-pf.spec.js`, `07-stripe-webhook.spec.js`.
+
+Soglie coverage attualmente abbassate (lines 30 / functions 50 / statements 30 /
+branches 60) da quando il calcolo include `src/components` e `src/views`.
 
 ---
 
