@@ -35,6 +35,10 @@ import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 import { useIsTablet } from '../lib/useIsMobile'
 import { giorniConProduzione } from '../lib/inventarioProduzione'
+import {
+  caricaRegoleChiusura, giornoChiuso, motivoChiusura, regolaInVigore,
+  impostaChiusuraRicorrente, aggiungiPeriodoChiuso, rimuoviPeriodiCheCoprono,
+} from '../lib/giorniChiusura'
 
 const GIORNI  = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
 const MESI    = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
@@ -67,13 +71,6 @@ const STATUS = {
 
 function toISO(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-}
-
-// Giorno della settimana in numerazione ISO: 1 = lunedi ... 7 = domenica.
-// Corrisponde a organizations.giorni_chiusura.
-function isoWeekday(d) {
-  const js = d.getDay()          // 0 = domenica
-  return js === 0 ? 7 : js
 }
 
 function buildGrid(anno, mese) {
@@ -113,33 +110,42 @@ export default function CalendarioOperativo({
   const [notaEdit, setNotaEdit] = useState('')
   const [savingNota, setSavingNota] = useState(false)
   const [noteErr, setNoteErr] = useState(false)
-  const [giorniChiusura, setGiorniChiusura] = useState([])   // ISO 1..7
   const [apriChiusure, setApriChiusure] = useState(false)
   const [savingChiusure, setSavingChiusure] = useState(false)
   const [prodInventario, setProdInventario] = useState(null) // Set di date, o null
 
   const isMetodoInventario = metodoProduzione === 'inventario'
 
-  // ── giorni di chiusura ricorrenti dell'organizzazione ───────────────────
-  useEffect(() => {
-    if (!orgId) return
-    let vivo = true
-    supabase.from('organizations').select('giorni_chiusura').eq('id', orgId).maybeSingle()
-      .then(({ data }) => { if (vivo && data) setGiorniChiusura(data.giorni_chiusura || []) })
-    return () => { vivo = false }
-  }, [orgId])
+  // ── regole di chiusura: ricorrenti con validità + intervalli ────────────
+  const [regole, setRegole] = useState({ ricorrenti: [], periodi: [] })
 
+  const ricaricaRegole = useCallback(async () => {
+    if (!orgId) return
+    const r = await caricaRegoleChiusura(orgId, sedeId)
+    setRegole(r)
+  }, [orgId, sedeId])
+
+  useEffect(() => { ricaricaRegole() }, [ricaricaRegole])
+
+  // I giorni della settimana attualmente in vigore, per i pulsanti.
+  const giorniChiusura = useMemo(
+    () => regolaInVigore(regole.ricorrenti, oggiStr)?.giorni || [],
+    [regole.ricorrenti, oggiStr])
+
+  // Cambiare abitudine vale DA OGGI IN POI. Il passato resta com'era: se
+  // d'inverno chiudevi il lunedì e da giugno no, i lunedì di gennaio devono
+  // continuare a risultare chiusi.
   const salvaGiorniChiusura = async (nuovi) => {
-    const prima = giorniChiusura
-    setGiorniChiusura(nuovi)          // ottimistico: il toggle deve rispondere subito
     setSavingChiusure(true)
-    const { error } = await supabase.from('organizations')
-      .update({ giorni_chiusura: nuovi }).eq('id', orgId)
-    setSavingChiusure(false)
-    if (error) {
-      setGiorniChiusura(prima)        // rollback: lo schermo non deve mentire
-      notify?.('Non riesco a salvare i giorni di chiusura. Riprova.', false)
-    }
+    try {
+      await impostaChiusuraRicorrente(orgId, sedeId, nuovi, oggiStr)
+      await ricaricaRegole()
+      notify?.(nuovi.length
+        ? `Da oggi risulti chiuso il ${nuovi.slice().sort((a,b)=>a-b).map(n => GIORNI[n-1]).join(', ')}. I mesi passati restano come erano.`
+        : 'Da oggi non risulti più chiuso in nessun giorno fisso.')
+    } catch (e) {
+      notify?.(`Non riesco a salvare i giorni di chiusura: ${e.message}`, false)
+    } finally { setSavingChiusure(false) }
   }
 
   // ── produzione: la fonte dipende dal metodo dell'organizzazione ─────────
@@ -196,11 +202,8 @@ export default function CalendarioOperativo({
   }, [isMetodoInventario, prodInventario, prodMap, isDipendente, oggiStr])
 
   // ── chiusure: ricorrenti (settimanali) + straordinarie (sul giorno) ─────
-  const isChiuso = useCallback((k) => {
-    if (note[k]?.chiuso) return true
-    const d = new Date(k + 'T12:00')
-    return giorniChiusura.includes(isoWeekday(d))
-  }, [note, giorniChiusura])
+  const isChiuso = useCallback((k) => giornoChiuso(k, regole), [regole])
+  const perchéChiuso = useCallback((k) => motivoChiusura(k, regole), [regole])
 
   // ── note del mese visibile ──────────────────────────────────────────────
   // Il filtro sede va applicato anche in LETTURA: prima si leggeva per sola
@@ -213,7 +216,7 @@ export default function CalendarioOperativo({
     const mia = ++richiestaNote.current
     setNote({})   // il mese nuovo non deve mostrare le note del mese prima
     let q = supabase.from('note_giornaliere')
-      .select('data, nota, chiuso')
+      .select('data, nota')
       .eq('organization_id', orgId)
       .gte('data', meseDa).lte('data', meseA)
     q = sedeId ? q.eq('sede_id', sedeId) : q.is('sede_id', null)
@@ -223,7 +226,7 @@ export default function CalendarioOperativo({
       if (mia !== richiestaNote.current) return
       if (error) { setNoteErr(true); return }
       const map = {}
-      for (const n of (data || [])) map[n.data] = { nota: n.nota || '', chiuso: !!n.chiuso }
+      for (const n of (data || [])) map[n.data] = { nota: n.nota || '' }
       setNote(map)
     })
   }, [orgId, sedeId, meseDa, meseA])
@@ -294,8 +297,24 @@ export default function CalendarioOperativo({
     })
   }, [note])
 
-  // ── salvataggio nota / chiusura straordinaria ───────────────────────────
-  const scriviGiorno = async (patch) => {
+  // ── chiusura del singolo giorno ─────────────────────────────────────────
+  // Un giorno solo è un intervallo che comincia e finisce lo stesso giorno:
+  // stesso meccanismo delle ferie, nessun terzo modo di dire la stessa cosa.
+  const cambiaChiusuraGiorno = async (chiudi) => {
+    if (!orgId || !sel) return
+    setSavingNota(true)
+    try {
+      if (chiudi) await aggiungiPeriodoChiuso(orgId, sedeId, sel, sel, null)
+      else        await rimuoviPeriodiCheCoprono(orgId, sedeId, sel)
+      await ricaricaRegole()
+      notify?.(chiudi ? 'Giorno segnato come chiusura' : 'Giorno riaperto')
+    } catch (e) {
+      notify?.(`Non riesco a salvare: ${e.message}`, false)
+    } finally { setSavingNota(false) }
+  }
+
+  // ── salvataggio nota ────────────────────────────────────────────────────
+  const salvaNota = async (testo) => {
     if (!orgId || !sel) return
     setSavingNota(true)
     try {
@@ -303,23 +322,14 @@ export default function CalendarioOperativo({
         .select('id').eq('organization_id', orgId).eq('data', sel)
       if (sedeId) q.eq('sede_id', sedeId); else q.is('sede_id', null)
       const { data: ex } = await q.maybeSingle()
-
-      const attuale = note[sel] || { nota: '', chiuso: false }
-      const payload = {
-        organization_id: orgId, sede_id: sedeId || null, data: sel,
-        nota: patch.nota !== undefined ? (patch.nota.trim() || null) : (attuale.nota || null),
-        chiuso: patch.chiuso !== undefined ? patch.chiuso : attuale.chiuso,
-      }
+      const nota = (testo || '').trim() || null
       const { error } = ex
-        ? await supabase.from('note_giornaliere')
-            .update({ nota: payload.nota, chiuso: payload.chiuso }).eq('id', ex.id)
-        : await supabase.from('note_giornaliere').insert(payload)
+        ? await supabase.from('note_giornaliere').update({ nota }).eq('id', ex.id)
+        : await supabase.from('note_giornaliere')
+            .insert({ organization_id: orgId, sede_id: sedeId || null, data: sel, nota })
       if (error) throw error
-
-      setNote(prev => ({ ...prev, [sel]: { nota: payload.nota || '', chiuso: payload.chiuso } }))
-      notify?.(patch.chiuso !== undefined
-        ? (patch.chiuso ? 'Giorno segnato come chiuso' : 'Giorno riaperto')
-        : 'Nota salvata')
+      setNote(prev => ({ ...prev, [sel]: { nota: nota || '' } }))
+      notify?.('Nota salvata')
     } catch (e) {
       notify?.(e.message, false)
     } finally { setSavingNota(false) }
@@ -456,10 +466,35 @@ export default function CalendarioOperativo({
           </div>
         )}
 
+        {/* Con il metodo inventario il venduto si ricava dalle giacenze, quindi
+            la cassa non serve per sapere cosa è uscito. Serve per una cosa
+            sola, ma non banale: confrontare i soldi entrati con la merce
+            uscita. Lo diciamo come opportunità, non come colpa. */}
+        {!cassaRichiesta && !selDetail.isChiuso && !selDetail.isFuture && selDetail.haProd && !isDipendente && (
+          <div style={{
+            fontSize: FS.small, color: T.textMid, background: T.bgSubtle,
+            borderRadius: 10, padding: '9px 11px', marginBottom: 12, lineHeight: 1.5,
+          }}>
+            Registrando anche la cassa potresti confrontare l&apos;incasso con la merce
+            uscita dalle vaschette, e accorgerti degli scostamenti.
+          </div>
+        )}
+
+        {/* Perché questo giorno risulta chiuso: senza spiegazione l'utente non
+            capisce se l'ha deciso lui o se se l'è inventato il programma. */}
+        {selDetail.isChiuso && perchéChiuso(sel) && (
+          <div style={{
+            fontSize: FS.small, color: T.textMid, background: T.bgSubtle,
+            borderRadius: 10, padding: '9px 11px', marginBottom: 12, lineHeight: 1.5,
+          }}>
+            Risulta chiuso: {perchéChiuso(sel)}.
+          </div>
+        )}
+
         {/* Chiusura straordinaria: solo su giorni non futuri e solo per il titolare. */}
-        {!isDipendente && !selDetail.isFuture && !noteErr && (
+        {!isDipendente && (
           <button
-            onClick={() => scriviGiorno({ chiuso: !(note[sel]?.chiuso) })}
+            onClick={() => cambiaChiusuraGiorno(!selDetail.isChiuso)}
             disabled={savingNota}
             style={{
               width: '100%', marginBottom: 14, padding: '9px 12px', minHeight: 40,
@@ -467,8 +502,10 @@ export default function CalendarioOperativo({
               border: `1px solid ${T.border}`, background: T.bgSubtle, color: T.textMid,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
             }}>
-            <Icon name={note[sel]?.chiuso ? 'checkCircle' : 'clock'} size={14} />
-            {note[sel]?.chiuso ? 'Eravamo aperti, riapri il giorno' : 'Eravamo chiusi questo giorno'}
+            <Icon name={selDetail.isChiuso ? 'checkCircle' : 'clock'} size={14} />
+            {selDetail.isChiuso
+              ? 'Togli la chiusura: eravamo aperti'
+              : 'Segna questo giorno come chiusura'}
           </button>
         )}
 
@@ -496,7 +533,7 @@ export default function CalendarioOperativo({
                 }}
               />
               <button
-                onClick={() => scriviGiorno({ nota: notaEdit })}
+                onClick={() => salvaNota(notaEdit)}
                 disabled={savingNota || notaEdit === (note[sel]?.nota || '')}
                 style={{
                   marginTop: 8, width: '100%', padding: '10px 0', minHeight: 40,
@@ -528,7 +565,7 @@ export default function CalendarioOperativo({
           <Kpi icon="checkCircle" label={`Giorni completi · ${MESI[mese]}`}
             value={`${diag.completi}/${diag.totPassati}`} color={T.text}
             sub={diag.totPassati > 0
-              ? `produzione + cassa${diag.chiusi ? ` · ${diag.chiusi} gg di chiusura esclusi` : ''}`
+              ? `${cassaRichiesta ? 'produzione + cassa' : 'contati sulla produzione'}${diag.chiusi ? ` · ${diag.chiusi} gg di chiusura esclusi` : ''}`
               : 'nessun giorno da registrare'} />
           <Kpi icon="barChart" label="Copertura mese" value={`${diag.pct}%`} color={semaforo}
             sub={diag.pct >= 80 ? 'sotto controllo' : diag.pct >= 50 ? 'da migliorare' : 'molti giorni scoperti'}
@@ -788,8 +825,31 @@ export default function CalendarioOperativo({
           </div>
         </div>
 
-        {/* ── ③ DETTAGLIO GIORNO (desktop a fianco; su mobile è già inline) ── */}
-        {!isMobile && renderDetail(false)}
+        {/* ── ③ DETTAGLIO GIORNO ─────────────────────────────────────────────
+            Su desktop la colonna è SEMPRE presente, anche vuota. Prima
+            compariva solo al clic e la griglia si restringeva di colpo: le
+            caselle cambiavano dimensione sotto il dito e si perdeva il punto in
+            cui si stava guardando. Riservare lo spazio costa una colonna e
+            tiene il calendario immobile.
+            Su tablet il layout è a colonne, quindi il problema non si pone.
+            Su mobile il dettaglio è già inline sotto la card toccata. */}
+        {!isMobile && !isTablet && (
+          <div style={{ width: 288, flexShrink: 0 }}>
+            {sel ? renderDetail(false) : (
+              <div style={{
+                background: T.bgCard, border: `1px dashed ${T.border}`, borderRadius: 16,
+                padding: '28px 20px', textAlign: 'center', color: T.textSoft,
+                position: 'sticky', top: 24,
+              }}>
+                <Icon name="calendar" size={22} />
+                <div style={{ fontSize: FS.small, marginTop: 9, lineHeight: 1.5 }}>
+                  Scegli un giorno per vedere cosa è stato registrato e lasciare una nota.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {isTablet && !isMobile && renderDetail(false)}
 
       </div>
 
