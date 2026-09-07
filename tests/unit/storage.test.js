@@ -19,10 +19,16 @@ import {
   sload, ssave, ssaveBatch,
   sloadWithVersion, ssaveVersioned,
   sloadAllSedi, sdelete,
+  _resetVersions,
 } from '../../src/lib/storage.js'
 import { supabase } from '../../src/lib/supabase'
 
 beforeEach(() => {
+  // storage.js tiene una mappa di modulo con le version lette da sload, usata
+  // da ssave per l'optimistic concurrency. Sopravvive fra un test e l'altro,
+  // quindi va azzerata: senza, un sload di un test precedente manderebbe
+  // l'ssave di questo sul percorso versionato e il conflitto sarebbe finto.
+  _resetVersions()
   supabase.from.mockReset()
   supabase.rpc.mockReset()
   // Default chain (vuoto, no error) per gli scenari "happy path".

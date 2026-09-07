@@ -68,6 +68,55 @@ async function withRetry(fn, { attempts = 3, baseDelayMs = 300 } = {}) {
   throw lastErr
 }
 
+// ─── Optimistic concurrency ────────────────────────────────────────────────
+//
+// Problema: due utenti della stessa organizzazione (tipico: il titolare sul
+// portatile e il dipendente sul tablet in laboratorio) aprono la stessa
+// chiave, la modificano e salvano. Chi salva per secondo sovrascriveva il
+// lavoro del primo SENZA alcun errore: perdita di dati silenziosa.
+//
+// Come funziona ora. Ogni sload memorizza la version letta. Il successivo
+// ssave la passa alla RPC user_data_set_versioned, che aggiorna solo se nel
+// frattempo nessun altro ha scritto. Se qualcuno ha scritto, ssave lancia
+// ConcurrentEditError invece di sovrascrivere.
+//
+// Perché non serve toccare i 49 callsite: seguono tutti il pattern
+// "await ssave() PRIMA di setState, su errore notify e niente mutazione".
+// Un throw quindi mostra già il messaggio giusto e lascia lo stato intatto.
+//
+// La mappa e' a livello di modulo, quindi condivisa da tutti i componenti:
+// se un componente salva, gli altri vedono subito la version nuova e non si
+// generano falsi conflitti dentro la stessa scheda del browser.
+//
+// Il contatore avanza a ogni scrittura grazie al trigger di database
+// trg_user_data_bump_version (migration 20260907), anche per i percorsi che
+// non passano da qui.
+const _versions = new Map()
+const _vkey = (key, orgId, sedeId) => `${orgId}|${key}|${sedeId ?? 'shared'}`
+
+/** Errore lanciato quando un altro utente ha scritto mentre modificavi. */
+export class ConcurrentEditError extends Error {
+  constructor(key) {
+    super('Qualcun altro ha modificato questi dati mentre li stavi cambiando. Ricarica la pagina e rifai la modifica, cosi non cancelli il suo lavoro.')
+    this.name = 'ConcurrentEditError'
+    this.code = 'CONCURRENT_EDIT'
+    this.dataKey = key
+  }
+}
+
+/** Dimentica la version di una chiave: il prossimo salvataggio non la usera'. */
+function forgetVersion(key, orgId, sedeId) {
+  _versions.delete(_vkey(key, orgId, sedeId))
+}
+
+// Esposte per i test: permettono di ispezionare e azzerare il tracciamento.
+export function _peekVersion(key, orgId, sedeId) {
+  return _versions.get(_vkey(key, orgId, sedeId))
+}
+export function _resetVersions() {
+  _versions.clear()
+}
+
 export async function sload(key, orgId, sedeId) {
   if (!orgId) return null
   const isShared = SHARED_KEYS.includes(key)
@@ -77,7 +126,7 @@ export async function sload(key, orgId, sedeId) {
   return await withRetry(async () => {
     let q = supabase
       .from('user_data')
-      .select('data_value, updated_at')
+      .select('data_value, updated_at, version')
       .eq('organization_id', orgId)
       .eq('data_key', key)
     q = applySedeFilter(q, effectiveSedeId)
@@ -91,7 +140,10 @@ export async function sload(key, orgId, sedeId) {
       e.code = error.code; e.status = error.status
       throw e
     }
-    return data?.[0]?.data_value ?? null
+    const row = data?.[0]
+    if (row) _versions.set(_vkey(key, orgId, effectiveSedeId), row.version || 0)
+    else forgetVersion(key, orgId, effectiveSedeId)
+    return row?.data_value ?? null
   }).catch(() => null)
 }
 
@@ -103,6 +155,30 @@ export async function ssave(key, value, orgId, sedeId) {
   }
   const isShared = SHARED_KEYS.includes(key)
   const effectiveSedeId = isShared ? null : (sedeId || null)
+
+  // Percorso protetto. Se sappiamo da quale version siamo partiti (cioe' se
+  // questa chiave e' stata caricata con sload), scriviamo tramite la RPC che
+  // aggiorna SOLO se nessun altro ha toccato la riga nel frattempo. Se
+  // qualcuno l'ha toccata lanciamo, invece di sovrascrivere in silenzio.
+  //
+  // Se la version non e' nota si resta sul percorso semplice qui sotto: e' il
+  // caso dei salvataggi che non sono preceduti da una lettura, dove non
+  // avremmo comunque niente da confrontare.
+  const vk = _vkey(key, orgId, effectiveSedeId)
+  const knownVersion = _versions.get(vk)
+  if (knownVersion !== undefined) {
+    // Il mismatch NON e' un errore transient (la RPC ritorna null, non lancia),
+    // quindi withRetry non lo ritenta: ritenta solo i problemi di rete.
+    const newVersion = await withRetry(() =>
+      ssaveVersioned(key, value, orgId, effectiveSedeId, knownVersion))
+    if (newVersion == null) {
+      _versions.delete(vk)
+      throw new ConcurrentEditError(key)
+    }
+    _versions.set(vk, newVersion)
+    return
+  }
+
   const payload = { organization_id: orgId, sede_id: effectiveSedeId, data_key: key, data_value: value, updated_at: new Date().toISOString() }
 
   // Strategia: SELECT id esistenti → UPDATE su tutti, oppure INSERT se non esiste.
@@ -190,6 +266,11 @@ export async function ssaveBatch(items, orgId, sedeId) {
       e.code = error.code; e.status = error.status
       throw e
     }
+    // Il batch scrive senza controllo di version, e il trigger di database ha
+    // comunque fatto avanzare il contatore. Le version che avevamo in mano
+    // sono quindi vecchie: le dimentichiamo, così il prossimo ssave non
+    // segnala un conflitto che non c'e'. Il prossimo sload le riallinea.
+    for (const it of p_items) forgetVersion(it.data_key, orgId, it.sede_id)
   })
 }
 
@@ -211,7 +292,11 @@ export async function sloadWithVersion(key, orgId, sedeId) {
     .eq('data_key', key)
   q = applySedeFilter(q, effectiveSedeId)
   const { data, error } = await q.maybeSingle()
-  if (error || !data) return { value: null, version: 0 }
+  if (error || !data) {
+    forgetVersion(key, orgId, effectiveSedeId)
+    return { value: null, version: 0 }
+  }
+  _versions.set(_vkey(key, orgId, effectiveSedeId), data.version || 0)
   return { value: data.data_value, version: data.version || 0 }
 }
 
