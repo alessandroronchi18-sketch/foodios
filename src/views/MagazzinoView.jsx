@@ -26,6 +26,20 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 // ─── KPI Card (interna al modulo) ────────────────────────────────────────────
 // Look premium coerente con la Dashboard home: chip icona 36px, decoro radiale,
 // accento colore, raggio 18.
+// ── Nota sulla scala dei testi (7/09/2026) ──────────────────────────────────
+//
+// Questa pagina aveva 51 testi sotto i 12px: sei a 8px, dodici a 9, otto a 10.
+// La stessa bonifica era già stata fatta su Chiusura e Calendario, con la
+// motivazione che vale identica qui: su un gestionale che useranno proprietari
+// di sessant'anni, dietro il banco o in laboratorio, sotto i 12px non si
+// legge. Otto pixel non è testo piccolo: è testo che nessuno leggerà.
+//
+// Alzati a 11 (le micro-etichette in maiuscoletto spaziato, che sono
+// `typo.caption`) e a 12 il testo che e' contenuto e non etichetta — la
+// pillola di stato per prima. Restano da alzare i 10 e gli 11 residui: si
+// tocca la larghezza delle colonne di una tabella a nove colonne, quindi vale
+// la pena farlo insieme a una revisione della tabella, non di soppiatto.
+
 function KPI({ label, value, sub, color, highlight, icon }) {
   const accent = color || T.brand
   const chipBg = highlight ? 'rgba(255,255,255,0.14)' : `${accent}1F`
@@ -192,7 +206,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 {[LEX.Prodotto, 'Disponibili', 'Soglia', 'Aggiornato', ''].map((h, i) => (
-                  <th key={i} style={{ padding: '10px 14px', textAlign: i === 1 || i === 2 ? 'right' : 'left', fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                  <th key={i} style={{ padding: '10px 14px', textAlign: i === 1 || i === 2 ? 'right' : 'left', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -271,13 +285,13 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="warning" size={18} />Registra scarto</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>{LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong></p>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Quantità scartata (pz)</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Quantità scartata (pz)</div>
               <input type="number" inputMode="decimal" min="0" step="1" value={scartoForm.qty}
                 onChange={e => setScartoForm(f => ({ ...f, qty: parseFloat(e.target.value) || 0 }))}
                 style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
             </div>
             <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Motivo (opzionale)</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Motivo (opzionale)</div>
               <input value={scartoForm.note}
                 onChange={e => setScartoForm(f => ({ ...f, note: e.target.value }))}
                 placeholder="es. caduti per terra, scaduti, dati a omaggio"
@@ -386,7 +400,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                 <thead>
                   <tr>
                     {['Data', 'Ingrediente', 'Vecchio', 'Nuovo', 'Δ'].map((h, i) => (
-                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 2 ? 'right' : 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
+                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 2 ? 'right' : 'left', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -399,7 +413,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                       <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>€ {(l.prezzoNuovo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</td>
                       <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: l.delta > 0 ? C.red : C.green, ...TNUM }}>
                         {l.delta > 0 ? '+' : ''}{l.delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        {l.deltaPct != null && <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.7 }}>({l.deltaPct > 0 ? '+' : ''}{l.deltaPct.toFixed(1)}%)</span>}
+                        {l.deltaPct != null && <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.7 }}>({l.deltaPct > 0 ? '+' : ''}{l.deltaPct.toFixed(1)}%)</span>}
                       </td>
                     </tr>
                   ))}
@@ -415,9 +429,9 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 480 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
-                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Prezzo €/kg</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, width: 140 }}>Azioni</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Prezzo €/kg</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, width: 140 }}>Azioni</th>
               </tr>
             </thead>
             <tbody>
@@ -436,7 +450,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                           lunghezza del nome. */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ minWidth: 180, display: 'inline-block' }}>{row.nome}</span>
-                        {!row.haPrezzo && <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: C.amberLight, color: C.amber, fontWeight: 700, whiteSpace: 'nowrap' }}>Prezzo da impostare</span>}
+                        {!row.haPrezzo && <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: C.amberLight, color: C.amber, fontWeight: 700, whiteSpace: 'nowrap' }}>Prezzo da impostare</span>}
                       </div>
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>
@@ -605,7 +619,13 @@ export default function MagazzinoView({
   const handleDeleteIng = async (k) => {
     if (saving) return // evita doppia esecuzione su Enter+click
     const nm = { ...magazzino }
-    delete nm[k]
+    // Da quando le righe sono aggregate per chiave canonica, `k` è la chiave
+    // canonica: cancellare solo `nm[k]` lascerebbe in vita la voce salvata col
+    // nome vecchio ("uova" quando la riga si chiama "uovo") e l'ingrediente
+    // ricomparirebbe col suo stock al primo ricaricamento.
+    for (const raw of Object.keys(nm)) {
+      if (raw === k || normIng(raw) === k) delete nm[raw]
+    }
     const nuoviEsclusi = new Set(esclusi)
     nuoviEsclusi.add(k)
     // SAVE FIRST: muto lo state solo dopo che entrambe le scritture sono persistite,
@@ -626,14 +646,57 @@ export default function MagazzinoView({
     notify('✓ Ingrediente eliminato dal sistema')
   }
 
+  // ── Il magazzino, riaggregato per chiave canonica ─────────────────────────
+  //
+  // BUG in produzione, trovato il 7/09 e verificato sui dati reali.
+  //
+  // Le ricette passavano da `normIng`, il magazzino no. `normIng` porta i
+  // plurali al singolare — "uova" → "uovo", "nocciole" → "nocciola" — quindi
+  // l'unione dei due elenchi produceva DUE righe per lo stesso ingrediente:
+  // quella vera con la giacenza, sotto la chiave salvata, e un fantasma a
+  // "0,000 kg" marcato ESAURITO sotto la chiave canonica.
+  //
+  // Su "Gelateria Demo": 5 chiavi su 35 non canoniche (uova, noci, nocciole,
+  // mirtilli, mandorle) e le ricette che le usano al plurale. Quattro righe
+  // fantasma, il contatore "critici" che le contava, il banner rosso che si
+  // accendeva per merce che c'era in magazzino, e la lista di riordino che
+  // suggeriva di comprare uova già presenti.
+  //
+  // Terzo danno, meno visibile: `buildIngCosti` indicizza i prezzi con
+  // `normIng`, quindi la riga vera — chiave "uova" — non trovava il suo
+  // prezzo. Valore a colonna vuota e valore totale del magazzino sottostimato.
+  //
+  // Si aggrega in lettura invece di riscrivere il database: i dati storici di
+  // chiunque restano validi senza una migrazione, e le scritture nuove sono
+  // già canoniche (`handleCarica`, `handleAddIngrediente` e l'OCR passano
+  // tutte da `normIng`).
+  const magPerNorm = useMemo(() => {
+    const out = {}
+    for (const [raw, v] of Object.entries(magazzino || {})) {
+      const k = normIng(raw)
+      const acc = out[k] || { giacenza_g: 0, soglia_g: 0, nome: null, ultimoRifornimento: null, chiaviRaw: [] }
+      acc.giacenza_g += Number(v?.giacenza_g) || 0
+      // La soglia non si somma: è un livello, non una quantità.
+      acc.soglia_g = Math.max(acc.soglia_g, Number(v?.soglia_g) || 0)
+      // Come nome si preferisce quello scritto dall'utente, e fra due si tiene
+      // quello della chiave canonica.
+      if (!acc.nome || raw === k) acc.nome = v?.nome || raw
+      const u = v?.ultimoRifornimento
+      if (u && (!acc.ultimoRifornimento || String(u) > String(acc.ultimoRifornimento))) acc.ultimoRifornimento = u
+      acc.chiaviRaw.push(raw)
+      out[k] = acc
+    }
+    return out
+  }, [magazzino])
+
   const tuttiIngNomi = useMemo(() => {
     const fromRic = new Set()
     for (const ric of Object.values(ricettario?.ricette || {})) {
       for (const ing of (ric.ingredienti || [])) fromRic.add(normIng(ing.nome))
     }
-    const fromMag = new Set(Object.keys(magazzino || {}))
+    const fromMag = new Set(Object.keys(magPerNorm))
     return [...new Set([...fromRic, ...fromMag])].filter(k => !esclusi.has(k)).sort()
-  }, [ricettario, magazzino, esclusi])
+  }, [ricettario, magPerNorm, esclusi])
 
   const fabbisogno = useMemo(() => calcolaFabbisognoSettimana(ricettario, giornaliero), [ricettario, giornaliero])
 
@@ -646,7 +709,7 @@ export default function MagazzinoView({
   const GIORNI_TARGET = 14
 
   const righe = tuttiIngNomi.map(k => {
-    const m = magazzino?.[k] || {}
+    const m = magPerNorm[k] || {}
     const giacenza = m.giacenza_g || 0
     const soglia = m.soglia_g || 0
     const fabb = fabbisogno[k] || 0
@@ -661,16 +724,30 @@ export default function MagazzinoView({
     // Valore a magazzino: giacenza (g) × costo (€/g). costoG può mancare → 0.
     const costoG = ingCosti[k]?.costoG || 0
     const costoKg = ingCosti[k]?.costoKg || 0
+    // Se il prezzo non l'ha inserito l'utente, `buildIngCosti` ripiega su una
+    // stima HORECA. Finora la tabella mostrava le due cose allo stesso modo:
+    // il valore a magazzino mescolava prezzi veri e prezzi indovinati senza
+    // dirlo, e un numero inventato presentato come misurato e' peggio di un
+    // numero assente.
+    const prezzoStimato = !!ingCosti[k]?.isStima
     const valore = giacenza * costoG
     // Suggerimento riordino (g): copri GIORNI_TARGET di consumo + rispetta la soglia,
     // sottrai la giacenza. Se non c'è storico consumo usiamo la soglia come riferimento.
     const targetG = Math.max(consumoG * GIORNI_TARGET, soglia > 0 ? soglia * 1.5 : 0)
     const riordinoG = targetG > giacenza ? targetG - giacenza : 0
-    return { k, nome: m.nome || k, giacenza, soglia, fabb, consumoG, giorniScorta, stato, ultimoRif: m.ultimoRifornimento, valore, costoG, costoKg, riordinoG }
+    return { k, nome: m.nome || k, giacenza, soglia, fabb, consumoG, giorniScorta, stato, ultimoRif: m.ultimoRifornimento, valore, costoG, costoKg, prezzoStimato, riordinoG }
   })
 
   const critici = righe.filter(r => r.stato === 'critico' || r.stato === 'esaurito')
   const attenzione = righe.filter(r => r.stato === 'attenzione')
+  // Esaurito e sotto soglia non sono la stessa cosa, e trattarli uguale era il
+  // difetto: la pagina si apriva in allarme rosso perché qualche ingrediente
+  // aveva toccato la soglia di riordino. Ma toccare la soglia e' il sistema che
+  // funziona — la soglia esiste per dire "ordina" — mentre a zero non si
+  // produce. Un allarme che suona nella condizione normale di una cucina ben
+  // gestita insegna a spegnere l'allarme.
+  const esauriti = righe.filter(r => r.stato === 'esaurito')
+  const sottoSoglia = righe.filter(r => r.stato === 'critico')
 
   // ── Diagnosi aggregata (banda premium) ─────────────────────────────────────
   const valoreStock = righe.reduce((s, r) => s + (r.valore || 0), 0)
@@ -678,8 +755,11 @@ export default function MagazzinoView({
   const coperturaMedia = conCopertura.length > 0
     ? conCopertura.reduce((s, r) => s + r.giorniScorta, 0) / conCopertura.length
     : null
-  // Semaforo salute magazzino: rosso se ci sono critici, ambra se solo esaurimenti, verde altrimenti.
-  const salute = critici.length > 0 ? 'critico' : attenzione.length > 0 ? 'attenzione' : 'ok'
+  // Rosso SOLO per gli esauriti, che fermano la produzione. Sotto soglia e' una
+  // lista della spesa: informativa, non un allarme.
+  const salute = esauriti.length > 0 ? 'critico'
+    : (sottoSoglia.length > 0 || attenzione.length > 0) ? 'attenzione'
+    : 'ok'
 
   const handleCarica = async () => {
     if (saving) return
@@ -761,9 +841,17 @@ export default function MagazzinoView({
     setSaving(false)
   }
 
-  const statoColor = s => s === 'esaurito' ? C.red : s === 'critico' ? C.red : s === 'attenzione' ? C.amber : C.green
-  const statoBg = s => s === 'esaurito' ? C.redLight : s === 'critico' ? C.redLight : s === 'attenzione' ? C.amberLight : C.greenLight
-  const statoLabel = s => s === 'esaurito' ? 'Esaurito' : s === 'critico' ? 'Critico' : s === 'attenzione' ? 'Attenzione' : 'OK'
+  // Il rosso resta all'esaurito. "Da ordinare" prende l'ambra: va visto, non
+  // temuto. Prima erano lo stesso rosso, e con mezza dispensa sotto soglia la
+  // tabella diventava un muro d'allarme in cui l'unico ingrediente finito
+  // davvero non si distingueva più dagli altri.
+  const statoColor = s => s === 'esaurito' ? C.red : s === 'critico' ? C.amber : s === 'attenzione' ? C.textMid : C.green
+  const statoBg = s => s === 'esaurito' ? C.redLight : s === 'critico' ? C.amberLight : s === 'attenzione' ? C.bgSubtle : C.greenLight
+  // "Critico" per un ingrediente che ha toccato la soglia di riordino e' la
+  // parola sbagliata: la soglia esiste proprio per dire quando ordinare, e
+  // arrivarci non e' una crisi. "Da ordinare" dice la stessa cosa e dice anche
+  // cosa fare. "Esaurito" resta forte, perché a zero non si produce.
+  const statoLabel = s => s === 'esaurito' ? 'Esaurito' : s === 'critico' ? 'Da ordinare' : s === 'attenzione' ? 'In calo' : 'OK'
   // fmtG: rispetta unitMode utente. 'kg' -> sempre kg (anche piccoli, "0,80 kg").
   // 'g' -> sempre grammi (anche grandi, "28.000 g"). Niente piu mix.
   const fmtG = g => {
@@ -782,7 +870,11 @@ export default function MagazzinoView({
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <PageHeader
-        subtitle={`${tuttiIngNomi.length} ingredienti · ${righe.filter(r => r.stato === 'esaurito' || r.stato === 'critico').length} critici`}
+        subtitle={[
+          `${tuttiIngNomi.length} ingredienti`,
+          esauriti.length > 0 ? `${esauriti.length} a zero` : null,
+          sottoSoglia.length > 0 ? `${sottoSoglia.length} da ordinare` : null,
+        ].filter(Boolean).join(' · ')}
         action={onImportPrezzi && (
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 16px',
             background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: R.md, cursor: 'pointer', boxShadow: S.sm }}>
@@ -798,16 +890,21 @@ export default function MagazzinoView({
       {/* ── BANDA DIAGNOSI (premium): valore stock, critici, esaurimento, copertura ── */}
       <div style={{ marginBottom: 18 }}>
         {(() => {
+          const nIng = (n) => `${n} ${n === 1 ? 'ingrediente' : 'ingredienti'}`
           const sem = salute === 'critico'
-            ? { col: C.red, bg: 'rgba(220,38,38,0.10)', lbl: 'Magazzino sotto pressione', ic: 'alert' }
+            ? { col: C.red, bg: 'rgba(220,38,38,0.10)', lbl: esauriti.length === 1 ? 'Un ingrediente è finito' : 'Ingredienti finiti', ic: 'alert' }
             : salute === 'attenzione'
-            ? { col: C.amber, bg: 'rgba(217,119,6,0.12)', lbl: 'Scorte da tenere d’occhio', ic: 'warning' }
+            ? { col: C.textMid, bg: T.bgSubtle, lbl: 'Da mettere in lista', ic: 'cart' }
             : { col: C.green, bg: 'rgba(22,163,74,0.12)', lbl: 'Scorte in equilibrio', ic: 'checkCircle' }
           const msg = salute === 'critico'
-            ? `${critici.length} ingrediente/i da riordinare subito${attenzione.length > 0 ? `, ${attenzione.length} in esaurimento` : ''}.`
+            // A zero non si produce: qui l'allarme e' dovuto.
+            ? `${nIng(esauriti.length)} a zero${sottoSoglia.length > 0 ? ` · ${sottoSoglia.length} sotto la soglia di riordino` : ''}.`
             : salute === 'attenzione'
-            ? `${attenzione.length} ingrediente/i scenderanno sotto scorta entro la settimana.`
-            : 'Nessun ingrediente critico: le giacenze coprono il fabbisogno previsto.'
+            ? [
+                sottoSoglia.length > 0 ? `${nIng(sottoSoglia.length)} ${sottoSoglia.length === 1 ? 'ha' : 'hanno'} toccato la soglia di riordino` : null,
+                attenzione.length > 0 ? `${nIng(attenzione.length)} ${attenzione.length === 1 ? 'scenderà' : 'scenderanno'} sotto scorta entro la settimana` : null,
+              ].filter(Boolean).join(' · ') + '. Niente di rotto: è la lista della spesa.'
+            : 'Le giacenze coprono il fabbisogno previsto.'
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', marginBottom: 14,
               background: sem.bg, border: `1px solid ${sem.col}33`, borderRadius: 14 }}>
@@ -824,9 +921,20 @@ export default function MagazzinoView({
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10 }}>
           <KPI icon={<Icon name="money" size={18} />} label="Valore a magazzino" value={fmt0(valoreStock)} highlight
-            sub={`${righe.filter(r => r.valore > 0).length} ingredienti valorizzati`}/>
-          <KPI icon={<Icon name="alert" size={18} />} label="Critici" value={critici.length}
-            color={critici.length > 0 ? C.red : C.green}
+            sub={(() => {
+              const conValore = righe.filter(r => r.valore > 0)
+              const stimati = conValore.filter(r => r.prezzoStimato).length
+              const senza = righe.length - conValore.length
+              const parti = [`${conValore.length} su ${righe.length} valorizzati`]
+              // Quanto di questo numero e' misurato e quanto indovinato.
+              if (stimati > 0) parti.push(`${stimati} a prezzo stimato`)
+              else if (senza > 0) parti.push(`${senza} senza prezzo`)
+              return parti.join(' · ')
+            })()}/>
+          <KPI icon={<Icon name={esauriti.length > 0 ? 'alert' : 'cart'} size={18} />}
+            label={esauriti.length > 0 ? 'A zero' : 'Da ordinare'}
+            value={esauriti.length > 0 ? esauriti.length : sottoSoglia.length}
+            color={esauriti.length > 0 ? C.red : sottoSoglia.length > 0 ? C.amber : C.green}
             sub={critici.length > 0 ? 'clicca per vedere cosa ordinare' : 'tutto ok'}
             onClick={critici.length > 0 ? () => {
               const el = document.getElementById('riordino-urgente')
@@ -863,12 +971,12 @@ export default function MagazzinoView({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>Lista di riordino consigliata</div>
                 <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
-                  {daRiordinare.length} ingrediente/i · per coprire ~{GIORNI_TARGET} giorni di consumo
+                  {daRiordinare.length} {daRiordinare.length === 1 ? 'ingrediente' : 'ingredienti'} · per coprire circa {GIORNI_TARGET} giorni di consumo
                 </div>
               </div>
               {costoStimato > 0 && (
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Spesa stimata</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Spesa stimata</div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', ...TNUM }}>{fmt0(costoStimato)}</div>
                 </div>
               )}
@@ -878,7 +986,7 @@ export default function MagazzinoView({
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {[['Ingrediente', 'left'], ['Giacenza', 'right'], ['Giorni scorta', 'right'], ['Da ordinare', 'right'], ['Costo stim.', 'right'], ['', 'right']].map(([h, al], i) => (
-                      <th key={i} style={{ padding: '9px 14px', textAlign: al, fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                      <th key={i} style={{ padding: '9px 14px', textAlign: al, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -958,7 +1066,7 @@ export default function MagazzinoView({
                 { lbl: 'Giacenza (g)', val: newIngQty, set: setNewIngQty, ph: 'es. 1000', type: 'number' },
                 { lbl: 'Soglia alert (g)', val: newIngSoglia, set: setNewIngSoglia, ph: 'es. 500', type: 'number' }].map(({ lbl, val, set, ph, type }) => (
                 <div key={lbl}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{lbl}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{lbl}</div>
                   <input type={type || 'text'} inputMode={type === 'number' ? 'decimal' : undefined} value={val} onChange={e => set(e.target.value)} placeholder={ph}
                     style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
                 </div>
@@ -998,7 +1106,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: quickLoad === r.k ? C.red : C.text, textTransform: 'capitalize', cursor: 'pointer' }}
                         title="Clic rapido → precompila form"
                         onClick={() => { setQuickLoad(r.k); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}>
-                        {r.nome} <span style={{ fontSize: 9, opacity: 0.4 }}>↗</span>
+                        {r.nome} <span style={{ fontSize: 11, opacity: 0.4 }}>↗</span>
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
@@ -1013,13 +1121,14 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textMid, ...TNUM }}>{r.fabb > 0 ? fmtG(r.fabb) : '-'}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: statoColor(r.stato), ...TNUM }}
                           title="Giorni di scorta: giacenza diviso consumo medio giornaliero">
-                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)}gg` : '-'}
+                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg` : '-'}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: r.valore > 0 ? C.text : C.textSoft, fontWeight: r.valore > 0 ? 700 : 400, ...TNUM }}>
                         {r.valore > 0 ? fmt0(r.valore) : '-'}
                         {r.valore > 0 && r.costoKg > 0 && (
-                          <div style={{ fontSize: 9, color: C.textSoft, fontWeight: 500 }}>
-                            € {r.costoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg
+                          <div style={{ fontSize: 11, color: C.textSoft, fontWeight: 500 }}>
+                            {r.costoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg
+                            {r.prezzoStimato && <span title="Prezzo non inserito da te: e' una stima di mercato, quindi anche il valore e' indicativo."> · stima</span>}
                           </div>
                         )}
                       </td>
@@ -1037,7 +1146,7 @@ export default function MagazzinoView({
                           <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
                             <input type="number" value={editSoglia.val} onChange={e => setEditSoglia({ ...editSoglia, val: e.target.value })}
                               style={{ width: 70, padding: '4px 6px', borderRadius: 5, border: `1px solid ${C.borderStr}`, fontSize: 11, textAlign: 'center' }}/>
-                            <button onClick={() => handleSoglia(r.k, editSoglia.val)} style={{ padding: '4px 8px', background: C.green, color: C.white, border: 'none', borderRadius: 4, fontSize: 9, fontWeight: 700, cursor: 'pointer' }}>✓</button>
+                            <button onClick={() => handleSoglia(r.k, editSoglia.val)} style={{ padding: '4px 8px', background: C.green, color: C.white, border: 'none', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>✓</button>
                           </div>
                         ) : (
                           <button onClick={() => setEditSoglia({ nome: r.k, val: r.soglia || '' })}
@@ -1047,14 +1156,15 @@ export default function MagazzinoView({
                         )}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                        <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: 8, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{statoLabel(r.stato)}</span>
+                        <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{statoLabel(r.stato)}</span>
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textSoft, fontSize: 10 }}>
                         {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'center' }}>
                         <button aria-label="Elimina ingrediente" onClick={() => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
-                          style={{ padding: '4px 10px', borderRadius: 5, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 10, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Icon name="trash" size={12} /></button>
+                          title="Elimina questo ingrediente"
+                          style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textSoft, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
                       </td>
                     </tr>
                   ))}
@@ -1118,7 +1228,7 @@ export default function MagazzinoView({
                     color: formMode === m ? (m === 'carico' ? C.green : C.amber) : C.textMid,
                     fontWeight: formMode === m ? 800 : 500, fontSize: 11, cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ fontWeight: 800, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name={ic} size={12} />{lbl}</div>
-                  <div style={{ fontSize: 9, opacity: 0.7 }}>{sub}</div>
+                  <div style={{ fontSize: 11, opacity: 0.7 }}>{sub}</div>
                 </button>
               ))}
             </div>
@@ -1176,7 +1286,7 @@ export default function MagazzinoView({
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {['Data', 'Ingrediente', 'Quantità', 'Note'].map((h, i) => (
-                      <th key={i} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 8, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                      <th key={i} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
