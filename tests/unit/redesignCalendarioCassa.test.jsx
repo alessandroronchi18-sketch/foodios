@@ -112,6 +112,10 @@ describe('Calendario — la mappa del mese', () => {
   it('apre con il mese in una frase, non con quattro tessere di compilazione', async () => {
     const v = render(<CalendarioOperativo {...propsCal} />)
     await waitFor(() => expect(v.container.textContent).toContain('Incassato nel mese'))
+    // Il mese e' il soggetto che la topbar non puo' sapere, ed e' di secondo
+    // livello: il titolo "CALENDARIO" lo disegna lei.
+    expect(v.container.querySelectorAll('h1')).toHaveLength(0)
+    expect(v.container.querySelector('h2').textContent).toMatch(/^\w+ \d{4}$/)
     // La frase dice quanto e in quante giornate.
     expect(v.container.textContent).toMatch(/€ in \d+ giornat/)
     expect(v.container.textContent).toContain('al giorno in media')
@@ -178,13 +182,28 @@ describe('Cassa — la giornata', () => {
     <ConfirmProvider><ChiusuraView {...propsCassa} {...p} /></ConfirmProvider>
   )
 
-  it('il titolo e\' il giorno, e la frase dice com\'e\' andata', async () => {
+  it('non ripete il titolo che disegna gia\' la topbar', async () => {
+    // Il Dashboard mette in cima "CASSA" a 28px maiuscolo. La prima versione
+    // di questa intestazione ci aggiungeva sopra un occhiello "Cassa" e un
+    // secondo titolo grande: tre righe per dire la stessa cosa prima di
+    // arrivare a un'informazione. Qui la riga principale e' la frase.
     const v = monta()
     await waitFor(() => expect(v.container.textContent).toContain('Quanto è entrato'))
-    expect(v.container.textContent).toContain('Oggi')
+
+    const h1 = v.container.querySelectorAll('h1')
+    expect(h1).toHaveLength(0)                       // il titolo non e' di questa pagina
     expect(v.container.textContent).toMatch(/Incassati|non è ancora registrato/)
     // Il vecchio sottotitolo da manuale d'istruzioni non c'e' piu'.
     expect(v.container.textContent).not.toContain('foto scontrino, import delivery o manuale')
+  })
+
+  it('la frase e\' la riga principale, in evidenza', async () => {
+    const v = monta()
+    await waitFor(() => expect(v.container.textContent).toContain('Quanto è entrato'))
+    const p = [...v.container.querySelectorAll('p')].find(n => /Incassati/.test(n.textContent))
+    expect(p).toBeTruthy()
+    // In evidenza vuol dire piu' grande del testo corrente e quasi nero.
+    expect(Number.parseFloat(p.style.fontSize)).toBeGreaterThanOrEqual(15)
   })
 
   it('con la giornata registrata confronta con un giorno come quello', async () => {

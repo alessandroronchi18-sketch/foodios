@@ -748,7 +748,6 @@ export default function CalendarioOperativo({
     <div style={{ maxWidth: 1240, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
       <IntestazionePagina
-        occhiello="Calendario"
         titolo={`${MESI[mese]} ${anno}`}
         frase={frase}
         azioni={
