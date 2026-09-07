@@ -603,6 +603,40 @@ export async function caricaSessioniDaInventario(orgId, sedeId, opts = {}) {
   return inventarioASessioni(rows)
 }
 
+/**
+ * Giorni in cui c'è stata produzione, in un intervallo.
+ *
+ * Serve al Calendario operativo. In metodo inventario la produzione NON sta nel
+ * blob `pasticceria-giornaliero-v1` ma in questa tabella: il Calendario leggeva
+ * il blob e per una gelateria mostrava un muro di rosso pur avendo mesi di
+ * produzione registrata.
+ *
+ * Ritorna un Set di date ISO. Il Calendario deve solo sapere SE si è prodotto,
+ * non quanto: chiediamo la sola colonna `data` e non scarichiamo migliaia di
+ * righe di gusti per accendere un pallino verde.
+ *
+ * Conta come giorno produttivo quello in cui almeno un gusto ha produzione o
+ * scarto maggiore di zero: una riga con tutti zero è una cella lasciata aperta
+ * nel foglio, non una giornata di lavoro.
+ */
+export async function giorniConProduzione(orgId, sedeId, dataFrom, dataTo) {
+  if (!orgId || !dataFrom || !dataTo) return new Set()
+  let q = supabase
+    .from('inventario_produzione')
+    .select('data')
+    .eq('organization_id', orgId)
+    .gte('data', dataFrom)
+    .lte('data', dataTo)
+    .or('produzione_g.gt.0,scarto_g.gt.0')
+  if (sedeId) q = q.eq('sede_id', sedeId)
+  const { data, error } = await q
+  if (error) {
+    console.error('giorniConProduzione:', error)
+    return new Set()
+  }
+  return new Set((data || []).map(r => r.data))
+}
+
 // ── Helper date: lunedi della settimana che contiene `dateIso` ────────────
 export function lunediDellaSettimana(dateIso) {
   const d = dateIso ? new Date(dateIso) : new Date()
