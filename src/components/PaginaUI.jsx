@@ -70,53 +70,37 @@ export function Cifra({ valore, unita = '€', decimali = false, size, peso = 80
 }
 
 /**
- * L'apertura della pagina: il soggetto, UNA frase, le azioni.
+ * L'apertura della pagina. Occhiello piccolo, titolo grande, UNA frase.
  *
- * ATTENZIONE alla gerarchia, ed è la cosa che questa primitiva esiste per
- * rispettare. Il titolo della pagina lo disegna già la topbar del Dashboard —
- * 28px, maiuscolo, gradiente bordeaux: "CASSA", "CALENDARIO". La prima
- * versione di questa intestazione ci metteva sopra un secondo titolo grande
- * più un occhiello con lo stesso testo del titolo della topbar: tre righe per
- * dire la stessa cosa, prima di arrivare a un'informazione.
- *
- * Quindi qui il `titolo` è di SECONDO livello — il soggetto che la topbar non
- * può sapere: "Settembre 2026", non "Calendario" — e si mette solo dove serve
- * un ancoraggio, come nel calendario che si sfoglia mese per mese.
- *
- * La `frase` non è un sottotitolo decorativo: è la risposta alla domanda per
- * cui si è aperta la pagina, calcolata sui dati. Dove non c'è un soggetto da
- * ancorare diventa lei la riga principale (`fraseForte`), perché è la cosa che
- * vale di più da leggere. Se i dati non bastano si dice quello — non si
- * riempie con un incoraggiamento.
+ * La frase non è un sottotitolo decorativo: è la risposta alla domanda per cui
+ * si è aperta la pagina, calcolata sui dati. Se non c'è niente da dire perché
+ * i dati non bastano, si dice quello — non si riempie con un incoraggiamento.
  */
-export function IntestazionePagina({ titolo, frase, fraseForte = false, azioni, sotto }) {
+export function IntestazionePagina({ occhiello, titolo, frase, azioni, sotto }) {
   const isMobile = useIsMobile()
-  const stileFrase = fraseForte
-    ? { ...(isMobile ? typo.h3 : typo.h2), fontWeight: 600, color: T.text, letterSpacing: '-0.01em' }
-    : { ...typo.body, color: T.textMid }
-
   return (
-    <div style={{ marginBottom: isMobile ? 16 : 20 }}>
+    <div style={{ marginBottom: isMobile ? 16 : 22 }}>
       <div style={{
         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
         gap: 14, flexWrap: 'wrap', marginBottom: sotto ? 14 : 0,
       }}>
-        <div style={{ minWidth: 0, flex: '1 1 300px' }}>
-          {titolo && (
-            <h2 style={{
-              margin: 0, ...(isMobile ? typo.h3 : typo.h2), color: T.text,
-              textWrap: 'balance',
-            }}>{titolo}</h2>
+        <div style={{ minWidth: 0, flex: '1 1 320px' }}>
+          {occhiello && (
+            <div style={{ ...typo.overline, color: T.textSoft, marginBottom: 5 }}>{occhiello}</div>
           )}
+          <h1 style={{
+            margin: 0, ...(isMobile ? typo.h1 : typo.display), color: T.text,
+            textWrap: 'balance',
+          }}>{titolo}</h1>
           {frase && (
             <p style={{
-              margin: titolo ? '5px 0 0' : 0, ...stileFrase, lineHeight: 1.45,
-              maxWidth: '64ch', textWrap: 'pretty',
+              margin: '7px 0 0', ...typo.body, color: T.textMid, lineHeight: 1.5,
+              maxWidth: '62ch', textWrap: 'pretty',
             }}>{frase}</p>
           )}
         </div>
         {azioni && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>{azioni}</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0, paddingTop: isMobile ? 0 : 6 }}>{azioni}</div>
         )}
       </div>
       {sotto}

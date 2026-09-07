@@ -27,9 +27,9 @@ import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
 import PrimaNotaCassa from '../components/PrimaNotaCassa'
-import { IntestazionePagina, FilaStat, NavGiorno, MiniBarre } from '../components/PaginaUI'
+import { IntestazionePagina, FilaStat, NavGiorno, MiniBarre, capPrima } from '../components/PaginaUI'
 import { confrontoConSolito, isoWeekday, NOMI_GIORNO } from '../lib/ritmo'
-import { C, KPI, margColor, fmt, fmt0, fmtp } from './_shared'
+import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
 import { promptScontrino, categorieLette } from '../lib/promptScontrino'
 import { calcolaKpiChiusura, colorePerSellThrough } from '../lib/chiusuraKpi'
 
@@ -976,8 +976,11 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
     <div style={{ maxWidth: 1240, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
       <IntestazionePagina
+        occhiello="Cassa"
+        titolo={dataFiltro === today
+          ? 'Oggi'
+          : capPrima(new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }))}
         frase={fraseGiornata}
-        fraseForte
         azioni={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <NavGiorno
