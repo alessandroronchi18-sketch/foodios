@@ -4,7 +4,26 @@ import { validaSessionFingerprint, resetSessionFingerprint } from '../lib/sessio
 import { startIdleTimeout, clearIdleTimestamp } from '../lib/idleTimeout'
 import * as Sentry from '@sentry/react'
 
-const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000 // 8 ore di inattività → auto-logout
+// Logout automatico per inattività.
+//
+// Era 8 ore per tutti, e per il titolare voleva dire trovarsi fuori ogni
+// mattina: chiudi il portatile la sera alle otto, riapri alle sette, sono
+// passate undici ore. Rifare le credenziali ogni giorno su un gestionale che
+// si usa quotidianamente è il modo più rapido per farlo odiare, soprattutto a
+// chi con la tecnologia non ha confidenza.
+//
+// La durata ora dipende da CHE COSA si sta proteggendo:
+//
+//   Titolare sul proprio dispositivo → 30 giorni. È lo standard degli
+//   strumenti di lavoro (posta, chat): non ti buttano fuori mai, finché non
+//   esci tu. Il rischio è basso perché è il suo computer.
+//
+//   Dipendente → 12 ore. Il tablet del laboratorio e il computer del banco
+//   sono condivisi: lì la sessione lasciata aperta è un problema vero. Restano
+//   comunque coperti dalla sessione operativa a 30 minuti, che è il vero
+//   presidio sull'identità di chi sta lavorando.
+const IDLE_TITOLARE_MS   = 30 * 24 * 60 * 60 * 1000
+const IDLE_DIPENDENTE_MS = 12 * 60 * 60 * 1000
 
 export function useAuth() {
   const [user, setUser]       = useState(null)
@@ -82,12 +101,14 @@ export function useAuth() {
     return () => { subscription.unsubscribe(); clearTimeout(safetyTimeout) }
   }, [])
 
-  // Idle-timeout: dopo 8h senza interazione, logout automatico.
+  // Idle-timeout: logout automatico dopo un lungo periodo senza interazione.
   // Si attiva solo quando c'è un utente loggato; viene ripulito al cambio utente.
+  // La durata dipende dal ruolo: vedi il commento in cima al file.
   useEffect(() => {
     if (!user) return
+    const suShared = (profile?.ruolo === 'dipendente')
     const cleanup = startIdleTimeout({
-      timeoutMs: IDLE_TIMEOUT_MS,
+      timeoutMs: suShared ? IDLE_DIPENDENTE_MS : IDLE_TITOLARE_MS,
       onTimeout: async () => {
         try {
           console.warn('Sessione scaduta per inattività - logout automatico')
@@ -97,7 +118,7 @@ export function useAuth() {
       },
     })
     return cleanup
-  }, [user?.id])
+  }, [user?.id, profile?.ruolo])
 
   async function loadProfile(userId, userObj) {
     setLoading(true)

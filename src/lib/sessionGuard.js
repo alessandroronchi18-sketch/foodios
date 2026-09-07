@@ -9,13 +9,30 @@ import { supabase } from './supabase'
 
 const SK_FP = 'foodos_session_fp_v1'
 
+// L'impronta deve cambiare quando cambia IL DISPOSITIVO, non quando si
+// aggiorna il browser.
+//
+// Prima si usava lo user agent per intero. Ma lo user agent contiene il numero
+// di versione, e Chrome si aggiorna da solo ogni poche settimane: a ogni
+// aggiornamento l'impronta cambiava e l'utente si ritrovava buttato fuori
+// senza motivo. Un controllo di sicurezza che scatta sugli innocenti e non
+// ferma i colpevoli — chi ruba un token può falsificare lo user agent in una
+// riga — è solo un fastidio.
+//
+// Teniamo quindi la famiglia del browser (Chrome, Safari, Firefox...) senza la
+// versione, più i tratti che descrivono davvero la macchina.
+function famigliaBrowser(ua) {
+  const m = ua.match(/\b(Edg|OPR|Chrome|Firefox|Safari)\b/g)
+  return m ? m[m.length - 1] : 'sconosciuto'
+}
+
 async function makeFingerprint() {
   const ua = navigator.userAgent || ''
   const lang = (navigator.languages || [navigator.language || '']).join(',')
   const platform = navigator.platform || ''
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
-  // Browser features stabili (non i pixel ratio o screen che variano per multi-monitor)
-  const raw = `${ua}|${lang}|${platform}|${tz}`
+  // Niente pixel ratio o dimensioni schermo: variano col multi-monitor.
+  const raw = `${famigliaBrowser(ua)}|${lang}|${platform}|${tz}`
   if (crypto?.subtle?.digest) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw))
     return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32)
