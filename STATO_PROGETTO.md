@@ -318,12 +318,6 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 
 ### Operativo / DB
 
-0. **Verificare la migration `20260904_storico_inventario_rpc` in prod** — indice
-   `idx_inv_prod_org_sede_data` + RPC `storico_inventario_per_mese`. Senza, lo
-   Storico inventario "Tutte le sedi" ricade sul fetch grezzo paginato e diventa
-   lento oltre le decine di migliaia di righe. Lancia `CHECK_MIGRATIONS_STATO.sql`
-   dal SQL Editor Supabase: dice da solo se e' applicata.
-
 1. **Fix profilo utente `7aebcbe5-2b75-4a82-a1ec-9418433f7379`** — voce aperta da
    maggio, con ogni probabilita' gia' superata. Esegui prima il controllo
    preventivo qui sotto: se ritorna una riga, cancella questa voce dal documento.
@@ -381,6 +375,8 @@ vercel --prod --yes 2>&1 | tail -5
 - ~~Git author non configurato~~ → risolto, i commit sono firmati `Alessandro Ronchi <alessandroar@maradeiboschi.com>`.
 
 ### Risolti il 7 set 2026
+
+- **Migration `20260904` mancante in produzione**: era stata committata il 4/09 ma mai applicata al database. Lo Storico inventario funzionava lo stesso solo grazie al fallback esplicito in `inventarioProduzione.js`, che scarica le righe grezze quando la RPC non c'e' — quindi il degrado era invisibile e sarebbe peggiorato col crescere dei dati. Applicata e collaudata il 7/09.
 
 - **P&L andava in ReferenceError con metodo inventario** (`src/views/PLView.jsx`): la useEffect passava `{ dataFrom, dataTo }` in shorthand, ma le variabili di stato si chiamano `dateFrom`/`dateTo`. Colpiva esattamente le gelaterie con `metodo_produzione = 'inventario'`, cioe' il design partner. Trovato da ESLint (`no-undef`), non da un test.
 - **Suite di test rossa su `main`**: il mock Supabase di `tests/unit/inventarioProduzioneExt.test.js` non era stato aggiornato quando il 4/09 e' arrivata la paginazione (`.order().range()`).

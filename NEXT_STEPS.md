@@ -13,10 +13,11 @@
 - Prod live: `foodos-rose.vercel.app` (risponde 200), allineata a `main` HEAD `49c683a` del 4 set.
 - **Test suite 1511/1511 verdi** (87 file, 46s) — ESLint pulito su `src/` e `api/`, build Vite 20s.
 - **Lighthouse CI** attivo (su PR + cron settimanale lunedi 08:00).
-- Migration presenti in repo fino a **20260904_storico_inventario_rpc**.
-  Verificate applicate in prod fino a **20260901_import_mappings_library** (check del 1 set).
-  **La 20260904 non risulta ancora verificata**: lanciare `CHECK_MIGRATIONS_STATO.sql`
-  dal SQL Editor Supabase prima di considerare lo Storico multi-sede affidabile.
+- Migration **tutte applicate in prod fino a `20260904_storico_inventario_rpc`**,
+  verificato il 7 set con `CHECK_MIGRATIONS_STATO.sql` (7/7 e 3/3).
+  La `20260904` risultava mancante ed e' stata applicata quel giorno: indice
+  `idx_inv_prod_org_sede_data` + RPC `storico_inventario_per_mese` + grant.
+  Collaudo su dati reali: 7.011 righe grezze aggregate in 101 righe su 4 mesi.
 - Env vars Vercel attive: VAPID×3, VITE_VAPID_PUBLIC_KEY, INTERNAL_SECRET, ADMIN_PROD_MFA_BYPASS (temporaneo).
 - Pricing 3-tier configurato: **Bottega €69 · Maestro €149 · Insegna €399**.
 
