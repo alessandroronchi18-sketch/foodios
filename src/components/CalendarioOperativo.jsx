@@ -833,25 +833,27 @@ export default function CalendarioOperativo({
             tiene il calendario immobile.
             Su tablet il layout è a colonne, quindi il problema non si pone.
             Su mobile il dettaglio è già inline sotto la card toccata. */}
-        {!isMobile && !isTablet && (
-          <div style={{ width: 288, flexShrink: 0 }}>
-            {sel ? renderDetail(false) : (
-              <div style={{
-                background: T.bgCard, border: `1px dashed ${T.border}`, borderRadius: 16,
-                padding: '28px 20px', textAlign: 'center', color: T.textSoft,
-                position: 'sticky', top: 24,
-              }}>
-                <Icon name="calendar" size={22} />
-                <div style={{ fontSize: FS.small, marginTop: 9, lineHeight: 1.5 }}>
-                  Scegli un giorno per vedere cosa è stato registrato e lasciare una nota.
-                </div>
-              </div>
-            )}
-          </div>
-        )}
         {isTablet && !isMobile && renderDetail(false)}
 
       </div>
+
+      {/* ── DETTAGLIO GIORNO SU DESKTOP: pannello che galleggia ─────────────
+          Due tentativi prima di questo, entrambi sbagliati. Metterlo dentro la
+          riga faceva restringere la griglia al clic: le caselle cambiavano
+          dimensione sotto il dito. Riservargli sempre la colonna teneva sì il
+          calendario fermo, ma lo lasciava schiacciato anche quando non serviva.
+          Fuori dal flusso il calendario resta largo e immobile in entrambi i
+          casi: il pannello si sovrappone e si chiude quando hai finito. */}
+      {!isMobile && !isTablet && sel && (
+        <div style={{
+          position: 'fixed', top: 84, right: 24, width: 320, zIndex: 40,
+          maxHeight: 'calc(100vh - 108px)', overflowY: 'auto',
+          animation: 'fos_calSlideIn 0.16s ease',
+          filter: 'drop-shadow(0 18px 40px rgba(15,23,42,0.18))',
+        }}>
+          {renderDetail(true)}
+        </div>
+      )}
 
       <style>{`@keyframes fos_calSlideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}`}</style>
     </div>
