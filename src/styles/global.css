@@ -1,0 +1,51 @@
+/* Unico foglio di stile globale del progetto.
+ *
+ * Perche' esiste. Tutto il layout di Foodos e' fatto con stili inline (~7.500
+ * occorrenze di style={{...}}). Gli stili inline non possono esprimere le
+ * pseudo-classi, quindi :focus-visible era impossibile da scrivere e la strada
+ * comoda e' stata spegnere il contorno: `outline: none` compare 60 volte nel
+ * codice. Risultato: chi naviga da tastiera non vede dove si trova.
+ *
+ * E' una violazione di WCAG 2.4.7 (Focus Visible), e riguarda sia chi ha una
+ * disabilita' sia chi semplicemente lavora con le mani in pasta e usa il Tab.
+ *
+ * Perche' !important. Uno stile inline vince sempre su un foglio di stile:
+ * senza !important queste regole verrebbero ignorate dai 60 `outline: none`
+ * gia' scritti nei componenti. E' il caso d'uso per cui !important esiste, non
+ * una scorciatoia. Restano circoscritte a :focus-visible, quindi non toccano
+ * nulla al di fuori del momento in cui l'elemento ha il focus da tastiera.
+ *
+ * :focus-visible e non :focus — il contorno appare quando ci si muove con la
+ * tastiera, non a ogni click di mouse. E' il comportamento che gli utenti si
+ * aspettano e il motivo per cui gli outline venivano disattivati.
+ */
+
+:root {
+  /* Allineati a color.brand in src/lib/theme.js. Se cambia li', cambia qui. */
+  --fos-focus-ring: #6e0e1a;
+  --fos-focus-contrast: #ffffff;
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex='-1'])):focus-visible {
+  /* Doppio anello: il bianco interno garantisce il contrasto sui fondi scuri
+   * (sidebar, bottoni del colore del marchio), il bordeaux esterno su quelli
+   * chiari. Cosi' il focus resta visibile ovunque senza dover conoscere il
+   * fondo su cui si trova l'elemento. */
+  outline: 3px solid var(--fos-focus-ring) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px var(--fos-focus-contrast) !important;
+  border-radius: 4px;
+}
+
+/* Rispetta la preferenza di sistema "riduci le animazioni". Vale per chi
+ * soffre di disturbi vestibolari, per cui le transizioni possono dare nausea. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

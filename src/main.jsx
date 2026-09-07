@@ -2,6 +2,11 @@
 // per forzare il separatore migliaia IT su tutti i runtime. Vedi numberFormatPatch.js.
 import './lib/numberFormatPatch'
 
+// Unico foglio di stile globale: contorno di focus per la navigazione da
+// tastiera e rispetto della preferenza "riduci animazioni". Vedi il commento
+// dentro il file per il perché delle regole !important.
+import './styles/global.css'
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import * as Sentry from '@sentry/react'
