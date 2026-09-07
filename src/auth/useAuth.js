@@ -47,13 +47,14 @@ export function useAuth() {
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        // UA binding: se il fingerprint del browser è cambiato dall'ultimo login,
-        // forziamo logout per proteggere da session hijacking.
-        const check = await validaSessionFingerprint(async () => {
-          console.warn('fingerprint sessione cambiato: forced sign-out')
-          await supabase.auth.signOut()
-        })
-        if (!check.ok) { setLoading(false); return }
+        // Impronta del browser: se cambia, la si registra e basta. Non
+        // disconnette più nessuno — vedi il commento in sessionGuard.js: nel
+        // giro di una giornata aveva buttato fuori l'utente tre volte senza
+        // mai fermare un attaccante.
+        const check = await validaSessionFingerprint()
+        if (check.cambiato) {
+          console.warn('impronta del browser cambiata: registrata, sessione mantenuta')
+        }
       }
       setUser(session?.user ?? null)
       if (session?.user) loadProfile(session.user.id, session.user)

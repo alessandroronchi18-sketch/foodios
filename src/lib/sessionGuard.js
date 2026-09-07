@@ -7,7 +7,14 @@
 
 import { supabase } from './supabase'
 
-const SK_FP = 'foodos_session_fp_v1'
+// La versione fa parte della chiave: se cambia il modo di calcolare l'impronta,
+// quella vecchia non va CONFRONTATA ma ignorata.
+//
+// Costata cara il 07/09: cambiando l'algoritmo senza cambiare la chiave, ogni
+// ricaricamento confrontava l'impronta nuova con quella vecchia, non
+// coincidevano, e l'utente veniva disconnesso. Ogni volta.
+const SK_FP = 'foodos_session_fp_v2'
+const SK_FP_VECCHIE = ['foodos_session_fp_v1']
 
 // L'impronta deve cambiare quando cambia IL DISPOSITIVO, non quando si
 // aggiorna il browser.
@@ -52,12 +59,26 @@ async function makeFingerprint() {
 export async function validaSessionFingerprint(onMismatch) {
   try {
     const fp = await makeFingerprint()
+    // Le impronte calcolate con algoritmi precedenti non servono più a nulla:
+    // toglierle evita che restino a occupare spazio per sempre.
+    for (const vecchia of SK_FP_VECCHIE) {
+      try { localStorage.removeItem(vecchia) } catch { /* niente */ }
+    }
     const stored = localStorage.getItem(SK_FP)
     if (!stored) {
       localStorage.setItem(SK_FP, fp)
       return { ok: true, first: true }
     }
     if (stored !== fp) {
+      // NON si disconnette più. Nel corso di una sola giornata questo controllo
+      // ha buttato fuori l'utente tre volte — per l'aggiornamento di Chrome,
+      // per il cambio di algoritmo, e a ogni ricaricamento — senza mai fermare
+      // un attaccante: chi ruba un token falsifica lo user agent in una riga.
+      //
+      // Il segnale resta e viene registrato lato server, dove serve davvero:
+      // in un elenco di anomalie che un umano guarda. Ma non decide più da solo
+      // di interrompere il lavoro di chi sta usando il programma.
+      localStorage.setItem(SK_FP, fp)
       // Log lato server (best-effort, non blocca)
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -69,8 +90,10 @@ export async function validaSessionFingerprint(onMismatch) {
           })
         }
       } catch {}
-      onMismatch?.({ previous: stored, current: fp })
-      return { ok: false, previous: stored, current: fp }
+      // onMismatch resta invocabile per chi volesse reagire, ma il risultato è
+      // ok: la sessione prosegue.
+      onMismatch?.({ previous: stored, current: fp, disconnesso: false })
+      return { ok: true, cambiato: true, previous: stored, current: fp }
     }
     return { ok: true }
   } catch {
