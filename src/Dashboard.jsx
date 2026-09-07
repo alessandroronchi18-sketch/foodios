@@ -86,6 +86,7 @@ import {
 } from './lib/foodcost'
 import { labelPlurale } from './lib/tipoRicetta'
 import { SK_RIC, SK_PROD, SK_ACT, SK_AI, SK_MAG, SK_GIOR, SK_CHIUS, SK_EXCL, SK_RESE, SK_LOG_PRZ } from './lib/storageKeys'
+import { caricaChiusure, salvaChiusure } from './lib/chiusure'
 import { loadXLSX } from './lib/xlsx'
 const SimulatorePrezziView = lazyWithReload(() => import('./views/SimulatorePrezziView'))
 const PLView = lazyWithReload(() => import('./views/PLView'))
@@ -164,7 +165,13 @@ function ssave(key, val) {
   const capturedOrgId = _ctx_orgId;
   const capturedSedeId = _ctx_sedeId;
   bkWriteLS(key, val, capturedOrgId, capturedSedeId);
-  const p = _ssave(key, val, capturedOrgId, capturedSedeId);
+  // Le chiusure non stanno più in user_data ma nella tabella chiusure_cassa
+  // (migration 20260907b). L'intercettazione sta qui, nel wrapper, invece che
+  // sui singoli callsite: così nessuna delle chiamate esistenti può restare
+  // indietro e scrivere sul blob ormai abbandonato.
+  const p = key === SK_CHIUS
+    ? salvaChiusure(capturedOrgId, capturedSedeId, val)
+    : _ssave(key, val, capturedOrgId, capturedSedeId);
   _pendingSaves.add(p);
   // Pulizia del set quando la Promise si chiude (qualunque esito).
   p.finally?.(() => { _pendingSaves.delete(p) });
@@ -1547,7 +1554,10 @@ export default function Dashboard({
       : loadPS(SK_GIOR, _mergeArr);
     const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
     Promise.race([
-      Promise.all([loadRicettario,loadPS(SK_PROD,()=>({})),sload(SK_ACT),loadPS(SK_MAG,_mergeMag),loadPS(SK_LOGRIF,_mergeArr),loadGiornaliero,loadPS(SK_CHIUS,_mergeArr),sload(SK_EXCL),sload(SK_LOG_PRZ)]),
+      Promise.all([loadRicettario,loadPS(SK_PROD,()=>({})),sload(SK_ACT),loadPS(SK_MAG,_mergeMag),loadPS(SK_LOGRIF,_mergeArr),loadGiornaliero,
+        // Chiusure: dalla tabella chiusure_cassa, non più dal blob user_data.
+        caricaChiusure(orgId, sedeId, { tutteLeSedi: allM }).catch(e => { console.error('caricaChiusure:', e); return null }),
+        sload(SK_EXCL),sload(SK_LOG_PRZ)]),
       timeout
     ]).then(([ric,prod,act,mag,logrif,gior,chius,excl,logprz])=>{
       setOfflineMode(false);

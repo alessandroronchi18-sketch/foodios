@@ -7,6 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { ssave as _ssave, sload } from '../lib/storage'
+import { salvaChiusure } from '../lib/chiusure'
 import { backgroundManager, uploadManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
 import { callAi, parseAiJson } from '../lib/aiClient'
@@ -52,7 +53,12 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
-  const ssave = (key, val) => _ssave(key, val, orgId, sedeId)
+  // Le chiusure vivono nella tabella chiusure_cassa (migration 20260907b), non
+  // più nel blob user_data. L'instradamento sta qui nel wrapper, non sui
+  // quattro callsite, così nessuno può restare indietro sul blob abbandonato.
+  const ssave = (key, val) => key === SK_CHIUS
+    ? salvaChiusure(orgId, sedeId, val)
+    : _ssave(key, val, orgId, sedeId)
   // Listino per-sede: prezzi ricette override + prezzi formati vendita per la
   // sede attiva. La riconciliazione cassa usa questi valori.
   const { listino: listinoSede } = useListinoSede(orgId, sedeId)
