@@ -43,9 +43,10 @@ fi
 echo "▶ pre-push: lint + test + build prima di pushare su main"
 echo
 
-# 1) ESLint
+# 1) ESLint — src/ E api/. Il 04/09 un `no-undef` in api/lib/validate.js e'
+# passato inosservato perche' il gate guardava solo src/.
 echo "[1/3] ESLint…"
-if ! npx eslint src/ --max-warnings 200; then
+if ! npx eslint src/ api/ --max-warnings 200; then
   echo
   echo "ESLint ha trovato errori. Push abortito."
   echo "Per pushare comunque (sconsigliato): git push --no-verify"

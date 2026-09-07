@@ -46,6 +46,9 @@ const ZERO_WIDTH_RE = new RegExp(
 )
 export function sanitizeStrict(str, maxLen = 200) {
   return sanitize(str, maxLen)
+    // I caratteri di controllo sono proprio il bersaglio della sanitizzazione:
+    // vanno rimossi, non evitati. Da qui il disable della regola.
+    // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x1F\x7F]/g, '')
     .replace(ZERO_WIDTH_RE, '')
     .replace(/\s+/g, ' ')
