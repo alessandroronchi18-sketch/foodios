@@ -10,10 +10,21 @@
 ## STATO DEPLOY (7 set 2026)
 
 - Vercel **Pro** attivo. Autodeploy su push a `main` (~1-2 min).
-- Prod live: `foodos-rose.vercel.app` (risponde 200), allineata a `main` HEAD `49c683a` del 4 set.
-- **Test suite 1511/1511 verdi** (87 file, 46s) — ESLint pulito su `src/` e `api/`, build Vite 20s.
+- Prod live: `foodos-rose.vercel.app` (risponde 200), **allineata a `main` HEAD
+  `4172405`** — verificato il 7/09 sera leggendo `CACHE_VERSION` da
+  `/sw.js` in produzione (`foodos-2026-09-07-4172405`). I 19 commit della giornata
+  sono deployati. Fuori dalla prod resta solo il lotto prima nota / import
+  registro, committato ma non ancora pushato: il push lo allinea (autodeploy 1-2 min).
+- **Test suite 1721/1721 verdi** (99 file, 46s) — ESLint pulito su `src/` e `api/`,
+  build Vite 19s, grammar check OK, cricchetto sui token di design OK.
 - **Lighthouse CI** attivo (su PR + cron settimanale lunedi 08:00).
-- Migration **tutte applicate in prod fino a `20260904_storico_inventario_rpc`**,
+- Migration **tutte applicate in prod fino a `20260907f_prima_nota_cassa`** (84 in
+  repo), riverificato via SQL diretto il 7/09 sera: colonne `incasso_pos/contanti/
+  delivery` su `chiusure_cassa`, tabelle `movimenti_cassa`, `chiusure_ricorrenti`,
+  `chiusure_periodo`, RPC `movimenti_cassa_periodo`, indice unico
+  `uq_chiusure_org_sede_data` (NULLS NOT DISTINCT) su cui si appoggia l'upsert.
+  Nessuna migration da applicare prima del prossimo push.
+- Migration applicate in prod fino a `20260904_storico_inventario_rpc`,
   verificato il 7 set con `CHECK_MIGRATIONS_STATO.sql` (7/7 e 3/3).
   La `20260904` risultava mancante ed e' stata applicata quel giorno: indice
   `idx_inv_prod_org_sede_data` + RPC `storico_inventario_per_mese` + grant.
@@ -156,6 +167,29 @@ La feature `Demo personalizzata` (admin → Personalize Demo Modal) e' pronta:
 
 ### 13. Decidere quando ripristinare le soglie coverage vitest
 Le soglie sono state abbassate (lines 30, functions 50, statements 30, branches 60) per essere consistenti col nuovo coverage che include `src/components` + `src/views` (file grandi senza test mirati). Quando il coverage di view/components sale (es. scrivendo test specifici per ogni view), risalire le soglie a 70/80/70/75.
+
+### 14. Rifiniture della cassa (non bloccanti, nate col lavoro del 7 set)
+La cassa e la prima nota sono in piedi e usabili. Quello che manca e' rifinitura,
+da fare col feedback di chi la usa e non prima:
+
+- [ ] **Memoria del mapping fra un mese e l'altro** nell'import registro incassi.
+      Oggi l'abbinamento nomi-foglio → punti vendita si ripropone da zero a ogni
+      caricamento (l'auto-match per contenimento funziona, ma se il cliente
+      scrive la sede in modo diverso va rifatto a mano). Esiste gia'
+      l'infrastruttura giusta: `import_mappings_library` + RPC
+      `save_import_mapping` della mig. `20260901`.
+- [ ] **Piu' fogli in un colpo**: oggi si importa un mese alla volta. Chi arriva
+      con tre anni di storico fa 36 caricamenti.
+- [ ] **Categorie nella prima nota**: il campo `categoria` esiste in
+      `movimenti_cassa` ma la UI non lo chiede. Volutamente: imporre un elenco
+      chiuso al primo giro produce solo una categoria "altro" piena. Da decidere
+      guardando cosa scrive la gente nelle descrizioni dopo qualche settimana.
+- [ ] **Uscite di cassa nell'export contabilita'**: la distinzione con fattura /
+      senza / da verificare e' registrata e sommata, ma l'export per il
+      commercialista non la porta ancora fuori.
+- [ ] Le chiusure importate portano `fonte_incassi: 'registro'` in `extra`.
+      Nessuna vista lo mostra: servirebbe per distinguere a schermo una giornata
+      ricostruita dal foglio da una registrata sul momento.
 
 ---
 

@@ -1,12 +1,16 @@
 # FoodOS — Stato del Progetto
-> Aggiornato: 2026-09-07 — HEAD `49c683a` (4 set 2026), allineato a `origin/main`.
+> Aggiornato: 2026-09-07 (sera) — `main` oltre `4172405` (19 commit sopra
+> `49c683a`, tutti in produzione: verificato leggendo `CACHE_VERSION` da
+> `/sw.js` in prod). Il lotto prima nota di cassa + import registro incassi e'
+> committato in locale e **non ancora pushato**.
 >
 > **Repo di lavoro: `/Users/aler/foodos`.** La copia in `~/Desktop/foodos` e' ferma
 > al 1 set, sta dentro iCloud Drive (git lentissimo) e va ignorata.
 >
-> **Salute**: test 1511/1511 verdi (87 file, 46s), ESLint pulito su `src/` e `api/`,
-> build Vite 20s, grammar check OK.
-> 78 migration SQL in repo (ultima `20260904_storico_inventario_rpc`).
+> **Salute**: test 1721/1721 verdi (99 file, 46s), ESLint pulito su `src/` e `api/`,
+> build Vite 18s, grammar check OK, controllo token di design OK.
+> 84 migration SQL in repo (ultima `20260907f_prima_nota_cassa`), **tutte applicate in
+> produzione** — verificato via SQL diretto il 7/09 (vedi `foodos-db-access`).
 >
 > Architettura: code splitting completo, tablet 3-tier responsive, theme tokens
 > centralizzati, ICONS modulo dedicato, safeStorage Safari-safe.
@@ -306,6 +310,21 @@ Lettura solo titolare via guard `not is_dipendente()`. UI: Azienda → Registro 
 - [x] Foglio produzione: toggle "Solo compilati", ripeti settimana scorsa, drilldown gusto con sparkline 90 giorni, KPI banner, alert rimanenza, sort
 - [x] Colonne totali uniformi nelle 3 viste (Settimana/Mese/Storico) con sticky-right
 - [x] Rimosse 519 righe di codice import legacy
+
+### Cassa come si registra davvero (7 set 2026 — mig. `20260907b` → `20260907f`)
+Nato dallo studio del file con cui Mara tiene gli incassi (`INCASSI MARAMA LUGLIO 2026.xlsx`).
+Diceva tre cose che il prodotto non sapeva registrare, e non valgono solo per lei.
+
+- [x] **Chiusure dal blob jsonb alla tabella `chiusure_cassa`** (mig. `20260907b`, `20260907c`): prima le chiusure stavano in un unico blob per sede, scaricato tutto intero a ogni apertura. La forma dati esposta ai sei consumatori (P&L, Quadratura, Export contabilita', Integrazioni, Benchmark, Dashboard) e' rimasta identica: il cambio di modello e' confinato in `src/lib/chiusure.js`
+- [x] **Basta il totale per chiudere la giornata**: su tutto il database esistevano 2 chiusure reali, perche' inserire ogni prodotto con quantita' e prezzo chiedeva mezz'ora al giorno. Il calcolo che da' valore alla cassa usa solo il totale; il dettaglio resta possibile ma non e' piu' il pedaggio d'ingresso
+- [x] **Incasso scomposto per canale** (mig. `20260907f`): `incasso_pos`, `incasso_contanti`, `incasso_delivery` su `chiusure_cassa`. Nullable di proposito — null e' "non rilevato", diverso da zero. Compilando i canali il totale si somma da solo: nel foglio di luglio la somma a mano era sbagliata su una giornata
+- [x] **Prima nota di cassa** (mig. `20260907f`, tabella `movimenti_cassa` + RPC `movimenti_cassa_periodo`): le piccole uscite di giornata — "limoni 10 euro", "carrefour 11,56" — non avevano casa. `costi_aziendali` e' fatto per i costi ricorrenti mensili con periodicita', non per l'acquisto di limoni del 3 luglio. UI in `src/components/PrimaNotaCassa.jsx`, dentro la pagina Cassa: si compila quando si conta il cassetto
+- [x] **Il campo `documento` come cittadino di prima classe**: `fattura` / `senza` / `incerto`, che e' la notazione con cui Mara annota da anni — (F), (no F), (?). Non e' una nota personale: separa cio' che il commercialista puo' scaricare da cio' che non puo', e i totali di periodo tengono le tre voci distinte
+- [x] **Import del registro incassi** (`src/lib/importIncassi.js` + `src/components/ImportRegistroIncassi.jsx`, in Importa dati): legge il foglio COM'E'. Riconosce le tabelle affiancate separate da colonne vuote, le intestazioni scritte a mano ("Berthollet- Contanti", "Totale De Gasperi "), la colonna dei giorni anche senza etichetta, e le spese in testo libero con piu' voci per cella separate da ";". Abbina da solo i nomi del foglio ai punti vendita, deduce il mese dal nome del file e lo fa confermare. Provato sul file reale: 62 giornate e 37 uscite su 2 sedi, somme combacianti (39.865 POS / 12.652 contanti Berthollet, 41.994 / 16.110 De Gasperi) e una segnalazione su una somma sbagliata a mano nel foglio
+- [x] **Reimportare non raddoppia**: gli incassi si sovrascrivono per giorno preservando il dettaglio prodotti eventualmente gia' inserito, le uscite del periodo si rifanno da zero, e la UI lo dice prima di scrivere
+- [x] **Le uscite di cassa entrano nel conto economico**: `totaliPeriodo` era scritto "per il P&L" ma non collegato a niente — la prima nota registrava le spese e l'utile le ignorava. Ora c'e' una riga "Uscite di cassa (prima nota)" nella cascata, con quante voci sono e quanto di quelle e' senza fattura; la somma la fa il database (RPC `movimenti_cassa_periodo`), non il browser
+- [x] **Il P&L non conta piu' come zero il food cost che non conosce**: `foodcost_noto` veniva scritto ma nessuno lo leggeva, quindi ogni chiusura col solo totale entrava nel conto con food cost 0 e gonfiava il margine di tutto l'incasso. Ora la percentuale di food cost si misura sui soli giorni misurati, con "non noto" quando non ce n'e' nessuno, e sopra i numeri c'e' scritto quante giornate restano fuori e come sistemarle
+- [x] **Calendario chiusure a periodi** (mig. `20260907d`, `20260907e`): `chiusure_ricorrenti` con finestra di validita' (cambiare abitudine non riscrive il passato) + `chiusure_periodo` per ferie e chiusure straordinarie. Corretto il caso in cui cambiare idea nello stesso giorno lasciava due regole attive e il giorno non si poteva piu' togliere
 
 ### Deploy
 - [x] Vercel deploy manuale (`vercel --prod`) funzionante
