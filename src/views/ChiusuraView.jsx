@@ -26,6 +26,7 @@ import { todayLocal } from '../lib/dateLocal'
 import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
+import PrimaNotaCassa from '../components/PrimaNotaCassa'
 import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
 import { promptScontrino, categorieLette } from '../lib/promptScontrino'
 import { calcolaKpiChiusura, colorePerSellThrough } from '../lib/chiusuraKpi'
@@ -67,12 +68,20 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 function ChiusuraSoloTotale({ dataFiltro, esistente, salvando, onSalva }) {
   const [incasso, setIncasso] = useState(() =>
     esistente?.kpi?.totV != null ? String(esistente.kpi.totV) : '')
+  const [pos, setPos] = useState(() => esistente?.kpi?.pos != null ? String(esistente.kpi.pos) : '')
+  const [contanti, setContanti] = useState(() => esistente?.kpi?.contanti != null ? String(esistente.kpi.contanti) : '')
+  const [delivery, setDelivery] = useState(() => esistente?.kpi?.delivery != null ? String(esistente.kpi.delivery) : '')
   const [scontrini, setScontrini] = useState('')
   const [costoMaterie, setCostoMaterie] = useState('')
 
   const num = (v) => Number(String(v).replace(',', '.')) || 0
-  const valido = num(incasso) > 0
-  const medio = num(scontrini) > 0 ? num(incasso) / num(scontrini) : null
+  // Se scrivi POS e contanti il totale si compone da solo: chi tiene il registro
+  // diviso per metodo di pagamento non deve fare la somma a mano e rischiare di
+  // sbagliarla, come e' successo nel foglio di luglio del design partner.
+  const sommaCanali = num(pos) + num(contanti) + num(delivery)
+  const incassoEffettivo = sommaCanali > 0 ? sommaCanali : num(incasso)
+  const valido = incassoEffettivo > 0
+  const medio = num(scontrini) > 0 ? incassoEffettivo / num(scontrini) : null
 
   const campo = {
     width: '100%', padding: '12px 13px', minHeight: 46, boxSizing: 'border-box',
@@ -94,7 +103,43 @@ function ChiusuraSoloTotale({ dataFiltro, esistente, salvando, onSalva }) {
               style={{ ...campo, paddingRight: 34, fontWeight: 700 }} />
             <span style={{ position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)', color: T.textSoft, fontSize: FS.h3 }}>€</span>
           </div>
-          <div style={aiuto}>È il totale che leggi sullo scontrino di chiusura della cassa.</div>
+          <div style={aiuto}>
+            {sommaCanali > 0
+              ? `Calcolato dai canali qui sotto: ${fmt(sommaCanali)}. Se scrivi qui un altro numero viene ignorato.`
+              : 'È il totale che leggi sullo scontrino di chiusura della cassa. Oppure compila i canali qui sotto e la somma la faccio io.'}
+          </div>
+        </div>
+
+        {/* Scomposizione per canale. Facoltativa, ma per chi tiene il registro
+            diviso — come il design partner — è il modo in cui ragiona davvero:
+            quanto è passato dal terminale, quanto è rimasto nel cassetto,
+            quanto arriva dalle piattaforme. Serve a quadrare il fondocassa.
+            Compilandoli, il totale si calcola da solo: nel foglio di luglio la
+            somma a mano era sbagliata su una giornata. */}
+        <div>
+          <div style={etichetta}>
+            Da dove sono entrati <span style={{ fontWeight: 500, color: T.textSoft }}>· facoltativo</span>
+          </div>
+          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+            {[
+              ['POS / carte', pos, setPos, 'fos-pos'],
+              ['Contanti', contanti, setContanti, 'fos-contanti'],
+              ['Delivery', delivery, setDelivery, 'fos-delivery'],
+            ].map(([lbl, val, set, id]) => (
+              <div key={id}>
+                <label htmlFor={id} style={{ fontSize: FS.small, color: T.textMid, display: 'block', marginBottom: 4 }}>{lbl}</label>
+                <div style={{ position: 'relative' }}>
+                  <input id={id} type="text" inputMode="decimal" value={val}
+                    onChange={e => set(e.target.value)} placeholder="0,00" autoComplete="off"
+                    style={{ ...campo, paddingRight: 30 }} />
+                  <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', color: T.textSoft, fontSize: FS.body }}>€</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={aiuto}>
+            Il delivery è tenuto separato perché arriva dopo e con commissioni sue.
+          </div>
         </div>
 
         <div>
@@ -129,7 +174,12 @@ function ChiusuraSoloTotale({ dataFiltro, esistente, salvando, onSalva }) {
       </div>
 
       <button
-        onClick={() => onSalva({ incasso: num(incasso), scontrini: num(scontrini), costoMaterie })}
+        onClick={() => onSalva({
+          incasso: incassoEffettivo, scontrini: num(scontrini), costoMaterie,
+          pos: pos === '' ? null : num(pos),
+          contanti: contanti === '' ? null : num(contanti),
+          delivery: delivery === '' ? null : num(delivery),
+        })}
         disabled={!valido || salvando}
         style={{
           marginTop: 16, width: '100%', padding: '14px 0', minHeight: 50,
@@ -576,7 +626,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
   // Salva una chiusura senza dettaglio prodotti. Marcata con solo_totale così
   // il P&L sa che di quel giorno conosce l'incasso ma NON il food cost, e non
   // lo conta come zero facendo sembrare il margine migliore di quello che è.
-  const salvaSoloTotale = async ({ incasso, scontrini, costoMaterie }) => {
+  const salvaSoloTotale = async ({ incasso, scontrini, costoMaterie, pos, contanti, delivery }) => {
     if (salvando) return
     setSalvando(true)
     try {
@@ -600,6 +650,7 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
           totS: 0,
           totMP: (totM != null && totV > 0) ? (totM / totV * 100) : 0,
           avgST: nSc > 0 ? totV / nSc : 0,
+          pos, contanti, delivery,
         },
       }
       const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), rec]
@@ -1118,6 +1169,12 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
         )}
         </div>
       </div>
+
+      {/* Le uscite di giornata. Stanno qui perché si contano nello stesso
+          momento in cui si conta il cassetto: prima di sapere se la cassa
+          quadra bisogna aver tolto i dieci euro di limoni. Il dipendente le
+          registra come registra l'incasso — sono soldi che ha visto uscire. */}
+      <PrimaNotaCassa orgId={orgId} sedeId={sedeId} data={dataFiltro} notify={notify} />
 
       {(confronto.length > 0 || formatiRiconc.righe.length > 0) && (
         <>

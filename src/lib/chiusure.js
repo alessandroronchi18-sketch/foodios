@@ -16,7 +16,7 @@
 
 import { supabase } from './supabase'
 
-const COLONNE = 'id, data, tot_venduto, tot_foodcost, tot_margine, tot_scarti, margine_pct, scontrino_medio, venduto, formati, extra, is_demo, legacy_id'
+const COLONNE = 'id, data, tot_venduto, tot_foodcost, tot_margine, tot_scarti, margine_pct, scontrino_medio, incasso_pos, incasso_contanti, incasso_delivery, venduto, formati, extra, is_demo, legacy_id'
 
 /** Riga di database → forma che i componenti si aspettano. */
 function rigaAOggetto(r) {
@@ -31,6 +31,11 @@ function rigaAOggetto(r) {
       totS:  Number(r.tot_scarti) || 0,
       totMP: Number(r.margine_pct) || 0,
       avgST: r.scontrino_medio == null ? 0 : Number(r.scontrino_medio),
+      // Scomposizione per canale: null vuol dire "non rilevato", che e' diverso
+      // da zero. Chi registra solo il totale continua a non vederli.
+      pos:      r.incasso_pos == null ? null : Number(r.incasso_pos),
+      contanti: r.incasso_contanti == null ? null : Number(r.incasso_contanti),
+      delivery: r.incasso_delivery == null ? null : Number(r.incasso_delivery),
     },
     venduto: r.venduto || [],
     formati: r.formati || [],
@@ -53,6 +58,9 @@ function oggettoARiga(c, orgId, sedeId) {
     tot_scarti:      Number(kpi?.totS) || 0,
     margine_pct:     Number(kpi?.totMP) || 0,
     scontrino_medio: kpi?.avgST == null ? null : Number(kpi.avgST),
+    incasso_pos:      kpi?.pos == null ? null : Number(kpi.pos),
+    incasso_contanti: kpi?.contanti == null ? null : Number(kpi.contanti),
+    incasso_delivery: kpi?.delivery == null ? null : Number(kpi.delivery),
     venduto: venduto || [],
     formati: formati || [],
     extra,
@@ -145,4 +153,88 @@ export async function kpiPeriodo(orgId, sedeIds, from, to) {
     scarti:   Number(r?.scarti) || 0,
     giorni:   Number(r?.giorni) || 0,
   }
+}
+
+/**
+ * Il food cost di questa giornata lo sappiamo davvero?
+ *
+ * Una chiusura registrata col solo totale conosce l'incasso ma non quanto e'
+ * costata la merce. Contarla come zero e' l'errore più costoso che il P&L
+ * possa fare: aggiunge tutto l'incasso al margine e racconta una redditivita'
+ * che non esiste. Meglio dire "di questi giorni non lo so".
+ */
+export function foodcostNoto(c) {
+  if (c?.foodcost_noto != null) return !!c.foodcost_noto   // dichiarato al salvataggio
+  if (c?.solo_totale) return false                         // solo totale, materie non inserite
+  return true                                              // chiusura col dettaglio prodotti
+}
+
+/**
+ * Importa le giornate lette da un registro incassi tenuto a mano.
+ *
+ * Non usa salvaChiusure di proposito: quella riceve l'elenco COMPLETO e
+ * cancella le giornate che non ci sono più — giusto per una vista che
+ * ragiona su tutto lo storico, sbagliato per un'importazione, che parla solo
+ * del mese caricato e non deve toccare il resto dell'anno.
+ *
+ * Delle giornate già chiuse aggiorna solo i soldi. Il dettaglio prodotti e il
+ * costo delle materie, se qualcuno li aveva inseriti, valgono più di quello
+ * che c'è scritto nel registro e restano dove sono: il registro sa quanto e'
+ * entrato, non cosa e' stato venduto.
+ */
+export async function importaChiusureIncassi(orgId, sedeId, righe) {
+  if (!orgId) throw new Error('importaChiusureIncassi: orgId mancante')
+  const valide = (Array.isArray(righe) ? righe : [])
+    .filter(r => r && r.data && Number(r.totale) > 0)
+  if (valide.length === 0) return { nuove: 0, aggiornate: 0 }
+
+  const date = valide.map(r => r.data).sort()
+  const esistenti = await caricaChiusure(orgId, sedeId, { from: date[0], to: date[date.length - 1] })
+  const perData = new Map(esistenti.map(c => [c.data, c]))
+
+  const righeDb = valide.map(r => {
+    const vecchia = perData.get(r.data)
+    const totV = Number(r.totale) || 0
+    const totFC = Number(vecchia?.kpi?.totFC) || 0
+    // Un canale non indicato nel registro non cancella quello che sapevamo:
+    // null qui vuol dire "il foglio non lo dice", non "era zero".
+    const canale = (nuovo, vecchio) => nuovo == null
+      ? (vecchio == null ? null : Number(vecchio))
+      : Number(nuovo)
+    // Ai centesimi: la colonna e' numeric(12,2) e un margine di
+    // 776,4000000000001 in memoria non serve a nessuno.
+    const cent = (v) => Math.round(v * 100) / 100
+    return oggettoARiga({
+      ...(vecchia || {}),
+      data: r.data,
+      venduto: vecchia?.venduto || [],
+      formati: vecchia?.formati || [],
+      solo_totale:   vecchia ? !!vecchia.solo_totale : true,
+      foodcost_noto: vecchia ? foodcostNoto(vecchia) : false,
+      fonte_incassi: 'registro',
+      kpi: {
+        ...(vecchia?.kpi || {}),
+        totV,
+        totFC,
+        totM:  cent(totV - totFC),
+        totS:  Number(vecchia?.kpi?.totS) || 0,
+        totMP: totV > 0 ? cent((totV - totFC) / totV * 100) : 0,
+        avgST: Number(vecchia?.kpi?.avgST) || 0,
+        pos:      canale(r.pos, vecchia?.kpi?.pos),
+        contanti: canale(r.contanti, vecchia?.kpi?.contanti),
+        delivery: canale(r.delivery, vecchia?.kpi?.delivery),
+      },
+    }, orgId, sedeId)
+  })
+
+  const { error } = await supabase.from('chiusure_cassa')
+    .upsert(righeDb, { onConflict: 'organization_id,sede_id,data' })
+  if (error) {
+    console.error('importaChiusureIncassi:', error)
+    throw new Error(error.message || 'importazione degli incassi fallita')
+  }
+
+  let nuove = 0, aggiornate = 0
+  for (const r of valide) perData.has(r.data) ? aggiornate++ : nuove++
+  return { nuove, aggiornate }
 }

@@ -14,7 +14,10 @@ vi.mock('../../src/lib/supabase', () => ({
   supabase: { from: (...a) => fromMock(...a), rpc: (...a) => rpcMock(...a) },
 }))
 
-import { caricaChiusure, salvaChiusure, kpiPeriodo } from '../../src/lib/chiusure'
+import {
+  caricaChiusure, salvaChiusure, kpiPeriodo,
+  foodcostNoto, importaChiusureIncassi,
+} from '../../src/lib/chiusure'
 
 const ORG = 'org-1'
 const SEDE = 'sede-1'
@@ -57,7 +60,7 @@ describe('forma dei dati restituita', () => {
 
     expect(c.id).toBe('demo-ch-2026-06-19')   // l'id originale, non l'uuid
     expect(c.data).toBe('2026-06-19')
-    expect(c.kpi).toEqual({
+    expect(c.kpi).toMatchObject({
       totV: 660, totFC: 191, totM: 469, totS: 17, totMP: 0, avgST: 0.922,
     })
     expect(c.venduto).toHaveLength(1)
@@ -166,5 +169,114 @@ describe('aggregazione lato database', () => {
     const k = await kpiPeriodo(ORG, null, null, null)
     expect(rpcMock).not.toHaveBeenCalled()
     expect(k.giorni).toBe(0)
+  })
+})
+
+// ── Il food cost che non sappiamo ───────────────────────────────────────────
+//
+// Da quando la chiusura col solo totale e' il modo rapido di registrare la
+// cassa, molte giornate hanno l'incasso ma non il costo delle materie. Questi
+// test difendono la distinzione: chi legge deve poter sapere se il food cost
+// e' zero perche' misurato o zero perche' ignoto.
+
+describe('foodcostNoto', () => {
+  it('crede al flag scritto al salvataggio', () => {
+    expect(foodcostNoto({ foodcost_noto: true, solo_totale: true })).toBe(true)
+    expect(foodcostNoto({ foodcost_noto: false })).toBe(false)
+  })
+
+  it('una chiusura col solo totale non ha food cost', () => {
+    expect(foodcostNoto({ solo_totale: true })).toBe(false)
+  })
+
+  it('una chiusura col dettaglio prodotti ce l\'ha', () => {
+    // Le chiusure storiche non hanno nessuno dei due campi: sono nate dal
+    // dettaglio dello scontrino, quindi il food cost era calcolato.
+    expect(foodcostNoto({ data: '2026-06-19', kpi: { totFC: 191 } })).toBe(true)
+    expect(foodcostNoto({})).toBe(true)
+  })
+
+  it('su input vuoto non esplode', () => {
+    expect(foodcostNoto(null)).toBe(true)
+    expect(foodcostNoto(undefined)).toBe(true)
+  })
+})
+
+describe('importaChiusureIncassi', () => {
+  const RIGHE = [
+    { data: '2026-07-01', totale: 1076.4, pos: 788.1, contanti: 288.3, delivery: 70 },
+    { data: '2026-07-02', totale: 900, pos: 700, contanti: 200, delivery: null },
+  ]
+
+  it('scrive i canali e marca come non noto il costo delle materie', async () => {
+    const c = chainSelect([])                  // nessuna giornata già presente
+    const esito = await importaChiusureIncassi(ORG, SEDE, RIGHE)
+
+    expect(esito).toEqual({ nuove: 2, aggiornate: 0 })
+    const [righe, opts] = c.upsert.mock.calls[0]
+    expect(opts).toEqual({ onConflict: 'organization_id,sede_id,data' })
+    expect(righe).toHaveLength(2)
+    expect(righe[0]).toMatchObject({
+      organization_id: ORG, sede_id: SEDE, data: '2026-07-01',
+      tot_venduto: 1076.4, tot_foodcost: 0,
+      incasso_pos: 788.1, incasso_contanti: 288.3, incasso_delivery: 70,
+    })
+    // Il registro non dice quanto e' costata la merce: la giornata resta
+    // marcata, altrimenti il P&L la conterebbe come margine pieno.
+    expect(righe[0].extra).toMatchObject({ solo_totale: true, foodcost_noto: false, fonte_incassi: 'registro' })
+  })
+
+  it('non butta via il dettaglio prodotti di una giornata già chiusa', async () => {
+    // Il registro sa quanto e' entrato, non cosa e' stato venduto: se qualcuno
+    // aveva inserito lo scontrino, quel lavoro vale più del foglio.
+    const c = chainSelect([{
+      ...RIGA_DB, data: '2026-07-01',
+      tot_venduto: '1000.00', tot_foodcost: '300.00', margine_pct: '70.00',
+      extra: { solo_totale: false, foodcost_noto: true },
+      is_demo: false, legacy_id: null,
+    }])
+    const esito = await importaChiusureIncassi(ORG, SEDE, [RIGHE[0]])
+
+    expect(esito).toEqual({ nuove: 0, aggiornate: 1 })
+    const riga = c.upsert.mock.calls[0][0][0]
+    expect(riga.venduto).toHaveLength(1)               // il dettaglio resta
+    expect(riga.tot_foodcost).toBe(300)                // e anche il food cost
+    expect(riga.tot_venduto).toBe(1076.4)              // ma i soldi li dà il registro
+    expect(riga.tot_margine).toBe(776.4)               // ricalcolato, non ereditato
+    expect(riga.extra).toMatchObject({ foodcost_noto: true })
+  })
+
+  it('un canale che il foglio non dice non cancella quello che sapevamo', async () => {
+    const c = chainSelect([{
+      ...RIGA_DB, data: '2026-07-02',
+      incasso_delivery: '45.00', extra: {}, is_demo: false, legacy_id: null,
+    }])
+    await importaChiusureIncassi(ORG, SEDE, [RIGHE[1]])   // delivery: null
+    expect(c.upsert.mock.calls[0][0][0].incasso_delivery).toBe(45)
+  })
+
+  it('scarta le giornate senza data o senza incasso', async () => {
+    const c = chainSelect([])
+    const esito = await importaChiusureIncassi(ORG, SEDE, [
+      { data: '2026-07-01', totale: 100 },
+      { data: null, totale: 100 },
+      { data: '2026-07-03', totale: 0 },
+    ])
+    expect(esito).toEqual({ nuove: 1, aggiornate: 0 })
+    expect(c.upsert.mock.calls[0][0]).toHaveLength(1)
+  })
+
+  it('senza righe utili non tocca il database', async () => {
+    expect(await importaChiusureIncassi(ORG, SEDE, [])).toEqual({ nuove: 0, aggiornate: 0 })
+    expect(fromMock).not.toHaveBeenCalled()
+    await expect(importaChiusureIncassi(null, SEDE, RIGHE)).rejects.toThrow(/orgId/)
+  })
+
+  it('non cancella le giornate fuori dal mese importato', async () => {
+    // È la differenza con salvaChiusure, che riceve l'elenco completo e
+    // cancella quello che non c'è. Un'importazione parla solo del suo mese.
+    const c = chainSelect([])
+    await importaChiusureIncassi(ORG, SEDE, RIGHE)
+    expect(c.delete).not.toHaveBeenCalled()
   })
 })
