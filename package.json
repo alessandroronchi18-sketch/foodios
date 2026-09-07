@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/bump-sw-cache.mjs && node scripts/check-italian-grammar.mjs",
+    "prebuild": "node scripts/bump-sw-cache.mjs && node scripts/check-italian-grammar.mjs && node scripts/check-design-tokens.mjs",
     "build": "vite build",
     "grammar": "node scripts/check-italian-grammar.mjs",
+    "design": "node scripts/check-design-tokens.mjs",
+    "design:aggiorna": "node scripts/check-design-tokens.mjs --aggiorna",
     "preview": "vite preview",
     "lint": "eslint src/ --quiet",
     "lint:fix": "eslint src/ --fix",

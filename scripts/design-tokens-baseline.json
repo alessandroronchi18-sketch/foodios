@@ -1,0 +1,443 @@
+{
+  "src/App.jsx": {
+    "colore-a-mano": 46,
+    "testo-a-mano": 25
+  },
+  "src/Dashboard.jsx": {
+    "colore-a-mano": 147,
+    "testo-a-mano": 155
+  },
+  "src/admin/AdminPage.jsx": {
+    "colore-a-mano": 88,
+    "testo-a-mano": 444
+  },
+  "src/admin/MethodChangeRequestsPanel.jsx": {
+    "colore-a-mano": 17,
+    "testo-a-mano": 17
+  },
+  "src/admin/PersonalizeDemoModal.jsx": {
+    "colore-a-mano": 21,
+    "testo-a-mano": 42
+  },
+  "src/auth/AuthPage.jsx": {
+    "colore-a-mano": 18,
+    "testo-a-mano": 45
+  },
+  "src/auth/SelezionaDipendente.jsx": {
+    "colore-a-mano": 6,
+    "testo-a-mano": 9
+  },
+  "src/components/AIAssistant.jsx": {
+    "colore-a-mano": 12,
+    "testo-a-mano": 5
+  },
+  "src/components/AICard.jsx": {
+    "colore-a-mano": 17,
+    "testo-a-mano": 10
+  },
+  "src/components/AIFotoAnalisi.jsx": {
+    "colore-a-mano": 17,
+    "testo-a-mano": 12
+  },
+  "src/components/AISuggestionsBell.jsx": {
+    "colore-a-mano": 15,
+    "testo-a-mano": 8
+  },
+  "src/components/AbbonamentoPanel.jsx": {
+    "colore-a-mano": 2,
+    "testo-a-mano": 15
+  },
+  "src/components/AiExplainButton.jsx": {
+    "colore-a-mano": 9,
+    "testo-a-mano": 7
+  },
+  "src/components/AiPageHero.jsx": {
+    "colore-a-mano": 15,
+    "testo-a-mano": 2
+  },
+  "src/components/AppBanner.jsx": {
+    "colore-a-mano": 12,
+    "testo-a-mano": 2
+  },
+  "src/components/BackgroundToast.jsx": {
+    "colore-a-mano": 14,
+    "testo-a-mano": 5
+  },
+  "src/components/BenchmarkOptin.jsx": {
+    "colore-a-mano": 23,
+    "testo-a-mano": 12
+  },
+  "src/components/CalendarioOperativo.jsx": {
+    "testo-a-mano": 26
+  },
+  "src/components/CameraButton.jsx": {
+    "colore-a-mano": 1
+  },
+  "src/components/ChainBadge.jsx": {
+    "colore-a-mano": 6
+  },
+  "src/components/Changelog.jsx": {
+    "colore-a-mano": 1,
+    "testo-a-mano": 18
+  },
+  "src/components/CittaAutocomplete.jsx": {
+    "colore-a-mano": 6,
+    "testo-a-mano": 3
+  },
+  "src/components/CommandPalette.jsx": {
+    "colore-a-mano": 16,
+    "testo-a-mano": 12
+  },
+  "src/components/ConfirmModal.jsx": {
+    "colore-a-mano": 9,
+    "testo-a-mano": 2
+  },
+  "src/components/ConfrontoSedi.jsx": {
+    "colore-a-mano": 43,
+    "testo-a-mano": 53
+  },
+  "src/components/DailyBriefCard.jsx": {
+    "colore-a-mano": 6,
+    "testo-a-mano": 8
+  },
+  "src/components/DeleteAccountModal.jsx": {
+    "colore-a-mano": 16,
+    "testo-a-mano": 19
+  },
+  "src/components/EsportaDati.jsx": {
+    "colore-a-mano": 11,
+    "testo-a-mano": 14
+  },
+  "src/components/Eventi.jsx": {
+    "colore-a-mano": 31,
+    "testo-a-mano": 41
+  },
+  "src/components/ExportContabilita.jsx": {
+    "colore-a-mano": 10,
+    "testo-a-mano": 4
+  },
+  "src/components/ExportPdfButton.jsx": {
+    "colore-a-mano": 4,
+    "testo-a-mano": 3
+  },
+  "src/components/FeedbackButton.jsx": {
+    "colore-a-mano": 21,
+    "testo-a-mano": 11
+  },
+  "src/components/FloatingActions.jsx": {
+    "colore-a-mano": 2
+  },
+  "src/components/FormatiVendita.jsx": {
+    "colore-a-mano": 2,
+    "testo-a-mano": 34
+  },
+  "src/components/Fornitori.jsx": {
+    "colore-a-mano": 32,
+    "testo-a-mano": 64
+  },
+  "src/components/FotoOCR.jsx": {
+    "colore-a-mano": 5,
+    "testo-a-mano": 21
+  },
+  "src/components/Haccp.jsx": {
+    "colore-a-mano": 1,
+    "testo-a-mano": 61
+  },
+  "src/components/Icon.jsx": {
+    "colore-a-mano": 1
+  },
+  "src/components/ImportWizard.jsx": {
+    "colore-a-mano": 62,
+    "testo-a-mano": 40
+  },
+  "src/components/ImportaDati.jsx": {
+    "colore-a-mano": 3,
+    "testo-a-mano": 13
+  },
+  "src/components/Impostazioni.jsx": {
+    "colore-a-mano": 72,
+    "testo-a-mano": 63
+  },
+  "src/components/ImpostazioniSedi.jsx": {
+    "colore-a-mano": 46,
+    "testo-a-mano": 33
+  },
+  "src/components/ImpostazioniTv.jsx": {
+    "colore-a-mano": 25,
+    "testo-a-mano": 5
+  },
+  "src/components/Integrazioni.jsx": {
+    "colore-a-mano": 7,
+    "testo-a-mano": 45
+  },
+  "src/components/Logo.jsx": {
+    "colore-a-mano": 5
+  },
+  "src/components/MenuDinamico.jsx": {
+    "testo-a-mano": 41
+  },
+  "src/components/Mfa.jsx": {
+    "colore-a-mano": 52,
+    "testo-a-mano": 30
+  },
+  "src/components/NotifichePanel.jsx": {
+    "testo-a-mano": 10
+  },
+  "src/components/OcrFatturaButton.jsx": {
+    "colore-a-mano": 15,
+    "testo-a-mano": 12
+  },
+  "src/components/PeriodCompareSelector.jsx": {
+    "colore-a-mano": 5,
+    "testo-a-mano": 2
+  },
+  "src/components/Personale.jsx": {
+    "colore-a-mano": 82,
+    "testo-a-mano": 177
+  },
+  "src/components/PrevisioneDomanda.jsx": {
+    "colore-a-mano": 2,
+    "testo-a-mano": 21
+  },
+  "src/components/PrezziPerSedeModal.jsx": {
+    "colore-a-mano": 13,
+    "testo-a-mano": 16
+  },
+  "src/components/PrimiPassi.jsx": {
+    "colore-a-mano": 12,
+    "testo-a-mano": 3
+  },
+  "src/components/ProductAutocomplete.jsx": {
+    "colore-a-mano": 7,
+    "testo-a-mano": 4
+  },
+  "src/components/PushNotificationToggle.jsx": {
+    "colore-a-mano": 8,
+    "testo-a-mano": 7
+  },
+  "src/components/ReferralPanel.jsx": {
+    "colore-a-mano": 49,
+    "testo-a-mano": 19
+  },
+  "src/components/RegistroAttivita.jsx": {
+    "colore-a-mano": 15,
+    "testo-a-mano": 43
+  },
+  "src/components/Scadenzario.jsx": {
+    "colore-a-mano": 71,
+    "testo-a-mano": 81
+  },
+  "src/components/SedeContextBanner.jsx": {
+    "colore-a-mano": 8,
+    "testo-a-mano": 4
+  },
+  "src/components/SedeSelector.jsx": {
+    "colore-a-mano": 24,
+    "testo-a-mano": 10
+  },
+  "src/components/Skeleton.jsx": {
+    "colore-a-mano": 8
+  },
+  "src/components/SplashScreen.jsx": {
+    "colore-a-mano": 10,
+    "testo-a-mano": 1
+  },
+  "src/components/SpreciOmaggi.jsx": {
+    "colore-a-mano": 10,
+    "testo-a-mano": 34
+  },
+  "src/components/Toast.jsx": {
+    "colore-a-mano": 3,
+    "testo-a-mano": 3
+  },
+  "src/components/TrasferimentiView.jsx": {
+    "colore-a-mano": 21,
+    "testo-a-mano": 36
+  },
+  "src/components/UpgradeGate.jsx": {
+    "testo-a-mano": 4
+  },
+  "src/components/UpgradeModal.jsx": {
+    "colore-a-mano": 16,
+    "testo-a-mano": 7
+  },
+  "src/components/UploadToast.jsx": {
+    "colore-a-mano": 6,
+    "testo-a-mano": 4
+  },
+  "src/components/VoiceButton.jsx": {
+    "colore-a-mano": 2
+  },
+  "src/components/WhatsAppReportPanel.jsx": {
+    "testo-a-mano": 11
+  },
+  "src/components/WhiteLabel.jsx": {
+    "colore-a-mano": 39,
+    "testo-a-mano": 19
+  },
+  "src/lib/allergeni.js": {
+    "colore-a-mano": 14
+  },
+  "src/lib/exportPDF.js": {
+    "testo-a-mano": 29
+  },
+  "src/lib/pdfExport.js": {
+    "colore-a-mano": 5,
+    "testo-a-mano": 1
+  },
+  "src/lib/trasferimenti.js": {
+    "colore-a-mano": 10
+  },
+  "src/main.jsx": {
+    "colore-a-mano": 6,
+    "testo-a-mano": 3
+  },
+  "src/onboarding/OnboardingChat.jsx": {
+    "colore-a-mano": 12,
+    "testo-a-mano": 10
+  },
+  "src/onboarding/OnboardingWizard.jsx": {
+    "colore-a-mano": 80,
+    "testo-a-mano": 37
+  },
+  "src/pages/LandingPage.jsx": {
+    "colore-a-mano": 21,
+    "testo-a-mano": 121
+  },
+  "src/pages/TvDashboard.jsx": {
+    "colore-a-mano": 4,
+    "testo-a-mano": 14
+  },
+  "src/pages/_LegalLayout.jsx": {
+    "colore-a-mano": 21,
+    "testo-a-mano": 3
+  },
+  "src/views/AiHubView.jsx": {
+    "colore-a-mano": 38,
+    "testo-a-mano": 15
+  },
+  "src/views/AnalisiInventarioSection.jsx": {
+    "colore-a-mano": 37,
+    "testo-a-mano": 22
+  },
+  "src/views/AzioniView.jsx": {
+    "colore-a-mano": 2,
+    "testo-a-mano": 10
+  },
+  "src/views/BrainView.jsx": {
+    "colore-a-mano": 11,
+    "testo-a-mano": 11
+  },
+  "src/views/CashflowView.jsx": {
+    "colore-a-mano": 19,
+    "testo-a-mano": 20
+  },
+  "src/views/ChiusuraView.jsx": {
+    "colore-a-mano": 21,
+    "testo-a-mano": 92
+  },
+  "src/views/CompetitorPricingView.jsx": {
+    "colore-a-mano": 15,
+    "testo-a-mano": 22
+  },
+  "src/views/CostiAziendaliView.jsx": {
+    "colore-a-mano": 44,
+    "testo-a-mano": 40
+  },
+  "src/views/DashboardHomeView.jsx": {
+    "colore-a-mano": 19,
+    "testo-a-mano": 22
+  },
+  "src/views/DocumentaryView.jsx": {
+    "colore-a-mano": 8,
+    "testo-a-mano": 12
+  },
+  "src/views/ForecastView.jsx": {
+    "colore-a-mano": 9,
+    "testo-a-mano": 11
+  },
+  "src/views/HomeDipendente.jsx": {
+    "colore-a-mano": 26,
+    "testo-a-mano": 7
+  },
+  "src/views/InventarioSettimanaleView.jsx": {
+    "colore-a-mano": 126,
+    "testo-a-mano": 94
+  },
+  "src/views/MagazzinoView.jsx": {
+    "colore-a-mano": 31,
+    "testo-a-mano": 105
+  },
+  "src/views/MarketplaceView.jsx": {
+    "colore-a-mano": 5,
+    "testo-a-mano": 11
+  },
+  "src/views/MenuEngineeringView.jsx": {
+    "colore-a-mano": 22,
+    "testo-a-mano": 6
+  },
+  "src/views/NuovaRicettaView.jsx": {
+    "colore-a-mano": 52,
+    "testo-a-mano": 81
+  },
+  "src/views/OrdiniAiView.jsx": {
+    "colore-a-mano": 11,
+    "testo-a-mano": 17
+  },
+  "src/views/PLView.jsx": {
+    "colore-a-mano": 71,
+    "testo-a-mano": 105
+  },
+  "src/views/ProduzioneGiornalieraView.jsx": {
+    "colore-a-mano": 41,
+    "testo-a-mano": 76
+  },
+  "src/views/QuadraturaInventarioView.jsx": {
+    "colore-a-mano": 54,
+    "testo-a-mano": 31
+  },
+  "src/views/RecensioniView.jsx": {
+    "colore-a-mano": 13,
+    "testo-a-mano": 12
+  },
+  "src/views/RecipeInventorView.jsx": {
+    "colore-a-mano": 12,
+    "testo-a-mano": 20
+  },
+  "src/views/ReformulationView.jsx": {
+    "colore-a-mano": 14,
+    "testo-a-mano": 13
+  },
+  "src/views/RicettarioView.jsx": {
+    "colore-a-mano": 41,
+    "testo-a-mano": 56
+  },
+  "src/views/SchedaAllergeniView.jsx": {
+    "colore-a-mano": 9,
+    "testo-a-mano": 9
+  },
+  "src/views/SemilavoratiView.jsx": {
+    "colore-a-mano": 1,
+    "testo-a-mano": 45
+  },
+  "src/views/SimulatorePrezziView.jsx": {
+    "colore-a-mano": 6,
+    "testo-a-mano": 27
+  },
+  "src/views/StoricoProduzioneView.jsx": {
+    "colore-a-mano": 38,
+    "testo-a-mano": 99
+  },
+  "src/views/VenditeB2BView.jsx": {
+    "colore-a-mano": 17,
+    "testo-a-mano": 61
+  },
+  "src/views/WhatsAppView.jsx": {
+    "colore-a-mano": 12,
+    "testo-a-mano": 11
+  },
+  "src/views/_shared.jsx": {
+    "colore-a-mano": 17,
+    "testo-a-mano": 11
+  }
+}
