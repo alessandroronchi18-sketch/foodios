@@ -12,7 +12,7 @@ import { backgroundManager, uploadManager } from '../lib/backgroundManager'
 import { compressImage } from '../lib/imageUtils'
 import { callAi, parseAiJson } from '../lib/aiClient'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T } from '../lib/theme'
+import { color as T, typo } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { useListinoSede, applicaListinoAiFormati, getRegSede } from '../lib/listinoSede'
@@ -27,28 +27,152 @@ import { lessico } from '../lib/lessico'
 import Icon from '../components/Icon'
 import { useConfirm } from '../components/ConfirmModal'
 import { C, KPI, PageHeader, margColor, fmt, fmt0, fmtp } from './_shared'
+import { promptScontrino, categorieLette } from '../lib/promptScontrino'
+import { calcolaKpiChiusura, colorePerSellThrough } from '../lib/chiusuraKpi'
 
 // Persiste fra unmount/remount durante l'analisi AI di uno scontrino
 const _receiptPending = { current: null }
 
+// Scala tipografica della pagina, ancorata ai token di theme.js.
+// Prima c'erano 59 testi sotto i 12px — otto a 8px, tre a 9px, diciotto a 10px,
+// trenta a 11px. Su un gestionale che useranno proprietari di sessanta anni,
+// dietro il banco o in laboratorio, sotto i 12px non si legge.
+const FS = {
+  small: typo.small.fontSize,   // 12 - etichette, note, celle secondarie
+  body:  typo.body.fontSize,    // 14 - testo corrente
+  h3:    typo.h3.fontSize,      // 15 - intestazioni di riquadro
+}
+// Eccezione documentata: sotto i 16px iOS ingrandisce la pagina quando si
+// tocca un campo di testo. Vale solo per gli input.
+const FS_INPUT_IOS = 16
+
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
+
+// ── Chiusura rapida: il solo totale della giornata ──────────────────────────
+//
+// Fino al 07/09 per chiudere la cassa bisognava inserire OGNI prodotto venduto
+// con quantità e prezzo, a mano o via foto dello scontrino. Su tutto il
+// database esistevano 2 chiusure reali: la funzione veniva provata e
+// abbandonata, perché chiedeva mezz'ora al giorno.
+//
+// Il paradosso è che il calcolo che dà valore alla cassa — il confronto fra
+// soldi entrati e merce uscita — usa SOLO il totale. Il dettaglio serve a chi
+// vuole il margine per singolo prodotto, ed è giusto che resti possibile: ma
+// non può essere il pedaggio d'ingresso.
+//
+// Il costo delle materie è facoltativo di proposito. Se non lo si sa, meglio
+// non saperlo che inventarlo: la chiusura viene marcata e il P&L esclude quel
+// giorno dal food cost invece di contarlo zero e gonfiare il margine.
+function ChiusuraSoloTotale({ dataFiltro, esistente, salvando, onSalva }) {
+  const [incasso, setIncasso] = useState(() =>
+    esistente?.kpi?.totV != null ? String(esistente.kpi.totV) : '')
+  const [scontrini, setScontrini] = useState('')
+  const [costoMaterie, setCostoMaterie] = useState('')
+
+  const num = (v) => Number(String(v).replace(',', '.')) || 0
+  const valido = num(incasso) > 0
+  const medio = num(scontrini) > 0 ? num(incasso) / num(scontrini) : null
+
+  const campo = {
+    width: '100%', padding: '12px 13px', minHeight: 46, boxSizing: 'border-box',
+    border: `1px solid ${T.border}`, borderRadius: 10, fontSize: FS_INPUT_IOS,
+    color: T.text, background: T.bgCard, fontFamily: 'inherit',
+  }
+  const etichetta = { fontSize: FS.body, fontWeight: 700, color: T.text, marginBottom: 6, display: 'block' }
+  const aiuto = { fontSize: FS.small, color: T.textSoft, marginTop: 5, lineHeight: 1.45 }
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: '1fr', marginBottom: 4 }}>
+        <div>
+          <label style={etichetta} htmlFor="fos-incasso">Incasso della giornata</label>
+          <div style={{ position: 'relative' }}>
+            <input id="fos-incasso" type="text" inputMode="decimal" value={incasso}
+              onChange={e => setIncasso(e.target.value)}
+              placeholder="0,00" autoComplete="off"
+              style={{ ...campo, paddingRight: 34, fontWeight: 700 }} />
+            <span style={{ position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)', color: T.textSoft, fontSize: FS.h3 }}>€</span>
+          </div>
+          <div style={aiuto}>È il totale che leggi sullo scontrino di chiusura della cassa.</div>
+        </div>
+
+        <div>
+          <label style={etichetta} htmlFor="fos-scontrini">
+            Numero di scontrini <span style={{ fontWeight: 500, color: T.textSoft }}>· facoltativo</span>
+          </label>
+          <input id="fos-scontrini" type="text" inputMode="numeric" value={scontrini}
+            onChange={e => setScontrini(e.target.value)} placeholder="es. 128" autoComplete="off"
+            style={campo} />
+          <div style={aiuto}>
+            {medio != null
+              ? `Scontrino medio: ${fmt(medio)}`
+              : 'Serve solo a calcolare lo scontrino medio. Puoi lasciarlo vuoto.'}
+          </div>
+        </div>
+
+        <div>
+          <label style={etichetta} htmlFor="fos-materie">
+            Costo delle materie prime <span style={{ fontWeight: 500, color: T.textSoft }}>· facoltativo</span>
+          </label>
+          <div style={{ position: 'relative' }}>
+            <input id="fos-materie" type="text" inputMode="decimal" value={costoMaterie}
+              onChange={e => setCostoMaterie(e.target.value)} placeholder="lascia vuoto se non lo sai"
+              autoComplete="off" style={{ ...campo, paddingRight: 34 }} />
+            <span style={{ position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)', color: T.textSoft, fontSize: FS.h3 }}>€</span>
+          </div>
+          <div style={aiuto}>
+            Se lo lasci vuoto il margine di questo giorno non viene calcolato, invece di essere
+            inventato. Con il metodo inventario lo ricava già dalla produzione.
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={() => onSalva({ incasso: num(incasso), scontrini: num(scontrini), costoMaterie })}
+        disabled={!valido || salvando}
+        style={{
+          marginTop: 16, width: '100%', padding: '14px 0', minHeight: 50,
+          background: valido ? T.brand : T.bgSubtle,
+          color: valido ? '#FFF' : T.textSoft,
+          border: 'none', borderRadius: 12, fontSize: FS.h3, fontWeight: 700,
+          cursor: valido && !salvando ? 'pointer' : 'default',
+          opacity: salvando ? 0.6 : 1,
+        }}>
+        {salvando ? 'Salvo…' : esistente ? 'Aggiorna l\'incasso' : 'Registra l\'incasso'}
+      </button>
+
+      {esistente && (
+        <div style={{ ...aiuto, marginTop: 10, textAlign: 'center' }}>
+          Per questo giorno c&apos;è già una chiusura registrata: salvando la sostituisci.
+        </div>
+      )}
+    </div>
+  )
+}
 
 // Section header con chip icona (gerarchia premium come la Dashboard home).
 function SectHead({ icon, title, sub, right }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: `1px solid ${T.border}` }}>
-      <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</span>
+      <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: T.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: FS_INPUT_IOS, flexShrink: 0 }}>{icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>{title}</div>
-        {sub && <div style={{ fontSize: 11, color: T.textSoft, marginTop: 1 }}>{sub}</div>}
+        <div style={{ fontSize: FS.body, fontWeight: 700, color: T.text, letterSpacing: '-0.01em' }}>{title}</div>
+        {sub && <div style={{ fontSize: FS.small, color: T.textSoft, marginTop: 1 }}>{sub}</div>}
       </div>
       {right}
     </div>
   )
 }
 
-export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId, isDipendente = false, LEX = lessico() }) {
+export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChiusure, notify, orgId, sedeId, isDipendente = false, metodoProduzione = 'stampi', tipoAttivita, onNavigate, LEX = lessico() }) {
+  // Con il metodo inventario la produzione NON sta nel blob `giornaliero` ma
+  // nella tabella inventario_produzione, e si misura in grammi per gusto: non
+  // e' confrontabile riga per riga con pezzi venduti allo scontrino. Il
+  // confronto giusto per quel metodo esiste già ed e' la Quadratura
+  // inventario. Qui, invece di mostrare una tabella vuota che dichiara ogni
+  // prodotto "solo venduto", si rimanda a quella.
+  const isMetodoInventario = metodoProduzione === 'inventario'
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
@@ -138,21 +262,6 @@ export default function ChiusuraView({ ricettario, giornaliero, chiusure, setChi
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const PROMPT = `Sei un OCR per scontrini di bar/pasticceria italiani.
-Estrai queste informazioni dallo scontrino:
-1. DATA: cerca la data dello scontrino in qualsiasi formato (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, "12 marzo 2026", ecc). Convertila sempre in formato ISO YYYY-MM-DD. Se non trovi la data metti null.
-2. PRODOTTI PASTICCERIA: estrai SOLO i prodotti della categoria PASTICCERIA (la sezione che inizia con "> N PASTICCERIA" e finisce alla prossima sezione "> N ALTRO").
-   Per ogni riga prodotto estrai: nome esatto come scritto, quantita venduta (numero prima del nome), prezzo totale riga (numero a destra).
-   Calcola prezzoUnitario = totale / quantita.
-   Ignora righe di sconto (es "sconto 30%"), totali di categoria, intestazioni, e prodotti di altre categorie (GELATO, BIBITE, ecc).
-3. REGOLE OBBLIGATORIE - saranno verificate dal client:
-   - Ogni prodotto DEVE avere qta > 0 (intero).
-   - Ogni prodotto DEVE avere totale > 0 (euro, due decimali).
-   - prezzoUnitario = totale / qta, calcolato fino a 2 decimali.
-   - Se il prezzo NON e' leggibile (sbiadito, tagliato, dubbio), NON inventarlo:
-     metti il prodotto in "incerti" con nome e qta, NON in "prodotti".
-Rispondi SOLO JSON valido senza markdown ne testi extra:
-{"data":"YYYY-MM-DD o null","prodotti":[{"nome":"NOME","qta":numero,"totale":euro_numero,"prezzoUnitario":euro_numero}],"incerti":[{"nome":"NOME","qta":numero,"motivo":"prezzo non leggibile"}]}`
 
   const [batchMode, setBatchMode] = useState(false)
   const [batchFiles, setBatchFiles] = useState([])
@@ -262,7 +371,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       timeoutMs: 60_000,
       messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: imgData } },
-        { type: 'text', text: PROMPT },
+        { type: 'text', text: promptScontrino(tipoAttivita) },
       ] }],
       parseJson: true,
     })
@@ -454,18 +563,56 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
   // SIA il food cost di sprechi/omaggi (sono costi reali per l'azienda).
   // Così cassa e produzione coincidono anche senza il dettaglio del gusto, e il
   // margine giornaliero riflette l'impatto reale delle perdite.
-  const fmtV = formatiRiconc.righe.reduce((s, r) => s + r.rv, 0)
-  const fmtFC = formatiRiconc.righe.reduce((s, r) => s + r.fcV, 0)
-  const movFC = (aggMov.tot.eurSpreco || 0) + (aggMov.tot.eurOmaggio || 0)
-  const totV = confronto.reduce((s, r) => s + r.rv, 0) + fmtV
-  const totFC = confronto.reduce((s, r) => s + r.fcV, 0) + fmtFC + movFC
-  const totM = totV - totFC
-  const totS = confronto.reduce((s, r) => s + r.spreco, 0) + (aggMov.tot.eurSpreco || 0)
-  const totMP = totV > 0 ? (totM / totV * 100) : 0
-  const stL = confronto.filter(r => r.st !== null)
-  const avgST = stL.length > 0 ? stL.reduce((s, r) => s + r.st, 0) / stL.length : 0
-  const stC = st => st >= 85 ? C.green : st >= 65 ? C.amber : C.red
+  const { totV, totFC, totM, totS, totMP, avgST, dettaglio } =
+    calcolaKpiChiusura(confronto, formatiRiconc.righe, aggMov.tot)
+  // Righe con sell-through valorizzato: servono anche alla tabella qui sotto.
+  const stL = confronto.filter(r => r.st !== null && r.st !== undefined)
+  const fmtV = dettaglio.ricaviFormati
+  const stC = st => colorePerSellThrough(st, C)
   const fmtKg = g => g >= 1000 ? `${(Number(g) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(g)||0).toLocaleString('it-IT')} g`
+
+  // ── Chiusura rapida: solo il totale incassato ───────────────────────────
+  //
+  // Salva una chiusura senza dettaglio prodotti. Marcata con solo_totale così
+  // il P&L sa che di quel giorno conosce l'incasso ma NON il food cost, e non
+  // lo conta come zero facendo sembrare il margine migliore di quello che è.
+  const salvaSoloTotale = async ({ incasso, scontrini, costoMaterie }) => {
+    if (salvando) return
+    setSalvando(true)
+    try {
+      const totV = Number(incasso) || 0
+      const nSc  = Number(scontrini) || 0
+      const totFC = costoMaterie === '' || costoMaterie == null ? null : (Number(costoMaterie) || 0)
+      const totM = totFC == null ? null : totV - totFC
+      const rec = {
+        id: `ch-${dataFiltro}`,
+        data: dataFiltro,
+        salvatoAt: new Date().toISOString(),
+        venduto: [],
+        confronto: [],
+        formati: [],
+        solo_totale: true,
+        foodcost_noto: totFC != null,
+        kpi: {
+          totV,
+          totFC: totFC ?? 0,
+          totM: totM ?? 0,
+          totS: 0,
+          totMP: (totM != null && totV > 0) ? (totM / totV * 100) : 0,
+          avgST: nSc > 0 ? totV / nSc : 0,
+        },
+      }
+      const nuove = [...(chiusure || []).filter(c => c.data !== dataFiltro), rec]
+      await ssave(SK_CHIUS, nuove)
+      setChiusure(nuove)
+      setSalvato(true)
+      notify(`Incasso del ${new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT')} registrato`)
+    } catch (e) {
+      notify(`Non riesco a salvare: ${e.message || 'errore di rete'}. Riprova.`, false)
+    } finally {
+      setSalvando(false)
+    }
+  }
 
   const handleSalva = async () => {
     if (salvando) return // evita doppio scarico stock PF su doppio click sincrono
@@ -660,16 +807,16 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
     if (!venduto || loading) return null
     return (
       <div style={{ background: C.white, border: `1px solid ${C.green}30`, borderRadius: 18, padding: '16px', boxShadow: SHADOW_PREMIUM }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: C.green, marginBottom: 2, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={13} />{venduto.length} prodotti pronti per il confronto</div>
-        {!salvato && <div style={{ fontSize: 10, color: C.textSoft, marginBottom: 8 }}>Rimuovi una riga sbagliata prima di salvare</div>}
+        <div style={{ fontSize: FS.small, fontWeight: 800, color: C.green, marginBottom: 2, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={13} />{venduto.length} prodotti pronti per il confronto</div>
+        {!salvato && <div style={{ fontSize: FS.small, color: C.textSoft, marginBottom: 8 }}>Rimuovi una riga sbagliata prima di salvare</div>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 180, overflowY: 'auto', marginBottom: 10 }}>
           {venduto.map((p, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 11, padding: '3px 8px', background: '#F8F4F2', borderRadius: 5 }}>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: FS.small, padding: '3px 8px', background: '#F8F4F2', borderRadius: 5 }}>
               <span style={{ fontWeight: 600, color: C.text, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.qta}× {p.nome}</span>
               <span style={{ color: C.green, fontWeight: 700, flexShrink: 0 }}>{fmt(p.totale || 0)}</span>
               {!salvato && (
                 <button aria-label={`Rimuovi ${p.nome}`} onClick={() => setVenduto(v => v.filter((_, j) => j !== i))}
-                  style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: 'none', background: 'transparent', color: C.textSoft, cursor: 'pointer', fontSize: 11, fontWeight: 700, lineHeight: 1 }}
+                  style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: 'none', background: 'transparent', color: C.textSoft, cursor: 'pointer', fontSize: FS.small, fontWeight: 700, lineHeight: 1 }}
                   onMouseEnter={e => { e.currentTarget.style.color = C.red }} onMouseLeave={e => { e.currentTarget.style.color = C.textSoft }}>✕</button>
               )}
             </div>
@@ -677,12 +824,12 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         </div>
         {!salvato ? (
           (confronto.length > 0 || formatiRiconc.righe.length > 0) ? (
-            <button onClick={handleSalva} disabled={salvando} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="save" size={14} />{salvando ? 'Salvataggio…' : 'Salva chiusura nello storico'}</button>
+            <button onClick={handleSalva} disabled={salvando} style={{ width: '100%', padding: '11px', background: C.green, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: FS.small, cursor: salvando ? 'not-allowed' : 'pointer', opacity: salvando ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="save" size={14} />{salvando ? 'Salvataggio…' : 'Salva chiusura nello storico'}</button>
           ) : (
-            <div style={{ fontSize: 10, color: C.amber }}>Nessun prodotto del ricettario o formato di vendita trovato - verifica i nomi</div>
+            <div style={{ fontSize: FS.small, color: C.amber }}>Nessun prodotto del ricettario o formato di vendita trovato - verifica i nomi</div>
           )
         ) : (
-          <div style={{ padding: '9px 14px', background: C.greenLight, borderRadius: 8, fontSize: 11, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={13} />Chiusura salvata nello storico</div>
+          <div style={{ padding: '9px 14px', background: C.greenLight, borderRadius: 8, fontSize: FS.small, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={13} />Chiusura salvata nello storico</div>
         )}
       </div>
     )
@@ -695,9 +842,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         action={
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => { setImportModal('delivery'); setImportPreview(null) }}
-              style={{ padding: isMobile ? '10px 14px' : '8px 14px', minHeight: isMobile ? 40 : 'auto', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Importa delivery</button>
+              style={{ padding: isMobile ? '10px 14px' : '8px 14px', minHeight: isMobile ? 40 : 'auto', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: FS.small, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Importa delivery</button>
             <button onClick={() => { setImportModal('cassa'); setImportPreview(null) }}
-              style={{ padding: isMobile ? '10px 14px' : '8px 14px', minHeight: isMobile ? 40 : 'auto', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Sistema cassa</button>
+              style={{ padding: isMobile ? '10px 14px' : '8px 14px', minHeight: isMobile ? 40 : 'auto', background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: FS.small, fontWeight: 600, color: C.textMid, cursor: 'pointer', whiteSpace: 'nowrap' }}>Sistema cassa</button>
           </div>
         }
       />
@@ -705,10 +852,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       {importModal === 'delivery' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: C.white, borderRadius: 16, padding: '24px', maxWidth: 540, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', overflowY: 'auto', maxHeight: '90vh' }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: C.text, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="scooter" size={18} />Importa da piattaforma delivery</div>
-            <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 18 }}>Seleziona la piattaforma e carica il file export CSV/Excel.</div>
+            <div style={{ fontSize: FS_INPUT_IOS, fontWeight: 900, color: C.text, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="scooter" size={18} />Importa da piattaforma delivery</div>
+            <div style={{ fontSize: FS.small, color: C.textSoft, marginBottom: 18 }}>Seleziona la piattaforma e carica il file export CSV/Excel.</div>
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Piattaforma</div>
+              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Piattaforma</div>
               <select value={importPiattaforma} onChange={e => { setImportPiattaforma(e.target.value); setImportPreview(null) }}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, color: C.text, minHeight: 44 }}>
                 <option value="deliveroo">Deliveroo (CSV)</option>
@@ -717,15 +864,15 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 <option value="generico">Formato generico (CSV)</option>
               </select>
             </div>
-            <label style={{ display: 'block', padding: '14px', minHeight: 48, background: '#F8F4F2', border: `1px dashed ${C.borderStr}`, borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: C.textMid, marginBottom: 14 }}>
+            <label style={{ display: 'block', padding: '14px', minHeight: 48, background: '#F8F4F2', border: `1px dashed ${C.borderStr}`, borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: FS.body, fontWeight: 700, color: C.textMid, marginBottom: 14 }}>
               <Icon name="folder" size={14} style={{ marginRight: 6 }} />{importLoading ? 'Lettura file…' : 'Carica file export'}
               <input ref={importFileRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }} onChange={handleImportDeliveryFile}/>
             </label>
             {importPreview?.tipo === 'aggregated' && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.green, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={12} />{importPreview.righe.length} giorni rilevati</div>
+                <div style={{ fontSize: FS.small, fontWeight: 700, color: C.green, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={12} />{importPreview.righe.length} giorni rilevati</div>
                 <div style={{ maxHeight: 180, overflowY: 'auto', overflowX: 'auto', borderRadius: 8, border: `1px solid ${C.border}`, WebkitOverflowScrolling: 'touch' }}>
-                  <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: 11 }}>
+                  <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: FS.small }}>
                     <thead><tr style={{ background: '#F8F4F2' }}>
                       {['Data', 'Importo', 'Commissione', 'Netto', 'Ordini'].map(h => (
                         <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Data' ? 'left' : 'right', fontWeight: 700, color: C.textSoft }}>{h}</th>
@@ -746,11 +893,11 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             )}
             {importPreview?.tipo === 'generic' && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.amber, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="clipboard" size={13} />Mappa le colonne</div>
+                <div style={{ fontSize: FS.small, fontWeight: 700, color: C.amber, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="clipboard" size={13} />Mappa le colonne</div>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
                   {[['Data', 'data'], ['Importo', 'importo'], ['Commissione (opz.)', 'comm']].map(([label, key]) => (
                     <div key={key}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, marginBottom: 4 }}>{label}</div>
                       <select value={importGenericMapping[key] || ''} onChange={e => setImportGenericMapping(m => ({ ...m, [key]: e.target.value }))}
                         style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 11, minHeight: 40 }}>
                         <option value="">-</option>
@@ -763,9 +910,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               {importPreview && (
-                <button onClick={handleConfirmDelivery} style={{ flex: 1, padding: '12px', minHeight: 44, background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
+                <button onClick={handleConfirmDelivery} style={{ flex: 1, padding: '12px', minHeight: 44, background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: FS.body, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
               )}
-              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '12px 16px', minHeight: 44, background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: 13, cursor: 'pointer' }}>Chiudi</button>
+              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '12px 16px', minHeight: 44, background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: FS.body, cursor: 'pointer' }}>Chiudi</button>
             </div>
           </div>
         </div>
@@ -774,12 +921,12 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       {importModal === 'cassa' && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: C.white, borderRadius: 16, padding: '24px', maxWidth: 540, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', overflowY: 'auto', maxHeight: '90vh' }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: C.text, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="tv" size={18} />Importa da sistema cassa</div>
-            <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 18 }}>Seleziona il sistema e carica il file export (CSV o XML).</div>
+            <div style={{ fontSize: FS_INPUT_IOS, fontWeight: 900, color: C.text, marginBottom: 4, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="tv" size={18} />Importa da sistema cassa</div>
+            <div style={{ fontSize: FS.small, color: C.textSoft, marginBottom: 18 }}>Seleziona il sistema e carica il file export (CSV o XML).</div>
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Sistema cassa</div>
+              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Sistema cassa</div>
               <select value={importSistema} onChange={e => { setImportSistema(e.target.value); setImportPreview(null) }}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 12, color: C.text }}>
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: FS.small, color: C.text }}>
                 <option value="cassaincloud">Cassa in Cloud (CSV)</option>
                 <option value="sumup">SumUp (CSV)</option>
                 <option value="zucchetti">Zucchetti Infinity/Kassa (CSV o XML)</option>
@@ -788,15 +935,15 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 <option value="fattura_xml">Fattura Elettronica SDI (XML)</option>
               </select>
             </div>
-            <label style={{ display: 'block', padding: '12px', background: '#F8F4F2', border: `1px dashed ${C.borderStr}`, borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: C.textMid, marginBottom: 14 }}>
+            <label style={{ display: 'block', padding: '12px', background: '#F8F4F2', border: `1px dashed ${C.borderStr}`, borderRadius: 10, textAlign: 'center', cursor: 'pointer', fontSize: FS.small, fontWeight: 700, color: C.textMid, marginBottom: 14 }}>
               <Icon name="folder" size={14} style={{ marginRight: 6 }} />{importLoading ? 'Lettura file…' : 'Carica file export'}
               <input type="file" accept=".csv,.xml,.xlsx" style={{ display: 'none' }} onChange={handleImportCassaFile}/>
             </label>
             {importPreview?.tipo === 'aggregated' && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.green, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={12} />{importPreview.righe.length} record rilevati</div>
+                <div style={{ fontSize: FS.small, fontWeight: 700, color: C.green, marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={12} />{importPreview.righe.length} record rilevati</div>
                 <div style={{ maxHeight: 180, overflowY: 'auto', borderRadius: 8, border: `1px solid ${C.border}` }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: FS.small }}>
                     <thead><tr style={{ background: '#F8F4F2' }}>
                       {['Data', 'Importo', 'IVA', 'Righe', 'Fonte'].map(h => (
                         <th key={h} style={{ padding: '6px 10px', textAlign: h === 'Data' || h === 'Fonte' ? 'left' : 'right', fontWeight: 700, color: C.textSoft }}>{h}</th>
@@ -808,7 +955,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.green, fontVariantNumeric: 'tabular-nums' }}>€{(r.importo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right', color: C.textSoft }}>€{(r.iva || 0).toFixed(2)}</td>
                         <td style={{ padding: '5px 10px', textAlign: 'right' }}>{r.righe || 1}</td>
-                        <td style={{ padding: '5px 10px', color: C.textMid, fontSize: 9 }}>{r.fonte}</td>
+                        <td style={{ padding: '5px 10px', color: C.textMid, fontSize: FS.small }}>{r.fonte}</td>
                       </tr>
                     ))}</tbody>
                   </table>
@@ -817,9 +964,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             )}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               {importPreview && (
-                <button onClick={handleConfirmCassa} style={{ flex: 1, padding: '10px', background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
+                <button onClick={handleConfirmCassa} style={{ flex: 1, padding: '10px', background: C.green, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: FS.small, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Importa in Cassa</button>
               )}
-              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '10px 16px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: 12, cursor: 'pointer' }}>Chiudi</button>
+              <button onClick={() => { setImportModal(null); setImportPreview(null) }} style={{ padding: '10px 16px', background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 9, fontSize: FS.small, cursor: 'pointer' }}>Chiudi</button>
             </div>
           </div>
         </div>
@@ -827,7 +974,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 12 : 20, flexWrap: 'wrap', boxShadow: SHADOW_PREMIUM }}>
         <div style={{ width: isMobile ? '100%' : 'auto' }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data chiusura</div>
+          <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Data chiusura</div>
           {isDipendente ? (
             // Il dipendente può registrare solo la chiusura di OGGI: niente giorni passati.
             <div style={{ padding: '9px 14px', borderRadius: 7, border: `1px solid ${C.border}`, background: C.bgSubtle, fontSize: isMobile ? 14 : 12, fontWeight: 700, color: C.text }}>
@@ -841,18 +988,18 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         <div style={{ flex: 1, minWidth: isMobile ? 0 : 220 }}>
           {sessione ? (
             <div style={{ background: C.greenLight, border: `1px solid ${C.green}25`, borderRadius: 8, padding: '8px 14px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={12} />Produzione trovata per questa data</div>
-              <div style={{ fontSize: 11, color: C.textMid, marginTop: 2, wordBreak: 'break-word' }}>{(sessione.prodotti || []).map(p => `${(Number(p.stampi)||0).toLocaleString('it-IT')}× ${p.nome}`).join(' · ') || '-'}</div>
+              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={12} />Produzione trovata per questa data</div>
+              <div style={{ fontSize: FS.small, color: C.textMid, marginTop: 2, wordBreak: 'break-word' }}>{(sessione.prodotti || []).map(p => `${(Number(p.stampi)||0).toLocaleString('it-IT')}× ${p.nome}`).join(' · ') || '-'}</div>
             </div>
           ) : (
             <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}25`, borderRadius: 8, padding: '8px 14px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} />Nessuna produzione registrata per questa data</div>
-              <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>Il confronto prodotto/venduto non sarà disponibile, ma i ricavi verranno salvati.</div>
+              <div style={{ fontSize: FS.small, fontWeight: 700, color: C.amber, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={12} />Nessuna produzione registrata per questa data</div>
+              <div style={{ fontSize: FS.small, color: C.textMid, marginTop: 2 }}>Il confronto prodotto/venduto non sarà disponibile, ma i ricavi verranno salvati.</div>
             </div>
           )}
         </div>
         {chiusuraSalvata && (
-          <div style={{ background: '#EEF8EE', border: `1px solid ${C.green}30`, borderRadius: 8, padding: '8px 14px', fontSize: 11, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+          <div style={{ background: '#EEF8EE', border: `1px solid ${C.green}30`, borderRadius: 8, padding: '8px 14px', fontSize: FS.small, fontWeight: 700, color: C.green, display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
             <Icon name="checkCircle" size={12} />Chiusura già salvata · {fmt0(chiusuraSalvata.kpi.totV)} ricavi
           </div>
         )}
@@ -860,29 +1007,43 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
 
       <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
         <SectHead icon={<Icon name="receipt" size={16} />} title="Registra l'incassato"
-          sub="Fotografa lo scontrino di chiusura oppure inserisci i prodotti a mano" />
+          sub="Basta il totale della giornata. Il dettaglio prodotto per prodotto è facoltativo." />
         <div style={{ padding: '18px 20px' }}>
-        {/* Toggle: foto scontrino (OCR) vs inserimento manuale - segmented control premium */}
-        <div style={{ display: 'flex', gap: 4, padding: 4, background: C.bgSubtle, borderRadius: 10, marginBottom: 16 }}>
-          {[['foto', 'camera', 'Foto scontrino'], ['manuale', 'edit', 'Inserimento manuale']].map(([id, ic, lbl]) => (
+        {/* Tre modi, dal più veloce al più minuzioso. "Solo totale" è primo
+            perché è quello che basta a quasi tutti: la quadratura confronta
+            l'incasso con la merce uscita e usa solo quel numero, e in metodo
+            inventario anche il food cost arriva dalla produzione. Il dettaglio
+            riga per riga serve a chi vuole il margine per singolo prodotto, e
+            fino a oggi era l'unica strada: mezz'ora di digitazione al giorno
+            per un dato che ne richiedeva dieci secondi. */}
+        <div style={{ display: 'flex', gap: 4, padding: 4, background: C.bgSubtle, borderRadius: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          {[['totale', 'coins', 'Solo totale'], ['foto', 'camera', 'Foto scontrino'], ['manuale', 'edit', 'Dettaglio prodotti']].map(([id, ic, lbl]) => (
             <button key={id} onClick={() => { setInputMode(id); setError(null) /* non azzerare venduto/salvato: i dati sotto restano visibili */ }}
-              style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: inputMode === id ? C.bgCard : 'transparent', color: inputMode === id ? C.red : C.textSoft, fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: inputMode === id ? '0 1px 3px rgba(15,23,42,0.08)' : 'none', transition: 'background 0.15s' }}>
+              style={{ flex: 1, minWidth: 120, padding: '10px 9px', minHeight: 42, borderRadius: 8, border: 'none', background: inputMode === id ? C.bgCard : 'transparent', color: inputMode === id ? C.red : C.textSoft, fontWeight: 700, fontSize: FS.body, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: inputMode === id ? '0 1px 3px rgba(15,23,42,0.08)' : 'none', transition: 'background 0.15s' }}>
               <Icon name={ic} size={14} />{lbl}
             </button>
           ))}
         </div>
 
-        {inputMode === 'foto' ? (
+        {inputMode === 'totale' ? (
+          <ChiusuraSoloTotale
+            key={dataFiltro}
+            dataFiltro={dataFiltro}
+            esistente={chiusuraSalvata}
+            salvando={salvando}
+            onSalva={salvaSoloTotale}
+          />
+        ) : inputMode === 'foto' ? (
           <>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="receipt" size={14} />Foto scontrino di chiusura</div>
-              <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>Claude legge solo la sezione PASTICCERIA · Prodotti non nel ricettario vengono ignorati</div>
+              <div style={{ fontSize: FS.small, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="receipt" size={14} />Foto scontrino di chiusura</div>
+              <div style={{ fontSize: FS.small, color: C.textSoft, marginTop: 3, lineHeight: 1.45 }}>Vengono letti i tuoi prodotti ({categorieLette(tipoAttivita)}). I prodotti non presenti a ricettario vengono ignorati.</div>
             </div>
             {!preview ? (
               <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '22px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 10, cursor: 'pointer' }}>
                 <Icon name="receipt" size={28} color={C.textMid} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.textMid }}>Tocca per fotografare lo scontrino</span>
-                <span style={{ fontSize: 10, color: C.textSoft }}>Seleziona più scontrini insieme - ogni data viene letta automaticamente</span>
+                <span style={{ fontSize: FS.small, fontWeight: 700, color: C.textMid }}>Tocca per fotografare lo scontrino</span>
+                <span style={{ fontSize: FS.small, color: C.textSoft }}>Seleziona più scontrini insieme - ogni data viene letta automaticamente</span>
                 <input ref={inputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFile}/>
               </label>
             ) : (
@@ -895,7 +1056,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {!venduto && !loading && !error && (
-                    <button onClick={batchMode ? handleAnalizzaBatch : handleAnalizza} style={{ padding: '13px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: '0 2px 10px rgba(110,14,26,0.25)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                    <button onClick={batchMode ? handleAnalizzaBatch : handleAnalizza} style={{ padding: '13px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontWeight: 800, fontSize: FS.body, cursor: 'pointer', boxShadow: '0 2px 10px rgba(110,14,26,0.25)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                       <Icon name={batchMode ? 'barChart' : 'search'} size={15} />{batchMode ? `Leggi tutti (${batchFiles.length} scontrini)` : 'Leggi scontrino con AI'}
                     </button>
                   )}
@@ -903,13 +1064,13 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px', background: C.white, borderRadius: 9, border: `1px solid ${C.border}` }}>
                       <style>{`@keyframes spinC{to{transform:rotate(360deg)}}`}</style>
                       <div style={{ width: 16, height: 16, border: `2px solid ${C.redLight}`, borderTopColor: C.red, borderRadius: '50%', animation: 'spinC 0.8s linear infinite', flexShrink: 0 }}/>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{batchProgress ? `Scontrino ${batchProgress} in corso…` : 'Lettura scontrino in corso…'}</div>
+                      <div style={{ fontSize: FS.small, fontWeight: 700, color: C.text }}>{batchProgress ? `Scontrino ${batchProgress} in corso…` : 'Lettura scontrino in corso…'}</div>
                     </div>
                   )}
                   {error && (
                     <div style={{ padding: '12px', background: C.redLight, borderRadius: 9 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.red, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />{error}</div>
-                      <button onClick={handleAnalizza} style={{ padding: '6px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Riprova</button>
+                      <div style={{ fontSize: FS.small, fontWeight: 700, color: C.red, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} />{error}</div>
+                      <button onClick={handleAnalizza} style={{ padding: '6px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 6, fontSize: FS.small, fontWeight: 700, cursor: 'pointer' }}>Riprova</button>
                     </div>
                   )}
                   {vendutoBox()}
@@ -920,12 +1081,12 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
         ) : (
           <>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="edit" size={14} />Inserisci i prodotti venduti</div>
-              <div style={{ fontSize: 10, color: C.textSoft, marginTop: 2 }}>Digita nome e quantità · il prezzo si compila dal listino se lo lasci vuoto</div>
+              <div style={{ fontSize: FS.small, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="edit" size={14} />Inserisci i prodotti venduti</div>
+              <div style={{ fontSize: FS.small, color: C.textSoft, marginTop: 2 }}>Digita nome e quantità · il prezzo si compila dal listino se lo lasci vuoto</div>
             </div>
             <datalist id="ric-cassa-list">{nomiRicette.map(n => <option key={n} value={n}/>)}</datalist>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 76px 32px' : '1fr 64px 92px 28px', gap: 6, fontSize: 9, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 4px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 76px 32px' : '1fr 64px 92px 28px', gap: 6, fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 4px' }}>
                 <span>Prodotto</span><span style={{ textAlign: 'right' }}>Qtà</span><span style={{ textAlign: 'right' }}>€ cad.</span><span/>
               </div>
               {manualRows.map((row, i) => (
@@ -947,9 +1108,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
               ))}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button onClick={() => setManualRows(rows => [...rows, { nome: '', qta: '', prezzo: '' }])}
-                  style={{ padding: '8px 14px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 8, fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>+ Aggiungi riga</button>
+                  style={{ padding: '8px 14px', background: C.white, border: `1px dashed ${C.borderStr}`, borderRadius: 8, fontSize: FS.small, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>+ Aggiungi riga</button>
                 <button onClick={usaProdottiManuali}
-                  style={{ flex: 1, padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Usa questi prodotti</button>
+                  style={{ flex: 1, padding: '8px 14px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: FS.small, cursor: 'pointer', boxShadow: '0 2px 8px rgba(110,14,26,0.2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Icon name="checkCircle" size={13} />Usa questi prodotti</button>
               </div>
             </div>
             <div style={{ marginTop: 12 }}>{vendutoBox()}</div>
@@ -965,7 +1126,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             const nonRic = (venduto || []).filter(v => !matched.has(v.nome))
             if (nonRic.length === 0) return null
             return (
-              <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#78350F', lineHeight: 1.5 }}>
+              <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: FS.small, color: '#78350F', lineHeight: 1.5 }}>
                 <b style={{ color: '#92400E' }}>{nonRic.length} prodotto/i non riconosciuti</b> dal ricettario, esclusi dai totali e dal food cost:{' '}
                 {nonRic.slice(0, 6).map(p => p.nome).join(' · ')}{nonRic.length > 6 ? ` · +${nonRic.length - 6}` : ''}
               </div>
@@ -974,8 +1135,8 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           {/* DIAGNOSI - la giornata in sintesi. Per il titolare i 5 KPI sensibili,
               per il dipendente solo Ricavo + Sell-through (KPI sensibili nascosti via !isDipendente). */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>La giornata in sintesi</div>
-            <div style={{ fontSize: 11, color: C.textSoft }}>{new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}</div>
+            <div style={{ fontSize: FS.body, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>La giornata in sintesi</div>
+            <div style={{ fontSize: FS.small, color: C.textSoft }}>{new Date(dataFiltro + 'T12:00').toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long' })}</div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? `repeat(${isDipendente ? 2 : 3},1fr)` : `repeat(${isDipendente ? 2 : 5},1fr)`, gap: isMobile ? 10 : 16, marginBottom: 26 }}>
             <KPI icon={<Icon name="money" size={18} />} label="Ricavo" value={fmt0(totV)} highlight sub="incassato oggi"/>
@@ -1008,24 +1169,46 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             const dir = confrSort.dir === 'asc' ? 1 : -1
             return [...confronto].sort((a, b) => { const va = col.get(a), vb = col.get(b); return (col.str ? String(va).localeCompare(String(vb), 'it') : (va - vb)) * dir })
           })()
+          if (isMetodoInventario) return (
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
+              <SectHead icon={<Icon name="barChart" size={16} />} title="Confronto con la produzione"
+                sub="Con il metodo inventario si fa nella Quadratura" />
+              <div style={{ padding: '18px 20px' }}>
+                <div style={{ fontSize: FS.body, color: C.textMid, lineHeight: 1.6, marginBottom: 14 }}>
+                  Tu registri la produzione a peso, gusto per gusto, e il venduto si ricava dalle
+                  giacenze. Confrontarlo riga per riga con i pezzi battuti allo scontrino non
+                  direbbe nulla di sensato: quello che conta è se l&apos;incasso corrisponde alla
+                  merce uscita dalle vaschette, ed è esattamente quello che calcola la Quadratura.
+                </div>
+                {onNavigate && (
+                  <button onClick={() => onNavigate('quadratura-inventario')}
+                    style={{ padding: '11px 16px', minHeight: 44, borderRadius: 10, cursor: 'pointer',
+                      border: `1px solid ${C.brand}`, background: C.bgCard, color: C.brand,
+                      fontSize: FS.body, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    <Icon name="check" size={15} /> Vai alla Quadratura inventario
+                  </button>
+                )}
+              </div>
+            </div>
+          )
           return (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
             <SectHead icon={<Icon name="barChart" size={16} />} title="Produzione vs Venduto"
               sub="Quanto hai prodotto, quanto hai venduto e cosa è rimasto · clicca un'intestazione per ordinare"
               right={
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {stL.length > 0 && <span title="Sell-through medio: quota di pezzi prodotti che sono stati venduti" style={{ fontSize: 10, fontWeight: 700, color: stC(avgST), background: `${stC(avgST)}1A`, borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap', cursor: 'help', fontVariantNumeric: 'tabular-nums' }}>Sell-through {fmtp(avgST)}</span>}
-                  {salvato && <span style={{ fontSize: 10, fontWeight: 700, color: C.green, background: C.greenLight, borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={11} />Salvato</span>}
+                  {stL.length > 0 && <span title="Sell-through medio: quota di pezzi prodotti che sono stati venduti" style={{ fontSize: FS.small, fontWeight: 700, color: stC(avgST), background: `${stC(avgST)}1A`, borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap', cursor: 'help', fontVariantNumeric: 'tabular-nums' }}>Sell-through {fmtp(avgST)}</span>}
+                  {salvato && <span style={{ fontSize: FS.small, fontWeight: 700, color: C.green, background: C.greenLight, borderRadius: 999, padding: '4px 10px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="checkCircle" size={11} />Salvato</span>}
                 </div>
               } />
 
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: FS.small }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {COLS.map((c, i) => (
                       <th key={i} onClick={() => clickSort(c.key)} title="Ordina"
-                        style={{ padding: '9px 12px', textAlign: c.align === 'left' ? 'left' : 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: confrSort.key === c.key ? C.red : C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
+                        style={{ padding: '9px 12px', textAlign: c.align === 'left' ? 'left' : 'right', fontSize: FS.small, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: confrSort.key === c.key ? C.red : C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }}>
                         {c.h}<span style={{ opacity: confrSort.key === c.key ? 1 : 0.25 }}> {confrSort.key === c.key ? (confrSort.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
                       </th>
                     ))}
@@ -1036,7 +1219,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                     <tr key={r.nome} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                       <td style={{ padding: '9px 12px', fontWeight: 700, color: C.text }}>
                         {r.nome}
-                        {!r.inProd && <span style={{ marginLeft: 5, fontSize: 8, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>solo venduto</span>}
+                        {!r.inProd && <span style={{ marginLeft: 5, fontSize: FS.small, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>solo venduto</span>}
                       </td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', color: C.textMid }}>{r.inProd ? r.unitaP : '-'}</td>
                       <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.text }}>{r.unitaV}</td>
@@ -1060,10 +1243,10 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 </tbody>
                 <tfoot>
                   <tr style={{ background: '#F0EAE6', borderTop: `2px solid ${C.borderStr}` }}>
-                    <td colSpan={5} style={{ padding: '9px 12px', fontWeight: 900, color: C.text, fontSize: 12 }}>TOTALE GIORNATA</td>
-                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, color: C.green, fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{fmt(totV)}</td>
+                    <td colSpan={5} style={{ padding: '9px 12px', fontWeight: 900, color: C.text, fontSize: FS.small }}>TOTALE GIORNATA</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, color: C.green, fontVariantNumeric: 'tabular-nums', fontSize: FS.body }}>{fmt(totV)}</td>
                     {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.red }}>{fmt(totFC)}</td>}
-                    {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, color: margColor(totMP), fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{fmt(totM)}</td>}
+                    {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 900, color: margColor(totMP), fontVariantNumeric: 'tabular-nums', fontSize: FS.body }}>{fmt(totM)}</td>}
                     {!isDipendente && <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: totS > 5 ? C.red : C.textSoft }}>{fmt(totS)}</td>}
                   </tr>
                 </tfoot>
@@ -1076,11 +1259,11 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
               <SectHead icon={<Icon name="cart" size={16} />} title="Formati di vendita" sub="Righe senza dettaglio gusto/ripieno · food cost stimato sulla media della categoria" />
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: FS.small }}>
                   <thead>
                     <tr style={{ background: '#F8F4F2' }}>
                       {['Formato', 'Categoria', 'Vendute', 'Ricavo', ...(isDipendente ? [] : ['FC stimato', 'Margine'])].map((h, i) => (
-                        <th key={i} style={{ padding: '9px 12px', textAlign: i <= 1 ? 'left' : 'right', fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={i} style={{ padding: '9px 12px', textAlign: i <= 1 ? 'left' : 'right', fontSize: FS.small, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1089,7 +1272,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                       <tr key={r.formatoId} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                         <td style={{ padding: '9px 12px', fontWeight: 700, color: C.text }}>
                           {r.nome}
-                          {!r.fcStimato && <span style={{ marginLeft: 5, fontSize: 8, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>no gusti in categoria</span>}
+                          {!r.fcStimato && <span style={{ marginLeft: 5, fontSize: FS.small, background: C.amberLight, color: C.amber, padding: '1px 5px', borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>no gusti in categoria</span>}
                         </td>
                         <td style={{ padding: '9px 12px', color: C.textMid }}>{r.categoria || '-'}</td>
                         <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 700, color: C.text }}>{r.unitaV}</td>
@@ -1109,11 +1292,11 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                 }
                 return (
                   <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.border}`, background: '#FBFAF8' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                    <div style={{ fontSize: FS.small, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                       Riconciliazione per categoria · prodotto − venduto − sprechi − omaggi
                     </div>
                     {driftPerCategoria.filter(c => c.gProdotti > 0 || c.gVenduti > 0).map(c => (
-                      <div key={c.categoria} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '120px 1fr auto', gap: 10, fontSize: 11, marginBottom: 6, alignItems: 'center' }}>
+                      <div key={c.categoria} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '120px 1fr auto', gap: 10, fontSize: FS.small, marginBottom: 6, alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, color: C.text }}>{c.categoria}</span>
                         <span style={{ color: C.textMid }}>
                           prodotto {fmtKg(c.gProdotti)} · venduto {fmtKg(c.gVenduti)}
@@ -1129,7 +1312,7 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                         </span>
                       </div>
                     ))}
-                    <div style={{ marginTop: 8, fontSize: 10, color: C.textSoft, lineHeight: 1.6 }}>
+                    <div style={{ marginTop: 8, fontSize: FS.small, color: C.textSoft, lineHeight: 1.6 }}>
                       Drift positivo: hai consumato più del teorico (mano abbondante o residui non gestiti).
                       Drift negativo: hai consumato meno (mano stretta o vendite non scontrinate).
                       |drift| &lt; 5% = ok · 5-10% = da monitorare · &gt; 10% = da approfondire.
@@ -1143,16 +1326,16 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           {!isDipendente && confronto.filter(r => r.spreco > 2).length > 0 && (
             <div style={{ background: '#FFF8EE', border: `1px solid ${C.amber}30`, borderRadius: 18, padding: '18px 20px', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
-                <span style={{ width: 34, height: 34, borderRadius: 10, background: C.amberLight, color: C.amber, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}><Icon name="bulb" size={17} /></span>
+                <span style={{ width: 34, height: 34, borderRadius: 10, background: C.amberLight, color: C.amber, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: FS_INPUT_IOS, flexShrink: 0 }}><Icon name="bulb" size={17} /></span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>Ottimizza la produzione di domani</div>
-                  <div style={{ fontSize: 11, color: C.textSoft, marginTop: 1 }}>Riduci lo spreco allineando gli stampi al venduto</div>
+                  <div style={{ fontSize: FS.body, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>Ottimizza la produzione di domani</div>
+                  <div style={{ fontSize: FS.small, color: C.textSoft, marginTop: 1 }}>Riduci lo spreco allineando gli stampi al venduto</div>
                 </div>
               </div>
               {/* Griglia incolonnata: Prodotto · Rimaste · Spreco · Suggerito */}
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto' : '1.8fr 0.9fr 0.9fr 1.4fr', gap: isMobile ? '2px 12px' : '7px 16px', alignItems: 'baseline' }}>
                 {!isMobile && ['Prodotto', 'Rimaste', 'Spreco', 'Suggerito'].map((h, i) => (
-                  <div key={h} style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.amber, textAlign: i === 0 ? 'left' : i === 3 ? 'left' : 'right' }}>{h}</div>
+                  <div key={h} style={{ fontSize: FS.small, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.amber, textAlign: i === 0 ? 'left' : i === 3 ? 'left' : 'right' }}>{h}</div>
                 ))}
                 {/* Suggerimento "meno stampi" ha senso solo per ricette a stampo.
                     Per i gusti (gelateria) non c'è concetto di "stampo consigliato". */}
@@ -1161,17 +1344,17 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
                   const consigliato = Math.ceil(r.unitaV / r.reg.unita)
                   return isMobile ? (
                     <React.Fragment key={r.nome}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{r.nome}</div>
-                      <div style={{ fontSize: 10, color: C.amber, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      <div style={{ fontSize: FS.small, fontWeight: 700, color: C.text }}>{r.nome}</div>
+                      <div style={{ fontSize: FS.small, color: C.amber, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         {r.unitaR} {tipo} · {fmt(r.spreco)} · <b>{consigliato}</b> invece di {r.stampiP} stampi
                       </div>
                     </React.Fragment>
                   ) : (
                     <React.Fragment key={r.nome}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>
-                      <div style={{ fontSize: 11, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{r.unitaR} {tipo}</div>
-                      <div style={{ fontSize: 11, color: C.amber, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(r.spreco)}</div>
-                      <div style={{ fontSize: 11, color: C.textMid, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: C.text }}>{consigliato} stampi</b> <span style={{ color: C.textSoft }}>invece di {r.stampiP}</span></div>
+                      <div style={{ fontSize: FS.small, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>
+                      <div style={{ fontSize: FS.small, color: C.textMid, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{r.unitaR} {tipo}</div>
+                      <div style={{ fontSize: FS.small, color: C.amber, fontWeight: 700, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmt(r.spreco)}</div>
+                      <div style={{ fontSize: FS.small, color: C.textMid, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: C.text }}>{consigliato} stampi</b> <span style={{ color: C.textSoft }}>invece di {r.stampiP}</span></div>
                     </React.Fragment>
                   )
                 })}
@@ -1182,34 +1365,34 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
           {confronto.length > 0 && (
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '20px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
-              <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: C.red, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}><Icon name="target" size={17} /></span>
-              <div style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>Sell-through per {LEX.prodotto}</div>
+              <span style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(110,14,26,0.10)', color: C.red, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: FS_INPUT_IOS, flexShrink: 0 }}><Icon name="target" size={17} /></span>
+              <div style={{ fontSize: FS.body, fontWeight: 700, color: C.text, letterSpacing: '-0.01em' }}>Sell-through per {LEX.prodotto}</div>
             </div>
             {(() => { const nameW = isMobile ? 96 : 160, vendW = isMobile ? 52 : 64, rvW = isMobile ? 60 : 80; return (<>
             {/* Intestazioni colonne destre, allineate alle celle dati */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
               <div style={{ width: nameW, flexShrink: 0 }}/>
-              <div style={{ flex: 1, fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft }}>Sell-through</div>
-              <div style={{ width: vendW, flexShrink: 0, textAlign: 'right', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft }}>Vend/Prod</div>
-              <div style={{ width: rvW, flexShrink: 0, textAlign: 'right', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft }}>Ricavo</div>
+              <div style={{ flex: 1, fontSize: FS.small, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft }}>Sell-through</div>
+              <div style={{ width: vendW, flexShrink: 0, textAlign: 'right', fontSize: FS.small, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft }}>Vend/Prod</div>
+              <div style={{ width: rvW, flexShrink: 0, textAlign: 'right', fontSize: FS.small, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.textSoft }}>Ricavo</div>
             </div>
             {confronto.filter(r => r.st !== null).sort((a, b) => b.st - a.st).map(r => (
               <div key={r.nome} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                <div style={{ width: nameW, fontSize: 11, fontWeight: 600, color: C.text, flexShrink: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>
+                <div style={{ width: nameW, fontSize: FS.small, fontWeight: 600, color: C.text, flexShrink: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome}</div>
                 <div style={{ flex: 1, height: 20, background: '#F0EAE6', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ height: 20, width: `${Math.min(100, r.st)}%`, background: stC(r.st), borderRadius: 4, display: 'flex', alignItems: 'center', paddingLeft: 7, minWidth: r.st > 8 ? 32 : 0 }}>
-                    {r.st > 8 && <span style={{ fontSize: 10, fontWeight: 800, color: C.white }}>{r.st.toFixed(0)}%</span>}
+                    {r.st > 8 && <span style={{ fontSize: FS.small, fontWeight: 800, color: C.white }}>{r.st.toFixed(0)}%</span>}
                   </div>
                 </div>
-                <div style={{ width: vendW, flexShrink: 0, textAlign: 'right', fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
+                <div style={{ width: vendW, flexShrink: 0, textAlign: 'right', fontSize: FS.small, fontVariantNumeric: 'tabular-nums' }}>
                   <span style={{ fontWeight: 700, color: C.text }}>{r.unitaV}</span>
                   <span style={{ color: C.textSoft }}>{r.inProd ? `/${r.unitaP}` : ''}</span>
                 </div>
-                <div style={{ width: rvW, flexShrink: 0, textAlign: 'right', fontSize: 11, fontWeight: 700, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.rv)}</div>
+                <div style={{ width: rvW, flexShrink: 0, textAlign: 'right', fontSize: FS.small, fontWeight: 700, color: C.green, fontVariantNumeric: 'tabular-nums' }}>{fmt(r.rv)}</div>
               </div>
             ))}
             </>) })()}
-            <div style={{ marginTop: 14, display: 'flex', gap: 14, fontSize: 10, color: C.textSoft, flexWrap: 'wrap' }}>
+            <div style={{ marginTop: 14, display: 'flex', gap: 14, fontSize: FS.small, color: C.textSoft, flexWrap: 'wrap' }}>
               {[[C.green, '>=85% ottimo'], [C.amber, '65-84% buono'], [C.red, '<65% ottimizzare']].map(([c, l]) => (
                 <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: c, display: 'inline-block' }}/>{l}</span>
               ))}
@@ -1222,9 +1405,9 @@ Rispondi SOLO JSON valido senza markdown ne testi extra:
       {venduto && confronto.length === 0 && formatiRiconc.righe.length === 0 && !loading && (
         <div style={{ textAlign: 'center', padding: '36px', background: C.bgCard, borderRadius: 18, border: `1px solid ${C.border}`, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ marginBottom: 10, color: C.textSoft }}><Icon name="search" size={30} /></div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun prodotto del ricettario trovato</div>
-          <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 8 }}>I nomi sullo scontrino non corrispondono alle ricette. Se la cassa batte prodotti generici (cono, vaschetta, panino…), configura i <b>Formati di vendita</b>.</div>
-          <div style={{ fontSize: 10, color: C.textSoft }}>Letti: {venduto.map(p => p.nome).join(', ')}</div>
+          <div style={{ fontSize: FS.body, fontWeight: 700, color: C.text, marginBottom: 6 }}>Nessun prodotto del ricettario trovato</div>
+          <div style={{ fontSize: FS.small, color: C.textSoft, marginBottom: 8 }}>I nomi sullo scontrino non corrispondono alle ricette. Se la cassa batte prodotti generici (cono, vaschetta, panino…), configura i <b>Formati di vendita</b>.</div>
+          <div style={{ fontSize: FS.small, color: C.textSoft }}>Letti: {venduto.map(p => p.nome).join(', ')}</div>
         </div>
       )}
     </div>
