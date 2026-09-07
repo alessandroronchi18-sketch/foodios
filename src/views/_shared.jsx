@@ -48,14 +48,7 @@ const NF_IT_2DEC = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, ma
 const NF_IT_0DEC = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: 'always' })
 
 export const fmt = v => { const n = Number(v); return `${NF_IT_2DEC.format(Number.isFinite(n) ? n : 0)} €` }
-// Percentuale con la virgola, come si scrive in italiano.
-//
-// Prima era `toFixed(1)`, che usa SEMPRE il punto: nella stessa schermata si
-// leggeva "418,30 €" di incasso e "71.0%" di margine. Il punto decimale in un
-// prodotto italiano si nota, e accanto a un importo con la virgola sembra un
-// errore di battitura.
-const NF_IT_PCT = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-export const fmtp = v => { const n = Number(v); return `${NF_IT_PCT.format(Number.isFinite(n) ? n : 0)}%` }
+export const fmtp = v => { const n = Number(v); return `${(Number.isFinite(n) ? n : 0).toFixed(1)}%` }
 // Valuta arrotondata all'unità con separatore migliaia (es. 1.234 €). Per box/KPI.
 export const fmt0 = v => { const n = Number(v); return `${NF_IT_0DEC.format(Math.round(Number.isFinite(n) ? n : 0))} €` }
 

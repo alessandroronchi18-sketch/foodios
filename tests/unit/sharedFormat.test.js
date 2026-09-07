@@ -65,13 +65,13 @@ describe('fmt0 (€ arrotondato all\'unità)', () => {
 
 describe('fmtp (percentuale, 1 decimale)', () => {
   it('formatta con un decimale e simbolo %', () => {
-    expect(fmtp(33.33)).toBe('33,3%')
-    expect(fmtp(50)).toBe('50,0%')
+    expect(fmtp(33.33)).toBe('33.3%')
+    expect(fmtp(50)).toBe('50.0%')
   })
   it('guard NaN → 0.0%', () => {
-    expect(fmtp(NaN)).toBe('0,0%')
-    expect(fmtp(undefined)).toBe('0,0%')
-    expect(fmtp(null)).toBe('0,0%')
+    expect(fmtp(NaN)).toBe('0.0%')
+    expect(fmtp(undefined)).toBe('0.0%')
+    expect(fmtp(null)).toBe('0.0%')
   })
 })
 
