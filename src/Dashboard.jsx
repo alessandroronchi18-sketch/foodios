@@ -3391,6 +3391,7 @@ export default function Dashboard({
         {view==="impostazioni"&&<Impostazioni auth={auth} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} metodoProduzione={metodoProduzione} piano={piano} orgId={orgId} sedi={sedi} sedeId={sedeId} onImportPrezzi={handleImportPrezzi} notify={notify} onChangelogOpen={()=>setView("changelog")} initialTab={impostazioniInitialTab}/>}
         {view==="importa-dati"&&<ImportaDatiView
           orgId={orgId}
+          sedi={sedi}
           onImportRicettario={handleFile}
           onImportPrezzi={handleImportPrezzi}
           onImportDelivery={handleImportDeliveryGlobal}

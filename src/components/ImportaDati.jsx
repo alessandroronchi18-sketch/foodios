@@ -7,19 +7,24 @@
 
 import React, { useState } from 'react'
 import useIsMobile from '../lib/useIsMobile'
-import { color as T } from '../lib/theme'
+import { color as T, typo } from '../lib/theme'
 import { C } from '../views/_shared'
 import Icon from './Icon'
 import { scaricaTemplateProduzione } from '../lib/produzioneTemplate'
 import ImportWizard from './ImportWizard'
+import ImportRegistroIncassi from './ImportRegistroIncassi'
 
-export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivita, notify, orgId }) {
+export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivita, notify, orgId, sedi }) {
   const isMobile = useIsMobile()
   const [loading, setLoading] = useState(null)
   const [showWizard, setShowWizard] = useState(false)
+  const [showIncassi, setShowIncassi] = useState(false)
 
   if (showWizard) {
     return <ImportWizard orgId={orgId} onClose={() => setShowWizard(false)} notify={notify}/>
+  }
+  if (showIncassi) {
+    return <ImportRegistroIncassi orgId={orgId} sedi={sedi} notify={notify} onClose={() => setShowIncassi(false)}/>
   }
 
   async function handleScaricaProduzione() {
@@ -86,6 +91,40 @@ export default function ImportaDati({ onImportRicettario, ricettario, nomeAttivi
           </div>
         </div>
       </div>
+
+      {/* Registro incassi tenuto a mano: il formato con cui arrivano tutti.
+          Sta prima delle anagrafiche perché è quello che sblocca il P&L — chi
+          ha tre anni di incassi su Excel vede il conto vero il giorno stesso,
+          senza ridigitare niente. */}
+      {orgId && (
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: typo.caption.fontSize, fontWeight: 700, color: T.textSoft, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Incassi e spese dal tuo foglio</div>
+          <div style={card}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: `${T.green}15`, color: T.green, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="euro" size={18} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: typo.body.fontSize, fontWeight: 700, color: C.text, marginBottom: 4 }}>Registro incassi del mese</div>
+                <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.5, marginBottom: 12 }}>
+                  Il foglio dove segni gli incassi giorno per giorno, com'è. Leggiamo POS e contanti per sede, il delivery a parte
+                  e le spese di giornata con la nota sulla fattura. Un mese alla volta.
+                </div>
+                <button type="button" onClick={() => setShowIncassi(true)}
+                  style={{
+                    padding: '9px 14px', minHeight: 40,
+                    background: T.brand, color: T.textOnDark, border: 'none', borderRadius: 8,
+                    fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'inherit',
+                  }}>
+                  <Icon name="upload" size={13} />
+                  Carica il registro
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Import guidato per anagrafiche (fornitori, dipendenti) — client-side, privacy per costruzione */}
       {orgId && (
