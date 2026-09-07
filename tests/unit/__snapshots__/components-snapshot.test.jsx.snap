@@ -282,19 +282,19 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > Logo default 
 
 exports[`Snapshot markup — componenti puri ad alta riusabilita > SedeContextBanner multisede 1`] = `
 <div
-  style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E; font-size: 12px; font-weight: 600; margin-bottom: 16px; flex-wrap: wrap;"
+  style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 9px; border-radius: 9999px; background: #F1F4F8; border: 1px solid #E5E9EF; color: #475264; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; line-height: 1.35; margin-bottom: 16px; max-width: 100%;"
 >
   <svg
     aria-hidden="true"
     fill="none"
-    height="16"
+    height="12"
     stroke="currentColor"
     stroke-linecap="round"
     stroke-linejoin="round"
     stroke-width="1.8"
-    style="flex-shrink: 0; display: inline-block; vertical-align: text-bottom;"
+    style="flex-shrink: 0; display: inline-block; vertical-align: text-bottom; opacity: 0.75;"
     viewBox="0 0 24 24"
-    width="16"
+    width="12"
   >
     <path
       d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
@@ -305,20 +305,15 @@ exports[`Snapshot markup — componenti puri ad alta riusabilita > SedeContextBa
       r="3"
     />
   </svg>
-  <div
-    style="line-height: 1.35; min-width: 0; flex-grow: 1; flex-shrink: 1; flex-basis: 0%;"
+  <span
+    style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
   >
-    <div
-      style="overflow: hidden; text-overflow: ellipsis;"
+    <strong
+      style="font-weight: 700; color: #0E1726;"
     >
-      Sede attiva: 
-      <strong
-        style="font-weight: 800;"
-      >
-        Torino
-      </strong>
-    </div>
-  </div>
+      Torino
+    </strong>
+  </span>
 </div>
 `;
 

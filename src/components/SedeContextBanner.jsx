@@ -1,5 +1,5 @@
 import React from 'react'
-import { color as T } from '../lib/theme'
+import { color as T, typo, radius } from '../lib/theme'
 import Icon from './Icon'
 
 /**
@@ -19,15 +19,13 @@ export default function SedeContextBanner({ sedeAttiva, sedi = [], onChange, sco
   if (scope === 'org') {
     return (
       <div style={{
-        display: 'inline-flex', alignItems: 'center', gap: 8,
-        padding: '6px 12px', borderRadius: 999,
-        background: T.bgSubtle || '#F1F5F9',
-        border: `1px solid ${T.border || '#E2E8F0'}`,
-        color: T.textMid || '#475569',
-        fontSize: 11, fontWeight: 600,
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        padding: '5px 11px', borderRadius: radius.full,
+        background: T.bgSubtle, border: `1px solid ${T.border}`, color: T.textMid,
+        ...typo.caption, fontWeight: 600,
         marginBottom: 16,
       }}>
-        <Icon name="building" size={13} />
+        <Icon name="building" size={12} style={{ opacity: 0.75 }} />
         <span>Dato a livello azienda · visibile a tutte le sedi</span>
       </div>
     )
@@ -36,32 +34,37 @@ export default function SedeContextBanner({ sedeAttiva, sedi = [], onChange, sco
   const nome = sedeAttiva?.nome || '-'
   const citta = sedeAttiva?.citta
 
+  // Era una fascia larga tutta la pagina, su fondo giallo `#FEF3C7` con bordo
+  // `#FCD34D` e testo ambra: i colori dell'avviso per un'informazione che non
+  // avvisa di niente. Due danni insieme. La pagina sembra avere un problema
+  // appena si apre, e chi la usa ogni giorno impara a non guardare più il
+  // giallo — così quando serve davvero, per una scadenza o un'anomalia, non lo
+  // vede nessuno.
+  //
+  // C'è anche una ripetizione: la topbar mostra già la sede attiva, due
+  // centimetri sopra, nel selettore da cui la si cambia. Quindi qui basta una
+  // conferma discreta di CONTESTO — non un annuncio.
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '10px 14px', borderRadius: 10,
-      background: '#FEF3C7',
-      border: '1px solid #FCD34D',
-      color: '#92400E',
-      fontSize: 12, fontWeight: 600,
-      marginBottom: 16,
-      flexWrap: 'wrap',
+      display: 'inline-flex', alignItems: 'center', gap: 7,
+      padding: '5px 11px 5px 9px', borderRadius: radius.full,
+      background: T.bgSubtle, border: `1px solid ${T.border}`, color: T.textMid,
+      ...typo.caption, fontWeight: 600,
+      marginBottom: 16, maxWidth: '100%',
     }}>
-      <Icon name="pin" size={16} style={{ flexShrink: 0 }} />
-      <div style={{ flex: 1, lineHeight: 1.35, minWidth: 0 }}>
-        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          Sede attiva: <strong style={{ fontWeight: 800 }}>{nome}</strong>
-          {citta && <span style={{ fontWeight: 500, opacity: 0.75 }}> · {citta}</span>}
-        </div>
-        {hint && <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.85, marginTop: 2 }}>{hint}</div>}
-      </div>
+      <Icon name="pin" size={12} style={{ flexShrink: 0, opacity: 0.75 }} />
+      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <strong style={{ fontWeight: 700, color: T.text }}>{nome}</strong>
+        {citta && citta !== nome && <span> · {citta}</span>}
+        {hint && <span style={{ color: T.textSoft }}> · {hint.charAt(0).toLowerCase() + hint.slice(1)}</span>}
+      </span>
       {onChange && (
         <button onClick={onChange} style={{
-          padding: '8px 12px', minHeight: 40, background: 'rgba(255,255,255,0.6)',
-          border: '1px solid #FCD34D', borderRadius: 8,
-          color: '#92400E', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-          whiteSpace: 'nowrap',
-        }}>Cambia sede</button>
+          marginLeft: 2, padding: '0 8px', minHeight: 26, background: T.bgCard,
+          border: `1px solid ${T.borderStr}`, borderRadius: radius.full,
+          color: T.textMid, ...typo.caption, fontWeight: 700, fontFamily: 'inherit',
+          cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+        }}>Cambia</button>
       )}
     </div>
   )

@@ -159,7 +159,7 @@ export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
               }}>{DOCUMENTI.find(d => d.valore === r.documento)?.breve || '?'}</div>
               <button type="button" onClick={() => rimuovi(r)} aria-label={`Togli ${r.descrizione}`}
                 style={{
-                  width: 40, height: 40, flexShrink: 0, background: 'transparent',
+                  width: isMobile ? 40 : 32, height: isMobile ? 40 : 32, flexShrink: 0, background: 'transparent',
                   border: 'none', borderRadius: R.md, color: T.textSoft, cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -221,8 +221,8 @@ export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
               <button key={d.valore} type="button" onClick={() => setDocumento(d.valore)}
                 aria-pressed={attivo}
                 style={{
-                  flex: isMobile ? '1 1 30%' : '0 0 auto', minHeight: 42,
-                  padding: '9px 14px', borderRadius: R.md, cursor: 'pointer',
+                  flex: isMobile ? '1 1 30%' : '0 0 auto', minHeight: isMobile ? 44 : 34,
+                  padding: '0 14px', borderRadius: R.md, cursor: 'pointer',
                   ...typo.small, fontWeight: 700, fontFamily: 'inherit',
                   background: attivo ? T.text : T.bgCard,
                   color: attivo ? T.textOnDark : T.textMid,
@@ -235,9 +235,13 @@ export default function PrimaNotaCassa({ orgId, sedeId, data, notify }) {
         </div>
       </div>
 
+      {/* Larghezza piena solo su mobile, dove il pollice ha bisogno del
+          bersaglio. Su un contenitore largo, due parole dentro un pulsante
+          lungo tutta la pagina si perdono. */}
       <button type="button" onClick={aggiungi} disabled={!valido || salvando}
         style={{
-          marginTop: 14, width: '100%', padding: '13px 0', minHeight: 48,
+          marginTop: 14, width: isMobile ? '100%' : 'auto',
+          padding: isMobile ? '13px 0' : '0 18px', minHeight: isMobile ? 48 : 40,
           background: valido && !salvando ? T.brand : T.bgMuted,
           color: valido && !salvando ? T.textOnDark : T.textSoft,
           border: 'none', borderRadius: R.md, cursor: valido && !salvando ? 'pointer' : 'not-allowed',

@@ -31,6 +31,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Icon from './Icon'
+import { fmtp } from '../views/_shared'
 import { supabase } from '../lib/supabase'
 import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 import { useIsTablet } from '../lib/useIsMobile'
@@ -191,7 +192,16 @@ export default function CalendarioOperativo({
   const inAvvio  = useMemo(
     () => (chiusure || []).length === 0 && (giornaliero || []).length === 0 && !prodInventario?.size,
     [chiusure, giornaliero, prodInventario])
+  // Simmetrico, e mancava: la regola valeva solo per la cassa. Chi registra la
+  // cassa ogni giorno ma tiene la produzione su carta si vedeva OGNI giornata
+  // segnata come incompleta — copertura bassa per sempre e un'anomalia al
+  // giorno, per un modo di lavorare che non ha niente di sbagliato. È lo stesso
+  // errore che la nota qui sopra descrive, nell'altro verso.
+  const usaProduzione = useMemo(
+    () => (giornaliero || []).length > 0 || !!prodInventario?.size,
+    [giornaliero, prodInventario])
   const cassaRichiesta = usaCassa || inAvvio
+  const produzioneRichiesta = usaProduzione || inAvvio
 
   // "In questo giorno si è prodotto?" — unica domanda che il calendario pone,
   // risposta da fonti diverse a seconda del metodo.
@@ -243,8 +253,9 @@ export default function CalendarioOperativo({
       if (isChiuso(k)) { chiusi++; continue }   // chiuso = fuori dal denominatore
       totPassati++
       const hp = haProduzione(k), hc = !!cassaMap[k]
-      // Se l'azienda non usa la cassa, "completo" vuol dire solo produzione.
-      if (hp && (hc || !cassaRichiesta)) completi++
+      // "Completo" vuol dire: c'è tutto quello che questa azienda registra
+      // davvero. Non tutto quello che il programma sa fare.
+      if ((hp || !produzioneRichiesta) && (hc || !cassaRichiesta)) completi++
       else if (hp && !hc) soloProd++
       else if (!hp && hc) soloCassa++
       else vuoti++
@@ -257,7 +268,7 @@ export default function CalendarioOperativo({
     for (let i = 0; i < 366; i++) {
       const k = toISO(day)
       if (k > oggiStr || isChiuso(k)) { day.setDate(day.getDate()-1); continue }
-      if (haProduzione(k) && (cassaMap[k] || !cassaRichiesta)) { streak++; day.setDate(day.getDate()-1) }
+      if ((haProduzione(k) || !produzioneRichiesta) && (cassaMap[k] || !cassaRichiesta)) { streak++; day.setDate(day.getDate()-1) }
       else if (k === oggiStr) { day.setDate(day.getDate()-1) } // oggi può essere in corso
       else break
     }
@@ -268,7 +279,7 @@ export default function CalendarioOperativo({
     // entrambi i moduli. Chi non fa la cassa in Foodos non ha 121 anomalie, ha
     // un modo di lavorare diverso.
     let anomalie = 0
-    if (cassaRichiesta) {
+    if (cassaRichiesta && produzioneRichiesta) {
       for (let d = 1; d <= daysInM; d++) {
         const k = `${anno}-${String(mese+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
         if (k >= oggiStr) break
@@ -278,7 +289,7 @@ export default function CalendarioOperativo({
     }
     const pct = totPassati > 0 ? Math.round(completi/totPassati*100) : 0
     return { completi, totPassati, soloProd, soloCassa, vuoti, anomalie, streak, pct, incasso, chiusi }
-  }, [haProduzione, cassaMap, anno, mese, oggiStr, oggi, isChiuso, cassaRichiesta])
+  }, [haProduzione, cassaMap, anno, mese, oggiStr, oggi, isChiuso, cassaRichiesta, produzioneRichiesta])
 
   const semaforo = diag.pct >= 80 ? T.green : diag.pct >= 50 ? T.amber : T.red
 
@@ -341,10 +352,10 @@ export default function CalendarioOperativo({
     if (isChiuso(k)) return 'chiuso'
     if (k > oggiStr) return 'futuro'
     const hp = haProduzione(k), hc = !!cassaMap[k]
-    if (hp && (hc || !cassaRichiesta)) return 'completo'
+    if ((hp || !produzioneRichiesta) && (hc || !cassaRichiesta)) return 'completo'
     if (hp || hc) return 'parziale'
     return 'vuoto'
-  }, [isChiuso, oggiStr, haProduzione, cassaMap, cassaRichiesta])
+  }, [isChiuso, oggiStr, haProduzione, cassaMap, cassaRichiesta, produzioneRichiesta])
 
   const selDetail = sel ? {
     haProd:    haProduzione(sel),
@@ -356,7 +367,7 @@ export default function CalendarioOperativo({
     isChiuso:  isChiuso(sel),
     // Anomalia solo su giornate concluse e solo se l'azienda usa entrambi i
     // moduli: coerente con il KPI qui sopra, che prima diceva un'altra cosa.
-    isAnomalia: cassaRichiesta && sel < oggiStr && !isChiuso(sel)
+    isAnomalia: cassaRichiesta && produzioneRichiesta && sel < oggiStr && !isChiuso(sel)
       && (haProduzione(sel) !== !!cassaMap[sel]),
   } : null
 
@@ -379,11 +390,11 @@ export default function CalendarioOperativo({
     if (st === 'chiuso') return `${data}: chiuso`
     if (st === 'futuro') return `${data}: in arrivo`
     const parti = []
-    parti.push(haProduzione(k) ? 'produzione registrata' : 'produzione mancante')
+    if (produzioneRichiesta) parti.push(haProduzione(k) ? 'produzione registrata' : 'produzione mancante')
     if (cassaRichiesta) parti.push(cassaMap[k] ? 'cassa registrata' : 'cassa mancante')
     if (note[k]?.nota) parti.push('con nota')
     return `${data}: ${parti.join(', ')}`
-  }, [getStatus, haProduzione, cassaMap, note, cassaRichiesta])
+  }, [getStatus, haProduzione, cassaMap, note, cassaRichiesta, produzioneRichiesta])
 
   // Pannello dettaglio: estratto in funzione perché su mobile va inserito
   // INLINE subito sotto la card cliccata (audit 2026-06-24: prima compariva in
@@ -423,18 +434,21 @@ export default function CalendarioOperativo({
         {!selDetail.isChiuso && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {[
-              { icon: 'package', label: 'Produzione', has: selDetail.haProd,
+              // Simmetrico alla nota sulla cassa qui sotto: la produzione
+              // compare solo se l'azienda la registra, o se quel giorno c'è.
+              ...((produzioneRichiesta || selDetail.haProd) ? [{
+                icon: 'package', label: 'Produzione', has: selDetail.haProd,
                 view: isMetodoInventario ? 'inventario-gusti' : 'giornaliero',
                 sub: (!isMetodoInventario && selDetail.prodD)
                   ? `${selDetail.prodD.prodotti?.length || 0} prodotti · ${eur0(selDetail.prodD.ricavoTot || 0)} stim.`
-                  : (selDetail.haProd ? 'registrata nel foglio produzione' : null) },
+                  : (selDetail.haProd ? 'registrata nel foglio produzione' : null) }] : []),
               // La cassa compare solo se l'azienda la usa, oppure se quel
               // giorno ce l'ha comunque: non si insegue chi tiene la cassa
               // altrove con un riquadro rosso tutti i giorni.
               ...((cassaRichiesta || selDetail.haCassa) ? [{
                 icon: 'receipt', label: 'Cassa', has: selDetail.haCassa, view: 'chiusura',
                 sub: selDetail.cassaD?.kpi?.totV != null
-                  ? `${eur2(selDetail.cassaD.kpi.totV)} incasso${selDetail.cassaD.kpi.totMP != null ? ` · margine ${(Number(selDetail.cassaD.kpi.totMP)||0).toFixed(1)}%` : ''}`
+                  ? `${eur2(selDetail.cassaD.kpi.totV)} incasso${selDetail.cassaD.kpi.totMP != null ? ` · margine ${fmtp(Number(selDetail.cassaD.kpi.totMP)||0)}` : ''}`
                   : null }] : []),
             ].map(({ icon, label, has, sub, view: v }) => {
               const accent = has ? T.green : selDetail.isFuture ? T.textSoft : T.brand
@@ -565,7 +579,7 @@ export default function CalendarioOperativo({
           <Kpi icon="checkCircle" label={`Giorni completi · ${MESI[mese]}`}
             value={`${diag.completi}/${diag.totPassati}`} color={T.text}
             sub={diag.totPassati > 0
-              ? `${cassaRichiesta ? 'produzione + cassa' : 'contati sulla produzione'}${diag.chiusi ? ` · ${diag.chiusi} gg di chiusura esclusi` : ''}`
+              ? `${(cassaRichiesta && produzioneRichiesta) ? 'produzione + cassa' : cassaRichiesta ? 'contati sulla cassa' : 'contati sulla produzione'}${diag.chiusi ? ` · ${diag.chiusi} gg di chiusura esclusi` : ''}`
               : 'nessun giorno da registrare'} />
           <Kpi icon="barChart" label="Copertura mese" value={`${diag.pct}%`} color={semaforo}
             sub={diag.pct >= 80 ? 'sotto controllo' : diag.pct >= 50 ? 'da migliorare' : 'molti giorni scoperti'}
