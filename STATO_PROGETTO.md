@@ -25,7 +25,7 @@
 | **Vercel dashboard** | https://vercel.com/alessandroronchi18-7807s-projects/foodos |
 | **Supabase dashboard** | https://supabase.com/dashboard/project/rmecvymnwzgrfigljlid |
 | **Supabase URL** | https://rmecvymnwzgrfigljlid.supabase.co |
-| **Admin email** | alessandroar@maradeiboschi.com |
+| **Admin email (login app)** | `alessandro.ronchi18@gmail.com` — verificato nel bundle di prod il 07/09. E' il valore di `VITE_ADMIN_EMAIL` (client, mostra la UI `/admin`) e deve combaciare con `ADMIN_EMAIL` lato server su Vercel, che e' il gate vero e fail-closed. Non c'entra con `alessandroar@maradeiboschi.com`, che e' solo l'email autore dei commit git. |
 
 ---
 
