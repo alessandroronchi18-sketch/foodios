@@ -107,7 +107,24 @@ export async function impostaChiusuraRicorrente(orgId, sedeId, giorni, daIso) {
   const giornoPrima = new Date(new Date(daIso + 'T12:00').getTime() - 86400000)
     .toISOString().slice(0, 10)
 
-  // Chiude le regole ancora aperte che partivano prima della nuova.
+  // PRIMA cancella le regole che partono esattamente da questa data.
+  //
+  // Senza questo passaggio, cambiare idea nello stesso giorno non funzionava:
+  // il primo clic creava una regola valida da oggi, il secondo non la chiudeva
+  // (si chiudono solo quelle iniziate PRIMA di oggi) e ne aggiungeva un'altra.
+  // Restavano due regole attive e il giorno non si poteva più togliere: chi
+  // cliccava il lunedi per sbaglio se lo teneva chiuso per sempre.
+  //
+  // Cancellare invece di chiudere e' corretto: una regola nata oggi e già
+  // sostituita oggi non e' mai stata in vigore per un solo giorno.
+  let del = supabase.from('chiusure_ricorrenti').delete()
+    .eq('organization_id', orgId)
+    .eq('valido_da', daIso)
+  del = sedeId ? del.eq('sede_id', sedeId) : del.is('sede_id', null)
+  const { error: errDel } = await del
+  if (errDel) throw new Error(errDel.message)
+
+  // Poi chiude le regole ancora aperte che partivano prima della nuova.
   let q = supabase.from('chiusure_ricorrenti')
     .update({ valido_a: giornoPrima })
     .eq('organization_id', orgId)
