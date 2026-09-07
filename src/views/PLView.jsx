@@ -718,7 +718,7 @@ export default function PLView({ ricettario, chiusure = [], orgId, sedeId, metod
     // Paginato: Supabase PostgREST ha db-max-rows=1000, quindi .limit() del
     // client viene cappato lato server. Serve range() iterato.
     fetchAllInventarioProduzione(orgId, {
-      sedeIds: sedeId, dataFrom, dataTo,
+      sedeIds: sedeId, dataFrom: dateFrom, dataTo: dateTo,
       columns: 'gusto_nome, data, produzione_g, rimanenza_g, scarto_g',
     })
       .then(data => { if (alive) setInvRows(data || []) })
