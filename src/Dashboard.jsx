@@ -28,7 +28,6 @@ import { supabase } from './lib/supabase'
 import { caricoProduzionePF, scaricoVenditaPF } from './lib/stockPF'
 import { creaTrasferimento } from './lib/trasferimenti'
 import SedeSelector from './components/SedeSelector'
-import SedeContextBanner from './components/SedeContextBanner'
 import Icon from './components/Icon'
 const Scadenzario = lazyWithReload(() => import('./components/Scadenzario'))
 const CalendarioOperativo = lazyWithReload(() => import('./components/CalendarioOperativo'))
@@ -3308,20 +3307,15 @@ export default function Dashboard({
           </div>
         )}
 
-        {/* Banner contestuale: indica con quale sede stiamo operando nelle viste per-sede */}
-        {sedi && sedi.length > 1 && ['magazzino','giornaliero','chiusura','scadenzario','calendario','storico'].includes(view) && (
-          <SedeContextBanner
-            sedeAttiva={sedeAttiva}
-            sedi={sedi}
-            hint={
-              view === 'magazzino'   ? 'Stock e movimenti di questa sede' :
-              view === 'giornaliero' ? 'Produzione registrata a questa sede' :
-              view === 'chiusura'    ? 'Cassa di questa sede' :
-              view === 'scadenzario' ? 'Fatture intestate a questa sede' :
-              null
-            }
-          />
-        )}
+        {/* La banda "sede attiva" stava qui, ed era una ripetizione.
+            Su tutte e sei le viste che la mostravano — magazzino, produzione,
+            cassa, scadenzario, calendario, storico — la topbar mostra SEMPRE
+            il selettore di sede: nessuna di loro sta in NO_SEDE_SELECTOR né
+            in SEDE_SELECTOR_MULTI_ONLY, quindi il selettore compare appena
+            esiste una sede. La banda diceva la stessa cosa due centimetri
+            sotto, e in più la diceva dove non si può cambiarla.
+            Il titolo di pagina dice già di cosa si parla, il selettore dice
+            di quale sede: il terzo giro non serviva. */}
 
         {/* Vista "Tutte le sedi": le pagine operative richiedono una sede specifica. */}
         {isAllSedi && SEDE_RICHIESTA.has(view) && (

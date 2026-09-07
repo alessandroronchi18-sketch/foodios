@@ -597,6 +597,19 @@ export default function MagazzinoView({
   const { sort: sortMag, sortKey: magKey, sortDir: magDir, toggleSort: magToggle } = useSortable('stato')
   const [quickLoad, setQuickLoad] = useState(null)
   const [editSoglia, setEditSoglia] = useState(null)
+  // La lista di riordino mostra le prime righe e non tutte.
+  //
+  // Non aveva alcun limite, e sta SOPRA la barra delle schede: con 56
+  // ingredienti in magazzino (il caso reale di un'azienda in produzione) e
+  // venti sotto soglia, la lista da sola fa 1.200px e spinge le schede e la
+  // tabella fuori dallo schermo. Con cinquanta, oltre 3.000px: tre schermate
+  // di scorrimento prima di poter cliccare una scheda.
+  //
+  // La lista serve per SAPERE COSA ORDINARE ADESSO, e quello lo dicono le
+  // prime righe se sono ordinate per urgenza. Il totale della spesa resta
+  // calcolato su TUTTE, altrimenti si ordinerebbe guardando un numero parziale.
+  const [riordinoTutti, setRiordinoTutti] = useState(false)
+  const RIORDINO_VISIBILI = 6
   const [showAddIng, setShowAddIng] = useState(false)
   const [newIngNome, setNewIngNome] = useState('')
   const [newIngQty, setNewIngQty] = useState('')
@@ -956,11 +969,26 @@ export default function MagazzinoView({
 
       {/* ── RIORDINO URGENTE (azionabile): cosa ordinare e quanto ── */}
       {(critici.length > 0 || attenzione.length > 0) && (() => {
+        const peso = { esaurito: 0, critico: 1, attenzione: 2 }
         const daRiordinare = [...critici, ...attenzione]
           .filter(r => r.riordinoG > 0)
-          .sort((a, b) => ({ esaurito: 0, critico: 1, attenzione: 2 }[a.stato] ?? 3) - ({ esaurito: 0, critico: 1, attenzione: 2 }[b.stato] ?? 3))
+          // Prima per stato, poi per giorni di scorta rimasti: fra due
+          // ingredienti sotto soglia va ordinato prima quello che finisce
+          // domani, non quello che viene prima in ordine alfabetico. Chi non
+          // ha uno storico di consumo (giorniScorta null) va in fondo al suo
+          // gruppo: non si sa quando finira'.
+          .sort((a, b) => {
+            const ds = (peso[a.stato] ?? 3) - (peso[b.stato] ?? 3)
+            if (ds !== 0) return ds
+            const ga = a.giorniScorta == null ? Infinity : a.giorniScorta
+            const gb = b.giorniScorta == null ? Infinity : b.giorniScorta
+            return ga - gb
+          })
         if (daRiordinare.length === 0) return null
+        // Il totale e' sempre su TUTTE le righe, anche quelle non mostrate.
         const costoStimato = daRiordinare.reduce((s, r) => s + (r.riordinoG * r.costoG || 0), 0)
+        const nascosti = Math.max(0, daRiordinare.length - RIORDINO_VISIBILI)
+        const visibili = riordinoTutti ? daRiordinare : daRiordinare.slice(0, RIORDINO_VISIBILI)
         return (
           <div id="riordino-urgente" style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', marginBottom: 24, boxShadow: SHADOW_PREMIUM, scrollMarginTop: 70 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: `1px solid ${C.border}`,
@@ -972,6 +1000,7 @@ export default function MagazzinoView({
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>Lista di riordino consigliata</div>
                 <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
                   {daRiordinare.length} {daRiordinare.length === 1 ? 'ingrediente' : 'ingredienti'} · per coprire circa {GIORNI_TARGET} giorni di consumo
+                  {nascosti > 0 && !riordinoTutti && ` · in elenco i ${RIORDINO_VISIBILI} più urgenti`}
                 </div>
               </div>
               {costoStimato > 0 && (
@@ -991,7 +1020,7 @@ export default function MagazzinoView({
                   </tr>
                 </thead>
                 <tbody>
-                  {daRiordinare.map((r, i) => (
+                  {visibili.map((r, i) => (
                     <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: C.text, textTransform: 'capitalize' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
@@ -1020,6 +1049,23 @@ export default function MagazzinoView({
                 </tbody>
               </table>
             </div>
+            {nascosti > 0 && (
+              <button onClick={() => setRiordinoTutti(v => !v)}
+                aria-expanded={riordinoTutti}
+                style={{
+                  width: '100%', minHeight: isMobile ? 46 : 40, border: 'none',
+                  borderTop: `1px solid ${C.border}`, background: C.bgSubtle,
+                  color: C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 7,
+                }}>
+                <Icon name={riordinoTutti ? 'chevDown' : 'chevDown'} size={13}
+                  style={{ transform: riordinoTutti ? 'rotate(180deg)' : 'none' }} />
+                {riordinoTutti
+                  ? `Mostra solo i ${RIORDINO_VISIBILI} più urgenti`
+                  : `Vedi gli altri ${nascosti} da ordinare`}
+              </button>
+            )}
           </div>
         )
       })()}
