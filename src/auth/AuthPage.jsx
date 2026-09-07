@@ -599,10 +599,21 @@ export default function AuthPage({ onSignIn, onSignUp, initialReferralCode = '',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'check', email: loginEmail }),
         })
+        // Attesa progressiva, non blocco: dopo i primi errori servono pochi
+        // secondi, e solo insistendo l'attesa si allunga. Il messaggio deve
+        // dirlo in modo tranquillo — chi ha appena sbagliato la password non
+        // deve sentirsi accusato di essere un intruso.
         if (guard.status === 423) {
           const j = await guard.json().catch(() => ({}))
-          const mins = Math.ceil((j.retryAfter || 1800) / 60)
-          setErrore(`Account temporaneamente bloccato per troppi tentativi. Riprova tra ${mins} minuti.`)
+          const sec = Math.max(1, Number(j.retryAfter) || 5)
+          const quando = sec < 60
+            ? `${sec} second${sec === 1 ? 'o' : 'i'}`
+            : `${Math.ceil(sec / 60)} minut${Math.ceil(sec / 60) === 1 ? 'o' : 'i'}`
+          setErrore(
+            sec <= 60
+              ? `Password non corretta. Riprova fra ${quando}.`
+              : `Password sbagliata più volte. Per sicurezza riprova fra ${quando}, oppure usa "Password dimenticata" qui sotto per reimpostarla.`
+          )
           setLoading(false)
           return
         }

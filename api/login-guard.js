@@ -11,13 +11,47 @@ import { sanitizeStrict, validateEmail } from './lib/validate.js'
 //   2) DOPO signIn fallito → POST { action: 'fail', email }
 //   3) DOPO signIn riuscito → POST { action: 'success', email } (reset contatore)
 //
-// La soglia è 5 tentativi falliti in 15 minuti per email → blocco di 30 minuti.
-// L'IP è loggato (per anomaly detection) ma non è il chiave di blocco — un attaccante
-// può ruotare IP, un utente legittimo no email. Quindi blocchiamo l'email.
+// L'IP è loggato (per anomaly detection) ma non è la chiave di blocco — un attaccante
+// può ruotare IP, un utente legittimo non può ruotare email. Quindi blocchiamo l'email.
+//
+// ── Attesa progressiva invece del muro ──────────────────────────────────────
+//
+// Prima erano 5 tentativi falliti e poi mezz'ora fuori. Su un gestionale usato
+// da proprietari di sessanta anni quella soglia si tocca per sbaglio: la
+// maiuscola attivata, la password del vecchio account, un carattere accentato.
+// Cinque errori onesti e non puoi lavorare per trenta minuti.
+//
+// Un attaccante e un signore che sbaglia la password si distinguono per la
+// VELOCITÀ, non per il numero di tentativi. Un programma ne prova centinaia al
+// secondo; una persona ne prova uno ogni dieci o venti secondi. Quindi non un
+// muro dopo cinque, ma un'attesa che cresce: impercettibile per chi sbaglia in
+// buona fede, insostenibile per chi prova a indovinare.
+//
+//   1-3 tentativi → nessuna attesa. Capita a tutti.
+//   4°  →  5 secondi        7°  →  1 minuto
+//   5°  → 15 secondi        8°  →  2 minuti
+//   6°  → 30 secondi        9°  →  5 minuti
+//                          10° e oltre → 15 minuti
+//
+// Dopo il decimo tentativo un programma automatico ha ottenuto meno di 20
+// prove in un quarto d'ora: la forza bruta è morta comunque. E una persona che
+// sbaglia tre volte non si accorge nemmeno che esista un limite.
 
 const WINDOW_SEC = 15 * 60
-const MAX_FAIL = 5
-const BLOCK_SEC = 30 * 60
+// Da qui in poi si avvisa il titolare per email: non blocca, informa.
+const SOGLIA_AVVISO = 6
+// Tentativi tollerati senza alcuna attesa.
+const LIBERI = 3
+// Attesa in secondi a partire dal 4° tentativo fallito.
+const SCALA_ATTESA = [5, 15, 30, 60, 120, 300]
+const ATTESA_MAX_SEC = 15 * 60
+
+/** Secondi di attesa dopo `n` tentativi falliti nella finestra. */
+export function attesaDopo(n) {
+  if (n <= LIBERI) return 0
+  const i = n - LIBERI - 1
+  return i < SCALA_ATTESA.length ? SCALA_ATTESA[i] : ATTESA_MAX_SEC
+}
 
 async function getSupabase() {
   const { createClient } = await import('@supabase/supabase-js')
@@ -55,8 +89,8 @@ async function notifyTitolare(supabase, req, email, ip, ua) {
     if (!process.env.INTERNAL_API_SECRET) return // nessun secret = niente invio (evita spam)
 
     const messaggio = [
-      `Sono stati registrati ${MAX_FAIL} tentativi di accesso falliti per il tuo account.`,
-      `L'account è temporaneamente bloccato per 30 minuti.`,
+      `Sono stati registrati ${SOGLIA_AVVISO} tentativi di accesso falliti per il tuo account.`,
+      `L'accesso non è bloccato, ma dopo ogni errore serve attendere qualche secondo in più.`,
       ``,
       `IP del tentativo: ${ip}`,
       `Browser: ${(ua || '').slice(0, 120)}`,
@@ -110,23 +144,24 @@ export default async function handler(req) {
   const fails = rows.filter(r => r.success === false)
 
   if (action === 'check') {
-    if (fails.length >= MAX_FAIL) {
-      // Il blocco di BLOCK_SEC va calcolato dal fail più RECENTE: con il più
-      // vecchio, dopo il 5° fail un attaccante puo' attendere ~15min e ritentare
-      // 5 volte ogni 15min (perché la finestra di recentFails scivola via).
-      // Usare il più recente fa scattare BLOCK_SEC pieni dall'ultima azione.
-      const newest = fails[0]
-      const blockEnd = new Date(new Date(newest.created_at).getTime() + BLOCK_SEC * 1000)
-      const now = new Date()
-      if (now < blockEnd) {
+    const attesa = attesaDopo(fails.length)
+    if (attesa > 0) {
+      // L'attesa si conta dal tentativo più RECENTE, non dal più vecchio:
+      // altrimenti basterebbe aspettare che la finestra scivoli via per
+      // ricominciare da capo ogni quarto d'ora.
+      const ultimo = new Date(fails[0].created_at).getTime()
+      const fine = ultimo + attesa * 1000
+      const adesso = Date.now()
+      if (adesso < fine) {
         return json({
           allowed: false,
-          retryAfter: Math.ceil((blockEnd - now) / 1000),
-          reason: 'too_many_fails',
+          retryAfter: Math.ceil((fine - adesso) / 1000),
+          tentativiFalliti: fails.length,
+          reason: 'attesa_progressiva',
         }, 423, req)
       }
     }
-    return json({ allowed: true }, 200, req)
+    return json({ allowed: true, tentativiFalliti: fails.length }, 200, req)
   }
 
   if (action === 'success') {
@@ -146,15 +181,16 @@ export default async function handler(req) {
       })
     } catch {}
     const newFailCount = fails.length + 1
-    // Soglia raggiunta → log + notifica
-    if (newFailCount === MAX_FAIL) {
+    // Soglia raggiunta → log + notifica. Non blocca: informa il titolare che
+    // qualcuno sta provando, così può reagire se non è stato lui.
+    if (newFailCount === SOGLIA_AVVISO) {
       try {
         await supabase.from('audit_log').insert({
           operation: 'login_blocked_brute_force',
           user_email: email,
           user_agent: ua.slice(0, 256),
           client_ip: ip,
-          new_data: { fails_in_window: newFailCount, window_sec: WINDOW_SEC, block_sec: BLOCK_SEC },
+          new_data: { fails_in_window: newFailCount, window_sec: WINDOW_SEC, attesa_sec: attesaDopo(newFailCount) },
         })
       } catch {}
       notifyTitolare(supabase, req, email, ip, ua) // fire-and-forget
@@ -162,7 +198,7 @@ export default async function handler(req) {
     return json({
       ok: true,
       fails_recenti: newFailCount,
-      bloccato: newFailCount >= MAX_FAIL,
+      attesaSec: attesaDopo(newFailCount),
     }, 200, req)
   }
 
