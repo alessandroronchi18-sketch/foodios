@@ -17,7 +17,7 @@ import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
 import { loadStockPF, loadMovimentiPF, scartoPF } from '../lib/stockPF'
 import {
-  C, TNUM, PageHeader, useSortable, SortTH, fmt0,
+  C, TNUM, PageHeader, useSortable, SortTH, fmt0, fmtp,
 } from './_shared'
 
 // Ombra premium coerente con la Dashboard home (card/contenitori principali).
@@ -183,7 +183,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
     setSaving(true)
     try {
       await scartoPF({ sedeId, prodotto: scartoForm.prodotto, quantita: qta, note: scartoForm.note || null })
-      notify('✓ Scarto registrato')
+      notify('Scarto registrato')
       setScartoForm(null)
       await carica()
     } catch (e) {
@@ -384,6 +384,8 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
   const [confirmVal, setConfirmVal] = useState(null)
   const [confirmDecorre, setConfirmDecorre] = useState(() => todayLocal())
   const [showLog, setShowLog] = useState(false)
+  const [salvandoPrezzo, setSalvandoPrezzo] = useState(false)
+  const [errEdit, setErrEdit] = useState(null)
 
   const ingredienti = useMemo(() => {
     const map = new Map()
@@ -416,11 +418,15 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
   const visibleRows = isPaginated ? filtered.slice(0, maxVisible) : filtered
 
   const startEdit = (row) => { setEditKey(row.key); setEditVal(row.prezzoKg ? row.prezzoKg.toFixed(2) : '') }
-  const cancelEdit = () => { setEditKey(null); setEditVal('') }
+  const cancelEdit = () => { setEditKey(null); setEditVal(''); setErrEdit(null) }
 
   const tentaSalva = (row) => {
-    const v = parseFloat(editVal.replace(',', '.'))
-    if (isNaN(v) || v < 0) return
+    const v = parseFloat(String(editVal).replace(',', '.'))
+    // Prima il `return` muto: scrivendo "12,5o" per errore, il pulsante Salva
+    // non faceva niente e non diceva niente. Non si capiva se il salvataggio
+    // era andato, se il prezzo era stato rifiutato, o se il pulsante era rotto.
+    if (isNaN(v) || v < 0) { setErrEdit('Scrivi un prezzo in euro per chilo, per esempio 12,50'); return }
+    setErrEdit(null)
     if (v === row.prezzoKg) { cancelEdit(); return }
     setConfirmKey(row.key)
     setConfirmVal(v)
@@ -428,13 +434,22 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
   }
 
   const confermaSalva = async () => {
+    // Blocco sul doppio clic. Senza, due clic rapidi scrivevano due volte lo
+    // stesso cambio di prezzo: due righe nello storico per una modifica sola,
+    // e uno storico dei prezzi che non torna e' un P&L che non torna.
+    if (salvandoPrezzo) return
     const row = ingredienti.find(i => i.key === confirmKey)
     if (!row) { setConfirmKey(null); return }
     // Decorrenza alle 00:00:00 del giorno scelto
     const decorreISO = confirmDecorre ? new Date(confirmDecorre + 'T00:00:00').toISOString() : new Date().toISOString()
-    await onUpdatePrezzo(row.nome, confirmVal, decorreISO)
-    setConfirmKey(null); setConfirmVal(null)
-    cancelEdit()
+    setSalvandoPrezzo(true)
+    try {
+      await onUpdatePrezzo(row.nome, confirmVal, decorreISO)
+      setConfirmKey(null); setConfirmVal(null)
+      cancelEdit()
+    } finally {
+      setSalvandoPrezzo(false)
+    }
   }
 
   return (
@@ -446,7 +461,11 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
         </div>
         <button onClick={() => setShowLog(s => !s)}
           style={{ padding: '9px 14px', borderRadius: 8, border: `1px solid ${C.borderStr}`, background: showLog ? C.redLight : 'transparent', fontSize: 11, fontWeight: 700, color: showLog ? C.red : C.textMid, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {showLog ? <>✕ Chiudi log</> : <><Icon name="fileText" size={13} />{`Log modifiche · ${logPrezzi?.length || 0}`}</>}
+          {/* "Log" e' gergo da informatico: in italiano si chiama storico. E il
+              carattere ✕ diventa un'icona, come il resto della pagina. */}
+          {showLog
+            ? <><Icon name="x" size={13} />Chiudi lo storico</>
+            : <><Icon name="fileText" size={13} />{`Storico modifiche · ${logPrezzi?.length || 0}`}</>}
         </button>
       </div>
 
@@ -476,11 +495,15 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                     <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: '7px 12px', color: C.textMid, whiteSpace: 'nowrap' }}>{new Date(l.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
                       <td style={{ padding: '7px 12px', fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>{l.ingrediente}</td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', color: C.textMid, ...TNUM }}>€ {(l.prezzoVecchio || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>€ {(l.prezzoNuovo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</td>
-                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: l.delta > 0 ? C.red : C.green, ...TNUM }}>
-                        {l.delta > 0 ? '+' : ''}{l.delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        {l.deltaPct != null && <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.7 }}>({l.deltaPct > 0 ? '+' : ''}{l.deltaPct.toFixed(1)}%)</span>}
+                      <td style={{ padding: '7px 12px', textAlign: 'right', color: C.textMid, ...TNUM }}>{(l.prezzoVecchio || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
+                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>{(l.prezzoNuovo || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</td>
+                      {/* `delta` può mancare nelle righe di log vecchie, e
+                          `undefined.toLocaleString()` fa esplodere l'intera
+                          scheda: una riga storica malformata portava via la
+                          pagina, non solo la sua cella. */}
+                      <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 700, color: (l.delta || 0) > 0 ? C.red : C.green, ...TNUM }}>
+                        {(l.delta || 0) > 0 ? '+' : ''}{(l.delta || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {Number.isFinite(Number(l.deltaPct)) && <span style={{ fontSize: 12, marginLeft: 4, opacity: 0.7 }}>({Number(l.deltaPct) > 0 ? '+' : ''}{fmtp(Number(l.deltaPct))})</span>}
                       </td>
                     </tr>
                   ))}
@@ -522,6 +545,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>
                       {editing ? (
+                        <>
                         <input type="number" min="0" step="0.01" value={editVal}
                           onChange={e => setEditVal(e.target.value)}
                           onKeyDown={e => {
@@ -529,7 +553,12 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                             if (e.key === 'Escape') cancelEdit()
                           }}
                           autoFocus
-                          style={{ width: 96, padding: '6px 8px', borderRadius: 6, border: `1px solid ${C.red}`, fontSize: 13, fontWeight: 700, color: C.text, textAlign: 'right', outline: 'none' }}/>
+                          aria-label={`Prezzo per chilo di ${row.nome}`}
+                          style={{ width: isMobile ? 116 : 96, padding: isMobile ? '9px 10px' : '6px 8px', minHeight: isMobile ? 44 : 32, borderRadius: 6, border: `1px solid ${C.red}`, fontSize: isMobile ? 16 : 13, fontWeight: 700, color: C.text, textAlign: 'right', outline: 'none' }}/>
+                        {errEdit && (
+                          <div style={{ fontSize: 12, color: C.red, marginTop: 4, textAlign: 'right', maxWidth: 200, lineHeight: 1.4 }}>{errEdit}</div>
+                        )}
+                        </>
                       ) : (
                         <span onClick={() => startEdit(row)} title="Clicca per modificare"
                           style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 5, display: 'inline-block' }}>
@@ -620,8 +649,10 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                 </div>
               )}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button onClick={() => setConfirmKey(null)} style={{ padding: '10px 18px', borderRadius: 8, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
-                <button onClick={confermaSalva} style={{ padding: '10px 20px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>✓ Conferma e salva</button>
+                <button onClick={() => setConfirmKey(null)} disabled={salvandoPrezzo} style={{ padding: '0 18px', minHeight: 42, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
+                <button onClick={confermaSalva} disabled={salvandoPrezzo}
+                  style={{ padding: '0 20px', minHeight: 42, borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: salvandoPrezzo ? 'not-allowed' : 'pointer', opacity: salvandoPrezzo ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="check" size={13} />{salvandoPrezzo ? 'Salvo…' : 'Conferma e salva'}</button>
               </div>
             </div>
           </div>
@@ -723,7 +754,7 @@ export default function MagazzinoView({
     if (setEsclusi) setEsclusi(nuoviEsclusi)
     setDeleteIngConf(null); setDeleteIngPin('')
     setSaving(false)
-    notify('✓ Ingrediente eliminato dal sistema')
+    notify('Ingrediente eliminato dal magazzino')
   }
 
   // ── Il magazzino, riaggregato per chiave canonica ─────────────────────────
@@ -987,7 +1018,7 @@ export default function MagazzinoView({
       try { await ssave(SK_EXCL, [...nuoviEsclusi]) } catch { /* low impact */ }
       if (setEsclusi) setEsclusi(nuoviEsclusi)
     }
-    notify('✓ ' + newIngNome + ' aggiunto al magazzino')
+    notify(newIngNome + ' aggiunto al magazzino')
     setShowAddIng(false); setNewIngNome(''); setNewIngQty(''); setNewIngSoglia('')
     setSaving(false)
   }
@@ -1221,7 +1252,7 @@ export default function MagazzinoView({
       })()}
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: `1px solid ${T.border}`, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        {[['giacenze', 'Materie prime'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['carica', 'Carica merce'], ['log', 'Log rifornimenti']].filter(([id]) => !(isDipendente && id === 'prezzi')).map(([id, lbl]) => (
+        {[['giacenze', 'Materie prime'], ['pf', 'Prodotti finiti'], ['prezzi', 'Prezzi ingredienti'], ['carica', 'Carica merce'], ['log', 'Storico carichi']].filter(([id]) => !(isDipendente && id === 'prezzi')).map(([id, lbl]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ padding: '12px 16px', minHeight: 44, border: 'none', background: 'transparent', cursor: 'pointer',
               fontSize: 13, fontWeight: tab === id ? 600 : 500, color: tab === id ? T.text : T.textSoft,
@@ -1269,7 +1300,7 @@ export default function MagazzinoView({
               ))}
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={handleAddIngrediente} disabled={saving} style={{ flex: 1, padding: '10px 16px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvataggio…' : 'Aggiungi'}</button>
-                <button aria-label="Chiudi" onClick={() => setShowAddIng(false)} style={{ padding: '10px 14px', minHeight: 44, minWidth: 44, background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>✕</button>
+                <button aria-label="Chiudi" onClick={() => setShowAddIng(false)} style={{ minHeight: 44, minWidth: 44, background: 'transparent', color: C.textSoft, border: `1px solid ${C.border}`, borderRadius: 7, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={14} /></button>
               </div>
             </div>
           )}
@@ -1555,7 +1586,7 @@ export default function MagazzinoView({
 
       {tab === 'log' && (
         <div>
-          <SectHead icon={<Icon name="clipboard" size={17} />} title="Log rifornimenti" sub="Storico carichi e scarichi di materie prime" />
+          <SectHead icon={<Icon name="clipboard" size={17} />} title="Storico carichi" sub="Ogni carico e scarico di materie prime, dal più recente" />
           {(!logRif || logRif.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '50px 20px', color: C.textSoft }}>
               <div style={{ marginBottom: 12, color: C.textSoft }}><Icon name="clipboard" size={32} /></div>
