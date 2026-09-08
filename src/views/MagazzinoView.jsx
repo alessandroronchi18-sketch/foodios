@@ -6,7 +6,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 import { ssave as _ssave } from '../lib/storage'
 import { todayLocal } from '../lib/dateLocal'
 import { normIng, getR, translateIngredienteEN, buildIngCosti } from '../lib/foodcost'
@@ -60,7 +60,7 @@ function KPI({ label, value, sub, color, highlight, icon }) {
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 11, background: chipBg, color: chipColor, fontSize: 17 }}>{icon}</span>
         </div>
       )}
-      <div style={{ position: 'relative', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase',
+      <div style={{ position: 'relative', fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase',
         color: highlight ? 'rgba(255,255,255,0.76)' : T.textSoft, marginBottom: 6 }}>{label}</div>
       <div style={{ position: 'relative', fontSize: 30, fontWeight: 800, color: highlight ? T.textOnDark : color || T.text,
         letterSpacing: '-0.035em', lineHeight: 1.05, ...TNUM }}>
@@ -118,6 +118,13 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   const isTablet = useIsTablet()
   const [stock, setStock] = useState([])
   const [loading, setLoading] = useState(true)
+  // "Non c'e' niente in magazzino" e "non sono riuscito a leggere" sono due
+  // cose opposte, e prima si vedeva sempre la prima: i due caricatori
+  // restituivano un array vuoto anche quando la rete cadeva o il permesso
+  // mancava, e il catch qui sotto era codice morto. Chi guardava leggeva
+  // "Nessun prodotto in stock" e poteva rimettersi a produrre merce che aveva
+  // già in cella.
+  const [erroreLettura, setErroreLettura] = useState(null)
   const [scartoForm, setScartoForm] = useState(null)
   const [movimenti, setMovimenti] = useState([])
   const [saving, setSaving] = useState(false)
@@ -125,15 +132,18 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   const carica = useCallback(async () => {
     if (!orgId || !sedeId) { setLoading(false); return }
     setLoading(true)
+    setErroreLettura(null)
     try {
       const [s, m] = await Promise.all([
-        loadStockPF(orgId, sedeId),
-        loadMovimentiPF(orgId, sedeId, { limit: 30 }),
+        loadStockPF(orgId, sedeId, { rilancia: true }),
+        loadMovimentiPF(orgId, sedeId, { limit: 30, rilancia: true }),
       ])
       setStock(s)
       setMovimenti(m)
     } catch (e) {
-      notify?.('Errore caricamento stock: ' + e.message, false)
+      setErroreLettura(e.message || 'rete')
+      setStock([])
+      setMovimenti([])
     } finally { setLoading(false) }
   }, [orgId, sedeId, notify])
 
@@ -154,10 +164,13 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
 
   const handleScarto = async () => {
     if (saving) return // evita doppio scarico stock su doppio click
-    if (!scartoForm?.prodotto || !(scartoForm.qty > 0)) return
+    // La quantità arriva come stringa dal campo (per non perdere la virgola
+    // mentre si digita): si converte QUI, una volta sola.
+    const qta = parseFloat(String(scartoForm?.qty ?? '').replace(',', '.'))
+    if (!scartoForm?.prodotto || !(qta > 0)) return
     setSaving(true)
     try {
-      await scartoPF({ sedeId, prodotto: scartoForm.prodotto, quantita: scartoForm.qty, note: scartoForm.note || null })
+      await scartoPF({ sedeId, prodotto: scartoForm.prodotto, quantita: qta, note: scartoForm.note || null })
       notify('✓ Scarto registrato')
       setScartoForm(null)
       await carica()
@@ -170,8 +183,33 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
 
   if (!sedeId) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Seleziona una sede attiva per vedere lo stock {LEX.prodotti} finiti.</div>
   if (loading) return <div style={{ padding: 24, textAlign: 'center', color: C.textSoft, fontSize: 13 }}>Caricamento…</div>
+  // Quando il dato non c'è non si mostrano zeri: si dice che non si è letto.
+  if (erroreLettura) return (
+    <div style={{ background: C.bgCard, border: `1px solid ${C.red}40`, borderRadius: 18, padding: '32px 24px', textAlign: 'center', boxShadow: SHADOW_PREMIUM }}>
+      <div style={{ marginBottom: 10, color: C.red }}><Icon name="alert" size={30} /></div>
+      <div style={{ ...typo.body, fontWeight: 700, color: C.text, marginBottom: 6 }}>
+        Non riesco a leggere lo stock di questa sede
+      </div>
+      <div style={{ ...typo.small, color: C.textSoft, lineHeight: 1.55, maxWidth: 460, margin: '0 auto 16px' }}>
+        Quello che vedi non è "magazzino vuoto": è che la lettura non è andata a buon fine.
+        Controlla la connessione e riprova.
+      </div>
+      <button onClick={carica} style={{ padding: '0 18px', minHeight: 42, background: C.red, color: C.white, border: 'none', borderRadius: 8, ...typo.small, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+        Riprova
+      </button>
+    </div>
+  )
 
-  const totPezzi = stock.reduce((s, r) => s + Number(r.quantita || 0), 0)
+  // Pezzi e grammi non si sommano.
+  //
+  // Prima era una somma sola su tutte le righe, ignorando `r.unita`: le righe
+  // in grammi esistono davvero (i trasferimenti di gusti arrivano con
+  // unita 'g'), quindi 20 torte più 8,4 kg di gelato diventavano "8.420 pezzi
+  // totali". Un numero senza significato, presentato come misurato.
+  const totPezzi = stock.filter(r => (r.unita || 'pz') !== 'g')
+    .reduce((s, r) => s + Number(r.quantita || 0), 0)
+  const totGrammi = stock.filter(r => (r.unita || 'pz') === 'g')
+    .reduce((s, r) => s + Number(r.quantita || 0), 0)
   const sottoSoglia = stock.filter(r => r.soglia_min > 0 && Number(r.quantita) <= Number(r.soglia_min))
   const negativi = stock.filter(r => Number(r.quantita) < 0)
 
@@ -189,7 +227,11 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 10, marginBottom: 20 }}>
         <KPI icon={<Icon name="package" size={18} />} label={`${LEX.Prodotti} in stock`} value={stock.length}/>
-        <KPI icon={<Icon name="barChart" size={18} />} label="Pezzi totali" value={totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0 })}/>
+        <KPI icon={<Icon name="barChart" size={18} />} label="Pezzi totali"
+          value={`${totPezzi.toLocaleString('it-IT', { maximumFractionDigits: 0 })} pz`}
+          sub={totGrammi > 0
+            ? `più ${(totGrammi / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg sfusi`
+            : ''}/>
         <KPI icon={<Icon name="warning" size={18} />} label="Sotto soglia" value={sottoSoglia.length} color={sottoSoglia.length > 0 ? C.amber : C.green}/>
         <KPI icon={<Icon name="alert" size={18} />} label="Stock negativo" value={negativi.length} color={negativi.length > 0 ? C.red : C.green} sub={negativi.length > 0 ? 'vendite > carico' : ''}/>
       </div>
@@ -228,12 +270,12 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                       {r.updated_at ? new Date(r.updated_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                      <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false })} disabled={q <= 0}
+                      <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false, unita: r.unita || 'pz', disponibile: q })} disabled={q <= 0}
                         style={{ padding: '8px 12px', minHeight: 36, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 12, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer', marginRight: 4 }}>
                         Scarto
                       </button>
                       {q > 0 && (
-                        <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: q, note: 'Azzeramento stock (dato fantasma o reset)', azzera: true })}
+                        <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: String(q), note: 'Azzeramento stock (dato fantasma o reset)', azzera: true, unita: r.unita || 'pz', disponibile: q })}
                           title="Porta a zero lo stock di questo prodotto"
                           style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.red}`, background: '#FFF5F5', color: C.red, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                           Azzera
@@ -260,7 +302,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                   const d = Number(m.delta)
                   return (
                     <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}` }}>
-                      <td style={{ padding: '8px 14px', fontSize: 10, color: C.textSoft, whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 14px', fontSize: 12, color: C.textSoft, whiteSpace: 'nowrap' }}>
                         {new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td style={{ padding: '8px 14px', fontWeight: 700, color: C.text }}>{m.prodotto_nome}</td>
@@ -268,7 +310,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                       <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 800, color: d > 0 ? C.green : d < 0 ? C.red : C.textSoft, ...TNUM }}>
                         {d > 0 ? '+' : ''}{d}
                       </td>
-                      <td style={{ padding: '8px 14px', fontSize: 10, color: C.textSoft, fontStyle: 'italic' }}>{m.note || ''}</td>
+                      <td style={{ padding: '8px 14px', fontSize: 12, color: C.textSoft, fontStyle: 'italic' }}>{m.note || ''}</td>
                     </tr>
                   )
                 })}
@@ -285,9 +327,18 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="warning" size={18} />Registra scarto</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>{LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong></p>
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Quantità scartata (pz)</div>
-              <input type="number" inputMode="decimal" min="0" step="1" value={scartoForm.qty}
-                onChange={e => setScartoForm(f => ({ ...f, qty: parseFloat(e.target.value) || 0 }))}
+              {/* L'unita' della riga, non "(pz)" fisso: su una riga in grammi
+                  si chiedeva di scartare "pezzi" di gelato sfuso. */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
+                Quantità scartata ({scartoForm.unita === 'g' ? 'g' : 'pz'})
+              </div>
+              {/* Nello stato si tiene la STRINGA grezza, non il numero.
+                  Prima ogni battuta passava da parseFloat: digitando "1,5" lo
+                  stato intermedio "1," diventava 1, il campo tornava a "1" e
+                  il separatore era perso — i decimali non si potevano
+                  scrivere. E svuotando il campo compariva uno 0. */}
+              <input type="text" inputMode="decimal" value={scartoForm.qty}
+                onChange={e => setScartoForm(f => ({ ...f, qty: e.target.value }))}
                 style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
             </div>
             <div style={{ marginBottom: 18 }}>
@@ -299,7 +350,11 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setScartoForm(null)} style={{ padding: '10px 18px', background: 'transparent', color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Annulla</button>
-              <button onClick={handleScarto} disabled={saving} style={{ padding: '10px 18px', background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>{saving ? 'Registrazione…' : 'Registra scarto'}</button>
+              <button onClick={handleScarto}
+                disabled={saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)}
+                style={{ padding: '10px 18px', minHeight: 44, background: C.red, color: C.white, border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13,
+                  cursor: (saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)) ? 'not-allowed' : 'pointer',
+                  opacity: (saving || !(parseFloat(String(scartoForm.qty ?? '').replace(',', '.')) > 0)) ? 0.5 : 1 }}>{saving ? 'Registrazione…' : 'Registra scarto'}</button>
             </div>
           </div>
         </div>
@@ -542,7 +597,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                 </div>
                 <input type="date" value={confirmDecorre} onChange={e => setConfirmDecorre(e.target.value)}
                   style={{ padding: '8px 10px', borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: 13, color: C.text, background: C.white, outline: 'none' }}/>
-                <div style={{ fontSize: 10, color: C.textSoft, marginTop: 6, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: C.textSoft, marginTop: 6, lineHeight: 1.5 }}>
                   Il nuovo prezzo si applica dalla data scelta in poi. Le produzioni precedenti mantengono il <b>prezzo storico</b> per i calcoli P&amp;L.
                   Es. cambiando il prezzo dal <b>01/01</b>, le produzioni del 31/12 useranno ancora il prezzo vecchio.
                 </div>
@@ -729,6 +784,14 @@ export default function MagazzinoView({
     const consumoG = fabb / 7
     const giorniScorta = consumoG > 0 ? giacenza / consumoG : null
     const stato =
+      // Una giacenza NEGATIVA è un errore di registrazione, non uno stato di
+      // scorta. Prima cadeva fuori da tutta la catena: `giacenza === 0` è
+      // un'uguaglianza stretta, quindi −500 non era "esaurito"; con soglia 0
+      // saltava anche il ramo della soglia; e senza storico di consumo
+      // arrivava a 'ok' — verde, e non contata da nessun contatore. La scheda
+      // Prodotti finiti ha da sempre un KPI "Stock negativo": le materie prime
+      // non avevano niente.
+      giacenza < 0 ? 'negativo' :
       giacenza === 0 ? 'esaurito' :
       soglia > 0 && giacenza <= soglia ? 'critico' :
       giorniScorta !== null && giorniScorta < 3 ? 'critico' :
@@ -761,6 +824,7 @@ export default function MagazzinoView({
   // gestita insegna a spegnere l'allarme.
   const esauriti = righe.filter(r => r.stato === 'esaurito')
   const sottoSoglia = righe.filter(r => r.stato === 'critico')
+  const negativi = righe.filter(r => r.stato === 'negativo')
 
   // ── Diagnosi aggregata (banda premium) ─────────────────────────────────────
   const valoreStock = righe.reduce((s, r) => s + (r.valore || 0), 0)
@@ -770,7 +834,7 @@ export default function MagazzinoView({
     : null
   // Rosso SOLO per gli esauriti, che fermano la produzione. Sotto soglia e' una
   // lista della spesa: informativa, non un allarme.
-  const salute = esauriti.length > 0 ? 'critico'
+  const salute = (negativi.length > 0 || esauriti.length > 0) ? 'critico'
     : (sottoSoglia.length > 0 || attenzione.length > 0) ? 'attenzione'
     : 'ok'
 
@@ -782,17 +846,32 @@ export default function MagazzinoView({
     const qty = parseFloat(String(formQty).replace(',', '.'))
     if (!(qty > 0)) { notify('Inserisci una quantità maggiore di 0', false); return }
     const now = new Date().toISOString()
-    const attuale = magazzino?.[k]?.giacenza_g || 0
+    // La giacenza di partenza si legge dall'AGGREGATO, non dal dizionario grezzo.
+    //
+    // Bug confermato nell'audit: la tabella legge da `magPerNorm` (che unisce
+    // le chiavi vecchie con quelle canoniche), questa funzione leggeva
+    // `magazzino[k]`. Su un ingrediente salvato come "uova" il clic rapido
+    // dalla tabella precompila "uova", `normIng` lo porta a "uovo",
+    // `magazzino["uovo"]` non esiste e la giacenza di partenza risulta ZERO:
+    // uno scarico di 500 g su 4,8 kg in magazzino diventava "-500 g" con tanto
+    // di falso allarme "scarico maggiore della giacenza".
+    const gruppo = magPerNorm[k] || {}
+    const attuale = gruppo.giacenza_g || 0
     const delta = formMode === 'scarico' ? -qty : qty
     // Audit 2026-07-01 HIGH: NON clampare a 0. Allineato a scaloMagazzinoPerGusto
     // che ammette negativi proprio per tracciare deficit reali - il clamp
     // silenzioso cancellava l'overshoot dal log (info forensicamente persa).
     const nuova = attuale + delta
-    if (nuova < 0) {
-      notify(`Attenzione: scarico maggiore della giacenza (${formIng}: ${attuale}g → ${nuova}g). Registrato.`, false)
-    }
-    const nm = { ...magazzino,
-      [k]: { nome: formIng.trim(), giacenza_g: nuova, soglia_g: magazzino?.[k]?.soglia_g || 0, ultimoRifornimento: now },
+    // In scrittura si CONSOLIDA il gruppo su una chiave sola, come fa
+    // handleDeleteIng: altrimenti la voce vecchia resterebbe con il suo stock e
+    // il totale si sdoppierebbe di nuovo alla lettura successiva.
+    const nm = { ...magazzino }
+    for (const raw of (gruppo.chiaviRaw || [])) delete nm[raw]
+    nm[k] = {
+      nome: gruppo.nome || formIng.trim(),
+      giacenza_g: nuova,
+      soglia_g: gruppo.soglia_g || 0,
+      ultimoRifornimento: now,
     }
     const logEntry = { id: `r-${Date.now()}`, data: now, ingrediente: formIng.trim(), quantita_g: formMode === 'scarico' ? -qty : qty, note: formNote || (formMode === 'scarico' ? 'scarico manuale' : '') }
     const log = [logEntry, ...(logRif || [])]
@@ -806,8 +885,22 @@ export default function MagazzinoView({
       return
     }
     setMagazzino(nm); setLogRif(log)
+    // UN SOLO messaggio, e in italiano.
+    //
+    // Due bug confermati, insieme. Primo: l'avviso "scarico maggiore della
+    // giacenza" veniva emesso prima del salvataggio e poi CANCELLATO dal toast
+    // di successo, perché notify ha uno slot unico — l'utente non vedeva mai
+    // che era andato sotto zero. Secondo: i numeri erano interpolati nudi, così
+    // un carico di 25 kg si leggeva "+25000g" e un residuo di calcolo poteva
+    // uscire come "-0.09999999999999998g". Ora passano da fmtG, che mette il
+    // separatore delle migliaia e rispetta il toggle kg/g della pagina.
     const segno = formMode === 'scarico' ? '−' : '+'
-    notify(`✓ ${segno}${qty}g di ${formIng} - giacenza: ${Math.round(nuova)}g`)
+    const testo = `${segno}${fmtG(qty)} di ${gruppo.nome || formIng} · in magazzino ora ${fmtG(nuova)}`
+    if (nuova < 0) {
+      notify(`${testo}. Attenzione: la giacenza è andata sotto zero, quindi da qualche parte manca una registrazione.`, false)
+    } else {
+      notify(testo)
+    }
     setFormIng(''); setFormQty(''); setFormNote(''); setQuickLoad(null)
     setSaving(false)
   }
@@ -891,13 +984,13 @@ export default function MagazzinoView({
   // temuto. Prima erano lo stesso rosso, e con mezza dispensa sotto soglia la
   // tabella diventava un muro d'allarme in cui l'unico ingrediente finito
   // davvero non si distingueva più dagli altri.
-  const statoColor = s => s === 'esaurito' ? C.red : s === 'critico' ? C.amber : s === 'attenzione' ? C.textMid : C.green
-  const statoBg = s => s === 'esaurito' ? C.redLight : s === 'critico' ? C.amberLight : s === 'attenzione' ? C.bgSubtle : C.greenLight
+  const statoColor = s => s === 'negativo' ? C.red : s === 'esaurito' ? C.red : s === 'critico' ? C.amber : s === 'attenzione' ? C.textMid : C.green
+  const statoBg = s => s === 'negativo' ? C.redLight : s === 'esaurito' ? C.redLight : s === 'critico' ? C.amberLight : s === 'attenzione' ? C.bgSubtle : C.greenLight
   // "Critico" per un ingrediente che ha toccato la soglia di riordino e' la
   // parola sbagliata: la soglia esiste proprio per dire quando ordinare, e
   // arrivarci non e' una crisi. "Da ordinare" dice la stessa cosa e dice anche
   // cosa fare. "Esaurito" resta forte, perché a zero non si produce.
-  const statoLabel = s => s === 'esaurito' ? 'Esaurito' : s === 'critico' ? 'Da ordinare' : s === 'attenzione' ? 'In calo' : 'OK'
+  const statoLabel = s => s === 'negativo' ? 'Da correggere' : s === 'esaurito' ? 'Esaurito' : s === 'critico' ? 'Da ordinare' : s === 'attenzione' ? 'In calo' : 'OK'
   // fmtG: rispetta unitMode utente. 'kg' -> sempre kg (anche piccoli, "0,80 kg").
   // 'g' -> sempre grammi (anche grandi, "28.000 g"). Niente piu mix.
   const fmtG = g => {
@@ -918,6 +1011,7 @@ export default function MagazzinoView({
       <PageHeader
         subtitle={[
           `${tuttiIngNomi.length} ingredienti`,
+          negativi.length > 0 ? `${negativi.length} sotto zero` : null,
           esauriti.length > 0 ? `${esauriti.length} a zero` : null,
           sottoSoglia.length > 0 ? `${sottoSoglia.length} da ordinare` : null,
         ].filter(Boolean).join(' · ')}
@@ -938,13 +1032,18 @@ export default function MagazzinoView({
         {(() => {
           const nIng = (n) => `${n} ${n === 1 ? 'ingrediente' : 'ingredienti'}`
           const sem = salute === 'critico'
-            ? { col: C.red, bg: 'rgba(220,38,38,0.10)', lbl: esauriti.length === 1 ? 'Un ingrediente è finito' : 'Ingredienti finiti', ic: 'alert' }
+            ? negativi.length > 0
+              ? { col: C.red, bg: 'rgba(220,38,38,0.10)', lbl: negativi.length === 1 ? 'Una giacenza è sotto zero' : 'Giacenze sotto zero', ic: 'alert' }
+              : { col: C.red, bg: 'rgba(220,38,38,0.10)', lbl: esauriti.length === 1 ? 'Un ingrediente è finito' : 'Ingredienti finiti', ic: 'alert' }
             : salute === 'attenzione'
             ? { col: C.textMid, bg: T.bgSubtle, lbl: 'Da mettere in lista', ic: 'cart' }
             : { col: C.green, bg: 'rgba(22,163,74,0.12)', lbl: 'Scorte in equilibrio', ic: 'checkCircle' }
           const msg = salute === 'critico'
-            // A zero non si produce: qui l'allarme e' dovuto.
-            ? `${nIng(esauriti.length)} a zero${sottoSoglia.length > 0 ? ` · ${sottoSoglia.length} sotto la soglia di riordino` : ''}.`
+            // A zero non si produce, sotto zero c'è una registrazione mancante:
+            // in entrambi i casi l'allarme è dovuto.
+            ? negativi.length > 0
+              ? `${nIng(negativi.length)} con giacenza negativa: da qualche parte manca una registrazione di carico.${esauriti.length > 0 ? ` E ${esauriti.length} a zero.` : ''}`
+              : `${nIng(esauriti.length)} a zero${sottoSoglia.length > 0 ? ` · ${sottoSoglia.length} sotto la soglia di riordino` : ''}.`
             : salute === 'attenzione'
             ? [
                 sottoSoglia.length > 0 ? `${nIng(sottoSoglia.length)} ${sottoSoglia.length === 1 ? 'ha' : 'hanno'} toccato la soglia di riordino` : null,
@@ -1178,7 +1277,7 @@ export default function MagazzinoView({
                     nome: r.nome, giacenza: r.giacenza, fabb: r.fabb,
                     giorniScorta: r.giorniScorta ?? 9999, soglia: r.soglia,
                     valore: r.valore, riordino: r.riordinoG,
-                    stato: ({ esaurito: 0, critico: 1, attenzione: 2, ok: 3 }[r.stato] ?? 3),
+                    stato: ({ negativo: 0, esaurito: 1, critico: 2, attenzione: 3, ok: 4 }[r.stato] ?? 4),
                     ultimoRif: r.ultimoRif ? new Date(r.ultimoRif).getTime() : 0,
                   })[k] ?? 0).map((r, i) => (
                     <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
@@ -1245,7 +1344,7 @@ export default function MagazzinoView({
                           </div>
                         ) : (
                           <button onClick={() => setEditSoglia({ nome: r.k, val: r.soglia || '' })}
-                            style={{ padding: '5px 10px', minWidth: 84, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontSize: 10.5, fontWeight: 600, cursor: 'pointer', ...TNUM, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            style={{ padding: '5px 10px', minWidth: 84, borderRadius: 6, border: `1px solid ${C.border}`, background: C.white, color: C.textMid, fontSize: 12, fontWeight: 600, cursor: 'pointer', ...TNUM, textAlign: 'center', whiteSpace: 'nowrap' }}>
                             {r.soglia > 0 ? fmtG(r.soglia) : 'Imposta'}
                           </button>
                         )}
@@ -1253,7 +1352,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{statoLabel(r.stato)}</span>
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textSoft, fontSize: 10 }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textSoft, fontSize: 12 }}>
                         {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'center' }}>
@@ -1289,6 +1388,20 @@ export default function MagazzinoView({
               nm[k] = { nome: ing.nome.trim(), giacenza_g: (nm[k]?.giacenza_g || 0) + qtaG, soglia_g: nm[k]?.soglia_g || 0, ultimoRifornimento: now }
               newLogs.push({ id: `r-${Date.now()}-${k}`, data: now, ingrediente: ing.nome.trim(), quantita_g: qtaG, note: 'da foto' })
             }
+            // Si contano i CARICATI, non le righe lette dalla foto.
+            //
+            // Il messaggio diceva `${(res.ingredienti || []).length} ingredienti`,
+            // cioè tutte le righe estratte — comprese quelle saltate dal
+            // `continue` qui sopra perché la quantità non era leggibile. Il
+            // prompt dell'OCR chiede esplicitamente di mettere 0 quando non
+            // riesce a leggere la quantità, quindi le righe scartate sono un
+            // esito previsto, non un caso raro: l'utente leggeva "caricati 12"
+            // e in magazzino ne trovava 7, senza sapere quali cinque rifare.
+            const scartati = (res.ingredienti || []).length - newLogs.length
+            if (newLogs.length === 0) {
+              notify('Dalla foto non si legge nessuna quantita\': niente e\' stato caricato. Prova con una foto piu\' nitida, o inserisci a mano.', false)
+              return
+            }
             const updLogs = [...newLogs, ...(logRif || [])]
             try {
               await ssave(SK_MAG, nm)
@@ -1299,20 +1412,39 @@ export default function MagazzinoView({
             }
             setMagazzino(nm)
             setLogRif(updLogs)
-            notify(`Caricati ${(res.ingredienti || []).length} ingredienti in magazzino`)
+            notify(scartati > 0
+              ? `Caricati ${newLogs.length} ingredienti. Altri ${scartati} avevano la quantità illeggibile: quelli vanno messi a mano.`
+              : `Caricati ${newLogs.length} ingredienti in magazzino`, scartati === 0)
           }}/>
           <FotoOCR mode="prezzi" notify={notify} ricettario={ricettario} onResult={async res => {
             if (!ricettario) { notify('Carica prima il ricettario', false); return }
-            const ing_list = res.ingredienti || []
-            const validi = ing_list.filter(i => i.prezzo_kg > 0)
-            if (!validi.length) { notify('Nessun prezzo estratto', false); return }
+            // Il prezzo va normalizzato a numero PRIMA di usarlo.
+            //
+            // Bug confermato: il filtro `i.prezzo_kg > 0` passava anche la
+            // stringa "12.50" (JavaScript la confronta convertendola), e subito
+            // dopo `i.prezzo_kg.toFixed(4)` su una stringa lancia un errore.
+            // Dentro un gestore asincrono quell'errore non arrivava da nessuna
+            // parte: nessun messaggio, nessun prezzo aggiornato, la foto
+            // sembrava semplicemente non aver funzionato. Che il valore non sia
+            // garantito numerico lo dice il flusso accanto, che infatti fa
+            // `Number(...)` e controlla `Number.isFinite`.
             const nuoviCosti = {}
-            for (const i of validi) {
+            let letti = 0, scartati = 0
+            for (const i of (res.ingredienti || [])) {
+              const pk = Number(String(i.prezzo_kg ?? '').replace(',', '.'))
+              if (!Number.isFinite(pk) || pk <= 0) { scartati++; continue }
               const k = normIng(translateIngredienteEN(i.nome || ''))
-              nuoviCosti[k] = { costoKg: parseFloat(i.prezzo_kg.toFixed(4)), costoG: parseFloat((i.prezzo_kg / 1000).toFixed(6)), isStima: false }
+              nuoviCosti[k] = { costoKg: parseFloat(pk.toFixed(4)), costoG: parseFloat((pk / 1000).toFixed(6)), isStima: false }
+              letti++
+            }
+            if (letti === 0) {
+              notify('Dalla foto non si legge nessun prezzo. Prova con una foto piu\' nitida.', false)
+              return
             }
             if (onImportPrezziOCR) onImportPrezziOCR(nuoviCosti)
-            notify(`${validi.length} prezzi aggiornati`)
+            notify(scartati > 0
+              ? `${letti} prezzi aggiornati. Altri ${scartati} non erano leggibili.`
+              : `${letti} prezzi aggiornati`, scartati === 0)
           }}/>
           <div style={{ background: C.bgCard, border: `1px solid ${formMode === 'scarico' ? C.amber : C.border}`, borderRadius: 18, padding: isMobile ? '18px' : '28px', boxShadow: SHADOW_PREMIUM }}>
             <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
@@ -1321,15 +1453,15 @@ export default function MagazzinoView({
                   style={{ flex: 1, padding: '10px 12px', borderRadius: 9, border: `2px solid ${formMode === m ? (m === 'carico' ? C.green : C.amber) : C.border}`,
                     background: formMode === m ? (m === 'carico' ? C.greenLight : C.amberLight) : C.white,
                     color: formMode === m ? (m === 'carico' ? C.green : C.amber) : C.textMid,
-                    fontWeight: formMode === m ? 800 : 500, fontSize: 11, cursor: 'pointer', textAlign: 'left' }}>
+                    fontWeight: formMode === m ? 800 : 500, fontSize: 13, cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ fontWeight: 800, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name={ic} size={12} />{lbl}</div>
-                  <div style={{ fontSize: 11, opacity: 0.7 }}>{sub}</div>
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>{sub}</div>
                 </button>
               ))}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Ingrediente</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Ingrediente</div>
                 <input type="text" value={formIng}
                   onChange={e => setFormIng(e.target.value)}
                   onKeyDown={onEnterAutoComplete(tuttiIngNomi, formIng, setFormIng, () => {
@@ -1340,14 +1472,14 @@ export default function MagazzinoView({
                   list="ing-list" style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
                   Quantità (g) - {formMode === 'scarico' ? 'da rimuovere' : 'in arrivo'}
                 </div>
                 <input id="mag-qty-input" type="number" inputMode="decimal" value={formQty} onChange={e => setFormQty(e.target.value)} placeholder="es. 2000" min="0"
                   style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${formMode === 'scarico' ? C.amber : C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Note (opzionale)</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Note (opzionale)</div>
                 <input type="text" value={formNote} onChange={e => setFormNote(e.target.value)} placeholder="es. Metro - bolla 1234"
                   style={{ width: '100%', padding: '11px 12px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
               </div>

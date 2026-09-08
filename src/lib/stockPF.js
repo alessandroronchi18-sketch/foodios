@@ -19,7 +19,13 @@ function readDipendenteOpId() {
 // ── Letture ────────────────────────────────────────────────────────────────
 
 // Stock di una singola sede. Ritorna array di righe.
-export async function loadStockPF(orgId, sedeId) {
+//
+// `rilancia: true` fa uscire l'errore invece di restituire un array vuoto.
+// Serve a chi deve distinguere "non c'è niente in magazzino" da "non sono
+// riuscito a leggere": sono due cose opposte, e mostrare la prima quando è
+// vera la seconda porta a riprodurre merce che c'è già. Il valore di default
+// resta l'array vuoto per non cambiare il comportamento di chi chiama da anni.
+export async function loadStockPF(orgId, sedeId, { rilancia = false } = {}) {
   if (!orgId || !sedeId) return []
   const { data, error } = await supabase
     .from('stock_prodotti_finiti')
@@ -27,7 +33,11 @@ export async function loadStockPF(orgId, sedeId) {
     .eq('organization_id', orgId)
     .eq('sede_id', sedeId)
     .order('prodotto_nome')
-  if (error) { console.error('loadStockPF:', error); return [] }
+  if (error) {
+    console.error('loadStockPF:', error)
+    if (rilancia) throw new Error(error.message || 'lettura stock fallita')
+    return []
+  }
   return data || []
 }
 
@@ -50,7 +60,7 @@ export async function loadStockPFAllSedi(orgId) {
 }
 
 // Movimenti recenti (audit) per una sede.
-export async function loadMovimentiPF(orgId, sedeId, { limit = 100 } = {}) {
+export async function loadMovimentiPF(orgId, sedeId, { limit = 100, rilancia = false } = {}) {
   if (!orgId || !sedeId) return []
   const { data, error } = await supabase
     .from('movimenti_stock_pf')
@@ -59,7 +69,11 @@ export async function loadMovimentiPF(orgId, sedeId, { limit = 100 } = {}) {
     .eq('sede_id', sedeId)
     .order('created_at', { ascending: false })
     .limit(limit)
-  if (error) { console.error('loadMovimentiPF:', error); return [] }
+  if (error) {
+    console.error('loadMovimentiPF:', error)
+    if (rilancia) throw new Error(error.message || 'lettura movimenti fallita')
+    return []
+  }
   return data || []
 }
 
