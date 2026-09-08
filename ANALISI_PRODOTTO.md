@@ -810,7 +810,7 @@ Tutto il resto chiuso:
 | 60-69 | Software gestionali da agenzia regionale |
 | <60 | Software gestionali tradizionali on-premise (1990-2010) |
 
-**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 7 set: 83,5/100 su 108 sezioni.** Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
+**FoodOS post-sessione 25 giu sera: media ricalibrata 83/100** (ricontata: 83,3). **Post 8 set: 83,6/100 su 112 sezioni.** Buon prodotto pre-revenue con design system coerente ma non rivoluzionario, sopra i competitor italiani di settore (~75 media), sotto top tier mondiale (90+) per mancanza di team design dedicato.
 
 ### Aree pubbliche / pre-login
 
@@ -870,7 +870,7 @@ Tutto il resto chiuso:
 | 32 | Calendario mobile lista | 88 | Bug fix mobileList anno/mese + ordine crescente |
 | 33 | Calendario dettaglio giorno inline | 88 | INLINE sotto card cliccata, niente più "in fondo". **7 set**: il dettaglio galleggia sulla card, la griglia non si sposta sotto il dito |
 | 34 | Produzione giornaliera | 80 | Touch +/- 40px, box border-box. Funzionale |
-| 35 | Chiusura cassa | 89 | **Rifondata il 7 set.** Su tutto il database esistevano 2 chiusure reali: inserire ogni prodotto con quantita' e prezzo chiedeva mezz'ora al giorno. Ora basta il totale (il dettaglio resta possibile, non e' piu' il pedaggio), incasso scomposto POS/contanti/delivery con somma automatica, prima nota nella stessa pagina. OCR scontrino e import delivery/cassa invariati |
+| 35 | Chiusura cassa | 87 | **Rifondata il 7 set.** ⚠️ Era 89 con il redesign dell'8 set, **annullato su decisione dell'utente**: il punteggio scende di 2 perche' l'impaginazione e' tornata quella di prima (restano tutte le funzioni e le correzioni di difetto). Su tutto il database esistevano 2 chiusure reali: inserire ogni prodotto con quantita' e prezzo chiedeva mezz'ora al giorno. Ora basta il totale (il dettaglio resta possibile, non e' piu' il pedaggio), incasso scomposto POS/contanti/delivery con somma automatica, prima nota nella stessa pagina. OCR scontrino e import delivery/cassa invariati |
 | 111 | Prima nota di cassa | 88 | **Nuova il 7 set.** Le uscite di giornata — "limoni 10 euro", "carrefour 11,56" — non avevano casa: `costi_aziendali` e' fatto per i costi ricorrenti mensili con periodicita', non per l'acquisto di limoni del 3 luglio. Il campo `documento` (fattura / senza / da verificare) e' preso di peso dalla notazione con cui il design partner tiene il registro da anni, e separa cio' che il commercialista puo' scaricare da cio' che non puo'. Sta dentro la pagina Cassa perche' si compila quando si conta il cassetto |
 | 112 | Import registro incassi | 87 | **Nuova il 7 set.** Legge il foglio Excel del mese COM'E': tabelle affiancate separate da colonne vuote, intestazioni scritte a mano ("Berthollet- Contanti"), colonna dei giorni anche senza etichetta, spese in testo libero con piu' voci per cella. Abbina da solo i nomi del foglio ai punti vendita, deduce il mese dal nome del file e lo fa confermare, segnala le somme che non tornano invece di scegliere in silenzio. Reimportare lo stesso mese non raddoppia. −1 perche' un foglio alla volta e nessuna memoria del mapping fra un mese e l'altro |
 | 36 | Vendite B2B | 84 | Mobile column-first, sticky col cliente, filtri pill. Rebuild agent |
@@ -915,7 +915,11 @@ Tutto il resto chiuso:
 
 | # | Sezione | Score | Note |
 |---:|---|---:|---|
-| 63 | Magazzino lista ingredienti | 83 | Paginazione 80/load, tabular-nums, accent strip statico |
+| 63 | Magazzino — Materie prime | 91 | Paginazione 80/load, tabular-nums, accent strip statico. **7-8 set, audit a fondo (26 difetti corretti)**: righe fantasma da chiavi non canoniche (in produzione 5 chiavi su 35 di un'azienda, con ricette che le usano al plurale — righe doppie, contatore critici gonfiato, banner rosso su merce presente, prezzi non trovati); soglia che non si poteva abbassare; campo soglia che non diceva l'unita' ("0,500 kg" fuori, "500" dentro); aggiungere un ingrediente esistente ne azzerava la giacenza; giacenza negativa mostrata "OK" in verde; prezzi stimati indistinguibili da quelli inseriti; rosso riservato all'esaurito ("Da ordinare" invece di "Critico"); 51 testi sotto i 12px azzerati; lista di riordino senza limite che spingeva le schede a 1.834px (due schermate) — ora 6 righe ordinate per urgenza vera con il totale su tutte |
+| 111 | Magazzino — Prodotti finiti | 86 | **7-8 set**: se la lettura falliva diceva "nessun prodotto in stock" con i contatori a zero in verde, indistinguibile da un magazzino vuoto (si poteva riprodurre merce presente in cella); "Pezzi totali" sommava pezzi e grammi (20 torte + 8.400 g = "8.420 pezzi"); il modale scarto chiedeva "pezzi" su righe in grammi; nel campo quantita' la virgola veniva mangiata. Resta aperto: lo scarto non entra nel registro sprechi |
+| 112 | Magazzino — Prezzi ingredienti | 87 | **7-8 set**: crash della scheda su una riga di storico priva del campo delta; doppio clic su "Conferma e salva" scriveva due volte (storico prezzi incoerente = P&L incoerente); prezzo malformato rifiutato in silenzio; euro prima della cifra e percentuali col punto; `isMobile` mai usato quindi zoom iOS a ogni tocco; "Log modifiche" → "Storico modifiche" |
+| 113 | Magazzino — Carica merce | 88 | **7-8 set**: lo scarico leggeva la giacenza da una chiave diversa da quella della tabella, quindi partiva da zero e dava un falso allarme; l'avviso "sotto zero" veniva cancellato dal messaggio di conferma (barra a slot unico) e non si vedeva mai; numeri non italiani ("+25000g", "-0.09999999999999998g"); dopo l'OCR contava anche le righe scartate ("caricati 12", in magazzino 7); import prezzi da foto morto in silenzio su un prezzo come stringa |
+| 114 | Magazzino — Storico carichi | 80 | **7-8 set**: rinominata da "Log rifornimenti" (gergo). Restano da verificare: nessun limite di righe con anni di storico, nessuno scorrimento orizzontale su telefono, una riga sbagliata non si puo' correggere |
 | 64 | Scadenzario fatture | 87 | Rebuild agent: pill role=tablist, sticky 880, inline edit pagamento |
 | 65 | Scadenzario inline pay | 85 | Input 16+44, bottoni Icon name=check/x |
 | 66 | Fornitori manager | 80 | Tabs 44, form+lista 1 col tablet, KPI auto-shrink (Top fornitore) |
@@ -996,7 +1000,7 @@ Tutto il resto chiuso:
 | <70 | 0 | 0 | 0% |
 | **Totale scorate** | **106** | **108** | |
 
-**Score UI complessivo medio: 83,5/100** (era 83,3 il 25/06 — ricontato).
+**Score UI complessivo medio: 83,6/100** (era 83,3 il 25/06 — ricontato, su 112 sezioni).
 Il movimento e' piccolo di proposito: il lavoro del 7 set e' concentrato su una
 pagina e in buona parte non si vede (correttezza dei numeri, schema, test). Le
 due sezioni nuove entrano sopra la media, e sei sezioni esistenti salgono di 17
