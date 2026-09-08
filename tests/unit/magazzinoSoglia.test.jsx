@@ -169,3 +169,51 @@ describe('aggiungi ingrediente', () => {
     expect(scritto.mag).toBeNull()
   })
 })
+
+describe('materie prime — dettagli confermati', () => {
+  it('il modale di eliminazione mostra il nome della riga, non la chiave', async () => {
+    // Su una voce salvata come "Uova" il modale chiedeva conferma per "uovo",
+    // un nome che l'utente non ha mai scritto.
+    const v = render(<MagazzinoView {...base}
+      magazzino={{ uova: { giacenza_g: 2400, soglia_g: 1000, nome: 'Uova' } }}
+      setMagazzino={() => {}} />)
+    await waitFor(() => expect(v.container.textContent).toContain('Materie prime'))
+    fireEvent.click(v.getByLabelText('Elimina ingrediente'))
+    await waitFor(() => expect(v.container.textContent).toContain('Stai per eliminare'))
+    expect(v.container.textContent).toContain('Uova')
+    // E dice quello che conta: cosa succede alle ricette.
+    expect(v.container.textContent).toContain('continuerà a essere calcolato nel costo')
+    expect(v.container.textContent).not.toContain('Questa azione è permanente')
+  })
+
+  it('con il magazzino vuoto lo dice, invece di mostrare solo le intestazioni', async () => {
+    const v = render(<MagazzinoView {...base} magazzino={{}} setMagazzino={() => {}} />)
+    await waitFor(() => expect(v.container.textContent).toContain('Materie prime'))
+    expect(v.container.textContent).toContain('Il magazzino è vuoto')
+    expect(v.container.textContent).toContain('Aggiungi ingrediente')
+  })
+
+  it('il nome non e\' piu\' un pulsante nascosto: c\'e\' un vero "Carica"', async () => {
+    const v = render(<MagazzinoView {...base}
+      magazzino={{ burro: { giacenza_g: 3000, soglia_g: 1000 } }} setMagazzino={() => {}} />)
+    await waitFor(() => expect(v.container.textContent).toContain('Materie prime'))
+    // La freccia ↗ e il tooltip da gergo non ci sono piu'.
+    expect(v.container.textContent).not.toContain('↗')
+    expect(v.container.innerHTML).not.toContain('precompila form')
+    // Al loro posto un pulsante che dice cosa fa.
+    const carica = [...v.container.querySelectorAll('td button')].find(b => b.textContent.trim() === 'Carica')
+    expect(carica).toBeTruthy()
+    expect(carica.title).toContain('Carica burro')
+  })
+
+  it('il riquadro "Da ordinare" segue il toggle kg/g come le altre colonne', async () => {
+    // Prima nella stessa riga si leggeva "28.000 g" di giacenza e "~ 1,5 kg"
+    // da ordinare: due unita' diverse, da convertire a mente.
+    const v = render(<MagazzinoView {...base}
+      magazzino={{ burro: { giacenza_g: 500, soglia_g: 9000 } }} setMagazzino={() => {}} />)
+    await waitFor(() => expect(v.container.textContent).toContain('Materie prime'))
+    // Modo predefinito kg: entrambe le colonne in kg.
+    expect(v.container.textContent).toContain('0,500 kg')
+    expect(v.container.textContent).toMatch(/~ \d+[.,]?\d* kg/)
+  })
+})

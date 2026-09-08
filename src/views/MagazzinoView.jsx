@@ -40,12 +40,24 @@ const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42
 // tocca la larghezza delle colonne di una tabella a nove colonne, quindi vale
 // la pena farlo insieme a una revisione della tabella, non di soppiatto.
 
-function KPI({ label, value, sub, color, highlight, icon }) {
+// `onClick` c'era nell'intenzione ma non nella firma: un KPI col sottotitolo
+// "clicca per vedere cosa ordinare" non reagiva al clic, e la promessa restava
+// lettera morta. Ora se arriva un onClick la tessera diventa un vero pulsante,
+// raggiungibile anche da tastiera.
+function KPI({ label, value, sub, color, highlight, icon, onClick }) {
   const accent = color || T.brand
   const chipBg = highlight ? 'rgba(255,255,255,0.14)' : `${accent}1F`
   const chipColor = highlight ? '#fff' : accent
   return (
-    <div className="fos-tile" style={{
+    <div className="fos-tile"
+      {...(onClick ? {
+        onClick,
+        role: 'button',
+        tabIndex: 0,
+        onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } },
+      } : {})}
+      style={{
+      cursor: onClick ? 'pointer' : 'default',
       position: 'relative', overflow: 'hidden',
       background: highlight ? 'linear-gradient(135deg, #6E0E1A 0%, #4A0612 100%)' : T.bgCard,
       border: `1px solid ${highlight ? '#4A0612' : T.border}`, borderRadius: 18,
@@ -999,11 +1011,17 @@ export default function MagazzinoView({
     return `${(n / 1000).toLocaleString('it-IT', { minimumFractionDigits: n >= 1000 ? 2 : 3, maximumFractionDigits: n >= 1000 ? 2 : 3 })} kg`
   }
   // Suggerimento riordino arrotondato a step pratici: <1kg → step 100g, ≥1kg → 0,5kg.
+  // Il suggerimento di riordino si arrotonda a passi pratici (100 g sotto il
+  // chilo, mezzo chilo sopra) e POI si formatta come tutto il resto della
+  // pagina. Prima decideva l'unita' da solo ignorando il toggle kg/g: nella
+  // stessa riga si leggeva "28.000 g" di giacenza e "~ 1,5 kg" da ordinare, e
+  // per capire se bastava bisognava fare la conversione a mente.
   const fmtRiordino = g => {
     if (!(g > 0)) return null
-    if (g < 1000) return `${Math.ceil(g / 100) * 100} g`
-    const kg = Math.ceil((g / 1000) * 2) / 2
-    return `${kg.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg`
+    const arrotondato = g < 1000
+      ? Math.ceil(g / 100) * 100
+      : Math.ceil((g / 1000) * 2) / 2 * 1000
+    return fmtG(arrotondato)
   }
 
   return (
@@ -1108,7 +1126,7 @@ export default function MagazzinoView({
           // ingredienti sotto soglia va ordinato prima quello che finisce
           // domani, non quello che viene prima in ordine alfabetico. Chi non
           // ha uno storico di consumo (giorniScorta null) va in fondo al suo
-          // gruppo: non si sa quando finira'.
+          // gruppo: non si sa quando finirà.
           .sort((a, b) => {
             const ds = (peso[a.stato] ?? 3) - (peso[b.stato] ?? 3)
             if (ds !== 0) return ds
@@ -1117,7 +1135,7 @@ export default function MagazzinoView({
             return ga - gb
           })
         if (daRiordinare.length === 0) return null
-        // Il totale e' sempre su TUTTE le righe, anche quelle non mostrate.
+        // Il totale è sempre su TUTTE le righe, anche quelle non mostrate.
         const costoStimato = daRiordinare.reduce((s, r) => s + (r.riordinoG * r.costoG || 0), 0)
         const nascosti = Math.max(0, daRiordinare.length - RIORDINO_VISIBILI)
         const visibili = riordinoTutti ? daRiordinare : daRiordinare.slice(0, RIORDINO_VISIBILI)
@@ -1273,6 +1291,24 @@ export default function MagazzinoView({
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Con l'elenco vuoto restava una card con la sola riga di
+                      intestazione e nove colonne senza niente sotto: sembrava
+                      un errore di caricamento. */}
+                  {righe.length === 0 && (
+                    <tr>
+                      <td colSpan={10} style={{ padding: '36px 20px', textAlign: 'center' }}>
+                        <div style={{ color: C.textSoft, marginBottom: 10 }}><Icon name="package" size={30} /></div>
+                        <div style={{ ...typo.body, fontWeight: 700, color: C.text, marginBottom: 6 }}>Il magazzino è vuoto</div>
+                        <div style={{ ...typo.small, color: C.textSoft, lineHeight: 1.55, maxWidth: 420, margin: '0 auto 14px' }}>
+                          Aggiungi il primo ingrediente, oppure carica il ricettario: gli ingredienti delle ricette compaiono qui da soli.
+                        </div>
+                        <button onClick={() => setShowAddIng(true)}
+                          style={{ padding: '0 16px', minHeight: 40, background: C.red, color: C.white, border: 'none', borderRadius: 8, ...typo.small, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          Aggiungi ingrediente
+                        </button>
+                      </td>
+                    </tr>
+                  )}
                   {sortMag(righe, (r, k) => ({
                     nome: r.nome, giacenza: r.giacenza, fabb: r.fabb,
                     giorniScorta: r.giorniScorta ?? 9999, soglia: r.soglia,
@@ -1281,13 +1317,31 @@ export default function MagazzinoView({
                     ultimoRif: r.ultimoRif ? new Date(r.ultimoRif).getTime() : 0,
                   })[k] ?? 0).map((r, i) => (
                     <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
-                      <td style={{ padding: '10px 14px', fontWeight: 600, color: quickLoad === r.k ? C.red : C.text, textTransform: 'capitalize', cursor: 'pointer' }}
-                        title="Clic rapido → precompila form"
-                        onClick={() => { setQuickLoad(r.k); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}>
-                        {r.nome} <span style={{ fontSize: 11, opacity: 0.4 }}>↗</span>
+                      {/* Il nome torna testo, l'azione diventa un pulsante.
+                          Prima tutta la cella era cliccabile e cambiava scheda,
+                          e l'unico indizio era una freccia ↗ a 11px con
+                          opacità 0,4 e un tooltip che diceva "precompila
+                          form": si cambiava pagina per sbaglio provando a
+                          selezionare il nome, e chi voleva farlo non poteva
+                          saperlo. Il pulsante è lo stesso della lista di
+                          riordino qui sopra, così l'azione si impara una volta. */}
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: quickLoad === r.k ? C.red : C.text, textTransform: 'capitalize' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          {r.nome}
+                          <button
+                            onClick={() => { setQuickLoad(r.k); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
+                            title={`Carica ${r.nome} in magazzino`}
+                            style={{ padding: '0 9px', minHeight: isMobile ? 36 : 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', textTransform: 'none' }}>
+                            <Icon name="plus" size={11} />Carica
+                          </button>
+                        </span>
                       </td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                      {/* A destra come la sua intestazione. Sei colonne su
+                          nove avevano l'header a destra e i numeri al centro:
+                          le migliaia non stavano una sopra l'altra e per
+                          confrontare due righe bisognava leggerle una a una. */}
+                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
                           <span style={{ fontWeight: 800, fontSize: 12, color: statoColor(r.stato), ...TNUM }}>{fmtG(r.giacenza)}</span>
                           {r.fabb > 0 && (
                             <div style={{ width: 60, height: 4, background: '#EEE', borderRadius: 2 }}>
@@ -1540,9 +1594,21 @@ export default function MagazzinoView({
           <div style={{ background: C.white, borderRadius: 16, padding: '28px 32px', maxWidth: 420, width: '90%', boxShadow: '0 24px 60px rgba(15,23,42,0.28)' }}>
             <div id="delete-ing-title" style={{ fontSize: 14, fontWeight: 900, color: C.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="trash" size={16} />Elimina ingrediente</div>
             <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>
-              Stai per eliminare <b style={{ textTransform: 'capitalize' }}>{magazzino?.[deleteIngConf]?.nome || deleteIngConf}</b> dal magazzino.
+              {/* Il nome che si legge nella riga, non la chiave normalizzata:
+                  `deleteIngConf` e' la chiave canonica, quindi su una voce
+                  salvata come "Uova" il modale chiedeva conferma per "uovo" —
+                  un nome che l'utente non ha mai scritto. Si passa
+                  dall'aggregazione, che tiene già il nome preferito. */}
+              Stai per eliminare <b style={{ textTransform: 'capitalize' }}>{magPerNorm[deleteIngConf]?.nome || deleteIngConf}</b> dal magazzino
+              {magPerNorm[deleteIngConf]?.giacenza_g > 0 && <> ({fmtG(magPerNorm[deleteIngConf].giacenza_g)} in giacenza)</>}.
             </div>
-            <div style={{ fontSize: 11, color: C.textSoft, marginBottom: 18 }}>Questa azione è permanente.</div>
+            {/* "Questa azione è permanente" non dice la cosa che serve sapere:
+                che l'ingrediente esce dall'elenco e dagli avvisi, ma se una
+                ricetta lo usa continua a pesare sul costo. */}
+            <div style={{ fontSize: 12, color: C.textSoft, marginBottom: 18, lineHeight: 1.5 }}>
+              Sparisce dall'elenco e non riceverai più avvisi di riordino su di lui.
+              Se una ricetta lo usa, continuerà a essere calcolato nel costo di quella ricetta.
+            </div>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, marginBottom: 6 }}>Scrivi <b style={{ color: C.red }}>ELIMINA</b> per confermare:</div>
             <input autoFocus value={deleteIngPin} onChange={e => setDeleteIngPin(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && deleteIngPin === 'ELIMINA') handleDeleteIng(deleteIngConf) }}
