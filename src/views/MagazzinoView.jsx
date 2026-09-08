@@ -815,7 +815,25 @@ export default function MagazzinoView({
   const handleSoglia = async (k, val) => {
     // Audit 2026-07-01 MEDIUM: saving guard per race su doppio Enter rapido.
     if (saving) return
-    const nm = { ...magazzino, [k]: { ...(magazzino?.[k] || {}), nome: k, soglia_g: parseFloat(String(val).replace(',', '.')) || 0 } }
+    // La soglia si scrive su TUTTE le chiavi grezze di questa riga, come fa
+    // handleDeleteIng.
+    //
+    // Bug confermato nell'audit del 7/09. `k` e' la chiave canonica, ma
+    // `magazzino` e' indicizzato con le chiavi come sono state salvate. Su una
+    // riga che in archivio si chiama "uova" (canonica: "uovo") scrivere su
+    // `nm['uovo']` creava una voce NUOVA e lasciava la vecchia soglia intatta:
+    // poi l'aggregazione in lettura fa `Math.max` fra le due, quindi abbassare
+    // la soglia non aveva alcun effetto e l'avviso di riordino continuava a
+    // suonare. Senza un messaggio, senza modo di accorgersene.
+    //
+    // Toccava anche `nome: k`, che riscriveva l'etichetta dell'utente con lo
+    // slug minuscolo: "Cioccolato Fondente 70%" diventava "cioccolato fondente".
+    const grezze = magPerNorm[k]?.chiaviRaw?.length ? magPerNorm[k].chiaviRaw : [k]
+    const sogliaG = parseFloat(String(val).replace(',', '.')) || 0
+    const nm = { ...magazzino }
+    for (const raw of grezze) {
+      nm[raw] = { ...(magazzino?.[raw] || {}), soglia_g: sogliaG }
+    }
     setSaving(true)
     try {
       await ssave(SK_MAG, nm)
@@ -833,6 +851,21 @@ export default function MagazzinoView({
     if (saving) return
     if (!newIngNome) return
     const k = normIng(newIngNome)
+    // Se l'ingrediente è GIÀ in magazzino non si tocca.
+    //
+    // Bug confermato nell'audit del 7/09: questa riga sovrascriveva la voce
+    // intera, quindi digitare "burro" quando in magazzino ce n'erano 3 kg
+    // azzerava giacenza e soglia — silenziosamente, e senza modo di tornare
+    // indietro. Chi vuole aggiungere merce a un ingrediente che ha già usa
+    // "Carica merce", ed e' giusto dirglielo invece di cancellargli lo stock.
+    //
+    // Il controllo passa da magPerNorm e non da magazzino: così riconosce
+    // anche la voce salvata col nome vecchio ("uova" quando si digita "uovo").
+    if (magPerNorm[k]) {
+      const nomeVisto = magPerNorm[k].nome || k
+      notify(`${nomeVisto} è già in magazzino. Per aggiungerne usa "Carica merce", così la giacenza si somma invece di essere riscritta.`, false)
+      return
+    }
     const nm = { ...magazzino, [k]: { nome: newIngNome.trim(), giacenza_g: parseFloat(newIngQty) || 0, soglia_g: parseFloat(newIngSoglia) || 0, ultimoRifornimento: new Date().toISOString() } }
     setSaving(true)
     try {
@@ -1190,9 +1223,25 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                         {editSoglia?.nome === r.k ? (
                           <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
-                            <input type="number" value={editSoglia.val} onChange={e => setEditSoglia({ ...editSoglia, val: e.target.value })}
-                              style={{ width: 70, padding: '4px 6px', borderRadius: 5, border: `1px solid ${C.borderStr}`, fontSize: 11, textAlign: 'center' }}/>
-                            <button onClick={() => handleSoglia(r.k, editSoglia.val)} style={{ padding: '4px 8px', background: C.green, color: C.white, border: 'none', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>✓</button>
+                            {/* L'unità scritta accanto al campo.
+                                Il pulsante mostrava "0,500 kg", si apriva e
+                                dentro c'era "500": chi aveva appena letto kg
+                                scriveva "0,5" e la soglia diventava mezzo
+                                grammo. L'avviso di riordino non suonava più e
+                                il ritorno grafico era un "0,001 kg" in 10,5px.
+                                I grammi restano l'unità di input, come fa il
+                                form di creazione a riga 1113 ("Soglia alert
+                                (g)"): convertirla secondo il toggle kg/g
+                                sarebbe peggio, perché il toggle è globale e
+                                si puo' premere con l'editor aperto. */}
+                            <input type="number" value={editSoglia.val} min="0" step="1"
+                              aria-label="Soglia di riordino in grammi" placeholder="es. 500"
+                              onChange={e => setEditSoglia({ ...editSoglia, val: e.target.value })}
+                              style={{ width: 74, padding: '5px 6px', minHeight: isMobile ? 40 : 30, borderRadius: 5, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 12, textAlign: 'center' }}/>
+                            <span style={{ fontSize: 12, color: C.textSoft, fontWeight: 600 }}>g</span>
+                            <button onClick={() => handleSoglia(r.k, editSoglia.val)}
+                              aria-label="Conferma la soglia"
+                              style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 30, background: C.green, color: C.white, border: 'none', borderRadius: 5, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={13} /></button>
                           </div>
                         ) : (
                           <button onClick={() => setEditSoglia({ nome: r.k, val: r.soglia || '' })}
