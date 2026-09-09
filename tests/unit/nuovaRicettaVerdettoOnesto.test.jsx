@@ -10,7 +10,7 @@
 //
 //   semaforo VERDE "Sano" · "Food cost 0,0%" · Margine 100,0%
 //   "prezzo minimo 0,00 €" scritto in 32px
-//   messaggio verde "Sei sopra il minimo: stai guadagnando piu' del target"
+//   messaggio verde "Sei sopra il minimo: stai guadagnando più del target"
 //
 // L'unico avviso era un box ambra da 10,5px in fondo alla colonna. Un
 // pasticcere che guarda il semaforo verde e prezza di conseguenza vende
@@ -90,7 +90,7 @@ describe('Nuova Ricetta - onesta del verdetto', () => {
 
     await waitFor(() => expect(screen.getByText(/senza quel numero non si può dire/i)).toBeTruthy())
     expect(screen.queryByText(/stai guadagnando più del target/i)).toBeNull()
-    // Il "prezzo minimo per fetta" in 32px non c'e' piu': era 0,00 €.
+    // Il "prezzo minimo per fetta" in 32px non c'e' più: era 0,00 €.
     expect(screen.queryByText(/prezzo minimo per (fetta|pezzo)/i)).toBeNull()
   })
 

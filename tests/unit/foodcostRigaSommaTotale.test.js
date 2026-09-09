@@ -65,7 +65,7 @@ describe('costoRigaIngrediente — le righe tornano col totale', () => {
     ]}
     const { tot } = calcolaFC(ricetta, ingCosti, ricettario)
     expect(sommaRighe(ricetta)).toBeCloseTo(tot, 2)
-    // 300 g lordi al 65% di resa costano piu' di 300 × 0,0018.
+    // 300 g lordi al 65% di resa costano più di 300 × 0,0018.
     const r = costoRigaIngrediente(ricetta.ingredienti[0], ingCosti, ricettario)
     expect(r.costo).toBeGreaterThan(300 * 0.0018)
   })

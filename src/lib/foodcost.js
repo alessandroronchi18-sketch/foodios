@@ -722,7 +722,7 @@ export const getR = (nome, ricetta) => {
     prezzo: ricetta.prezzo || 0,
     tipo:   ricetta.tipo || "fetta",
   }
-  // Audit 2026-09-09 ALTA: qui il fallback era `{ unita:8, prezzo:4 }`, cioe' un
+  // Audit 2026-09-09 ALTA: qui il fallback era `{ unita:8, prezzo:4 }`, cioè un
   // PREZZO DI VENDITA INVENTATO. Le ricette importate da Excel non hanno
   // unita/prezzo, e in produzione erano 24 delle 27 ricette del design partner
   // (una GELATERIA): il Ricettario mostrava "8 fette x 4,00 EUR", "Ricavo 32,00 EUR",
@@ -734,10 +734,10 @@ export const getR = (nome, ricetta) => {
   // operativa dipende da questo valore (solo i calcoli di ricavo e margine, che
   // ora devono dichiarare che il prezzo manca).
   //
-  // `unita` resta 8 perche' NON e' un dato commerciale: la produzione la usa come
+  // `unita` resta 8 perché NON e' un dato commerciale: la produzione la usa come
   // fattore per convertire gli stampi in pezzi (ProduzioneGiornalieraView righe
   // 176, 258, 406, 431, 594). Portarla a 0 romperebbe il carico dello stock, che
-  // oggi funziona. Ma la marchiamo, cosi' chi la mostra puo' dire che e' presunta.
+  // oggi funziona. Ma la marchiamo, così chi la mostra può dire che e' presunta.
   //
   // `senzaRegola: true` e' il segnale per la UI: questa ricetta NON ha un prezzo
   // di vendita, e ogni numero che ne deriva non va presentato come misurato.
@@ -961,7 +961,7 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
       if (semiKey) {
         // Ciclo diretto/indiretto? Se il semilavorato e' già nel cammino di
         // ricorsione, NON discendere - lo segnaliamo come mancante con un
-        // marker speciale che l'UI puo' riconoscere.
+        // marker speciale che l'UI può riconoscere.
         if (path.includes(semiKey)) {
           mancanti.push(`${ing.nome} (ciclo semilavorato rilevato)`)
           continue
@@ -1006,7 +1006,7 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
 // .costo coincide con .tot. Serve a spiegare "dove sta il food cost" di un prodotto.
 // Costo di UNA riga di ingrediente, con tutto quello che serve per mostrarla.
 // Audit 2026-09-09 ALTA: prima ogni schermata risolveva il costo di riga a modo
-// suo. NuovaRicettaView faceva `ingCosti[normIng(nome)] * qty` e cosi':
+// suo. NuovaRicettaView faceva `ingCosti[normIng(nome)] * qty` e così:
 //   - un SEMILAVORATO usato come ingrediente ("pasta frolla" dentro "crostata")
 //     non sta in ingCosti, quindi la riga mostrava costo zero e il badge
 //     "prezzo mancante", mentre il totale in alto lo contava per davvero
@@ -1015,14 +1015,14 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
 //     il ramo semilavorato PRIMA di ingCosti, quindi quel prezzo veniva ignorato:
 //     un'azione richiesta all'utente che non serviva a niente;
 //   - le RESE non venivano applicate (costoNettoPerG), quindi le righe erano
-//     piu' basse del totale anche a prezzi tutti presenti;
+//     più basse del totale anche a prezzi tutti presenti;
 //   - il marker isStima non veniva mostrato: un prezzo medio di mercato preso
 //     dal listino HoReCa sembrava un prezzo dell'azienda. Ricettario, P&L e
 //     Magazzino il badge ce l'hanno, questa pagina no.
-// Ora la riga si chiede qui, una volta sola, e chi la mostra non decide piu'.
+// Ora la riga si chiede qui, una volta sola, e chi la mostra non decide più.
 //
 // Ritorna { costo, isStima, isSemilavorato, mancante, motivo }:
-//   - mancante: true quando il costo NON e' calcolabile. `motivo` dice perche',
+//   - mancante: true quando il costo NON e' calcolabile. `motivo` dice perché,
 //     in italiano, ed e' pensato per essere mostrato.
 export function costoRigaIngrediente(ing, ingCosti, ricettario) {
   const nomeNorm = normIng((ing?.nome || '').toLowerCase().trim())

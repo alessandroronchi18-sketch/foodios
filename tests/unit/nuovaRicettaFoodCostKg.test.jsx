@@ -2,7 +2,7 @@
 //
 // Nuova Ricetta: il "Food cost al kg" dei gusti non era al kg.
 //
-// Il pannello mostrava `calcolaFC(...)`, cioe' il costo degli ingredienti COSI'
+// Il pannello mostrava `calcolaFC(...)`, cioè il costo degli ingredienti COSI'
 // COME SONO SCRITTI, sotto l'etichetta "Food cost al kg" e la didascalia
 // "materie prime per 1 kg di gusto finito". Ricettario e P&L invece dividono
 // per la resa: `(fc / resaGrammi(ric)) * 1000`.
@@ -88,7 +88,7 @@ describe('Nuova Ricetta - food cost al kg dei gusti', () => {
 
     // Prima diceva "Default: 1.000 g" mentre il food cost usava 500 g.
     // Ora la card dichiara 500 g, e quel numero appare sia come "Default"
-    // sia come resa effettiva: quello che conta e' che 1.000 non ci sia piu'.
+    // sia come resa effettiva: quello che conta e' che 1.000 non ci sia più.
     await waitFor(() => expect(screen.getAllByText(/500/).length).toBeGreaterThan(0))
     expect(screen.queryByText(/1\.000 g/)).toBeNull()
   })

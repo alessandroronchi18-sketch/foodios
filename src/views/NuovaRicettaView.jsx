@@ -280,8 +280,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       } catch (e) {
         // Audit 2026-09-09 CRITICO: se il salvataggio non e' andato a buon fine
         // il form NON va svuotato (l'utente ha appena scritto la ricetta a mano)
-        // e non va detto "salvata". Il Dashboard ha gia' mostrato il perche'.
-        // Rimettiamo il dirty-guard cosi' l'utente viene avvisato se cambia pagina.
+        // e non va detto "salvata". Il Dashboard ha già mostrato il perché.
+        // Rimettiamo il dirty-guard così l'utente viene avvisato se cambia pagina.
         initialFormRef.current = empty;
         return;
       }
@@ -341,7 +341,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const { tot: fc, mancanti } = calcolaFC(ricettaTmp, ingCosti, ricettario);
     // Audit 2026-09-09 ALTA: `fc` e' il costo degli ingredienti COSI' COME SONO
     // SCRITTI. Per un gusto scritto sul batch da 500 g non e' il costo di 1 kg:
-    // questa pagina mostrava `fc` sotto l'etichetta "Food cost al kg", cioe' la
+    // questa pagina mostrava `fc` sotto l'etichetta "Food cost al kg", cioè la
     // META' del valore vero, e Ricettario/P&L (che dividono per la resa) ne
     // mostravano un altro. Entrambi i gusti presenti nel database sono scritti
     // su un peso diverso da 1 kg, quindi il numero era sbagliato sempre.
@@ -361,7 +361,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     // Prima ogni box decideva da se', e il risultato era che una ricetta con
     // TUTTI gli ingredienti senza prezzo dava fc = 0 e quindi: semaforo verde
     // "Sano", "Food cost 0,0%", "Margine 100,0%" e il messaggio verde "stai
-    // guadagnando piu' del target". Cioe' il tool dava il verdetto migliore
+    // guadagnando più del target". Cioe' il tool dava il verdetto migliore
     // possibile proprio quando non sapeva niente. L'unico avviso era un box
     // ambra da 10,5px in fondo.
     const conIngredienti = (form.ingredienti || []).length > 0;
@@ -378,7 +378,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const sem = useMemo(() => {
     if (live.ricavo <= 0) return { color: C.textSoft, bg: '#FAF8F7', border: C.border, label: 'Imposta unità e prezzo', icon: 'dot' };
     // Nessun verdetto quando il food cost e' incompleto: senza i prezzi il
-    // margine risulta piu' alto del vero, e un verde qui e' peggio di niente.
+    // margine risulta più alto del vero, e un verde qui e' peggio di niente.
     if (!live.affidabile) return { color: C.amber, bg: C.amberLight, border: `${C.amber}55`, label: 'Manca il costo di qualche ingrediente', icon: 'warning' };
     if (live.fcPct <= targetPct) return { color: C.green, bg: C.greenLight, border: `${C.green}40`, label: 'Sano', icon: 'checkCircle' };
     if (live.fcPct <= targetPct + 10) return { color: C.amber, bg: C.amberLight, border: `${C.amber}55`, label: 'Da tenere d’occhio', icon: 'warning' };
@@ -467,7 +467,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               padding: '7px 14px', minHeight: isMobile ? 36 : 'auto',
               background: '#FFF', color: T.brand,
               border: `1px solid ${T.brand}40`, borderRadius: 7,
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
               whiteSpace: 'nowrap', flexShrink: 0,
             }}>
@@ -711,7 +711,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   marginTop: 14, padding: '10px 14px',
                   background: 'transparent', border: `1px dashed ${C.border}`,
                   borderRadius: 8, color: C.textMid, cursor: 'pointer',
-                  fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                  fontSize: typo.small.fontSize, fontWeight: 600, fontFamily: 'inherit',
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                 }}>
                 <Icon name="plus" size={12} /> Aggiungi note di cottura o congelabilità
@@ -752,7 +752,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 : "Aggiungi ogni ingrediente con la quantità in grammi per uno stampo. Il costo viene preso dal tuo listino prezzi (o dalla stima HoReCa)."} />
             {form.ingredienti.length > 0 && (
               <div style={{ marginBottom: 14, border: `1px solid ${C.border}`, borderRadius: 8, overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 360 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: typo.small.fontSize, minWidth: 360 }}>
                   <thead>
                     <tr style={{ background: "#F8F4F2" }}>
                       {[["Ingrediente", null], [isGusto ? "g / kg gusto" : "g / stampo", isGusto ? "Grammi di ingrediente per 1 kg di gusto finito" : "Grammi di ingrediente per uno stampo"], ["Costo €", isGusto ? "Costo dell'ingrediente per 1 kg" : "Costo dell'ingrediente per uno stampo"], ["", null]].map(([h, tip], i) => (
@@ -870,7 +870,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
             {/* Helper conversioni - grammi restano l'unita' unica, ma ricordiamo
                 le equivalenze comuni per uova e liquidi. */}
-            <details style={{ marginTop: 12, fontSize: 12, color: C.textMid, background: '#FAF6F2', border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px' }}>
+            <details style={{ marginTop: 12, fontSize: typo.small.fontSize, color: C.textMid, background: '#FAF6F2', border: `1px solid ${C.border}`, borderRadius: 8, padding: '8px 12px' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 700, color: C.textMid, listStyle: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="lightbulb" size={12} />
                 Non hai la bilancia? Conversioni rapide
@@ -957,7 +957,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     background: scartoRilevante ? '#FFFBEB' : '#F8FAFC',
                     border: `1px solid ${scartoRilevante ? '#FDE68A' : '#E2E8F0'}`,
                     borderRadius: 8,
-                    fontSize: 12, color: scartoRilevante ? '#92400E' : C.textMid, lineHeight: 1.5,
+                    fontSize: typo.small.fontSize, color: scartoRilevante ? '#92400E' : C.textMid, lineHeight: 1.5,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
                       <span>Somma ingredienti</span>
@@ -1090,7 +1090,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   {/* Toggle "Modifica manualmente" */}
                   {!isExpanded && (
                     <button type="button" onClick={() => setShowManualAllergeni(true)}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "#FFF", color: C.textMid, border: `1px dashed ${C.border}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "#FFF", color: C.textMid, border: `1px dashed ${C.border}`, borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                       <Icon name="plus" size={12} /> Modifica manualmente
                       <span style={{ fontSize: 10, color: C.textSoft, fontWeight: 500 }}>({disponibili.length} disponibili)</span>
                     </button>
@@ -1129,7 +1129,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
           {/* Overwrite conferma + Salva */}
           {overwriteConf && (
             <div style={{ padding: "14px 16px", background: C.amberLight, border: `2px solid ${C.amber}`, borderRadius: 10, marginBottom: 4 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.amber, marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
                 <Icon name="warning" size={14} /> "{overwriteConf}" esiste già - sovrascrivere?
               </div>
               <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10 }}>La ricetta esistente verrà sostituita con i nuovi ingredienti e dati.</div>
@@ -1167,7 +1167,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     <div style={{ fontSize: 10, color: C.textSoft, marginTop: 4 }}>materie prime per 1 kg di gusto finito</div>
                     {/* Da dove viene il numero: senza questa riga un gusto scritto
                         sul batch da 5 kg sembra costare 5 volte tanto e non si
-                        capisce perche'. */}
+                        capisce perché. */}
                     {live.resaG > 0 && Math.abs(live.resaG - 1000) > 1 && (
                       <div style={{ fontSize: 10, color: C.textSoft, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${C.red}20` }}>
                         {fmt(live.fc)} di ingredienti per {Math.round(live.resaG).toLocaleString('it-IT')} g di gusto
@@ -1215,7 +1215,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {/* Audit 2026-09-09: con degli ingredienti senza prezzo questi numeri
                     NON sono il margine, sono il massimo possibile: il food cost vero e'
-                    piu' alto e il margine vero piu' basso. Prima uscivano nudi ("Margine
+                    più alto e il margine vero più basso. Prima uscivano nudi ("Margine
                     100,0%") come se fossero misurati. "parziale" e "max" lo dicono nello
                     spazio del box, senza spostare l'incolonnamento. */}
                 {[
@@ -1228,7 +1228,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
                     display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', minHeight: 44, columnGap: 12,
                   }}>
-                    <span style={{ fontSize: 12, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
+                    <span style={{ fontSize: typo.small.fontSize, color: r.c, fontWeight: r.prominent ? 800 : 700, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{r.lbl}</span>
                     <span style={{ fontSize: 15, fontWeight: 900, color: r.c, ...TNUM, whiteSpace: 'nowrap', textAlign: 'right' }}>{r.val}</span>
                   </div>
                 ))}
@@ -1272,12 +1272,12 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               </div>
 
               {/* Audit 2026-09-09 ALTA: la condizione era `live.ricavo > 0 || live.fc > 0`,
-                  quindi bastava avere degli ingredienti perche' il pannello si accendesse.
+                  quindi bastava avere degli ingredienti perché il pannello si accendesse.
                   Svuotando il campo Fette (unita = 0) il prezzo minimo diventava 0,00 €
-                  e il messaggio finale diceva "Sei sopra il minimo: stai guadagnando piu'
+                  e il messaggio finale diceva "Sei sopra il minimo: stai guadagnando più
                   del target". Ora il numero appare solo quando ha un senso. */}
               {live.unitaMancante ? (
-                <div style={{ color: C.textSoft, fontSize: 12, textAlign: "center", padding: "10px 0", lineHeight: 1.5 }}>
+                <div style={{ color: C.textSoft, fontSize: typo.small.fontSize, textAlign: "center", padding: "10px 0", lineHeight: 1.5 }}>
                   Indica quante {form.tipo === "pezzo" ? "pezzi ricavi" : "fette ricavi"} da uno stampo:
                   senza quel numero non si può dire quanto deve costare {form.tipo === "pezzo" ? "un pezzo" : "una fetta"}.
                 </div>
@@ -1292,7 +1292,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       dire "stai guadagnando" sarebbe una rassicurazione falsa proprio
                       sul numero da cui parte il prezzo di vendita. */}
                   {!live.affidabile ? (
-                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.amberLight, border: `1px solid ${C.amber}40`, fontSize: 12, color: C.amber, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 6, lineHeight: 1.5 }}>
+                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.amberLight, border: `1px solid ${C.amber}40`, fontSize: typo.small.fontSize, color: C.amber, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 6, lineHeight: 1.5 }}>
                       <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={13} /></span>
                       <span>Questo minimo è più basso del vero, perché {live.mancanti.length === 1 ? "manca il prezzo di un ingrediente" : `mancano i prezzi di ${live.mancanti.length} ingredienti`}. Caricali e il numero diventa affidabile.</span>
                     </div>
@@ -1473,7 +1473,7 @@ function CommandBar({ isMobile, ricetteEsistenti, activeNome, onPickExisting, ac
               overflow: 'hidden', maxHeight: 320, overflowY: 'auto',
             }}>
               {filtered.length === 0 ? (
-                <div style={{ padding: 14, fontSize: 12, color: C.textSoft, textAlign: 'center' }}>Nessun risultato per "{q}"</div>
+                <div style={{ padding: 14, fontSize: typo.small.fontSize, color: C.textSoft, textAlign: 'center' }}>Nessun risultato per "{q}"</div>
               ) : filtered.map(nome => (
                 <button key={nome} type="button"
                   onMouseDown={e => { e.preventDefault(); onPickExisting(nome); setQ(''); setShowList(false) }}
@@ -1676,7 +1676,7 @@ function RicettaPicker({ label, icon, variant = 'primary', ricette, activeNome, 
           {/* Lista risultati */}
           <div style={{ maxHeight: 320, overflowY: 'auto' }}>
             {filtered.length === 0 ? (
-              <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: 12, color: C.textSoft }}>
+              <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: typo.small.fontSize, color: C.textSoft }}>
                 Nessuna ricetta trovata
               </div>
             ) : filtered.map(n => {

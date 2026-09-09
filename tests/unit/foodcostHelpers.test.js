@@ -220,7 +220,7 @@ describe('calcolaFCDettaglio — semilavorato sub-tree', () => {
     expect(r.costo).toBe(0)
     expect(r.mancante).toBe(true)
     expect(r.isSemilavorato).toBe(true)
-    // Il motivo e' scritto in italiano perche' finisce a schermo.
+    // Il motivo e' scritto in italiano perché finisce a schermo.
     expect(r.motivo).toMatch(/semilavorato senza ingredienti/)
     // Il totale resta 0: quel costo non e' noto, non lo inventiamo.
     expect(tot).toBe(0)

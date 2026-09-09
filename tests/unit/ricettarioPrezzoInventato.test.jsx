@@ -18,7 +18,7 @@
 // Nessuno di quei numeri era stato inserito da qualcuno. E il secondo difetto
 // li peggiorava: il badge "N prezzi stimati" contava gli ingredienti SENZA
 // prezzo, che calcolaFC esclude dal totale valendo zero. Su NOCCIOLA la pasta
-// nocciola (110 g, 25-40 €/kg) non era contata: il food cost vero e' piu' che
+// nocciola (110 g, 25-40 €/kg) non era contata: il food cost vero e' più che
 // doppio, e la card diceva "Base bianca 100%".
 
 import { describe, it, expect, vi, afterEach } from 'vitest'

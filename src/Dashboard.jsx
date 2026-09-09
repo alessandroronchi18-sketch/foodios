@@ -1827,10 +1827,16 @@ export default function Dashboard({
     }
   }, [chiusure, notify]);
 
-  // Fatture: per ora indirizza l'utente alla pagina Fornitori (parser XML lì)
+  // Fatture: il parser XML/P7M vive in Scadenzario (parseFatturaXML /
+  // parseFatturaSMART, Scadenzario.jsx righe 350-406, con il suo input file a
+  // riga 1418). Audit 2026-09-09: questo messaggio diceva "usa la pagina
+  // Fornitori → Ordini → Importa fattura" e portava su Fornitori, dove quel
+  // bottone NON esiste (grep di Ocr/parseFattura/importa in Fornitori.jsx: zero
+  // risultati). Chi trascinava una fattura finiva su una pagina dove non poteva
+  // fare niente e doveva indovinare dove andare.
   const handleImportFattureGlobal = useCallback(async (files) => {
-    notify(`Per fatture XML/PDF usa la pagina Fornitori → Ordini → Importa fattura.`);
-    setView('fornitori');
+    notify('Le fatture si caricano dallo Scadenziario: ti ci porto io.');
+    setView('scadenzario');
   }, [notify]);
 
   // Aggiornamento manuale singolo prezzo ingrediente - usato dalla tabella "Prezzi" in Magazzino.
@@ -2023,7 +2029,7 @@ export default function Dashboard({
     if (!effectiveOrgId) {
       notify('Sessione non valida (orgId mancante). Ricarica la pagina.', false);
       // Audit 2026-09-09: come sotto, `return` faceva credere ai chiamanti che
-      // il salvataggio fosse riuscito. Rilanciamo cosi' il form non si svuota.
+      // il salvataggio fosse riuscito. Rilanciamo così il form non si svuota.
       throw new Error('Sessione non valida (orgId mancante)');
     }
     // 1. REGOLE runtime
@@ -2044,8 +2050,8 @@ export default function Dashboard({
       // fosse riuscito: NuovaRicettaView svuotava il form e diceva 'Ricetta
       // salvata', handleDeleteRicetta diceva 'eliminata' con la ricetta ancora
       // nel DB. SemilavoratiView aveva GIA' il try/catch corretto (audit
-      // 2026-07-01) ma non scattava mai perche' l'errore non arrivava.
-      // Rilanciando, ogni chiamante puo' distinguere riuscito da fallito.
+      // 2026-07-01) ma non scattava mai perché l'errore non arrivava.
+      // Rilanciando, ogni chiamante può distinguere riuscito da fallito.
       throw err;
     }
     // 3. State locale: solo dopo che il save e' riuscito

@@ -144,7 +144,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       const nIngredienti = Object.keys(parsed?.ingredienti_costi || {}).length
       if (nRicette === 0 && nIngredienti === 0) {
         // La frase non deve concordare col genere della parola: 'ricetta' e' femminile,
-        // 'gusto' e 'piatto' maschili. Cosi' vale per tutte le categorie.
+        // 'gusto' e 'piatto' maschili. Così vale per tutte le categorie.
         throw new Error('Nel file non ho trovato niente da importare. Controlla che sia nel formato del template.')
       }
       await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
@@ -219,7 +219,7 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       }
       setMetodoProduzione(metodo)
     } catch {
-      // Fail-soft: l'utente puo' cambiare il metodo da Impostazioni attività.
+      // Fail-soft: l'utente può cambiare il metodo da Impostazioni attività.
       setMetodoProduzione(metodo)
     } finally {
       setMetodoSaving(false)

@@ -28,7 +28,14 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
   const [tab, setTab] = useState(null)  // 'ingredienti' | 'usato' | null
 
   const { righe, tot: fc } = useMemo(() => calcolaFCDettaglio(sm.ric, ingCosti, ricettario), [sm.ric, ingCosti, ricettario])
+  // Audit 2026-09-09: `mancante` significa PREZZO ASSENTE (l'ingrediente vale
+  // zero nel calcolo), `isStima` significa prezzo medio di mercato al posto del
+  // tuo. Sono due cose diverse e la pagina le confondeva: il badge diceva
+  // "N prezzi stimati" contando i mancanti, e le stime vere non si vedevano da
+  // nessuna parte. Sui dati reali sono 20 righe su 38, e per FROLLA PER CROSTATE
+  // e CREMA PASTICCERA il costo al kg e' al 100% listino di mercato.
   const mancanti = righe.filter(r => r.mancante)
+  const stimati = righe.filter(r => r.isStima)
 
   const cardStyle = {
     background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, overflow: 'hidden',
@@ -48,7 +55,8 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
               <Icon name="package" size={11} />Base
             </span>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.text, letterSpacing: '-0.015em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{sm.nome}</h3>
-            {mancanti.length > 0 && <Badge label={`${mancanti.length} prezzi stimati`} color="amber" />}
+            {mancanti.length > 0 && <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red" />}
+            {stimati.length > 0 && <Badge label={stimati.length === 1 ? '1 prezzo stimato' : `${stimati.length} prezzi stimati`} color="amber" />}
           </div>
           {/* Sub-text incolonnato: peso a larghezza fissa (110px) → il separatore
               "·" e "usato in N prodotti" iniziano alla STESSA x tra card diverse,
@@ -62,10 +70,17 @@ function SemiCard({ sm, ricettario, ingCosti, onEdit, onDelete, LEX }) {
 
         {/* KPI compatto: solo Costo/kg (richiesta utente 26/06), più grande e
             prominente. Tooltip via Tip portal - stessa esperienza di Ricette. */}
-        <Tip text="Costo materie prime per chilo di semilavorato prodotto" width={260}>
+        {/* Audit 2026-09-09: quando il costo e' 0 perché gli ingredienti non hanno
+            prezzo (GANACHE VEGANA: 2 su 3 senza prezzo) qui usciva "0,00 €" in
+            grande sotto "COSTO / KG", come se una base al cioccolato costasse
+            zero. La tabella sotto, per lo stesso semilavorato, mostrava "-".
+            Ora dicono la stessa cosa, e dicono perché. */}
+        <Tip text={sm.costoKg > 0
+          ? "Costo materie prime per chilo di semilavorato prodotto"
+          : "Non si può calcolare: manca il prezzo di uno o più ingredienti. Caricali e il costo compare."} width={260}>
           <div style={{ background: T.brandLight, padding: '12px 18px', borderRadius: R.md, textAlign: 'center', minHeight: 56, minWidth: 130, cursor: 'help', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5, border: `1px solid ${T.brand}25`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)', flexShrink: 0 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.textSoft, lineHeight: 1, whiteSpace: 'nowrap' }}>Costo / kg</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: T.brand, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1.1, ...TNUM }}>{fmtKg(sm.costoKg)}</div>
+            <div style={{ fontSize: sm.costoKg > 0 ? 17 : 13, fontWeight: sm.costoKg > 0 ? 900 : 700, color: sm.costoKg > 0 ? T.brand : T.textSoft, letterSpacing: '-0.015em', whiteSpace: 'nowrap', lineHeight: 1.1, ...TNUM }}>{sm.costoKg > 0 ? fmtKg(sm.costoKg) : 'da completare'}</div>
           </div>
         </Tip>
 
@@ -217,7 +232,10 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
     const costoMedioKg = validi.length ? validi.reduce((s, x) => s + x.costoKg, 0) / validi.length : 0
     const piuUsato = semilavorati.reduce((best, s) => (!best || s.nUsi > best.nUsi) ? s : best, null)
     const piuCaro = validi.reduce((best, s) => (!best || s.costoKg > best.costoKg) ? s : best, null)
-    return { n, costoMedioKg, piuUsato, piuCaro }
+    // Audit 2026-09-09: i semilavorati a costo 0 (ingredienti senza prezzo) sono
+    // esclusi giustamente dalla media e da "il più caro", ma nessuno lo diceva:
+    // la media sembrava riguardare tutte le basi. Ora il KPI può dichiararlo.
+    return { n, costoMedioKg, piuUsato, piuCaro, nValidi: validi.length }
   }, [semilavorati])
 
   // ── Tabella ordinabile ────────────────────────────────────────────────────────
@@ -263,9 +281,18 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
   const doSaveSemi = async () => {
     if (saving) return
     setSaving(true)
+    const nomeSalvato = form.nome.trim().toUpperCase()
+    // Audit 2026-09-09 ALTA: la ricetta era ricostruita da zero, quindi ogni
+    // campo non elencato qui veniva PERSO al salvataggio: allergeni, categoria,
+    // congelabile. Sui 7 semilavorati reali ne colpiva 3, tra cui la PASTA
+    // FROLLA usata in 3 crostate, che perdeva proprio gli allergeni. Ora si
+    // parte da quello che c'e' e si sovrascrivono solo i campi del form.
+    const precedente = ricettario?.ricette?.[editMode || nomeSalvato] || {}
     const nuovaRic = {
-      nome: form.nome.trim().toUpperCase(),
-      sheetName: 'manuale', numStampi: 1, totImpasto1: 0, foodCost1: 0,
+      ...precedente,
+      nome: nomeSalvato,
+      sheetName: precedente.sheetName || 'manuale',
+      numStampi: 1, totImpasto1: 0, foodCost1: 0,
       ingredienti: form.ingredienti,
       note: form.note,
       tipo: 'semilavorato', unita: 0, prezzo: 0,
@@ -342,8 +369,14 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
       <div style={{ display: 'grid', gridTemplateColumns: kpiCols, gap: isMobile ? 10 : 16, marginBottom: 26 }}>
         <KPI icon={<Icon name="package" size={18} />} label="Semilavorati" value={String(diag.n)}
           sub={diag.n === 1 ? 'base interna' : 'basi interne'} />
-        <KPI icon={<Icon name="receipt" size={18} />} label="Costo medio / kg" value={fmtKg(diag.costoMedioKg)} color={T.brand}
-          sub="materie prime" />
+        <KPI icon={<Icon name="receipt" size={18} />} label="Costo medio / kg"
+          value={diag.nValidi === 0 ? '—' : fmtKg(diag.costoMedioKg)}
+          color={diag.nValidi === 0 ? T.textSoft : T.brand}
+          sub={diag.nValidi === 0
+            ? 'serve il prezzo degli ingredienti'
+            : diag.nValidi < diag.n
+              ? `su ${diag.nValidi} ${diag.nValidi === 1 ? 'base' : 'basi'} di ${diag.n}: le altre non hanno tutti i prezzi`
+              : 'materie prime'} />
         <KPI icon={<Icon name="barChart" size={18} />} label="Il più usato"
           value={diag.piuUsato && diag.piuUsato.nUsi > 0 ? `${diag.piuUsato.nUsi}×` : '-'}
           sub={diag.piuUsato && diag.piuUsato.nUsi > 0 ? diag.piuUsato.nome : 'nessun utilizzo'} />
@@ -552,16 +585,16 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                 <div style={{ padding: '12px 14px', background: C.amberLight, border: `2px solid ${C.amber}`, borderRadius: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={14} /> "{overwriteConf}" esiste già - sovrascrivere?</div>
                   <div style={{ display: 'flex', gap: 7 }}>
-                    <button onClick={doSaveSemi} style={{ padding: '8px 14px', background: C.amber, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={14} /> Sovrascrivi</button>
+                    <button onClick={doSaveSemi} disabled={saving} style={{ padding: '10px 14px', minHeight: 40, background: saving ? C.border : C.amber, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: saving ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={14} /> Sovrascrivi</button>
                     <button onClick={() => setOverwriteConf(null)} style={{ padding: '8px 12px', background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
                   </div>
                 </div>
               )}
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button onClick={handleSave}
-                  style={{ flex: 1, minWidth: 200, padding: '12px', background: T.brand, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: 'pointer', boxShadow: S.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Icon name="save" size={15} /> {editMode ? 'Aggiorna semilavorato' : 'Salva semilavorato'}
+                <button onClick={handleSave} disabled={saving}
+                  style={{ flex: 1, minWidth: 200, padding: '12px', background: saving ? C.borderStr : T.brand, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: saving ? 'default' : 'pointer', boxShadow: S.brand, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Icon name="save" size={15} /> {saving ? 'Salvo…' : (editMode ? 'Aggiorna semilavorato' : 'Salva semilavorato')}
                 </button>
                 <button onClick={() => { setEditMode(null); setForm(empty); setShowForm(false); setOverwriteConf(null) }}
                   style={{ padding: '12px 16px', background: C.white, color: C.textMid, border: `1px solid ${C.border}`, borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>

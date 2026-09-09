@@ -13,7 +13,7 @@
 //                          nel DB: ricompariva al ricaricamento
 //   - handleConfermaRicetta buttava i dati estratti dalla foto: OCR da rifare
 //   - SemilavoratiView     aveva GIA' il try/catch giusto (audit 2026-07-01) ma
-//                          non scattava mai, perche' l'errore non arrivava
+//                          non scattava mai, perché l'errore non arrivava
 //
 // La correzione e' nel punto unico che li causava: handleSalvaRicetta rilancia.
 // Questi test verificano il contratto dal lato della view, che e' quello che
@@ -104,7 +104,7 @@ describe('Nuova Ricetta - salvataggio che fallisce', () => {
 
 // Il punto che causava tutto. Un test sulla view non lo protegge: la view si
 // comporta bene quando onSave rifiuta (lo verificano i test sopra), ma prima
-// del 09/09/2026 onSave NON rifiutava mai, perche' Dashboard inghiottiva
+// del 09/09/2026 onSave NON rifiutava mai, perché Dashboard inghiottiva
 // l'errore con un `return`. E' quel `return` che va impedito per sempre.
 describe('Dashboard.handleSalvaRicetta - contratto verso le view', () => {
   const dash = readFileSync(join(RADICE, 'src', 'Dashboard.jsx'), 'utf8')

@@ -38,7 +38,7 @@ export function getRegSede(nome, ric, listino) {
   const unita  = (typeof ov.unita  === 'number' && Number.isFinite(ov.unita))  ? ov.unita  : base.unita
   const out = { ...base, prezzo, unita }
   // Audit 2026-09-09: se la sede ha un prezzo suo, quel prezzo esiste davvero e
-  // la ricetta non e' piu' "senza regola", anche se il base non ce l'aveva.
+  // la ricetta non e' più "senza regola", anche se il base non ce l'aveva.
   if (out.senzaRegola && typeof ov.prezzo === 'number' && Number.isFinite(ov.prezzo)) {
     delete out.senzaRegola
   }

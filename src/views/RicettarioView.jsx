@@ -164,7 +164,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
       // Audit 2026-09-09: il costo di riga era `ingCosti[nome] * grammi`, che non
       // conosce i semilavorati (una base usata come ingrediente usciva "n/d" con
       // costo 0 mentre il totale fc la contava per ricorsione: la somma delle
-      // percentuali non faceva 100) ne' le rese (righe piu' basse del totale).
+      // percentuali non faceva 100) ne' le rese (righe più basse del totale).
       // costoRigaIngrediente e' la stessa funzione che alimenta la tabella di
       // Nuova Ricetta e calcolaFCDettaglio: un solo conto per tutte le pagine.
       const c = ingCosti[normIng(ing.nome)]
@@ -237,7 +237,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               <span style={{ padding: '2px 7px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Semilavorato</span>
             )}
             {!isSemi && margBadge(margPct, senzaPrezzo)}
-            {/* Card chiusa: "N stime" era la stessa bugia della card aperta, in piu'
+            {/* Card chiusa: "N stime" era la stessa bugia della card aperta, in più
                 corto. Chi non apre la card vede solo questo. */}
             {mancanti.length > 0 && (
               <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red"/>
@@ -352,13 +352,13 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                   Caso reale NOCCIOLA: base bianca 1000 g (2,31 €) + pasta nocciola
                   110 g (0 €, nessun prezzo) -> card "Food cost 2,31 €", "1 prezzo
                   stimato", composizione "Base bianca 100%". La pasta nocciola sta a
-                  25-40 €/kg: il food cost vero e' piu' che DOPPIO.
+                  25-40 €/kg: il food cost vero e' più che DOPPIO.
                   E le stime HoReCa vere (isStima) non erano contate da nessuna parte:
                   SENSIBILE ha albume e burro entrambi stimati e non mostrava nulla,
                   ABIS ha lo zafferano che fa il 99% del food cost da listino medio.
-                  Ora sono due cose distinte, perche' sono due problemi distinti. */}
+                  Ora sono due cose distinte, perché sono due problemi distinti. */}
               {mancanti.length > 0 && (
-                <Tip text={`Questi ingredienti non hanno prezzo e valgono ZERO nel calcolo: ${mancanti.join(', ')}. Il food cost vero e' piu' alto.`} width={300}><Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red"/></Tip>
+                <Tip text={`Questi ingredienti non hanno prezzo e valgono ZERO nel calcolo: ${mancanti.join(', ')}. Il food cost vero e' più alto.`} width={300}><Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red"/></Tip>
               )}
               {nStimati > 0 && (
                 <Tip text="Prezzo preso dal listino medio di mercato, non dal tuo. Caricando i tuoi prezzi il food cost diventa il tuo." width={300}><Badge label={nStimati === 1 ? '1 prezzo stimato' : `${nStimati} prezzi stimati`} color="amber"/></Tip>
@@ -417,8 +417,8 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
           ) : [
             // Ordine (26/06): Ricavo, Margine, Margine %, Food cost a destra.
             { lbl: 'Ricavo', val: seHaPrezzo(fmt(ricavo)), c: C.text, bg: '#F8F4F2' },
-            { lbl: 'Margine', val: seHaPrezzo(fmt(margine)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? '#F8F4F2' : mbg, bold: true },
-            { lbl: 'Margine %', val: seHaPrezzo(fmtp(margPct)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? '#F8F4F2' : mbg, bold: true },
+            { lbl: 'Margine', val: seHaPrezzo(fmt(margine)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? C.bgSubtle : mbg, bold: true },
+            { lbl: 'Margine %', val: seHaPrezzo(fmtp(margPct)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? C.bgSubtle : mbg, bold: true },
             { lbl: 'Food cost', val: fmt(fc), c: C.red, bg: C.redLight },
           ]).map(({ lbl, val, c, bg, bold }, i) => (
             // KPI futuristic: subtle inset highlight + ring borderColor brand
@@ -625,7 +625,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               </table>
               </div>
               {/* Scroll hint: sfumatura bianco→trasparente sul lato destro per
-                  indicare visivamente che si puo' scrollare la tabella. Solo mobile. */}
+                  indicare visivamente che si può scrollare la tabella. Solo mobile. */}
               {isMobile && (
                 <div aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 28, pointerEvents: 'none',
                   background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.95) 100%)' }}/>
@@ -671,10 +671,10 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               {/* 4 righe perfettamente incolonnate */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  { lbl: 'Ricavo',         val: seHaPrezzo(fmt(ricavo)),  c: senzaPrezzo ? C.textSoft : C.green, bg: senzaPrezzo ? '#F8F4F2' : C.greenLight, brd: senzaPrezzo ? C.border : `${C.green}25` },
+                  { lbl: 'Ricavo',         val: seHaPrezzo(fmt(ricavo)),  c: senzaPrezzo ? C.textSoft : C.green, bg: senzaPrezzo ? C.bgSubtle : C.greenLight, brd: senzaPrezzo ? C.border : `${C.green}25` },
                   { lbl: 'Food cost',      val: `−${fmt(fc)}`,  c: C.red,   bg: C.redLight,   brd: `${C.red}20` },
-                  { lbl: 'Margine lordo',  val: seHaPrezzo(fmt(margine)),  c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? '#F8F4F2' : mbg, brd: senzaPrezzo ? C.border : `${mc}25`, prominent: true },
-                  { lbl: 'Margine %',      val: seHaPrezzo(fmtp(margPct)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? '#F8F4F2' : mbg, brd: senzaPrezzo ? C.border : `${mc}25` },
+                  { lbl: 'Margine lordo',  val: seHaPrezzo(fmt(margine)),  c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? C.bgSubtle : mbg, brd: senzaPrezzo ? C.border : `${mc}25`, prominent: true },
+                  { lbl: 'Margine %',      val: seHaPrezzo(fmtp(margPct)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? C.bgSubtle : mbg, brd: senzaPrezzo ? C.border : `${mc}25` },
                 ].map((r, i) => (
                   <div key={i} style={{
                     padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
@@ -835,9 +835,9 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
 
   // Audit 2026-09-09: il KPI va accompagnato dal numero di ricette su cui e'
   // calcolato. Le ricette senza prezzo di vendita sono escluse (giusto: non si
-  // puo' calcolare una percentuale su un ricavo che non esiste), ma nel database
+  // può calcolare una percentuale su un ricavo che non esiste), ma nel database
   // reale sono 24 su 27: senza dirlo, "Food cost medio 28%" sembra il food cost
-  // dell'azienda mentre riguarda 3 ricette. Prima era anche peggio, perche' il
+  // dell'azienda mentre riguarda 3 ricette. Prima era anche peggio, perché il
   // prezzo inventato di 4,00 € le faceva entrare tutte e usciva 5,6% in verde.
   const { valore: fcMedio, conteggio: fcMedioSu } = ricette.length === 0
     ? { valore: 0, conteggio: 0 }
