@@ -36,9 +36,14 @@
 
 ## Da fare, in quest'ordine
 
-1. [ ] Scheda allergeni
-2. [ ] Formati di vendita
-3. [ ] Menù del giorno
+1. [x] **Scheda allergeni** — corretta, poi **nascosta** su decisione del
+       titolare: e' un documento con valore legale (Reg. UE 1169/2011) e il
+       riconoscimento non copriva gli ingredienti reali. Nascosto anche HACCP.
+2. [x] **Formati di vendita** — seme demo che parlava una lingua diversa dalla
+       pagina, tessera che dichiarava il falso, 9 testi sotto i 12px
+3. [x] ~~Menù del giorno~~ — **nascosta** il 09/09: nessun cliente reale l'ha
+       mai usata (solo il demo, ultimo salvataggio 26/06), e meta' della pagina
+       duplica la matrice di Menu engineering
 4. [ ] Nuova ricetta
 5. [ ] Ricettario / gusti
 6. [ ] Semilavorati

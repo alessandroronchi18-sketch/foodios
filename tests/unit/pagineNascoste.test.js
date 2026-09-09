@@ -22,7 +22,7 @@ import { dirname, join } from 'node:path'
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const dash = readFileSync(join(RADICE, 'src', 'Dashboard.jsx'), 'utf8')
 
-const NASCOSTE = ['scheda-allergeni', 'haccp']
+const NASCOSTE = ['scheda-allergeni', 'haccp', 'menu']
 
 describe('pagine nascoste', () => {
   it('sono dichiarate in un solo posto, con la spiegazione', () => {
@@ -65,5 +65,6 @@ describe('pagine nascoste', () => {
     expect(() => readFileSync(join(RADICE, 'src', 'views', 'SchedaAllergeniView.jsx'), 'utf8')).not.toThrow()
     expect(dash).toContain('SchedaAllergeniView')
     expect(dash).toContain('HaccpView')
+    expect(dash).toContain('MenuDinamico')
   })
 })

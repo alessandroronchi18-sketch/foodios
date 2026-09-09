@@ -1196,7 +1196,21 @@ const DIPENDENTE_VIEWS = new Set([
 //
 // PER RIAPRIRLE: togliere l'id da questo insieme. Le voci di menu e il render
 // si riattivano da soli — non è stato cancellato niente.
-const PAGINE_NASCOSTE = new Set(['scheda-allergeni', 'haccp'])
+// Aggiunta 'menu' (Menù del giorno) il 09/09/2026, per motivi diversi dagli
+// altri due. Qui non c'è un rischio legale: c'è che la pagina non serve.
+//   - Nessun cliente reale l'ha mai usata. In produzione la chiave
+//     `menu-giorno-v1` esiste per una sola organizzazione, "Gelateria Demo",
+//     con ultimo salvataggio il 26/06/2026 su dati generati. Mara dei Boschi e
+//     Pasticceria Mara 1 non l'hanno mai aperta. Per confronto il ricettario e'
+//     usato da 6 aziende, il magazzino da 4, la produzione da 3.
+//   - Metà della pagina è duplicata: la matrice Star/Puzzle/Plow/Dog esiste
+//     già in MenuEngineeringView, con la stessa definizione di popolarità e
+//     margine. Due implementazioni della stessa analisi divergono sempre, e
+//     quando divergono danno due risposte diverse sullo stesso prodotto.
+//   - Una pasticceria non ha un "menù del giorno" come un ristorante: ha una
+//     vetrina che cambia. Il PDF del menù serve al bar con la lavagna.
+// L'analisi resta disponibile in Menu engineering, che è il posto giusto.
+const PAGINE_NASCOSTE = new Set(['scheda-allergeni', 'haccp', 'menu'])
 
 const NO_SEDE_SELECTOR = new Set([
   // Ricettario shared (sede_id=null)
@@ -2141,7 +2155,6 @@ export default function Dashboard({
             {id:"semilavorati",label:"Semilavorati",icon:"layers"},
             {id:"nuova-ricetta",label:"Nuova ricetta",icon:"pencil"},
             {id:"formati-vendita",label:"Formati di vendita",icon:"coins"},
-            {id:"menu",label:"Menù del giorno",icon:"menu"},
           ]},
           // 3) ACQUISTI & FORNITORI — magazzino sale in Oggi, resta il "back office"
           { id:"acquisti", label:"Acquisti & Fornitori", items:[
@@ -2864,7 +2877,6 @@ export default function Dashboard({
                   navItem("semilavorati","layers","Semilavorati"),
                   navItem("nuova-ricetta","pencil","Nuova ricetta"),
                   navItem("formati-vendita","coins","Formati di vendita"),
-                  navItem("menu","menu","Menù del giorno"),
                 ] })}
 
               {/* 3) ACQUISTI & FORNITORI — magazzino sale in Oggi */}
@@ -3395,7 +3407,7 @@ export default function Dashboard({
         {/* Personale espone stipendi: MAI per i dipendenti (oltre a sidebar gate + RLS solo-titolare). */}
         {view==="personale"&&!isDip&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} adminNome={auth?.profile?.nome_completo || auth?.user?.email} nomeAttivita={nomeAttivita}/>}
         {view==="haccp"&&!PAGINE_NASCOSTE.has("haccp")&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
-        {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
+        {view==="menu"&&!PAGINE_NASCOSTE.has("menu")&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} metodoProduzione={metodoProduzione} tipoAttivita={tipoAttivita} onNavigate={setView} LEX={LEX}/>}
         {view==="storico"&&<StoricoProduzioneView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} logPrezzi={logPrezzi} orgId={orgId} sedeId={sedeId} sedi={sedi} metodoProduzione={metodoProduzione} onNavigate={setView} LEX={LEX}/>}
