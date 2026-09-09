@@ -293,14 +293,18 @@ export default function ImpostazioniSedi({ orgId, onSediChange, metodoProduzione
     const sede = (sedi || []).find(s => s.id === id)
     const nome = sede?.nome || 'questa sede'
     // Blocca se ci sono trasferimenti pending (inviato/in_consegna) verso o
-    // da questa sede: una volta disattivata, nessun utente puo' più chiamare
+    // da questa sede: una volta disattivata, nessun utente può più chiamare
     // riceviTrasferimento e lo stock di prodotti finiti resta perso a metà
     // strada (già scalato dalla sede mittente, mai materializzato a B).
     try {
       const { data: pending, error: tErr } = await supabase
         .from('trasferimenti')
-        .select('id, sede_a, sede_b, stato')
-        .or(`sede_a.eq.${id},sede_b.eq.${id}`)
+        // Audit 2026-09-09: le colonne sono `sede_da` (partenza) e `sede_a`
+        // (arrivo); `sede_b` non esiste. La query fallisce con 42703 e il
+        // `throw tErr` sotto porta al catch: il controllo dei trasferimenti in
+        // corso prima di archiviare una sede non veniva mai fatto.
+        .select('id, sede_da, sede_a, stato')
+        .or(`sede_da.eq.${id},sede_a.eq.${id}`)
         .eq('stato', 'inviato')
       if (tErr) throw tErr
       if ((pending || []).length > 0) {

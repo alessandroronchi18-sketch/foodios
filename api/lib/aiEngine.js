@@ -224,7 +224,7 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
   {
     const { data: fatture } = await supabase
       .from('fatture')
-      .select('id, fornitore_nome, importo_lordo, data_scadenza, stato')
+      .select('id, fornitore, totale, importo_pagato, data_fattura, data_scadenza, stato')
       .eq('organization_id', orgId)
       .neq('stato', 'pagata')
       .lte('data_scadenza', localIsoDate(new Date(today.getTime() + 7 * 86400000)))
@@ -235,8 +235,8 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
     for (const f of (fatture || [])) {
       if (!f.data_scadenza) continue
       const row = {
-        id: f.id, fornitore: truncName(f.fornitore_nome),
-        importo: Number(f.importo_lordo || 0), scadenza: f.data_scadenza,
+        id: f.id, fornitore: truncName(f.fornitore),
+        importo: Number(f.totale || 0) - Number(f.importo_pagato || 0), scadenza: f.data_scadenza,
       }
       if (f.data_scadenza < todayIso) snap.fattureScadute.push(row)
       else snap.fattureInScadenza7gg.push(row)
@@ -257,7 +257,13 @@ export async function collectOrgSnapshot({ supabase, orgId, sedeId = null }) {
     const dom = localIsoDate(new Date(today.getTime() + 3 * 86400000))
     const { data: turni } = await supabase
       .from('turni')
-      .select('data, reparto, sede_id')
+      // Audit 2026-09-09: c'era anche `reparto`, colonna che non esiste in
+      // `turni` (le sue colonne sono dipendente_id, data, ora_inizio, ora_fine,
+      // ore, costo, note, sede_id). PostgREST rispondeva 42703 e `turni`
+      // arrivava null: TUTTI i giorni risultavano scoperti, e l'AI segnalava
+      // turni da coprire che erano già coperti. Il campo non serviva nemmeno:
+      // il codice sotto usa solo data e sede_id.
+      .select('data, sede_id')
       .eq('organization_id', orgId)
       .gte('data', todayIso).lte('data', dom)
     const presenti = new Set((turni || []).map(t => `${t.data}|${t.sede_id || '_'}`))

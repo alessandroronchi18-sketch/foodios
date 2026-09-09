@@ -65,7 +65,7 @@ export default function BrainView({ orgId, sedeId, user, nomeAttivita }) {
         const [chiu, mag, fattRes] = await Promise.all([
           sload('pasticceria-chiusure-v1', orgId, sedeId).then(d => Array.isArray(d) ? d.slice(-30) : []),
           sload('pasticceria-magazzino-v1', orgId, sedeId),
-          supabase.from('fatture').select('importo_lordo, stato, data_scadenza').eq('organization_id', orgId).neq('stato', 'pagata').limit(20),
+          supabase.from('fatture').select('totale, importo_pagato, stato, data_fattura, data_scadenza').eq('organization_id', orgId).neq('stato', 'pagata').limit(20),
         ])
         const totRicavi30 = chiu.reduce((s, c) => s + Number(c.kpi?.totV || c.totale || 0), 0)
         const fattureAperte = (fattRes.data || []).length

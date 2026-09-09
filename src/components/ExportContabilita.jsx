@@ -62,7 +62,7 @@ async function caricaFatturePassiveMese(orgId, yearMonth) {
   const { from, to } = isoMonthRange(yearMonth)
   const { data, error } = await supabase
     .from('fatture')
-    .select('id, sede_id, data_fattura, fornitore, numero_rif, imponibile, iva, totale, stato')
+    .select('id, sede_id, data_fattura, fornitore, numero_rif, imponibile, imposta, totale, stato')
     .eq('organization_id', orgId)
     .gte('data_fattura', from)
     .lte('data_fattura', to)
@@ -99,7 +99,7 @@ function exportFattureInCloudCSV(corrispettivi, fatturePassive, ivaPct, sediMap,
   for (const f of fatturePassive) {
     const totale = Number(f.totale || 0)
     const imponibile = Number(f.imponibile || 0) || (totale ? totale / (1 + ivaPct / 100) : 0)
-    const iva = Number(f.iva || 0) || (totale - imponibile)
+    const iva = Number(f.imposta || 0) || (totale - imponibile)
     rows.push([
       'FATTURA_PASSIVA',
       f.data_fattura,
@@ -148,7 +148,7 @@ function exportTeamSystemXML(corrispettivi, fatturePassive, ivaPct, sediMap, yea
   for (const f of fatturePassive) {
     const totale = Number(f.totale || 0)
     const imponibile = Number(f.imponibile || 0) || (totale ? totale / (1 + ivaPct / 100) : 0)
-    const iva = Number(f.iva || 0) || (totale - imponibile)
+    const iva = Number(f.imposta || 0) || (totale - imponibile)
     lines.push('    <Fattura>')
     lines.push(`      <Data>${esc(f.data_fattura || '')}</Data>`)
     lines.push(`      <Numero>${esc(f.numero_rif || '')}</Numero>`)
@@ -180,7 +180,7 @@ async function exportCommercialistaXLSX(corrispettivi, fatturePassive, ivaPct, s
   for (const f of fatturePassive) {
     totFP += Number(f.totale || 0)
     impFP += Number(f.imponibile || 0) || (Number(f.totale || 0) / (1 + aliquota))
-    ivaFP += Number(f.iva || 0) || (Number(f.totale || 0) - (Number(f.totale || 0) / (1 + aliquota)))
+    ivaFP += Number(f.imposta || 0) || (Number(f.totale || 0) - (Number(f.totale || 0) / (1 + aliquota)))
   }
   const riepilogoRows = [
     [`Azienda: ${orgNome || ''}`],
@@ -212,7 +212,7 @@ async function exportCommercialistaXLSX(corrispettivi, fatturePassive, ivaPct, s
   const fpRows = fatturePassive.map(f => {
     const totale = Number(f.totale || 0)
     const imponibile = Number(f.imponibile || 0) || (totale / (1 + aliquota))
-    const iva = Number(f.iva || 0) || (totale - imponibile)
+    const iva = Number(f.imposta || 0) || (totale - imponibile)
     return [f.data_fattura, f.numero_rif || '', f.fornitore || '', sediMap[f.sede_id] || '', imponibile, iva, totale, (f.stato || '').toUpperCase()]
   })
   const wsF = XLSX.utils.aoa_to_sheet([...fpHead, ...fpRows])

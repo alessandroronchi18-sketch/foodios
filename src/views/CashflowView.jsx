@@ -18,6 +18,7 @@ import Icon from '../components/Icon'
 import AiExplainButton from '../components/AiExplainButton'
 import AiPageHero from '../components/AiPageHero'
 import { useConfirm } from '../components/ConfirmModal'
+import { residuoFattura, scadenzaFattura, riepilogoFatture } from '../lib/fatture'
 
 const BRAND = T.brand || '#6E0E1A'
 const SOFT = T.textSoft || '#8B95A7'
@@ -64,7 +65,7 @@ export default function CashflowView({ orgId, sedeId, notify }) {
       setLoading(true)
       const [chiu, fattRes, evRes, set] = await Promise.all([
         sload('pasticceria-chiusure-v1', orgId, sedeId),
-        supabase.from('fatture').select('id, fornitore_nome, data_scadenza, importo_lordo, stato').eq('organization_id', orgId).neq('stato', 'pagata'),
+        supabase.from('fatture').select('id, fornitore, data_fattura, data_scadenza, totale, importo_pagato, stato').eq('organization_id', orgId).neq('stato', 'pagata'),
         supabase.from('cashflow_eventi').select('*').eq('organization_id', orgId).eq('stato', 'pianificato').order('data_attesa'),
         sload(SK_CASH_SETTINGS, orgId, null),
       ])
@@ -107,10 +108,20 @@ export default function CashflowView({ orgId, sedeId, notify }) {
       const iso = dt.toISOString().slice(0, 10)
       const ricavoStimato = mediaGiornaliera
 
-      // Fatture in scadenza quel giorno (lordo)
+      // Fatture in scadenza quel giorno.
+      // Audit 2026-09-09: qui il confronto era `f.data_scadenza === iso`, ma in
+      // produzione data_scadenza e' vuota su 418 fatture su 418 (gli XML di
+      // questi fornitori non portano il blocco DatiPagamento), quindi non
+      // combaciava MAI. Sommato al fatto che la query chiedeva colonne
+      // inesistenti (fornitore_nome, importo_lordo -> PostgREST 42703 -> data
+      // null), le uscite risultavano sempre zero: il grafico mostrava una cassa
+      // in salita e nessun giorno rosso, mentre lo Scadenziario contava 81.079 €
+      // già scaduti sulla stessa base dati.
+      // scadenzaFattura deriva la data quando manca, e residuoFattura sottrae
+      // gli acconti già versati invece di contare il lordo.
       const usciteFatture = fatture
-        .filter(f => f.data_scadenza === iso)
-        .reduce((s, f) => s + Number(f.importo_lordo || 0), 0)
+        .filter(f => scadenzaFattura(f).iso === iso)
+        .reduce((s, f) => s + residuoFattura(f), 0)
 
       // Eventi cashflow quel giorno
       const evGiorno = eventi.filter(e => e.data_attesa === iso)
@@ -306,7 +317,13 @@ export default function CashflowView({ orgId, sedeId, notify }) {
                   saldo_atteso: primoGiornoRosso.saldoAtteso,
                   saldo_oggi: settings.saldoOggi,
                   media_ricavi_giornalieri: mediaGiornaliera,
-                  fatture_in_scadenza: fatture.filter(f => f.data_scadenza <= primoGiornoRosso.iso).map(f => ({ fornitore: f.fornitore_nome, importo: f.importo_lordo, scadenza: f.data_scadenza })),
+                  // Audit 2026-09-09: questa lista arrivava all'AI vuota e con
+                  // i campi sbagliati (fornitore_nome e importo_lordo non
+                  // esistono), quindi il consiglio veniva dato senza sapere che
+                  // c'erano fatture da pagare.
+                  fatture_in_scadenza: fatture
+                    .filter(f => { const sc = scadenzaFattura(f).iso; return sc && sc <= primoGiornoRosso.iso })
+                    .map(f => ({ fornitore: f.fornitore, importo: residuoFattura(f), scadenza: scadenzaFattura(f).iso, scadenza_stimata: scadenzaFattura(f).stimata })),
                   eventi_pianificati: eventi.filter(e => e.data_attesa <= primoGiornoRosso.iso),
                 }}
                 compact

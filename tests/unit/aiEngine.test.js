@@ -263,7 +263,7 @@ describe('collectOrgSnapshot', () => {
       sedi: [{ id: 'sede-A', nome: 'X' }],
       fatture: [
         // 30 char → deve essere troncato a 24 + ellipsis
-        { id: 'f1', fornitore_nome: 'PASTICCERIA MARA DEI BOSCHI SRL', importo_lordo: 199.99, data_scadenza: pIso, stato: 'da_pagare' },
+        { id: 'f1', fornitore: 'PASTICCERIA MARA DEI BOSCHI SRL', totale: 199.99, importo_pagato: 0, data_scadenza: pIso, stato: 'da_pagare' },
       ],
     })
     const snap = await collectOrgSnapshot({ supabase, orgId: 'org-1', sedeId: 'sede-A' })
@@ -284,7 +284,7 @@ describe('collectOrgSnapshot', () => {
     const supabase = mockSupabase({
       sedi: [{ id: 'sede-A', nome: 'X' }],
       fatture: [
-        { id: 'f1', fornitore_nome: 'BREVE SRL', importo_lordo: 10, data_scadenza: pIso, stato: 'da_pagare' },
+        { id: 'f1', fornitore: 'BREVE SRL', totale: 10, importo_pagato: 0, data_scadenza: pIso, stato: 'da_pagare' },
       ],
     })
     const snap = await collectOrgSnapshot({ supabase, orgId: 'org-1', sedeId: 'sede-A' })

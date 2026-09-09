@@ -89,7 +89,7 @@ async function getClienti(supabase) {
     supabase.auth.admin.listUsers({ perPage: 1000 }),
     fetchSafe(supabase.from('integrazioni').select('organization_id').eq('attiva', true)),
     fetchSafe(supabase.from('push_subscriptions').select('organization_id').eq('active', true)),
-    fetchSafe(supabase.from('fatture').select('organization_id, importo, importo_pagato, tipo')
+    fetchSafe(supabase.from('fatture').select('organization_id, totale, importo_pagato, tipo')
       .lt('data_scadenza', todayIso).or('tipo.is.null,tipo.eq.fattura')),
   ])
   if (overviewRes.error) throw new Error(`admin_overview: ${overviewRes.error.message}`)
@@ -102,7 +102,7 @@ async function getClienti(supabase) {
   const scadByOrg = {}
   for (const r of (scadR.data || [])) {
     if (r.tipo && r.tipo !== 'fattura') continue
-    const residuo = (Number(r.importo) || 0) - (Number(r.importo_pagato) || 0)
+    const residuo = (Number(r.totale) || 0) - (Number(r.importo_pagato) || 0)
     if (residuo > 0.01) scadByOrg[r.organization_id] = (scadByOrg[r.organization_id] || 0) + 1
   }
 
@@ -144,7 +144,7 @@ async function getGlobalCustomer360(supabase) {
     fetchSafe(supabase.from('vendite_b2b').select('organization_id, totale').gte('data', isoMonthDate)),
     fetchSafe(supabase.from('pos_scontrini').select('organization_id, totale_lordo, provider').gte('data', isoMonthDate)),
     fetchSafe(supabase.from('push_subscriptions').select('organization_id, id').eq('active', true)),
-    fetchSafe(supabase.from('fatture').select('organization_id, importo, importo_pagato, tipo')
+    fetchSafe(supabase.from('fatture').select('organization_id, totale, importo_pagato, tipo')
       .lt('data_scadenza', todayIso).or('tipo.is.null,tipo.eq.fattura')),
   ])
 
@@ -186,7 +186,7 @@ async function getGlobalCustomer360(supabase) {
   let scadTot = 0
   let scadN = 0
   for (const r of (scadR.data || [])) {
-    const tot = Number(r.importo) || 0
+    const tot = Number(r.totale) || 0
     const pag = Number(r.importo_pagato) || 0
     const residuo = tot - pag
     if (residuo > 0.01) {
@@ -351,12 +351,12 @@ async function getCustomer360(supabase, orgId) {
       .eq('active', true)
       .order('created_at', { ascending: false })),
     fetchSafe(supabase.from('fatture')
-      .select('id, importo, importo_pagato, data_scadenza, tipo')
+      .select('id, totale, importo_pagato, data_fattura, data_scadenza, tipo')
       .eq('organization_id', orgId)
       .lt('data_scadenza', todayIso)
       .or('tipo.is.null,tipo.eq.fattura')),
     fetchSafe(supabase.from('fatture')
-      .select('id, importo, importo_pagato, data_scadenza, tipo')
+      .select('id, totale, importo_pagato, data_fattura, data_scadenza, tipo')
       .eq('organization_id', orgId)
       .gte('data_scadenza', todayIso)
       .lte('data_scadenza', next7gg)
@@ -366,9 +366,12 @@ async function getCustomer360(supabase, orgId) {
       .eq('organization_id', orgId)
       .eq('attivo', true)),
     fetchSafe(supabase.from('dipendenti')
-      .select('stipendio_lordo_mensile, archiviato')
+      // Audit 2026-09-09: `archiviato` non esiste in `dipendenti`, la colonna
+      // e' `attivo`. La query rispondeva 42703 e il costo del personale usciva
+      // sempre 0 nei KPI del pannello admin.
+      .select('stipendio_lordo_mensile, attivo')
       .eq('organization_id', orgId)
-      .or('archiviato.is.null,archiviato.eq.false')),
+      .or('attivo.is.null,attivo.eq.true')),
   ])
 
   // ── Integrazioni: lista + count attive ────────────────────────────────────
@@ -392,14 +395,14 @@ async function getCustomer360(supabase, orgId) {
   const scadOverdueRows = (scadOverdueR.data || []).filter(f => {
     // Nota di credito esclusa (tipo='nota_credito' compensa il dovuto)
     if (f.tipo && f.tipo !== 'fattura') return false
-    const tot = Number(f.importo) || 0
+    const tot = Number(f.totale) || 0
     const pagato = Number(f.importo_pagato) || 0
     return tot - pagato > 0.01
   })
-  const scadOverdueTot = scadOverdueRows.reduce((s, f) => s + Math.max(0, (Number(f.importo) || 0) - (Number(f.importo_pagato) || 0)), 0)
+  const scadOverdueTot = scadOverdueRows.reduce((s, f) => s + Math.max(0, (Number(f.totale) || 0) - (Number(f.importo_pagato) || 0)), 0)
   const scadProxRows = (scadProxR.data || []).filter(f => {
     if (f.tipo && f.tipo !== 'fattura') return false
-    return (Number(f.importo) || 0) - (Number(f.importo_pagato) || 0) > 0.01
+    return (Number(f.totale) || 0) - (Number(f.importo_pagato) || 0) > 0.01
   })
 
   // ── Costi aziendali: equivalente mensile ──────────────────────────────────
@@ -1213,7 +1216,7 @@ async function azInviaEmail(req, body, supabase) {
   if (!profileMatch) {
     throw new Error(
       `Destinatario "${destinatario}" non e' registrato come utente FoodOS. ` +
-      `Anti-abuso: l'admin puo' scrivere solo a clienti.`
+      `Anti-abuso: l'admin può scrivere solo a clienti.`
     )
   }
 
@@ -1823,7 +1826,7 @@ async function getOnboardingFunnel(supabase, days = 60) {
     fetchSafe(supabase.from('profiles').select('organization_id, email, ruolo').eq('ruolo', 'titolare').in('organization_id', orgIds)),
     fetchSafe(supabase.from('user_data').select('organization_id, data_key, updated_at').in('organization_id', orgIds)
       .in('data_key', ['pasticceria-ricettario-v1', 'pasticceria-chiusure-v1', 'pasticceria-magazzino-v1'])),
-    fetchSafe(supabase.from('fatture').select('organization_id, data_emissione').in('organization_id', orgIds).limit(2000)),
+    fetchSafe(supabase.from('fatture').select('organization_id, data_fattura').in('organization_id', orgIds).limit(2000)),
   ])
   const sediByOrg = new Set()
   for (const s of (sediR.data || [])) sediByOrg.add(s.organization_id)
@@ -2008,7 +2011,7 @@ export default async function handler(req) {
   const ip = getClientIP(req)
   // Audit 2026-07-01 HIGH: cap user-agent IMMEDIATAMENTE per evitare downstream
   // hot logging di stringhe grandi (10KB) — i call site di logAdmin slice già
-  // a 200 ma req.headers.get puo' essere chiamato altrove in flow.
+  // a 200 ma req.headers.get può essere chiamato altrove in flow.
   const ua = (req.headers.get('user-agent') || '').slice(0, 256)
 
   // Audit 2026-07-01 HIGH: ADMIN_IPS supporta `*` come bypass (admin in
@@ -2240,7 +2243,7 @@ export default async function handler(req) {
       }
 
       if (action === 'stripe_mrr') {
-        // Stripe puo' non essere configurato (pre-revenue) o avere errori di
+        // Stripe può non essere configurato (pre-revenue) o avere errori di
         // chiamata. Ritorniamo un payload "unavailable" parlante invece di un
         // 500 generico — la UI mostra "Stripe non configurato" e l'admin sa
         // cosa fare.
@@ -2496,7 +2499,7 @@ export default async function handler(req) {
     }
 
     // Rate limit per-azione: oltre al limit globale 60/min, ogni azione "delicata"
-    // ha il suo limite stretto. Anche un admin compromesso non puo' cancellare
+    // ha il suo limite stretto. Anche un admin compromesso non può cancellare
     // 60 org/min ma solo le quote sotto.
     const PER_ACTION_LIMITS = {
       elimina:                       { max: 2,   windowSec: 60 },   // cancellazioni: 2/min
@@ -2694,9 +2697,13 @@ export default async function handler(req) {
           if (rq.to_metodo === 'inventario') {
             try {
               const { data: attuali } = await supabase.from('user_data')
-                .select('valore').eq('organization_id', rq.organization_id)
-                .eq('chiave', 'pasticceria-formati-vendita-v1').is('sede_id', null).maybeSingle()
-              const arr = Array.isArray(attuali?.valore) ? attuali.valore : []
+                // Audit 2026-09-09: le colonne di user_data sono `data_value` e
+                // `data_key`, non `valore` e `chiave`. La query rispondeva 42703,
+                // `attuali` era null e `arr` sempre vuoto: il passaggio al metodo
+                // inventario credeva che i formati non ci fossero e li ricreava.
+                .select('data_value').eq('organization_id', rq.organization_id)
+                .eq('data_key', 'pasticceria-formati-vendita-v1').is('sede_id', null).maybeSingle()
+              const arr = Array.isArray(attuali?.data_value) ? attuali.data_value : []
               if (arr.length === 0) {
                 const { FORMATI_GELATERIA_DEFAULT } = await import('../src/lib/formatiVendita.js')
                 const now = Date.now()

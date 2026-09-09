@@ -127,7 +127,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
           .eq('organization_id', orgId)
           .eq('stato', 'inviato'),
         supabase.from('fatture')
-          .select('id, sede_id, stato, importo_lordo, data_scadenza')
+          .select('id, sede_id, stato, totale, importo_pagato, data_fattura, data_scadenza')
           .eq('organization_id', orgId),
         caricaCostiAziendali(orgId, null).catch(() => []),
       ])
@@ -161,7 +161,7 @@ export default function ConfrontoSedi({ orgId, sedi }) {
       for (const f of (fattureAll.data || [])) {
         if (f.stato !== 'pagata') {
           fattureBySede[f.sede_id] = (fattureBySede[f.sede_id] || 0) + 1
-          fattureImpByS[f.sede_id] = (fattureImpByS[f.sede_id] || 0) + Number(f.importo_lordo || 0)
+          fattureImpByS[f.sede_id] = (fattureImpByS[f.sede_id] || 0) + (Number(f.totale || 0) - Number(f.importo_pagato || 0))
           if (f.data_scadenza && f.data_scadenza < todayIso) {
             fattureScadByS[f.sede_id] = (fattureScadByS[f.sede_id] || 0) + 1
           }
