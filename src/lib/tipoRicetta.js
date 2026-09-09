@@ -4,8 +4,19 @@
 //   - 'fetta'         → pasticceria / torte-per-fetta
 //   - 'pezzo'         → pasticceria / lievitati / pane / paste (unità intera)
 //   - 'gusto'         → gelateria (produzione in kg, prezzo su formati vendita)
-//   - 'interno'       → base di lavorazione (non venduta)
-//   - 'semilavorato'  → ingrediente composto (usato in altre ricette)
+//   - 'interno'       → BASE: componente non venduto, il cui costo al kg lo
+//                        scrive l'utente nel listino ingredienti. calcolaFC NON
+//                        apre la sua ricetta (il ramo semilavorato controlla
+//                        `tipo === 'semilavorato'`, foodcost.js:957): cerca il
+//                        nome nel listino e usa quel prezzo.
+//                        E' il modello delle basi da gelateria, e la ragione e'
+//                        commerciale, non tecnica: le quantita' di una base sono
+//                        il segreto del laboratorio e un gelataio non le carica
+//                        su un servizio online. Elenca gli ingredienti (servono
+//                        per gli allergeni), calcola il costo al kg a mano e
+//                        inserisce solo quello.
+//   - 'semilavorato'  → ingrediente composto di cui il sistema CALCOLA il costo
+//                        dalle quantita' scritte nella sua ricetta.
 //
 // Centralizzare qui evita branching sparso `tipo === 'fetta' ? 'fette' : 'pezzi'`
 // (audit 2026-07-23) che non copriva 'gusto' e mostrava "pezzi" al gelataio.

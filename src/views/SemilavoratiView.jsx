@@ -378,9 +378,16 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
     return tipo !== 'semilavorato' && tipo !== 'interno'
   })()
 
-  // Dichiara base una ricetta che l'azienda usa già come ingrediente. Non tocca
-  // gli ingredienti né il nome: cambia solo il tipo, che è l'unica cosa che
-  // mancava. `unita` e `prezzo` vanno a 0 come per ogni base (non si vende).
+  // Dichiara BASE una ricetta che l'azienda usa già come ingrediente.
+  //
+  // Correzione del 09/09/2026 (dal titolare): la prima versione scriveva
+  // `tipo: 'semilavorato'`, cioè faceva CALCOLARE al sistema il costo dalle
+  // quantità. È il modello sbagliato per una gelateria: le dosi delle basi sono
+  // il segreto del laboratorio e non si caricano su un servizio online. Il
+  // gelataio elenca gli ingredienti (per gli allergeni), calcola a mano quanto
+  // gli costa un chilo e inserisce solo quel numero.
+  // Quindi il tipo giusto è `interno`: non si vende, e il costo si legge dal
+  // listino invece di essere ricavato dalle quantità.
   const dichiaraBase = async (candidato) => {
     if (saving) return
     setSaving(true)
@@ -391,13 +398,19 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
         ...(ricettario || {}),
         ricette: {
           ...(ricettario?.ricette || {}),
-          [candidato.nome]: { ...r, tipo: 'semilavorato', unita: 0, prezzo: 0 },
+          [candidato.nome]: { ...r, tipo: 'interno', unita: 0, prezzo: 0 },
         },
       }
       await onSave(nuovoRic, {}, true)
-      // Il food cost delle ricette che la usano cambia da adesso: va detto,
-      // perché il numero si muove senza che l'utente abbia toccato le ricette.
-      notify(`"${candidato.nome}" ora è una base. Il food cost di ${candidato.nUsi} ${candidato.nUsi === 1 ? 'ricetta' : 'ricette'} si ricalcola sulla sua ricetta.`)
+      // Se nel listino non c'è un prezzo suo, ogni ricetta che la usa la conta
+      // ZERO: il food cost di quelle ricette risulta più basso del vero. Va
+      // detto subito, con l'indicazione di dove si mette.
+      const suo = ingCosti[normIng(candidato.nome)]
+      if (!suo || suo.isStima) {
+        notify(`"${candidato.nome}" ora è una base e non comparirà più tra i prodotti da vendere. Adesso scrivi quanto ti costa un chilo: aprila da Ricettario e compila "Costo al kg della base".`, false)
+      } else {
+        notify(`"${candidato.nome}" ora è una base: costa ${fmtKg(Number(suo.costoKg) || 0)} e non comparirà più tra i prodotti da vendere.`)
+      }
     } catch (e) {
       if (!e?.giaNotificato) notify('Non ho potuto salvare: ' + (e?.message || 'errore di rete'), false)
     } finally {
@@ -500,8 +513,8 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
               </div>
               <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.55 }}>
                 {basiDaDichiarare.length === 1
-                  ? <>La usi come ingrediente in {basiDaDichiarare[0].nUsi} ricette. Finché non è dichiarata base, il suo costo viene preso dal listino invece che dalla sua ricetta: il food cost di quelle ricette è sbagliato.</>
-                  : <>Le usi come ingrediente in altre ricette. Finché non sono dichiarate basi, il loro costo viene preso dal listino invece che dalla loro ricetta.</>}
+                  ? <>La usi come ingrediente in {basiDaDichiarare[0].nUsi} ricette, ma per il sistema è ancora un prodotto da vendere: compare in produzione, in cassa e nel conto economico con un prezzo che non ha.</>
+                  : <>Le usi come ingrediente in altre ricette, ma per il sistema sono ancora prodotti da vendere: compaiono in produzione, in cassa e nel conto economico con un prezzo che non hanno.</>}
               </div>
             </div>
             <button type="button" onClick={() => setCandidatiAperti(v => !v)}
@@ -520,19 +533,26 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                   <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.6, marginBottom: 8 }}>
                     Usata in <b>{b.nUsi} {b.nUsi === 1 ? 'ricetta' : 'ricette'}</b>: {b.usataIn.slice(0, 4).join(', ')}{b.usataIn.length > 4 ? ` e altre ${b.usataIn.length - 4}` : ''}.
                   </div>
-                  {b.costoKgDaListino != null && (
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-                      <span style={{ fontSize: typo.small.fontSize, color: C.textMid, background: C.bgSubtle, borderRadius: 6, padding: '5px 9px', ...TNUM }}>
-                        oggi la paghi {fmtKg(b.costoKgDaListino)}
+                  {/* Il costo di una base e' quello che l'utente ha scritto nel
+                      listino: e' lui a calcolarlo, perché le dosi non stanno qui.
+                      Il conto sulle quantita' serve solo come CONTROLLO per chi
+                      le ha caricate: se i due numeri sono lontani, uno dei due va
+                      rivisto. Non proponiamo di sostituire il suo prezzo. */}
+                  {b.costoKgDaListino != null ? (
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+                      <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.text, background: C.bgSubtle, borderRadius: 6, padding: '5px 9px', ...TNUM }}>
+                        costo che hai scritto: {fmtKg(b.costoKgDaListino)}
                       </span>
-                      <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: b.differenzaKg > 0 ? C.green : C.textMid, background: b.differenzaKg > 0 ? C.greenLight : C.bgSubtle, borderRadius: 6, padding: '5px 9px', ...TNUM }}>
-                        la sua ricetta costa {fmtKg(b.costoKgDaRicetta)}
-                      </span>
-                      {b.differenzaKg > 0 && (
-                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, padding: '5px 0' }}>
-                          {fmtKg(b.differenzaKg)} in meno al kg
+                      {b.costoKgDaRicetta > 0 && Math.abs(b.differenzaKg) > b.costoKgDaListino * 0.15 && (
+                        <span style={{ fontSize: typo.small.fontSize, color: C.amber, lineHeight: 1.5 }}>
+                          sommando le quantità che hai caricato verrebbe {fmtKg(b.costoKgDaRicetta)}: controlla quale dei due è aggiornato
                         </span>
                       )}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: typo.small.fontSize, color: C.amber, lineHeight: 1.55, marginBottom: 8 }}>
+                      Non hai ancora scritto quanto ti costa un chilo di questa base: finché manca,
+                      ogni ricetta che la usa la conta zero e il suo food cost risulta più basso del vero.
                     </div>
                   )}
                   {b.autoCiclo && (

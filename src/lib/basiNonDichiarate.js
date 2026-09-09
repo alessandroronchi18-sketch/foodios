@@ -18,6 +18,24 @@
 // "banana": promuoverli sarebbe un errore, perché il gusto non è ingrediente di
 // se stesso. Il segnale che distingue i due casi è quante ricette DIVERSE usano
 // quel nome: BASE BIANCA 15, ARANCIA e BANANA una sola.
+//
+// CORREZIONE IMPORTANTE, 09/09/2026 (dal titolare). La prima versione di questo
+// modulo proponeva di dichiarare quelle ricette `semilavorato`, cioè di far
+// CALCOLARE al sistema il loro costo dalle quantità scritte. È sbagliato, e il
+// motivo è commerciale prima che tecnico: in gelateria le basi sono il segreto
+// del laboratorio, e un gelataio non carica le dosi su un servizio online.
+//
+// Il modello giusto del prodotto è l'altro: si elencano gli INGREDIENTI della
+// base (servono per gli allergeni), le quantità restano fuori, e il gelataio
+// calcola a mano quanto gli costa un chilo di quella base e inserisce solo
+// quel numero. Nel tool è il tipo `interno`: calcolaFC non apre la sua ricetta,
+// cerca il nome nel listino e usa il prezzo che l'utente ha scritto.
+//
+// Quindi il costo "da ricetta" che questo modulo calcola NON è il valore da
+// adottare: è solo un termine di confronto per chi ha caricato le quantità e
+// vuole sapere se il prezzo che ha messo è in linea. La proposta è di dichiarare
+// la ricetta BASE, non semilavorato, e di controllare che nel listino ci sia un
+// prezzo suo.
 
 import { calcolaFC, normIng, getR } from './foodcost'
 

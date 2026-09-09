@@ -157,7 +157,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   const confirmDialog = useConfirm()
   const [lista, setLista] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: "", iban: "", termini_pagamento: "30", categoria: "" })
+  const [form, setForm] = useState({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "" })
   const [editId, setEditId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -260,6 +260,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
       sede_id: form.sede_id || null,
       iban: form.iban?.trim() ? form.iban.replace(/\s+/g, '').toUpperCase() : null,
       termini_pagamento: Number.isFinite(termini) && termini >= 0 ? termini : 30,
+      termini_tipo: form.termini_tipo === "fine_mese" ? "fine_mese" : "netti",
       categoria: form.categoria?.trim() || null,
       organization_id: orgId,
     }
@@ -305,11 +306,11 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
     notify("Fornitore eliminato definitivamente"); onMutate?.(); carica()
   }
 
-  function resetForm() { setForm({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: sedeId || "", iban: "", termini_pagamento: "30", categoria: "" }); setEditId(null); setShowForm(false) }
+  function resetForm() { setForm({ nome: "", contatto: "", email: "", telefono: "", note: "", sede_id: sedeId || "", iban: "", termini_pagamento: "30", termini_tipo: "netti", categoria: "" }); setEditId(null); setShowForm(false) }
   function initEdit(f) {
     setForm({
       nome: f.nome, contatto: f.contatto || "", email: f.email || "", telefono: f.telefono || "", note: f.note || "",
-      sede_id: f.sede_id || "", iban: f.iban || "", termini_pagamento: String(f.termini_pagamento ?? 30), categoria: f.categoria || "",
+      sede_id: f.sede_id || "", iban: f.iban || "", termini_pagamento: String(f.termini_pagamento ?? 30), termini_tipo: f.termini_tipo || "netti", categoria: f.categoria || "",
     })
     setEditId(f.id); if (isMobile) setShowForm(true)
   }
@@ -337,7 +338,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
         {f.categoria && chip(f.categoria, `${catColor(f.categoria)}18`, catColor(f.categoria), <Icon name="package" size={10} />)}
-        {chip(`${f.termini_pagamento ?? 30}gg`, C.bg, C.textMid, <Icon name="card" size={10} />)}
+        {chip(`${f.termini_pagamento ?? 30}gg ${f.termini_tipo === 'fine_mese' ? 'f.m.' : 'd.f.'}`, C.bg, C.textMid, <Icon name="card" size={10} />)}
         {f.iban && (
           <Tip text={`IBAN: ${f.iban}`}>
             {chip(maskIban(f.iban), '#EFF6FF', '#2563EB', <Icon name="bank" size={10} />)}
@@ -487,7 +488,19 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
                   <span style={{ cursor: 'help', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>Termini pag. (gg)</span>
                 </Tip>
               </div>
-              <input type="number" min="0" value={form.termini_pagamento} onChange={e => setForm(f => ({ ...f, termini_pagamento: e.target.value }))} placeholder="30" style={inputSt} />
+              <input type="number" min="0" value={form.termini_pagamento} onChange={e => setForm(f => ({ ...f, termini_pagamento: e.target.value }))} placeholder="30"
+                aria-label="Giorni di pagamento concordati" style={inputSt} />
+              {/* Come si contano quei giorni. Audit 2026-09-09: c'era solo il
+                  numero, e lo Scadenziario contava sempre dalla data fattura.
+                  I fornitori alimentari lavorano quasi tutti a fine mese: una
+                  fattura del 3 marzo a 30 gg f.m. si paga il 30 aprile, non il
+                  2 aprile. Ventotto giorni di differenza su ogni scadenza. */}
+              <select value={form.termini_tipo || 'netti'} onChange={e => setForm(f => ({ ...f, termini_tipo: e.target.value }))}
+                aria-label="Come si contano i giorni di pagamento"
+                style={{ ...inputSt, marginTop: 6, cursor: 'pointer' }}>
+                <option value="netti">dalla data della fattura</option>
+                <option value="fine_mese">dalla fine del mese (d.f. f.m.)</option>
+              </select>
             </div>
           </div>
 

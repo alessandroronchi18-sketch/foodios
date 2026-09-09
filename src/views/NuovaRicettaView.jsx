@@ -160,6 +160,17 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
 
   const isSemiOrInterno = form.tipo === "semilavorato" || form.tipo === "interno";
 
+  // Costo al kg di una base (tipo 'interno'). Vive nel listino ingredienti,
+  // perché e' da li' che calcolaFC lo legge quando la base viene usata come
+  // ingrediente di un'altra ricetta.
+  const [costoBaseKg, setCostoBaseKg] = useState('');
+  const costoBaseEsistente = useMemo(() => {
+    if (form.tipo !== 'interno' || !form.nome.trim()) return null;
+    const voce = ingCosti[normIng(form.nome)];
+    if (!voce || voce.isStima) return null;   // una stima di mercato non e' un suo prezzo
+    return Number(voce.costoKg) || null;
+  }, [form.tipo, form.nome, ingCosti]);
+
   const addIng = () => {
     if (!newIngNome.trim() || !newIngQty) return;
     setForm(f => ({ ...f, ingredienti: [...f.ingredienti, { nome: newIngNome.trim(), qty1stampo: parseFloat(newIngQty) || 0, costoPerG: 0, costo1stampo: 0 }] }));
@@ -207,6 +218,14 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     const manual = (r.allergeni || []).filter(a => !auto.includes(a));
     const loaded = { nome: r.nome, categoria: r.categoria || "", unita: reg.unita, prezzo: reg.prezzo, tipo: reg.tipo, note: r.note || "", ingredienti: ings, congelabile: r.congelabile || false, allergeniManual: manual, resa_g: (typeof r.resa_g === 'number' && r.resa_g > 0) ? r.resa_g : null };
     setForm(loaded);
+    // Se e' una base, porta nel campo il costo al kg che ha nel listino: senza
+    // questo, riaprendo la scheda il campo appare vuoto e sembra da compilare.
+    if (loaded.tipo === 'interno') {
+      const voce = ingCosti[normIng(loaded.nome)];
+      setCostoBaseKg(voce && !voce.isStima && Number(voce.costoKg) ? String(voce.costoKg).replace('.', ',') : '');
+    } else {
+      setCostoBaseKg('');
+    }
     initialFormRef.current = loaded; // reset dirty
     setEditMode(nome);
     scrollToFormDeferred(100);
@@ -264,9 +283,26 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         // fc/kg (gusti) e come "peso stampo dichiarato" (stampi/pezzi).
         resa_g: (typeof form.resa_g === 'number' && Number.isFinite(form.resa_g) && form.resa_g > 0) ? form.resa_g : null,
       };
+      // Se e' una base con il costo al kg scritto nel form, quel prezzo entra nel
+      // listino ingredienti: e' da li' che calcolaFC lo legge quando la base
+      // viene usata dentro un'altra ricetta (per le basi il motore NON apre la
+      // ricetta, cerca il nome nel listino - vedi tipoRicetta.js).
+      const costiAggiornati = { ...(ricettario?.ingredienti_costi || {}) };
+      if (form.tipo === 'interno') {
+        const grezzo = String(costoBaseKg || '').replace(',', '.').trim();
+        if (grezzo !== '') {
+          const perKg = parseFloat(grezzo);
+          if (Number.isFinite(perKg) && perKg >= 0) {
+            costiAggiornati[normIng(nuovaRic.nome)] = {
+              costoKg: perKg,
+              costoG: parseFloat((perKg / 1000).toFixed(6)),
+            };
+          }
+        }
+      }
       const nuovoRic = {
-        ingredienti_costi: ricettario?.ingredienti_costi || {},
         ...(ricettario || {}),
+        ingredienti_costi: costiAggiornati,
         ricette: { ...(ricettario?.ricette || {}), [nuovaRic.nome]: nuovaRic }
       };
       // IMPORTANTE (audit 2026-07-28): azzeriamo il ref del dirty-guard PRIMA
@@ -286,7 +322,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         initialFormRef.current = empty;
         return;
       }
-      setForm(empty); setEditMode(null); setOverwriteConf(null);
+      setForm(empty); setEditMode(null); setOverwriteConf(null); setCostoBaseKg('');
       initialFormRef.current = empty;
       notify(`Ricetta "${nuovaRic.nome}" salvata`);
     } finally {
@@ -653,13 +689,25 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     })
                   }}
                   style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }}>
+                  {/* Audit 2026-09-09: "Uso interno" e "Base / semilavorato" erano due
+                      etichette che non dicevano la differenza, e la differenza e' tutta
+                      nel food cost:
+                        interno      → il costo lo scrivi TU nel listino, la ricetta non
+                                       viene aperta. E' il modello delle basi da gelateria:
+                                       gli ingredienti si elencano (servono per gli
+                                       allergeni) ma le quantita' restano tue, e il costo
+                                       al kg lo calcoli a mano e lo inserisci.
+                        semilavorato → il costo lo calcola il sistema dalle quantita' che
+                                       hai scritto.
+                      Un gelataio non carica le quantita' delle sue basi: sono il segreto
+                      del laboratorio. Le etichette ora lo dicono. */}
                   {isGelateria ? (
                     <>
                       <option value="gusto">Gusto (kg)</option>
                       <option value="fetta">Fetta (torta/monoporzione)</option>
                       <option value="pezzo">Pezzo</option>
-                      <option value="interno">Uso interno</option>
-                      <option value="semilavorato">Base / semilavorato</option>
+                      <option value="interno">Base — costo al kg che scrivi tu</option>
+                      <option value="semilavorato">Semilavorato — costo calcolato dalle quantità</option>
                     </>
                   ) : (
                     <>
@@ -669,8 +717,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                           il valore va comunque mostrato — altrimenti il select cade sul primo
                           option e il form salva un tipo diverso da quello caricato. */}
                       {form.tipo === 'gusto' && <option value="gusto">Gusto (kg)</option>}
-                      <option value="interno">Uso interno</option>
-                      <option value="semilavorato">Semilavorato (base/impasto)</option>
+                      <option value="interno">Base — costo al kg che scrivi tu</option>
+                      <option value="semilavorato">Semilavorato — costo calcolato dalle quantità</option>
                     </>
                   )}
                 </select>
@@ -704,6 +752,34 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       style={{ ...inputBase, opacity: isSemiOrInterno ? 0.5 : 1 }} />
                   </div>
                 </>
+              )}
+
+              {/* Costo al kg di una BASE.
+                  Audit 2026-09-09: il modello delle basi da gelateria e' che il
+                  costo lo scrive l'utente — le quantita' degli ingredienti sono
+                  il segreto del laboratorio e non si caricano. Ma quel prezzo
+                  andava messo in un'altra pagina (il listino in Magazzino), e
+                  senza di esso ogni ricetta che usa la base la conta ZERO: il
+                  food cost di tutti i gusti che la contengono risulta più basso
+                  del vero e nessuno lo dice. Ora si scrive qui, dove si crea la
+                  base, e finisce nello stesso listino. */}
+              {form.tipo === 'interno' && (
+                <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+                  <div style={fieldLabel}>Costo al kg della base (€)</div>
+                  <input type="text" inputMode="decimal" value={costoBaseKg}
+                    aria-label="Costo al kg della base in euro"
+                    onChange={e => setCostoBaseKg(e.target.value)}
+                    placeholder={costoBaseEsistente != null ? String(costoBaseEsistente).replace('.', ',') : 'es. 2,10'}
+                    style={{ ...inputBase, fontSize: isMobile ? 16 : 14 }} />
+                  <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginTop: 5, lineHeight: 1.5 }}>
+                    Quanto ti costano gli ingredienti per fare un chilo di questa base.
+                    Le quantità qui sopra non servono al calcolo: elencare gli ingredienti serve
+                    solo per gli allergeni, le dosi restano tue.
+                    {costoBaseEsistente != null && (
+                      <> Ora nel listino c'è <b>{fmt(costoBaseEsistente)}/kg</b>: lascia vuoto per non cambiarlo.</>
+                    )}
+                  </div>
+                </div>
               )}
 
             </div>

@@ -147,7 +147,10 @@ describe('PDF dello scadenziario — tre colonne erano vuote su tutte le righe',
     expect(pdf).toMatch(/const sc = scadenzaFattura\(f\)/)
     expect(pdf).toMatch(/sc\.stimata \? ' \*' : ''/)
     // Con la legenda, altrimenti l'asterisco non si capisce.
-    expect(pdf).toMatch(/Scadenza calcolata come data fattura \+ 30 giorni/)
+    // La legenda dice i termini davvero usati, che possono essere diversi da
+    // fornitore a fornitore (giorni netti o fine mese).
+    expect(pdf).toMatch(/Scadenza calcolata con \$\{comeCalcolata\}/)
+    expect(pdf).toMatch(/dalla fine del mese/)
   })
 
   it('scrive "n.d." dove imponibile e imposta non ci sono', () => {

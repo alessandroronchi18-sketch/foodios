@@ -312,6 +312,9 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       const fields = {
         iban: newIban,
         termini_pagamento: patch.termini_pagamento !== undefined ? patch.termini_pagamento : (esistente?.termini_pagamento ?? 30),
+        // Come si contano i giorni: 'netti' dalla data fattura, 'fine_mese'
+        // dalla fine del mese (lo standard dei fornitori alimentari).
+        termini_tipo: patch.termini_tipo !== undefined ? patch.termini_tipo : (esistente?.termini_tipo || 'netti'),
         categoria: patch.categoria !== undefined ? (patch.categoria || null) : (esistente?.categoria || null),
       }
       let error
@@ -613,6 +616,10 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       const fEnriched = {
         ...f,
         _termini: Number.isFinite(anag?.termini_pagamento) ? anag.termini_pagamento : undefined,
+        // Come si contano quei giorni: dalla data fattura o dalla fine del mese.
+        // Senza questo, "30 gg fine mese" veniva calcolato come "30 gg netti" e
+        // ogni scadenza risultava fino a 30 giorni prima del vero.
+        _terminiTipo: anag?.termini_tipo || 'netti',
         iban: f.iban || anag?.iban || '',
       }
       const dd = dueDateObj(fEnriched)
@@ -722,7 +729,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         map[key] = {
           nome: f.fornitore, nome_norm: key, n: 0, nFatt: 0, nNC: 0,
           totale: 0, scaduto: 0, iban: f.iban || anag?.iban || '',
-          termini: anag?.termini_pagamento ?? null, categoria: anag?.categoria || '',
+          termini: anag?.termini_pagamento ?? null, terminiTipo: anag?.termini_tipo || 'netti', categoria: anag?.categoria || '',
           anyScaduta: false, items: [],
         }
       }
@@ -1306,7 +1313,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: isMobile ? 28 : 0 }}>
                   {g.scaduto > 0 && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#991B1B', background: '#FEE2E2', padding: '4px 9px', borderRadius: 9, whiteSpace: 'nowrap', ...tnum }}>scaduto {fmtEuro0(g.scaduto)}</span>}
                   <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: g.totale < 0 ? T.green : T.text, ...tnum, minWidth: 96, textAlign: 'right', whiteSpace: 'nowrap' }}>{fmtEuro(g.totale)}</div>
-                  <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, categoria: g.categoria || '' }) } }}
+                  <button onClick={(e) => { e.stopPropagation(); if (isEdit) { setEditForn(null) } else { setEditForn(g.nome_norm); setEditFornData({ iban: g.iban || '', termini: g.termini ?? 30, terminiTipo: g.terminiTipo || 'netti', categoria: g.categoria || '' }) } }}
                     aria-label="Modifica anagrafica fornitore"
                     title="Anagrafica fornitore (IBAN, termini)" style={{ ...ghostBtn, padding: isMobile ? '8px 10px' : '6px 11px', minHeight: minTouch, minWidth: minTouch }}><Icon name="gear" size={14} /></button>
                 </div>
@@ -1385,11 +1392,23 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     title="Giorni di pagamento (per derivare la scadenza quando non è nell'XML)"
                     aria-label="Termini di pagamento in giorni"
                     style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, width: isMobile ? '100%' : 120, boxSizing: 'border-box' }} />
+                  {/* Come si contano quei giorni. Audit 2026-09-09: c'era solo il
+                      numero, e il calcolo era sempre "dalla data fattura". I
+                      fornitori alimentari lavorano quasi tutti a fine mese: una
+                      fattura del 3 marzo a 30 gg f.m. si paga il 30 aprile, non
+                      il 2 aprile. Ventotto giorni di differenza su ogni riga. */}
+                  <select value={editFornData.terminiTipo || 'netti'}
+                    onChange={e => setEditFornData(d => ({ ...d, terminiTipo: e.target.value }))}
+                    aria-label="Come si contano i giorni di pagamento"
+                    style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, width: isMobile ? '100%' : 'auto', color: T.text, background: T.bgCard, cursor: 'pointer' }}>
+                    <option value="netti">giorni dalla data fattura</option>
+                    <option value="fine_mese">giorni dalla fine del mese</option>
+                  </select>
                   <input placeholder="Categoria (opz.)" value={editFornData.categoria} onChange={e => setEditFornData(d => ({ ...d, categoria: e.target.value }))}
                     aria-label="Categoria fornitore"
                     style={{ padding: '10px 12px', minHeight: minTouch, border: `1px solid ${T.border}`, borderRadius: 9, fontSize: isMobile ? 16 : 13, flex: isMobile ? '1 1 100%' : '1 1 160px', minWidth: 0, width: isMobile ? '100%' : 'auto', boxSizing: 'border-box' }} />
                   <div style={{ display: 'flex', gap: 8, width: isMobile ? '100%' : 'auto' }}>
-                    <button onClick={() => salvaFornitore(g.nome, { iban: editFornData.iban, termini_pagamento: Number(editFornData.termini) || 30, categoria: editFornData.categoria })}
+                    <button onClick={() => salvaFornitore(g.nome, { iban: editFornData.iban, termini_pagamento: Number(editFornData.termini) || 30, termini_tipo: editFornData.terminiTipo || 'netti', categoria: editFornData.categoria })}
                       style={{ ...primaryBtn, flex: isMobile ? 1 : '0 0 auto' }}>Salva</button>
                     <button onClick={() => setEditForn(null)} style={{ ...ghostBtn, flex: isMobile ? 1 : '0 0 auto' }}>Annulla</button>
                   </div>

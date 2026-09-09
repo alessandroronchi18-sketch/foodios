@@ -806,8 +806,15 @@ export async function exportScadenzario(fatture, nomeAttivita, emailUtente) {
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...GRAY)
+    // I termini possono essere diversi da fornitore a fornitore (giorni netti o
+    // fine mese): la legenda dice quali sono stati usati, non un valore fisso.
+    const usati = new Set(fatture.filter(f => scadenzaFattura(f).stimata).map(f => {
+      const sc = scadenzaFattura(f)
+      return `${sc.giorniTermine} giorni ${sc.tipo === 'fine_mese' ? 'dalla fine del mese' : 'dalla data fattura'}`
+    }))
+    const comeCalcolata = usati.size === 1 ? [...usati][0] : 'i termini di ciascun fornitore'
     doc.text(
-      `* Scadenza calcolata come data fattura + 30 giorni: ${nStimate === 1 ? 'una fattura non la porta' : `${nStimate} fatture non la portano`} scritta nel documento.`,
+      `* Scadenza calcolata con ${comeCalcolata}: ${nStimate === 1 ? 'una fattura non la porta' : `${nStimate} fatture non la portano`} scritta nel documento.`,
       14, yLeg, { maxWidth: 180 },
     )
   }

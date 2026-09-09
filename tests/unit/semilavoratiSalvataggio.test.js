@@ -159,18 +159,46 @@ describe('Semilavorati — nomi già occupati e basi non dichiarate', () => {
     expect(src).toMatch(/Scegli un altro nome/)
   })
 
-  it('propone di dichiarare base le ricette che sono già usate come ingrediente', () => {
-    // BASE BIANCA è usata in 15 ricette di Mara ma non ha il tipo: calcolaFC ne
-    // prende il costo dal listino (2,31 €/kg) invece che dalla sua ricetta
-    // (1,62 €/kg), e la pagina non offriva modo di accorgersene.
+  it('propone di dichiarare BASE le ricette già usate come ingrediente', () => {
+    // BASE BIANCA è usata in 15 ricette di Mara ma non ha il tipo, quindi per il
+    // sistema è ancora un prodotto da vendere: compare in produzione, in cassa e
+    // nel conto economico con un prezzo che non ha.
     expect(src).toMatch(/trovaBasiNonDichiarate/)
     expect(src).toMatch(/const dichiaraBase = async/)
-    // Dichiarandola, cambia solo il tipo: ingredienti e nome non si toccano.
     const i = src.indexOf('const dichiaraBase = async')
-    const fn = src.slice(i, i + 1200)
-    expect(fn).toMatch(/tipo: 'semilavorato', unita: 0, prezzo: 0/)
+    const fn = src.slice(i, i + 1800)
+    // Il tipo giusto è 'interno', NON 'semilavorato'. La differenza è tutta nel
+    // food cost: 'semilavorato' fa CALCOLARE il costo dalle quantità, e in
+    // gelateria le dosi delle basi sono il segreto del laboratorio — non si
+    // caricano. Il gelataio elenca gli ingredienti (per gli allergeni) e scrive
+    // a mano quanto gli costa un chilo. La prima versione di questa funzione
+    // scriveva 'semilavorato' ed era il modello sbagliato.
+    expect(fn).toMatch(/tipo: 'interno', unita: 0, prezzo: 0/)
+    expect(fn).not.toMatch(/tipo: 'semilavorato'/)
+    // Ingredienti e nome non si toccano.
     expect(fn).toMatch(/\.\.\.r,/)
-    // E avvisa che il food cost di altre ricette si muove.
-    expect(fn).toMatch(/si ricalcola sulla sua ricetta/)
+    // E se nel listino non c'è un prezzo suo, lo dice: senza quello ogni ricetta
+    // che la usa la conta zero.
+    expect(fn).toMatch(/scrivi quanto ti costa un chilo/)
+  })
+
+  it('la scheda di una base chiede il costo al kg, senza mandare in un altra pagina', () => {
+    const nuovaRicetta = readFileSync(join(RADICE, 'src', 'views', 'NuovaRicettaView.jsx'), 'utf8')
+    // Il campo compare solo per le basi.
+    expect(nuovaRicetta).toMatch(/form\.tipo === 'interno' && \(/)
+    expect(nuovaRicetta).toMatch(/Costo al kg della base/)
+    // E dice che le quantità non entrano nel calcolo: servono per gli allergeni.
+    expect(nuovaRicetta).toMatch(/le dosi restano tue/)
+    // Il prezzo finisce nel listino, che è da dove il motore lo legge.
+    expect(nuovaRicetta).toMatch(/costiAggiornati\[normIng\(nuovaRic\.nome\)\]/)
+  })
+
+  it('le etichette del tipo spiegano la differenza fra base e semilavorato', () => {
+    const nuovaRicetta = readFileSync(join(RADICE, 'src', 'views', 'NuovaRicettaView.jsx'), 'utf8')
+    // Prima erano "Uso interno" e "Base / semilavorato": due nomi che non
+    // dicevano quale dei due calcola il costo e quale no.
+    expect(nuovaRicetta).toMatch(/Base — costo al kg che scrivi tu/)
+    expect(nuovaRicetta).toMatch(/Semilavorato — costo calcolato dalle quantità/)
+    expect(nuovaRicetta).not.toMatch(/>Uso interno</)
   })
 })

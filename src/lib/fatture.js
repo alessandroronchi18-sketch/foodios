@@ -28,6 +28,19 @@ export function residuoFattura(f) {
   return segno * Math.max(0, totale - pagato)
 }
 
+// Come si contano i giorni di pagamento.
+//
+// 'netti'     30 giorni dalla data della fattura. Il conteggio semplice.
+// 'fine_mese' 30 giorni dalla FINE DEL MESE della fattura: è lo standard dei
+//             fornitori alimentari ("30 gg d.f. f.m."). Una fattura del 3
+//             marzo a 30 giorni fine mese si paga il 30 aprile, non il 2
+//             aprile: sono 28 giorni di differenza, e su 211 fatture scadute
+//             cambia completamente quali sono davvero in ritardo.
+export const TIPI_TERMINE = {
+  netti: { label: 'giorni dalla data fattura', breve: 'gg d.f.' },
+  fine_mese: { label: 'giorni dalla fine del mese', breve: 'gg f.m.' },
+}
+
 /**
  * Scadenza di una fattura, e se è un dato certo o una stima.
  *
@@ -42,18 +55,29 @@ export function residuoFattura(f) {
  * @returns {{ iso: string|null, stimata: boolean, giorniTermine: number }}
  */
 export function scadenzaFattura(f, giorniTermine = GIORNI_PAGAMENTO_DEFAULT) {
+  const tipo = f?._terminiTipo === 'fine_mese' ? 'fine_mese' : 'netti'
   if (f?.data_scadenza && /^\d{4}-\d{2}-\d{2}/.test(String(f.data_scadenza))) {
-    return { iso: String(f.data_scadenza).slice(0, 10), stimata: false, giorniTermine }
+    return { iso: String(f.data_scadenza).slice(0, 10), stimata: false, giorniTermine, tipo }
   }
-  if (!f?.data_fattura) return { iso: null, stimata: true, giorniTermine }
+  if (!f?.data_fattura) return { iso: null, stimata: true, giorniTermine, tipo }
   const base = String(f.data_fattura).slice(0, 10)
   // Mezzogiorno per non farsi spostare dal fuso: la data conta, l'ora no.
   const d = new Date(`${base}T12:00:00`)
-  if (isNaN(d.getTime())) return { iso: null, stimata: true, giorniTermine }
+  if (isNaN(d.getTime())) return { iso: null, stimata: true, giorniTermine, tipo }
   const termini = Number.isFinite(Number(f?._termini)) ? Number(f._termini) : giorniTermine
-  d.setDate(d.getDate() + termini)
-  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return { iso, stimata: true, giorniTermine: termini }
+  let riferimento = d
+  if (tipo === 'fine_mese') {
+    // Ultimo giorno del mese della fattura. Va costruito esplicitamente:
+    // `setMonth(getMonth() + 1)` su una data del 31 slitta di un mese intero,
+    // perché il 31 aprile non esiste e JavaScript lo porta al 1 maggio (una
+    // fattura del 31 marzo finiva a fine maggio invece che a fine aprile).
+    // `new Date(anno, mese + 1, 0)` è il giorno 0 del mese successivo, cioè
+    // l'ultimo di questo: regge febbraio e gli anni bisestili da sé.
+    riferimento = new Date(d.getFullYear(), d.getMonth() + 1, 0, 12, 0, 0)
+  }
+  riferimento.setDate(riferimento.getDate() + termini)
+  const iso = `${riferimento.getFullYear()}-${String(riferimento.getMonth() + 1).padStart(2, '0')}-${String(riferimento.getDate()).padStart(2, '0')}`
+  return { iso, stimata: true, giorniTermine: termini, tipo }
 }
 
 /**
