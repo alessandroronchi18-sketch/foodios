@@ -741,7 +741,19 @@ export const getR = (nome, ricetta) => {
   //
   // `senzaRegola: true` e' il segnale per la UI: questa ricetta NON ha un prezzo
   // di vendita, e ogni numero che ne deriva non va presentato come misurato.
-  return { unita:8, prezzo:0, tipo:"fetta", senzaRegola:true }
+  // Audit 2026-09-09 (secondo giro): il `tipo` va letto SEMPRE dalla ricetta,
+  // anche quando `unita` manca. Prima cadeva su "fetta", quindi un semilavorato
+  // o una base importati senza `unita` venivano trattati come prodotti da
+  // vendere: comparivano in produzione, in cassa, nei formati vendita e nel
+  // conto economico, e lo scarico del magazzino non scendeva nei loro
+  // ingredienti. Nei dati di oggi tutti i semilavorati hanno `unita: 0` (li
+  // scrive così la pagina Semilavorati) e il difetto non si vede, ma il tipo di
+  // una ricetta non dipende dal fatto che abbia un prezzo.
+  const tipoDichiarato = ricetta?.tipo
+  if (tipoDichiarato === 'semilavorato' || tipoDichiarato === 'interno') {
+    return { unita: 0, prezzo: 0, tipo: tipoDichiarato }
+  }
+  return { unita:8, prezzo:0, tipo: tipoDichiarato || "fetta", senzaRegola:true }
 }
 
 export const isSemilavorato = (nome, ricettario) => {

@@ -190,9 +190,9 @@ export const ALLERGENI_MAPPING = {
   // Audit 2026-09-09: la chiave generica 'pasta' → glutine (riga 69) matcha
   // anche "pasta nocciola", "pasta pistacchio", "pasta mandorla": nel database
   // reale sono SEI ingredienti su sette che contengono la parola "pasta", e su
-  // tutti usciva un glutine che non c'e'. Non si puo' togliere 'pasta', perche'
+  // tutti usciva un glutine che non c'e'. Non si può togliere 'pasta', perché
   // "pasta fresca" e "pasta sfoglia" il glutine ce l'hanno: servono le chiavi
-  // specifiche, che essendo piu' lunghe vincono il match e coprono il range.
+  // specifiche, che essendo più lunghe vincono il match e coprono il range.
   // Un falso positivo su un allergene non e' innocuo: il gelataio lo dichiara
   // per prudenza e perde i clienti celiaci su un gusto che potrebbero mangiare.
   'pasta nocciola':    ['fruttasc'],
@@ -200,7 +200,7 @@ export const ALLERGENI_MAPPING = {
   'pasta mandorla':    ['fruttasc'],
   'pasta mandorle':    ['fruttasc'],
   'pasta pistacchio':  ['fruttasc'],
-  'pasta di pistacchio': ['fruttasc'],
+  // 'pasta di pistacchio' e' gia' piu' sotto nella mappa: non la ripetiamo.
   'pasta anacardi':    ['fruttasc'],
   'pasta di anacardi': ['fruttasc'],
   'pasta arachidi':    ['arachidi'],
@@ -482,7 +482,7 @@ export const ALLERGENI_PROBABILI = {
   // guscio sulle stesse linee.
   // Audit 2026-09-09: "pasta caramello" e "pasta gianduiotto" prendevano il
   // glutine dalla chiave generica 'pasta' e nessun accenno al latte, che in
-  // questi due c'e' quasi sempre. Il glutine ora non c'e' piu' (chiavi
+  // questi due c'e' quasi sempre. Il glutine ora non c'e' più (chiavi
   // specifiche nella mappa dei certi) e il latte sta qui, fra i probabili:
   // dipende dalla ricetta del produttore, e va chiesto con l'etichetta in mano.
   'caramello':           ['latte'],

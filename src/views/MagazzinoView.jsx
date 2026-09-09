@@ -1428,7 +1428,7 @@ export default function MagazzinoView({
                                 form di creazione a riga 1113 ("Soglia alert
                                 (g)"): convertirla secondo il toggle kg/g
                                 sarebbe peggio, perché il toggle è globale e
-                                si puo' premere con l'editor aperto. */}
+                                si può premere con l'editor aperto. */}
                             <input type="number" value={editSoglia.val} min="0" step="1"
                               aria-label="Soglia di riordino in grammi" placeholder="es. 500"
                               onChange={e => setEditSoglia({ ...editSoglia, val: e.target.value })}

@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { ssave as _ssave, ssaveBatch as _ssaveBatch } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, motion as M } from '../lib/theme'
+import { color as T, motion as M, typo } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, translateProdottoEN } from '../lib/foodcost'
 import { labelPlurale, isGustoTipo } from '../lib/tipoRicetta'
 import { caricoProduzionePF, scartoPF } from '../lib/stockPF'
@@ -21,6 +21,7 @@ import { scaricaTemplateProduzione } from '../lib/produzioneTemplate'
 import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
 import { C, TNUM, margColor, fmt, fmt0, fmtp, KPI, PageHeader } from './_shared'
+import { ingredientiDaScaricare } from '../lib/scaricoIngredienti'
 
 // Ombra premium coerente con la Dashboard home.
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
@@ -333,8 +334,16 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
   }
   const setV = (nome, val) => setVendMap(m => ({ ...m, [nome]: parseIT(val) }))
 
+  // Chiavi normalizzate presenti in magazzino: servono allo scarico per sapere
+  // se un semilavorato e' tenuto sullo scaffale (si scarica quello) o va risolto
+  // nei suoi ingredienti.
+  const chiaviInMagazzino = useMemo(
+    () => new Set(Object.keys(magazzino || {}).map(k => normIng(k))),
+    [magazzino])
+
   const riepilogo = useMemo(() => {
     const ings = {}
+    const nonScaricabili = []
     let fcTot = 0, ricavoTot = 0, stampiTot = 0, nProdotti = 0
     for (const ric of ricette) {
       const q = qtaMap[ric.nome] || 0
@@ -347,13 +356,25 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       ricavoTot += qv * (Number(reg.unita) || 0) * (Number(reg.prezzo) || 0)
       const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
       fcTot += q * fc
-      for (const ing of (ric.ingredienti || [])) {
-        const k = normIng(ing.nome)
-        ings[k] = (ings[k] || 0) + ing.qty1stampo * q
+      // Audit 2026-09-09 ALTA: qui si prendevano gli ingredienti della ricetta
+      // COSI' COME SONO SCRITTI. Ma una ricetta può contenere un semilavorato
+      // ("pasta frolla" dentro "crostata mele"): calcolaFC (riga sopra) scende
+      // nella sua ricetta e conta farina e burro nel costo, mentre il magazzino
+      // cercava una voce "pasta frolla" e, non trovandola, non scaricava
+      // NIENTE. Nei dati di produzione nessuno dei 7 semilavorati e' tenuto in
+      // magazzino: ogni crostata prodotta lasciava il magazzino pieno mentre il
+      // food cost contava la frolla, e lo scostamento si scopriva
+      // all'inventario un mese dopo senza poter risalire alla causa.
+      const espanso = ingredientiDaScaricare(ric, q, ricettario, chiaviInMagazzino)
+      for (const [k, g] of Object.entries(espanso.ings)) {
+        ings[k] = (ings[k] || 0) + g
+      }
+      for (const nd of espanso.nonEspandibili) {
+        if (!nonScaricabili.some(x => x.nome === nd.nome)) nonScaricabili.push(nd)
       }
     }
-    return { ings, fcTot, ricavoTot, stampiTot, nProdotti }
-  }, [qtaMap, vendibileMap, ricette, ingCosti, ricettario])
+    return { ings, fcTot, ricavoTot, stampiTot, nProdotti, nonScaricabili }
+  }, [qtaMap, vendibileMap, ricette, ingCosti, ricettario, chiaviInMagazzino])
 
   // Le chiavi con cui il magazzino è SALVATO, raggruppate per nome canonico.
   //
@@ -1032,6 +1053,25 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
                       )
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Righe su cui il magazzino non si può muovere. Audit 2026-09-09:
+                  prima venivano ignorate in silenzio, e il magazzino restava
+                  pieno senza che nessuno lo dicesse. Una base ('interno') non si
+                  espande perché le sue dosi sono tenute per sé dal
+                  laboratorio: il costo al kg e' scritto a mano e le quantita'
+                  non sono un dato su cui scalare le giacenze. */}
+              {riepilogo.nonScaricabili.length > 0 && !isDipendente && (
+                <div style={{ background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 10, padding: '14px 16px', marginBottom: 10 }}>
+                  <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.amber, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Icon name="warning" size={13} /> Queste non vengono scalate dal magazzino
+                  </div>
+                  {riepilogo.nonScaricabili.map(nd => (
+                    <div key={nd.nome} style={{ fontSize: typo.small.fontSize, color: C.textMid, marginBottom: 4, lineHeight: 1.5 }}>
+                      <b style={{ textTransform: 'capitalize', color: C.text }}>{nd.nome}</b>: {nd.motivo}
+                    </div>
+                  ))}
                 </div>
               )}
 
