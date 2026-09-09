@@ -178,7 +178,7 @@ describe('materie prime — dettagli confermati', () => {
       magazzino={{ uova: { giacenza_g: 2400, soglia_g: 1000, nome: 'Uova' } }}
       setMagazzino={() => {}} />)
     await waitFor(() => expect(v.container.textContent).toContain('Materie prime'))
-    fireEvent.click(v.getByLabelText('Elimina ingrediente'))
+    fireEvent.click(v.getByLabelText('Elimina Uova'))
     await waitFor(() => expect(v.container.textContent).toContain('Stai per eliminare'))
     expect(v.container.textContent).toContain('Uova')
     // E dice quello che conta: cosa succede alle ricette.

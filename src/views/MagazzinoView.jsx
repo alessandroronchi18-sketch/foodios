@@ -1219,10 +1219,19 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textMid, ...TNUM }}>
                         {r.costoG > 0 ? fmt0(r.riordinoG * r.costoG) : '-'}
                       </td>
-                      <td style={{ padding: '8px 14px', textAlign: 'right' }}>
+                      {/* Lo spazio a destra è riservato perché questa tabella
+                          non ha il pulsante di eliminazione, che nella tabella
+                          delle materie prime sta accanto a "Carica". Senza la
+                          riserva i pulsanti "Carica" delle due tabelle cadevano
+                          a 32px di distanza l'uno dall'altro, e a occhio si
+                          vedeva: sono la stessa azione, devono stare sulla
+                          stessa linea. Il valore si ricava dalle stesse misure
+                          del cestino, non da un numero scelto a mano. */}
+                      <td style={{ padding: '8px 10px', paddingRight: 10 + (isMobile ? 40 : 30) + 6, textAlign: 'right' }}>
                         <button onClick={() => { setQuickLoad(r.k); setFormMode('carico'); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
-                          style={{ padding: '5px 12px', borderRadius: 7, border: `1px solid ${C.red}`, background: C.redLight, color: C.red, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                          <Icon name="plus" size={12} />Carica
+                          title={`Carica ${r.nome} in magazzino`}
+                          style={{ padding: '0 10px', minHeight: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                          <Icon name="plus" size={11} />Carica
                         </button>
                       </td>
                     </tr>
@@ -1318,7 +1327,7 @@ export default function MagazzinoView({
                     <SortTH k="soglia" right active={magKey === 'soglia'} dir={magDir} onToggle={magToggle} tip="Soglia minima sotto la quale scatta l'alert di riordino">Soglia alert</SortTH>
                     <SortTH k="stato" active={magKey === 'stato'} dir={magDir} onToggle={magToggle}>Stato</SortTH>
                     <SortTH k="ultimoRif" right active={magKey === 'ultimoRif'} dir={magDir} onToggle={magToggle} tip="Data dell'ultimo rifornimento registrato">Ultimo riforn.</SortTH>
-                    <th style={{ padding: '10px 8px', borderBottom: `1px solid ${C.border}` }}></th>
+                    <th style={{ padding: '10px 10px', textAlign: 'right', fontSize: 12, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>Azioni</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1348,24 +1357,17 @@ export default function MagazzinoView({
                     ultimoRif: r.ultimoRif ? new Date(r.ultimoRif).getTime() : 0,
                   })[k] ?? 0).map((r, i) => (
                     <tr key={r.k} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
-                      {/* Il nome torna testo, l'azione diventa un pulsante.
+                      {/* Il nome è solo testo.
                           Prima tutta la cella era cliccabile e cambiava scheda,
-                          e l'unico indizio era una freccia ↗ a 11px con
-                          opacità 0,4 e un tooltip che diceva "precompila
-                          form": si cambiava pagina per sbaglio provando a
-                          selezionare il nome, e chi voleva farlo non poteva
-                          saperlo. Il pulsante è lo stesso della lista di
-                          riordino qui sopra, così l'azione si impara una volta. */}
+                          con come unico indizio una freccia a 11px e opacità
+                          0,4: si cambiava pagina per sbaglio provando a
+                          selezionare il nome. Poi il pulsante era finito qui
+                          accanto, e così non poteva incolonnarsi: con nomi di
+                          lunghezza diversa ogni pulsante finiva a un'ascissa
+                          diversa. Ora sta nella colonna delle azioni, in fondo
+                          alla riga, dove si allineano da soli. */}
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: quickLoad === r.k ? C.red : C.text, textTransform: 'capitalize' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                          {r.nome}
-                          <button
-                            onClick={() => { setQuickLoad(r.k); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
-                            title={`Carica ${r.nome} in magazzino`}
-                            style={{ padding: '0 9px', minHeight: isMobile ? 36 : 26, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', textTransform: 'none' }}>
-                            <Icon name="plus" size={11} />Carica
-                          </button>
-                        </span>
+                        {r.nome}
                       </td>
                       {/* A destra come la sua intestazione. Sei colonne su
                           nove avevano l'header a destra e i numeri al centro:
@@ -1398,7 +1400,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'right', ...TNUM }}>
                         {(r.stato === 'critico' || r.stato === 'esaurito' || r.stato === 'attenzione') && fmtRiordino(r.riordinoG) ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 8, background: statoBg(r.stato), color: statoColor(r.stato), fontWeight: 800, fontSize: 11 }}>
-                            <Icon name="truck" size={11} />~ {fmtRiordino(r.riordinoG)}
+                            <Icon name="truck" size={11} /><span style={{ whiteSpace: 'nowrap' }}>~ {fmtRiordino(r.riordinoG)}</span>
                           </span>
                         ) : (
                           <span style={{ color: C.textSoft }}>-</span>
@@ -1435,15 +1437,27 @@ export default function MagazzinoView({
                         )}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                        <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{statoLabel(r.stato)}</span>
+                        <span style={{ background: statoBg(r.stato), color: statoColor(r.stato), fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 10, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', display: 'inline-block' }}>{statoLabel(r.stato)}</span>
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textSoft, fontSize: 12 }}>
                         {r.ultimoRif ? new Date(r.ultimoRif).toLocaleDateString('it-IT') : '-'}
                       </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                        <button aria-label="Elimina ingrediente" onClick={() => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
-                          title="Elimina questo ingrediente"
-                          style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textSoft, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="trash" size={13} /></button>
+                      {/* Una colonna sola per le azioni, allineata a destra:
+                          i pulsanti di tutte le righe cadono sulla stessa
+                          ascissa, e si trovano guardando una volta invece di
+                          cercarli in mezzo ai nomi. */}
+                      <td style={{ padding: '6px 10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => { setQuickLoad(r.k); setFormIng(r.nome); setTab('carica'); focusQtyDeferred() }}
+                            title={`Carica ${r.nome} in magazzino`}
+                            style={{ padding: '0 10px', minHeight: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMid, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            <Icon name="plus" size={11} />Carica
+                          </button>
+                          <button aria-label={`Elimina ${r.nome}`} onClick={() => { setDeleteIngConf(r.k); setDeleteIngPin('') }}
+                            title="Elimina questo ingrediente"
+                            style={{ width: isMobile ? 40 : 30, height: isMobile ? 40 : 30, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textSoft, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="trash" size={13} /></button>
+                        </div>
                       </td>
                     </tr>
                   ))}

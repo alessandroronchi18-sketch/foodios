@@ -204,11 +204,29 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
 
     const ng = (giornaliero || []).filter(s => s.id !== sess.id)
     let nm = null
-    if (sess.ingredientiUsati && Object.keys(sess.ingredientiUsati).length > 0) {
+    // Si restituisce SOLO quello che era stato davvero scalato, e sulla stessa
+    // chiave da cui era stato scalato.
+    //
+    // Bug: il ramo `else` creava una voce NUOVA con la quantità teorica
+    // intera. Combinato con lo scarico che saltava le chiavi non canoniche
+    // faceva un danno doppio: si produceva e le uova non venivano scalate
+    // (chiave "uova" non trovata), poi si eliminava la sessione e nasceva una
+    // voce "uovo" con tutta la quantità. Produci e cancelli, e il magazzino è
+    // CRESCIUTO di merce che non e' mai entrata.
+    //
+    // Le sessioni vecchie non hanno `scalatoPerChiave`: per quelle si ricade
+    // sul comportamento precedente, ma senza mai creare voci nuove — restituire
+    // su una chiave inventata è proprio il modo in cui il magazzino si gonfia.
+    const daRestituire = sess.scalatoPerChiave && Object.keys(sess.scalatoPerChiave).length > 0
+      ? sess.scalatoPerChiave
+      : (sess.ingredientiUsati || {})
+    if (Object.keys(daRestituire).length > 0) {
       nm = { ...magazzino }
-      for (const [k, qty] of Object.entries(sess.ingredientiUsati)) {
-        if (nm[k]) nm[k] = { ...nm[k], giacenza_g: (nm[k].giacenza_g || 0) + qty }
-        else nm[k] = { nome: k, giacenza_g: qty, soglia_g: 0, ultimoRifornimento: null }
+      for (const [k, qty] of Object.entries(daRestituire)) {
+        const grezze = nm[k] ? [k] : (chiaviSalvate[normIng(k)] || [])
+        if (grezze.length === 0) continue   // niente da restituire: la voce non esiste più
+        const raw = grezze[0]
+        nm[raw] = { ...nm[raw], giacenza_g: (Number(nm[raw].giacenza_g) || 0) + qty }
       }
     }
 
@@ -320,7 +338,8 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     let fcTot = 0, ricavoTot = 0, stampiTot = 0, nProdotti = 0
     for (const ric of ricette) {
       const q = qtaMap[ric.nome] || 0
-      const qv = vendibileMap[ric.nome] || q
+      // Zero pezzi al banco vuol dire ricavo zero, non ricavo pieno.
+      const qv = vendibileMap[ric.nome] != null ? vendibileMap[ric.nome] : q
       if (!q && !qv) continue
       nProdotti++
       stampiTot += q
@@ -335,6 +354,23 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
     }
     return { ings, fcTot, ricavoTot, stampiTot, nProdotti }
   }, [qtaMap, vendibileMap, ricette, ingCosti, ricettario])
+
+  // Le chiavi con cui il magazzino è SALVATO, raggruppate per nome canonico.
+  //
+  // `riepilogo.ings` è indicizzato con `normIng`, che porta i plurali al
+  // singolare: "uova" diventa "uovo". Ma il magazzino conserva le chiavi come
+  // sono state scritte, e in produzione ce ne sono di non canoniche ("uova",
+  // "nocciole", "mirtilli", "mandorle", "noci" su un'azienda reale). Senza
+  // questa mappa, chi cerca `magazzino["uovo"]` non trova niente.
+  const chiaviSalvate = useMemo(() => {
+    const out = {}
+    for (const raw of Object.keys(magazzino || {})) {
+      const k = normIng(raw)
+      if (!out[k]) out[k] = []
+      out[k].push(raw)
+    }
+    return out
+  }, [magazzino])
 
   const problemi = useMemo(() => {
     return Object.entries(riepilogo.ings).filter(([k, qty]) => {
@@ -469,16 +505,60 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       return
     }
 
+    // Lo scarico deve trovare l'ingrediente anche se è salvato col nome
+    // vecchio, e va registrato QUANTO si è scalato davvero.
+    //
+    // Bug: `if (nm[k])` saltava in silenzio ogni ingrediente la cui chiave in
+    // magazzino non fosse canonica. Su un'azienda reale sono cinque su
+    // trentacinque: si produceva, il food cost veniva calcolato, e le uova non
+    // venivano mai scalate. La giacenza restava quella di sempre, e nessuno
+    // poteva accorgersene guardando la pagina.
+    //
+    // Si tiene anche traccia di quanto e' stato effettivamente sottratto per
+    // chiave, così l'eliminazione della sessione può restituire esattamente
+    // quello — e non una quantità teorica su una chiave inventata.
     const nm = { ...(magazzino || {}) }
+    const scalatoPerChiave = {}
+    const nonTrovati = []
+    let erroriMovimenti = []
     for (const [k, qty] of Object.entries(riepilogo.ings)) {
-      if (nm[k]) nm[k] = { ...nm[k], giacenza_g: Math.max(0, (nm[k].giacenza_g || 0) - qty) }
+      const grezze = chiaviSalvate[k] && chiaviSalvate[k].length ? chiaviSalvate[k] : (nm[k] ? [k] : [])
+      if (grezze.length === 0) { nonTrovati.push(k); continue }
+      // Con più voci per lo stesso ingrediente si scala in ordine, fino a
+      // esaurire la quantità: non si spalma a caso e non si va sotto zero su
+      // una voce mentre un'altra resta piena.
+      let residuo = qty
+      for (const raw of grezze) {
+        if (residuo <= 0) break
+        const disp = Number(nm[raw]?.giacenza_g) || 0
+        const preso = Math.min(disp, residuo)
+        if (preso <= 0) continue
+        nm[raw] = { ...nm[raw], giacenza_g: disp - preso }
+        scalatoPerChiave[raw] = (scalatoPerChiave[raw] || 0) + preso
+        residuo -= preso
+      }
+      // Quello che non c'era resta segnato: la merce e' uscita comunque, e
+      // sapere che la giacenza era già insufficiente serve a capire perché.
+      if (residuo > 0) {
+        const raw = grezze[0]
+        const disp = Number(nm[raw]?.giacenza_g) || 0
+        nm[raw] = { ...nm[raw], giacenza_g: disp - residuo }
+        scalatoPerChiave[raw] = (scalatoPerChiave[raw] || 0) + residuo
+      }
     }
     const sess = {
       id: `g-${Date.now()}`, data,
       prodotti: ricette.filter(r => (qtaMap[r.nome] || 0) > 0 || (vendibileMap[r.nome] || 0) > 0).map(r => ({
-        nome: r.nome, stampi: qtaMap[r.nome] || 0, vendibile: vendibileMap[r.nome] || qtaMap[r.nome] || 0, congelabile: isCongelabile(r.nome),
+        nome: r.nome, stampi: qtaMap[r.nome] || 0, vendibile: vendibileMap[r.nome] != null ? vendibileMap[r.nome] : (qtaMap[r.nome] || 0), congelabile: isCongelabile(r.nome),
       })),
-      note: sessNote, ingredientiUsati: riepilogo.ings, fcTot: riepilogo.fcTot, ricavoTot: riepilogo.ricavoTot,
+      note: sessNote,
+      // `ingredientiUsati` resta per compatibilità con le sessioni vecchie e
+      // con la modifica, ma si salva anche cosa e' stato scalato DAVVERO e da
+      // quale chiave: è l'unica informazione con cui l'eliminazione può
+      // restituire la quantita' giusta al posto giusto.
+      ingredientiUsati: riepilogo.ings,
+      scalatoPerChiave,
+      fcTot: riepilogo.fcTot, ricavoTot: riepilogo.ricavoTot,
       destinazioneSedeId: destinazioneSedeId || null,
       destinazioneSedeNome: destinazioneSedeId ? (sediMapProd[destinazioneSedeId]?.nome || null) : null,
     }
@@ -504,7 +584,11 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
       const sedeDest = destinazioneSedeId && destinazioneSedeId !== sedeProduttiva ? destinazioneSedeId : null
       for (const r of ricette) {
         const stampi = qtaMap[r.nome] || 0
-        const vendibile = vendibileMap[r.nome] || stampi
+        // Zero è una risposta, non un campo vuoto: `|| stampi` la
+        // sovrascriveva. Chi produce dieci stampi e mette a banco zero pezzi
+        // (tutto in congelatore, o tutto scartato) si vedeva caricare in
+        // vetrina dieci stampi di merce che non c'è.
+        const vendibile = vendibileMap[r.nome] != null ? vendibileMap[r.nome] : stampi
         if (vendibile <= 0) continue
         const reg = getR(r.nome, r)
         const unitaFactor = Number(reg.unita)
@@ -525,14 +609,27 @@ export default function ProduzioneGiornalieraView({ ricettario, magazzino, setMa
           }
         }
       }
-      if (stockErrors.length || transferErrors.length) {
-        notify('Alcuni movimenti stock falliti: ' + [...stockErrors, ...transferErrors].slice(0, 2).join('; '), false)
-      }
+      erroriMovimenti = [...stockErrors, ...transferErrors]
     }
 
     setQtaMap({}); setVendMap({}); setSessNote(''); setConfermando(false); setSalvando(false)
-    const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id ? ` - trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}` : ''
-    notify(`Produzione registrata${msgDest} - magazzino e stock vetrina aggiornati`)
+    // UN SOLO messaggio.
+    //
+    // Prima l'avviso sui movimenti falliti veniva emesso qui sopra e subito
+    // dopo arrivava "magazzino e stock vetrina aggiornati": la barra dei
+    // messaggi ne mostra uno alla volta, quindi il secondo cancellava il primo.
+    // L'utente leggeva che era tutto a posto proprio quando non lo era, e la
+    // vetrina restava senza quei prodotti senza che nessuno lo sapesse.
+    const msgDest = destinazioneSedeId && destinazioneSedeId !== sedeAttiva?.id ? ` · trasferimento inviato a ${sediMapProd[destinazioneSedeId]?.nome || 'destinazione'}` : ''
+    if (erroriMovimenti.length > 0) {
+      notify(`Produzione registrata${msgDest}, ma ${erroriMovimenti.length === 1 ? 'un prodotto non' : `${erroriMovimenti.length} prodotti non`} sono entrati nello stock vetrina: ${erroriMovimenti.slice(0, 2).join('; ')}. Sistemali da Magazzino, scheda Prodotti finiti.`, false)
+    } else if (nonTrovati.length > 0) {
+      // Gli ingredienti che in magazzino non ci sono: la produzione è salva,
+      // ma il food cost li ha contati e la giacenza no.
+      notify(`Produzione registrata${msgDest}. ${nonTrovati.length === 1 ? 'Un ingrediente non era' : `${nonTrovati.length} ingredienti non erano`} in magazzino, quindi non ${nonTrovati.length === 1 ? 'e\' stato' : 'sono stati'} scalati: ${nonTrovati.slice(0, 3).join(', ')}.`, false)
+    } else {
+      notify(`Produzione registrata${msgDest} · magazzino e stock vetrina aggiornati`)
+    }
     setTab('storico')
   }
 
