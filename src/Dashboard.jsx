@@ -3432,7 +3432,7 @@ export default function Dashboard({
         {view==="registro-attivita"&&<RegistroAttivita orgId={orgId} sedi={sedi} notify={notify}/>}
 
         {/* Perdite & cessioni - titolare e dipendente, per-sede */}
-        {view==="sprechi-omaggi"&&!isAllSedi&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} auth={auth} notify={notify}/>}
+        {view==="sprechi-omaggi"&&!isAllSedi&&<SpreciOmaggi orgId={orgId} sedeId={sedeId} sedeAttiva={sedeAttiva} ricettario={ricettario} chiusure={chiusure} auth={auth} notify={notify}/>}
 
         {/* Ricettario - mostra upload se non ancora caricato */}
         {view==="ricettario"&&!ricettario&&(

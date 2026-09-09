@@ -122,3 +122,45 @@ describe('lo scarico della vetrina non fallisce piu in silenzio', () => {
     expect(pagina).toMatch(/non ho potuto scaricarla dalla vetrina/)
   })
 })
+
+// ── Numeri inventati nella diagnosi ──────────────────────────────────────────
+
+describe('incidenza e costo unitario — due numeri che erano inventati', () => {
+  const pagina = readFileSync(join(RADICE, 'src', 'components', 'SpreciOmaggi.jsx'), 'utf8')
+
+  it('l incidenza si calcola sul food cost vero delle chiusure', () => {
+    // Il denominatore era la somma del food cost di UNA unità di OGNI ricetta
+    // del ricettario: per Mara 27 ricette per 50,43 € in tutto. Quindi 150 € di
+    // prodotto buttato uscivano come "297%", e il banner della soglia (3% e 8%)
+    // dava il suo verdetto su quel numero. Ad aprile l'incidenza vera era 3,0%.
+    expect(pagina).not.toMatch(/fcMeseStimato/)
+    expect(pagina).toMatch(/const fcPeriodo = useMemo/)
+    expect(pagina).toMatch(/foodcostNoto\(c\)/)
+    expect(pagina).toMatch(/kpi\?\.totFC/)
+  })
+
+  it('senza chiusure non mostra una percentuale, dice cosa manca', () => {
+    expect(pagina).toMatch(/incidenza = fcPeriodo\.noto \?/)
+    expect(pagina).toMatch(/Serve la chiusura di cassa/)
+    expect(pagina).toMatch(/registra le chiusure e il conto si fa da sé/)
+  })
+
+  it('il costo unitario non si suggerisce su unita presunte', () => {
+    // Divideva il food cost per `reg.unita`, che per 24 delle 27 ricette di Mara
+    // non esiste nei dati e veniva dal fallback di getR (8 unità presunte):
+    // PISTACCHIO proponeva 0,289 € "al pezzo" su un batch da 2,31 €, e ABIS
+    // (unita=1) proponeva 2,417 €. Otto volte di differenza per la stessa cosa.
+    expect(pagina).toMatch(/reg\?\.senzaRegola \|\| !\(reg\?\.unita > 0\)/)
+    expect(pagina).toMatch(/fcUnit: null/)
+    expect(pagina).toMatch(/non hai indicato quante porzioni/)
+  })
+
+  it('dichiara quando il costo suggerito e incompleto o stimato', () => {
+    // Mara ha 6 prezzi veri su 422: il resto è listino medio di mercato.
+    expect(pagina).toMatch(/isStima/)
+    expect(pagina).toMatch(/è più basso del vero/)
+    expect(pagina).toMatch(/prezzi medi di mercato, non i tuoi/)
+    // E il motivo si vede sotto il campo, dove si prende la decisione.
+    expect(pagina).toMatch(/\{motivoCosto\}/)
+  })
+})

@@ -29,7 +29,7 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { KPI, SH, PageHeader } from '../views/_shared'
-import { buildIngCosti, calcolaFC, getR, isRicettaValida } from '../lib/foodcost'
+import { buildIngCosti, calcolaFC, getR, isRicettaValida, normIng } from '../lib/foodcost'
 import { sload } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { todayLocal } from '../lib/dateLocal'
@@ -38,6 +38,7 @@ import {
   filtraPerIntervallo,
   contaDateIlleggibili,
 } from '../lib/movimentiSpeciali'
+import { foodcostNoto } from '../lib/chiusure'
 import { scartoPF } from '../lib/stockPF'
 
 const SK_DISCREPANZE = 'pasticceria-discrepanze-v1'
@@ -142,7 +143,7 @@ function normalizzaLegacy(it) {
   }
 }
 
-export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, auth, notify }) {
+export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, chiusure = [], auth, notify }) {
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
   const confirmDialog = useConfirm()
@@ -276,18 +277,33 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
     return { ricavi, pct, livello }
   }, [chiusureMese, mese, diag.totPerso, isDip])
 
-  // Food cost del mese (dal ricettario reale) - per l'incidenza % della perdita.
-  // Solo titolare: il dipendente ha ricettario sanitizzato (FC=0) → niente diagnosi.
-  const fcMeseStimato = useMemo(() => {
-    if (isDip) return 0
-    let tot = 0
-    for (const r of Object.values(ricettario?.ricette || {})) {
-      if (!isRicettaValida(r.nome)) continue
-      const { tot: t } = calcolaFC(r, ingCosti, ricettario)
-      if (Number.isFinite(t)) tot += t
+  // Food cost del periodo, per l'incidenza % della perdita.
+  //
+  // Audit 2026-09-09 ALTA: qui il denominatore era la somma del food cost di UNA
+  // unità di OGNI ricetta del ricettario. Non ha relazione con quanto si è
+  // consumato in un mese: per Mara sono 27 ricette per un totale di 50,43 €,
+  // quindi 150 € di prodotto buttato uscivano come "297%" di incidenza — e il
+  // banner della soglia, che scatta a 3% e 8%, diceva comunque il suo verdetto
+  // su quel numero. Ad aprile l'incidenza vera era il 3,0%.
+  //
+  // Il food cost consumato per davvero sta nelle chiusure di cassa
+  // (kpi.totFC, con foodcostNoto che dice se è affidabile): è lo stesso dato che
+  // usa il P&L. Se per il periodo non ci sono chiusure con food cost noto, non
+  // c'è un denominatore, e allora non si mostra nessuna percentuale.
+  const fcPeriodo = useMemo(() => {
+    if (isDip) return { valore: 0, giorni: 0, noto: false }
+    let valore = 0, giorni = 0
+    for (const c of (chiusure || [])) {
+      if (!c?.data) continue
+      const d = String(c.data).slice(0, 10)
+      if (da && d < da) continue
+      if (a && d > a) continue
+      if (!foodcostNoto(c)) continue
+      valore += Number(c.kpi?.totFC) || 0
+      giorni++
     }
-    return tot
-  }, [ricettario, ingCosti, isDip])
+    return { valore, giorni, noto: giorni > 0 && valore > 0 }
+  }, [chiusure, da, a, isDip])
 
   // Lista del giorno del dipendente (calcolata sempre, usata solo nel ramo isDip
   // - gli hook restano incondizionati per non violare le rules of hooks).
@@ -299,29 +315,72 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
 
   // Incidenza % della perdita sul food cost: heuristica grezza ma utile come ordine
   // di grandezza. Manteniamo soglie semaforo prudenti.
-  const incidenza = fcMeseStimato > 0 ? (diag.totPerso / fcMeseStimato * 100) : 0
-  const incColor = incidenza <= 3 ? C.green : incidenza <= 8 ? C.amber : C.red
-  const incLabel = incidenza <= 3 ? 'Sotto controllo' : incidenza <= 8 ? 'Da tenere d’occhio' : 'Alto - indagare'
+  const incidenza = fcPeriodo.noto ? (diag.totPerso / fcPeriodo.valore * 100) : null
+  const incColor = incidenza == null ? C.textSoft : incidenza <= 3 ? C.green : incidenza <= 8 ? C.amber : C.red
+  const incLabel = incidenza == null
+    ? 'Serve la chiusura di cassa'
+    : incidenza <= 3 ? 'Sotto controllo' : incidenza <= 8 ? 'Da tenere d’occhio' : 'Alto - indagare'
 
   // Suggerimento fc unitario dalla ricetta quando il "Cosa" combacia.
+  // Audit 2026-09-09 ALTA: questo divideva il food cost della ricetta per
+  // `reg.unita`, che per 24 delle 27 ricette di Mara NON esiste nei dati e
+  // arrivava dal fallback di getR (8 unità presunte). Risultato: PISTACCHIO
+  // (senza unita) proponeva 0,289 € "al pezzo" mentre il suo batch da 1 kg
+  // costa 2,31 €, e ABIS (che ha unita=1) proponeva 2,417 €. Due gusti, la
+  // stessa cosa fisica, 8 volte di differenza — e il numero finisce nel valore
+  // della perdita, quindi nella diagnosi.
+  // Ora: se l'unità di vendita non è un dato vero, il costo unitario non si
+  // propone. Meglio un campo vuoto da compilare che un numero inventato.
+  // Si dichiara anche quando il food cost della ricetta è incompleto o stimato:
+  // Mara ha 6 prezzi veri su 422, il resto è listino medio di mercato.
   const autoFcDaRicetta = (nome) => {
     const ric = ricettario?.ricette?.[(nome || '').toUpperCase().trim()] || ricettario?.ricette?.[nome]
     if (!ric) return null
     const reg = getR(ric.nome, ric)
-    const { tot } = calcolaFC(ric, ingCosti, ricettario)
-    if (!Number.isFinite(tot) || !reg?.unita) return null
-    return { fcUnit: tot / reg.unita, unita: 'pz', categoria: ric.categoria || '', prezzo: reg.prezzo || 0 }
+    const { tot, mancanti } = calcolaFC(ric, ingCosti, ricettario)
+    if (!Number.isFinite(tot) || tot <= 0) return null
+    // `senzaRegola` (foodcost.js:getR) dice che unita e prezzo non sono
+    // dell'azienda: sono il fallback. Senza un'unità vera non c'è un costo
+    // unitario da suggerire.
+    if (reg?.senzaRegola || !(reg?.unita > 0)) {
+      return {
+        fcUnit: null,
+        unita: 'pz',
+        categoria: ric.categoria || '',
+        prezzo: null,
+        motivo: `Per "${ric.nome}" non hai indicato quante porzioni vengono da una preparazione, quindi non posso calcolare il costo di una. Scrivilo tu, oppure impostalo nella ricetta.`,
+      }
+    }
+    const stimato = (ric.ingredienti || []).some(i => ingCosti?.[normIng(i.nome)]?.isStima)
+    return {
+      fcUnit: tot / reg.unita,
+      unita: 'pz',
+      categoria: ric.categoria || '',
+      prezzo: reg.prezzo || 0,
+      motivo: mancanti.length > 0
+        ? `Nel food cost di "${ric.nome}" manca il prezzo di ${mancanti.slice(0, 2).join(', ')}: il costo che ti propongo è più basso del vero.`
+        : stimato
+          ? `Il costo di "${ric.nome}" usa in parte i prezzi medi di mercato, non i tuoi.`
+          : null,
+    }
   }
 
   const apri = (tipo) => setForm({ ...nuovoMovimento(tipo), causale: CAUSALI[tipo][0].id })
 
+  // Motivo per cui il costo suggerito va preso con cautela (o non c'è): mostrato
+  // sotto il campo, così la spiegazione sta dove serve la decisione.
+  const [motivoCosto, setMotivoCosto] = useState(null)
+
   const onProdottoChange = (nome) => {
     const auto = autoFcDaRicetta(nome)
+    setMotivoCosto(auto?.motivo || null)
     setForm(f => ({
       ...f,
       prodotto: nome,
       ...(auto ? {
-        fcUnit: auto.fcUnit.toFixed(3),
+        // fcUnit null = non abbiamo un'unità vera: il campo resta da compilare
+        // invece di riempirsi con un numero che nessuno ha misurato.
+        ...(auto.fcUnit != null ? { fcUnit: auto.fcUnit.toFixed(3) } : { fcUnit: '' }),
         unita: auto.unita,
         categoria: auto.categoria,
         ...(f.tipo === 'omaggio' && !f.valoreOmaggio && auto.prezzo ? { valoreOmaggio: String(auto.prezzo) } : {}),
@@ -497,7 +556,14 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         <div>
           <label style={labelS}>Costo unitario (€/{form.unita || 'unità'})</label>
           <input style={inputS} type="number" min="0" step="0.001" value={form.fcUnit || ''}
-            onChange={e => setForm(f => ({ ...f, fcUnit: e.target.value }))} placeholder="0.012" />
+            aria-label={`Costo unitario in euro per ${form.unita || 'unità'}`}
+            onChange={e => setForm(f => ({ ...f, fcUnit: e.target.value }))} placeholder="0,012" />
+          {/* Perché il numero non c'è, o perché va preso con cautela. Sta qui e
+              non in un tooltip: è il momento in cui si decide quanto vale la
+              perdita, e da lì il numero entra nella diagnosi. */}
+          {motivoCosto && (
+            <div style={{ fontSize: typo.small.fontSize, color: C.amber, lineHeight: 1.5, marginTop: 5 }}>{motivoCosto}</div>
+          )}
         </div>
         {form.tipo === 'omaggio' && (
           <div>
@@ -628,8 +694,11 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 14 }}>
         <KPI icon={<Icon name="trendDown" size={18} />} label="Perdita totale del mese" value={fmt0(diag.totPerso)} highlight
           sub={`${fmt0(diag.valSpreco)} perdite · ${fmt0(diag.valOmaggio)} omaggi`} />
-        <KPI icon={<Icon name="receipt" size={18} />} label="Incidenza sul food cost" value={fcMeseStimato > 0 ? fmtp(incidenza) : '-'} color={incColor}
-          sub={fcMeseStimato > 0 ? incLabel : 'food cost non disponibile'} />
+        <KPI icon={<Icon name="receipt" size={18} />} label="Incidenza sul food cost"
+          value={incidenza == null ? '—' : fmtp(incidenza)} color={incColor}
+          sub={incidenza == null
+            ? 'registra le chiusure e il conto si fa da sé'
+            : `${incLabel} · su ${fcPeriodo.giorni} ${fcPeriodo.giorni === 1 ? 'giorno' : 'giorni'} di cassa`} />
         <KPI icon={<Icon name="warning" size={18} />} label="Causa principale" value={diag.causaPrinc ? (CAUSALE_LABEL[diag.causaPrinc.id] || diag.causaPrinc.id) : '-'} color={T.text}
           sub={diag.causaPrinc ? `${fmtp(diag.causaPct)} · ${fmt0(diag.causaPrinc.eur)}` : 'nessun evento'} />
         <KPI icon={<Icon name="clipboard" size={18} />} label="Eventi nel mese" value={fmtN(diag.nTot)} color={T.brand}
