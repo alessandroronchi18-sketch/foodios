@@ -11,6 +11,7 @@ import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/
 import { buildIngCosti, calcolaFC, calcolaFCDettaglio, getR, isRicettaValida, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
+import { trovaBasiNonDichiarate } from '../lib/basiNonDichiarate'
 import FotoOCR from '../components/FotoOCR'
 import Icon from '../components/Icon'
 import { C, KPI, SH, PageHeader, Tip, Badge, TNUM, useSortable, SortTH } from './_shared'
@@ -196,6 +197,18 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
   const isTablet = useIsTablet()
   const ingCosti = useMemo(() => buildIngCosti(ricettario?.ingredienti_costi || {}), [ricettario])
 
+  // Ricette che l'azienda usa come ingrediente senza averle dichiarate basi.
+  // Audit 2026-09-09: BASE BIANCA e' usata in 15 ricette del ricettario di Mara
+  // ma non ha tipo 'semilavorato', quindi calcolaFC ne prende il costo dal
+  // listino (2,31 EUR/kg) invece che dalla sua ricetta (1,62 EUR/kg). Questa
+  // pagina, che elenca solo chi ha già il tipo giusto, diceva "1 base interna"
+  // e "Il più usato: nessun utilizzo" mentre la base della gelateria era
+  // altrove e costava il 42% in più del dovuto.
+  const basiDaDichiarare = useMemo(
+    () => trovaBasiNonDichiarate(ricettario, ingCosti),
+    [ricettario, ingCosti])
+  const [candidatiAperti, setCandidatiAperti] = useState(false)
+
   // ── Modello dati arricchito: costo, peso, reverse-lookup "dove è usato" ──────
   const semilavorati = useMemo(() => {
     const ricette = ricettario?.ricette || {}
@@ -278,6 +291,18 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
   }
 
   const [saving, setSaving] = useState(false)
+  // Nome rifiutato perché appartiene a un prodotto che si vende: teniamo i
+  // dettagli per poterli mostrare, invece di un "no" senza spiegazione.
+  const [bloccoNome, setBloccoNome] = useState(null)
+
+  // Quante ricette usano questo nome come ingrediente. Serve per dire cosa si
+  // sta toccando: la stessa informazione che il pannello di eliminazione mostra.
+  const contaUsiComeIngrediente = (nome) => {
+    const k = normIng(nome)
+    return Object.values(ricettario?.ricette || {})
+      .filter(r => r.nome !== nome && (r.ingredienti || []).some(i => normIng(i.nome) === k))
+      .length
+  }
   const doSaveSemi = async () => {
     if (saving) return
     setSaving(true)
@@ -287,7 +312,18 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
     // congelabile. Sui 7 semilavorati reali ne colpiva 3, tra cui la PASTA
     // FROLLA usata in 3 crostate, che perdeva proprio gli allergeni. Ora si
     // parte da quello che c'e' e si sovrascrivono solo i campi del form.
-    const precedente = ricettario?.ricette?.[editMode || nomeSalvato] || {}
+    // Audit 2026-09-09 (terzo giro): `[editMode || nomeSalvato]` prendeva sempre
+    // la ricetta VECCHIA quando si era in modifica, anche se il nome nel form era
+    // cambiato. Rinominando CREMA PASTICCERA in PASTA FROLLA (nome che esiste
+    // già), i campi scritti sopra PASTA FROLLA erano quelli di CREMA PASTICCERA:
+    // PASTA FROLLA perdeva i suoi allergeni ("glutine", "latte", "uova") perché
+    // l'altra non ne ha. Cioè la stessa perdita di allergeni corretta stamattina,
+    // che però reggeva solo finché il nome non cambiava.
+    // La regola giusta: i campi da conservare sono quelli della ricetta che sta
+    // AL POSTO dove stiamo scrivendo. Se lì non c'è niente, quelli di partenza.
+    const destinazione = ricettario?.ricette?.[nomeSalvato]
+    const partenza = editMode ? ricettario?.ricette?.[editMode] : null
+    const precedente = destinazione || partenza || {}
     const nuovaRic = {
       ...precedente,
       nome: nomeSalvato,
@@ -342,12 +378,64 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
     return tipo !== 'semilavorato' && tipo !== 'interno'
   })()
 
+  // Dichiara base una ricetta che l'azienda usa già come ingrediente. Non tocca
+  // gli ingredienti né il nome: cambia solo il tipo, che è l'unica cosa che
+  // mancava. `unita` e `prezzo` vanno a 0 come per ogni base (non si vende).
+  const dichiaraBase = async (candidato) => {
+    if (saving) return
+    setSaving(true)
+    try {
+      const r = ricettario?.ricette?.[candidato.nome]
+      if (!r) { notify('Non trovo più questa ricetta, ricarica la pagina', false); return }
+      const nuovoRic = {
+        ...(ricettario || {}),
+        ricette: {
+          ...(ricettario?.ricette || {}),
+          [candidato.nome]: { ...r, tipo: 'semilavorato', unita: 0, prezzo: 0 },
+        },
+      }
+      await onSave(nuovoRic, {}, true)
+      // Il food cost delle ricette che la usano cambia da adesso: va detto,
+      // perché il numero si muove senza che l'utente abbia toccato le ricette.
+      notify(`"${candidato.nome}" ora è una base. Il food cost di ${candidato.nUsi} ${candidato.nUsi === 1 ? 'ricetta' : 'ricette'} si ricalcola sulla sua ricetta.`)
+    } catch (e) {
+      if (!e?.giaNotificato) notify('Non ho potuto salvare: ' + (e?.message || 'errore di rete'), false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleSave = () => {
     if (!form.nome.trim() || form.ingredienti.length === 0) { notify('Inserisci nome e almeno un ingrediente', false); return }
     const nomeUp = form.nome.trim().toUpperCase()
     const esiste = ricettario?.ricette?.[nomeUp]
     const isEditing = editMode === nomeUp
-    if (esiste && !isEditing) { setOverwriteConf(nomeUp) } else { doSaveSemi() }
+    // Audit 2026-09-09 ALTA: questa conferma accettava il nome di QUALSIASI
+    // ricetta. Bastava scrivere NOCCIOLA (o CARAMELLO, o LIMONE: nomi di gusti
+    // che Mara ha davvero) e confermare due parole, e il gusto diventava una
+    // base: tipo 'semilavorato', prezzo e unità a zero, ingredienti sostituiti.
+    // Da quel momento spariva da inventario di produzione, formati di vendita,
+    // sprechi, P&L, chiusura cassa, vendite B2B, simulatore prezzi e ricettario
+    // (dieci file lo escludono per tipo).
+    // Spiegarlo nel dialogo non basta: la conferma resta a un clic e il gesto è
+    // quello di chi sta creando una base nuova, non di chi vuole cancellare un
+    // gusto. Quindi qui NON si passa: si chiede un altro nome. Per trasformare
+    // davvero un prodotto in base si va sulla sua scheda, dove si vede cosa è.
+    if (esiste && !isEditing) {
+      const tipoEsistente = getR(nomeUp, esiste).tipo
+      if (tipoEsistente !== 'semilavorato' && tipoEsistente !== 'interno') {
+        const nIng = (esiste.ingredienti || []).length
+        setBloccoNome({
+          nome: nomeUp,
+          nIng,
+          usato: contaUsiComeIngrediente(nomeUp),
+        })
+        return
+      }
+      setOverwriteConf(nomeUp)
+      return
+    }
+    doSaveSemi()
   }
 
   const handleDelete = async nome => {
@@ -397,6 +485,78 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
         subtitle="Impasti, creme e basi interne: quanto ti costano al kg e in quali prodotti finiscono."
         action={headerAction}
       />
+
+      {/* Ricette che sono basi di fatto ma non lo dicono al sistema.
+          Il food cost che ne dipende e' sbagliato finche' non lo sono. */}
+      {basiDaDichiarare.length > 0 && (
+        <div style={{ background: T.bgCard, border: `1px solid ${C.amber}55`, borderRadius: 14, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 20, boxShadow: S.lg }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ flexShrink: 0, marginTop: 2, color: C.amber }}><Icon name="lightbulb" size={18} /></span>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: C.text, letterSpacing: '-0.01em', marginBottom: 3 }}>
+                {basiDaDichiarare.length === 1
+                  ? `"${basiDaDichiarare[0].nome}" è una base, ma il sistema non lo sa`
+                  : `${basiDaDichiarare.length} ricette sono basi, ma il sistema non lo sa`}
+              </div>
+              <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.55 }}>
+                {basiDaDichiarare.length === 1
+                  ? <>La usi come ingrediente in {basiDaDichiarare[0].nUsi} ricette. Finché non è dichiarata base, il suo costo viene preso dal listino invece che dalla sua ricetta: il food cost di quelle ricette è sbagliato.</>
+                  : <>Le usi come ingrediente in altre ricette. Finché non sono dichiarate basi, il loro costo viene preso dal listino invece che dalla loro ricetta.</>}
+              </div>
+            </div>
+            <button type="button" onClick={() => setCandidatiAperti(v => !v)}
+              aria-expanded={candidatiAperti}
+              style={{ padding: '10px 16px', minHeight: 40, borderRadius: 8, border: 'none', background: T.brand, color: '#fff', fontSize: typo.small.fontSize, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+              <Icon name={candidatiAperti ? 'x' : 'chevDown'} size={14} />
+              {candidatiAperti ? 'Chiudi' : 'Guarda quali'}
+            </button>
+          </div>
+
+          {candidatiAperti && (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {basiDaDichiarare.map(b => (
+                <div key={b.nome} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', background: T.bgCard }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: C.text, marginBottom: 5 }}>{b.nome}</div>
+                  <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.6, marginBottom: 8 }}>
+                    Usata in <b>{b.nUsi} {b.nUsi === 1 ? 'ricetta' : 'ricette'}</b>: {b.usataIn.slice(0, 4).join(', ')}{b.usataIn.length > 4 ? ` e altre ${b.usataIn.length - 4}` : ''}.
+                  </div>
+                  {b.costoKgDaListino != null && (
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+                      <span style={{ fontSize: typo.small.fontSize, color: C.textMid, background: C.bgSubtle, borderRadius: 6, padding: '5px 9px', ...TNUM }}>
+                        oggi la paghi {fmtKg(b.costoKgDaListino)}
+                      </span>
+                      <span style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: b.differenzaKg > 0 ? C.green : C.textMid, background: b.differenzaKg > 0 ? C.greenLight : C.bgSubtle, borderRadius: 6, padding: '5px 9px', ...TNUM }}>
+                        la sua ricetta costa {fmtKg(b.costoKgDaRicetta)}
+                      </span>
+                      {b.differenzaKg > 0 && (
+                        <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, padding: '5px 0' }}>
+                          {fmtKg(b.differenzaKg)} in meno al kg
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {b.autoCiclo && (
+                    <div style={{ fontSize: typo.small.fontSize, color: C.amber, lineHeight: 1.55, marginBottom: 8 }}>
+                      Attenzione: fra i suoi ingredienti c'è una riga con lo stesso nome — la versione
+                      comprata, non questa ricetta. Quella riga continuerà a costare come da listino,
+                      ed è giusto: è un prodotto diverso che si chiama uguale.
+                    </div>
+                  )}
+                  {b.costoIncompleto && (
+                    <div style={{ fontSize: typo.small.fontSize, color: C.amber, lineHeight: 1.55, marginBottom: 8 }}>
+                      Dentro questa ricetta manca il prezzo di {b.mancanti.slice(0, 3).join(', ')}: il costo che vedi è più basso del vero.
+                    </div>
+                  )}
+                  <button type="button" onClick={() => dichiaraBase(b)} disabled={saving}
+                    style={{ padding: '10px 16px', minHeight: 40, borderRadius: 8, border: 'none', background: saving ? C.borderStr : T.brand, color: '#fff', fontSize: typo.small.fontSize, fontWeight: 800, cursor: saving ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="package" size={14} /> Dichiarala base
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ① DIAGNOSI */}
       <div style={{ display: 'grid', gridTemplateColumns: kpiCols, gap: isMobile ? 10 : 16, marginBottom: 26 }}>
@@ -611,6 +771,24 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
                       <div style={{ fontSize: 15, fontWeight: 800, color: c, ...TNUM }}>{val}</div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {bloccoNome && (
+                <div style={{ padding: '12px 14px', background: C.redLight, border: `2px solid ${C.red}`, borderRadius: 10, marginBottom: 10 }}>
+                  <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.red, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Icon name="warning" size={14} /> "{bloccoNome.nome}" è un prodotto che vendi, non una base
+                  </div>
+                  <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.55, marginBottom: 9 }}>
+                    Ha {bloccoNome.nIng === 1 ? 'un ingrediente' : `${bloccoNome.nIng} ingredienti`}
+                    {bloccoNome.usato > 0 && <> ed è usato in {bloccoNome.usato} {bloccoNome.usato === 1 ? 'ricetta' : 'ricette'}</>}.
+                    Salvandolo come base perderebbe prezzo e unità, e sparirebbe da inventario, cassa, formati di vendita e conto economico.
+                    <b> Scegli un altro nome.</b> Se vuoi davvero trasformarlo in una base, fallo dalla sua scheda nel ricettario, dove vedi cosa stai cambiando.
+                  </div>
+                  <button onClick={() => setBloccoNome(null)}
+                    style={{ padding: '9px 14px', minHeight: 40, background: C.white, border: `1px solid ${C.borderStr}`, borderRadius: 8, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>
+                    Ho capito, cambio nome
+                  </button>
                 </div>
               )}
 

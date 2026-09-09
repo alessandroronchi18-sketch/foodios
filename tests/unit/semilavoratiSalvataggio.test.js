@@ -28,8 +28,10 @@ describe('Semilavorati — il salvataggio non butta via campi', () => {
     const i = src.indexOf('const doSaveSemi = async () => {')
     expect(i).toBeGreaterThan(-1)
     const fn = src.slice(i, i + 1800)
-    // La riga che risolve il difetto: si riparte da quello che c'e' in archivio.
-    expect(fn).toMatch(/const precedente = ricettario\?\.ricette\?\.\[editMode \|\| nomeSalvato\] \|\| \{\}/)
+    // La riga che risolve il difetto: si riparte da quello che c'è in archivio,
+    // non da un oggetto vuoto. (La scelta di QUALE ricetta è affinata nel terzo
+    // giro di audit, più sotto: destinazione prima, partenza come ripiego.)
+    expect(fn).toMatch(/const precedente = destinazione \|\| partenza \|\| \{\}/)
     // E lo spread deve venire PRIMA dei campi del form, altrimenti li sovrascrive.
     const posSpread = fn.indexOf('...precedente')
     const posNome = fn.indexOf('nome: nomeSalvato')
@@ -133,5 +135,42 @@ describe('Semilavorati — rinominare, sovrascrivere, e il messaggio d errore', 
     // della view sostituiva quello del Dashboard, che è l'unico a dire che
     // esiste una copia locale e di non chiudere la pagina.
     expect(src).toMatch(/if \(!e\?\.giaNotificato\)/)
+  })
+})
+
+// ── Terzo giro ───────────────────────────────────────────────────────────────
+
+describe('Semilavorati — nomi già occupati e basi non dichiarate', () => {
+  it('i campi da conservare arrivano dalla ricetta di destinazione', () => {
+    // Rinominando CREMA PASTICCERA in PASTA FROLLA (nome che esiste già), il
+    // vecchio codice prendeva i campi di CREMA PASTICCERA e li scriveva sopra
+    // PASTA FROLLA, che perdeva i suoi allergeni. Cioè la stessa perdita
+    // corretta stamattina, che reggeva solo se il nome non cambiava.
+    expect(src).toMatch(/const destinazione = ricettario\?\.ricette\?\.\[nomeSalvato\]/)
+    expect(src).toMatch(/const precedente = destinazione \|\| partenza \|\| \{\}/)
+  })
+
+  it('il nome di un prodotto che si vende viene rifiutato, non solo segnalato', () => {
+    // Bastava scrivere NOCCIOLA e confermare due parole perché il gusto
+    // diventasse una base e sparisse da inventario, cassa e conto economico.
+    // Spiegarlo non basta: la conferma resta a un clic.
+    expect(src).toMatch(/setBloccoNome\(\{/)
+    expect(src).toMatch(/è un prodotto che vendi, non una base/)
+    expect(src).toMatch(/Scegli un altro nome/)
+  })
+
+  it('propone di dichiarare base le ricette che sono già usate come ingrediente', () => {
+    // BASE BIANCA è usata in 15 ricette di Mara ma non ha il tipo: calcolaFC ne
+    // prende il costo dal listino (2,31 €/kg) invece che dalla sua ricetta
+    // (1,62 €/kg), e la pagina non offriva modo di accorgersene.
+    expect(src).toMatch(/trovaBasiNonDichiarate/)
+    expect(src).toMatch(/const dichiaraBase = async/)
+    // Dichiarandola, cambia solo il tipo: ingredienti e nome non si toccano.
+    const i = src.indexOf('const dichiaraBase = async')
+    const fn = src.slice(i, i + 1200)
+    expect(fn).toMatch(/tipo: 'semilavorato', unita: 0, prezzo: 0/)
+    expect(fn).toMatch(/\.\.\.r,/)
+    // E avvisa che il food cost di altre ricette si muove.
+    expect(fn).toMatch(/si ricalcola sulla sua ricetta/)
   })
 })
