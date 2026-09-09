@@ -230,7 +230,8 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     try {
       await onSave(nuovoRic, {}, true); // noRedirect=true - rimane sulla pagina
     } catch (e) {
-      notify(`Non ho potuto eliminare "${nome}": ${e?.message || 'errore di rete'}. La ricetta e' ancora al suo posto.`, false);
+      if (!e?.giaNotificato) notify(`Non ho potuto eliminare "${nome}": ${e?.message || 'errore di rete'}. La ricetta è ancora al suo posto.`, false);
+      else notify(`"${nome}" NON è stata eliminata: è ancora al suo posto.`, false);
       return;
     }
     setDeleteConf(null); setDeletePin(""); setEditMode(null); setForm(empty);
@@ -428,7 +429,10 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     try {
       await onSave(nuovoRic, { [nomeUp]: { unita: nuovaRic.unita, prezzo: nuovaRic.prezzo, tipo: nuovaRic.tipo } });
     } catch (e) {
-      notify(`Non ho potuto salvare "${nomeUp}": ${e?.message || 'errore di rete'}. I dati della foto sono ancora qui, riprova.`, false);
+      // Il Dashboard ha già detto dove sta la copia locale: aggiungiamo solo la
+      // cosa che lui non può sapere, cioè che i dati della foto sono salvi.
+      if (e?.giaNotificato) notify(`"${nomeUp}" non è stata salvata. I dati della foto sono ancora qui: riprova.`, false);
+      else notify(`Non ho potuto salvare "${nomeUp}": ${e?.message || 'errore di rete'}. I dati della foto sono ancora qui, riprova.`, false);
       return;
     }
     setDatiEstratti(null);

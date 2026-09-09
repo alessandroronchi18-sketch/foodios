@@ -2030,7 +2030,9 @@ export default function Dashboard({
       notify('Sessione non valida (orgId mancante). Ricarica la pagina.', false);
       // Audit 2026-09-09: come sotto, `return` faceva credere ai chiamanti che
       // il salvataggio fosse riuscito. Rilanciamo così il form non si svuota.
-      throw new Error('Sessione non valida (orgId mancante)');
+      const errSessione = new Error('Sessione non valida (orgId mancante)');
+      errSessione.giaNotificato = true;
+      throw errSessione;
     }
     // 1. REGOLE runtime
     for (const [n,r] of Object.entries(nuoveRegole||{})) REGOLE[n]=r;
@@ -2052,6 +2054,15 @@ export default function Dashboard({
       // nel DB. SemilavoratiView aveva GIA' il try/catch corretto (audit
       // 2026-07-01) ma non scattava mai perché l'errore non arrivava.
       // Rilanciando, ogni chiamante può distinguere riuscito da fallito.
+      //
+      // Audit 2026-09-09 (secondo giro): il toast ha UN SOLO slot e il timer si
+      // azzera a ogni notify (riga 1515), quindi il messaggio della view
+      // SOSTITUIVA questo. E questo è quello che serve: dice che esiste una copia
+      // locale e di non chiudere la pagina, cioè come non perdere il lavoro.
+      // Il secondo messaggio era "Errore salvataggio: <testo tecnico Supabase>".
+      // Marchiamo l'errore come già spiegato all'utente: le view lo rispettano e
+      // non lo coprono con un messaggio peggiore.
+      err.giaNotificato = true;
       throw err;
     }
     // 3. State locale: solo dopo che il save e' riuscito

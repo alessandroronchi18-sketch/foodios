@@ -7,7 +7,7 @@
 // 4) Form nuovo/modifica + OCR foto (logica di salvataggio invariata).
 import React, { useState, useMemo } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 import { buildIngCosti, calcolaFC, calcolaFCDettaglio, getR, isRicettaValida, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
@@ -297,18 +297,51 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
       note: form.note,
       tipo: 'semilavorato', unita: 0, prezzo: 0,
     }
-    const nuovoRic = { ...(ricettario || {}), ricette: { ...(ricettario?.ricette || {}), [nuovaRic.nome]: nuovaRic } }
+    // Audit 2026-09-09 (secondo giro): rinominando un semilavorato la voce col
+    // NOME VECCHIO restava in archivio, quindi ne comparivano due — l'originale
+    // e la copia rinominata — e le ricette che usavano il nome vecchio
+    // continuavano a puntare a una base che l'utente credeva di aver rinominato.
+    // Ora la vecchia chiave viene rimossa nello stesso salvataggio.
+    const ricetteAggiornate = { ...(ricettario?.ricette || {}) }
+    if (editMode && editMode !== nuovaRic.nome) delete ricetteAggiornate[editMode]
+    ricetteAggiornate[nuovaRic.nome] = nuovaRic
+    const nuovoRic = { ...(ricettario || {}), ricette: ricetteAggiornate }
     // Audit 2026-07-01 HIGH: await + try/catch su onSave (potrebbe essere
     // async lato Dashboard.handleSaveRicetta), altrimenti notifichiamo "salvato"
     // mentre il DB ha rifiutato.
     try {
       await onSave(nuovoRic, {}, true)
-      notify(`Semilavorato "${nuovaRic.nome}" salvato`)
+      // Chi usava il nome vecchio ora non trova più la base: il suo food cost
+      // cade sul listino ingredienti (o sparisce). Va detto subito, perché da
+      // fuori il numero cambia senza spiegazione.
+      const rinominato = editMode && editMode !== nuovaRic.nome
+      const orfane = rinominato
+        ? Object.values(ricettario?.ricette || {})
+            .filter(r => r.nome !== editMode && (r.ingredienti || []).some(i => normIng(i.nome) === normIng(editMode)))
+            .map(r => r.nome)
+        : []
+      if (orfane.length > 0) {
+        notify(`"${editMode}" ora si chiama "${nuovaRic.nome}". Aggiorna l'ingrediente in: ${orfane.slice(0, 3).join(', ')}${orfane.length > 3 ? ` e altre ${orfane.length - 3}` : ''}`, false)
+      } else {
+        notify(`Semilavorato "${nuovaRic.nome}" salvato`)
+      }
       setForm(empty); setEditMode(null); setOverwriteConf(null); setShowForm(false)
     } catch (e) {
-      notify('Errore salvataggio: ' + (e?.message || 'sconosciuto'), false)
+      // Se il Dashboard ha già spiegato il problema (e detto dove sta la copia
+      // locale), non lo copriamo: il toast ha un solo slot.
+      if (!e?.giaNotificato) notify('Non ho potuto salvare: ' + (e?.message || 'errore di rete'), false)
     } finally { setSaving(false) }
   }
+  // La ricetta che stiamo per sovrascrivere e' un prodotto che si vende (non una
+  // base)? Serve al dialogo di conferma per dire cosa succede davvero.
+  const sovrascriveProdottoVendibile = (() => {
+    if (!overwriteConf) return false
+    const r = ricettario?.ricette?.[overwriteConf]
+    if (!r) return false
+    const tipo = getR(overwriteConf, r).tipo
+    return tipo !== 'semilavorato' && tipo !== 'interno'
+  })()
+
   const handleSave = () => {
     if (!form.nome.trim() || form.ingredienti.length === 0) { notify('Inserisci nome e almeno un ingrediente', false); return }
     const nomeUp = form.nome.trim().toUpperCase()
@@ -583,7 +616,22 @@ export default function SemilavoratiView({ ricettario, onSave, notify, tipoAttiv
 
               {overwriteConf && (
                 <div style={{ padding: '12px 14px', background: C.amberLight, border: `2px solid ${C.amber}`, borderRadius: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.amber, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={14} /> "{overwriteConf}" esiste già - sovrascrivere?</div>
+                  {/* Audit 2026-09-09: il dialogo diceva solo "esiste già -
+                      sovrascrivere?" e accettava il nome di QUALSIASI ricetta.
+                      Confermando, un prodotto che si vende diventa
+                      tipo:'semilavorato' con unita 0 e prezzo 0, e da quel
+                      momento sparisce da produzione, cassa, P&L, formati
+                      vendita, sprechi, vendite B2B e simulatore prezzi (dieci
+                      file lo escludono per tipo). Il dialogo di eliminazione
+                      spiega le conseguenze, questo no. */}
+                  <div style={{ fontSize: typo.small.fontSize, fontWeight: 800, color: C.amber, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Icon name="warning" size={14} /> "{overwriteConf}" esiste già
+                  </div>
+                  <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.55, marginBottom: 9 }}>
+                    {sovrascriveProdottoVendibile
+                      ? <>È un <b>prodotto che vendi</b>, non una base. Se continui diventa un semilavorato: sparisce dalla produzione, dalla cassa, dai formati di vendita e dal conto economico, e il suo prezzo di vendita va a zero. Se volevi creare una base nuova, cambia nome.</>
+                      : <>Il contenuto della base verrà sostituito con quello che hai scritto qui. Gli ingredienti di prima non si recuperano.</>}
+                  </div>
                   <div style={{ display: 'flex', gap: 7 }}>
                     <button onClick={doSaveSemi} disabled={saving} style={{ padding: '10px 14px', minHeight: 40, background: saving ? C.border : C.amber, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, cursor: saving ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="checkCircle" size={14} /> Sovrascrivi</button>
                     <button onClick={() => setOverwriteConf(null)} style={{ padding: '8px 12px', background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, color: C.textMid, cursor: 'pointer' }}>Annulla</button>

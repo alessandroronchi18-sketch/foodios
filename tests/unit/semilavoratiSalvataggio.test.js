@@ -9,7 +9,7 @@
 // perdeva proprio gli allergeni.
 //
 // Il danno e' silenzioso: si apre una base per correggere un peso, si salva, e
-// gli allergeni non ci sono piu'. Nessun messaggio, nessun modo di accorgersene
+// gli allergeni non ci sono più. Nessun messaggio, nessun modo di accorgersene
 // se non riaprendo la scheda.
 //
 // Questo test ricostruisce la trasformazione che fa il salvataggio, sulla forma
@@ -92,5 +92,46 @@ describe('Semilavorati — il salvataggio non butta via campi', () => {
     const i = src.indexOf('onClick={handleSave}')
     expect(i).toBeGreaterThan(-1)
     expect(src.slice(i, i + 60)).toMatch(/disabled=\{saving\}/)
+  })
+})
+
+// ── Secondo giro di audit, 09/09/2026 ────────────────────────────────────────
+//
+// Tre difetti trovati dopo la prima correzione, due dei quali causati proprio
+// da quella.
+
+describe('Semilavorati — rinominare, sovrascrivere, e il messaggio d errore', () => {
+  it('rinominando, la voce col nome vecchio non resta in archivio', () => {
+    // Prima restavano entrambe: l'originale e la copia rinominata. E le ricette
+    // che usavano il nome vecchio puntavano a una base che l'utente credeva di
+    // aver rinominato.
+    const i = src.indexOf('const ricetteAggiornate =')
+    expect(i).toBeGreaterThan(-1)
+    const blocco = src.slice(i, i + 400)
+    expect(blocco).toMatch(/if \(editMode && editMode !== nuovaRic\.nome\) delete ricetteAggiornate\[editMode\]/)
+  })
+
+  it('avvisa quali ricette usavano il nome vecchio', () => {
+    // Chi usava il nome vecchio non trova più la base: il food cost cade sul
+    // listino ingredienti e il numero cambia senza spiegazione.
+    expect(src).toMatch(/const orfane = rinominato/)
+    expect(src).toMatch(/Aggiorna l'ingrediente in/)
+  })
+
+  it('la conferma di sovrascrittura dice cosa succede a un prodotto vendibile', () => {
+    // Il dialogo diceva solo "esiste già - sovrascrivere?" e accettava il nome
+    // di QUALSIASI ricetta: confermando, un prodotto che si vende diventava
+    // tipo:'semilavorato' con prezzo 0 e spariva da produzione, cassa, P&L,
+    // formati vendita, sprechi, vendite B2B e simulatore prezzi.
+    expect(src).toMatch(/const sovrascriveProdottoVendibile/)
+    expect(src).toMatch(/prodotto che vendi/)
+    expect(src).toMatch(/sparisce dalla produzione/)
+  })
+
+  it('non copre il messaggio del Dashboard, che dice dove sta la copia locale', () => {
+    // Il toast ha un solo slot e il timer si azzera a ogni notify: il messaggio
+    // della view sostituiva quello del Dashboard, che è l'unico a dire che
+    // esiste una copia locale e di non chiudere la pagina.
+    expect(src).toMatch(/if \(!e\?\.giaNotificato\)/)
   })
 })

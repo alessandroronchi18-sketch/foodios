@@ -115,19 +115,27 @@ describe('Dashboard.handleSalvaRicetta - contratto verso le view', () => {
     expect(inizioFn).toBeGreaterThan(-1)
     const i = dash.indexOf('await ssave(SK_RIC, nuovoRic);', inizioFn)
     expect(i).toBeGreaterThan(-1)
-    const blocco = dash.slice(i, i + 1400)
+    const blocco = dash.slice(i, i + 3000)
     const fineCatch = blocco.indexOf('setRic(nuovoRic)')
+    expect(fineCatch, 'il blocco catch deve stare dentro la finestra letta').toBeGreaterThan(0)
     const gestione = blocco.slice(0, fineCatch)
 
     expect(gestione).toContain('throw err')
-    // La copia locale resta: e' l'ultima rete di sicurezza per l'utente.
+    // La copia locale resta: è l'ultima rete di sicurezza per l'utente.
     expect(gestione).toContain('localStorage.setItem(_RIC_CACHE_KEY')
+    // E l'errore è marcato come già spiegato: il toast ha un solo slot, e il
+    // messaggio della view sostituiva questo, che è l'unico a dire dove sta la
+    // copia locale e di non chiudere la pagina.
+    expect(gestione).toContain('err.giaNotificato = true')
   })
 
   it('rilancia anche quando la sessione non ha organization_id', () => {
     const i = dash.indexOf("if (!effectiveOrgId) {")
     expect(i).toBeGreaterThan(-1)
-    expect(dash.slice(i, i + 500)).toContain('throw new Error')
+    const blocco = dash.slice(i, i + 700)
+    expect(blocco).toContain("new Error('Sessione non valida")
+    expect(blocco).toContain('giaNotificato = true')
+    expect(blocco).toMatch(/throw errSessione/)
   })
 
   it('non mostra un secondo toast di conferma: lo fa la view che sa cosa ha salvato', () => {
