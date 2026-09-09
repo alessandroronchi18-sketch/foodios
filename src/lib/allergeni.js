@@ -204,6 +204,19 @@ export const ALLERGENI_MAPPING = {
   'castagna':         ['fruttasc'],
   'castagne':         ['fruttasc'],
   'farina di castagne':['fruttasc'],
+  // Marrone e castagna sono la stessa cosa: prima "castagne" dava frutta a
+  // guscio e "marroni" non dava niente, quindi la stessa ricetta rispondeva in
+  // due modi diversi a seconda della parola scritta. Allineati.
+  //
+  // NOTA APERTA per il titolare: l'allegato II del Reg. UE 1169/2011 elenca
+  // come frutta a guscio solo mandorle, nocciole, noci, anacardi, pecan, noci
+  // del Brasile, pistacchi e macadamia — la castagna NON c'è. Segnalarla è
+  // quindi un falso positivo sul piano legale. Si è scelto di NON toglierla
+  // perché ridurre un allergene dichiarato va nella direzione pericolosa e la
+  // decisione non spetta al programma. Da confermare o rimuovere.
+  'marrone':          ['fruttasc'],
+  'marroni':          ['fruttasc'],
+  'crema di marroni': ['fruttasc'],
   'pinolo':           ['fruttasc'],
   'pinoli':           ['fruttasc'],
   'noce del brasile': ['fruttasc'],
@@ -401,4 +414,174 @@ export function detectAllergeniFromIngredienti(ingredienti) {
  */
 export function mergeAllergeni(detected, manualExtra) {
   return [...new Set([...(detected || []), ...(manualExtra || [])])]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TERZO STATO: "non lo so"
+//
+// Il difetto che questa parte esiste per correggere, misurato sui dati veri il
+// 09/09/2026. `detectAllergeniFromIngredienti` restituisce un elenco piatto, e
+// un elenco vuoto vuol dire due cose opposte:
+//   - "ho riconosciuto tutti gli ingredienti e nessuno porta allergeni"
+//   - "non ho riconosciuto niente"
+// La scheda mostrava una casella vuota identica nei due casi. Su un documento
+// previsto dal Regolamento UE 1169/2011, che si stampa e si consegna al
+// cliente, "non l'ho riconosciuto" non può somigliare a "e' privo".
+//
+// Quanto pesa, sui 123 nomi di ingrediente realmente presenti nel database di
+// produzione: 81 non producevano nessun allergene. E cinque prodotti da
+// gelateria costruiti con quei nomi — "base bianca + cioccolato fondente",
+// "cioccolato callebaut + acqua + zucchero + neutro", "copertura fondente +
+// massa 58" — davano una riga di allergeni COMPLETAMENTE VUOTA. La base bianca
+// contiene latte; nel cioccolato la lecitina di soia è la norma.
+//
+// Il buco a monte: nella mappa dei 275 pattern la parola "cioccolato" non
+// c'era. Nemmeno "cacao", "fondente", "copertura", "massa".
+
+/**
+ * Ingredienti che di solito PORTANO un allergene, ma non con certezza:
+ * dipende dalla ricetta del fornitore. Non si dichiarano come certi — si
+ * segnalano da verificare sull'etichetta, che è l'unica risposta onesta.
+ *
+ * Il criterio per stare qui: il costo di segnalare un dubbio che non c'è è
+ * far leggere un'etichetta; il costo di tacere un allergene e' un cliente in
+ * ospedale. A parita' di incertezza si segnala.
+ */
+export const ALLERGENI_PROBABILI = {
+  // Cioccolato e derivati del cacao: la lecitina di soia è l'emulsionante
+  // standard, e quasi tutti gli stabilimenti lavorano anche latte e frutta a
+  // guscio sulle stesse linee.
+  'cioccolato':          ['soia', 'latte'],
+  'cioccolata':          ['soia', 'latte'],
+  'chocolate':           ['soia', 'latte'],
+  'fondente':            ['soia'],
+  'copertura':           ['soia'],
+  'cacao':               ['soia'],
+  'massa di cacao':      ['soia'],
+  'burro di cacao':      ['soia'],
+  'cioccolato bianco':   ['soia', 'latte'],
+  'cioccolato al latte': ['soia', 'latte'],
+  'gianduia':            ['soia', 'latte', 'fruttasc'],
+  'praline':             ['fruttasc'],
+  'pralinato':           ['fruttasc'],
+
+  // Basi e semilavorati da gelateria: quasi sempre latte in polvere, spesso
+  // derivati della soia come stabilizzanti.
+  'base bianca':         ['latte'],
+  'base gelato':         ['latte'],
+  'base latte':          ['latte'],
+  'base panna':          ['latte'],
+  'neutro':              ['latte', 'soia'],
+  'stabilizzante':       ['soia'],
+  'emulsionante':        ['soia'],
+  'lecitina':            ['soia'],
+
+  // Lieviti chimici e per dolci: in Italia contengono spesso amido di frumento
+  // come agente antiagglomerante.
+  'lievito chimico':     ['glutine'],
+  'lievito per dolci':   ['glutine'],
+  'lievito vanigliato':  ['glutine'],
+  'cremor tartaro':      ['glutine'],
+  'baking powder':       ['glutine'],
+
+  // Liquori e paste aromatiche da pasticceria.
+  'amaretto':            ['fruttasc'],
+  'marzapane':           ['fruttasc'],
+  'marzipan':            ['fruttasc'],
+  'torrone':             ['fruttasc'],
+  'nougat':              ['fruttasc'],
+  'croccante':           ['fruttasc'],
+
+  // Preparati industriali generici: non si può sapere cosa c'è dentro.
+  'preparato':           ['glutine', 'latte', 'soia'],
+  'mix per':             ['glutine', 'latte', 'soia'],
+  'aroma':               [],
+  'colorante':           [],
+}
+
+/**
+ * Ingredienti che si dichiarano PRIVI di allergeni con sicurezza.
+ * Serve a non trasformare in "da verificare" l'acqua e lo zucchero: se ogni
+ * ingrediente banale finisse fra i dubbi, l'avviso perderebbe ogni valore e si
+ * imparerebbe a ignorarlo.
+ */
+const SENZA_ALLERGENI = new Set([
+  'acqua', 'zucchero', 'zucchero di canna', 'zucchero canna', 'zucchero a velo',
+  'sale', 'sale fino', 'sale grosso', 'bicarbonato', 'destrosio', 'glucosio',
+  'sciroppo di glucosio', 'fruttosio', 'maltodestrine', 'inulina',
+  'amido di mais', 'amido di riso', 'maizena', 'fecola di patate', 'fecola',
+  'acido citrico', 'acido ascorbico', 'gelatina', 'agar', 'pectina',
+  'olio di semi', 'olio di girasole', 'olio di oliva', 'olio evo',
+  // Frutta e verdura fresca: non sono fra i 14 allergeni UE.
+  'limone', 'limoni', 'arancia', 'arance', 'arancio', 'mandarino', 'pompelmo',
+  'mela', 'mele', 'pera', 'pere', 'banana', 'banane', 'fragola', 'fragole',
+  'mirtillo', 'mirtilli', 'lampone', 'lamponi', 'ciliegia', 'ciliegie',
+  'albicocca', 'albicocche', 'pesca', 'pesche', 'ananas', 'kiwi', 'uva',
+  'fico', 'fichi', 'melone', 'anguria', 'yuzu', 'lime', 'ribes', 'mora', 'more',
+  'carota', 'carote', 'zucca', 'patata', 'patate', 'zucchina', 'zucchine',
+  'menta', 'basilico', 'rosmarino', 'salvia', 'timo', 'zafferano', 'cannella',
+  'vaniglia', 'baccello di vaniglia', 'cardamomo', 'chiodi di garofano',
+  'noce moscata', 'zenzero', 'curcuma', 'pepe', 'caffe', 'te', 'the',
+  'lievito di birra', 'lievito fresco', 'lievito madre',
+  'cocco', 'cocco rape', 'farina di cocco',   // il cocco NON è fra i 14 UE
+  'semi di papavero', 'semi papavero', 'papavero',
+])
+
+/**
+ * Analisi completa degli allergeni di un elenco di ingredienti, nei TRE stati
+ * che servono a una scheda che ha valore legale.
+ *
+ * @returns {{
+ *   certi: string[],            allergeni presenti con certezza
+ *   daVerificare: string[],     allergeni probabili, da controllare in etichetta
+ *   nonRiconosciuti: string[],  nomi di ingrediente mai visti
+ * }}
+ */
+export function analizzaAllergeni(ingredienti) {
+  const certi = new Set()
+  const daVerificare = new Set()
+  const nonRiconosciuti = []
+  if (!Array.isArray(ingredienti)) return { certi: [], daVerificare: [], nonRiconosciuti: [] }
+
+  const chiaviCerte = Object.keys(ALLERGENI_MAPPING).sort((a, b) => b.length - a.length)
+  const chiaviProbabili = Object.keys(ALLERGENI_PROBABILI).sort((a, b) => b.length - a.length)
+
+  for (const ing of ingredienti) {
+    const rawNome = typeof ing === 'string' ? ing : ing?.nome
+    const nome = normalizeIngName(rawNome)
+    if (!nome) continue
+
+    let riconosciuto = false
+
+    // 1. Allergeni certi. Stessa logica del rilevamento storico, compreso il
+    //    controllo sulle sovrapposizioni che evita a "farina" di aggiungere il
+    //    glutine quando "farina di mandorle" ha già coperto quel pezzo.
+    const ranges = []
+    for (const key of chiaviCerte) {
+      const idx = nome.indexOf(key)
+      if (idx === -1) continue
+      const end = idx + key.length
+      if (ranges.some(r => idx >= r.start && end <= r.end)) continue
+      ranges.push({ start: idx, end })
+      for (const aid of ALLERGENI_MAPPING[key]) certi.add(aid)
+      riconosciuto = true
+    }
+
+    // 2. Allergeni probabili.
+    for (const key of chiaviProbabili) {
+      if (nome.indexOf(key) === -1) continue
+      for (const aid of ALLERGENI_PROBABILI[key]) daVerificare.add(aid)
+      riconosciuto = true
+    }
+
+    // 3. Dichiarato privo.
+    if (!riconosciuto && SENZA_ALLERGENI.has(nome)) riconosciuto = true
+
+    if (!riconosciuto) nonRiconosciuti.push(String(rawNome).trim())
+  }
+
+  // Un allergene certo non va anche fra i dubbi: la certezza vince.
+  for (const a of certi) daVerificare.delete(a)
+
+  return { certi: [...certi], daVerificare: [...daVerificare], nonRiconosciuti }
 }

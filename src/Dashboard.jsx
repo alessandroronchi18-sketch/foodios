@@ -1174,6 +1174,30 @@ const DIPENDENTE_VIEWS = new Set([
 // integrazioni, ecc.) — cambiare sede qui non ha effetto sui dati mostrati e
 // confonde l'utente. Confronto-sedi e trasferimenti restano fuori perché
 // operano cross-sede (già gestiti a parte).
+// ─── Pagine nascoste ────────────────────────────────────────────────────────
+//
+// Scelta del titolare, 09/09/2026: la Scheda allergeni e l'HACCP restano nel
+// codice ma non sono raggiungibili.
+//
+// Il motivo è di responsabilità, non tecnico. La scheda allergeni è un
+// documento previsto dal Reg. UE 1169/2011: si stampa e si consegna al cliente.
+// Se una casella risulta bianca dove doveva esserci un allergene, il locale è
+// fuori legge e il danno può essere una persona in ospedale. Con un
+// riconoscimento che il 09/09 non copriva 81 dei 123 ingredienti realmente
+// presenti nel database — e in cui la parola "cioccolato" mancava del tutto —
+// mettere quel documento in mano a un cliente significa prendersi una
+// responsabilità che questo prodotto non è pronto a sostenere.
+//
+// Il lavoro fatto resta: `analizzaAllergeni` distingue i tre stati (certo,
+// da verificare, non riconosciuto) e la pagina li mostra. Prima di riaprirla
+// servono: copertura verificata degli ingredienti reali, la decisione sulle
+// castagne (vedi la nota in `src/lib/allergeni.js`), e i 74 difetti sostenuti
+// in `AUDIT_ALLERGENI_DA_VERIFICARE.md` passati al vaglio.
+//
+// PER RIAPRIRLE: togliere l'id da questo insieme. Le voci di menu e il render
+// si riattivano da soli — non è stato cancellato niente.
+const PAGINE_NASCOSTE = new Set(['scheda-allergeni', 'haccp'])
+
 const NO_SEDE_SELECTOR = new Set([
   // Ricettario shared (sede_id=null)
   'nuova-ricetta', 'semilavorati', 'scheda-allergeni',
@@ -1256,7 +1280,10 @@ export default function Dashboard({
   const [view,_setViewRaw]=useState(() => {
     try {
       const stored = sessionStorage.getItem(`foodos_view_${orgId||'_'}`);
-      if (stored) return stored;
+      // Una pagina nascosta salvata in sessione tornerebbe fuori al ricarico,
+      // e resterebbe uno schermo bianco: le voci di menu non ci sono più e il
+      // render è gated. Meglio riportare a casa.
+      if (stored && !PAGINE_NASCOSTE.has(stored)) return stored;
       // Default: 'home' titolare, 'home-dipendente' dipendente.
       // Nota: auth.ruolo è disponibile a questo punto perché useAuth risolve prima del mount Dashboard.
       return auth?.ruolo === 'dipendente' ? "home-dipendente" : "home";
@@ -2114,7 +2141,6 @@ export default function Dashboard({
             {id:"semilavorati",label:"Semilavorati",icon:"layers"},
             {id:"nuova-ricetta",label:"Nuova ricetta",icon:"pencil"},
             {id:"formati-vendita",label:"Formati di vendita",icon:"coins"},
-            {id:"scheda-allergeni",label:"Allergeni",icon:"shield"},
             {id:"menu",label:"Menù del giorno",icon:"menu"},
           ]},
           // 3) ACQUISTI & FORNITORI — magazzino sale in Oggi, resta il "back office"
@@ -2146,7 +2172,6 @@ export default function Dashboard({
                  {id:"trasferimenti",label:"Trasferimenti tra sedi",icon:"truck"}]
               : []),
             {id:"personale",label:"Personale & stipendi",icon:"users"},
-            {id:"haccp",label:"HACCP",icon:"shield"},
             {id:"registro-attivita",label:"Registro attività",icon:"fileText"},
           ]},
           // 7) AI — Recensioni esce (va in Vendite & Clienti). Congelate a parte.
@@ -2839,7 +2864,6 @@ export default function Dashboard({
                   navItem("semilavorati","layers","Semilavorati"),
                   navItem("nuova-ricetta","pencil","Nuova ricetta"),
                   navItem("formati-vendita","coins","Formati di vendita"),
-                  navItem("scheda-allergeni","shield","Allergeni"),
                   navItem("menu","menu","Menù del giorno"),
                 ] })}
 
@@ -2878,7 +2902,6 @@ export default function Dashboard({
                   ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("confronto-sedi","building","Confronto sedi"),
                   ((auth?.user?.email === 'demo@maradeiboschi.com') || (sedi||[]).length>1) && navItem("trasferimenti","truck","Trasferimenti tra sedi"),
                   navItem("personale","users","Personale & stipendi"),
-                  navItem("haccp","shield","HACCP"),
                   navItem("registro-attivita","fileText","Registro attività"),
                 ] })}
 
@@ -3366,12 +3389,12 @@ export default function Dashboard({
         {ricettario&&view==="pl"&&<PLView ricettario={ricettario} chiusure={chiusure} orgId={orgId} sedeId={sedeId} onUpdateRegola={handleUpdateRegola} notify={notify}/>}
         {ricettario&&view==="simulatore"&&<SimulatorePrezziView ricettario={ricettario} giornaliero={giornaliero} tipoAttivita={tipoAttivita} sedi={sedi} orgId={orgId} sedeId={sedeId}/>}
         {view==="nuova-ricetta"&&<NuovaRicettaView ricettario={ricettario} notify={notify} onSave={handleSalvaRicetta} editingRicetta={editingRicetta} onEditConsumed={()=>setEditingRicetta(null)} LEX={LEX} tipoAttivita={tipoAttivita}/>}
-        {view==="scheda-allergeni"&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
+        {view==="scheda-allergeni"&&!PAGINE_NASCOSTE.has("scheda-allergeni")&&<SchedaAllergeniView ricettario={ricettario} tipoAttivita={tipoAttivita}/>}
         {view==="fornitori"&&<Fornitori orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify}/>}
         {view==="vendite-b2b"&&<VenditeB2BView orgId={orgId} sedeId={sedeId} ricettario={ricettario} notify={notify}/>}
         {/* Personale espone stipendi: MAI per i dipendenti (oltre a sidebar gate + RLS solo-titolare). */}
         {view==="personale"&&!isDip&&<Personale orgId={orgId} sedeId={sedeId} sedi={sedi} notify={notify} adminNome={auth?.profile?.nome_completo || auth?.user?.email} nomeAttivita={nomeAttivita}/>}
-        {view==="haccp"&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
+        {view==="haccp"&&!PAGINE_NASCOSTE.has("haccp")&&<HaccpView orgId={orgId} sedeId={sedeId} ricettario={ricettario} nomeAttivita={nomeAttivita} notify={notify}/>}
         {view==="menu"&&<MenuDinamico ricettario={ricettario} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR} nomeAttivita={nomeAttivita} tipoAttivita={tipoAttivita} chiusure={chiusure} orgId={orgId} sedeId={sedeId}/>}
         {view==="previsione"&&<PrevisioneDomanda ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} ingCosti={ingCostiMain} calcolaFC={calcolaFC} getR={getR}/>}
         {view==="chiusura"&&!isAllSedi&&<ChiusuraView ricettario={ricettario} giornaliero={giornaliero} chiusure={chiusure} setChiusure={setChiusure} notify={notify} orgId={orgId} sedeId={sedeId} isDipendente={isDip} metodoProduzione={metodoProduzione} tipoAttivita={tipoAttivita} onNavigate={setView} LEX={LEX}/>}
