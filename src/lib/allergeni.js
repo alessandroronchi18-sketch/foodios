@@ -187,6 +187,35 @@ export const ALLERGENI_MAPPING = {
   'nocciole':         ['fruttasc'],
   'farina di nocciole':['fruttasc'],
   'pasta di nocciole': ['fruttasc'],
+  // Audit 2026-09-09: la chiave generica 'pasta' → glutine (riga 69) matcha
+  // anche "pasta nocciola", "pasta pistacchio", "pasta mandorla": nel database
+  // reale sono SEI ingredienti su sette che contengono la parola "pasta", e su
+  // tutti usciva un glutine che non c'e'. Non si puo' togliere 'pasta', perche'
+  // "pasta fresca" e "pasta sfoglia" il glutine ce l'hanno: servono le chiavi
+  // specifiche, che essendo piu' lunghe vincono il match e coprono il range.
+  // Un falso positivo su un allergene non e' innocuo: il gelataio lo dichiara
+  // per prudenza e perde i clienti celiaci su un gusto che potrebbero mangiare.
+  'pasta nocciola':    ['fruttasc'],
+  'pasta nocciole':    ['fruttasc'],
+  'pasta mandorla':    ['fruttasc'],
+  'pasta mandorle':    ['fruttasc'],
+  'pasta pistacchio':  ['fruttasc'],
+  'pasta di pistacchio': ['fruttasc'],
+  'pasta anacardi':    ['fruttasc'],
+  'pasta di anacardi': ['fruttasc'],
+  'pasta arachidi':    ['arachidi'],
+  'pasta di arachidi': ['arachidi'],
+  // Il gianduiotto e' nocciole e cacao per definizione; latte e soia sono
+  // quasi sempre presenti ma non certi, quindi stanno fra i probabili.
+  'pasta gianduiotto': ['fruttasc'],
+  'pasta gianduia':    ['fruttasc'],
+  // Lista VUOTA, e non è una dimenticanza: serve a coprire il match della
+  // chiave generica 'pasta' senza dichiarare niente. detectAllergeni registra
+  // il range coperto prima di leggere gli allergeni (righe 400-403), quindi una
+  // chiave più specifica con lista vuota impedisce a 'pasta' di aggiungere il
+  // glutine. Nel caramello non c'è glutine; il latte è probabile e sta nella
+  // mappa dei probabili, dove va chiesto invece che dichiarato.
+  'pasta caramello':   [],
   'gianduia':         ['fruttasc','latte'],
   'gianduja':         ['fruttasc','latte'],
   'noce':             ['fruttasc'],
@@ -451,6 +480,14 @@ export const ALLERGENI_PROBABILI = {
   // Cioccolato e derivati del cacao: la lecitina di soia è l'emulsionante
   // standard, e quasi tutti gli stabilimenti lavorano anche latte e frutta a
   // guscio sulle stesse linee.
+  // Audit 2026-09-09: "pasta caramello" e "pasta gianduiotto" prendevano il
+  // glutine dalla chiave generica 'pasta' e nessun accenno al latte, che in
+  // questi due c'e' quasi sempre. Il glutine ora non c'e' piu' (chiavi
+  // specifiche nella mappa dei certi) e il latte sta qui, fra i probabili:
+  // dipende dalla ricetta del produttore, e va chiesto con l'etichetta in mano.
+  'caramello':           ['latte'],
+  'pasta caramello':     ['latte'],
+  'gianduiotto':         ['latte', 'soia'],
   'cioccolato':          ['soia', 'latte'],
   'cioccolata':          ['soia', 'latte'],
   'chocolate':           ['soia', 'latte'],

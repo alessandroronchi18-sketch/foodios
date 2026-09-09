@@ -1390,10 +1390,19 @@ export default function MagazzinoView({
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: r.valore > 0 ? C.text : C.textSoft, fontWeight: r.valore > 0 ? 700 : 400, ...TNUM }}>
                         {r.valore > 0 ? fmt0(r.valore) : '-'}
-                        {r.valore > 0 && r.costoKg > 0 && (
-                          <div style={{ fontSize: 11, color: C.textSoft, fontWeight: 500 }}>
+                        {/* Audit 2026-09-09: il prezzo al kilo era scritto qui sotto
+                            in chiaro, anche per il dipendente — a cui la scheda
+                            "Prezzi ingredienti" e' nascosta per scelta (il filtro
+                            sulle schede a riga 1264). Nascondere una pagina e poi
+                            stampare lo stesso dato in una colonna accanto non
+                            protegge niente: il prezzo di acquisto e' un dato
+                            commerciale, e l'azienda ha deciso che il dipendente non
+                            lo vede. Il valore complessivo resta: serve a chi fa
+                            l'inventario e non rivela il singolo prezzo. */}
+                        {!isDipendente && r.valore > 0 && r.costoKg > 0 && (
+                          <div style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 500 }}>
                             {r.costoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg
-                            {r.prezzoStimato && <span title="Prezzo non inserito da te: e' una stima di mercato, quindi anche il valore e' indicativo."> · stima</span>}
+                            {r.prezzoStimato && <span title="Prezzo non inserito da te: è una stima di mercato, quindi anche il valore è indicativo."> · stima</span>}
                           </div>
                         )}
                       </td>
