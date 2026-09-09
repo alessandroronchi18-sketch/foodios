@@ -505,18 +505,63 @@ function buildMovimenti(vendibili) {
 // ─── 6) FORMATI VENDITA ───────────────────────────────────────────────────
 function buildFormati() {
   return [
+    // I nomi dei campi devono essere quelli che la pagina LEGGE.
+    //
+    // Difetto trovato il 09/09/2026: qui c'erano `tipo`, `prezzo` e `peso_g`,
+    // mentre FormatiVendita.jsx legge `categoria`, `prezzoDefault` e
+    // `baseQtaG`. Risultato: nella demo tutti e sei i formati mostravano
+    // categoria vuota, base 0 g e prezzo 0 €. Ed e' la demo che si mostra ai
+    // clienti potenziali — la funzione sembrava non funzionare proprio dove
+    // deve convincere.
+    //
+    // Le categorie sono quelle vere delle ricette demo (Biscotti, Crostate,
+    // Muffin, Torte): senza un collegamento valido la stima del food cost non
+    // trova nulla su cui calcolare e resta a zero comunque.
+    //
+    // I componenti sono i materiali di confezionamento con costi realistici da
+    // fornitore HoReCa: servono a far vedere a cosa serve la funzione. Prima
+    // erano assenti in tutti i formati, e la colonna del costo confezionamento
+    // mostrava zero — cioe' il pezzo di valore della pagina non si vedeva.
     { id: 'fm-demo-1', nome: 'Vassoietto biscotti misti 250g', _demo: true,
-      tipo: 'mix', prezzo: 8.5, peso_g: 250, note: '[Demo]' },
+      categoria: 'Biscotti', baseQtaG: 250, prezzoDefault: 8.5, alias: [],
+      componenti: [
+        { nome: 'Vassoietto in cartone', qta: 1, costo: 0.14 },
+        { nome: 'Film trasparente', qta: 1, costo: 0.03 },
+        { nome: 'Nastro', qta: 1, costo: 0.02 },
+      ], note: '[Demo]' },
     { id: 'fm-demo-2', nome: 'Vassoietto biscotti misti 500g', _demo: true,
-      tipo: 'mix', prezzo: 16, peso_g: 500, note: '[Demo]' },
+      categoria: 'Biscotti', baseQtaG: 500, prezzoDefault: 16, alias: [],
+      componenti: [
+        { nome: 'Vassoietto in cartone', qta: 1, costo: 0.19 },
+        { nome: 'Film trasparente', qta: 1, costo: 0.04 },
+        { nome: 'Nastro', qta: 1, costo: 0.02 },
+      ], note: '[Demo]' },
     { id: 'fm-demo-3', nome: 'Scatola regalo 12 pezzi', _demo: true,
-      tipo: 'box', prezzo: 22, peso_g: 350, note: '[Demo]' },
+      categoria: 'Biscotti', baseQtaG: 350, prezzoDefault: 22, alias: [],
+      componenti: [
+        { nome: 'Scatola regalo rigida', qta: 1, costo: 0.85 },
+        { nome: 'Pirottini', qta: 12, costo: 0.01 },
+        { nome: 'Nastro in raso', qta: 1, costo: 0.09 },
+      ], note: '[Demo]' },
     { id: 'fm-demo-4', nome: 'Crostata intera 8 fette', _demo: true,
-      tipo: 'intero', prezzo: 24, peso_g: 800, note: '[Demo]' },
+      categoria: 'Crostate', baseQtaG: 800, prezzoDefault: 24, alias: [],
+      componenti: [
+        { nome: 'Sottotorta in cartone', qta: 1, costo: 0.22 },
+        { nome: 'Scatola per torta', qta: 1, costo: 0.38 },
+      ], note: '[Demo]' },
     { id: 'fm-demo-5', nome: 'Muffin singolo confezionato', _demo: true,
-      tipo: 'monoporzione', prezzo: 2.5, peso_g: 80, note: '[Demo]' },
+      categoria: 'Muffin', baseQtaG: 80, prezzoDefault: 2.5, alias: [],
+      componenti: [
+        { nome: 'Pirottino', qta: 1, costo: 0.01 },
+        { nome: 'Sacchetto trasparente', qta: 1, costo: 0.02 },
+      ], note: '[Demo]' },
     { id: 'fm-demo-6', nome: 'Torta intera 10 fette', _demo: true,
-      tipo: 'intero', prezzo: 38, peso_g: 1100, note: '[Demo]' },
+      categoria: 'Torte', baseQtaG: 1100, prezzoDefault: 38, alias: [],
+      componenti: [
+        { nome: 'Sottotorta in cartone', qta: 1, costo: 0.28 },
+        { nome: 'Scatola per torta', qta: 1, costo: 0.45 },
+        { nome: 'Nastro in raso', qta: 1, costo: 0.09 },
+      ], note: '[Demo]' },
   ]
 }
 

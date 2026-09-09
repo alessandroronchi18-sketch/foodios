@@ -9,7 +9,7 @@
 // riconcilia produzione e cassa. Vedi src/lib/formatiVendita.js.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T, radius as R, shadow as S } from '../lib/theme'
+import { color as T, radius as R, shadow as S, typo } from '../lib/theme'
 import { sload, ssave } from '../lib/storage'
 import { SK_FORMATI } from '../lib/storageKeys'
 import { buildIngCosti, isRicettaValida, getR } from '../lib/foodcost'
@@ -23,6 +23,10 @@ import { KPI, fmt as fmtEuro, PageHeader, SH } from '../views/_shared'
 import Icon from './Icon'
 import PrezziPerSedeModal from './PrezziPerSedeModal'
 
+// Nessun testo sotto i 12px. Qui ce n'erano nove, due dei quali a 9 e 9,5:
+// etichette in maiuscolo con letter-spacing, che sono la cosa più faticosa da
+// leggere in assoluto. La pagina la usa un proprietario di sessant'anni, e i
+// numeri qui dentro sono i millesimi di euro del confezionamento.
 const SHADOW_PREMIUM = '0 1px 2px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.05)'
 const TNUM = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
 
@@ -32,7 +36,7 @@ const fmt3 = n => `${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString
 
 // fontSize 16 su mobile per evitare zoom automatico iOS (regola permanente CLAUDE.md).
 const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: R.md, border: `1px solid ${T.borderStr}`, fontSize: 16, color: T.text, boxSizing: 'border-box', fontFamily: 'inherit', background: T.bgCard }
-const labelStyle = { fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6, display: 'block' }
+const labelStyle = { fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6, display: 'block' }
 const cardStyle = { background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: SHADOW_PREMIUM }
 
 export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita, sedi = [] }) {
@@ -131,10 +135,25 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
   // ── Diagnosi (banda KPI) ──────────────────────────────────────────────────────
   const diag = useMemo(() => {
     const n = rows.length
-    const costoMedioMat = n > 0 ? rows.reduce((s, r) => s + r.costoMateriali, 0) / n : 0
-    const piuCostoso = rows.reduce((best, r) => !best || r.costoMateriali > best.costoMateriali ? r : best, null)
+    const conMateriali = rows.filter(r => r.costoMateriali > 0)
+    // La media si fa sui formati che HANNO dei materiali, non su tutti: con
+    // quattro formati configurati e uno solo compilato, dividere per quattro
+    // dà un numero che non è il costo di nessuno.
+    const costoMedioMat = conMateriali.length > 0
+      ? conMateriali.reduce((s, r) => s + r.costoMateriali, 0) / conMateriali.length
+      : 0
+    // "Più costoso" solo se c'è davvero un costo.
+    //
+    // Prima il reduce partiva da null e prendeva il primo elemento come
+    // migliore: con tutti i materiali a zero — che è il caso reale del design
+    // partner, 5 formati su 5 senza materiali — la tessera diceva "formato più
+    // costoso: 0,000 €" e sotto il nome del PRIMO formato dell'elenco. Un nome
+    // scelto dall'ordinamento presentato come un dato.
+    const piuCostoso = conMateriali.reduce(
+      (best, r) => !best || r.costoMateriali > best.costoMateriali ? r : best, null)
     const senzaCategoria = rows.filter(r => !r.fcKnown).length
-    return { n, costoMedioMat, piuCostoso, senzaCategoria }
+    const senzaMateriali = n - conMateriali.length
+    return { n, costoMedioMat, piuCostoso, senzaCategoria, senzaMateriali, nConMateriali: conMateriali.length }
   }, [rows])
 
   if (loading) return <div style={{ padding: 24, color: T.textSoft, fontSize: 13 }}>Caricamento…</div>
@@ -169,9 +188,13 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
         action={nuovoBtn}
       />
 
-      {/* A cosa serve */}
-      <div style={{ background: T.amberLight, border: `1px solid ${T.amber}40`, borderRadius: 14, padding: '14px 18px', marginBottom: 20, fontSize: 12.5, color: '#78350F', lineHeight: 1.6, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
-        <span style={{ flexShrink: 0, marginTop: 1, color: T.amber }}><Icon name="receipt" size={16} /></span>
+      {/* A cosa serve — spiegazione, non avviso.
+          Era su fondo ambra col bordo ambra, come l'avviso dei materiali
+          mancanti che sta subito sotto: due riquadri gialli in fila, e chi
+          legge non sa quale dei due chiede qualcosa. Questo non chiede niente,
+          spiega — quindi neutro, e l'ambra resta a chi ha bisogno di un'azione. */}
+      <div style={{ background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 18px', marginBottom: 16, fontSize: typo.small.fontSize, color: T.textMid, lineHeight: 1.6, display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+        <span style={{ flexShrink: 0, marginTop: 1, color: T.textSoft }}><Icon name="receipt" size={16} /></span>
         <span>
           <b>A cosa serve.</b> Se la tua cassa batte righe senza il gusto (es. <i>"Cono piccolo"</i>, <i>"Vaschetta 500g"</i>, <i>"Panino"</i>),
           qui le colleghi a una <b>categoria di ricette</b>. In chiusura cassa il ricavo viene contato per intero e il food cost stimato come
@@ -179,16 +202,45 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
         </span>
       </div>
 
+      {/* I materiali mancanti, detti una volta in cima.
+          Nei dati reali del design partner sono 5 formati su 5 senza nessun
+          materiale: il costo del cono, della vaschetta, del fazzoletto. Senza
+          quelli il food cost stimato conta solo il prodotto, quindi il margine
+          che la cassa mostra è più alto del vero — e il pezzo di valore di
+          questa pagina non fa niente. Lo si dice una volta, non su ogni riga. */}
+      {diag.n > 0 && diag.senzaMateriali > 0 && (
+        <div style={{ background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10, padding: '13px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <span style={{ color: T.amber, flexShrink: 0, display: 'inline-flex', marginTop: 1 }}><Icon name="package" size={16} /></span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.amber, marginBottom: 3 }}>
+              {diag.senzaMateriali === diag.n
+                ? (diag.n === 1 ? 'Questo formato non ha i materiali di confezionamento' : 'Nessun formato ha i materiali di confezionamento')
+                : `${diag.senzaMateriali} formati su ${diag.n} non hanno i materiali di confezionamento`}
+            </div>
+            <div style={{ fontSize: typo.small.fontSize, color: T.textMid, lineHeight: 1.55 }}>
+              Sono il cono, la vaschetta, il coperchio, il fazzoletto: pochi centesimi l'uno, ma li paghi su ogni pezzo che vendi. Finché mancano, il food cost stimato conta solo il gelato — quindi il margine che vedi in chiusura cassa è più alto di quello vero.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ① DIAGNOSI */}
       {diag.n > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 16, marginBottom: 26 }}>
           <KPI icon={<Icon name="package" size={18} />} label="Formati configurati" value={diag.n.toLocaleString('it-IT')}
             sub={diag.n === 1 ? 'formato di vendita' : 'formati di vendita'} />
-          <KPI icon={<Icon name="money" size={18} />} label="Confezionamento medio" value={fmt3(diag.costoMedioMat)}
-            sub="materiali per unità" />
+          <KPI icon={<Icon name="money" size={18} />} label="Confezionamento medio"
+            value={diag.nConMateriali > 0 ? fmt3(diag.costoMedioMat) : 'da compilare'}
+            color={diag.nConMateriali > 0 ? undefined : T.textSoft}
+            sub={diag.nConMateriali > 0
+              ? (diag.senzaMateriali > 0
+                  ? `su ${diag.nConMateriali} formati di ${diag.n}`
+                  : 'materiali per unità')
+              : 'nessun materiale inserito'} />
           <KPI icon={<Icon name="barChart" size={18} />} label="Formato più costoso"
-            value={diag.piuCostoso ? fmt3(diag.piuCostoso.costoMateriali) : '-'}
-            sub={diag.piuCostoso?.f?.nome || 'nessuno'} color={T.amber} />
+            value={diag.piuCostoso ? fmt3(diag.piuCostoso.costoMateriali) : '—'}
+            sub={diag.piuCostoso ? diag.piuCostoso.f.nome : 'servono i materiali di confezionamento'}
+            color={diag.piuCostoso ? T.amber : T.textSoft} />
           <KPI icon={<Icon name="receipt" size={18} />} label="Senza FC categoria" value={diag.senzaCategoria.toLocaleString('it-IT')}
             color={diag.senzaCategoria ? T.amber : T.green}
             sub={diag.senzaCategoria ? 'solo materiali stimati' : 'tutti collegati'} />
@@ -234,7 +286,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
           {/* Distinta materiali consumabili */}
           <div style={{ marginTop: 22 }}>
             <label style={labelStyle}>Materiali di confezionamento per unità</label>
-            <div style={{ fontSize: 11.5, color: T.textSoft, marginBottom: 10, lineHeight: 1.5 }}>
+            <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, marginBottom: 10, lineHeight: 1.5 }}>
               Tutto ciò che va con la vendita: contenitore + accessori (cono cialda, fazzoletto, palettina, coppetta, cucchiaino…). Il food cost del formato somma queste voci.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -334,7 +386,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                     </div>
                     <div style={{ flex: 1, minWidth: 160 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{f.nome}</div>
-                      <div style={{ fontSize: 11.5, color: T.textSoft, marginTop: 3 }}>
+                      <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, marginTop: 3 }}>
                         Categoria: <b style={{ color: T.textMid }}>{f.categoria || '-'}</b> · base {(Number(f.baseQtaG) || 0).toLocaleString('it-IT')}g · {r.componenti.length} {r.componenti.length === 1 ? 'materiale' : 'materiali'}
                         {f.alias?.length > 0 && <> · alias: {f.alias.join(', ')}</>}
                       </div>
@@ -360,9 +412,19 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                           style={{ padding: '8px 12px', background: 'transparent', color: T.textMid, border: `1px solid ${T.border}`, borderRadius: R.sm, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                           <Icon name="edit" size={13} />Modifica
                         </button>
+                        {/* L'eliminazione non deve gridare su ogni riga.
+                            Era su fondo bordeaux chiaro con il testo bordeaux e
+                            il peso 600: su cinque formati diventavano cinque
+                            avvisi rossi, più forti di "Modifica" che e' l'azione
+                            che si usa davvero. Ora e' un'icona sola, discreta,
+                            col nome del formato nell'etichetta per chi usa un
+                            lettore di schermo. Il colore torna nel momento in
+                            cui serve: al passaggio del mouse. */}
                         <button onClick={(e) => { e.stopPropagation(); elimina(f.id) }}
-                          style={{ padding: '8px 12px', background: T.brandLight, color: T.brand, border: 'none', borderRadius: R.sm, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                          <Icon name="trash" size={13} />Elimina
+                          aria-label={`Elimina il formato ${f.nome}`}
+                          title={`Elimina ${f.nome}`}
+                          style={{ width: isMobile ? 40 : 32, height: isMobile ? 40 : 32, padding: 0, background: 'transparent', color: T.textSoft, border: `1px solid ${T.border}`, borderRadius: R.sm, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Icon name="trash" size={14} />
                         </button>
                       </div>
                     )}
@@ -372,7 +434,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
                   {/* breakdown espandibile */}
                   {open && (
                     <div style={{ borderTop: `1px solid ${T.borderSoft}`, background: T.bgSubtle, padding: isMobile ? '14px 16px' : '16px 20px' }}>
-                      <div style={{ fontSize: 10.5, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                      <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
                         Composizione del food cost per unità
                       </div>
 
@@ -457,7 +519,7 @@ export default function FormatiVendita({ orgId, ricettario, notify, tipoAttivita
 function MiniStat({ label, val, color, title }) {
   return (
     <div style={{ textAlign: 'right' }} title={title}>
-      <div style={{ fontSize: 9, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, whiteSpace: 'nowrap', cursor: title ? 'help' : 'default' }}>{label}</div>
+      <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, whiteSpace: 'nowrap', cursor: title ? 'help' : 'default' }}>{label}</div>
       <div style={{ fontSize: 14.5, fontWeight: 800, color: color || T.text, ...TNUM }}>{val}</div>
     </div>
   )
@@ -467,9 +529,9 @@ function MiniStat({ label, val, color, title }) {
 function BreakdownTot({ label, val, hint, color, big }) {
   return (
     <div title={hint}>
-      <div style={{ fontSize: 9.5, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 4, cursor: hint ? 'help' : 'default' }}>{label}</div>
+      <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 4, cursor: hint ? 'help' : 'default' }}>{label}</div>
       <div style={{ fontSize: big ? 18 : 15, fontWeight: 800, color: color || T.text, letterSpacing: '-0.02em', ...TNUM }}>{val}</div>
-      {hint && <div style={{ fontSize: 10.5, color: T.textSoft, marginTop: 2 }}>{hint}</div>}
+      {hint && <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, marginTop: 2 }}>{hint}</div>}
     </div>
   )
 }
@@ -483,7 +545,7 @@ function PreviewStat({ label, val, hint, color }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minHeight: 56 }}>
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.textSoft, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
       <div style={{ fontSize: 18, fontWeight: 800, color: color || T.text, letterSpacing: '-0.02em', ...TNUM, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{val}</div>
-      {hint && <div style={{ fontSize: 10.5, color: T.textSoft, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hint}</div>}
+      {hint && <div style={{ fontSize: typo.small.fontSize, color: T.textSoft, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hint}</div>}
     </div>
   )
 }
