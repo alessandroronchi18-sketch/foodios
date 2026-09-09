@@ -10,9 +10,9 @@
 // totImpasto1, foodCost1, ingredienti, note, unita, prezzo, tipo, congelabile, allergeni).
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
-import { color as T, radius as R, motion as M } from '../lib/theme'
+import { color as T, radius as R, motion as M, typo } from '../lib/theme'
 import { buildIngCosti, calcolaFC, getR, isRicettaValida, mergeIngredientiPerNorm, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
-import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, mergeAllergeni } from '../lib/allergeni'
+import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, analizzaAllergeni, mergeAllergeni } from '../lib/allergeni'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
 import FotoOCR from '../components/FotoOCR'
@@ -100,8 +100,27 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const initialFormRef = useRef(empty);
   const [targetPct, setTargetPct] = useState(30); // food cost obiettivo (%) - modificabile
 
-  // Allergeni rilevati automaticamente dagli ingredienti (Reg. UE 1169/2011).
-  const autoAllergeni = useMemo(() => detectAllergeniFromIngredienti(form.ingredienti), [form.ingredienti]);
+  // Allergeni dagli ingredienti (Reg. UE 1169/2011), in TRE stati.
+  //
+  // Prima qui c'era solo `detectAllergeniFromIngredienti`, che restituisce un
+  // elenco piatto e non sa dire "questo ingrediente non lo conosco". Sui 123
+  // nomi di ingrediente veri del database, 81 non producevano nessun allergene:
+  // una ricetta con del cioccolato si salvava con "nessun allergene", e quel
+  // dato restava nel database.
+  //
+  // Questo è il momento giusto per chiederlo: chi scrive la ricetta ha in mano
+  // la confezione del fornitore. Chiederlo dopo, sulla scheda allergeni,
+  // significa chiederlo a chi non ha più l'etichetta davanti.
+  //
+  // I dubbi NON entrano fra gli allergeni salvati: dichiararli certi sarebbe
+  // inventare, e la scheda allergeni tratta un elenco salvato a mano come
+  // verificato dal titolare. Restano dubbi finché non li si conferma.
+  const analisiAllergeni = useMemo(() => analizzaAllergeni(form.ingredienti), [form.ingredienti]);
+  const autoAllergeni = analisiAllergeni.certi;
+  // Solo i dubbi non ancora confermati a mano.
+  const allergeniDubbi = useMemo(
+    () => analisiAllergeni.daVerificare.filter(a => !(form.allergeniManual || []).includes(a)),
+    [analisiAllergeni, form.allergeniManual]);
   const effectiveAllergeni = useMemo(() => mergeAllergeni(autoAllergeni, form.allergeniManual), [autoAllergeni, form.allergeniManual]);
 
   const [newIngNome, setNewIngNome] = useState("");
@@ -224,6 +243,12 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
         tipo: form.tipo,
         congelabile: form.congelabile || false,
         allergeni: effectiveAllergeni,
+        // I dubbi rimasti aperti si salvano SEPARATI dagli allergeni. Non sono
+        // una dichiarazione — sono la memoria di cosa resta da controllare
+        // sull'etichetta del fornitore, e serve alla scheda allergeni per non
+        // mostrare una casella vuota dove non sa.
+        allergeniDaVerificare: allergeniDubbi.length ? allergeniDubbi : undefined,
+        ingredientiNonRiconosciuti: analisiAllergeni.nonRiconosciuti.length ? analisiAllergeni.nonRiconosciuti : undefined,
         categoria: (form.categoria || "").trim() || undefined,
         // resa_g: null → fallback su somma ingredienti (comportamento legacy).
         // Se l'utente dichiara resa esplicita, la salviamo per l'uso nei calc
@@ -337,7 +362,19 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       nome: nomeUp, sheetName: 'manuale', numStampi: 1, totImpasto1: 0, foodCost1: 0,
       ingredienti: ings, note: datiConfermati.procedimento || '',
       unita: datiConfermati.porzioni || 8, prezzo: 4, tipo: 'fetta',
-      congelabile: false, allergeni: detectAllergeniFromIngredienti(ings),
+      congelabile: false,
+      // I certi restano quello che erano (analizzaAllergeni().certi coincide con
+      // il vecchio rilevamento: c'è un test che lo difende). I dubbi si
+      // registrano a parte, così non vanno perduti solo perché questa strada
+      // rapida non li ha mostrati a nessuno.
+      ...(() => {
+        const a = analizzaAllergeni(ings)
+        return {
+          allergeni: a.certi,
+          ...(a.daVerificare.length ? { allergeniDaVerificare: a.daVerificare } : {}),
+          ...(a.nonRiconosciuti.length ? { ingredientiNonRiconosciuti: a.nonRiconosciuti } : {}),
+        }
+      })(),
     };
     const nuovoRic = {
       ingredienti_costi: ricettario?.ingredienti_costi || {},
@@ -471,7 +508,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
             nome: nomeIT, sheetName: "manuale", numStampi: 1, totImpasto1: 0, foodCost1: 0,
             ingredienti: ings, note: res.note || "",
             unita: res.porzioni || res.unita || 8, prezzo: res.prezzo || 4, tipo: res.tipo || "fetta",
-            congelabile: false, allergeni: detectAllergeniFromIngredienti(ings),
+            congelabile: false,
+            ...(() => {
+              const a = analizzaAllergeni(ings)
+              return {
+                allergeni: a.certi,
+                ...(a.daVerificare.length ? { allergeniDaVerificare: a.daVerificare } : {}),
+                ...(a.nonRiconosciuti.length ? { ingredientiNonRiconosciuti: a.nonRiconosciuti } : {}),
+              }
+            })(),
           };
           const base = ricAcc || ricettario || {};
           const nuovoRic = {
@@ -869,6 +914,49 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                     </span>
                   );
                 })}
+              </div>
+            )}
+
+            {/* I DUBBI, nel momento in cui si può rispondere.
+                Chi scrive la ricetta ha in mano la confezione del fornitore:
+                è l'unico momento in cui la domanda "c'è la soia in questo
+                cioccolato?" ha una risposta a portata di mano. Chiederlo dopo,
+                sulla scheda allergeni, significa chiederlo a chi non ha più
+                l'etichetta davanti. */}
+            {allergeniDubbi.length > 0 && (
+              <div style={{ background: T.amberLight, border: `1px solid ${T.amber}55`, borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                <div style={{ ...typo.small, fontWeight: 700, color: T.amber, marginBottom: 4, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="warning" size={14} />
+                  {allergeniDubbi.length === 1 ? "Un allergene da verificare" : `${allergeniDubbi.length} allergeni da verificare`}
+                </div>
+                <div style={{ ...typo.small, color: T.textMid, lineHeight: 1.55, marginBottom: 10 }}>
+                  Questi ingredienti di solito lo contengono, ma dipende dal fornitore. Guarda l'etichetta: se c'è, toccalo qui e diventa certo.
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {allergeniDubbi.map(aid => {
+                    const a = ALLERGENI.find(x => x.id === aid);
+                    if (!a) return null;
+                    return (
+                      <button key={aid} type="button"
+                        onClick={() => setForm(f => ({ ...f, allergeniManual: [...(f.allergeniManual || []), aid] }))}
+                        title={`Confermo che contiene ${a.label}`}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 12px", minHeight: isMobile ? 40 : 32, borderRadius: 20, background: T.bgCard, border: `1.5px dashed ${T.amber}`, color: T.amber, ...typo.small, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                        <Icon name="plus" size={12} />{a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Gli ingredienti che non riconosciamo: dirli per nome, non
+                lasciare una casella vuota che sembra "niente allergeni". */}
+            {analisiAllergeni.nonRiconosciuti.length > 0 && (
+              <div style={{ ...typo.small, color: T.textSoft, lineHeight: 1.55, marginBottom: 14 }}>
+                Di {analisiAllergeni.nonRiconosciuti.length === 1 ? "questo ingrediente non sappiamo" : "questi ingredienti non sappiamo"} cosa contengono:{" "}
+                <b style={{ color: T.textMid }}>{analisiAllergeni.nonRiconosciuti.slice(0, 8).join(", ")}</b>
+                {analisiAllergeni.nonRiconosciuti.length > 8 ? ` e altri ${analisiAllergeni.nonRiconosciuti.length - 8}` : ""}.
+                {" "}Se portano un allergene, aggiungilo a mano qui sotto.
               </div>
             )}
 
