@@ -310,7 +310,12 @@ export function Badge({ label, color = 'green' }) {
   )
 }
 
-export const margBadge = pct => {
+// senzaPrezzo: la ricetta non ha un prezzo di vendita impostato, quindi il
+// margine non e' basso ne' eccellente: non si sa. Audit 2026-09-09 - prima
+// una ricetta senza prezzo arrivava qui con pct 0 e usciva "Basso - rivedere"
+// in rosso, mandando a rivedere il food cost quando mancava solo il prezzo.
+export const margBadge = (pct, senzaPrezzo = false) => {
+  if (senzaPrezzo) return <Badge label="Prezzo da impostare" color="gray"/>
   if (pct === null || pct === undefined) return null
   if (pct >= 70) return <Badge label="Eccellente" color="green"/>
   if (pct >= 55) return <Badge label="Buono" color="green"/>

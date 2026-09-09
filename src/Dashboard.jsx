@@ -1968,7 +1968,22 @@ export default function Dashboard({
 
   // Aggiorna prezzo/fette da RicettarioView → propaga a tutte le dashboard
   const handleUpdateRegola = useCallback(async (nome, { prezzo, unita, congelabile }) => {
-    REGOLE[nome] = { ...(REGOLE[nome]||{}), prezzo, unita };
+    // Audit 2026-09-09: qui REGOLE veniva mutato PRIMA dell'await ssave, e senza
+    // il campo `tipo`. Due difetti in una riga:
+    //   1. non era save-first (CLAUDE.md par. 4): se ssave falliva, REGOLE
+    //      restava col prezzo nuovo e getR gli da' priorita' assoluta, quindi
+    //      card, P&L e produzione mostravano il prezzo nuovo per tutta la
+    //      sessione mentre il database aveva ancora il vecchio;
+    //   2. REGOLE builtin contiene solo 11 nomi demo, quindi per una ricetta
+    //      vera il risultato era { prezzo, unita } senza tipo. getR preferisce
+    //      REGOLE alla ricetta -> reg.tipo undefined -> labelPlurale(undefined)
+    //      ritorna 'pezzi': una torta a fette diventava "8 pezzi x 5,00 EUR" e il
+    //      pannello scriveva "Per singola undefined". Si vedeva perfino nel toast
+    //      di conferma qui sotto, che leggeva REGOLE[nome]?.tipo.
+    // Ora il tipo (e il resto) si preservano, e la mutazione avviene dopo il save.
+    const regolaPrec = getR(nome, ricettario?.ricette?.[nome]);
+    const regolaNuova = { ...regolaPrec, prezzo, unita };
+    delete regolaNuova.senzaRegola; // ora il prezzo c'e' davvero
     // Aggiorna anche dentro la ricetta stessa (per ricette manuali e per persistenza)
     const nuovoRic = {
       ...(ricettario||{}),
@@ -1979,10 +1994,17 @@ export default function Dashboard({
       }
     };
     try { await ssave(SK_RIC, nuovoRic); }
-    catch (e) { notify(`Aggiornamento ricetta fallito: ${e.message || 'rete'}`, false); return; }
+    catch (e) {
+      notify(`Aggiornamento ricetta fallito: ${e.message || 'rete'}`, false);
+      // Rilanciamo come handleSalvaRicetta: chi ha aperto l'editor deve poter
+      // riaprirlo col valore digitato invece di crederlo salvato.
+      throw e;
+    }
+    // Solo ora, che il dato e' nel database: state e regole runtime.
     setRic(nuovoRic);
+    REGOLE[nome] = regolaNuova;
     const cong = congelabile!==undefined ? congelabile : ricettario?.ricette?.[nome]?.congelabile;
-    notify(`✓ ${nome}: ${unita} ${labelPlurale(REGOLE[nome]?.tipo)} × ${fmt(prezzo)}${cong?" · congelabile":""}`);
+    notify(`${nome}: ${unita} ${labelPlurale(regolaNuova.tipo)} × ${fmt(prezzo)}${cong?" · congelabile":""}`);
   }, [ricettario]);
 
   // noRedirect=true quando si elimina - non vogliamo uscire dalla pagina

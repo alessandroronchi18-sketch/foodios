@@ -5,8 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
 import {
-  buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, REGOLE, resaGrammi,
-} from '../lib/foodcost'
+  buildIngCosti, calcolaFC, getR, isRicettaValida, normIng, REGOLE, resaGrammi, costoRigaIngrediente } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS } from '../lib/allergeni'
 import { lessico } from '../lib/lessico'
 import { labelPlurale, labelSingolare } from '../lib/tipoRicetta'
@@ -55,6 +54,7 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const [editPrezzo, setEditPrezzo] = useState(reg.prezzo)
   const [editUnita, setEditUnita] = useState(reg.unita)
   const [exportingPdf, setExportingPdf] = useState(false)
+  const [savingRegola, setSavingRegola] = useState(false)
   const [prezziSedeOpen, setPrezziSedeOpen] = useState(false)
   const hasMultiSede = Array.isArray(sedi) && sedi.filter(s => s?.attiva !== false).length > 1
   // Sort della Distinta costi - click sulle etichette dell'header riordina.
@@ -76,14 +76,43 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   // Early return DOPO tutti gli hook.
   if (reg.tipo === 'interno') return null
 
-  const handleSaveRegola = () => {
-    const p = parseFloat(editPrezzo) || reg.prezzo
-    const u = parseInt(editUnita) || reg.unita
-    // Audit 2026-07-01 HIGH: non mutare il singleton REGOLE - onUpdateRegola
-    // persiste il dato nella ricetta, getR lo legge da li. Mutare REGOLE
-    // significa inquinare org B dopo impersonation di org A.
-    onUpdateRegola(ric.nome, { prezzo: p, unita: u })
-    setEditMode(false)
+  // Audit 2026-09-09: tre difetti in questa funzione.
+  //  1. `onUpdateRegola(...)` senza await, seguito da `setEditMode(false)`:
+  //     l'editor si chiudeva prima di sapere l'esito. Se il salvataggio
+  //     falliva, il valore digitato era perso (riaprendo si ricarica
+  //     reg.prezzo) e restava solo un toast rosso.
+  //  2. Nessun `disabled` durante l'attesa (CLAUDE.md, "Bottoni async"):
+  //     doppio click = due salvataggi.
+  //  3. `parseFloat(editPrezzo) || reg.prezzo`: 0 e' falsy, quindi mettere
+  //     prezzo 0 era IMPOSSIBILE (tornava al vecchio valore) mentre un
+  //     prezzo negativo passava senza controlli, malgrado il min="0".
+  const handleSaveRegola = async () => {
+    if (savingRegola) return
+    const pRaw = String(editPrezzo ?? '').replace(',', '.').trim()
+    const uRaw = String(editUnita ?? '').trim()
+    const p = pRaw === '' ? reg.prezzo : parseFloat(pRaw)
+    const u = uRaw === '' ? reg.unita : parseInt(uRaw, 10)
+    if (!Number.isFinite(p) || p < 0) {
+      notify && notify('Il prezzo non è valido: scrivi un numero, per esempio 4,50', false)
+      return
+    }
+    if (!Number.isFinite(u) || u <= 0) {
+      notify && notify('Le unità per stampo devono essere almeno 1', false)
+      return
+    }
+    setSavingRegola(true)
+    try {
+      // Audit 2026-07-01 HIGH: non mutare il singleton REGOLE - onUpdateRegola
+      // persiste il dato nella ricetta, getR lo legge da li. Mutare REGOLE
+      // significa inquinare org B dopo impersonation di org A.
+      await onUpdateRegola(ric.nome, { prezzo: p, unita: u })
+      setEditMode(false)
+    } catch {
+      // Il messaggio l'ha già mostrato il Dashboard. Qui teniamo aperto
+      // l'editor col valore digitato, così si può riprovare senza riscriverlo.
+    } finally {
+      setSavingRegola(false)
+    }
   }
 
   const { tot: fc, mancanti } = calcolaFC(ric, ingCosti, ricettario)
@@ -110,6 +139,12 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0
   const fcUnita = reg.unita > 0 ? fc / reg.unita : 0
   const mrgUnita = reg.prezzo - fcUnita
+  // Audit 2026-09-09 ALTA: 24 delle 27 ricette del design partner non hanno un
+  // prezzo di vendita salvato (importate da Excel). Il vecchio getR ci metteva
+  // "8 fette x 4,00 EUR" di suo, e da li' uscivano Ricavo 32,00 EUR, margine
+  // 92-99% e badge verde "Eccellente" su una GELATERIA. Ora getR marca il caso
+  // e la card lo dichiara invece di riempirlo con numeri inventati.
+  const senzaPrezzo = !!reg.senzaRegola && !isGusto
   const mc = margColor(margPct)
   const mbg = margPct >= 60 ? C.greenLight : margPct >= 40 ? C.amberLight : C.redLight
 
@@ -126,13 +161,27 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
   const ingListBase = (ric.ingredienti || [])
     .filter(ing => !ING_SKIP_DISPLAY.includes(normIng(ing.nome || '').toLowerCase().trim()))
     .map(ing => {
+      // Audit 2026-09-09: il costo di riga era `ingCosti[nome] * grammi`, che non
+      // conosce i semilavorati (una base usata come ingrediente usciva "n/d" con
+      // costo 0 mentre il totale fc la contava per ricorsione: la somma delle
+      // percentuali non faceva 100) ne' le rese (righe piu' basse del totale).
+      // costoRigaIngrediente e' la stessa funzione che alimenta la tabella di
+      // Nuova Ricetta e calcolaFCDettaglio: un solo conto per tutte le pagine.
       const c = ingCosti[normIng(ing.nome)]
-      const costoCalc = c ? parseFloat((ing.qty1stampo * c.costoG).toFixed(3)) : 0
-      return { ...ing, nomeDisplay: formatNome(ing.nome), costoCalc, costoPerGCalc: c?.costoG || 0, pct: fc > 0 ? (costoCalc / fc * 100) : 0, isStima: c?.isStima || false, mancante: !c }
+      const rg = costoRigaIngrediente(ing, ingCosti, ricettario)
+      const costoCalc = rg.costo
+      return { ...ing, nomeDisplay: formatNome(ing.nome), costoCalc, costoPerGCalc: c?.costoG || 0, pct: fc > 0 ? (costoCalc / fc * 100) : 0, isStima: rg.isStima, mancante: rg.mancante, isSemilavorato: rg.isSemilavorato, motivoCosto: rg.motivo }
     })
   // Sort sincrono (niente useMemo: siamo dopo l'early return su tipo
   // 'interno', e useMemo violerebbe le rules-of-hooks). N ingredienti per
   // ricetta è < 50 → sort O(n log n) trascurabile.
+  // Quanti ingredienti stanno usando un prezzo medio di mercato invece del tuo.
+  // Distinto dai `mancanti` di calcolaFC, che non hanno prezzo per niente.
+  const nStimati = ingListBase.filter(i => i.isStima).length
+  // Audit 2026-09-09: ogni numero che deriva dal prezzo di vendita va sostituito
+  // con un trattino quando quel prezzo non e' stato impostato. Prima usciva il
+  // valore calcolato su un prezzo inventato (4,00 €), indistinguibile da un dato vero.
+  const seHaPrezzo = (v) => senzaPrezzo ? '—' : v
   const ingList = [...ingListBase].sort((a, b) => {
     if (sortKey === 'nome') {
       const sa = a.nomeDisplay || '', sb = b.nomeDisplay || ''
@@ -158,14 +207,16 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
       ? { lbl: 'Costo / kg', val: fmt(costoGSemi * 1000), c: SEMI.accent }
       : (isGusto && !ricavoFlatOk)
         ? { lbl: 'Costo / kg', val: fmt(fcPerKg), c: C.red }
-        : { lbl: 'Margine', val: fmtp(margPct), c: mc }
+        : senzaPrezzo
+          ? { lbl: 'Margine', val: 'prezzo da impostare', c: C.textSoft }
+          : { lbl: 'Margine', val: fmtp(margPct), c: mc }
     const kpiSec = isSemi
       ? { lbl: 'Peso batch', val: pesoTotSemi >= 1000 ? `${(Number(pesoTotSemi) / 1000).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : `${Math.round(Number(pesoTotSemi)||0).toLocaleString('it-IT')} g`, c: C.text }
       : (isGusto && !ricavoFlatOk)
         ? { lbl: 'Ricavo/kg', val: 'Configura formati', c: C.textSoft }
         : isGusto
           ? { lbl: 'Ricavo / kg', val: fmt(ricavo), c: C.text }
-          : { lbl: 'Ricavo', val: fmt(ricavo), c: C.text }
+          : { lbl: 'Ricavo', val: seHaPrezzo(fmt(ricavo)), c: senzaPrezzo ? C.textSoft : C.text }
     return (
       <div
         role="button"
@@ -185,9 +236,14 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             {isSemi && (
               <span style={{ padding: '2px 7px', borderRadius: 5, background: SEMI.accentLight, color: SEMI.accent, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Semilavorato</span>
             )}
-            {!isSemi && margBadge(margPct)}
+            {!isSemi && margBadge(margPct, senzaPrezzo)}
+            {/* Card chiusa: "N stime" era la stessa bugia della card aperta, in piu'
+                corto. Chi non apre la card vede solo questo. */}
             {mancanti.length > 0 && (
-              <Badge label={`${mancanti.length} stime`} color="amber"/>
+              <Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red"/>
+            )}
+            {mancanti.length === 0 && nStimati > 0 && (
+              <Badge label={nStimati === 1 ? '1 stimato' : `${nStimati} stimati`} color="amber"/>
             )}
           </div>
           <div style={{ fontSize: isMobile ? 15 : 16, fontWeight: 800, color: C.text, letterSpacing: '-0.02em', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -284,12 +340,28 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5, minHeight: 22 }}>
               {!isSemi && (isGusto && !ricavoFlatOk
                 ? <Badge label="Ricavo/kg da configurare" color="amber"/>
-                : <Tip text={isGusto
-                    ? `Margine ${fmtp(margPct)}: ricavo ${fmt(ricavo)}/kg (media formati) − costo ${fmt(fcPerKg)}/kg.`
-                    : `Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={280}>{margBadge(margPct)}</Tip>
+                : <Tip text={senzaPrezzo
+                    ? 'Non c’è un prezzo di vendita salvato, quindi il margine non si può calcolare. Impostalo col bottone Prezzo qui sotto.'
+                    : isGusto
+                      ? `Margine ${fmtp(margPct)}: ricavo ${fmt(ricavo)}/kg (media formati) − costo ${fmt(fcPerKg)}/kg.`
+                      : `Margine: ${fmtp(margPct)}. Ricavo ${fmt(ricavo)} − FC ${fmt(fc)}.`} width={280}>{margBadge(margPct, senzaPrezzo)}</Tip>
               )}
+              {/* Audit 2026-09-09 ALTA: questo badge diceva "N prezzi stimati" con il
+                  tooltip "FC calcolato su stime HoReCa" contando gli ingredienti che
+                  NON hanno prezzo, e che calcolaFC esclude dal totale valendo ZERO.
+                  Caso reale NOCCIOLA: base bianca 1000 g (2,31 €) + pasta nocciola
+                  110 g (0 €, nessun prezzo) -> card "Food cost 2,31 €", "1 prezzo
+                  stimato", composizione "Base bianca 100%". La pasta nocciola sta a
+                  25-40 €/kg: il food cost vero e' piu' che DOPPIO.
+                  E le stime HoReCa vere (isStima) non erano contate da nessuna parte:
+                  SENSIBILE ha albume e burro entrambi stimati e non mostrava nulla,
+                  ABIS ha lo zafferano che fa il 99% del food cost da listino medio.
+                  Ora sono due cose distinte, perche' sono due problemi distinti. */}
               {mancanti.length > 0 && (
-                <Tip text="Alcuni ingredienti non hanno prezzo reale: FC calcolato su stime HoReCa." width={280}><Badge label={`${mancanti.length} prezzi stimati`} color="amber"/></Tip>
+                <Tip text={`Questi ingredienti non hanno prezzo e valgono ZERO nel calcolo: ${mancanti.join(', ')}. Il food cost vero e' piu' alto.`} width={300}><Badge label={mancanti.length === 1 ? '1 senza prezzo' : `${mancanti.length} senza prezzo`} color="red"/></Tip>
+              )}
+              {nStimati > 0 && (
+                <Tip text="Prezzo preso dal listino medio di mercato, non dal tuo. Caricando i tuoi prezzi il food cost diventa il tuo." width={300}><Badge label={nStimati === 1 ? '1 prezzo stimato' : `${nStimati} prezzi stimati`} color="amber"/></Tip>
               )}
             </div>
           )}
@@ -300,7 +372,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
                 ? (ricavoFlatOk
                     ? `Gusto · costo ${fmt(fcPerKg)}/kg · ricavo medio ${fmt(ricavo)}/kg (dai formati)`
                     : `Gusto · costo ${fmt(fcPerKg)}/kg · aggiungi formati vendita per stimare il margine`)
-                : `${reg.unita} ${labelPlurale(reg.tipo)} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`}
+                : senzaPrezzo
+                  ? `Prezzo di vendita da impostare${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`
+                  : `${reg.unita} ${labelPlurale(reg.tipo)} × ${fmt(reg.prezzo)}${ric.totImpasto1 > 0 ? ` · ${ric.totImpasto1}g impasto` : ''}`}
           </div>
           {(ric.allergeni || []).length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
@@ -342,9 +416,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             ]
           ) : [
             // Ordine (26/06): Ricavo, Margine, Margine %, Food cost a destra.
-            { lbl: 'Ricavo', val: fmt(ricavo), c: C.text, bg: '#F8F4F2' },
-            { lbl: 'Margine', val: fmt(margine), c: mc, bg: mbg, bold: true },
-            { lbl: 'Margine %', val: fmtp(margPct), c: mc, bg: mbg, bold: true },
+            { lbl: 'Ricavo', val: seHaPrezzo(fmt(ricavo)), c: C.text, bg: '#F8F4F2' },
+            { lbl: 'Margine', val: seHaPrezzo(fmt(margine)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? '#F8F4F2' : mbg, bold: true },
+            { lbl: 'Margine %', val: seHaPrezzo(fmtp(margPct)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? '#F8F4F2' : mbg, bold: true },
             { lbl: 'Food cost', val: fmt(fc), c: C.red, bg: C.redLight },
           ]).map(({ lbl, val, c, bg, bold }, i) => (
             // KPI futuristic: subtle inset highlight + ring borderColor brand
@@ -442,8 +516,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
             <span style={{ fontSize: 13, fontWeight: 900, color: C.green, ...TNUM }}>{fmt((parseFloat(editPrezzo) || 0) * (parseInt(editUnita) || 0))}</span>
           </div>
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-            <button onClick={() => setEditMode(false)} style={{ padding: '7px 14px', borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 11, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Annulla</button>
-            <button onClick={handleSaveRegola} style={{ padding: '7px 18px', borderRadius: 7, border: 'none', background: C.red, color: C.white, fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="save" size={13} /> Salva</button>
+            <button onClick={() => setEditMode(false)} disabled={savingRegola} style={{ padding: '9px 14px', minHeight: 40, borderRadius: 7, border: `1px solid ${C.borderStr}`, background: 'transparent', fontSize: 12, fontWeight: 700, color: C.textMid, cursor: savingRegola ? 'default' : 'pointer', opacity: savingRegola ? 0.5 : 1 }}>Annulla</button>
+            {/* disabled durante l'attesa: senza, un doppio click salvava due volte. */}
+            <button onClick={handleSaveRegola} disabled={savingRegola} style={{ padding: '9px 18px', minHeight: 40, borderRadius: 7, border: 'none', background: savingRegola ? C.borderStr : C.red, color: C.white, fontSize: 12, fontWeight: 800, cursor: savingRegola ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="save" size={13} /> {savingRegola ? 'Salvo…' : 'Salva'}</button>
           </div>
         </div>
       )}
@@ -596,10 +671,10 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               {/* 4 righe perfettamente incolonnate */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  { lbl: 'Ricavo',         val: fmt(ricavo),    c: C.green, bg: C.greenLight, brd: `${C.green}25` },
+                  { lbl: 'Ricavo',         val: seHaPrezzo(fmt(ricavo)),  c: senzaPrezzo ? C.textSoft : C.green, bg: senzaPrezzo ? '#F8F4F2' : C.greenLight, brd: senzaPrezzo ? C.border : `${C.green}25` },
                   { lbl: 'Food cost',      val: `−${fmt(fc)}`,  c: C.red,   bg: C.redLight,   brd: `${C.red}20` },
-                  { lbl: 'Margine lordo',  val: fmt(margine),   c: mc,      bg: mbg,          brd: `${mc}25`, prominent: true },
-                  { lbl: 'Margine %',      val: fmtp(margPct),  c: mc,      bg: mbg,          brd: `${mc}25` },
+                  { lbl: 'Margine lordo',  val: seHaPrezzo(fmt(margine)),  c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? '#F8F4F2' : mbg, brd: senzaPrezzo ? C.border : `${mc}25`, prominent: true },
+                  { lbl: 'Margine %',      val: seHaPrezzo(fmtp(margPct)), c: senzaPrezzo ? C.textSoft : mc, bg: senzaPrezzo ? '#F8F4F2' : mbg, brd: senzaPrezzo ? C.border : `${mc}25` },
                 ].map((r, i) => (
                   <div key={i} style={{
                     padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
@@ -662,9 +737,9 @@ function TortaCard({ ric, ingCosti, ricettario, onUpdateRegola, onEdit, variant 
               <div style={PANEL_TITLE_STYLE}><Icon name="gift" size={14} /> Per singola {reg.tipo}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {[
-                  { lbl: 'Prezzo',    val: fmt(reg.prezzo), c: C.text },
+                  { lbl: 'Prezzo',    val: seHaPrezzo(fmt(reg.prezzo)), c: senzaPrezzo ? C.textSoft : C.text },
                   { lbl: 'Food cost', val: fmt(fcUnita),    c: C.red },
-                  { lbl: 'Margine',   val: fmt(mrgUnita),   c: mrgUnita > 0 ? C.green : C.red },
+                  { lbl: 'Margine',   val: seHaPrezzo(fmt(mrgUnita)), c: senzaPrezzo ? C.textSoft : (mrgUnita > 0 ? C.green : C.red) },
                 ].map(({ lbl, val, c }) => (
                   <div key={lbl} style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 7, padding: '11px 8px', textAlign: 'center', minHeight: 60, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 5 }}>
                     <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSoft, lineHeight: 1 }}>{lbl}</div>
@@ -758,16 +833,24 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
     return reg.unita * reg.prezzo
   }
 
-  const fcMedio = ricette.length === 0 ? 0 : (() => {
-    let tot = 0, cnt = 0
-    for (const ric of ricette) {
-      const ricavo = ricavoEffettivo(ric)
-      if (ricavo <= 0) continue
-      const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
-      tot += fc / ricavo; cnt++
-    }
-    return cnt > 0 ? tot / cnt : 0
-  })()
+  // Audit 2026-09-09: il KPI va accompagnato dal numero di ricette su cui e'
+  // calcolato. Le ricette senza prezzo di vendita sono escluse (giusto: non si
+  // puo' calcolare una percentuale su un ricavo che non esiste), ma nel database
+  // reale sono 24 su 27: senza dirlo, "Food cost medio 28%" sembra il food cost
+  // dell'azienda mentre riguarda 3 ricette. Prima era anche peggio, perche' il
+  // prezzo inventato di 4,00 € le faceva entrare tutte e usciva 5,6% in verde.
+  const { valore: fcMedio, conteggio: fcMedioSu } = ricette.length === 0
+    ? { valore: 0, conteggio: 0 }
+    : (() => {
+        let tot = 0, cnt = 0
+        for (const ric of ricette) {
+          const ricavo = ricavoEffettivo(ric)
+          if (ricavo <= 0) continue
+          const { tot: fc } = calcolaFC(ric, ingCosti, ricettario)
+          tot += fc / ricavo; cnt++
+        }
+        return { valore: cnt > 0 ? tot / cnt : 0, conteggio: cnt }
+      })()
 
   const filtered = useMemo(() => {
     let arr = ricette.filter(r => r.nome.toLowerCase().includes(search.toLowerCase()))
@@ -831,9 +914,15 @@ export default function RicettarioView({ ricettario, onUpdateRegola, onUpload, o
           return (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2,1fr)' : 'repeat(3,1fr)', gap: isMobile ? 10 : 16 }}>
               <KPI label={LEX.ricette} value={ric} icon={<Icon name="gift" size={18} />} color={T.text} sub={subRicette} />
-              <KPI label="Food cost medio" value={`${(fcMedio * 100).toFixed(1)}%`} icon={<Icon name="barChart" size={18} />}
-                color={fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand}
-                sub="media non pesata sulle ricette" />
+              <KPI label="Food cost medio"
+                value={fcMedioSu === 0 ? '—' : `${(fcMedio * 100).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                icon={<Icon name="barChart" size={18} />}
+                color={fcMedioSu === 0 ? T.textSoft : fcMedio < 0.30 ? T.green : fcMedio < 0.35 ? T.amber : T.brand}
+                sub={fcMedioSu === 0
+                  ? 'serve il prezzo di vendita di almeno una ricetta'
+                  : fcMedioSu < ric
+                    ? `su ${fcMedioSu} ${fcMedioSu === 1 ? 'ricetta' : 'ricette'} di ${ric}: le altre non hanno prezzo`
+                    : 'media non pesata sulle ricette'} />
               <KPI label="Semilavorati" value={semi} icon={<Icon name="gift" size={18} />} color="#8E44AD" sub="basi e impasti interni" />
             </div>
           )

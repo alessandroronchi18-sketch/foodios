@@ -722,7 +722,26 @@ export const getR = (nome, ricetta) => {
     prezzo: ricetta.prezzo || 0,
     tipo:   ricetta.tipo || "fetta",
   }
-  return { unita:8, prezzo:4, tipo:"fetta" }
+  // Audit 2026-09-09 ALTA: qui il fallback era `{ unita:8, prezzo:4 }`, cioe' un
+  // PREZZO DI VENDITA INVENTATO. Le ricette importate da Excel non hanno
+  // unita/prezzo, e in produzione erano 24 delle 27 ricette del design partner
+  // (una GELATERIA): il Ricettario mostrava "8 fette x 4,00 EUR", "Ricavo 32,00 EUR",
+  // "Margine 92-99%" e il badge verde "Eccellente" su numeri che nessuno aveva
+  // mai inserito. Il KPI "Food cost medio" usciva 5,6% in verde, quando in una
+  // gelateria e' 25-35%.
+  //
+  // `prezzo` va a 0: un prezzo di vendita non si inventa mai, e nessuna funzione
+  // operativa dipende da questo valore (solo i calcoli di ricavo e margine, che
+  // ora devono dichiarare che il prezzo manca).
+  //
+  // `unita` resta 8 perche' NON e' un dato commerciale: la produzione la usa come
+  // fattore per convertire gli stampi in pezzi (ProduzioneGiornalieraView righe
+  // 176, 258, 406, 431, 594). Portarla a 0 romperebbe il carico dello stock, che
+  // oggi funziona. Ma la marchiamo, cosi' chi la mostra puo' dire che e' presunta.
+  //
+  // `senzaRegola: true` e' il segnale per la UI: questa ricetta NON ha un prezzo
+  // di vendita, e ogni numero che ne deriva non va presentato come misurato.
+  return { unita:8, prezzo:0, tipo:"fetta", senzaRegola:true }
 }
 
 export const isSemilavorato = (nome, ricettario) => {

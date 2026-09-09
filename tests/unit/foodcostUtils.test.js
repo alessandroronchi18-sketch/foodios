@@ -112,8 +112,8 @@ describe('getR', () => {
   it('ricetta manuale: legge unita/prezzo/tipo dall’oggetto', () => {
     expect(getR('NUOVA', { unita: 12, prezzo: 6, tipo: 'fetta' })).toMatchObject({ unita: 12, prezzo: 6 })
   })
-  it('sconosciuta → default fetta 8×4', () => {
-    expect(getR('XYZ')).toEqual({ unita: 8, prezzo: 4, tipo: 'fetta' })
+  it('sconosciuta → nessun prezzo inventato, marcata senzaRegola', () => {
+    expect(getR('XYZ')).toEqual({ unita: 8, prezzo: 0, tipo: 'fetta', senzaRegola: true })
   })
 })
 

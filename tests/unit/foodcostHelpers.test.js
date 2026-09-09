@@ -106,9 +106,18 @@ describe('getR', () => {
     expect(r.unita).toBe(0)
     expect(r.tipo).toBe('semilavorato')
   })
-  it('nessuna regola né ricetta → default (8 unità, 4€, fetta)', () => {
+  // Aggiornato 2026-09-09: il vecchio test fissava `prezzo: 4` come atteso.
+  // Era un prezzo di vendita INVENTATO, e in produzione riguardava 24 delle 27
+  // ricette del design partner (una gelateria), presentate con "8 fette x 4,00 €",
+  // "Margine 92-99%" e badge verde "Eccellente" su numeri mai inseriti da nessuno.
+  it('senza regola né ricetta NON inventa un prezzo di vendita', () => {
     const r = getR('SCONOSCIUTA', null)
-    expect(r).toEqual({ unita: 8, prezzo: 4, tipo: 'fetta' })
+    expect(r.prezzo).toBe(0)
+    expect(r.senzaRegola).toBe(true)
+    // `unita` resta 8: non e' un dato commerciale, la produzione la usa come
+    // fattore stampi->pezzi e portarla a 0 romperebbe il carico dello stock.
+    expect(r.unita).toBe(8)
+    expect(r.tipo).toBe('fetta')
   })
   it('ricetta con unita undefined ma altri campi → torna ai default', () => {
     const r = getR('NO_UNITA', { prezzo: 3 })

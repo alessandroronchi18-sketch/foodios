@@ -34,11 +34,15 @@ export function getRegSede(nome, ric, listino) {
   const base = getR(nome, ric)
   const ov = listino?.ricette?.[nome]
   if (!ov) return base
-  return {
-    ...base,
-    prezzo: (typeof ov.prezzo === 'number' && Number.isFinite(ov.prezzo)) ? ov.prezzo : base.prezzo,
-    unita:  (typeof ov.unita  === 'number' && Number.isFinite(ov.unita))  ? ov.unita  : base.unita,
+  const prezzo = (typeof ov.prezzo === 'number' && Number.isFinite(ov.prezzo)) ? ov.prezzo : base.prezzo
+  const unita  = (typeof ov.unita  === 'number' && Number.isFinite(ov.unita))  ? ov.unita  : base.unita
+  const out = { ...base, prezzo, unita }
+  // Audit 2026-09-09: se la sede ha un prezzo suo, quel prezzo esiste davvero e
+  // la ricetta non e' piu' "senza regola", anche se il base non ce l'aveva.
+  if (out.senzaRegola && typeof ov.prezzo === 'number' && Number.isFinite(ov.prezzo)) {
+    delete out.senzaRegola
   }
+  return out
 }
 
 // Ritorna prezzoDefault effettivo del formato (override o base).
