@@ -1,6 +1,7 @@
 // jsPDF + autoTable caricati lazy SOLO quando l'utente clicca un export.
 // Senza questo lazy-load il chunk pdf (649KB) veniva fetchato al mount.
 import { resaGrammi, pesoIngredientiG } from './foodcost'
+import { scadenzaFattura } from './fatture'
 
 let _jsPDF = null
 let _autoTable = null
@@ -743,13 +744,25 @@ export async function exportScadenzario(fatture, nomeAttivita, emailUtente) {
       const stato = f.stato || 'da_pagare'
       if (stato === 'pagata') totalePagato += f.totale || 0
       else totaleDaPagare += f.totale || 0
+      // Audit 2026-09-09: tre colonne uscivano vuote su TUTTE le righe.
+      //  - `numero_fattura` non esiste: la colonna e' `numero_rif`, quindi il
+      //    numero era "-" su 217 righe su 217. Un documento da mandare al
+      //    commercialista senza il numero della fattura non serve a niente.
+      //  - `data_scadenza` e' vuota su 418 fatture su 418 (gli XML di questi
+      //    fornitori non portano il blocco DatiPagamento): la colonna Scadenza
+      //    era "-" su tutte. Ora la scadenza si deriva come nella pagina, con
+      //    un asterisco quando e' calcolata e non presa dal documento.
+      //  - imponibile e imposta sono vuoti su 198 righe su 217 (gli import
+      //    valorizzano solo il totale): "0,00 €" faceva sembrare l'IVA zero.
+      //    Ora si scrive "n.d." dove il dato non c'e'.
+      const sc = scadenzaFattura(f)
       return [
-        f.numero_fattura || '-',
+        f.numero_rif || '-',
         fmt2(f.data_fattura),
-        fmt2(f.data_scadenza),
+        sc.iso ? `${fmt2(sc.iso)}${sc.stimata ? ' *' : ''}` : '-',
         statoLabel[stato] || stato,
-        fmt(f.imponibile),
-        fmt(f.imposta),
+        f.imponibile == null ? 'n.d.' : fmt(f.imponibile),
+        f.imposta == null ? 'n.d.' : fmt(f.imposta),
         fmt(f.totale),
       ]
     })
@@ -784,6 +797,20 @@ export async function exportScadenzario(fatture, nomeAttivita, emailUtente) {
     margin: { left: 14 },
     tableWidth: 120,
   })
+
+  // Legenda dell'asterisco: un simbolo senza spiegazione su un documento che
+  // finisce dal commercialista non aiuta nessuno.
+  const nStimate = fatture.filter(f => scadenzaFattura(f).stimata).length
+  if (nStimate > 0) {
+    const yLeg = (doc.lastAutoTable?.finalY || startY) + 8
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...GRAY)
+    doc.text(
+      `* Scadenza calcolata come data fattura + 30 giorni: ${nStimate === 1 ? 'una fattura non la porta' : `${nStimate} fatture non la portano`} scritta nel documento.`,
+      14, yLeg, { maxWidth: 180 },
+    )
+  }
 
   addFooter(doc, { emailUtente, nomeAttivita })
   doc.save('scadenzario-fatture.pdf')

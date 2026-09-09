@@ -8,7 +8,11 @@ import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { sload, ssave } from '../lib/storage'
 import { generateSepaXml, ibanIsValid, normalizeIban, causaleFattura, bonificoText } from '../lib/sepa'
 import Icon from './Icon'
-import { color as T, radius as R, shadow as S, motion as M } from '../lib/theme'
+import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
+// todayLocal: la data di OGGI nel fuso dell'utente. new Date().toISOString()
+// darebbe la data UTC, che in Italia fra mezzanotte e le 2 e' ancora ieri: la
+// data di pagamento proposta risultava del giorno prima.
+import { todayLocal } from '../lib/dateLocal'
 
 // Chiave storage per i dati di pagamento dell'azienda (intestatario + IBAN da
 // cui partono i bonifici). Shared a livello org (sede null).
@@ -165,6 +169,13 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
   const [fatture, setFatture]             = useState([])
   const [loading, setLoading]             = useState(true)
   const [importLoading, setImportLoading] = useState(false)
+  // Quali gruppi di scadenza hanno "mostra tutte" attivo. Sta qui e non dentro
+  // Gruppo perché quel componente viene chiamato come funzione: vedi il
+  // commento dentro Gruppo.
+  const [gruppiEspansi, setGruppiEspansi] = useState({})
+  // Conferma e stato dell'operazione "segna pagate" in blocco.
+  const [bloccoConf, setBloccoConf] = useState(null)   // { items, titolo } | null
+  const [bloccoLoading, setBloccoLoading] = useState(false)
   const [filtro, setFiltro]               = useState('tutte')
   // Lo scope sede è comandato dal SELETTORE GLOBALE in topbar (un solo controllo):
   // sede specifica → solo quella + condivise; "Tutte le sedi" (sedeId assente) → tutte.
@@ -457,6 +468,52 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     }
   }
 
+  // Segna pagate più fatture in una volta.
+  //
+  // Audit 2026-09-09: l'unico modo di segnare pagata una fattura era una alla
+  // volta, e Mara ne ha 211 scadute: 211 clic, ognuno con il popup da aprire e
+  // confermare. Chi paga il bonifico cumulativo a un fornitore ha appena
+  // saldato dieci fatture insieme, e registrarle una per una e' lavoro che
+  // nessuno fa — quindi lo scadenziario resta indietro e smette di servire.
+  // La data e' una sola: il giorno in cui il bonifico e' partito.
+  async function segnaPagateInBlocco(items, dataIso) {
+    const daFare = (items || []).filter(f => f.stato !== 'pagata')
+    if (!daFare.length) return
+    setBloccoLoading(true)
+    try {
+      // Un update per fattura: l'importo pagato va portato al totale di
+      // ciascuna, quindi un update unico non saprebbe cosa scrivere. A lotti,
+      // per non aprire 211 richieste tutte insieme.
+      const fatte = []
+      const LOTTO = 20
+      for (let i = 0; i < daFare.length; i += LOTTO) {
+        const lotto = daFare.slice(i, i + LOTTO)
+        const esiti = await Promise.all(lotto.map(async (f) => {
+          const totale = Math.abs(Number(f.totale) || 0)
+          const patch = { stato: 'pagata', data_pagamento: dataIso, importo_pagato: totale }
+          const { error } = await supabase.from('fatture').update(patch).eq('id', f.id)
+          return error ? null : { id: f.id, patch }
+        }))
+        for (const e of esiti) if (e) fatte.push(e)
+      }
+      if (fatte.length) {
+        const perId = Object.fromEntries(fatte.map(e => [e.id, e.patch]))
+        setFatture(prev => prev.map(x => perId[x.id] ? { ...x, ...perId[x.id] } : x))
+      }
+      setBloccoConf(null)
+      // Se qualcuna non passa va detto: il numero a schermo dopo l'operazione
+      // deve corrispondere a quello che e' successo davvero.
+      if (fatte.length === daFare.length) {
+        notify(`${fatte.length} ${fatte.length === 1 ? 'fattura segnata' : 'fatture segnate'} come pagate`)
+      } else {
+        notify(`Segnate ${fatte.length} di ${daFare.length}: sulle altre il salvataggio non è riuscito, riprova.`, false)
+      }
+    } catch (e) {
+      notify('Errore: ' + (e?.message || 'aggiornamento fallito'), false)
+    } finally {
+      setBloccoLoading(false)
+    }
+  }
   // ── Bonifico ────────────────────────────────────────────────────────────────
   // Genera e scarica il file SEPA pain.001 con le fatture selezionate.
   function generaBonificoSEPA(items) {
@@ -569,6 +626,15 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         ...fEnriched,
         urgenza: computeUrgenza(fEnriched, now),
         dueIso: dueDateISO(fEnriched),
+        // Audit 2026-09-09: `data_scadenza` e' vuota su 418 fatture su 418 (gli
+        // XML di questi fornitori non portano il blocco DatiPagamento), quindi
+        // la data mostrata e' SEMPRE derivata da data_fattura + 30 giorni. La
+        // pagina la scriveva come un fatto ("scade il 31/01/2026 · 5 giorni
+        // fa"): chi programma i pagamenti su quelle date lavora su una
+        // convenzione, non su un accordo col fornitore. 106 di quelle date
+        // cadono di sabato o domenica, che e' un altro segnale che non vengono
+        // dal documento.
+        dueStimata: !(f.data_scadenza && /^\d{4}-\d{2}-\d{2}/.test(String(f.data_scadenza))),
         dueDays: dd ? diffDays(dd, now) : null,
         segno,
         isNC: segno < 0,
@@ -619,18 +685,31 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     return (FILTRI.find(x => x.id === filtro) || FILTRI[0]).gruppi
   }, [filtro])
 
-  const totaliFiltrati = useMemo(() => {
-    const items = gruppiVisibili.flatMap(k => gruppi[k] || [])
-    return { n: items.length, tot: items.reduce((s, f) => s + (f.totale || 0), 0) }
-  }, [gruppi, gruppiVisibili])
-
-  // Match ricerca (fornitore o numero documento)
   const matchSearch = (f) => {
     const q = search.trim().toLowerCase()
     if (!q) return true
     return (f.fornitore || '').toLowerCase().includes(q) || (f.numero_rif || '').toLowerCase().includes(q)
   }
 
+  // Audit 2026-09-09: due difetti in tre righe.
+  //  1. la ricerca non era applicata qui. Cercando un fornitore che non esiste,
+  //     le righe a schermo diventavano zero ma `n` restava > 0, quindi il ramo
+  //     "Nessuna fattura per questo filtro" non scattava: pagina bianca senza
+  //     una parola, e i contatori in cima continuavano a dire "70 fatture ·
+  //     9.415 €" come se ci fosse qualcosa.
+  //  2. il totale sommava `f.totale`, cioè il LORDO, mentre le card KPI in
+  //     cima usano il residuo (netto degli acconti e delle note di credito):
+  //     due numeri diversi per la stessa cosa nella stessa schermata.
+  const totaliFiltrati = useMemo(() => {
+    const items = gruppiVisibili.flatMap(k => gruppi[k] || []).filter(matchSearch)
+    return {
+      n: items.length,
+      tot: items.reduce((s, f) => s + (Number(f.residuo) || 0), 0),
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gruppi, gruppiVisibili, search])
+
+  // Match ricerca (fornitore o numero documento)
   // ── Rollup per fornitore (solo aperte, netto NC) ─────────────────────────────
   const rollupFornitori = useMemo(() => {
     const map = {}
@@ -827,7 +906,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             {f.data_pagamento ? fmtDate(f.data_pagamento) : 'Pagata'}
           </span>
         ) : (
-          <button onClick={() => { setPagandoId(f.id); setEliminandoId(null); setPagImporto(''); setPagMetodo('bonifico'); setDataPag(new Date().toISOString().slice(0,10)) }}
+          <button onClick={() => { setPagandoId(f.id); setEliminandoId(null); setPagImporto(''); setPagMetodo('bonifico'); setDataPag(todayLocal()) }}
             aria-label={f.pagato > 0 ? 'Salda o registra acconto' : 'Segna come pagata'}
             style={{ padding: isMobile ? '9px 14px' : (compact ? '6px 11px' : '7px 12px'), minHeight: tinyBtnH, background: '#F0FDF4', color: T.green, border: `1px solid ${T.green}`, borderRadius: 8, fontSize: isMobile ? 13 : 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
             <Icon name="check" size={12} /> {f.pagato > 0 ? 'Salda/acconto' : 'Segna pagata'}
@@ -867,22 +946,22 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     // così il form pulito non resta compresso nella cella azioni.
     if (isPag) {
       return (
-        <>
+        <React.Fragment key={f.id}>
           <tr style={{ borderBottom: `none`, background: baseBg, boxShadow: isScaduta ? `inset 3px 0 0 0 ${T.brand}` : 'none' }}>
             <td style={{ padding: '8px 12px 6px', fontWeight: 600, color: T.text, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: baseBg, zIndex: 1 }}>
               <span title={f.fornitore}>{f.fornitore}</span>
             </td>
             <td colSpan={5} style={{ padding: '8px 12px 6px', color: T.textSoft, fontSize: 11.5 }}>
-              {f.numero_rif || '-'} · {fmtDate(f.data_fattura)} · scade {fmtDate(f.dueIso)} · totale <span style={{ color: T.text, fontWeight: 700, ...tnum }}>{fmtEuro(f.totale)}</span>
+              {f.numero_rif || '-'} · {fmtDate(f.data_fattura)} · {f.dueStimata ? 'scadenza calcolata' : 'scade'} {fmtDate(f.dueIso)} · totale <span style={{ color: T.text, fontWeight: 700, ...tnum }}>{fmtEuro(f.totale)}</span>
             </td>
             <td style={{ padding: '8px 12px 6px' }} />
           </tr>
           <tr style={{ borderBottom: last ? 'none' : `1px solid ${T.border}`, background: baseBg }}>
             <td colSpan={7} style={{ padding: '6px 14px 14px' }}>
-              <ActionsCell f={f} compact />
+              {ActionsCell({ f, compact: true })}
             </td>
           </tr>
-        </>
+        </React.Fragment>
       )
     }
 
@@ -922,8 +1001,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <span style={{ color: T.textSoft }}>-</span>
           ) : f.dueIso ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <span style={{ color: T.text, fontWeight: 500, ...tnum }}>{fmtDate(f.dueIso)}</span>
-              <span style={{ fontSize: 10, color: isScaduta ? T.brand : T.textSoft, fontWeight: isScaduta ? 600 : 500 }}>
+              <span style={{ color: T.text, fontWeight: 500, ...tnum }}
+                title={f.dueStimata ? 'Data calcolata: data fattura + 30 giorni. Il documento del fornitore non la porta scritta.' : undefined}>
+                {fmtDate(f.dueIso)}{f.dueStimata && <span style={{ color: T.textSoft, fontWeight: 400 }}> *</span>}
+              </span>
+              <span style={{ fontSize: 12, color: isScaduta ? T.brand : T.textSoft, fontWeight: isScaduta ? 600 : 500 }}>
                 {relDayLabel(f.dueDays)}
               </span>
             </div>
@@ -947,7 +1029,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           }}>{cfg.label}</span>
         </td>
         <td style={{ padding: '8px 12px' }}>
-          <ActionsCell f={f} compact />
+          {ActionsCell({ f, compact: true })}
         </td>
       </tr>
     )
@@ -960,7 +1042,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
     const isScaduta = f.urgenza === 'scaduta'
 
     return (
-      <div style={{
+      <div key={f.id} style={{
         background: T.bgCard,
         border: `1px solid ${isDel ? '#FCA5A5' : (isScaduta ? '#FCA5A5' : T.border)}`,
         borderLeft: `4px solid ${cfg.accent}`,
@@ -998,11 +1080,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
           }}>
             {fmtEuro(f.totale)}
           </div>
-          {!isDel && !isPag && <ActionsCell f={f} />}
+          {!isDel && !isPag && ActionsCell({ f })}
         </div>
         {isPag && (
           <div style={{ marginTop: 12, padding: 12, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10 }}>
-            <ActionsCell f={f} />
+            {ActionsCell({ f })}
           </div>
         )}
         {isDel && (
@@ -1010,7 +1092,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <div style={{ fontSize: 12.5, color: T.brand, fontWeight: 600, marginBottom: 10 }}>
               Sei sicuro? L'azione non è reversibile.
             </div>
-            <ActionsCell f={f} />
+            {ActionsCell({ f })}
           </div>
         )}
       </div>
@@ -1019,16 +1101,26 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
 
   // ─── Sezione gruppo ──────────────────────────────────────────────────────────
   function Gruppo({ keyU, items }) {
-    // Audit 2026-06-22 CRITICAL: hook DEVE essere chiamato prima dell'early
-    // return - altrimenti hook order corrupts se items.length cambia.
-    const [shownAll, setShownAll] = useState(false)
+    // Audit 2026-09-09: questa funzione aveva uno stato locale proprio. Ora
+    // viene CHIAMATA come funzione (non più come elemento JSX) per non far
+    // rimontare le righe a ogni render del padre, e in quel modo uno stato
+    // locale qui sarebbe uno stato del padre dichiarato in numero variabile
+    // dentro un .map(): le regole degli hook di React lo vietano e lo stato si
+    // corromperebbe. Ora vive nel padre, che non si rimonta — ed e' anche la
+    // cura vera del difetto, perché "Mostra tutte le 211" non si azzera più
+    // quando il gruppo viene ridisegnato.
+    const shownAll = !!gruppiEspansi[keyU]
+    const setShownAll = (v) => setGruppiEspansi(g => ({
+      ...g,
+      [keyU]: typeof v === 'function' ? v(!!g[keyU]) : !!v,
+    }))
     if (!items.length) return null
     const cfg = URGENZA_CFG[keyU]
     const totaleGruppo = items.reduce((s, f) => s + (f.totale || 0), 0)
     const isUrgent = keyU === 'scaduta'
 
     return (
-      <section style={{
+      <section key={keyU} style={{
         ...card,
         overflow: 'hidden',
         marginBottom: 14,
@@ -1057,12 +1149,31 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
               </div>
             </div>
           </div>
-          <div style={{
-            fontSize: isMobile ? 15 : 16, fontWeight: 800,
-            color: isUrgent ? T.brand : T.text,
-            letterSpacing: '-0.015em', ...tnum, whiteSpace: 'nowrap',
-          }}>
-            {fmtEuro(totaleGruppo)}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {/* Segna pagate tutte quelle del gruppo. Audit 2026-09-09: prima
+                l'unica strada era una alla volta, e sulle 211 scadute di Mara
+                erano 211 clic col popup da confermare ogni volta. */}
+            {items.some(f => f.stato !== 'pagata') && (
+              <button type="button"
+                onClick={() => setBloccoConf({ items, titolo: cfg.header })}
+                disabled={bloccoLoading}
+                style={{
+                  padding: '9px 13px', minHeight: minTouch, borderRadius: 8,
+                  border: `1px solid ${T.border}`, background: T.bgCard,
+                  ...typo.small, fontWeight: 700, color: T.textSoft,
+                  cursor: bloccoLoading ? 'default' : 'pointer', whiteSpace: 'nowrap',
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                }}>
+                <Icon name="check" size={12} /> Segna pagate
+              </button>
+            )}
+            <div style={{
+              fontSize: isMobile ? 15 : 16, fontWeight: 800,
+              color: isUrgent ? T.brand : T.text,
+              letterSpacing: '-0.015em', ...tnum, whiteSpace: 'nowrap',
+            }}>
+              {fmtEuro(totaleGruppo)}
+            </div>
           </div>
         </div>
 
@@ -1076,7 +1187,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
             <>
               {isMobile ? (
                 <div style={{ padding: 8 }}>
-                  {view.map(f => <CardMobile key={f.id} f={f} cfg={cfg} />)}
+                  {view.map(f => CardMobile({ f, cfg }))}
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -1102,7 +1213,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                     </thead>
                     <tbody>
                       {view.map((f, i) => (
-                        <RigaTabella key={f.id} f={f} cfg={cfg} i={i} last={i === view.length - 1} />
+                        RigaTabella({ f, cfg, i, last: i === view.length - 1 })
                       ))}
                     </tbody>
                   </table>
@@ -1213,7 +1324,7 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
                       <tr style={{ background: '#FFFFFF' }}>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Numero</th>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Data</th>
-                        {!isMobile && <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scadenza</th>}
+                        {!isMobile && <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}><span title="Le date con * sono calcolate come data fattura + 30 giorni: il documento del fornitore non le porta scritte." style={{ cursor: 'help' }}>Scadenza</span></th>}
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Importo</th>
                         <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stato</th>
                       </tr>
@@ -1375,7 +1486,11 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-end', justifyContent: 'space-between', marginBottom: 20, gap: 14 }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: isMobile ? 14 : 13, color: T.textSoft, letterSpacing: '-0.005em', ...tnum }}>
-            {fatture.length.toLocaleString('it-IT')} {fatture.length === 1 ? 'fattura' : 'fatture'} totali · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} fatturato registrato
+            {/* Audit 2026-09-09: qui la spesa era chiamata "fatturato", su
+                fatture di FORNITORI, cioè su quello che l'azienda SPENDE.
+                Per Mara sono 82.676 EUR, che letti come fatturato dicono
+                l'opposto della verita' sul suo stato di salute. */}
+            {fatture.length.toLocaleString('it-IT')} {fatture.length === 1 ? 'fattura' : 'fatture'} dai fornitori · {fmtEuro(fatture.reduce((s,f) => s+(f.totale||0), 0))} di spesa registrata
           </div>
         </div>
         {/* Toolbar consolidato: 1 CTA primario "Importa .xlsx" + 1 dropdown
@@ -1686,9 +1801,45 @@ export default function Scadenzario({ orgId, sedeId, sedi = [] }) {
         </div>
       ) : (
         <div>
+          {/* Conferma dell'operazione in blocco: dice quante fatture e quanto,
+              e chiede la data del pagamento (una sola: il giorno in cui il
+              bonifico e' partito). Senza i numeri davanti, "segna pagate" su
+              211 fatture e' un bottone che nessuno oserebbe premere. */}
+          {bloccoConf && (() => {
+            const daFare = bloccoConf.items.filter(f => f.stato !== 'pagata')
+            const somma = daFare.reduce((acc, f) => acc + (Number(f.residuo) || Math.abs(Number(f.totale) || 0)), 0)
+            return (
+              <div style={{ ...card, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 16, border: `2px solid ${T.brand}` }}>
+                <div style={{ ...typo.bodyStrong, fontWeight: 800, color: T.text, marginBottom: 6, letterSpacing: '-0.01em' }}>
+                  Segno pagate {daFare.length} {daFare.length === 1 ? 'fattura' : 'fatture'} di "{bloccoConf.titolo}"
+                </div>
+                <div style={{ ...typo.small, color: T.textSoft, lineHeight: 1.55, marginBottom: 12 }}>
+                  In tutto <b style={{ color: T.text, ...tnum }}>{fmtEuro(somma)}</b>.
+                  Metto la stessa data di pagamento su tutte: usa il giorno in cui è partito il bonifico.
+                  Se qualcuna l'hai pagata in un altro giorno, correggila dopo dalla sua riga.
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ ...typo.small, fontWeight: 700, color: T.textSoft, marginBottom: 4 }}>Data del pagamento</div>
+                    <input type="date" value={dataPag} onChange={e => setDataPag(e.target.value)}
+                      aria-label="Data del pagamento per tutte le fatture selezionate"
+                      style={{ padding: '9px 11px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, fontSize: isMobile ? 16 : 13, color: T.text }} />
+                  </div>
+                  <button type="button" onClick={() => segnaPagateInBlocco(bloccoConf.items, dataPag)} disabled={bloccoLoading || !dataPag}
+                    style={{ padding: '10px 16px', minHeight: minTouch, borderRadius: 8, border: 'none', background: (bloccoLoading || !dataPag) ? T.border : T.brand, color: '#fff', ...typo.body, fontWeight: 800, cursor: (bloccoLoading || !dataPag) ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Icon name="check" size={14} /> {bloccoLoading ? 'Le segno…' : `Sì, segna ${daFare.length} pagate`}
+                  </button>
+                  <button type="button" onClick={() => setBloccoConf(null)} disabled={bloccoLoading}
+                    style={{ padding: '10px 14px', minHeight: minTouch, borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, ...typo.body, fontWeight: 700, color: T.textSoft, cursor: 'pointer' }}>
+                    Annulla
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
           {gruppiVisibili.map(k => {
             const items = (gruppi[k] || []).filter(matchSearch)
-            return items.length ? <Gruppo key={k} keyU={k} items={items} /> : null
+            return items.length ? Gruppo({ keyU: k, items }) : null
           })}
         </div>
       )}
