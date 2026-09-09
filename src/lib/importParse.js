@@ -62,7 +62,13 @@ function normalizeSheet(raw) {
 export function parseWorkbook(arrayBuffer, XLSX) {
   if (!XLSX) throw new Error('parseWorkbook: modulo XLSX richiesto (passa loadXLSX() nel browser o `import * as XLSX from "xlsx"` in Node)')
   const bytes = arrayBuffer instanceof Uint8Array ? arrayBuffer : new Uint8Array(arrayBuffer)
-  const wb = XLSX.read(bytes, { type: 'array' })
+  // cellDates: xlsx senza questa opzione restituisce le colonne data come
+  // numeri seriali (46143). Audit 2026-09-09: coerceDate ora sa leggere anche i
+  // seriali, ma e' meglio ricevere una Date vera: il seriale perde l'ora e non
+  // distingue una data da un numero qualsiasi. Le due difese lavorano insieme,
+  // perché i file dei clienti arrivano da fonti diverse (Excel, Google Sheets,
+  // esportazioni da gestionali) e non tutte marcano le celle come data.
+  const wb = XLSX.read(bytes, { type: 'array', cellDates: true })
   const sheetNames = wb.SheetNames || []
   if (sheetNames.length === 0) throw new Error('Nessun sheet trovato nel file')
 

@@ -1,3 +1,4 @@
+import { formatLocalDate } from './dateLocal'
 // Core validation per import bulk. Modulo puro (no I/O, no auth):
 // usato sia da /api/import-validate.js (Edge endpoint) sia da
 // scripts/import-any.mjs (CLI Node).
@@ -22,6 +23,12 @@ export function coerceNumber(v) {
     s = s.replace(/\./g, '').replace(',', '.')
   } else if (hasComma) {
     s = s.replace(',', '.')
+  } else if (hasDot) {
+    // Audit 2026-09-09: "1.500" senza virgola era letto come 1,5, cioè mille
+    // volte meno. In italiano il punto raggruppa le migliaia a gruppi di tre
+    // esatti: "1.500" e "1.234.567" sono migliaia, "1.5" e "12.75" sono
+    // decimali. Distinguiamo sulla forma, che e' l'unico segnale disponibile.
+    if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '')
   }
   const n = Number(s)
   return Number.isFinite(n) ? n : null
@@ -49,13 +56,39 @@ export function isValidPhone(s) {
 // "DD/MM/YYYY" e converte.
 export function coerceDate(v) {
   if (v == null || v === '') return null
-  if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0, 10)
+  // Audit 2026-09-09: qui c'era `toISOString().slice(0,10)`. xlsx costruisce le
+  // Date nel fuso LOCALE, e toISOString le converte in UTC: in Italia (UTC+1/+2)
+  // il 1 maggio a mezzanotte diventava "2026-04-30". Tutte le date dell'import
+  // slittavano di un giorno, e con esse la produzione di ogni giornata.
+  // formatLocalDate legge giorno, mese e anno locali senza passare per UTC.
+  if (v instanceof Date && !isNaN(v)) return formatLocalDate(v)
+  // Numero seriale Excel. Audit 2026-09-09: una colonna formattata come data in
+  // Excel arriva come numero (46143) se il file non e' stato letto con
+  // cellDates. Prima cadeva nel `return null` finale, quindi TUTTE le righe
+  // risultavano invalide, la schermata diceva "Pronte da caricare 0" e il
+  // consiglio era "serve GG/MM/AAAA" mentre nel foglio l'utente VEDE
+  // 01/05/2026: un vicolo cieco senza via d'uscita.
+  // L'epoca e' 1899-12-30 perché Excel considera il 1900 bisestile (non lo e'):
+  // partendo da quella data i seriali >= 61 tornano giusti senza correzioni.
+  // Limiti: 1 = 1899-12-31, 200000 ~ anno 2447. Fuori da li' non e' una data.
+  if (typeof v === 'number' && Number.isFinite(v) && v >= 1 && v < 200000) {
+    const ms = Date.UTC(1899, 11, 30) + Math.round(v) * 86400000
+    const d = new Date(ms)
+    if (!isNaN(d)) return d.toISOString().slice(0, 10) // costruita in UTC: qui e' corretto
+  }
   const s = String(v).trim()
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
   const m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/)
   if (m) {
     const [, dd, mm, yyyy] = m
     return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
+  }
+  // "1/5/26" a due cifre: comune nei fogli scritti a mano.
+  const m2 = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2})$/)
+  if (m2) {
+    const [, dd, mm, yy] = m2
+    const anno = Number(yy) >= 70 ? `19${yy}` : `20${yy}`
+    return `${anno}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
   }
   return null
 }
@@ -164,6 +197,19 @@ export function validateRow(row, mapping, schema, opts = {}) {
           data[f] = Math.round(data[f] * (conv.factor || 1))
         }
       }
+    }
+  }
+
+  // Audit 2026-09-09: i campi in grammi finiscono in colonne INTEGER, e prima
+  // l'arrotondamento arrivava da importUnpivot, che lo faceva sul valore in kg
+  // (2,5 kg -> 3 -> 3.000 g). Ora si arrotonda qui, alla fine: quando i numeri
+  // sono già in grammi non c'e' conversione da applicare, ma una cella con i
+  // decimali va comunque portata all'intero prima dell'insert.
+  for (const f of (schema.fields || [])) {
+    if (f.type !== 'number') continue
+    if (!/_g$/.test(f.name)) continue
+    if (data[f.name] != null && typeof data[f.name] === 'number') {
+      data[f.name] = Math.round(data[f.name])
     }
   }
 

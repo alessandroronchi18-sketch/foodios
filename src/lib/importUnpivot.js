@@ -1,3 +1,5 @@
+import { coerceNumber } from './importValidateCore'
+
 // Import Unpivot — engine di trasformazione WIDE → LONG per file eterogenei.
 //
 // Un file "WIDE" ha una dimensione (es. i giorni del mese) sparsa nelle
@@ -65,6 +67,7 @@ function matchSheet(name, list) {
  * @param {UnpivotConfig} config
  * @returns {{ rows: Object[], per_sheet: Record<string, number>, warnings: string[] }}
  */
+
 export function applyUnpivot(sheetsRaw, config) {
   if (!sheetsRaw || typeof sheetsRaw !== 'object') throw new Error('sheetsRaw richiesto')
   if (!config || typeof config !== 'object') throw new Error('config richiesta')
@@ -192,8 +195,14 @@ export function applyUnpivot(sheetsRaw, config) {
       for (const { col, date_iso, field, date_field } of columnPlan) {
         const raw_v = row[col]
         if (raw_v == null || raw_v === '') continue
-        const n = Number(raw_v)
-        if (!Number.isFinite(n) || n < 0) continue
+        // Audit 2026-09-09: qui c'era `Number(raw_v)`, che su una cella di testo
+        // scritta all'italiana ("2,5") restituisce NaN e la faceva scartare in
+        // SILENZIO: nessun avviso, nessuna riga invalida, il dato semplicemente
+        // non arrivava. coerceNumber e' la stessa funzione usata dalla strada
+        // normale dell'import, quindi le due strade leggono i numeri allo stesso
+        // modo (virgola decimale e punto delle migliaia compresi).
+        const n = coerceNumber(raw_v)
+        if (n == null || !Number.isFinite(n) || n < 0) continue
         if (n === 0) continue
 
         const mapKey = `${date_iso}|${rowKey}`
@@ -204,7 +213,19 @@ export function applyUnpivot(sheetsRaw, config) {
             [date_field]: date_iso,
           })
         }
-        outMap.get(mapKey)[field] = Math.round(n)
+        // Audit 2026-09-09 CRITICO: qui c'era `Math.round(n)`, cioè un
+        // arrotondamento del valore COSI' COME STA NEL FILE, prima che la
+        // conversione kg->grammi lo moltiplichi per 1000 (importValidateCore
+        // righe 159-167). Su un foglio in kg:
+        //   2,5 kg -> Math.round(2.5) = 3 -> 3.000 g   (+20% di produzione)
+        //   4,44 kg -> 4 -> 4.000 g                    (-10%)
+        //   0,4 kg -> 0 -> la giornata risulta a zero
+        // Nei dati reali 6.143 righe su 7.012 di Mara hanno precisione sotto il
+        // chilo: passando da questa strada si perdevano 666,7 kg di produzione e
+        // 1.577,2 kg di rimanenza, con 82 righe azzerate del tutto.
+        // Il valore resta come e' scritto; l'arrotondamento a grammi interi lo fa
+        // validateRow DOPO la conversione, dove un grammo di scarto e' corretto.
+        outMap.get(mapKey)[field] = n
       }
     }
     const rows = Array.from(outMap.values())

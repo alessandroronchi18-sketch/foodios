@@ -14,7 +14,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { color as T } from '../lib/theme'
+import { color as T, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { loadXLSX } from '../lib/xlsx'
@@ -334,10 +334,11 @@ export default function ImportWizard({ orgId, onClose, notify, initialEntity = '
             <StepValidate
               schema={schema}
               result={validationResult}
+              mapping={mapping}
               onBack={() => setStep(2)}
               onNext={goToStep4}
               isMobile={isMobile}
-              T={{ TXT, SOFT, BRAND, BORDER, RED, GREEN }}
+              T={{ TXT, SOFT, BRAND, BORDER, RED, GREEN, CARD: CARD_BG, BG: T.bgSubtle }}
             />
           )}
           {step === 4 && (
@@ -655,11 +656,30 @@ function headerSampleValue(rows, col) {
 
 // ── STEP 3: validation preview ────────────────────────────────────
 
-function StepValidate({ schema, result, onBack, onNext, isMobile, T }) {
+function StepValidate({ schema, result, mapping = {}, onBack, onNext, isMobile, T }) {
   const { valid_rows, invalid_rows, stats } = result
   const [showErrors, setShowErrors] = useState(false)
   const problem = summarizeErrors(invalid_rows)
   const allBad = stats.valid === 0 && stats.invalid > 0
+
+  // Audit 2026-09-09: i campi non mappati prendevano il loro `default` in
+  // silenzio (importValidateCore riga 90). Nei dati reali `scarto_g` e' 0 su
+  // TUTTE le 8.793 righe importate, e `note` e' vuota su tutte: le due colonne
+  // non erano nel file e nessuno lo ha mai detto all'utente. Uno zero messo dal
+  // software e' indistinguibile da uno zero misurato, e poi finisce nelle rese e
+  // nel food cost. Qui lo dichiariamo prima di caricare, che e' l'unico momento
+  // in cui si può ancora tornare indietro e aggiungere la colonna al file.
+  const campiConDefault = (schema.fields || []).filter(f =>
+    !mapping[f.name] && f.default !== undefined && !f.hidden
+  )
+  const descriviDefault = (f) => {
+    if (f.default === 0) return 'resta 0'
+    if (f.default === true) return 'resta sì'
+    if (f.default === false) return 'resta no'
+    if (f.default === null || f.default === '') return 'resta vuoto'
+    return `resta ${f.default}`
+  }
+
   return (
     <div>
       <div style={{ fontSize: 16, fontWeight: 700, color: T.TXT, marginBottom: 6 }}>
@@ -693,6 +713,26 @@ function StepValidate({ schema, result, onBack, onNext, isMobile, T }) {
         <StatBox label="Pronte da caricare" value={stats.valid} color={T.GREEN} T={T}/>
         <StatBox label="Da rivedere" value={stats.invalid} color={stats.invalid > 0 ? T.RED : T.SOFT} T={T}/>
       </div>
+
+      {campiConDefault.length > 0 && stats.valid > 0 && (
+        <div style={{ background: T.CARD, border: `1px solid ${T.BORDER}`, borderRadius: 10, padding: 14, marginBottom: 18 }}>
+          <div style={{ ...typo.bodyStrong, color: T.TXT, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Icon name="info" size={15} />
+            {campiConDefault.length === 1 ? 'Un campo non è nel tuo file' : `${campiConDefault.length} campi non sono nel tuo file`}
+          </div>
+          <div style={{ fontSize: typo.small.fontSize, color: T.SOFT, lineHeight: 1.6, marginBottom: 8 }}>
+            Li carico con il valore predefinito. Se ti servono davvero, torna indietro e aggiungi la colonna al file:
+            dopo il caricamento non si distinguono da un valore che hai scritto tu.
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {campiConDefault.map(f => (
+              <span key={f.name} style={{ fontSize: typo.small.fontSize, fontWeight: 600, color: T.TXT, background: T.BG, border: `1px solid ${T.BORDER}`, borderRadius: 6, padding: '4px 9px' }}>
+                {f.label || f.name}: {descriviDefault(f)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {valid_rows.length > 0 && (
         <div style={{ marginBottom: 18 }}>

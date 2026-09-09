@@ -5,6 +5,7 @@ import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
 import { color as T, radius as R, shadow as S, motion as M, typo } from '../lib/theme'
 import { todayLocal } from '../lib/dateLocal'
+import { raggruppaFornitoriDaFatture, spesaDaFatture } from '../lib/fornitoriDaFatture'
 import { KPI, SH, PageHeader, Tip, C, useSortable, SortTH } from '../views/_shared'
 
 const tnum = { fontVariantNumeric: 'tabular-nums', fontFeatureSettings: "'tnum'" }
@@ -51,20 +52,38 @@ function BandaDiagnosi({ orgId, sedeId, sedi = [], isMobile, isTablet, refreshKe
       if (!alive) return
       const attivi = (forn || []).length
       const categorie = new Set((forn || []).map(f => (f.categoria || '').trim()).filter(Boolean)).size
-      const spesa = (ord || []).reduce((s, o) => s + (Number(o.totale) || 0), 0)
       const byForn = {}
       for (const o of (ord || [])) {
         const n = o.fornitori?.nome || "-"
         byForn[n] = (byForn[n] || 0) + (Number(o.totale) || 0)
       }
-      const top = Object.entries(byForn).sort((a, b) => b[1] - a[1])[0]
-      setStats({ attivi, categorie, spesa, topNome: top?.[0] || "-", topTot: top?.[1] || 0 })
+      let spesa = (ord || []).reduce((s, o) => s + (Number(o.totale) || 0), 0)
+      let top = Object.entries(byForn).sort((a, b) => b[1] - a[1])[0]
+      let daFatture = false
+
+      // Audit 2026-09-09: senza ordini inseriti a mano questi KPI dicevano
+      // "Spesa 30gg 0 € · Top fornitore -" mentre nel database ci sono 217
+      // fatture per 82.676 €. Gli ordini sono un registro facoltativo; la spesa
+      // vera passa dalle fatture. Le leggiamo come riserva e lo dichiariamo.
+      if (!(ord || []).length) {
+        const { data: fatt } = await supabase.from('fatture')
+          .select('fornitore,totale,data_fattura')
+          .eq('organization_id', orgId)
+          .gte('data_fattura', fromStr)
+        const r = spesaDaFatture(fatt || [])
+        if (r.nFatture > 0) {
+          spesa = r.totale
+          top = r.righe[0] ? [r.righe[0].nome, r.righe[0].totale] : null
+          daFatture = true
+        }
+      }
+      setStats({ attivi, categorie, spesa, topNome: top?.[0] || "-", topTot: top?.[1] || 0, daFatture })
     }
     load()
     return () => { alive = false }
   }, [orgId, sedeId, refreshKey])
 
-  const s = stats || { attivi: 0, categorie: 0, spesa: 0, topNome: "-", topTot: 0 }
+  const s = stats || { attivi: 0, categorie: 0, spesa: 0, topNome: "-", topTot: 0, daFatture: false }
   const multiSede = Array.isArray(sedi) && sedi.filter(x => x?.attiva !== false).length > 1
 
   return (
@@ -76,7 +95,11 @@ function BandaDiagnosi({ orgId, sedeId, sedi = [], isMobile, isTablet, refreshKe
           fornitori ha una sede assegnata), quindi il conto su tutta l'azienda e' il
           più utile - purché sia scritto. */}
       <KPI label="Fornitori attivi" value={s.attivi.toLocaleString('it-IT')} sub={multiSede ? 'in tutta l’azienda' : undefined} icon={<Icon name="truck" size={17} />} />
-      <KPI label="Spesa ultimi 30 giorni" value={fmt0(s.spesa)} sub={multiSede ? 'ordini ricevuti, tutte le sedi' : 'ordini ricevuti'} color={T.brand} highlight icon={<Icon name="money" size={17} />} />
+      <KPI label="Spesa ultimi 30 giorni" value={fmt0(s.spesa)}
+        sub={s.daFatture
+          ? (multiSede ? 'dalle fatture, tutte le sedi' : 'dalle fatture registrate')
+          : (multiSede ? 'ordini ricevuti, tutte le sedi' : 'ordini ricevuti')}
+        color={T.brand} highlight icon={<Icon name="money" size={17} />} />
       <KPI label="Top fornitore" value={s.topNome} sub={s.topTot > 0 ? `${fmt0(s.topTot)} negli ultimi 30 giorni` : "nessun ordine ricevuto"} icon={<Icon name="trophy" size={17} />} />
       <KPI label="Categorie" value={s.categorie.toLocaleString('it-IT')}
         sub={s.categorie === 0 && s.attivi > 0 ? 'nessuna assegnata' : 'merceologiche'} icon={<Icon name="package" size={17} />} />
@@ -149,7 +172,62 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
   const sediMap = Object.fromEntries((sedi || []).map(s => [s.id, s]))
   const inArchivio = vista === 'archivio'
 
+  // ── Fornitori che sono già nelle fatture ma non in anagrafica ──────────
+  // Le fatture entrano dallo Scadenziario (legge gli XML). In produzione sono
+  // 217 per Mara: 77 fornitori diversi, 82.676 €, e anagrafica VUOTA. Questa
+  // pagina leggeva solo l'anagrafica scritta a mano, quindi diceva "Fornitori
+  // attivi 0 · Spesa 0 €" con tutto quel dato già dentro il sistema, e per
+  // popolarla servivano 77 form compilati uno per uno.
+  const [candidati, setCandidati] = useState([])
+  const [scelti, setScelti] = useState(() => new Set())
+  const [pannelloFatture, setPannelloFatture] = useState(false)
+  const [importando, setImportando] = useState(false)
+
   useEffect(() => { carica() }, [orgId, sedeId, vista])
+
+  // Ricalcola i candidati ogni volta che cambia l'anagrafica caricata.
+  useEffect(() => {
+    let vivo = true
+    async function leggiFatture() {
+      if (!orgId || inArchivio) { setCandidati([]); return }
+      const { data, error } = await supabase.from('fatture')
+        .select('fornitore,totale,data_fattura,iban')
+        .eq('organization_id', orgId)
+      if (!vivo || error) return
+      const { daImportare } = raggruppaFornitoriDaFatture(data || [], lista, todayLocal())
+      setCandidati(daImportare)
+      setScelti(new Set(daImportare.map(v => v.chiave)))
+    }
+    leggiFatture()
+    return () => { vivo = false }
+  }, [orgId, lista, inArchivio])
+
+  async function importaDalleFatture() {
+    const daFare = candidati.filter(v => scelti.has(v.chiave))
+    if (daFare.length === 0) { notify?.('Non hai selezionato nessun fornitore', false); return }
+    setImportando(true)
+    try {
+      // termini_pagamento 30 e' il default della tabella: lo lasciamo tale, non
+      // lo indoviniamo dalle fatture. La categoria si mette dopo, a mano: qui
+      // inventarla sarebbe peggio che lasciarla vuota.
+      const righe = daFare.map(v => ({
+        organization_id: orgId,
+        nome: v.nome,
+        iban: v.iban || null,
+        note: `Ricavato dalle fatture: ${v.nFatture} ${v.nFatture === 1 ? 'fattura' : 'fatture'} registrate`,
+      }))
+      const { error } = await supabase.from('fornitori').insert(righe)
+      if (error) throw error
+      notify?.(`${daFare.length} ${daFare.length === 1 ? 'fornitore aggiunto' : 'fornitori aggiunti'} all'anagrafica`)
+      setPannelloFatture(false)
+      onMutate?.()
+      await carica()
+    } catch (e) {
+      notify?.('Non ho potuto aggiungerli: ' + (e?.message || 'errore di rete'), false)
+    } finally {
+      setImportando(false)
+    }
+  }
 
   async function carica() {
     if (!orgId) { setLoading(false); return }
@@ -275,7 +353,93 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
     )
   }
 
+  const totCandidati = candidati.reduce((acc, v) => acc + v.totale, 0)
+  const nSceltiOra = candidati.filter(v => scelti.has(v.chiave)).length
+
   return (
+    <div>
+    {/* ── I fornitori che sono già nelle tue fatture ────────────────────────
+        Sta fuori dalla griglia perché è un avviso sulla pagina, non una colonna.
+        Compare solo se c'è davvero qualcosa da prendere. */}
+    {candidati.length > 0 && (
+      <div style={{ background: C.bgCard, border: `1px solid ${C.amber}55`, borderRadius: 14, padding: isMobile ? '14px 16px' : '16px 20px', marginBottom: 18, boxShadow: S.lg }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ flexShrink: 0, marginTop: 2, color: C.amber }}><Icon name="lightbulb" size={18} /></span>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: C.text, letterSpacing: '-0.01em', marginBottom: 3 }}>
+              {candidati.length === 1
+                ? 'Un fornitore delle tue fatture non è in anagrafica'
+                : `${candidati.length} fornitori delle tue fatture non sono in anagrafica`}
+            </div>
+            <div style={{ fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.5 }}>
+              Li ho trovati nelle fatture che hai già caricato, per un totale di <b style={{ ...tnum }}>{fmt0(totCandidati)}</b>.
+              Posso aggiungerli io: nome e IBAN li prendo dalle fatture, il resto lo completi quando vuoi.
+            </div>
+          </div>
+          <button type="button" onClick={() => setPannelloFatture(v => !v)}
+            aria-expanded={pannelloFatture}
+            style={{ padding: '10px 16px', minHeight: 40, borderRadius: 8, border: 'none', background: C.red, color: C.white, fontSize: typo.small.fontSize, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+            <Icon name={pannelloFatture ? 'x' : 'plus'} size={14} />
+            {pannelloFatture ? 'Chiudi' : 'Guarda quali'}
+          </button>
+        </div>
+
+        {pannelloFatture && (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+              <button type="button" onClick={() => setScelti(new Set(candidati.map(v => v.chiave)))}
+                style={{ padding: '8px 12px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Seleziona tutti</button>
+              <button type="button" onClick={() => setScelti(new Set())}
+                style={{ padding: '8px 12px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.white, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>Nessuno</button>
+              <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, ...tnum }}>{nSceltiOra} di {candidati.length} selezionati</span>
+            </div>
+
+            <div style={{ maxHeight: 320, overflowY: 'auto', border: `1px solid ${C.border}`, borderRadius: 10 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 340 }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 44, borderBottom: `1px solid ${C.border}` }} />
+                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Fornitore</th>
+                    <th style={{ textAlign: 'right', padding: '8px 10px', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>Fatture</th>
+                    <th style={{ textAlign: 'right', padding: '8px 10px', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }}>Totale</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {candidati.map(v => (
+                    <tr key={v.chiave} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+                      <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                        <input type="checkbox" checked={scelti.has(v.chiave)}
+                          aria-label={`Aggiungi ${v.nome} all'anagrafica`}
+                          onChange={e => setScelti(prev => {
+                            const n = new Set(prev)
+                            if (e.target.checked) n.add(v.chiave); else n.delete(v.chiave)
+                            return n
+                          })}
+                          style={{ width: 18, height: 18, cursor: 'pointer', accentColor: C.red }} />
+                      </td>
+                      <td style={{ padding: '8px 10px', fontSize: typo.small.fontSize, fontWeight: 700, color: C.text }}>
+                        {v.nome}
+                        {v.iban && <span style={{ marginLeft: 6, fontSize: typo.small.fontSize, fontWeight: 600, color: T.blue }}>{maskIban(v.iban)}</span>}
+                        {v.ultimaData && <div style={{ fontSize: typo.small.fontSize, fontWeight: 400, color: C.textSoft, marginTop: 1 }}>ultima fattura {fmtDate(v.ultimaData)}</div>}
+                      </td>
+                      <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: typo.small.fontSize, color: C.textMid, ...tnum }}>{v.nFatture}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: typo.small.fontSize, fontWeight: 700, color: C.text, ...tnum, whiteSpace: 'nowrap' }}>{fmt0(v.totale)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <button type="button" onClick={importaDalleFatture} disabled={importando || nSceltiOra === 0}
+              style={{ marginTop: 12, width: isMobile ? '100%' : 'auto', padding: '12px 20px', minHeight: 44, borderRadius: 10, border: 'none', background: (importando || nSceltiOra === 0) ? C.borderStr : C.red, color: C.white, fontSize: 13, fontWeight: 800, cursor: (importando || nSceltiOra === 0) ? 'default' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+              <Icon name="plus" size={15} />
+              {importando ? 'Li aggiungo…' : nSceltiOra === 0 ? 'Scegli almeno un fornitore' : `Aggiungi ${nSceltiOra} ${nSceltiOra === 1 ? 'fornitore' : 'fornitori'}`}
+            </button>
+          </div>
+        )}
+      </div>
+    )}
+
     <div style={{ display: (isMobile || isTablet) ? "block" : "grid", gridTemplateColumns: (isMobile || isTablet) ? undefined : "minmax(320px, 0.9fr) 1.4fr", gap: 24, alignItems: 'start' }}>
       {/* Form */}
       {formVisible && (
@@ -440,6 +604,7 @@ function FornitoriTab({ orgId, sedeId, sedi = [], notify, isMobile, isTablet = f
           </button>
         </div>
       )}
+    </div>
     </div>
   )
 }
@@ -801,6 +966,7 @@ function BarRow({ label, value, max, color, sub }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function SpesaTab({ orgId, isMobile }) {
   const [ordini, setOrdini] = useState([])
+  const [fatture, setFatture] = useState([])
   const [catMap, setCatMap] = useState({}) // fornitore_id → categoria
   const [loading, setLoading] = useState(true)
   const [range, setRange] = useState("30")
@@ -823,19 +989,41 @@ function SpesaTab({ orgId, isMobile }) {
     if (error) console.warn("ordini storico load:", error.message)
     setOrdini(data || [])
     setCatMap(Object.fromEntries((forn || []).map(f => [f.id, (f.categoria || '').trim()])))
+
+    // Audit 2026-09-09: se non ci sono ordini inseriti a mano, la pagina diceva
+    // "Nessun ordine ricevuto nel periodo" mentre nel database ci sono 217
+    // fatture per 82.676 €. La spesa vera passa dalle fatture, gli ordini sono
+    // un registro facoltativo che quasi nessuno compila. Leggiamo le fatture
+    // come riserva, dichiarando sempre da dove viene il numero.
+    if (!(data || []).length) {
+      const { data: fatt } = await supabase.from('fatture')
+        .select('fornitore,totale,data_fattura')
+        .eq('organization_id', orgId)
+        .gte('data_fattura', from.toISOString().slice(0, 10))
+      setFatture(fatt || [])
+    } else {
+      setFatture([])
+    }
     setLoading(false)
   }
 
-  const totale = ordini.reduce((s, r) => s + (Number(r.totale) || 0), 0)
+  // La spesa calcolata sulle fatture, usata solo quando gli ordini sono zero.
+  const daFatture = useMemo(() => spesaDaFatture(fatture), [fatture])
+  const fonteFatture = ordini.length === 0 && fatture.length > 0
+
+  const totale = fonteFatture ? daFatture.totale : ordini.reduce((s, r) => s + (Number(r.totale) || 0), 0)
 
   const byFornitore = useMemo(() => {
+    // Con gli ordini a zero il grafico usa le fatture: e' lo stesso dato di
+    // spesa, solo preso da dove esiste per davvero.
+    if (fonteFatture) return daFatture.righe.map(r => [r.nome, r.totale])
     const acc = {}
     for (const r of ordini) {
       const n = r.fornitori?.nome || "-"
       acc[n] = (acc[n] || 0) + (Number(r.totale) || 0)
     }
     return Object.entries(acc).sort((a, b) => b[1] - a[1])
-  }, [ordini])
+  }, [ordini, fonteFatture, daFatture])
 
   const byCategoria = useMemo(() => {
     const acc = {}
@@ -867,16 +1055,32 @@ function SpesaTab({ orgId, isMobile }) {
       {loading ? <div style={{ color: C.textSoft }}>Caricamento…</div> : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: isMobile ? 10 : 14, marginBottom: 8 }}>
-            <KPI label="Spesa periodo" value={fmt0(totale)} sub="ordini ricevuti" color={T.brand} highlight icon={<Icon name="money" size={17} />} />
-            <KPI label="N° ordini" value={ordini.length.toLocaleString('it-IT')} icon={<Icon name="receipt" size={17} />} />
-            <KPI label="Ordine medio" value={fmt0(ordini.length ? totale / ordini.length : 0)} icon={<Icon name="barChart" size={17} />} />
+            {/* La fonte del numero e' scritta sotto ogni KPI: chi legge deve
+                sapere se sta guardando gli ordini che ha inserito a mano o le
+                fatture che il sistema ha già. */}
+            <KPI label="Spesa periodo" value={fmt0(totale)}
+              sub={fonteFatture ? 'dalle fatture registrate' : 'ordini ricevuti'}
+              color={T.brand} highlight icon={<Icon name="money" size={17} />} />
+            <KPI label={fonteFatture ? 'Fatture' : 'Ordini'}
+              value={(fonteFatture ? daFatture.nFatture : ordini.length).toLocaleString('it-IT')}
+              icon={<Icon name="receipt" size={17} />} />
+            <KPI label={fonteFatture ? 'Fattura media' : 'Ordine medio'}
+              value={fmt0(fonteFatture ? daFatture.media : (ordini.length ? totale / ordini.length : 0))}
+              icon={<Icon name="barChart" size={17} />} />
           </div>
 
-          {ordini.length === 0 ? (
-            <div style={{ color: C.textSoft, fontSize: 13, textAlign: "center", padding: 40 }}>Nessun ordine ricevuto nel periodo.</div>
+          {/* Il grafico compare anche quando gli ordini sono zero ma le fatture no:
+              prima la pagina restava vuota con 217 fatture nel database. */}
+          {ordini.length === 0 && !fonteFatture ? (
+            <div style={{ color: C.textSoft, fontSize: 13, textAlign: "center", padding: 40, lineHeight: 1.6 }}>
+              Nel periodo non ci sono né ordini ricevuti né fatture registrate.
+              <div style={{ fontSize: typo.small.fontSize, marginTop: 6 }}>Le fatture si caricano dallo Scadenziario, gli ordini da questa pagina.</div>
+            </div>
           ) : (
             <>
-              <SH sub="Quanto stai spendendo per ciascun fornitore nel periodo selezionato.">Spesa per fornitore</SH>
+              <SH sub={fonteFatture
+                ? 'Calcolata sulle fatture che hai registrato nel periodo, non sugli ordini.'
+                : 'Quanto stai spendendo per ciascun fornitore nel periodo selezionato.'}>Spesa per fornitore</SH>
               <div style={cardSt}>
                 {byFornitore.map(([nome, tot], i) => (
                   <BarRow key={nome} label={nome} value={tot} max={maxForn} color={PALETTE[i % PALETTE.length]} sub={`${totale > 0 ? Math.round((tot / totale) * 100) : 0}%`} />
@@ -884,12 +1088,23 @@ function SpesaTab({ orgId, isMobile }) {
               </div>
 
               <SH sub="Aggregazione per categoria merceologica del fornitore. I fornitori senza categoria sono raggruppati a parte.">Spesa per categoria</SH>
+              {/* La categoria sta sull'anagrafica, non sulla fattura: con la spesa
+                  presa dalle fatture questo grafico sarebbe vuoto senza spiegazione. */}
+              {fonteFatture ? (
+                <div style={{ ...cardSt, color: C.textSoft, fontSize: 13, lineHeight: 1.6 }}>
+                  Per dividere la spesa per categoria servono i fornitori in anagrafica con la loro categoria.
+                  Aggiungili dalla scheda Fornitori — te li propongo io, presi dalle fatture — e poi assegna una categoria a ciascuno.
+                </div>
+              ) : (
               <div style={cardSt}>
                 {byCategoria.map(([cat, tot]) => (
                   <BarRow key={cat} label={cat} value={tot} max={maxCat} color={cat === 'Senza categoria' ? '#94A3B8' : catColor(cat)} sub={`${totale > 0 ? Math.round((tot / totale) * 100) : 0}%`} />
                 ))}
               </div>
+              )}
 
+              {/* L'elenco degli ordini ha senso solo se ci sono ordini. */}
+              {ordini.length > 0 && (<>
               <SH sub="Dettaglio dei singoli ordini ricevuti, dal più recente.">Ordini ricevuti</SH>
               {isMobile ? (
                 ordini.map(o => (
@@ -929,6 +1144,7 @@ function SpesaTab({ orgId, isMobile }) {
                   </table>
                 </div>
               )}
+              </>)}
             </>
           )}
         </>
