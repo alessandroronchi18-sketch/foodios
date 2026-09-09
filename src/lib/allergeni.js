@@ -200,7 +200,7 @@ export const ALLERGENI_MAPPING = {
   'pasta mandorla':    ['fruttasc'],
   'pasta mandorle':    ['fruttasc'],
   'pasta pistacchio':  ['fruttasc'],
-  // 'pasta di pistacchio' e' gia' piu' sotto nella mappa: non la ripetiamo.
+  // 'pasta di pistacchio' sta già più sotto nella mappa: non la ripetiamo.
   'pasta anacardi':    ['fruttasc'],
   'pasta di anacardi': ['fruttasc'],
   'pasta arachidi':    ['arachidi'],

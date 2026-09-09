@@ -111,7 +111,13 @@ function calcolaFabbisognoSettimana(ricettario, giornaliero) {
       }
     }
   }
-  // Fallback: nessun storico → stima 1 stampo/ricetta/settimana
+  // Audit 2026-09-09: quando lo storico non c'e', questo fallback inventa un
+  // consumo di "1 stampo per ricetta a settimana". Da quel numero nascono i
+  // giorni di scorta, lo stato (critico/attenzione) e la quantita' suggerita di
+  // riordino — tutti presentati come misurati. Un pasticcere che ordina su quei
+  // numeri ordina su un'ipotesi del software.
+  // Il fallback resta (un ordine di grandezza e' meglio di niente), ma da ora
+  // chi lo usa sa che e' una stima e lo scrive a schermo.
   if (ultimi7.length === 0 && ricettario) {
     for (const ric of Object.values(ricettario.ricette || {})) {
       if (getR(ric.nome, ric).tipo === 'interno') continue
@@ -121,7 +127,10 @@ function calcolaFabbisognoSettimana(ricettario, giornaliero) {
       }
     }
   }
-  return fabb
+  // `stimato`: il consumo non viene dallo storico ma dal fallback. Chi mostra i
+  // giorni di scorta o il riordino deve dirlo, invece di far passare un'ipotesi
+  // per una misura.
+  return { fabb, stimato: ultimi7.length === 0, giorniStorico: ultimi7.length }
 }
 
 // ─── ProdottiFinitiTab (stock prodotti finiti per sede) ──────────────────────
@@ -137,6 +146,8 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   // "Nessun prodotto in stock" e poteva rimettersi a produrre merce che aveva
   // già in cella.
   const [erroreLettura, setErroreLettura] = useState(null)
+  // Quanti movimenti si leggono. Parte da 30 e si allarga su richiesta.
+  const [movLimite, setMovLimite] = useState(30)
   const [scartoForm, setScartoForm] = useState(null)
   const [movimenti, setMovimenti] = useState([])
   const [saving, setSaving] = useState(false)
@@ -148,7 +159,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
     try {
       const [s, m] = await Promise.all([
         loadStockPF(orgId, sedeId, { rilancia: true }),
-        loadMovimentiPF(orgId, sedeId, { limit: 30, rilancia: true }),
+        loadMovimentiPF(orgId, sedeId, { limit: movLimite, rilancia: true }),
       ])
       setStock(s)
       setMovimenti(m)
@@ -225,9 +236,33 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
   const sottoSoglia = stock.filter(r => r.soglia_min > 0 && Number(r.quantita) <= Number(r.soglia_min))
   const negativi = stock.filter(r => Number(r.quantita) < 0)
 
+  // Data leggibile per le colonne "Aggiornato" e per i movimenti.
+  //
+  // Audit 2026-09-09: prima era toLocaleString con solo giorno, mese e ora:
+  // senza l'anno, una giacenza ferma da un anno sembrava di ieri. E questa
+  // colonna e' l'unico posto dove si vedono le giacenze morte, che sono un
+  // problema noto (c'e' un bottone "Azzera" con la nota "dato fantasma").
+  // Sotto la settimana diciamo "oggi"/"ieri"/"N giorni fa", che e' come si
+  // ragiona in laboratorio; oltre, la data con l'anno.
+  const dataLeggibile = (iso) => {
+    if (!iso) return '-'
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return '-'
+    const oggi = new Date()
+    const soloGiorno = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+    const giorni = Math.round((soloGiorno(oggi) - soloGiorno(d)) / 86400000)
+    const ora = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+    if (giorni === 0) return `oggi ${ora}`
+    if (giorni === 1) return `ieri ${ora}`
+    if (giorni > 1 && giorni < 7) return `${giorni} giorni fa`
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
   const CAUSALE_LBL = {
     produzione: { lbl: 'Produzione', ic: 'factory', col: '#16A34A' },
-    trasferimento_invio: { lbl: 'Inviato', ic: 'truck', col: '#DC2626' },
+    // Audit 2026-09-09: era '#DC2626', il rosso d'allarme. Ma inviare merce a
+    // un'altra sede e' un'operazione normale: il rosso resta agli scarti.
+    trasferimento_invio: { lbl: 'Inviato', ic: 'truck', col: T.blue },
     trasferimento_ricezione: { lbl: 'Ricevuto', ic: 'package', col: '#16A34A' },
     vendita: { lbl: 'Vendita', ic: 'cart', col: '#2563EB' },
     scarto: { lbl: 'Scarto', ic: 'warning', col: '#92400E' },
@@ -252,15 +287,26 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '40px 20px', textAlign: 'center', color: C.textSoft, fontSize: 13, boxShadow: SHADOW_PREMIUM }}>
           <div style={{ marginBottom: 8, color: C.textSoft }}><Icon name="package" size={36} /></div>
           Nessun prodotto in stock per questa sede.<br/>
-          Lo stock si popola automaticamente alla conferma di una sessione di produzione.
+          {/* Audit 2026-09-09: diceva solo "alla conferma di una sessione di
+              produzione", cioè una delle tre strade. Chi ha ricevuto un
+              trasferimento da un'altra sede e non vede niente qui non sa dove
+              guardare. */}
+          Lo stock si riempie in tre modi: confermando una sessione di <b>Produzione</b>,
+          ricevendo un <b>trasferimento</b> da un'altra sede, oppure con l'inventario
+          settimanale se hai attivato quel metodo.
         </div>
       ) : (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflowX: 'auto', marginBottom: 20, boxShadow: SHADOW_PREMIUM }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          {/* Audit 2026-09-09: il wrapper ha overflowX auto ma la tabella era
+              a width 100% senza minWidth, quindi non superava mai il contenitore
+              e lo scroll non partiva: su telefono cinque colonne si schiacciano
+              e la data va a capo spezzata. Le altre tre tabelle del file il
+              minWidth ce l'hanno già (480, 540, 760). */}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 580 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
                 {[LEX.Prodotto, 'Disponibili', 'Soglia', 'Aggiornato', ''].map((h, i) => (
-                  <th key={i} style={{ padding: '10px 14px', textAlign: i === 1 || i === 2 ? 'right' : 'left', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                  <th key={i} style={{ padding: '10px 14px', textAlign: i === 1 || i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -278,18 +324,18 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                     <td style={{ padding: '10px 14px', textAlign: 'right', color: C.textSoft, ...TNUM }}>
                       {r.soglia_min > 0 ? Number(r.soglia_min).toLocaleString('it-IT') : '-'}
                     </td>
-                    <td style={{ padding: '10px 14px', fontSize: 11, color: C.textSoft }}>
-                      {r.updated_at ? new Date(r.updated_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
+                    <td style={{ padding: '10px 14px', fontSize: typo.small.fontSize, color: C.textSoft, whiteSpace: 'nowrap' }}>
+                      {dataLeggibile(r.updated_at)}
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                       <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: '', note: '', azzera: false, unita: r.unita || 'pz', disponibile: q })} disabled={q <= 0}
-                        style={{ padding: '8px 12px', minHeight: 36, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 12, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer', marginRight: 4 }}>
+                        style={{ padding: '9px 12px', minHeight: 40, borderRadius: 6, border: `1px solid ${C.border}`, background: C.bgCard, color: q <= 0 ? C.textSoft : C.amber, fontSize: 12, fontWeight: 700, cursor: q <= 0 ? 'not-allowed' : 'pointer', marginRight: 4 }}>
                         Scarto
                       </button>
                       {q > 0 && (
                         <button onClick={() => setScartoForm({ prodotto: r.prodotto_nome, qty: String(q), note: 'Azzeramento stock (dato fantasma o reset)', azzera: true, unita: r.unita || 'pz', disponibile: q })}
                           title="Porta a zero lo stock di questo prodotto"
-                          style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${C.red}`, background: '#FFF5F5', color: C.red, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                          style={{ padding: '9px 10px', minHeight: 40, marginLeft: 6, borderRadius: 6, border: `1px solid ${C.red}`, background: '#FFF5F5', color: C.red, fontSize: typo.small.fontSize, fontWeight: 700, cursor: 'pointer' }}>
                           Azzera
                         </button>
                       )}
@@ -304,10 +350,25 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
 
       {movimenti.length > 0 && (
         <div>
-          <SectHead icon={<Icon name="clock" size={16} />} title="Movimenti recenti" sub="Ultimi carichi, scarichi e trasferimenti" />
+          {/* Audit 2026-09-09: la lista si fermava a 30 movimenti senza dirlo.
+              Chi cerca lo scarto di lunedi e non lo trova lo registra di nuovo,
+              e quella e' una doppia scrittura vera nei dati. Ora il numero e'
+              scritto e si può allargare. */}
+          <SectHead icon={<Icon name="clock" size={16} />} title="Movimenti recenti"
+            sub={movimenti.length >= movLimite
+              ? `Gli ultimi ${movLimite}: ce ne sono altri più indietro`
+              : `Tutti i ${movimenti.length} movimenti di questa sede`} />
 
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+            {/* Audit 2026-09-09: il wrapper esterno e' `overflow: hidden` e la
+                tabella non aveva minWidth. Le celle data e causale hanno
+                whiteSpace nowrap, quindi spingono la larghezza oltre il
+                contenitore e quello che sfora viene TAGLIATO: l'unica cella
+                comprimibile e' la nota, che si schiacciava fino a sparire.
+                Il pattern giusto e' già nel file (righe 517-519): wrapper con
+                bordo e raggio, dentro un div che scorre, tabella con minWidth. */}
+            <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize, minWidth: 620 }}>
               <tbody>
                 {movimenti.map(m => {
                   const c = CAUSALE_LBL[m.causale] || { lbl: m.causale, col: C.textSoft }
@@ -315,19 +376,39 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                   return (
                     <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: '8px 14px', fontSize: 12, color: C.textSoft, whiteSpace: 'nowrap' }}>
-                        {new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {dataLeggibile(m.created_at)}
                       </td>
                       <td style={{ padding: '8px 14px', fontWeight: 700, color: C.text }}>{m.prodotto_nome}</td>
-                      <td style={{ padding: '8px 14px', fontSize: 11, color: c.col, whiteSpace: 'nowrap' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{c.ic && <Icon name={c.ic} size={12} />}{c.lbl}</span></td>
-                      <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 800, color: d > 0 ? C.green : d < 0 ? C.red : C.textSoft, ...TNUM }}>
-                        {d > 0 ? '+' : ''}{d}
+                      <td style={{ padding: '8px 14px', fontSize: typo.small.fontSize, color: c.col, whiteSpace: 'nowrap' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{c.ic && <Icon name={c.ic} size={12} />}{c.lbl}</span></td>
+                      {/* Audit 2026-09-09, due difetti in una cella.
+                          COLORE: era verde per i positivi e ROSSO per tutti i
+                          negativi. Ma ogni chiusura di cassa scrive una vendita
+                          per ogni prodotto venduto (ChiusuraView righe 734 e
+                          778), quindi in una giornata normale la lista e' quasi
+                          tutta negativa: la pagina era rossa senza che ci fosse
+                          niente da fare. Il rosso resta solo sugli scarti, che
+                          sono l'unica causale su cui c'e' da intervenire.
+                          NUMERO: `{d}` stampava il valore grezzo, quindi un
+                          delta di 8400 grammi usciva "-8400" invece di
+                          "-8.400" (regola dei numeri italiani). */}
+                      <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 800, color: m.causale === 'scarto' ? C.red : C.text, ...TNUM, whiteSpace: 'nowrap' }}>
+                        {d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(d).toLocaleString('it-IT')}
                       </td>
-                      <td style={{ padding: '8px 14px', fontSize: 12, color: C.textSoft, fontStyle: 'italic' }}>{m.note || ''}</td>
+                      <td style={{ padding: '8px 14px', fontSize: typo.small.fontSize, color: C.textSoft, fontStyle: 'italic' }}>{m.note || ''}</td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
+            </div>
+            {movimenti.length >= movLimite && (
+              <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, textAlign: 'center' }}>
+                <button type="button" onClick={() => setMovLimite(l => l + 100)}
+                  style={{ padding: '9px 16px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.bgCard, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>
+                  Mostra altri 100 movimenti
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -339,9 +420,9 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
             <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="warning" size={18} />Registra scarto</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: C.textSoft }}>{LEX.Prodotto}: <strong>{scartoForm.prodotto}</strong></p>
             <div style={{ marginBottom: 12 }}>
-              {/* L'unita' della riga, non "(pz)" fisso: su una riga in grammi
+              {/* L'unità della riga, non "(pz)" fisso: su una riga in grammi
                   si chiedeva di scartare "pezzi" di gelato sfuso. */}
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
+              <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
                 Quantità scartata ({scartoForm.unita === 'g' ? 'g' : 'pz'})
               </div>
               {/* Nello stato si tiene la STRINGA grezza, non il numero.
@@ -354,7 +435,7 @@ function ProdottiFinitiTab({ notify, orgId, sedeId, LEX = lessico() }) {
                 style={{ width: '100%', padding: '12px 14px', minHeight: 44, borderRadius: 8, border: `1px solid ${C.borderStr}`, fontSize: 16, boxSizing: 'border-box' }}/>
             </div>
             <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Motivo (opzionale)</div>
+              <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Motivo (opzionale)</div>
               <input value={scartoForm.note}
                 onChange={e => setScartoForm(f => ({ ...f, note: e.target.value }))}
                 placeholder="es. caduti per terra, scaduti, dati a omaggio"
@@ -396,12 +477,13 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
         if (!k) continue
         if (!map.has(k)) {
           const c = costi[k]
-          map.set(k, { key: k, nome: ing.nome, prezzoKg: c?.costoKg || 0, haPrezzo: !!c && c.costoKg > 0 })
+          // isStima = prezzo medio di mercato del listino HoReCa, non tuo.
+          map.set(k, { key: k, nome: ing.nome, prezzoKg: c?.costoKg || 0, haPrezzo: !!c && c.costoKg > 0 && !c.isStima, isStima: !!c?.isStima })
         }
       }
     }
     for (const [k, c] of Object.entries(costi)) {
-      if (!map.has(k)) map.set(k, { key: k, nome: k, prezzoKg: c.costoKg || 0, haPrezzo: (c.costoKg || 0) > 0 })
+      if (!map.has(k)) map.set(k, { key: k, nome: k, prezzoKg: c.costoKg || 0, haPrezzo: (c.costoKg || 0) > 0 && !c.isStima, isStima: !!c.isStima })
     }
     return [...map.values()].sort((a, b) => a.nome.localeCompare(b.nome))
   }, [ricettario])
@@ -427,7 +509,13 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
     // era andato, se il prezzo era stato rifiutato, o se il pulsante era rotto.
     if (isNaN(v) || v < 0) { setErrEdit('Scrivi un prezzo in euro per chilo, per esempio 12,50'); return }
     setErrEdit(null)
-    if (v === row.prezzoKg) { cancelEdit(); return }
+    // Audit 2026-09-09: il confronto era esatto, ma l'input si precompila con
+    // due decimali mentre in archivio i prezzi ne hanno quattro. Aprendo la
+    // riga di un ingrediente a 0,8825 EUR/kg e premendo Salva senza toccare
+    // niente, il prezzo cambiava a 0,88 da solo. Ora si confronta quello che
+    // l'utente VEDE: se non ha cambiato la cifra a schermo, non si salva.
+    const visto = Math.round((Number(row.prezzoKg) || 0) * 100) / 100
+    if (Math.abs(v - visto) < 0.005) { cancelEdit(); return }
     setConfirmKey(row.key)
     setConfirmVal(v)
     setConfirmDecorre(todayLocal())
@@ -475,18 +563,18 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
 
       {showLog && (
         <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 16, marginBottom: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
-          <div style={{ padding: '11px 14px', background: '#F8F4F2', fontSize: 11, fontWeight: 700, color: C.textMid, borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ padding: '11px 14px', background: '#F8F4F2', fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, borderBottom: `1px solid ${C.border}` }}>
             Storico modifiche prezzi · ultime {Math.min(50, logPrezzi?.length || 0)} di {logPrezzi?.length || 0}
           </div>
           {(!logPrezzi || logPrezzi.length === 0) ? (
             <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: C.textSoft }}>Nessuna modifica registrata.</div>
           ) : (
             <div style={{ maxHeight: 240, overflowY: 'auto', overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize }}>
                 <thead>
                   <tr>
                     {['Data', 'Ingrediente', 'Vecchio', 'Nuovo', 'Δ'].map((h, i) => (
-                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 2 ? 'right' : 'left', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
+                      <th key={i} style={{ padding: '8px 12px', textAlign: i >= 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, background: '#FDFAF7' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -519,9 +607,9 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 480 }}>
             <thead>
               <tr style={{ background: '#F8F4F2' }}>
-                <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Prezzo €/kg</th>
-                <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, width: 140 }}>Azioni</th>
+                <th style={{ padding: '10px 14px', textAlign: 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Ingrediente</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>Prezzo €/kg</th>
+                <th style={{ padding: '10px 14px', textAlign: 'right', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}`, width: 140 }}>Azioni</th>
               </tr>
             </thead>
             <tbody>
@@ -540,7 +628,14 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                           lunghezza del nome. */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ minWidth: 180, display: 'inline-block' }}>{row.nome}</span>
-                        {!row.haPrezzo && <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: C.amberLight, color: C.amber, fontWeight: 700, whiteSpace: 'nowrap' }}>Prezzo da impostare</span>}
+                        {/* Audit 2026-09-09: c'era un solo badge, "Prezzo da
+                            impostare", e non distingueva il prezzo che hai
+                            scritto tu da quello che il software ha preso dal
+                            listino medio di mercato. Nel ricettario reale sono
+                            6 prezzi veri su 422: senza il badge, 416
+                            ingredienti sembravano tuoi. */}
+                        {!row.haPrezzo && !row.isStima && <span style={{ fontSize: typo.small.fontSize, padding: '2px 7px', borderRadius: 4, background: C.amberLight, color: C.amber, fontWeight: 700, whiteSpace: 'nowrap' }}>Prezzo da impostare</span>}
+                        {row.isStima && <span title="Prezzo medio di mercato, non il tuo: scrivilo qui per avere un food cost tuo." style={{ fontSize: typo.small.fontSize, padding: '2px 7px', borderRadius: 4, background: C.bgSubtle, color: C.textMid, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'help' }}>stima di mercato</span>}
                       </div>
                     </td>
                     <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: C.text, ...TNUM }}>
@@ -607,9 +702,21 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
         if (!row) return null
         const delta = confirmVal - row.prezzoKg
         const deltaPct = row.prezzoKg > 0 ? (delta / row.prezzoKg * 100) : null
+        // Audit 2026-09-09: la finestra non rispondeva a Invio ed Esc (tutte le
+        // altre del prodotto lo fanno) e si chiudeva toccando lo sfondo anche
+        // MENTRE il salvataggio era in corso, lasciando l'operazione a metà
+        // senza dire com'era finita.
         return (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
-            onClick={() => setConfirmKey(null)}>
+          <div role="dialog" aria-modal="true" aria-label="Conferma modifica prezzo"
+            onKeyDown={e => {
+              if (salvandoPrezzo) return
+              if (e.key === 'Escape') { e.stopPropagation(); setConfirmKey(null) }
+              if (e.key === 'Enter') { e.stopPropagation(); confermaSalva() }
+            }}
+            tabIndex={-1}
+            ref={el => { if (el) el.focus() }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+            onClick={() => { if (!salvandoPrezzo) setConfirmKey(null) }}>
             <div onClick={e => e.stopPropagation()} style={{ background: C.white, borderRadius: 16, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 24px 60px rgba(15,23,42,0.3)' }}>
               <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 8 }}>Conferma modifica prezzo</div>
               <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, lineHeight: 1.55 }}>
@@ -617,23 +724,23 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
               </div>
               <div style={{ background: '#F8F4F2', borderRadius: 10, padding: '14px 16px', marginBottom: 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600 }}>Prezzo attuale</span>
-                  <span style={{ fontSize: 14, color: C.textMid, ...TNUM, fontWeight: 700 }}>€ {row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</span>
+                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Prezzo attuale</span>
+                  <span style={{ fontSize: 14, color: C.textMid, ...TNUM, fontWeight: 700 }}>{row.prezzoKg.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600 }}>Nuovo prezzo</span>
-                  <span style={{ fontSize: 14, color: C.red, ...TNUM, fontWeight: 800 }}>€ {confirmVal.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg</span>
+                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Nuovo prezzo</span>
+                  <span style={{ fontSize: 14, color: C.red, ...TNUM, fontWeight: 800 }}>{confirmVal.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/kg</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
-                  <span style={{ fontSize: 11, color: C.textSoft, fontWeight: 600 }}>Variazione</span>
+                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, fontWeight: 600 }}>Variazione</span>
                   <span style={{ fontSize: 13, color: delta > 0 ? C.red : C.green, ...TNUM, fontWeight: 800 }}>
-                    {delta > 0 ? '+' : ''}€ {delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {deltaPct != null && <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{deltaPct.toFixed(1)}%)</span>}
+                    {delta > 0 ? '+' : ''}{delta.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € {deltaPct != null && <span style={{ fontSize: 11, marginLeft: 4, opacity: 0.85 }}>({deltaPct > 0 ? '+' : ''}{deltaPct.toFixed(1)}%)</span>}
                   </span>
                 </div>
               </div>
               {/* Decorrenza: data da cui il prezzo entra in vigore */}
               <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
                   Decorrenza nuovo prezzo
                 </div>
                 <input type="date" value={confirmDecorre} onChange={e => setConfirmDecorre(e.target.value)}
@@ -644,7 +751,7 @@ function PrezziIngredientiTab({ ricettario, logPrezzi, onUpdatePrezzo, isMobile 
                 </div>
               </div>
               {deltaPct != null && Math.abs(deltaPct) > 50 && (
-                <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', marginBottom: 16, fontSize: 11, color: '#78350F', lineHeight: 1.5 }}>
+                <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', marginBottom: 16, fontSize: typo.small.fontSize, color: '#78350F', lineHeight: 1.5 }}>
                   <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle' }}><Icon name="warning" size={12} />Variazione importante</b> - la modifica del {Math.abs(deltaPct).toFixed(0)}% influenzerà il food cost di tutte le ricette che usano questo ingrediente (a partire dalla decorrenza scelta).
                 </div>
               )}
@@ -692,7 +799,15 @@ export default function MagazzinoView({
   const [formQty, setFormQty] = useState('')
   const [formNote, setFormNote] = useState('')
   const [formMode, setFormMode] = useState('carico')
-  const { sort: sortMag, sortKey: magKey, sortDir: magDir, toggleSort: magToggle } = useSortable('stato')
+  // Audit 2026-09-09: il default era 'desc', e la scala degli stati va da
+  // negativo=0 a ok=4: quindi la tabella si apriva con gli ingredienti a posto
+  // in cima e gli ESAURITI in fondo, da scorrere. Chi apre il magazzino vuole
+  // vedere per primo quello che manca.
+  const { sort: sortMag, sortKey: magKey, sortDir: magDir, toggleSort: magToggle } = useSortable('stato', 'asc')
+
+  // [15] Ricerca sulla tabella delle giacenze. La scheda Prezzi ce l'ha da
+  // sempre; qui, con 35 ingredienti e oltre, non c'era modo di trovarne uno.
+  const [magSearch, setMagSearch] = useState('')
   const [quickLoad, setQuickLoad] = useState(null)
   const [editSoglia, setEditSoglia] = useState(null)
   // La lista di riordino mostra le prime righe e non tutte.
@@ -712,6 +827,8 @@ export default function MagazzinoView({
   const [newIngNome, setNewIngNome] = useState('')
   const [newIngQty, setNewIngQty] = useState('')
   const [newIngSoglia, setNewIngSoglia] = useState('')
+  // Quante righe dello storico carichi si mostrano.
+  const [logLimite, setLogLimite] = useState(50)
   const [saving, setSaving] = useState(false)
 
   // ESC chiude il modal di delete (UX coerente con ProduzioneGiornalieraView).
@@ -809,7 +926,8 @@ export default function MagazzinoView({
     return [...new Set([...fromRic, ...fromMag])].filter(k => !esclusi.has(k)).sort()
   }, [ricettario, magPerNorm, esclusi])
 
-  const fabbisogno = useMemo(() => calcolaFabbisognoSettimana(ricettario, giornaliero), [ricettario, giornaliero])
+  const { fabb: fabbisogno, stimato: consumoStimato, giorniStorico } = useMemo(
+    () => calcolaFabbisognoSettimana(ricettario, giornaliero), [ricettario, giornaliero])
 
   // Mappa costi €/kg (€/g): prezzi utente (ingredienti_costi) con fallback HORECA.
   // Serve a valorizzare la giacenza (valore stock €) - sola lettura, non scrive nulla.
@@ -865,6 +983,12 @@ export default function MagazzinoView({
   // funziona — la soglia esiste per dire "ordina" — mentre a zero non si
   // produce. Un allarme che suona nella condizione normale di una cucina ben
   // gestita insegna a spegnere l'allarme.
+  // Righe visibili dopo la ricerca. I contatori sopra restano su TUTTE le righe:
+  // sono la diagnosi del magazzino, non del filtro.
+  const righeFiltrate = magSearch.trim()
+    ? righe.filter(r => (r.nome || '').toLowerCase().includes(magSearch.trim().toLowerCase()))
+    : righe
+
   const esauriti = righe.filter(r => r.stato === 'esaurito')
   const sottoSoglia = righe.filter(r => r.stato === 'critico')
   const negativi = righe.filter(r => r.stato === 'negativo')
@@ -985,8 +1109,18 @@ export default function MagazzinoView({
 
   const handleAddIngrediente = async () => {
     if (saving) return
-    if (!newIngNome) return
+    // Audit 2026-09-09: `if (!newIngNome) return` lascia passare una stringa di
+    // soli spazi, che normIng riduce a '' — e nasceva una voce di magazzino
+    // senza nome, impossibile da trovare e da eliminare dalla lista.
+    if (!newIngNome || !newIngNome.trim()) {
+      notify('Scrivi il nome dell\'ingrediente', false)
+      return
+    }
     const k = normIng(newIngNome)
+    if (!k) {
+      notify('Questo nome non è utilizzabile: scrivi almeno una lettera', false)
+      return
+    }
     // Se l'ingrediente è GIÀ in magazzino non si tocca.
     //
     // Bug confermato nell'audit del 7/09: questa riga sovrascriveva la voce
@@ -1044,7 +1178,7 @@ export default function MagazzinoView({
   // Suggerimento riordino arrotondato a step pratici: <1kg → step 100g, ≥1kg → 0,5kg.
   // Il suggerimento di riordino si arrotonda a passi pratici (100 g sotto il
   // chilo, mezzo chilo sopra) e POI si formatta come tutto il resto della
-  // pagina. Prima decideva l'unita' da solo ignorando il toggle kg/g: nella
+  // pagina. Prima decideva l'unità da solo ignorando il toggle kg/g: nella
   // stessa riga si leggeva "28.000 g" di giacenza e "~ 1,5 kg" da ordinare, e
   // per capire se bastava bisognava fare la conversione a mente.
   const fmtRiordino = g => {
@@ -1179,14 +1313,14 @@ export default function MagazzinoView({
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>Lista di riordino consigliata</div>
-                <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
+                <div style={{ fontSize: typo.small.fontSize, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
                   {daRiordinare.length} {daRiordinare.length === 1 ? 'ingrediente' : 'ingredienti'} · per coprire circa {GIORNI_TARGET} giorni di consumo
                   {nascosti > 0 && !riordinoTutti && ` · in elenco i ${RIORDINO_VISIBILI} più urgenti`}
                 </div>
               </div>
               {costoStimato > 0 && (
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Spesa stimata</div>
+                  <div style={{ ...typo.caption, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Spesa stimata</div>
                   <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', ...TNUM }}>{fmt0(costoStimato)}</div>
                 </div>
               )}
@@ -1196,7 +1330,7 @@ export default function MagazzinoView({
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {[['Ingrediente', 'left'], ['Giacenza', 'right'], ['Giorni scorta', 'right'], ['Da ordinare', 'right'], ['Costo stim.', 'right'], ['', 'right']].map(([h, al], i) => (
-                      <th key={i} style={{ padding: '9px 14px', textAlign: al, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                      <th key={i} style={{ padding: '9px 14px', textAlign: al, ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1211,7 +1345,7 @@ export default function MagazzinoView({
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>{fmtG(r.giacenza)}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: statoColor(r.stato), fontWeight: 700, ...TNUM }}>
-                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg` : '-'}
+                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg${consumoStimato ? ' ~' : ''}` : '-'}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: C.text, ...TNUM }}>
                         {fmtRiordino(r.riordinoG) ? `~ ${fmtRiordino(r.riordinoG)}` : '-'}
@@ -1295,6 +1429,21 @@ export default function MagazzinoView({
                 <button onClick={() => setShowAddIng(true)} style={{ padding: '8px 16px', background: C.red, color: C.white, border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(110,14,26,0.2)' }}>+ Aggiungi ingrediente</button>
               </div>
             } />
+          {/* [15] Ricerca: con 35 ingredienti e oltre non c'era modo di
+              trovarne uno. La scheda Prezzi ce l'ha da sempre. */}
+          {righe.length > 12 && (
+            <div style={{ marginBottom: 10, position: 'relative' }}>
+              <input value={magSearch} onChange={e => setMagSearch(e.target.value)}
+                placeholder="Cerca un ingrediente…"
+                aria-label="Cerca un ingrediente fra le giacenze"
+                style={{ width: '100%', maxWidth: 340, padding: isMobile ? '11px 12px' : '9px 12px', minHeight: 40, borderRadius: 9, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, background: C.white }} />
+              {magSearch.trim() && (
+                <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginLeft: 10 }}>
+                  {righeFiltrate.length} di {righe.length}
+                </span>
+              )}
+            </div>
+          )}
 
           {showAddIng && (
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, padding: '16px 20px', marginBottom: 16, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 120px 120px auto', gap: 10, alignItems: 'flex-end', boxShadow: SHADOW_PREMIUM }}>
@@ -1302,7 +1451,7 @@ export default function MagazzinoView({
                 { lbl: 'Giacenza (g)', val: newIngQty, set: setNewIngQty, ph: 'es. 1000', type: 'number' },
                 { lbl: 'Soglia alert (g)', val: newIngSoglia, set: setNewIngSoglia, ph: 'es. 500', type: 'number' }].map(({ lbl, val, set, ph, type }) => (
                 <div key={lbl}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{lbl}</div>
+                  <div style={{ ...typo.caption, fontWeight: 700, color: C.textSoft, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{lbl}</div>
                   <input type={type || 'text'} inputMode={type === 'number' ? 'decimal' : undefined} value={val} onChange={e => set(e.target.value)} placeholder={ph}
                     style={{ width: '100%', padding: '10px 12px', minHeight: 44, borderRadius: 7, border: `1px solid ${C.borderStr}`, fontSize: isMobile ? 16 : 13, color: C.text, boxSizing: 'border-box' }}/>
                 </div>
@@ -1314,14 +1463,30 @@ export default function MagazzinoView({
             </div>
           )}
           <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, minWidth: 760 }}>
+            {/* Audit 2026-09-09: senza sessioni di produzione registrate il consumo
+              e' una stima del software (un impasto per ricetta a settimana), e da
+              quella nascono giorni di scorta, stato e quantita' da ordinare: tre
+              colonne su sei. Un tooltip lo legge chi ci passa sopra; questo lo
+              vedono tutti. */}
+          {consumoStimato && righe.length > 0 && (
+            <div style={{ background: C.amberLight, border: `1px solid ${C.amber}40`, borderRadius: 10, padding: '10px 14px', marginBottom: 10, fontSize: typo.small.fontSize, color: C.textMid, lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span style={{ flexShrink: 0, marginTop: 1, color: C.amber }}><Icon name="warning" size={14} /></span>
+              <span>
+                <b style={{ color: C.text }}>Giorni scorta, stato e quantità da ordinare sono stime.</b>{' '}
+                Non hai ancora sessioni di produzione registrate, quindi il consumo lo calcolo
+                ipotizzando un impasto per ricetta a settimana. Registra qualche giornata in
+                Produzione e questi numeri diventano i tuoi.
+              </span>
+            </div>
+          )}
+          <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize, minWidth: 760 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     <SortTH k="nome" active={magKey === 'nome'} dir={magDir} onToggle={magToggle}>Ingrediente</SortTH>
                     <SortTH k="giacenza" right active={magKey === 'giacenza'} dir={magDir} onToggle={magToggle}>Giacenza</SortTH>
                     <SortTH k="fabb" right active={magKey === 'fabb'} dir={magDir} onToggle={magToggle} tip="Fabbisogno settimanale stimato dal consumo degli ultimi 7 giorni">Fabb. sett.</SortTH>
-                    <SortTH k="giorniScorta" right active={magKey === 'giorniScorta'} dir={magDir} onToggle={magToggle} tip="Giorni di scorta rimanenti al ritmo di consumo attuale">Giorni scorta</SortTH>
+                    <SortTH k="giorniScorta" right active={magKey === 'giorniScorta'} dir={magDir} onToggle={magToggle} tip={consumoStimato ? "ATTENZIONE: non hai ancora sessioni di produzione registrate, quindi il consumo e' una stima del software (un impasto per ricetta a settimana). Registra qualche giornata e questi numeri diventano tuoi." : "Giorni di scorta rimanenti al ritmo di consumo attuale"}>Giorni scorta</SortTH>
                     <SortTH k="valore" right active={magKey === 'valore'} dir={magDir} onToggle={magToggle} tip="Valore della giacenza = quantità × prezzo €/kg">Valore</SortTH>
                     <SortTH k="riordino" right active={magKey === 'riordino'} dir={magDir} onToggle={magToggle} tip="Quantità consigliata da ordinare per coprire ~14 giorni di consumo">Da ordinare</SortTH>
                     <SortTH k="soglia" right active={magKey === 'soglia'} dir={magDir} onToggle={magToggle} tip="Soglia minima sotto la quale scatta l'alert di riordino">Soglia alert</SortTH>
@@ -1349,7 +1514,7 @@ export default function MagazzinoView({
                       </td>
                     </tr>
                   )}
-                  {sortMag(righe, (r, k) => ({
+                  {sortMag(righeFiltrate, (r, k) => ({
                     nome: r.nome, giacenza: r.giacenza, fabb: r.fabb,
                     giorniScorta: r.giorniScorta ?? 9999, soglia: r.soglia,
                     valore: r.valore, riordino: r.riordinoG,
@@ -1386,7 +1551,7 @@ export default function MagazzinoView({
                       <td style={{ padding: '10px 14px', textAlign: 'center', color: C.textMid, ...TNUM }}>{r.fabb > 0 ? fmtG(r.fabb) : '-'}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: statoColor(r.stato), ...TNUM }}
                           title="Giorni di scorta: giacenza diviso consumo medio giornaliero">
-                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg` : '-'}
+                        {r.giorniScorta !== null ? `${r.giorniScorta.toFixed(0)} gg${consumoStimato ? ' ~' : ''}` : '-'}
                       </td>
                       <td style={{ padding: '10px 14px', textAlign: 'right', color: r.valore > 0 ? C.text : C.textSoft, fontWeight: r.valore > 0 ? 700 : 400, ...TNUM }}>
                         {r.valore > 0 ? fmt0(r.valore) : '-'}
@@ -1617,25 +1782,58 @@ export default function MagazzinoView({
             </div>
           ) : (
             <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 18, overflow: 'hidden', boxShadow: SHADOW_PREMIUM }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              {/* Audit 2026-09-09: la tabella non scorreva in orizzontale su
+                  telefono (wrapper in overflow hidden, nessun minWidth) e
+                  l'intestazione della quantità era a sinistra mentre i numeri
+                  stanno a destra. */}
+              <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: typo.small.fontSize, minWidth: 560 }}>
                 <thead>
                   <tr style={{ background: '#F8F4F2' }}>
                     {['Data', 'Ingrediente', 'Quantità', 'Note'].map((h, i) => (
-                      <th key={i} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                      <th key={i} style={{ padding: '10px 14px', textAlign: i === 2 ? 'right' : 'left', ...typo.caption, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.textSoft, borderBottom: `1px solid ${C.border}` }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {logRif.map((r, i) => (
+                  {logRif.slice(0, logLimite).map((r, i) => (
                     <tr key={r.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? C.white : '#FDFAF7' }}>
-                      <td style={{ padding: '10px 14px', color: C.textMid }}>{new Date(r.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text, textTransform: 'capitalize' }}>{r.ingrediente}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 700, color: C.green }}>{fmtG(r.quantita_g)}</td>
+                      {/* Audit 2026-09-09, quattro difetti in questa riga:
+                          - le quantità NEGATIVE (gli scarichi) erano scritte in
+                            verde come i carichi: un prelievo sembrava un arrivo
+                            di merce;
+                          - la colonna non era allineata a destra né con cifre
+                            tabellari, quindi i numeri non si potevano confrontare
+                            a colpo d'occhio;
+                          - la data andava a capo spezzata (nessun nowrap);
+                          - `textTransform: capitalize` rompe le maiuscole vere:
+                            "FARINA 00" diventava "Farina 00" e "IGP" diventava
+                            "Igp". Il nome si mostra come l'utente l'ha scritto. */}
+                      <td style={{ padding: '10px 14px', color: C.textMid, whiteSpace: 'nowrap' }}>{new Date(r.data).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: C.text }}>{r.ingrediente}</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right', whiteSpace: 'nowrap', ...TNUM, color: Number(r.quantita_g) < 0 ? C.amber : C.green }}>
+                        {Number(r.quantita_g) < 0 ? '−' : '+'}{fmtG(Math.abs(Number(r.quantita_g) || 0))}
+                      </td>
                       <td style={{ padding: '10px 14px', color: C.textSoft }}>{r.note || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              </div>
+              {/* Audit 2026-09-09: lo storico non aveva né limite né modo di
+                  scorrere: con qualche centinaio di carichi la pagina si
+                  appesantiva e non si trovava più niente. */}
+              {logRif.length > logLimite && (
+                <div style={{ padding: '10px 14px', borderTop: `1px solid ${C.border}`, textAlign: 'center' }}>
+                  <span style={{ fontSize: typo.small.fontSize, color: C.textSoft, marginRight: 10 }}>
+                    {logLimite} di {logRif.length.toLocaleString('it-IT')}
+                  </span>
+                  <button type="button" onClick={() => setLogLimite(l => l + 100)}
+                    style={{ padding: '9px 16px', minHeight: 40, borderRadius: 8, border: `1px solid ${C.borderStr}`, background: C.bgCard, fontSize: typo.small.fontSize, fontWeight: 700, color: C.textMid, cursor: 'pointer' }}>
+                    Mostra altri 100
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1663,7 +1861,7 @@ export default function MagazzinoView({
               Sparisce dall'elenco e non riceverai più avvisi di riordino su di lui.
               Se una ricetta lo usa, continuerà a essere calcolato nel costo di quella ricetta.
             </div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.textSoft, marginBottom: 6 }}>Scrivi <b style={{ color: C.red }}>ELIMINA</b> per confermare:</div>
+            <div style={{ fontSize: typo.small.fontSize, fontWeight: 700, color: C.textSoft, marginBottom: 6 }}>Scrivi <b style={{ color: C.red }}>ELIMINA</b> per confermare:</div>
             <input autoFocus value={deleteIngPin} onChange={e => setDeleteIngPin(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && deleteIngPin === 'ELIMINA') handleDeleteIng(deleteIngConf) }}
               placeholder="ELIMINA"
