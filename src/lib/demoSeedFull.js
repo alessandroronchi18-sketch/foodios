@@ -471,11 +471,25 @@ function buildGiornaliero(vendibili) {
 }
 
 // ─── 5) MOVIMENTI SPECIALI (sprechi + omaggi sparsi) ──────────────────────
+// Audit 2026-09-09 ALTA: questo seed scriveva un movimento con i campi
+// `data`, `nome`, `valore` e le causali 'rotto'/'omaggio_cliente'. Ma la pagina
+// Perdite e cessioni legge `ts`, `prodotto`, `fcTot`, `fcUnit`, `valoreOmaggio`
+// (lo shape che aggiungiMovimento scrive davvero, movimentiSpeciali.js:74-79) e
+// riconosce solo le causali dichiarate in CAUSALI (SpreciOmaggi.jsx:64-78).
+// Effetto: `new Date(m.ts)` su undefined dava Invalid Date, il filtro per
+// intervallo scartava TUTTE le 19 righe, e la pagina mostrava "Nessuna perdita
+// registrata nel mese. Ottimo controllo" con una card verde — su un database che
+// conteneva 19 movimenti. E 'rotto'/'omaggio_cliente' non essendo fra le causali
+// valide sarebbero uscite come stringhe crude nella colonna Causale.
+// Stesso difetto dei formati vendita corretto lo stesso giorno: il seed e la
+// pagina si erano divisi, e la demo e' la prima cosa che vede un cliente nuovo.
 function buildMovimenti(vendibili) {
   const r = rng(2026622)
   const out = []
   const oggi = today()
-  const CAUSALI = ['scaduto', 'rotto', 'errore_produzione', 'omaggio_cliente']
+  // Solo causali che esistono in SpreciOmaggi.jsx, con i tipi giusti.
+  const CAUSALI_SPRECO = ['scaduto', 'scarto', 'avanzo', 'errore_produzione']
+  const CAUSALI_OMAGGIO = ['regalo', 'cortesia', 'test_ricetta']
   if (!vendibili || vendibili.length === 0) return out
   const RICETTE = vendibili.slice(0, Math.min(5, vendibili.length)).map(v => v.nome)
   // ~1-2 sprechi a settimana per 12 settimane
@@ -484,22 +498,30 @@ function buildMovimenti(vendibili) {
     for (let e = 0; e < nEvents; e++) {
       const dayOffset = -week * 7 - Math.floor(r() * 6)
       const d = addDays(oggi, dayOffset)
-      const causale = choice(r, CAUSALI)
+      const isOmaggio = r() < 0.25
+      const causale = isOmaggio ? choice(r, CAUSALI_OMAGGIO) : choice(r, CAUSALI_SPRECO)
+      const qta = 1 + Math.floor(r() * 3)
+      const fcUnit = roundCents(1.2 + r() * 3.4)
+      const ts = new Date(d.getTime() + 16 * 3600000).toISOString()
       out.push({
         id: `demo-mov-${week}-${e}`,
-        data: isoDate(d),
-        nome: choice(r, RICETTE),
-        qta: 1 + Math.floor(r() * 3),
-        tipo: causale === 'omaggio_cliente' ? 'omaggio' : 'spreco',
+        ts,
+        prodotto: choice(r, RICETTE),
+        categoria: '',
+        qta,
+        unita: 'pz',
+        tipo: isOmaggio ? 'omaggio' : 'spreco',
         causale,
-        valore: roundCents(8 + r() * 25),
-        note: `[Demo] ${causale.replace('_', ' ')}`,
+        fcUnit,
+        fcTot: roundCents(fcUnit * qta),
+        // Per un omaggio conta anche il ricavo perso, non solo il food cost.
+        valoreOmaggio: isOmaggio ? roundCents(fcUnit * qta * 2.8) : 0,
+        note: `[Demo] ${causale.replace(/_/g, ' ')}`,
         _demo: true,
-        creatoAt: new Date(d.getTime() + 16 * 3600000).toISOString(),
       })
     }
   }
-  return out.sort((a, b) => b.data.localeCompare(a.data))
+  return out.sort((a, b) => String(b.ts).localeCompare(String(a.ts)))
 }
 
 // ─── 6) FORMATI VENDITA ───────────────────────────────────────────────────
@@ -521,7 +543,7 @@ function buildFormati() {
     // I componenti sono i materiali di confezionamento con costi realistici da
     // fornitore HoReCa: servono a far vedere a cosa serve la funzione. Prima
     // erano assenti in tutti i formati, e la colonna del costo confezionamento
-    // mostrava zero — cioe' il pezzo di valore della pagina non si vedeva.
+    // mostrava zero — cioè il pezzo di valore della pagina non si vedeva.
     { id: 'fm-demo-1', nome: 'Vassoietto biscotti misti 250g', _demo: true,
       categoria: 'Biscotti', baseQtaG: 250, prezzoDefault: 8.5, alias: [],
       componenti: [

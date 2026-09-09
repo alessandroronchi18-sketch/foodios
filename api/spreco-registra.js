@@ -137,18 +137,38 @@ export default async function handler(req) {
   // Scarico stock PF: lo SpreciOmaggi del titolare già lo fa, ma il flusso
   // dipendente saltava questo step (audit 2026-06-17 HIGH). Solo se prodotto
   // matchato a ricetta e unita 'pz' (no scarto su materia prima).
+  // Audit 2026-09-09 ALTA: qui il parametro si chiamava `p_sede_id`, ma la
+  // funzione in produzione ha `p_sede` (verificato con \df: nessuna delle due
+  // versioni di stock_pf_scarto accetta p_sede_id). E supabase.rpc NON lancia:
+  // ritorna { error }. Quindi il try/catch non scattava nemmeno per il
+  // console.warn, e il fallimento era completamente muto: il movimento di
+  // spreco veniva salvato, la vetrina restava carica, e nascevano i prodotti
+  // fantasma nello stock (il primo dei "common pitfalls" in CLAUDE.md).
+  // src/lib/stockPF.js:122 usa il nome giusto: qui era una copia divergente.
+  let scaricoStock = null
   if (auto && unita === 'pz' && prodotto) {
     try {
-      await supabase.rpc('stock_pf_scarto', {
-        p_sede_id: sedeId,
+      const { error: errScarto } = await supabase.rpc('stock_pf_scarto', {
+        p_sede: sedeId,
         p_prodotto: prodotto.toUpperCase().trim(),
         p_quantita: qta,
         p_note: `${tipo} dipendente: ${movimento.causale || 'n/a'}`,
       })
+      if (errScarto) {
+        console.error('[spreco-registra] stock_pf_scarto ha rifiutato:', errScarto.message)
+        scaricoStock = { ok: false, motivo: errScarto.message }
+      } else {
+        scaricoStock = { ok: true }
+      }
     } catch (e) {
-      console.warn('[spreco-registra] stock_pf_scarto failed', e?.message)
+      console.error('[spreco-registra] stock_pf_scarto non eseguito:', e?.message)
+      scaricoStock = { ok: false, motivo: e?.message || 'errore di rete' }
     }
   }
 
-  return json({ ok: true, movimento: rec, movimenti: nuova }, 200, req)
+  // Lo scarico dello stock e' un'operazione separata dal salvataggio del
+  // movimento: se fallisce, il registro e' giusto ma la vetrina resta carica.
+  // Va detto a chi ha registrato, altrimenti la differenza si scopre a fine
+  // giornata quando i conti non tornano.
+  return json({ ok: true, movimento: rec, movimenti: nuova, scaricoStock }, 200, req)
 }

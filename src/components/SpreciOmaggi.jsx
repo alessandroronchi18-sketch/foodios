@@ -24,7 +24,7 @@
 // restituire; aggiorniamo lo state solo dopo. Firma export e shape movimento immutate.
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { color as T } from '../lib/theme'
+import { color as T, typo } from '../lib/theme'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import Icon from './Icon'
 import { useConfirm } from './ConfirmModal'
@@ -36,6 +36,7 @@ import { todayLocal } from '../lib/dateLocal'
 import {
   nuovoMovimento, caricaMovimenti, aggiungiMovimento, eliminaMovimento,
   filtraPerIntervallo,
+  contaDateIlleggibili,
 } from '../lib/movimentiSpeciali'
 import { scartoPF } from '../lib/stockPF'
 
@@ -212,6 +213,10 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
 
   // Periodo selezionato (mese) - pilota diagnosi e lista.
   const periodo = useMemo(() => filtraPerIntervallo(tutti, da, a), [tutti, da, a])
+  // Righe che il filtro ha dovuto scartare perché non ne capisce la data: senza
+  // questo numero la pagina non può distinguere "non ci sono perdite" da
+  // "non riesco a leggere le perdite che ci sono".
+  const nIlleggibili = useMemo(() => contaDateIlleggibili(tutti), [tutti])
 
   const lista = useMemo(() => {
     let arr = periodo
@@ -358,7 +363,17 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
         if (!res.ok || !resp?.ok) throw new Error(resp?.error || `errore server (${res.status})`)
         setMovs(Array.isArray(resp.movimenti) ? resp.movimenti : [])
         setForm(null)
-        notify?.(`${form.tipo === 'spreco' ? 'Perdita' : 'Omaggio'} registrato`)
+        // Audit 2026-09-09: lo scarico della vetrina e' un passaggio separato e
+        // fino a oggi falliva in silenzio (l'API passava un parametro col nome
+        // sbagliato alla funzione del database). Se il registro e' scritto ma
+        // la vetrina resta carica, va detto subito: altrimenti la differenza si
+        // scopre a fine giornata, quando i conti non tornano e non si sa perché.
+        const etichetta = form.tipo === 'spreco' ? 'Perdita' : 'Omaggio'
+        if (resp.scaricoStock && resp.scaricoStock.ok === false) {
+          notify?.(`${etichetta} registrata, ma non ho potuto scaricarla dalla vetrina. Controlla lo stock in Magazzino.`, false)
+        } else {
+          notify?.(`${etichetta} registrat${form.tipo === 'spreco' ? 'a' : 'o'}`)
+        }
         return
       }
       const saved = await aggiungiMovimento(orgId, sedeId, {
@@ -639,10 +654,27 @@ export default function SpreciOmaggi({ orgId, sedeId, sedeAttiva, ricettario, au
       {/* (2) PER CAUSALE - dove va il valore perso */}
       <SH sub="Quanto pesa ogni causa di perdita nel mese. Il primo e' quello su cui agire per primo.">Per causale</SH>
       <div style={{ ...cardStyle(), padding: isMobile ? 14 : 18, marginBottom: 24 }}>
+        {/* Audit 2026-09-09: "Ottimo controllo" con la spunta verde compariva
+            ogni volta che la lista risultava vuota, anche quando i movimenti
+            c'erano ma la loro data non era leggibile (19 righe su 19 nei dati
+            demo). Un complimento al posto di un problema. Ora, se ci sono righe
+            che non riusciamo a leggere, lo diciamo. */}
         {diag.causaliOrd.length === 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.textSoft, padding: '8px 0' }}>
-            <Icon name="checkCircle" size={16} color={C.green} /> Nessuna perdita registrata nel mese. Ottimo controllo.
-          </div>
+          nIlleggibili > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, ...typo.small, color: C.amber, padding: '8px 0', lineHeight: 1.55 }}>
+              <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={16} /></span>
+              <span>
+                {nIlleggibili === 1
+                  ? 'C’è una registrazione che non riesco a leggere (la data non è nel formato giusto), quindi non la conto qui.'
+                  : `Ci sono ${nIlleggibili} registrazioni che non riesco a leggere (la data non è nel formato giusto), quindi non le conto qui.`}
+                {' '}Non è "nessuna perdita": sono dati che non riesco a interpretare.
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: C.textSoft, padding: '8px 0' }}>
+              <Icon name="checkCircle" size={16} color={C.green} /> Nessuna perdita registrata nel mese. Ottimo controllo.
+            </div>
+          )
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {diag.causaliOrd.map((c, i) => {

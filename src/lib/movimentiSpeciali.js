@@ -7,7 +7,7 @@
 //   Il food cost del prodotto resta un costo reale per l'azienda.
 //
 // Persistenza: per-sede in `pasticceria-movimenti-speciali-v1` (array di eventi).
-// Il dipendente puo' registrarli (chiave operativa nell'RLS).
+// Il dipendente può registrarli (chiave operativa nell'RLS).
 
 import { sload, ssave } from './storage'
 import { supabase } from './supabase'
@@ -92,14 +92,29 @@ export async function eliminaMovimento(orgId, sedeId, id) {
 }
 
 // Filtra movimenti per intervallo [da, a] (date ISO YYYY-MM-DD inclusi).
+// Audit 2026-09-09: un movimento con `ts` illeggibile veniva scartato in
+// SILENZIO. Ai dati del seed demo (che scriveva `data` invece di `ts`) capitava
+// su 19 righe su 19: la pagina mostrava "Nessuna perdita registrata nel mese.
+// Ottimo controllo" con una card verde, su un archivio pieno di movimenti.
+// Questo e' lo stesso schema del food cost 0 che diventava "margine 100%": il
+// dato che non si riesce a leggere diventa assenza, e l'assenza diventa una
+// buona notizia. Ora chi filtra può sapere quante righe non ha potuto leggere.
 export function filtraPerIntervallo(movimenti, da, a) {
-  if (!da && !a) return movimenti
+  const lista = Array.isArray(movimenti) ? movimenti : []
+  if (!da && !a) return lista
   const dFrom = da ? new Date(`${da}T00:00:00`).getTime() : -Infinity
   const dTo   = a  ? new Date(`${a}T23:59:59`).getTime()  :  Infinity
-  return movimenti.filter(m => {
-    const t = new Date(m.ts).getTime()
+  return lista.filter(m => {
+    const t = new Date(m?.ts).getTime()
     return Number.isFinite(t) && t >= dFrom && t <= dTo
   })
+}
+
+// Quanti movimenti hanno una data che non si riesce a leggere. Se e' > 0 la
+// pagina NON può dire "nessuna perdita": deve dire che non riesce a leggerli.
+export function contaDateIlleggibili(movimenti) {
+  const lista = Array.isArray(movimenti) ? movimenti : []
+  return lista.filter(m => !Number.isFinite(new Date(m?.ts).getTime())).length
 }
 
 // Totali per il drift nel giorno (per categoria/prodotto, in grammi e in €).
