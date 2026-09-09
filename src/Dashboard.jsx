@@ -2000,7 +2000,9 @@ export default function Dashboard({
     console.debug('handleSalvaRicetta', { orgId, _ctx_orgId, effectiveOrgId, sedeId, ricettaNome, count: Object.keys(nuovoRic?.ricette||{}).length });
     if (!effectiveOrgId) {
       notify('Sessione non valida (orgId mancante). Ricarica la pagina.', false);
-      return;
+      // Audit 2026-09-09: come sotto, `return` faceva credere ai chiamanti che
+      // il salvataggio fosse riuscito. Rilanciamo cosi' il form non si svuota.
+      throw new Error('Sessione non valida (orgId mancante)');
     }
     // 1. REGOLE runtime
     for (const [n,r] of Object.entries(nuoveRegole||{})) REGOLE[n]=r;
@@ -2014,8 +2016,15 @@ export default function Dashboard({
       console.error('ERRORE salvataggio ricetta su Supabase:', err);
       // Backup localStorage perché Supabase ha fallito
       try { localStorage.setItem(_RIC_CACHE_KEY, JSON.stringify({ data: nuovoRic, savedAt: new Date().toLocaleString('it-IT') })); } catch {}
-      notify(`Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta in cache locale - esegui SQL Supabase.`, false);
-      return; // non procedere - non redirect, non conferm toast, NO setRic
+      notify(`Salvataggio DB fallito: ${err.message || 'errore'}. Ricetta salvata in copia locale sul browser: non chiudere la pagina.`, false);
+      // Audit 2026-09-09 CRITICO: prima qui c'era `return` - la promise si
+      // risolveva regolarmente e i chiamanti proseguivano come se il salvataggio
+      // fosse riuscito: NuovaRicettaView svuotava il form e diceva 'Ricetta
+      // salvata', handleDeleteRicetta diceva 'eliminata' con la ricetta ancora
+      // nel DB. SemilavoratiView aveva GIA' il try/catch corretto (audit
+      // 2026-07-01) ma non scattava mai perche' l'errore non arrivava.
+      // Rilanciando, ogni chiamante puo' distinguere riuscito da fallito.
+      throw err;
     }
     // 3. State locale: solo dopo che il save e' riuscito
     setRic(nuovoRic);
@@ -2044,7 +2053,9 @@ export default function Dashboard({
       }
     }
     // 5. Toast + redirect
-    if (ricettaNome) notify(`✓ "${ricettaNome}" salvata`);
+    // Audit 2026-09-09: il toast di conferma lo mostra la view chiamante, che sa
+    // se e' una ricetta, un semilavorato o un prezzo ingrediente. Notificare anche
+    // qui produceva due toast sovrapposti per lo stesso salvataggio.
     if (!noRedirect) setView("ricettario");
   }, [magazzino, orgId, sedeId, _RIC_CACHE_KEY]);
 

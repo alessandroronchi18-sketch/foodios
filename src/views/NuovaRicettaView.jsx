@@ -11,7 +11,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import useIsMobile, { useIsTablet } from '../lib/useIsMobile'
 import { color as T, radius as R, motion as M, typo } from '../lib/theme'
-import { buildIngCosti, calcolaFC, getR, isRicettaValida, mergeIngredientiPerNorm, normIng, PREZZI_HORECA, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
+import { buildIngCosti, calcolaFC, costoRigaIngrediente, getR, isRicettaValida, mergeIngredientiPerNorm, normIng, PREZZI_HORECA, resaGrammi, translateIngredienteEN, translateProdottoEN } from '../lib/foodcost'
 import { ALLERGENI, ALLERGENE_COLORS, detectAllergeniFromIngredienti, analizzaAllergeni, mergeAllergeni } from '../lib/allergeni'
 import { onEnterAutoComplete } from '../lib/autocomplete'
 import { lessico } from '../lib/lessico'
@@ -224,7 +224,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   const handleDeleteRicetta = async nome => {
     if (deletePin !== "ELIMINA") { notify("Scrivi ELIMINA in maiuscolo per confermare", false); return; }
     const nuovoRic = { ...ricettario, ricette: Object.fromEntries(Object.entries(ricettario.ricette || {}).filter(([k]) => k !== nome)) };
-    onSave(nuovoRic, {}, true); // noRedirect=true - rimane sulla pagina
+    // Audit 2026-09-09 CRITICO: prima era fire-and-forget. Se il DB rifiutava,
+    // la pagina diceva "eliminata" ma la ricetta c'era ancora e ricompariva al
+    // ricaricamento. Ora attendiamo l'esito prima di dirlo all'utente.
+    try {
+      await onSave(nuovoRic, {}, true); // noRedirect=true - rimane sulla pagina
+    } catch (e) {
+      notify(`Non ho potuto eliminare "${nome}": ${e?.message || 'errore di rete'}. La ricetta e' ancora al suo posto.`, false);
+      return;
+    }
     setDeleteConf(null); setDeletePin(""); setEditMode(null); setForm(empty);
     notify(`Ricetta "${nome}" eliminata`);
   };
@@ -267,7 +275,16 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       // modifiche non salvate" anche se il save sta già andando a buon fine.
       // Snapshottando qui il form corrente, isDirty ritorna false subito.
       initialFormRef.current = { ...form };
-      await onSave(nuovoRic, { [nuovaRic.nome]: { unita: form.unita, prezzo: form.prezzo, tipo: form.tipo } });
+      try {
+        await onSave(nuovoRic, { [nuovaRic.nome]: { unita: form.unita, prezzo: form.prezzo, tipo: form.tipo } });
+      } catch (e) {
+        // Audit 2026-09-09 CRITICO: se il salvataggio non e' andato a buon fine
+        // il form NON va svuotato (l'utente ha appena scritto la ricetta a mano)
+        // e non va detto "salvata". Il Dashboard ha gia' mostrato il perche'.
+        // Rimettiamo il dirty-guard cosi' l'utente viene avvisato se cambia pagina.
+        initialFormRef.current = empty;
+        return;
+      }
       setForm(empty); setEditMode(null); setOverwriteConf(null);
       initialFormRef.current = empty;
       notify(`Ricetta "${nuovaRic.nome}" salvata`);
@@ -320,8 +337,17 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   // Usa calcolaFC (motore ufficiale: gestisce semilavorati + rese) così l'anteprima
   // coincide col food cost mostrato nelle altre pagine.
   const live = useMemo(() => {
-    const ricettaTmp = { ingredienti: form.ingredienti, tipo: form.tipo, unita: form.unita, prezzo: form.prezzo };
+    const ricettaTmp = { ingredienti: form.ingredienti, tipo: form.tipo, unita: form.unita, prezzo: form.prezzo, resa_g: form.resa_g };
     const { tot: fc, mancanti } = calcolaFC(ricettaTmp, ingCosti, ricettario);
+    // Audit 2026-09-09 ALTA: `fc` e' il costo degli ingredienti COSI' COME SONO
+    // SCRITTI. Per un gusto scritto sul batch da 500 g non e' il costo di 1 kg:
+    // questa pagina mostrava `fc` sotto l'etichetta "Food cost al kg", cioe' la
+    // META' del valore vero, e Ricettario/P&L (che dividono per la resa) ne
+    // mostravano un altro. Entrambi i gusti presenti nel database sono scritti
+    // su un peso diverso da 1 kg, quindi il numero era sbagliato sempre.
+    // resaGrammi e' la stessa funzione usata da Ricettario: un solo numero.
+    const resaG = resaGrammi(ricettaTmp);
+    const fcPerKg = resaG > 0 ? +((fc / resaG) * 1000).toFixed(2) : 0;
     const ricavo = +((form.unita || 0) * (form.prezzo || 0)).toFixed(2);
     const margine = +(ricavo - fc).toFixed(2);
     const margPct = ricavo > 0 ? (margine / ricavo * 100) : 0;
@@ -331,8 +357,19 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
     // Prezzo per pezzo/fetta che porta il food cost ESATTAMENTE al target.
     const prezzoConsigliato = target > 0 ? +(fcUnit / target).toFixed(2) : 0;
     const deltaPrezzo = +(prezzoConsigliato - (form.prezzo || 0)).toFixed(2);
-    return { fc, mancanti, ricavo, margine, margPct, fcPct, fcUnit, prezzoConsigliato, deltaPrezzo };
-  }, [form.ingredienti, form.unita, form.prezzo, form.tipo, ingCosti, ricettario, targetPct]);
+    // Audit 2026-09-09 ALTA: un solo posto decide se i numeri sono affidabili.
+    // Prima ogni box decideva da se', e il risultato era che una ricetta con
+    // TUTTI gli ingredienti senza prezzo dava fc = 0 e quindi: semaforo verde
+    // "Sano", "Food cost 0,0%", "Margine 100,0%" e il messaggio verde "stai
+    // guadagnando piu' del target". Cioe' il tool dava il verdetto migliore
+    // possibile proprio quando non sapeva niente. L'unico avviso era un box
+    // ambra da 10,5px in fondo.
+    const conIngredienti = (form.ingredienti || []).length > 0;
+    const affidabile = conIngredienti && mancanti.length === 0 && fc > 0;
+    // Il prezzo per fetta non esiste finche' non si sa quante fette vengono.
+    const unitaMancante = conIngredienti && !(form.unita > 0);
+    return { fc, fcPerKg, resaG, mancanti, ricavo, margine, margPct, fcPct, fcUnit, prezzoConsigliato, deltaPrezzo, conIngredienti, affidabile, unitaMancante };
+  }, [form.ingredienti, form.unita, form.prezzo, form.tipo, form.resa_g, ingCosti, ricettario, targetPct]);
 
   // Semaforo basato sul food cost % rispetto al target.
   //   verde   = food cost ≤ target            (sano)
@@ -340,12 +377,15 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
   //   rosso   = fc > target + 10               (critico)
   const sem = useMemo(() => {
     if (live.ricavo <= 0) return { color: C.textSoft, bg: '#FAF8F7', border: C.border, label: 'Imposta unità e prezzo', icon: 'dot' };
+    // Nessun verdetto quando il food cost e' incompleto: senza i prezzi il
+    // margine risulta piu' alto del vero, e un verde qui e' peggio di niente.
+    if (!live.affidabile) return { color: C.amber, bg: C.amberLight, border: `${C.amber}55`, label: 'Manca il costo di qualche ingrediente', icon: 'warning' };
     if (live.fcPct <= targetPct) return { color: C.green, bg: C.greenLight, border: `${C.green}40`, label: 'Sano', icon: 'checkCircle' };
     if (live.fcPct <= targetPct + 10) return { color: C.amber, bg: C.amberLight, border: `${C.amber}55`, label: 'Da tenere d’occhio', icon: 'warning' };
     return { color: C.red, bg: C.redLight, border: `${C.red}40`, label: 'Critico', icon: 'alert' };
   }, [live, targetPct]);
 
-  const handleConfermaRicetta = (datiConfermati) => {
+  const handleConfermaRicetta = async (datiConfermati) => {
     const UNIT_G = { g: 1, gr: 1, grammi: 1, grammo: 1, kg: 1000, ml: 1, l: 1000, cl: 10, dl: 100,
       cucchiaio: 15, cucchiai: 15, tbsp: 15, cucchiaino: 5, cucchiaini: 5, tsp: 5,
       tazza: 240, cup: 240, tazze: 240, bicchiere: 200, noce: 15, pizzico: 2, qb: 0, pz: 1 };
@@ -381,7 +421,16 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
       ...(ricettario || {}),
       ricette: { ...(ricettario?.ricette || {}), [nomeUp]: nuovaRic }
     };
-    onSave(nuovoRic, { [nomeUp]: { unita: nuovaRic.unita, prezzo: nuovaRic.prezzo, tipo: nuovaRic.tipo } });
+    // Audit 2026-09-09 CRITICO: prima era fire-and-forget seguito da
+    // setDatiEstratti(null). Se il salvataggio falliva, il risultato della foto
+    // veniva buttato e bisognava rifare la scansione da zero. Ora i dati
+    // estratti restano a schermo finche' il salvataggio non riesce davvero.
+    try {
+      await onSave(nuovoRic, { [nomeUp]: { unita: nuovaRic.unita, prezzo: nuovaRic.prezzo, tipo: nuovaRic.tipo } });
+    } catch (e) {
+      notify(`Non ho potuto salvare "${nomeUp}": ${e?.message || 'errore di rete'}. I dati della foto sono ancora qui, riprova.`, false);
+      return;
+    }
     setDatiEstratti(null);
   };
 
@@ -553,7 +602,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               {/* Nome - full width */}
               <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                 <div style={fieldLabel}>Nome {LEX.ricetta}</div>
-                <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value.toUpperCase() }))}
+                <input value={form.nome} aria-label={`Nome ${LEX.ricetta}`} onChange={e => setForm(f => ({ ...f, nome: e.target.value.toUpperCase() }))}
                   placeholder={placeholderNome}
                   style={{ ...inputBase, fontWeight: 700 }} />
               </div>
@@ -561,7 +610,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               {/* Categoria - full width con chip rapide */}
               <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                 <div style={fieldLabel}>Categoria</div>
-                <input value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
+                <input value={form.categoria} aria-label="Categoria" onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
                   placeholder={`es. ${CATEGORIE[0]}`} list="cat-autocomplete"
                   style={inputBase} />
                 <datalist id="cat-autocomplete">{CATEGORIE.map(c => <option key={c} value={c} />)}</datalist>
@@ -719,21 +768,61 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                       .map((ing, originalIndex) => ({ ing, originalIndex }))
                       .sort((a, b) => String(a.ing.nome || '').localeCompare(String(b.ing.nome || ''), 'it', { sensitivity: 'base' }))
                       .map(({ ing, originalIndex: i }, rowIndex) => {
-                      const c = ingCosti[normIng(ing.nome)];
-                      const costo = c ? parseFloat((ing.qty1stampo * c.costoG).toFixed(3)) : 0;
+                      // Audit 2026-09-09: la riga si chiede a costoRigaIngrediente,
+                      // la stessa funzione che alimenta il dettaglio food cost. Prima
+                      // qui c'era un calcolo a parte che non conosceva i semilavorati
+                      // ne' le rese, e le righe non sommavano al totale mostrato sopra.
+                      const rg = costoRigaIngrediente(ing, ingCosti, ricettario);
+                      const costo = rg.costo;
                       return (
                         <tr key={i} style={{ borderBottom: `1px solid ${C.border}`, background: rowIndex % 2 === 0 ? C.white : "#FDFAF7" }}>
                           <td style={{ padding: "9px 10px", fontWeight: 600, color: C.text }}>
                             <span title={ing.nome} style={{ display: "inline-block", maxWidth: isMobile ? 130 : 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{ing.nome}</span>
-                            {!c && (
-                              <button type="button"
-                                onClick={() => setPriceModal({ nome: ing.nome, costoKg: '', saving: false })}
-                                aria-label={`Imposta prezzo per ${ing.nome}`}
-                                title={`Clicca per impostare il prezzo di ${ing.nome} (€/kg)`}
-                                style={{ fontSize: 9, marginLeft: 6, background: C.amberLight, color: C.amber, padding: "2px 6px", borderRadius: 3, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", border: `1px solid ${C.amber}40`, fontFamily: 'inherit' }}>
-                                prezzo mancante ›
-                              </button>
-                            )}
+                            {/* Audit 2026-09-09: un solo badge per riga, deciso dall'esito
+                                di costoRigaIngrediente. Prima l'unico badge era "prezzo
+                                mancante" e appariva anche sui semilavorati (che un prezzo
+                                ce l'hanno, calcolato) mentre non appariva mai sui prezzi
+                                stimati HoReCa (che un prezzo suo NON e'). Cliccabile solo
+                                dove cliccare serve. Niente testo sotto i 12px. */}
+                            {(() => {
+                              const badgeStyle = (bg, col, dashed) => ({
+                                fontSize: typo.small.fontSize, marginLeft: 6, background: bg, color: col,
+                                padding: "2px 7px", borderRadius: 4, fontWeight: 700, whiteSpace: "nowrap",
+                                verticalAlign: "middle",
+                                ...(dashed ? { cursor: "pointer", border: `1px dashed ${col}66` } : { border: "none" }),
+                              });
+                              if (rg.mancante && rg.isSemilavorato) return (
+                                <span title={rg.motivo} style={{ ...badgeStyle(C.amberLight, C.amber, false), cursor: 'help' }}>da completare</span>
+                              );
+                              if (rg.mancante) return (
+                                <button type="button"
+                                  onClick={() => setPriceModal({ nome: ing.nome, costoKg: '', saving: false })}
+                                  aria-label={`Imposta il prezzo di ${ing.nome}`}
+                                  title={`Clicca per impostare il prezzo di ${ing.nome} in euro al kg`}
+                                  style={badgeStyle(C.amberLight, C.amber, true)}>
+                                  prezzo mancante ›
+                                </button>
+                              );
+                              if (rg.isStima) return (
+                                <button type="button"
+                                  onClick={() => setPriceModal({ nome: ing.nome, costoKg: '', saving: false })}
+                                  aria-label={`Metti il tuo prezzo per ${ing.nome}`}
+                                  title="Prezzo medio di mercato, non il tuo. Clicca per metterci il tuo."
+                                  style={badgeStyle(C.bgSubtle, C.textMid, true)}>
+                                  stima ›
+                                </button>
+                              );
+                              if (rg.isSemilavorato && rg.motivo) return (
+                                <span title={rg.motivo} style={{ ...badgeStyle(C.amberLight, C.amber, false), cursor: 'help' }}>costo incompleto</span>
+                              );
+                              if (rg.isSemilavorato) return (
+                                <span title="Il costo arriva dalla scheda del semilavorato" style={{ ...badgeStyle(C.bgSubtle, C.textMid, false), cursor: 'help' }}>semilavorato</span>
+                              );
+                              if (!ing.qty1stampo) return (
+                                <span title="A 0 g non entra nel food cost: mettici i grammi se deve contare" style={{ ...badgeStyle(C.bgSubtle, C.textSoft, false), cursor: 'help' }}>0 g</span>
+                              );
+                              return null;
+                            })()}
                           </td>
                           <td style={{ padding: "6px 10px", textAlign: "right" }}>
                             <input type="number" min="0" value={ing.qty1stampo}
@@ -774,7 +863,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   placeholder="es. 200"
                   style={{ ...inputBase, fontSize: isMobile ? 16 : 14, padding: "9px 11px" }} />
               </div>
-              <button onClick={addIng} style={{ padding: "10px 16px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontSize: isMobile ? 14 : 12, fontWeight: 700, cursor: "pointer", height: isMobile ? 46 : 42, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: isMobile ? '100%' : 'auto' }}>
+              <button onClick={addIng} aria-label="Aggiungi ingrediente alla ricetta" style={{ padding: "10px 16px", background: C.red, color: C.white, border: "none", borderRadius: 8, fontSize: isMobile ? 14 : 12, fontWeight: 700, cursor: "pointer", height: isMobile ? 46 : 42, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: isMobile ? '100%' : 'auto' }}>
                 <Icon name="plus" size={14} /> Aggiungi
               </button>
             </div>
@@ -819,7 +908,12 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               Per stampi/pezzi è informativo (peso stampo/pezzo dichiarato). */}
           {form.tipo !== 'interno' && form.tipo !== 'semilavorato' && (() => {
             const sommaG = (form.ingredienti || []).reduce((s, i) => s + (Number(i.qty1stampo) || 0), 0)
-            const resaDefault = isGusto ? 1000 : sommaG
+            // Audit 2026-09-09: qui il default per i gusti era 1000 g fisso, ma il
+            // motore (resaGrammi) usa la somma degli ingredienti quando la resa
+            // non e' scritta. La card dichiarava "Default: 1.000 g" mentre il food
+            // cost veniva calcolato su 500 g: due numeri diversi per la stessa
+            // cosa. Ora la card mostra quello che il sistema usa davvero.
+            const resaDefault = resaGrammi({ ingredienti: form.ingredienti, tipo: form.tipo })
             const resaEff = (typeof form.resa_g === 'number' && form.resa_g > 0) ? form.resa_g : (resaDefault || 0)
             const scartoAssoluto = Math.abs(sommaG - resaEff)
             const scartoPct = sommaG > 0 ? (scartoAssoluto / sommaG) * 100 : 0
@@ -846,6 +940,7 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                   <div>
                     <div style={fieldLabel}>{labelResa}</div>
                     <input type="number" inputMode="decimal" step="1" min="1"
+                      aria-label={labelResa}
                       value={form.resa_g == null ? '' : form.resa_g}
                       onChange={e => {
                         const v = e.target.value === '' ? null : Number(e.target.value)
@@ -1068,8 +1163,16 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{ padding: '14px 16px', background: C.redLight, border: `1px solid ${C.red}20`, borderRadius: 10, textAlign: 'center' }}>
                     <div style={{ fontSize: 10.5, fontWeight: 700, color: C.red, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Food cost al kg</div>
-                    <div style={{ fontSize: 30, fontWeight: 900, color: C.red, letterSpacing: '-0.02em', ...TNUM }}>{fmt(live.fc)}</div>
+                    <div style={{ fontSize: 30, fontWeight: 900, color: C.red, letterSpacing: '-0.02em', ...TNUM }}>{fmt(live.fcPerKg)}</div>
                     <div style={{ fontSize: 10, color: C.textSoft, marginTop: 4 }}>materie prime per 1 kg di gusto finito</div>
+                    {/* Da dove viene il numero: senza questa riga un gusto scritto
+                        sul batch da 5 kg sembra costare 5 volte tanto e non si
+                        capisce perche'. */}
+                    {live.resaG > 0 && Math.abs(live.resaG - 1000) > 1 && (
+                      <div style={{ fontSize: 10, color: C.textSoft, marginTop: 6, paddingTop: 6, borderTop: `1px solid ${C.red}20` }}>
+                        {fmt(live.fc)} di ingredienti per {Math.round(live.resaG).toLocaleString('it-IT')} g di gusto
+                      </div>
+                    )}
                   </div>
                   <div style={{ fontSize: 10.5, color: C.textSoft, lineHeight: 1.5, display: "flex", alignItems: "flex-start", gap: 6, padding: '4px 4px 0' }}>
                     <Icon name="bulb" size={12} />
@@ -1093,7 +1196,11 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: sem.color, letterSpacing: "-0.01em" }}>{sem.label}</div>
                 <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 1 }}>
-                  {live.ricavo > 0 ? <>Food cost {fmtp(live.fcPct)} · obiettivo {targetPct}%</> : "Aggiungi ingredienti, unità e prezzo"}
+                  {live.ricavo <= 0
+                    ? "Aggiungi ingredienti, unità e prezzo"
+                    : !live.affidabile
+                      ? <>{live.mancanti.length === 1 ? '1 ingrediente è senza prezzo' : `${live.mancanti.length} ingredienti sono senza prezzo`}: il margine che vedi è più alto del vero</>
+                      : <>Food cost {fmtp(live.fcPct)} · obiettivo {targetPct}%</>}
                 </div>
               </div>
             </div>
@@ -1106,11 +1213,16 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
               // tutti tabular-nums. Niente prefissi +/-/= sulle label
               // (facevano shift di x), solo - sul VALORE di Food cost.
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {/* Audit 2026-09-09: con degli ingredienti senza prezzo questi numeri
+                    NON sono il margine, sono il massimo possibile: il food cost vero e'
+                    piu' alto e il margine vero piu' basso. Prima uscivano nudi ("Margine
+                    100,0%") come se fossero misurati. "parziale" e "max" lo dicono nello
+                    spazio del box, senza spostare l'incolonnamento. */}
                 {[
                   { lbl: 'Ricavo',         val: fmt(live.ricavo),     c: C.green, bg: C.greenLight, brd: `${C.green}25` },
-                  { lbl: 'Food cost',      val: `-${fmt(live.fc)}`,   c: C.red,   bg: C.redLight,   brd: `${C.red}20` },
-                  { lbl: 'Margine lordo',  val: fmt(live.margine),    c: sem.color, bg: sem.bg, brd: sem.border, prominent: true },
-                  { lbl: 'Margine %',      val: fmtp(live.margPct),   c: sem.color, bg: sem.bg, brd: sem.border },
+                  { lbl: 'Food cost',      val: live.affidabile ? `-${fmt(live.fc)}` : `-${fmt(live.fc)} parziale`, c: C.red, bg: C.redLight, brd: `${C.red}20` },
+                  { lbl: 'Margine lordo',  val: live.affidabile ? fmt(live.margine) : `max ${fmt(live.margine)}`,  c: sem.color, bg: sem.bg, brd: sem.border, prominent: true },
+                  { lbl: 'Margine %',      val: live.affidabile ? fmtp(live.margPct) : `max ${fmtp(live.margPct)}`, c: sem.color, bg: sem.bg, brd: sem.border },
                 ].map((r, i) => (
                   <div key={i} style={{
                     padding: '11px 14px', background: r.bg, border: `1px solid ${r.brd}`, borderRadius: 8,
@@ -1159,14 +1271,32 @@ export default function NuovaRicettaView({ ricettario, onSave, notify, editingRi
                 </div>
               </div>
 
-              {live.ricavo > 0 || live.fc > 0 ? (
+              {/* Audit 2026-09-09 ALTA: la condizione era `live.ricavo > 0 || live.fc > 0`,
+                  quindi bastava avere degli ingredienti perche' il pannello si accendesse.
+                  Svuotando il campo Fette (unita = 0) il prezzo minimo diventava 0,00 €
+                  e il messaggio finale diceva "Sei sopra il minimo: stai guadagnando piu'
+                  del target". Ora il numero appare solo quando ha un senso. */}
+              {live.unitaMancante ? (
+                <div style={{ color: C.textSoft, fontSize: 12, textAlign: "center", padding: "10px 0", lineHeight: 1.5 }}>
+                  Indica quante {form.tipo === "pezzo" ? "pezzi ricavi" : "fette ricavi"} da uno stampo:
+                  senza quel numero non si può dire quanto deve costare {form.tipo === "pezzo" ? "un pezzo" : "una fetta"}.
+                </div>
+              ) : live.ricavo > 0 || live.fc > 0 ? (
                 <>
                   <div style={{ textAlign: "center", padding: "8px 0 12px" }}>
                     <div style={{ fontSize: 32, fontWeight: 800, color: C.text, letterSpacing: "-0.03em", ...TNUM }}>{fmt(live.prezzoConsigliato)}</div>
                     <div style={{ fontSize: 10.5, color: C.textSoft, marginTop: 2 }}>prezzo minimo per {form.tipo === "pezzo" ? "pezzo" : "fetta/porzione"} · food cost al {targetPct}%</div>
                   </div>
                   {/* Messaggio: alzare se sotto, OK se sopra/in linea. MAI suggerire di scendere. */}
-                  {live.deltaPrezzo > 0.01 ? (
+                  {/* Con degli ingredienti senza prezzo il minimo e' sottostimato:
+                      dire "stai guadagnando" sarebbe una rassicurazione falsa proprio
+                      sul numero da cui parte il prezzo di vendita. */}
+                  {!live.affidabile ? (
+                    <div style={{ padding: "10px 12px", borderRadius: 8, background: C.amberLight, border: `1px solid ${C.amber}40`, fontSize: 12, color: C.amber, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 6, lineHeight: 1.5 }}>
+                      <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="warning" size={13} /></span>
+                      <span>Questo minimo è più basso del vero, perché {live.mancanti.length === 1 ? "manca il prezzo di un ingrediente" : `mancano i prezzi di ${live.mancanti.length} ingredienti`}. Caricali e il numero diventa affidabile.</span>
+                    </div>
+                  ) : live.deltaPrezzo > 0.01 ? (
                     <div style={{ padding: "10px 12px", borderRadius: 8, background: C.amberLight, border: `1px solid ${C.amber}40`, fontSize: 11, color: C.amber, fontWeight: 600, lineHeight: 1.5 }}>
                       Il prezzo attuale ({fmt(form.prezzo)}) è sotto il minimo: per centrare il food cost al {targetPct}% serve alzare di <b>{fmt(live.deltaPrezzo)}</b>.
                     </div>

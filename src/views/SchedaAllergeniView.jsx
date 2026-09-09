@@ -157,7 +157,7 @@ export default function SchedaAllergeniView({ ricettario, tipoAttivita }) {
           <div style={{minWidth:0}}>
             <div style={{...typo.small,fontWeight:700,color:T.amber,marginBottom:3}}>
               {daControllare.length === 1
-                ? `Una ${LEX.ricetta} ha ingredienti da verificare`
+                ? `1 ${LEX.ricetta} con ingredienti da verificare`
                 : `${daControllare.length} ${LEX.ricette} hanno ingredienti da verificare`}
             </div>
             <div style={{...typo.small,color:T.textMid,lineHeight:1.55}}>

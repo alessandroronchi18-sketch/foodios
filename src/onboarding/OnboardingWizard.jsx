@@ -143,7 +143,9 @@ export default function OnboardingWizard({ nomeAttivita, tipoAttivita, orgId, on
       const nRicette = Object.keys(parsed?.ricette || {}).length
       const nIngredienti = Object.keys(parsed?.ingredienti_costi || {}).length
       if (nRicette === 0 && nIngredienti === 0) {
-        throw new Error(`Nessuna ${LEX.ricetta} riconosciuta nel file. Verifica il template.`)
+        // La frase non deve concordare col genere della parola: 'ricetta' e' femminile,
+        // 'gusto' e 'piatto' maschili. Cosi' vale per tutte le categorie.
+        throw new Error('Nel file non ho trovato niente da importare. Controlla che sia nel formato del template.')
       }
       await ssave('pasticceria-ricettario-v1', parsed, orgId, null)
       setParseStats({ nRicette, nIngredienti })

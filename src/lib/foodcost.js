@@ -985,6 +985,77 @@ export function calcolaFC(ricetta, ingCosti, ricettario, _depth, _path, _lordo) 
 // Come calcolaFC ma ritorna anche il DETTAGLIO per ingrediente di primo livello
 // (ogni semilavorato resta una riga singola col suo costo totale). La somma dei
 // .costo coincide con .tot. Serve a spiegare "dove sta il food cost" di un prodotto.
+// Costo di UNA riga di ingrediente, con tutto quello che serve per mostrarla.
+// Audit 2026-09-09 ALTA: prima ogni schermata risolveva il costo di riga a modo
+// suo. NuovaRicettaView faceva `ingCosti[normIng(nome)] * qty` e cosi':
+//   - un SEMILAVORATO usato come ingrediente ("pasta frolla" dentro "crostata")
+//     non sta in ingCosti, quindi la riga mostrava costo zero e il badge
+//     "prezzo mancante", mentre il totale in alto lo contava per davvero
+//     (calcolaFC lo risolve ricorsivamente): le righe non sommavano al totale;
+//   - se l'utente accettava l'invito e inseriva un euro/kg, calcolaFC controlla
+//     il ramo semilavorato PRIMA di ingCosti, quindi quel prezzo veniva ignorato:
+//     un'azione richiesta all'utente che non serviva a niente;
+//   - le RESE non venivano applicate (costoNettoPerG), quindi le righe erano
+//     piu' basse del totale anche a prezzi tutti presenti;
+//   - il marker isStima non veniva mostrato: un prezzo medio di mercato preso
+//     dal listino HoReCa sembrava un prezzo dell'azienda. Ricettario, P&L e
+//     Magazzino il badge ce l'hanno, questa pagina no.
+// Ora la riga si chiede qui, una volta sola, e chi la mostra non decide piu'.
+//
+// Ritorna { costo, isStima, isSemilavorato, mancante, motivo }:
+//   - mancante: true quando il costo NON e' calcolabile. `motivo` dice perche',
+//     in italiano, ed e' pensato per essere mostrato.
+export function costoRigaIngrediente(ing, ingCosti, ricettario) {
+  const nomeNorm = normIng((ing?.nome || '').toLowerCase().trim())
+  const qty = ing?.qty1stampo || 0
+  const vuoto = { costo: 0, isStima: false, isSemilavorato: false, mancante: false, motivo: null }
+  if (!nomeNorm) return vuoto
+  // Quantita' a zero: legittima (sale q.b., scorza a occhio) ma non entra nel
+  // food cost, e calcolaFC la salta. Va detto, non trattato come un errore.
+  if (!qty) return { ...vuoto, motivo: 'a 0 g non entra nel food cost' }
+
+  const semiKey = ricettario?.ricette
+    ? Object.keys(ricettario.ricette).find(k => {
+        const r = ricettario.ricette[k]
+        if (r.tipo !== 'semilavorato') return false
+        return normIng(k.toLowerCase()) === nomeNorm ||
+               normIng((r.nome || '').toLowerCase()) === nomeNorm
+      })
+    : null
+
+  if (semiKey) {
+    const semiRic = ricettario.ricette[semiKey]
+    const semiHasResa = hasResaIngrediente(nomeNorm)
+    const { tot: semiTot, mancanti: semiMancanti } = calcolaFC(semiRic, ingCosti, ricettario, 0, [semiKey], semiHasResa)
+    const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
+    if (semiPeso <= 0) {
+      // Prima questa riga spariva dal dettaglio senza spiegazioni.
+      return { costo: 0, isStima: false, isSemilavorato: true, mancante: true,
+               motivo: 'semilavorato senza ingredienti: apri la sua scheda e mettili' }
+    }
+    const costo = qty * costoNettoPerG(semiTot / semiPeso, nomeNorm)
+    return {
+      costo: parseFloat(costo.toFixed(3)),
+      isStima: false,
+      isSemilavorato: true,
+      mancante: false,
+      // Il costo c'e', ma e' incompleto: lo dichiariamo senza dire "mancante".
+      motivo: semiMancanti.length ? `dentro il semilavorato manca il prezzo di ${semiMancanti.join(', ')}` : null,
+    }
+  }
+
+  const c = ingCosti[nomeNorm]
+  if (!c) return { costo: 0, isStima: false, isSemilavorato: false, mancante: true, motivo: 'prezzo mancante' }
+  const costo = qty * costoNettoPerG(c.costoG, nomeNorm)
+  return {
+    costo: parseFloat(costo.toFixed(3)),
+    isStima: !!c.isStima,
+    isSemilavorato: false,
+    mancante: false,
+    motivo: c.isStima ? 'prezzo medio di mercato, non il tuo' : null,
+  }
+}
+
 export function calcolaFCDettaglio(ricetta, ingCosti, ricettario) {
   const SKIP_ING = ["ingrediente","ingredient","ingredienti","n/d","nan","undefined","nome ingrediente in minuscolo",""]
   const righe = []
@@ -995,35 +1066,19 @@ export function calcolaFCDettaglio(ricetta, ingCosti, ricettario) {
     const qty = ing.qty1stampo || 0
     if (!qty) continue
 
-    if (ricettario) {
-      const semiKey = Object.keys(ricettario.ricette || {}).find(k => {
-        const r = ricettario.ricette[k]
-        if (r.tipo !== 'semilavorato') return false
-        return normIng(k.toLowerCase()) === nomeNorm || normIng((r.nome || '').toLowerCase()) === nomeNorm
-      })
-      if (semiKey) {
-        const semiRic = ricettario.ricette[semiKey]
-        const semiHasResa = hasResaIngrediente(nomeNorm)
-        // depth=0 per la sub-chiamata: calcolaFCDettaglio è già il "primo livello",
-        // ma la sub-chiamata calcola il sub-tree del semilavorato - può comunque
-        // scendere fino a depth=3 (audit 2026-06-17 HIGH: prima passava 1, riducendo
-        // l'annidamento effettivo di un livello rispetto a calcolaFC standalone).
-        const { tot: semiTot } = calcolaFC(semiRic, ingCosti, ricettario, 0, [semiKey], semiHasResa)
-        const semiPeso = (semiRic.ingredienti || []).reduce((s, i) => s + (i.qty1stampo || 0), 0)
-        if (semiPeso > 0) {
-          const costo = qty * costoNettoPerG(semiTot / semiPeso, nomeNorm)
-          righe.push({ nome: ing.nome, qty, costo, isSemilavorato: true })
-          tot += costo
-        }
-        continue
-      }
-    }
-
-    const c = ingCosti[normIng(ing.nome)]
-    if (!c) { righe.push({ nome: ing.nome, qty, costo: 0, mancante: true }); continue }
-    const costo = qty * costoNettoPerG(c.costoG, nomeNorm)
-    righe.push({ nome: ing.nome, qty, costo })
-    tot += costo
+    // Audit 2026-09-09: la risoluzione della riga sta in costoRigaIngrediente,
+    // unica per tutte le schermate. Prima c'era una seconda copia della logica
+    // qui, e un semilavorato senza ingredienti (semiPeso <= 0) faceva `continue`:
+    // la riga scompariva dal dettaglio senza dire niente.
+    const r = costoRigaIngrediente(ing, ingCosti, ricettario)
+    righe.push({
+      nome: ing.nome, qty, costo: r.costo,
+      ...(r.isSemilavorato ? { isSemilavorato: true } : {}),
+      ...(r.mancante ? { mancante: true } : {}),
+      ...(r.isStima ? { isStima: true } : {}),
+      ...(r.motivo ? { motivo: r.motivo } : {}),
+    })
+    tot += r.costo
   }
   righe.sort((a, b) => b.costo - a.costo)
   return { tot: parseFloat(tot.toFixed(3)), righe }

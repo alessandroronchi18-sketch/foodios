@@ -42,6 +42,7 @@ const GENERICO = {
 const PER_CATEGORIA = {
   gelateria: {
     prodotto: 'gusto', prodotti: 'gusti', Prodotto: 'Gusto', Prodotti: 'Gusti',
+    ricetta: 'gusto', ricette: 'gusti', Ricetta: 'Gusto', Ricette: 'Gusti',
     Ricettario: 'Ricettario gusti', nuovaRicetta: 'Nuovo gusto',
     porzione: 'coppetta', porzioni: 'coppette',
     nessunaRicetta: 'Nessun gusto caricato',
@@ -62,6 +63,7 @@ const PER_CATEGORIA = {
   },
   pasta_fresca: {
     prodotto: 'formato', prodotti: 'formati', Prodotto: 'Formato', Prodotti: 'Formati',
+    ricetta: 'formato', ricette: 'formati', Ricetta: 'Formato', Ricette: 'Formati',
     Ricettario: 'Ricettario formati', nuovaRicetta: 'Nuovo formato',
     nessunaRicetta: 'Nessun formato caricato',
   },

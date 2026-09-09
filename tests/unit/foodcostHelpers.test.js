@@ -185,7 +185,12 @@ describe('calcolaFCDettaglio — semilavorato sub-tree', () => {
     expect(righe[0].nome).toBe('CREMA TEST')  // sort desc per costo
   })
 
-  it('semilavorato senza peso (peso=0) viene saltato silenziosamente in Dettaglio', async () => {
+  // Aggiornato 2026-09-09: il vecchio nome era "viene saltato silenziosamente" e
+  // il test fissava proprio il difetto. Un semilavorato senza ingredienti che
+  // sparisce dal dettaglio e' il caso peggiore: la riga non c'e', il totale non
+  // la conta, e chi guarda non ha modo di sapere che manca un pezzo di costo.
+  // Ora la riga c'e', vale 0 ed e' marcata mancante con il motivo scritto.
+  it('semilavorato senza peso resta nel dettaglio, marcato e con il motivo', async () => {
     const { calcolaFCDettaglio, buildIngCosti } = await import('../../src/lib/foodcost.js')
     const ricettario = {
       ricette: {
@@ -200,8 +205,15 @@ describe('calcolaFCDettaglio — semilavorato sub-tree', () => {
       nome: 'X', ingredienti: [{ nome: 'SEMI VUOTO', qty1stampo: 100 }],
     }
     const { tot, righe } = calcolaFCDettaglio(ricetta, ingCosti, ricettario)
-    // SEMI VUOTO ha peso 0 → nessuna riga generata
-    expect(righe.length).toBe(0)
+    expect(righe.length).toBe(1)
+    const r = righe[0]
+    expect(r.nome).toBe('SEMI VUOTO')
+    expect(r.costo).toBe(0)
+    expect(r.mancante).toBe(true)
+    expect(r.isSemilavorato).toBe(true)
+    // Il motivo e' scritto in italiano perche' finisce a schermo.
+    expect(r.motivo).toMatch(/semilavorato senza ingredienti/)
+    // Il totale resta 0: quel costo non e' noto, non lo inventiamo.
     expect(tot).toBe(0)
   })
 })
