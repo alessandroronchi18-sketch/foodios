@@ -424,6 +424,16 @@ export function mergeInChiusureCassa(chiusure = [], importati = [], fonte = '') 
         salvatoAt: new Date().toISOString(),
         venduto: [],
         confronto: [],
+        // `solo_totale: true` e `foodcost_noto: false`: un import di incassi
+        // sa quanto e' entrato, NON cosa e' stato venduto ne' quanto sono
+        // costate le materie prime. Senza questa dichiarazione foodcostNoto()
+        // rispondeva true (chiusure.js: senza solo_totale la giornata passa
+        // per "chiusa col dettaglio prodotti") e la giornata entrava nei
+        // conti come "food cost noto = 0 €": il food cost del periodo
+        // risultava più basso del vero, e l'incidenza delle perdite, che si
+        // calcola su quel denominatore, più alta.
+        solo_totale: true,
+        foodcost_noto: false,
         kpi: { totV: riga.importo, totFC: 0, totM: riga.importo, totS: 0, totMP: 0, avgST: 0 },
         cassaImport: [cassaEntry],
       });
